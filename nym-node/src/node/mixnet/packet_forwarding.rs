@@ -9,6 +9,7 @@ use nym_mixnet_client::SendWithoutResponse;
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
+use nym_task::ShutdownToken;
 use std::io;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
@@ -21,11 +22,11 @@ pub struct PacketForwarder<C> {
 
     packet_sender: MixForwardingSender,
     packet_receiver: MixForwardingReceiver,
-    shutdown: nym_task::TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl<C> PacketForwarder<C> {
-    pub fn new(client: C, metrics: NymNodeMetrics, shutdown: nym_task::TaskClient) -> Self {
+    pub fn new(client: C, metrics: NymNodeMetrics, shutdown: ShutdownToken) -> Self {
         let (packet_sender, packet_receiver) = mix_forwarding_channels();
 
         PacketForwarder {
@@ -123,7 +124,7 @@ impl<C> PacketForwarder<C> {
         loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.recv() => {
+                _ = self.shutdown.cancelled() => {
                     debug!("PacketForwarder: Received shutdown");
                     break;
                 }

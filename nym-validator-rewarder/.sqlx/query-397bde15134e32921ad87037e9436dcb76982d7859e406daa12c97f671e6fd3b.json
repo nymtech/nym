@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT height\n                FROM block\n                WHERE timestamp < ?\n                ORDER BY timestamp DESC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "height",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "397bde15134e32921ad87037e9436dcb76982d7859e406daa12c97f671e6fd3b"
+}

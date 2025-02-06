@@ -33,7 +33,9 @@ use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
 mod internal_service_providers;
+mod stale_data_cleaner;
 
+use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{error::GatewayStorageError, GatewayStorage};
@@ -444,6 +446,15 @@ impl GatewayTasksBuilder {
             authenticator_server,
             message_router_builder,
         ))
+    }
+
+    pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {
+        StaleMessagesCleaner::new(
+            &self.storage,
+            self.shutdown.fork("stale-messages-cleaner"),
+            self.config.debug.stale_messages_max_age,
+            self.config.debug.stale_messages_cleaner_run_interval,
+        )
     }
 
     #[cfg(not(target_os = "linux"))]

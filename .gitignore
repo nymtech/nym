@@ -54,3 +54,8 @@ nym-network-monitor/__pycache__
 nym-network-monitor/*.key
 nym-network-monitor/.envrc
 nym-network-monitor/.envrc
+nym-api/redocly/formatted-openapi.json
+
+
+*.sqlite
+.build

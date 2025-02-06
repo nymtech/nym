@@ -20,12 +20,12 @@ pub enum InMemStorageError {
     MalformedGateway(#[from] BadGateway),
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct InMemGatewaysDetails {
     inner: Arc<RwLock<InMemStorageInner>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct InMemStorageInner {
     active_gateway: Option<String>,
     gateways: HashMap<String, GatewayRegistration>,

@@ -7,7 +7,7 @@ use anyhow::Result;
 use futures::{pin_mut, stream::FuturesUnordered, StreamExt};
 use log::{debug, info};
 use nym_sphinx::chunking::{monitoring, SentFragment};
-use nym_topology::{gateway, mix, NymTopology};
+use nym_topology::{NymRouteProvider, RoutingNode};
 use nym_types::monitoring::{MonitorMessage, NodeResult};
 use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
 use rand::SeedableRng;
@@ -19,8 +19,8 @@ use utoipa::ToSchema;
 use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
 
 struct HydratedRoute {
-    mix_nodes: Vec<mix::LegacyNode>,
-    gateway_node: gateway::LegacyNode,
+    mix_nodes: Vec<RoutingNode>,
+    gateway_node: RoutingNode,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
@@ -61,12 +61,12 @@ pub struct NetworkAccount {
     gateway_stats: HashMap<String, GatewayStats>,
     incomplete_routes: Vec<Vec<u32>>,
     #[serde(skip)]
-    topology: NymTopology,
+    topology: NymRouteProvider,
     tested_nodes: HashSet<u32>,
     #[serde(skip)]
-    mix_details: HashMap<u32, mix::LegacyNode>,
+    mix_details: HashMap<u32, RoutingNode>,
     #[serde(skip)]
-    gateway_details: HashMap<String, gateway::LegacyNode>,
+    gateway_details: HashMap<String, RoutingNode>,
 }
 
 impl NetworkAccount {
@@ -126,7 +126,7 @@ impl NetworkAccount {
     fn new() -> Self {
         let topology = TOPOLOGY.get().expect("Topology not set yet!").clone();
         let mut account = NetworkAccount {
-            topology,
+            topology: NymRouteProvider::new(topology, true),
             ..Default::default()
         };
         for fragment_set in monitoring::FRAGMENTS_SENT.iter() {
@@ -162,14 +162,12 @@ impl NetworkAccount {
 
     fn hydrate_route(&self, fragment: SentFragment) -> anyhow::Result<HydratedRoute> {
         let mut rng = ChaCha8Rng::seed_from_u64(fragment.seed() as u64);
-        let (nodes, gw) = self.topology.random_path_to_gateway(
-            &mut rng,
-            fragment.mixnet_params().hops(),
-            fragment.mixnet_params().destination(),
-        )?;
+        let (nodes, gw) = self
+            .topology
+            .random_path_to_egress(&mut rng, fragment.mixnet_params().destination())?;
         Ok(HydratedRoute {
-            mix_nodes: nodes,
-            gateway_node: gw,
+            mix_nodes: nodes.into_iter().cloned().collect(),
+            gateway_node: gw.clone(),
         })
     }
 
@@ -181,11 +179,11 @@ impl NetworkAccount {
                 let mix_ids = route
                     .mix_nodes
                     .iter()
-                    .map(|n| n.mix_id)
+                    .map(|n| n.node_id)
                     .collect::<Vec<u32>>();
                 self.tested_nodes.extend(&mix_ids);
                 self.mix_details
-                    .extend(route.mix_nodes.iter().map(|n| (n.mix_id, n.clone())));
+                    .extend(route.mix_nodes.iter().map(|n| (n.node_id, n.clone())));
                 let gateway_stats_entry = self
                     .gateway_stats
                     .entry(route.gateway_node.identity_key.to_base58_string())

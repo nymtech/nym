@@ -100,7 +100,7 @@ const config = {
       },
       {
         source: "/docs/nodes/overview.html ",
-        destination: "/docs/network/architecture/mixnet/nodes",
+        destination: "/docs/network/architecture/mixnet#nym-nodes",
         permanent: true,
         basePath: false,
       },
@@ -132,21 +132,19 @@ const config = {
       },
       {
         source: "/docs/nyx/smart-contracts.html",
-        destination: "/docs/network/architecture/nyx/smart-contracts",
+        destination: "/docs/network/architecture/nyx#smart-contracts",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/mixnet-contract.html",
-        destination:
-          "/docs/network/architecture/nyx/smart-contracts/mixnet-contract",
+        destination: "/docs/network/architecture/nyx#mixnet-contract",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/vesting-contract.html",
-        destination:
-          "/docs/network/architecture/nyx/smart-contracts/vesting-contract",
+        destination: "/docs/network/architecture/nyx#vesting-contract",
         permanent: true,
         basePath: false,
       },
@@ -500,13 +498,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/testing/node-api-check.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/node-api-check",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/testing/prometheus-grafana.html",
         destination:
           "/docs/operators/nodes/performance-and-testing/prometheus-grafana",
@@ -631,7 +622,7 @@ const config = {
       },
       {
         source: "/docs/network/architecture/nyx/smart-contracts/ecash",
-        destination: "/docs/network/architecture/nyx/smart-contracts/zknym",
+        destination: "/docs/network/architecture/nyx#zk-nym-contract",
         permanent: true,
         basePath: false,
       },
@@ -662,13 +653,6 @@ const config = {
       {
         source: "/docs/operators/nodes/configuration",
         destination: "/docs/operators/nodes/nym-node/configuration",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/node-api-check",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/node-api-check",
         permanent: true,
         basePath: false,
       },

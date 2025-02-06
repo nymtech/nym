@@ -15,11 +15,11 @@ use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessa
 use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
-use nym_sphinx::params::{PacketSize, PacketType, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -100,10 +100,6 @@ pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
-
     /// Primary predefined packet size used for the encapsulated messages.
     primary_packet_size: PacketSize,
 
@@ -125,17 +121,9 @@ impl Config {
             deterministic_route_selection,
             average_packet_delay,
             average_ack_delay,
-            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
         }
-    }
-
-    /// Allows setting non-default number of expected mix hops in the network.
-    #[allow(dead_code)]
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
@@ -185,9 +173,7 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
-        )
-        .with_mix_hops(config.num_mix_hops);
-
+        );
         MessageHandler {
             config,
             rng,
@@ -216,7 +202,7 @@ where
     fn get_topology<'a>(
         &self,
         permit: &'a TopologyReadPermit<'a>,
-    ) -> Result<&'a NymTopology, PreparationError> {
+    ) -> Result<&'a NymRouteProvider, PreparationError> {
         match permit.try_get_valid_topology_ref(&self.config.sender_address, None) {
             Ok(topology_ref) => Ok(topology_ref),
             Err(err) => {
@@ -233,9 +219,8 @@ where
             return self.config.primary_packet_size;
         };
 
-        let primary_count =
-            msg.required_packets(self.config.primary_packet_size, self.config.num_mix_hops);
-        let secondary_count = msg.required_packets(secondary_packet, self.config.num_mix_hops);
+        let primary_count = msg.required_packets(self.config.primary_packet_size);
+        let secondary_count = msg.required_packets(secondary_packet);
 
         trace!("This message would require: {primary_count} primary packets or {secondary_count} secondary packets...");
         // if there would be no benefit in using the secondary packet - use the primary (duh)
@@ -424,10 +409,9 @@ where
         message: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type, mix_hops)
+        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
             .await
     }
 
@@ -437,7 +421,6 @@ where
         recipient: Recipient,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
@@ -470,7 +453,6 @@ where
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
-                mix_hops,
             )?;
 
             let real_message = RealMessage::new(
@@ -478,8 +460,7 @@ where
                 Some(fragment.fragment_identifier()),
             );
             let delay = prepared_fragment.total_delay;
-            let pending_ack =
-                PendingAcknowledgement::new_known(fragment, delay, recipient, mix_hops);
+            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
 
             real_messages.push(real_message);
             pending_acks.push(pending_ack);
@@ -496,7 +477,6 @@ where
         recipient: Recipient,
         amount: u32,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -513,7 +493,6 @@ where
             recipient,
             TransmissionLane::AdditionalReplySurbs,
             packet_type,
-            mix_hops,
         )
         .await?;
 
@@ -530,7 +509,6 @@ where
         num_reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -541,7 +519,7 @@ where
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type, mix_hops)
+        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
             .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
@@ -555,23 +533,18 @@ where
         recipient: Recipient,
         chunk: Fragment,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("Sending single chunk with packet type {packet_type}");
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_chunk_for_sending(
-                chunk,
-                topology,
-                &self.config.ack_key,
-                &recipient,
-                packet_type,
-                mix_hops,
-            )
-            .unwrap();
+        let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
+            chunk,
+            topology,
+            &self.config.ack_key,
+            &recipient,
+            packet_type,
+        )?;
 
         Ok(prepared_fragment)
     }
@@ -624,16 +597,13 @@ where
             Err(err) => return Err(err.return_surbs(vec![reply_surb])),
         };
 
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_reply_chunk_for_sending(
-                chunk,
-                topology,
-                &self.config.ack_key,
-                reply_surb,
-                PacketType::Mix,
-            )
-            .unwrap();
+        let prepared_fragment = self.message_preparer.prepare_reply_chunk_for_sending(
+            chunk,
+            topology,
+            &self.config.ack_key,
+            reply_surb,
+            PacketType::Mix,
+        )?;
 
         Ok(prepared_fragment)
     }
@@ -656,9 +626,14 @@ where
         messages: Vec<RealMessage>,
         transmission_lane: TransmissionLane,
     ) {
-        self.real_message_sender
+        if let Err(err) = self
+            .real_message_sender
             .send((messages, transmission_lane))
             .await
-            .expect("real message receiver task (OutQueueControl) has died");
+        {
+            error!(
+                "Failed to forward messages to the real message sender (OutQueueControl): {err}"
+            );
+        }
     }
 }

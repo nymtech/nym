@@ -3,28 +3,32 @@
 
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
-use crate::nym_contract_cache::cache::CachedRewardedSet;
 use crate::nym_nodes::handlers::unstable::helpers::{refreshed_at, LegacyAnnotation};
 use crate::nym_nodes::handlers::unstable::{NodesParams, NodesParamsWithRole};
 use crate::support::caching::Cache;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
 use axum::Json;
-use nym_api_requests::models::{NodeAnnotation, NymNodeDescription};
+use nym_api_requests::models::{
+    NodeAnnotation, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
+};
 use nym_api_requests::nym_nodes::{
     CachedNodesResponse, NodeRole, NodeRoleQueryParam, PaginatedCachedNodesResponse, SkimmedNode,
 };
+use nym_api_requests::pagination::PaginatedResponse;
 use nym_mixnet_contract_common::NodeId;
+use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::future::Future;
 use tokio::sync::RwLockReadGuard;
 use tracing::trace;
+use utoipa::ToSchema;
 
 pub type PaginatedSkimmedNodes = AxumResult<Json<PaginatedCachedNodesResponse<SkimmedNode>>>;
 
 /// Given all relevant caches, build part of response for JUST Nym Nodes
 fn build_nym_nodes_response<'a, NI>(
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
     annotations: &HashMap<NodeId, NodeAnnotation>,
     active_only: bool,
@@ -55,7 +59,7 @@ where
 /// Given all relevant caches, add appropriate legacy nodes to the part of the response
 fn add_legacy<LN>(
     nodes: &mut Vec<SkimmedNode>,
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     describe_cache: &DescribedNodes,
     annotated_legacy_nodes: &HashMap<NodeId, LN>,
     active_only: bool,
@@ -270,16 +274,25 @@ async fn nodes_basic(
     )))
 }
 
+#[allow(dead_code)] // not dead, used in OpenAPI docs
+#[derive(ToSchema)]
+#[schema(title = "PaginatedCachedNodesResponse")]
+pub struct PaginatedCachedNodesResponseSchema {
+    pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+    #[schema(value_type = SkimmedNode)]
+    pub nodes: PaginatedResponse<SkimmedNode>,
+}
+
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
 /// that are currently bonded.
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
     params(NodesParamsWithRole),
-    path = "/",
+    path = "",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn nodes_basic_all(
@@ -312,7 +325,7 @@ pub(super) async fn nodes_basic_all(
     path = "/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn nodes_basic_active(
@@ -364,7 +377,7 @@ async fn mixnodes_basic(
     path = "/mixnodes/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn mixnodes_basic_all(
@@ -383,7 +396,7 @@ pub(super) async fn mixnodes_basic_all(
     path = "/mixnodes/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn mixnodes_basic_active(
@@ -421,7 +434,7 @@ async fn entry_gateways_basic(
     path = "/entry-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn entry_gateways_basic_active(
@@ -440,7 +453,7 @@ pub(super) async fn entry_gateways_basic_active(
     path = "/entry-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn entry_gateways_basic_all(
@@ -478,7 +491,7 @@ async fn exit_gateways_basic(
     path = "/exit-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn exit_gateways_basic_active(
@@ -497,7 +510,7 @@ pub(super) async fn exit_gateways_basic_active(
     path = "/exit-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn exit_gateways_basic_all(

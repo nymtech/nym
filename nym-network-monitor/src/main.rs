@@ -3,6 +3,7 @@ use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
 use log::{error, info, warn};
+use nym_bin_common::bin_info;
 use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
@@ -58,9 +59,6 @@ async fn make_clients(
                 loop {
                     if Arc::strong_count(&dropped_client) == 1 {
                         if let Some(client) = Arc::into_inner(dropped_client) {
-                            // let forget_me = ClientRequest::ForgetMe {
-                            //     also_from_stats: true,
-                            // };
                             let client_handle = client.into_inner();
                             client_handle.disconnect().await;
                         } else {
@@ -158,6 +156,26 @@ fn generate_key_pair() -> Result<()> {
     Ok(())
 }
 
+async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
+    let api_url = std::env::var(NYM_API)?;
+
+    info!("Generating topology from {api_url}");
+    let client = nym_validator_client::client::NymApiClient::new_with_user_agent(
+        api_url.parse()?,
+        bin_info!(),
+    );
+
+    let rewarded_set = client.get_current_rewarded_set().await?;
+
+    // just get all nodes to make our lives easier because it's just one query for the whole duration of the monitor (?)
+    let nodes = client.get_all_basic_nodes().await?;
+
+    let mut topology = NymTopology::new_empty(rewarded_set);
+    topology.add_skimmed_nodes(&nodes);
+
+    Ok(topology)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     nym_bin_common::logging::setup_logging();
@@ -187,7 +205,7 @@ async fn main() -> Result<()> {
         .set(if let Some(topology_file) = args.topology {
             NymTopology::new_from_file(topology_file)?
         } else {
-            NymTopology::new_from_env().await?
+            nym_topology_from_env().await?
         })
         .ok();
 
@@ -201,10 +219,12 @@ async fn main() -> Result<()> {
         TOPOLOGY.get().expect("Topology not set yet!").clone(),
     ));
 
+    let clients_server = clients.clone();
+
     let server_handle = tokio::spawn(async move {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
         let server = HttpServer::new(socket, server_cancel_token);
-        server.run(clients).await
+        server.run(clients_server).await
     });
 
     info!("Waiting for message (ctrl-c to exit)");
@@ -236,6 +256,15 @@ async fn main() -> Result<()> {
                 submit_metrics(client).await?;
             }
         };
+    }
+
+    info!("Disconnecting all clients");
+    let mut clients_guard = clients.write().await;
+    while let Some(client) = clients_guard.pop_front() {
+        if let Some(client) = Arc::into_inner(client) {
+            let client_handle = client.into_inner();
+            client_handle.disconnect().await;
+        }
     }
 
     cancel_token.cancel();

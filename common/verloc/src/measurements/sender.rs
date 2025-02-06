@@ -5,7 +5,7 @@ use crate::error::VerlocError;
 use crate::measurements::packet::{EchoPacket, ReplyPacket};
 use crate::models::VerlocMeasurement;
 use nym_crypto::asymmetric::ed25519;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{thread_rng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -45,7 +45,7 @@ pub struct PacketSender {
     packet_timeout: Duration,
     connection_timeout: Duration,
     delay_between_packets: Duration,
-    shutdown_listener: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl PacketSender {
@@ -55,7 +55,7 @@ impl PacketSender {
         packet_timeout: Duration,
         connection_timeout: Duration,
         delay_between_packets: Duration,
-        shutdown_listener: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         PacketSender {
             identity,
@@ -63,7 +63,7 @@ impl PacketSender {
             packet_timeout,
             connection_timeout,
             delay_between_packets,
-            shutdown_listener,
+            shutdown_token,
         }
     }
 
@@ -83,9 +83,6 @@ impl PacketSender {
         self: Arc<Self>,
         tested_node: TestedNode,
     ) -> Result<VerlocMeasurement, VerlocError> {
-        let mut shutdown_listener = self.shutdown_listener.fork(tested_node.address.to_string());
-        shutdown_listener.disarm();
-
         let mut conn = match tokio::time::timeout(
             self.connection_timeout,
             TcpStream::connect(tested_node.address),
@@ -148,7 +145,7 @@ impl PacketSender {
                         Ok(Ok(_)) => {}
                         }
                 },
-                _ = shutdown_listener.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     trace!("PacketSender: Received shutdown while sending");
                     return Err(VerlocError::ShutdownReceived);
                 },
@@ -190,7 +187,7 @@ impl PacketSender {
                         }
                     }
                 },
-                _ = shutdown_listener.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     trace!("PacketSender: Received shutdown while waiting for reply");
                     return Err(VerlocError::ShutdownReceived);
                 }

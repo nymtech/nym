@@ -3,7 +3,7 @@
 
 use nym_node_tester_utils::error::NetworkTestingError;
 use nym_node_tester_utils::TestMessage;
-use nym_topology::mix;
+use nym_topology::node::RoutingNode;
 use serde::{Deserialize, Serialize};
 
 pub(crate) type NodeTestMessage = TestMessage<NymApiTestMessageExt>;
@@ -24,7 +24,7 @@ impl NymApiTestMessageExt {
 
     pub fn mix_plaintexts(
         &self,
-        node: &mix::LegacyNode,
+        node: &RoutingNode,
         test_packets: u32,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError> {
         NodeTestMessage::mix_plaintexts(node, test_packets, *self)

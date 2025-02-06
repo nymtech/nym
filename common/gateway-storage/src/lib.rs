@@ -3,7 +3,6 @@
 
 use bandwidth::BandwidthManager;
 use clients::{ClientManager, ClientType};
-use inboxes::InboxManager;
 use models::{
     Client, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage,
     VerifiedTicket, WireguardPeer,
@@ -31,6 +30,7 @@ mod tickets;
 mod wireguard_peers;
 
 pub use error::GatewayStorageError;
+pub use inboxes::InboxManager;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -53,7 +53,7 @@ impl GatewayStorage {
         &self.shared_key_manager
     }
 
-    pub(crate) fn inbox_manager(&self) -> &InboxManager {
+    pub fn inbox_manager(&self) -> &InboxManager {
         &self.inbox_manager
     }
 

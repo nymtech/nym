@@ -112,14 +112,15 @@ where
                 source,
             }
         })?;
-        hardcoded_topology.get_gateways()
+        hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(
+        crate::init::helpers::gateways_for_init(
             &mut rng,
             &core.client.nym_api_urls,
             user_agent,
             core.debug.topology.minimum_gateway_performance,
+            core.debug.topology.ignore_ingress_epoch_role,
         )
         .await?
     };
@@ -128,7 +129,7 @@ where
     // make sure the list of available gateways doesn't overlap the list of known gateways
     let available_gateways = available_gateways
         .into_iter()
-        .filter(|g| !registered_gateways.contains(g.identity()))
+        .filter(|g| !registered_gateways.contains(&g.identity()))
         .collect::<Vec<_>>();
 
     if available_gateways.is_empty() {

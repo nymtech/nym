@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM message WHERE height < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "a3db765a00f07d80656e58a543500a9e2b6064f2252c66882fd4a7dd17e187cc"
+}

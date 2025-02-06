@@ -3,6 +3,7 @@
 
 use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
+use crate::EpochId;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
@@ -29,6 +30,23 @@ impl RoleAssignment {
 
     pub fn is_final_assignment(&self) -> bool {
         self.role.is_standby()
+    }
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct EpochRewardedSet {
+    pub epoch_id: EpochId,
+
+    pub assignment: RewardedSet,
+}
+
+impl From<(EpochId, RewardedSet)> for EpochRewardedSet {
+    fn from((epoch_id, assignment): (EpochId, RewardedSet)) -> Self {
+        EpochRewardedSet {
+            epoch_id,
+            assignment,
+        }
     }
 }
 
@@ -68,6 +86,29 @@ impl RewardedSet {
 
     pub fn rewarded_set_size(&self) -> usize {
         self.active_set_size() + self.standby.len()
+    }
+
+    pub fn get_role(&self, node_id: NodeId) -> Option<Role> {
+        // given each role has ~100 entries in them, doing linear lookup with vec should be fine
+        if self.entry_gateways.contains(&node_id) {
+            return Some(Role::EntryGateway);
+        }
+        if self.exit_gateways.contains(&node_id) {
+            return Some(Role::ExitGateway);
+        }
+        if self.layer1.contains(&node_id) {
+            return Some(Role::Layer1);
+        }
+        if self.layer2.contains(&node_id) {
+            return Some(Role::Layer2);
+        }
+        if self.layer3.contains(&node_id) {
+            return Some(Role::Layer3);
+        }
+        if self.standby.contains(&node_id) {
+            return Some(Role::Standby);
+        }
+        None
     }
 }
 
@@ -132,6 +173,14 @@ where
     pub fn within_range(&self, value: T) -> bool {
         value >= self.minimum && value <= self.maximum
     }
+}
+
+#[cfg(feature = "utoipa")]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(title = "Coin"))]
+pub struct CoinSchema {
+    pub denom: String,
+    pub amount: String,
 }
 
 /// The current state of the mixnet contract.

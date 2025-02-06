@@ -13,13 +13,10 @@ use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWith
 use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::{LegacyMixLayer, NodeId, NymNodeDetails};
+use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
-use nym_topology::gateway::GatewayConversionError;
-use nym_topology::mix::MixnodeConversionError;
-use nym_topology::{gateway, mix, NetworkAddress};
+use nym_topology::node::{RoutingNode, RoutingNodeError};
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, error, info};
@@ -73,87 +70,14 @@ pub enum NodeDescribeCacheError {
 // this exists because I've been moving things around quite a lot and now the place that holds the type
 // doesn't have relevant dependencies for proper impl
 pub(crate) trait NodeDescriptionTopologyExt {
-    fn try_to_topology_mix_node(
-        &self,
-        layer: LegacyMixLayer,
-    ) -> Result<mix::LegacyNode, MixnodeConversionError>;
-
-    fn try_to_topology_gateway(&self) -> Result<gateway::LegacyNode, GatewayConversionError>;
+    fn try_to_topology_node(&self) -> Result<RoutingNode, RoutingNodeError>;
 }
 
 impl NodeDescriptionTopologyExt for NymNodeDescription {
-    // TODO: this might have to be moved around
-    fn try_to_topology_mix_node(
-        &self,
-        layer: LegacyMixLayer,
-    ) -> Result<mix::LegacyNode, MixnodeConversionError> {
-        let keys = &self.description.host_information.keys;
-        let ips = &self.description.host_information.ip_address;
-        if ips.is_empty() {
-            return Err(MixnodeConversionError::NoIpAddressesProvided {
-                mixnode: keys.ed25519.to_base58_string(),
-            });
-        }
-
-        let host = match &self.description.host_information.hostname {
-            None => NetworkAddress::IpAddr(ips[0]),
-            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
-        };
-
-        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
-        // (which doesn't really work in wasm)
-        let mix_host = SocketAddr::new(ips[0], self.description.mix_port());
-
-        Ok(mix::LegacyNode {
-            mix_id: self.node_id,
-            host,
-            mix_host,
-            identity_key: keys.ed25519,
-            sphinx_key: keys.x25519,
-            layer,
-            version: self
-                .description
-                .build_information
-                .build_version
-                .as_str()
-                .into(),
-        })
-    }
-
-    fn try_to_topology_gateway(&self) -> Result<gateway::LegacyNode, GatewayConversionError> {
-        let keys = &self.description.host_information.keys;
-
-        let ips = &self.description.host_information.ip_address;
-        if ips.is_empty() {
-            return Err(GatewayConversionError::NoIpAddressesProvided {
-                gateway: keys.ed25519.to_base58_string(),
-            });
-        }
-
-        let host = match &self.description.host_information.hostname {
-            None => NetworkAddress::IpAddr(ips[0]),
-            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
-        };
-
-        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
-        // (which doesn't really work in wasm)
-        let mix_host = SocketAddr::new(ips[0], self.description.mix_port());
-
-        Ok(gateway::LegacyNode {
-            node_id: self.node_id,
-            host,
-            mix_host,
-            clients_ws_port: self.description.mixnet_websockets.ws_port,
-            clients_wss_port: self.description.mixnet_websockets.wss_port,
-            identity_key: self.description.host_information.keys.ed25519,
-            sphinx_key: self.description.host_information.keys.x25519,
-            version: self
-                .description
-                .build_information
-                .build_version
-                .as_str()
-                .into(),
-        })
+    fn try_to_topology_node(&self) -> Result<RoutingNode, RoutingNodeError> {
+        // for the purposes of routing, performance is completely ignored,
+        // so add dummy value and piggyback on existing conversion
+        (&self.to_skimmed_node(Default::default(), Default::default())).try_into()
     }
 }
 

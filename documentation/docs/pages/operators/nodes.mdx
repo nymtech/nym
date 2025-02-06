@@ -1,0 +1,48 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx';
+import TermsConditions from 'components/operators/snippets/tc-info.mdx';
+
+# Nym Nodes Operator Guides
+
+Welcome to the section containing setup guides for operators of Nym Nodes and Nym Validators. To setup, configure, run, bond and maintain a `nym-node` is not a difficult process, but it takes dedication. Before you start, please check out [minimum requirements](#minimum-requirements) and then follow the [Steps for Nym Node Operators](#steps-for-nym-node-operators) below.
+
+## Minimum Requirements
+
+Operating a `nym-node` is not a set-and-forget endeavor. To prevent operators committing their time and money into a sub-optimal server, resulting in frustration of never seeing their node active, we composed this list of prerequisites. Please read below about expectations regarding operators [skill set](#knowledge-base), [time dedication](#time) and [minimum hardware specs](#vps-hardware-specs).
+
+### Knowledge base
+
+**All nodes are run remotely from operators shell, using [SSH](https://www.ssh.com/academy/ssh) and [Bash](https://www.gnu.org/software/bash/) commands. Node operators need to be experienced super users or sys-admins.** If you never used terminal before, maybe start with some tutorial of [basic Linux administration](https://www.linode.com/docs/guides/linux-system-administration-basics/) before committing to run a node.
+
+<NymNodeSpecs />
+
+### Time
+
+Last but not least, managing a Nym Node is work. More skilled an operator is, less time it takes to run and maintain a node (and search extra details), but just like any other work, it takes effort.
+
+Reserve 45-120 minutes for the initial setup and configuration (depends on your skills). Then count on a few minutes once in 2-4 weeks to upgrade node version binaries. Patches don't always come out [regularly](release-cycle.mdx), operators need to keep their eyes on [Matrix announcement channel](https://matrix.to/#/#node-ops-announcements:nymtech.chat).
+
+Outdated nodes are never selected for routing/mixing packets, resulting in not receiving any rewards. You can read more on our [Tokenomics page](tokenomics/mixnet-rewards.mdx) to understand the selection and rewards logic.
+
+<TermsConditions />
+
+Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. Detailed info and proper syntax is provided on the [setup page](nodes/nym-node/setup#terms--conditions).
+
+## Steps for Nym Node Operators
+
+This is a summary of all needed steps for node operators to setup and configure a `nym-node` and register it to Nym Network:
+
+
+1. **Start with [Preliminary Steps](nodes/preliminary-steps.mdx), preparing [VPS](nodes/preliminary-steps/vps-setup.mdx) and [Nym wallet](nodes/preliminary-steps/wallet-preparation)**
+
+2. **[Setup](nodes/nym-node/setup.mdx) the node**
+
+3. **[Configure](nodes/nym-node/configuration.mdx) the node and (optionally) automation, Wireguard, WSS, reverse proxy ...**
+
+4. **[Run](nodes/nym-node/setup.mdx#initialise--run) the node or [the service](nodes/nym-node/configuration.md#systemd)**
+
+5. **[Bond](nodes/nym-node/bonding.mdx) the node to the Nym API, using Nym wallet**
+
+Make sure to follow the steps thoroughly, in case you find any point difficult don't hesitate to ask in our [Operators channel](https://matrix.to/#/#operators:nymtech.chat).

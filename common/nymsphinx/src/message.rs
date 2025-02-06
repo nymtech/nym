@@ -149,7 +149,7 @@ impl NymMessage {
             .collect()
     }
 
-    fn try_from_bytes(bytes: &[u8], num_mix_hops: u8) -> Result<Self, NymMessageError> {
+    fn try_from_bytes(bytes: &[u8]) -> Result<Self, NymMessageError> {
         if bytes.is_empty() {
             return Err(NymMessageError::EmptyMessage);
         }
@@ -158,7 +158,7 @@ impl NymMessage {
         match typ_tag {
             NymMessageType::Plain => Ok(NymMessage::Plain(bytes[1..].to_vec())),
             NymMessageType::Repliable => Ok(NymMessage::Repliable(
-                RepliableMessage::try_from_bytes(&bytes[1..], num_mix_hops)?,
+                RepliableMessage::try_from_bytes(&bytes[1..])?,
             )),
             NymMessageType::Reply => Ok(NymMessage::Reply(ReplyMessage::try_from_bytes(
                 &bytes[1..],
@@ -166,10 +166,10 @@ impl NymMessage {
         }
     }
 
-    fn serialized_size(&self, num_mix_hops: u8) -> usize {
+    fn serialized_size(&self) -> usize {
         let inner_size = match self {
             NymMessage::Plain(msg) => msg.len(),
-            NymMessage::Repliable(msg) => msg.serialized_size(num_mix_hops),
+            NymMessage::Repliable(msg) => msg.serialized_size(),
             NymMessage::Reply(msg) => msg.serialized_size(),
         };
         let message_type_size = 1;
@@ -207,9 +207,9 @@ impl NymMessage {
     }
 
     /// Determines the number of required packets of the provided size for the split message.
-    pub fn required_packets(&self, packet_size: PacketSize, num_mix_hops: u8) -> usize {
+    pub fn required_packets(&self, packet_size: PacketSize) -> usize {
         let plaintext_per_packet = self.true_available_plaintext_per_packet(packet_size);
-        let serialized_len = self.serialized_size(num_mix_hops);
+        let serialized_len = self.serialized_size();
 
         let (num_fragments, _) =
             chunking::number_of_required_fragments(serialized_len, plaintext_per_packet);
@@ -279,11 +279,11 @@ impl PaddedMessage {
     }
 
     // reverse of NymMessage::pad_to_full_packet_lengths
-    pub fn remove_padding(self, num_mix_hops: u8) -> Result<NymMessage, NymMessageError> {
+    pub fn remove_padding(self) -> Result<NymMessage, NymMessageError> {
         // we are looking for first occurrence of 1 in the tail and we get its index
         if let Some(padding_end) = self.0.iter().rposition(|b| *b == 1) {
             // and now we only take bytes until that point (but not including it)
-            NymMessage::try_from_bytes(&self.0[..padding_end], num_mix_hops)
+            NymMessage::try_from_bytes(&self.0[..padding_end])
         } else {
             Err(NymMessageError::InvalidMessagePadding)
         }
@@ -304,7 +304,7 @@ mod tests {
     fn serialized_size_matches_actual_serialization() {
         // plain
         let plain = NymMessage::new_plain(vec![1, 2, 3, 4, 5]);
-        assert_eq!(plain.serialized_size(3), plain.into_bytes().len());
+        assert_eq!(plain.serialized_size(), plain.into_bytes().len());
 
         // a single variant for each repliable and reply is enough as they are more thoroughly tested
         // internally
@@ -313,9 +313,9 @@ mod tests {
             [42u8; 16].into(),
             vec![],
         ));
-        assert_eq!(repliable.serialized_size(3), repliable.into_bytes().len());
+        assert_eq!(repliable.serialized_size(), repliable.into_bytes().len());
 
         let reply = NymMessage::new_reply(ReplyMessage::new_data_message(vec![1, 2, 3, 4, 5]));
-        assert_eq!(reply.serialized_size(3), reply.into_bytes().len());
+        assert_eq!(reply.serialized_size(), reply.into_bytes().len());
     }
 }

@@ -347,9 +347,6 @@ async fn _latest_monitor_run_report(
 #[utoipa::path(
     tag = "UNSTABLE - DO **NOT** USE",
     get,
-    params(
-        PaginationRequest
-    ),
     path = "/v1/status/network-monitor/unstable/run/{monitor_run_id}/details",
     responses(
         (status = 200, body = NetworkMonitorRunDetailsResponse)
@@ -370,9 +367,6 @@ pub async fn monitor_run_report(
 #[utoipa::path(
     tag = "UNSTABLE - DO **NOT** USE",
     get,
-    params(
-        PaginationRequest
-    ),
     path = "/v1/status/network-monitor/unstable/run/latest/details",
     responses(
         (status = 200, body = NetworkMonitorRunDetailsResponse)

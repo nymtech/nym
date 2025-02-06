@@ -12,7 +12,8 @@ use js_sys::Promise;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_storage::{IdbVersionChangeEvent, WasmStorage};
+use wasm_storage::RawDbResult;
+use wasm_storage::{Build, Database, VersionChangeEvent, WasmStorage};
 use wasm_utils::check_promise_result;
 use wasm_utils::error::{PromisableResult, PromisableResultError};
 use zeroize::Zeroizing;
@@ -33,8 +34,8 @@ pub struct ExtensionStorage {
 }
 
 #[allow(clippy::type_complexity)]
-fn db_migration() -> Box<dyn Fn(&IdbVersionChangeEvent) -> Result<(), JsValue>> {
-    Box::new(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+fn db_migration() -> Box<dyn Fn(VersionChangeEvent, Database) -> RawDbResult<()>> {
+    Box::new(|evt: VersionChangeEvent, db: Database| -> RawDbResult<()> {
         // Even if the web-sys bindings expose the version as a f64, the IndexedDB API
         // works with an unsigned integer.
         // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
@@ -42,9 +43,7 @@ fn db_migration() -> Box<dyn Fn(&IdbVersionChangeEvent) -> Result<(), JsValue>> 
 
         if old_version < 1 {
             // migrating to version 1
-            let db = evt.db();
-
-            db.create_object_store(v1::MNEMONICS_STORE)?;
+            db.create_object_store(v1::MNEMONICS_STORE).build()?;
         }
 
         Ok(())
@@ -122,7 +121,7 @@ impl ExtensionStorage {
             .map_err(Into::into)
     }
 
-    async fn get_all_mnemonic_keys_async(&self) -> Result<js_sys::Array, ExtensionStorageError> {
+    async fn get_all_mnemonic_keys_async(&self) -> Result<Vec<JsValue>, ExtensionStorageError> {
         self.inner
             .get_all_keys(v1::MNEMONICS_STORE)
             .await

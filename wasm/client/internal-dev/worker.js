@@ -100,69 +100,6 @@ function printAndDisplayTestResult(result) {
     });
 }
 
-async function testWithNymClient() {
-    const preferredGateway = "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw";
-    const topology = dummyTopology()
-
-    let received = 0
-
-    const onMessageHandler = (message) => {
-        received += 1;
-        self.postMessage({
-            kind: 'ReceiveMessage',
-            args: {
-                message,
-                senderTag: undefined,
-                isMagicPayload: true,
-            },
-        });
-
-        // it's really up to the user to create proper callback here...
-        console.log(`received ${received} packets so far`)
-    };
-
-    console.log('Instantiating WASM client...');
-
-    let clientBuilder = NymClientBuilder.new_tester(topology, onMessageHandler, preferredGateway)
-    console.log('Web worker creating WASM client...');
-    let local_client = await clientBuilder.start_client();
-    console.log('WASM client running!');
-
-    const selfAddress = local_client.self_address();
-
-    // set the global (I guess we don't have to anymore?)
-    client = local_client;
-
-    console.log(`Client address is ${selfAddress}`);
-    self.postMessage({
-        kind: 'Ready',
-        args: {
-            selfAddress,
-        },
-    });
-
-    // Set callback to handle messages passed to the worker.
-    self.onmessage = async event => {
-        console.log(event)
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'SendMessage': {
-                    const {message, recipient} = event.data.args;
-                    let uint8Array = new TextEncoder().encode(message);
-                    await client.send_regular_message(uint8Array, recipient);
-                    break;
-                }
-                case 'MagicPayload': {
-                    const {mixnodeIdentity} = event.data.args;
-                    const req = await client.try_construct_test_packet_request(mixnodeIdentity);
-                    await client.change_hardcoded_topology(req.injectable_topology());
-                    await client.try_send_test_packets(req);
-                    break;
-                }
-            }
-        }
-    };
-}
 
 async function wasm_bindgenSetup(onMessageHandler) {
     const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
@@ -196,7 +133,7 @@ async function wasm_bindgenSetup(onMessageHandler) {
     updatedTraffic.average_packet_delay_ms = 666;
     differentDebug.traffic = updatedTraffic;
 
-    const config = new ClientConfig( { debug: differentDebug } );
+    const config = new ClientConfig({debug: differentDebug});
     //
     // // STEP 2. setup the client
     // // note, the extra optional argument is of the following type:
@@ -210,15 +147,15 @@ async function wasm_bindgenSetup(onMessageHandler) {
     // return await NymClient.newWithConfig(config, onMessageHandler)
     //
     // #2
-    return await NymClient.newWithConfig(config, onMessageHandler, { storagePassphrase: "foomp" })
+    return await NymClient.newWithConfig(config, onMessageHandler, {storagePassphrase: "foomp"})
     //
     // #3
     // return await NymClient.newWithConfig(config, onMessageHandler, { storagePassphrase: "foomp", preferredGateway })
 }
 
 async function nativeSetup(onMessageHandler) {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+    const preferredGateway = "8ookuLkA9oWfRTjb7Jq4tLGcWrqoXKGQxw84MjMrv2S4";
+    const validator = 'https://sandbox-nym-api1.nymtech.net/api';
 
     // those are just some examples, there are obviously more permutations;
     // note, the extra optional argument is of the following type:
@@ -239,15 +176,20 @@ async function nativeSetup(onMessageHandler) {
     // return new NymClient(onMessageHandler, { nymApiUrl: validator })
     // #3
     const noCoverTrafficOverride = {
-        traffic: { disableMainPoissonPacketDistribution: true },
-        coverTraffic: { disableLoopCoverTrafficStream: true },
+        traffic: {disableMainPoissonPacketDistribution: true},
+        coverTraffic: {disableLoopCoverTrafficStream: true},
     }
 
-    return new NymClient(onMessageHandler, { storagePassphrase: "foomp", nymApiUrl: validator, clientId: "my-client", clientOverride: noCoverTrafficOverride } )
+    return new NymClient(onMessageHandler, {
+        // storagePassphrase: "foomp",
+        nymApiUrl: validator,
+        clientId: "my-client",
+        clientOverride: noCoverTrafficOverride
+    })
 }
 
 async function normalNymClientUsage() {
-    self.postMessage({ kind: 'DisableMagicTestButton' });
+    self.postMessage({kind: 'DisableMagicTestButton'});
 
     const onMessageHandler = (message) => {
         console.log(message);
@@ -264,7 +206,7 @@ async function normalNymClientUsage() {
     let localClient = await nativeSetup(onMessageHandler)
     console.log('WASM client running!');
 
-    const selfAddress = localClient.self_address();
+    const selfAddress = localClient.selfAddress();
 
     // set the global (I guess we don't have to anymore?)
     client = localClient;

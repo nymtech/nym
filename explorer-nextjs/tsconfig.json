@@ -28,7 +28,8 @@
         "../assets/*"
       ]
     },
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "target": "ES2017"
   },
   "include": [
     "next-env.d.ts",

@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::gateway;
+use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
@@ -16,16 +16,17 @@ use tungstenite::Message;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
+use crate::init::websockets::connect_async;
+
+use nym_topology::NodeId;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
-#[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
@@ -48,22 +49,30 @@ const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 
 // The abstraction that some of these helpers use
 pub trait ConnectableGateway {
-    fn identity(&self) -> &identity::PublicKey;
-    fn clients_address(&self) -> String;
+    fn node_id(&self) -> NodeId;
+    fn identity(&self) -> identity::PublicKey;
+    fn clients_address(&self, prefer_ipv6: bool) -> Option<String>;
     fn is_wss(&self) -> bool;
 }
 
-impl ConnectableGateway for gateway::LegacyNode {
-    fn identity(&self) -> &identity::PublicKey {
-        self.identity()
+impl ConnectableGateway for RoutingNode {
+    fn node_id(&self) -> NodeId {
+        self.node_id
     }
 
-    fn clients_address(&self) -> String {
-        self.clients_address()
+    fn identity(&self) -> identity::PublicKey {
+        self.identity_key
+    }
+
+    fn clients_address(&self, prefer_ipv6: bool) -> Option<String> {
+        self.ws_entry_address(prefer_ipv6)
     }
 
     fn is_wss(&self) -> bool {
-        self.clients_wss_port.is_some()
+        self.entry
+            .as_ref()
+            .map(|e| e.clients_wss_port.is_some())
+            .unwrap_or_default()
     }
 }
 
@@ -78,12 +87,13 @@ impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
     }
 }
 
-pub async fn current_gateways<R: Rng>(
+pub async fn gateways_for_init<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
-) -> Result<Vec<gateway::LegacyNode>, ClientCoreError> {
+    ignore_epoch_roles: bool,
+) -> Result<Vec<RoutingNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -100,11 +110,14 @@ pub async fn current_gateways<R: Rng>(
 
     log::trace!("Gateways: {:#?}", gateways);
 
+    // filter out gateways below minimum performance and ones that could operate as a mixnode
+    // (we don't want instability)
     let valid_gateways = gateways
         .iter()
+        .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
         .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
-        .collect::<Vec<gateway::LegacyNode>>();
+        .collect::<Vec<_>>();
     log::debug!("After checking validity: {}", valid_gateways.len());
     log::trace!("Valid gateways: {:#?}", valid_gateways);
 
@@ -120,7 +133,7 @@ pub async fn current_gateways<R: Rng>(
 async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     match tokio::time::timeout(CONN_TIMEOUT, connect_async(endpoint)).await {
         Err(_elapsed) => Err(ClientCoreError::GatewayConnectionTimeout),
-        Ok(Err(conn_failure)) => Err(conn_failure.into()),
+        Ok(Err(conn_failure)) => Err(conn_failure),
         Ok(Ok((stream, _))) => Ok(stream),
     }
 }
@@ -134,7 +147,12 @@ async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<G>, Client
 where
     G: ConnectableGateway,
 {
-    let addr = gateway.clients_address();
+    let Some(addr) = gateway.clients_address(false) else {
+        return Err(ClientCoreError::UnsupportedEntry {
+            id: gateway.node_id(),
+            identity: gateway.identity().to_string(),
+        });
+    };
     trace!(
         "establishing connection to {} ({addr})...",
         gateway.identity(),
@@ -205,7 +223,7 @@ pub async fn choose_gateway_by_latency<R: Rng, G: ConnectableGateway + Clone>(
     let gateways_with_latency = Arc::new(tokio::sync::Mutex::new(Vec::new()));
     futures::stream::iter(gateways)
         .for_each_concurrent(CONCURRENT_GATEWAYS_MEASURED, |gateway| async {
-            let id = *gateway.identity();
+            let id = gateway.identity();
             trace!("measuring latency to {id}...");
             match measure_latency(gateway).await {
                 Ok(with_latency) => {
@@ -252,9 +270,9 @@ fn filter_by_tls<G: ConnectableGateway>(
 
 pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
-    gateways: &[gateway::LegacyNode],
+    gateways: &[RoutingNode],
     must_use_tls: bool,
-) -> Result<gateway::LegacyNode, ClientCoreError> {
+) -> Result<RoutingNode, ClientCoreError> {
     filter_by_tls(gateways, must_use_tls)?
         .choose(rng)
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)
@@ -263,9 +281,9 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
 
 pub(super) fn get_specified_gateway(
     gateway_identity: IdentityKeyRef,
-    gateways: &[gateway::LegacyNode],
+    gateways: &[RoutingNode],
     must_use_tls: bool,
-) -> Result<gateway::LegacyNode, ClientCoreError> {
+) -> Result<RoutingNode, ClientCoreError> {
     log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
@@ -275,7 +293,14 @@ pub(super) fn get_specified_gateway(
         .find(|gateway| gateway.identity_key == user_gateway)
         .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))?;
 
-    if must_use_tls && gateway.clients_wss_port.is_none() {
+    let Some(entry_details) = gateway.entry.as_ref() else {
+        return Err(ClientCoreError::UnsupportedEntry {
+            id: gateway.node_id,
+            identity: gateway.identity().to_string(),
+        });
+    };
+
+    if must_use_tls && entry_details.clients_wss_port.is_none() {
         return Err(ClientCoreError::UnsupportedWssProtocol {
             gateway: gateway_identity.to_string(),
         });

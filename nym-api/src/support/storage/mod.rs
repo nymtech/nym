@@ -623,21 +623,21 @@ impl NymApiStorage {
         // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
         // in the first place
         let layer1_mix_db_id = self
-            .get_mixnode_database_id(test_route.layer_one_mix().mix_id)
+            .get_mixnode_database_id(test_route.layer_one_mix().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!("could not get db id for layer1 mixnode from network monitor run {monitor_run_db_id}"),
             })?;
 
         let layer2_mix_db_id = self
-            .get_mixnode_database_id(test_route.layer_two_mix().mix_id)
+            .get_mixnode_database_id(test_route.layer_two_mix().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!("could not get db id for layer2 mixnode from network monitor run {monitor_run_db_id}"),
             })?;
 
         let layer3_mix_db_id = self
-            .get_mixnode_database_id(test_route.layer_three_mix().mix_id)
+            .get_mixnode_database_id(test_route.layer_three_mix().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!("could not get db id for layer3 mixnode from network monitor run {monitor_run_db_id}"),

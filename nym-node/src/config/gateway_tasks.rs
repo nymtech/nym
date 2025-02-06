@@ -3,7 +3,7 @@
 
 use crate::config::persistence::GatewayTasksPaths;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS};
-use nym_config::helpers::inaddr_any;
+use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -22,8 +22,8 @@ pub struct GatewayTasksConfig {
     pub enforce_zk_nyms: bool,
 
     /// Socket address this node will use for binding its client websocket API.
-    /// default: `0.0.0.0:9000`
-    pub bind_address: SocketAddr,
+    /// default: `[::]:9000`
+    pub ws_bind_address: SocketAddr,
 
     /// Custom announced port for listening for websocket client traffic.
     /// If unspecified, the value from the `bind_address` will be used instead
@@ -47,6 +47,10 @@ pub struct Debug {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 
+    pub stale_messages: StaleMessageDebug,
+
+    pub client_bandwidth: ClientBandwidthDebug,
+
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
 }
 
@@ -58,6 +62,8 @@ impl Default for Debug {
     fn default() -> Self {
         Debug {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            stale_messages: Default::default(),
+            client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),
         }
     }
@@ -91,7 +97,7 @@ pub struct ZkNymTicketHandlerDebug {
 impl ZkNymTicketHandlerDebug {
     pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
     pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
-    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
+    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.7;
     pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
 
     // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day
@@ -129,12 +135,60 @@ impl Default for ZkNymTicketHandlerDebug {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ClientBandwidthDebug {
+    /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
+    pub max_flushing_rate: Duration,
+
+    /// Defines a maximum change in client bandwidth before it gets flushed to the persistent storage.
+    pub max_delta_flushing_amount: i64,
+}
+
+impl ClientBandwidthDebug {
+    const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
+    const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
+}
+
+impl Default for ClientBandwidthDebug {
+    fn default() -> Self {
+        ClientBandwidthDebug {
+            max_flushing_rate: Self::DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
+            max_delta_flushing_amount: Self::DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct StaleMessageDebug {
+    /// Specifies how often the clean-up task should check for stale data.
+    #[serde(with = "humantime_serde")]
+    pub cleaner_run_interval: Duration,
+
+    /// Specifies maximum age of stored messages before they are removed from the storage
+    #[serde(with = "humantime_serde")]
+    pub max_age: Duration,
+}
+
+impl StaleMessageDebug {
+    const DEFAULT_STALE_MESSAGES_CLEANER_RUN_INTERVAL: Duration = Duration::from_secs(60 * 60);
+    const DEFAULT_STALE_MESSAGES_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+}
+
+impl Default for StaleMessageDebug {
+    fn default() -> Self {
+        StaleMessageDebug {
+            cleaner_run_interval: Self::DEFAULT_STALE_MESSAGES_CLEANER_RUN_INTERVAL,
+            max_age: Self::DEFAULT_STALE_MESSAGES_MAX_AGE,
+        }
+    }
+}
+
 impl GatewayTasksConfig {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         GatewayTasksConfig {
             storage_paths: GatewayTasksPaths::new(data_dir),
             enforce_zk_nyms: false,
-            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_WS_PORT),
+            ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
             debug: Default::default(),

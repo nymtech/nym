@@ -6,6 +6,7 @@ use crate::ecash::state::EcashState;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{
@@ -52,7 +53,7 @@ fn reject_ticket(
     path = "/v1/ecash/verify-ecash-ticket",
     responses(
         (status = 200, body = EcashTicketVerificationResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn verify_ticket(
@@ -89,12 +90,6 @@ async fn verify_ticket(
         });
     }
 
-    // check the bloomfilter for obvious double-spending so that we wouldn't need to waste time on crypto verification
-    // TODO: when blacklisting is implemented, this should get removed
-    if state.check_bloomfilter(sn).await {
-        return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
-    }
-
     // actual double spend detection with storage
     if let Some(previous_payment) = state.get_ticket_data_by_serial_number(sn).await? {
         match nym_compact_ecash::identify::identify(
@@ -127,26 +122,16 @@ async fn verify_ticket(
         return reject_ticket(EcashTicketVerificationRejection::InvalidTicket);
     }
 
-    // finally get EXCLUSIVE lock on the bloomfilter, check if for the final time and insert the SN
-    let was_present = state
-        .update_bloomfilter(sn, spend_date, today_ecash)
+    // store credential and check whether it wasn't already there (due to a parallel request)
+    let was_inserted = state
+        .store_verified_ticket(credential_data, gateway_cosmos_addr)
         .await?;
-    if was_present {
+    if !was_inserted {
         return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
     }
 
-    //store credential
-    state
-        .store_verified_ticket(credential_data, gateway_cosmos_addr)
-        .await?;
-
     Ok(Json(EcashTicketVerificationResponse { verified: Ok(()) }))
 }
-
-// // for particular SN returns what gateway has submitted it and whether it has been verified correctly
-// async fn credential_status() -> ! {
-//     todo!()
-// }
 
 #[utoipa::path(
     tag = "Ecash",
@@ -155,7 +140,7 @@ async fn verify_ticket(
     path = "/v1/ecash/batch-redeem-ecash-tickets",
     responses(
         (status = 200, body = EcashBatchTicketRedemptionResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn batch_redeem_tickets(
@@ -235,10 +220,13 @@ async fn batch_redeem_tickets(
     get,
     path = "/v1/ecash/double-spending-filter-v1",
     responses(
-        (status = 500, body = ErrorResponse, description = "bloomfilters got disabled"),
+        (status = 500, body = String, description = "bloomfilters got disabled"),
     )
 )]
 #[deprecated]
 async fn double_spending_filter_v1() -> AxumResult<Json<SpentCredentialsResponse>> {
-    AxumResult::Err(AxumErrorResponse::internal_msg("permanently restricted"))
+    AxumResult::Err(AxumErrorResponse::new(
+        "permanently restricted",
+        StatusCode::GONE,
+    ))
 }

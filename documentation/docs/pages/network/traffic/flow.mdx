@@ -1,0 +1,232 @@
+# Packet Flow Breakdown
+## Sending Client → Entry Gateway
+Nym Clients, on startup, register with a particular node to use as an Entry Gateway. This partially defines their [Client Address](./addressing-system).
+
+Once connected, Clients **are constantly sending traffic into the Mixnet**; as well as the packets that are sent from an application wanting to use the Mixnet, Clients send [cover traffic](../concepts/cover-traffic) at a constant rate defined by a Poisson process.
+
+On accepting bytes from a locally running process, Nym Clients:
+- Send the data to the internal queue.
+- Packetise and encrypt the data as the payload of Sphinx packets. Encryption is done according to route. Routing is done on a per-packet basis.
+- Perform a Diffie Hellman Key Exchange with their Entry Gateway.
+- Open a Websocket connection with their Entry Gateway.
+- Slot Sphinx packets containing data payloads in between outgoing cover traffic packets and send these down the Websocket.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Local Machine
+        participant AL as Application Logic
+        participant NC as Nym Client
+    end
+
+    box Mixnet Infrastructure
+        participant EG as Entry Gateway
+    end
+
+    EG->NC: Diffie Hellman Key Exchange
+
+    Note over NC,EG: Cover Traffic Stream
+    loop Continuous Cover Traffic
+        NC->>NC: Delay
+        NC->>EG: Cover traffic
+    end
+
+    Note over AL,EG: Mixed Traffic Stream
+    loop Cover + Real Traffic Processing
+        NC->>NC: Check internal queue + delay
+        NC->>EG: Cover traffic
+        opt Packets with Application Payload
+            AL-->>NC: Send(bytes): add to internal queue
+            NC->>NC: Check queue: bytes to send
+            NC->>NC: Encrypt & packetise bytes
+            NC->>EG: Real Packets
+            NC->>NC: Check queue: more bytes
+            NC->>NC: Encrypt & packetise bytes
+            NC->>EG: Real Packets
+            NC->>NC: Check queue: empty
+        end
+        NC->>NC: Delay
+        NC->>EG: Cover traffic
+    end
+
+```
+
+## Entry Gateway → Mix Nodes → Exit Gateway
+As packets move through the Mixnet, receiving nodes will:
+- Verify the MAC address of incoming Sphinx packets.
+- Forward the inner packet they have decrypted onto its next desination hop, via TCP.
+
+Mix Nodes, as their name suggests, perform the 'packet mixing' by adding a randomised delay before forwarding on the packets, so they no longer travel FIFO through each layer of Mix Nodes.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Mixnet Infrastructure
+        participant EG as Entry Gateway
+        participant M1 as Mix Node Layer 1
+        participant M2 as Mix Node Layer 2
+        participant M3 as Mix Node Layer 3
+        participant ExG as Exit Gateway
+    end
+
+    Note over EG: Process packets
+    EG->>EG: Decrypt outer encryption layer
+    EG->>EG: Check MAC for tampering
+
+    Note over EG,M1: Layer 1 Transmission
+    EG->>M1: Sphinx Packets
+    Note over M1: Process packets
+    M1->>M1: Decrypt outer encryption layer
+    M1->>M1: Check MAC for tampering
+    M1->>M1: Hold packet for variable time delay
+
+    Note over M1,M2: Layer 2 Transmission
+    M1->>M2: Sphinx Packets
+    Note over M2: Process packets
+    M2->>M2: Decrypt outer encryption layer
+    M2->>M2: Check MAC for tampering
+    M2->>M2: Hold packet for variable time delay
+
+    Note over M2,M3: Layer 3 Transmission
+    M2->>M3: Sphinx Packets
+    Note over M3: Process packets
+    M3->>M3: Decrypt outer encryption layer
+    M3->>M3: Check MAC for tampering
+    M3->>M3: Hold packet for variable time delay
+
+    Note over M3,ExG: Exit Gateway Transmission
+    M3->>ExG: Sphinx Packets
+    Note over ExG: Process packets
+    ExG->>ExG: Decrypt outer encryption layer
+    ExG->>ExG: Check MAC for tampering
+
+```
+
+## Exit Gateway → Receiving Client
+The final hop of Mixnet traffic involves:
+- The Exit Gateway for the packet route (the Entry Gateway that the receiving Nym Client registered with on startup) performing the decryption and MAC check.
+- The Exit Gateway forwards the Sphinx packet on to the Nym Client if it is online. If the Client is not online, the Gateway holds the packet for up to 24 hours.
+
+The receiving Nym Client will then decrypt the final Sphinx packet layer and have access to the decrypted packet payload, and [SURB](./anonymous-replies) header information for anonymous replies.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Mixnet Infrastructure
+        participant ExG as Exit Gateway
+    end
+
+    box Remote Machine
+        participant RC as Nym Client
+        participant AR as Application Logic
+    end
+
+    ExG->RC: Diffie Hellman Key Exchange
+    ExG->>RC: Sphinx Packets
+    Note over RC: Process packets
+    RC->>RC: Decrypt outer encryption layer
+    RC->>RC: Check MAC for tampering
+
+    RC->>AR: Bytes
+```
+
+## Whole Flow
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Local Machine
+        participant AL as Application Logic
+        participant NC as Nym Client
+    end
+
+    box Mixnet Infrastructure
+        participant EG as Entry Gateway
+        participant M1 as Mix Node Layer 1
+        participant M2 as Mix Node Layer 2
+        participant M3 as Mix Node Layer 3
+        participant ExG as Exit Gateway
+    end
+
+    box Remote Machine
+        participant RC as Nym Client
+        participant AR as Application Logic
+    end
+
+    EG->NC: Diffie Hellman Key Exchange
+
+    Note over NC,EG: Cover Traffic Stream
+    loop Continuous Cover Traffic
+        NC->>NC: Delay
+        NC->>EG: Cover traffic
+    end
+
+    Note over AL,EG: Mixed Traffic Stream
+    loop Cover + Real Traffic Processing
+        NC->>NC: Check internal queue + delay
+        NC->>EG: Cover traffic
+        opt Packets with Application Payload
+            AL-->>NC: Send(bytes): add to internal queue
+            NC->>NC: Check queue: bytes to send
+            NC->>NC: Encrypt & packetise bytes
+            NC->>EG: Real Packets
+            NC->>NC: Check queue: more bytes
+            NC->>NC: Encrypt & packetise bytes
+            NC->>EG: Real Packets
+            NC->>NC: Check queue: empty
+        end
+        NC->>NC: Delay
+        NC->>EG: Cover traffic
+    end
+
+    Note over EG: Process packets
+    EG->>EG: Decrypt outer encryption layer
+    EG->>EG: Check MAC for tampering
+
+    Note over EG,M1: Layer 1 Transmission
+    EG->>M1: Sphinx Packets
+    Note over M1: Process packets
+    M1->>M1: Decrypt outer encryption layer
+    M1->>M1: Check MAC for tampering
+    M1->>M1: Hold packet for variable time delay
+
+    Note over M1,M2: Layer 2 Transmission
+    M1->>M2: Sphinx Packets
+    Note over M2: Process packets
+    M2->>M2: Decrypt outer encryption layer
+    M2->>M2: Check MAC for tampering
+    M2->>M2: Hold packet for variable time delay
+
+    Note over M2,M3: Layer 3 Transmission
+    M2->>M3: Sphinx Packets
+    Note over M3: Process packets
+    M3->>M3: Decrypt outer encryption layer
+    M3->>M3: Check MAC for tampering
+    M3->>M3: Hold packet for variable time delay
+
+    Note over M3,ExG: Exit Gateway Transmission
+    M3->>ExG: Sphinx Packets
+    Note over ExG: Process packets
+    ExG->>ExG: Decrypt outer encryption layer
+    ExG->>ExG: Check MAC for tampering
+
+    ExG->RC: Diffie Hellman Key Exchange
+    ExG->>RC: Sphinx Packets
+    Note over RC: Process packets
+    RC->>RC: Decrypt outer encryption layer
+    RC->>RC: Check MAC for tampering
+
+    RC->>AR: Bytes
+```

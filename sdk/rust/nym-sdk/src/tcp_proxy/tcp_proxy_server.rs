@@ -34,12 +34,12 @@ impl NymProxyServer {
         config_dir: &str,
         env: Option<String>,
     ) -> Result<Self> {
-        info!(":: creating client...");
+        info!("Creating client");
 
         // We're wanting to build a client with a constant address, vs the ephemeral in-memory data storage of the NymProxyClient clients.
         // Following a builder pattern, having to manually connect to the mixnet below.
         let config_dir = PathBuf::from(config_dir);
-        debug!("loading env file: {:?}", env);
+        debug!("Loading env file: {:?}", env);
         setup_env(env); // Defaults to mainnet if empty
         let net = NymNetworkDetails::new_from_env();
         let storage_paths = StoragePaths::new_from_dir(&config_dir)?;
@@ -57,7 +57,7 @@ impl NymProxyServer {
         let (tx, rx) =
             tokio::sync::watch::channel::<Option<(ProxiedMessage, AnonymousSenderTag)>>(None);
 
-        info!(":: client created: {}", client.nym_address());
+        info!("Client created: {}", client.nym_address());
 
         Ok(NymProxyServer {
             upstream_address: upstream_address.to_string(),
@@ -98,9 +98,9 @@ impl NymProxyServer {
     // IDs to deal with the fact that the mixnet does not enforce message ordering.
     //
     // There is an initial thread which does a bunch of setup logic:
-    //      - Create a TcpStream connecting to our upstream server process.
-    //      - Split incoming TcpStream into OwnedReadHalf and OwnedWriteHalf for concurrent read/write.
-    //      - Create an Arc to store our session SURB - used for anonymous replies.
+    // - Create a TcpStream connecting to our upstream server process.
+    // - Split incoming TcpStream into OwnedReadHalf and OwnedWriteHalf for concurrent read/write.
+    // - Create an Arc to store our session SURB - used for anonymous replies.
     //
     // Then we spawn 2 tasks:
     // - 'Incoming' thread => deals with parsing and storing the SURB (used in Mixnet replies), deserialising and passing the incoming data from the Mixnet to the upstream server.
@@ -134,7 +134,7 @@ impl NymProxyServer {
             // - Send serialised reply => Mixnet via SURB.
             // - If tick() returns true, close session.
             while let Some(Ok(bytes)) = framed_read.next().await {
-                info!("server received {} bytes", bytes.len());
+                info!("Server received {} bytes", bytes.len());
                 let reply =
                     ProxiedMessage::new(Payload::Data(bytes.to_vec()), session_id, message_id);
                 message_id += 1;
@@ -176,7 +176,7 @@ impl NymProxyServer {
 
                             let should_close = msg_buffer.tick(&mut write).await?;
                             if should_close {
-                                info!(":: Closing write end of session: {}", session_id);
+                                info!("Closing write end of session: {}", session_id);
                                 break;
                             }
                         }

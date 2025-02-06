@@ -13,7 +13,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
     nym_gateway::config::Config::new(
         nym_gateway::config::Gateway {
             enforce_zk_nyms: config.gateway_tasks.enforce_zk_nyms,
-            websocket_bind_address: config.gateway_tasks.bind_address,
+            websocket_bind_address: config.gateway_tasks.ws_bind_address,
             nym_api_urls: config.mixnet.nym_api_urls.clone(),
             nyxd_urls: config.mixnet.nyxd_urls.clone(),
         },
@@ -24,10 +24,22 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
         nym_gateway::config::Debug {
-            client_bandwidth_max_flushing_rate:
-                nym_gateway::config::DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
-            client_bandwidth_max_delta_flushing_amount:
-                nym_gateway::config::DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
+            client_bandwidth_max_flushing_rate: config
+                .gateway_tasks
+                .debug
+                .client_bandwidth
+                .max_flushing_rate,
+            client_bandwidth_max_delta_flushing_amount: config
+                .gateway_tasks
+                .debug
+                .client_bandwidth
+                .max_delta_flushing_amount,
+            stale_messages_cleaner_run_interval: config
+                .gateway_tasks
+                .debug
+                .stale_messages
+                .cleaner_run_interval,
+            stale_messages_max_age: config.gateway_tasks.debug.stale_messages.max_age,
             zk_nym_tickets: nym_gateway::config::ZkNymTicketHandlerDebug {
                 revocation_bandwidth_penalty: config
                     .gateway_tasks

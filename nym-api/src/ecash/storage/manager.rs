@@ -3,7 +3,7 @@
 
 use crate::ecash::storage::models::{
     IssuedHash, RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper,
-    StoredBloomfilterParams, TicketProvider, VerifiedTicket,
+    TicketProvider, VerifiedTicket,
 };
 use crate::support::storage::manager::StorageManager;
 use async_trait::async_trait;
@@ -65,6 +65,7 @@ pub trait EcashStorageManagerExt {
         gateway_address: &str,
     ) -> Result<Option<TicketProvider>, sqlx::Error>;
 
+    /// Returns a boolean to indicate whether the ticket has actually been inserted
     async fn insert_verified_ticket(
         &self,
         provider_id: i64,
@@ -72,7 +73,7 @@ pub trait EcashStorageManagerExt {
         verified_at: OffsetDateTime,
         ticket_data: Vec<u8>,
         serial_number: Vec<u8>,
-    ) -> Result<(), sqlx::Error>;
+    ) -> Result<bool, sqlx::Error>;
 
     async fn get_ticket(&self, serial_number: &[u8])
         -> Result<Option<VerifiedTicket>, sqlx::Error>;
@@ -144,41 +145,6 @@ pub trait EcashStorageManagerExt {
         expiration_date: Date,
         data: &[u8],
     ) -> Result<(), sqlx::Error>;
-
-    async fn insert_double_spending_filter_params(
-        &self,
-        num_hashes: u32,
-        bitmap_size: u32,
-        sip0_key0: &[u8],
-        sip0_key1: &[u8],
-        sip1_key0: &[u8],
-        sip1_key1: &[u8],
-    ) -> Result<i64, sqlx::Error>;
-
-    async fn get_latest_double_spending_filter_params(
-        &self,
-    ) -> Result<Option<StoredBloomfilterParams>, sqlx::Error>;
-
-    async fn update_archived_partial_bloomfilter(
-        &self,
-        date: Date,
-        new_bitmap: &[u8],
-    ) -> Result<(), sqlx::Error>;
-
-    async fn try_load_partial_bloomfilter_bitmap(
-        &self,
-        date: Date,
-        params_id: i64,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error>;
-
-    async fn insert_partial_bloomfilter(
-        &self,
-        date: Date,
-        params_id: i64,
-        bitmap: &[u8],
-    ) -> Result<(), sqlx::Error>;
-
-    async fn remove_old_partial_bloomfilters(&self, cutoff: Date) -> Result<(), sqlx::Error>;
 
     async fn remove_expired_verified_tickets(&self, cutoff: Date) -> Result<(), sqlx::Error>;
 }
@@ -330,6 +296,8 @@ impl EcashStorageManagerExt for StorageManager {
             .fetch_optional(&self.connection_pool)
             .await
     }
+
+    /// Returns a boolean to indicate whether the ticket has actually been inserted
     async fn insert_verified_ticket(
         &self,
         provider_id: i64,
@@ -337,10 +305,10 @@ impl EcashStorageManagerExt for StorageManager {
         verified_at: OffsetDateTime,
         ticket_data: Vec<u8>,
         serial_number: Vec<u8>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+    ) -> Result<bool, sqlx::Error> {
+        let affected = sqlx::query!(
             r#"
-                INSERT INTO verified_tickets(ticket_data, serial_number, spending_date, verified_at, gateway_id)
+                INSERT OR IGNORE INTO verified_tickets(ticket_data, serial_number, spending_date, verified_at, gateway_id)
                 VALUES (?, ?, ?, ?, ?)
             "#,
             ticket_data,
@@ -350,9 +318,9 @@ impl EcashStorageManagerExt for StorageManager {
             provider_id
         )
             .execute(&self.connection_pool)
-            .await?;
+            .await?.rows_affected();
 
-        Ok(())
+        Ok(affected == 1)
     }
 
     async fn get_ticket(
@@ -573,95 +541,9 @@ impl EcashStorageManagerExt for StorageManager {
         Ok(())
     }
 
-    async fn insert_double_spending_filter_params(
-        &self,
-        num_hashes: u32,
-        bitmap_size: u32,
-        sip0_key0: &[u8],
-        sip0_key1: &[u8],
-        sip1_key0: &[u8],
-        sip1_key1: &[u8],
-    ) -> Result<i64, sqlx::Error> {
-        let row_id = sqlx::query!(
-            r#"
-                INSERT INTO bloomfilter_parameters(num_hashes, bitmap_size,sip0_key0, sip0_key1, sip1_key0, sip1_key1)
-                VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-            num_hashes,
-            bitmap_size,
-            sip0_key0,
-            sip0_key1,
-            sip1_key0,
-            sip1_key1
-        ).execute(&self.connection_pool).await?.last_insert_rowid();
-        Ok(row_id)
-    }
-
-    async fn get_latest_double_spending_filter_params(
-        &self,
-    ) -> Result<Option<StoredBloomfilterParams>, sqlx::Error> {
-        sqlx::query_as("SELECT * FROM bloomfilter_parameters ORDER BY id DESC LIMIT 1")
-            .fetch_optional(&self.connection_pool)
-            .await
-    }
-
-    async fn update_archived_partial_bloomfilter(
-        &self,
-        date: Date,
-        new_bitmap: &[u8],
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE partial_bloomfilter SET bitmap = ? WHERE date = ?",
-            new_bitmap,
-            date
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    async fn try_load_partial_bloomfilter_bitmap(
-        &self,
-        date: Date,
-        params_id: i64,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error> {
-        sqlx::query!(
-            "SELECT bitmap FROM partial_bloomfilter WHERE date = ? AND parameters = ?",
-            date,
-            params_id
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
-        .map(|maybe_record| maybe_record.map(|r| r.bitmap))
-    }
-
-    async fn insert_partial_bloomfilter(
-        &self,
-        date: Date,
-        params_id: i64,
-        bitmap: &[u8],
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "INSERT INTO partial_bloomfilter(date, parameters, bitmap) VALUES (?, ?, ?)",
-            date,
-            params_id,
-            bitmap
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    async fn remove_old_partial_bloomfilters(&self, cutoff: Date) -> Result<(), sqlx::Error> {
-        sqlx::query!("DELETE FROM partial_bloomfilter WHERE date > ?", cutoff)
-            .execute(&self.connection_pool)
-            .await?;
-        Ok(())
-    }
-
     async fn remove_expired_verified_tickets(&self, cutoff: Date) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "DELETE FROM verified_tickets WHERE spending_date > ?",
+            "DELETE FROM verified_tickets WHERE spending_date < ?",
             cutoff
         )
         .execute(&self.connection_pool)

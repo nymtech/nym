@@ -3,10 +3,7 @@
 
 use super::ClientStatsEvents;
 use core::fmt;
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::{collections::VecDeque, time::Duration};
 
 use nym_metrics::{inc, inc_by};
 use serde::{Deserialize, Serialize};
@@ -17,6 +14,51 @@ use si_scale::helpers::bibytes2;
 // threshold effects.
 // Also, set it larger than the packet report interval so that we don't miss notable singular events
 const RECORDING_WINDOW_MS: u64 = 2300;
+
+#[derive(PartialOrd, PartialEq, Clone, Copy, Debug)]
+struct Instant {
+    #[cfg(not(target_arch = "wasm32"))]
+    inner: std::time::Instant,
+
+    #[cfg(target_arch = "wasm32")]
+    inner: wasmtimer::std::Instant,
+}
+
+impl Instant {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn inner(&self) -> &std::time::Instant {
+        &self.inner
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn inner(&self) -> &wasmtimer::std::Instant {
+        &self.inner
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn now() -> Self {
+        Instant {
+            inner: std::time::Instant::now(),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn now() -> Self {
+        Instant {
+            inner: wasmtimer::std::Instant::now(),
+        }
+    }
+
+    fn checked_sub(&self, duration: Duration) -> Option<Instant> {
+        self.inner()
+            .checked_sub(duration)
+            .map(|inner| Instant { inner })
+    }
+
+    fn duration_since(&self, earlier: &Instant) -> Duration {
+        self.inner.duration_since(*earlier.inner())
+    }
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct PacketStatistics {
@@ -424,7 +466,11 @@ impl PacketStatisticsControl {
         self.history.push_back((Instant::now(), self.stats.clone()));
 
         // Filter out old ones
-        let recording_window = Instant::now() - Duration::from_millis(RECORDING_WINDOW_MS);
+        let now = Instant::now();
+        let recording_window = Instant::now()
+            .checked_sub(Duration::from_millis(RECORDING_WINDOW_MS))
+            .unwrap_or(now);
+
         while self
             .history
             .front()
@@ -442,7 +488,7 @@ impl PacketStatisticsControl {
 
         // Do basic averaging over the entire history, which just uses the first and last
         if let Some((start, start_stats)) = self.history.front() {
-            let duration_secs = Instant::now().duration_since(*start).as_secs_f64();
+            let duration_secs = Instant::now().duration_since(start).as_secs_f64();
             let delta = self.stats.clone() - start_stats.clone();
             let rates = PacketRates::from(delta) / duration_secs;
             Some(rates)
@@ -458,7 +504,10 @@ impl PacketStatisticsControl {
         }
 
         // Filter out old ones
-        let recording_window = Instant::now() - Duration::from_millis(RECORDING_WINDOW_MS);
+        let now = Instant::now();
+        let recording_window = now
+            .checked_sub(Duration::from_millis(RECORDING_WINDOW_MS))
+            .unwrap_or(now);
         while self
             .rates
             .front()

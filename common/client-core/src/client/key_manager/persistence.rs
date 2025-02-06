@@ -3,7 +3,9 @@
 
 use crate::client::key_manager::ClientKeys;
 use async_trait::async_trait;
+use rand::{CryptoRng, RngCore};
 use std::error::Error;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -64,6 +66,7 @@ pub enum OnDiskKeysError {
     },
 }
 
+#[derive(Clone)]
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskKeys {
     paths: ClientKeysPaths,
@@ -193,9 +196,20 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone)]
 pub struct InMemEphemeralKeys {
-    keys: Mutex<Option<ClientKeys>>,
+    keys: Arc<Mutex<ClientKeys>>,
+}
+
+impl InMemEphemeralKeys {
+    pub fn new<R>(rng: &mut R) -> Self
+    where
+        R: RngCore + CryptoRng,
+    {
+        InMemEphemeralKeys {
+            keys: Arc::new(Mutex::new(ClientKeys::generate_new(rng))),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -208,11 +222,11 @@ impl KeyStore for InMemEphemeralKeys {
     type StorageError = EphemeralKeysError;
 
     async fn load_keys(&self) -> Result<ClientKeys, Self::StorageError> {
-        self.keys.lock().await.clone().ok_or(EphemeralKeysError)
+        Ok(self.keys.lock().await.clone())
     }
 
     async fn store_keys(&self, keys: &ClientKeys) -> Result<(), Self::StorageError> {
-        *self.keys.lock().await = Some(keys.clone());
+        *self.keys.lock().await = keys.clone();
         Ok(())
     }
 }

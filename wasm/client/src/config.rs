@@ -52,6 +52,7 @@ impl ClientConfig {
     }
 
     #[cfg(feature = "node-tester")]
+    #[allow(dead_code)]
     pub(crate) fn new_tester_config<S: Into<String>>(id: S) -> Self {
         ClientConfig {
             base: BaseClientConfig::new(id.into(), env!("CARGO_PKG_VERSION").to_string())

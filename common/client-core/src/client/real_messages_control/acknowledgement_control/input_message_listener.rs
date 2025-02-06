@@ -73,11 +73,10 @@ where
         content: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane, packet_type, mix_hops)
+            .try_send_plain_message(recipient, content, lane, packet_type)
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -91,18 +90,10 @@ where
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(
-                recipient,
-                content,
-                reply_surbs,
-                lane,
-                packet_type,
-                mix_hops,
-            )
+            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type)
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -115,9 +106,8 @@ where
                 recipient,
                 data,
                 lane,
-                mix_hops,
             } => {
-                self.handle_plain_message(recipient, data, lane, PacketType::Mix, mix_hops)
+                self.handle_plain_message(recipient, data, lane, PacketType::Mix)
                     .await
             }
             InputMessage::Anonymous {
@@ -125,17 +115,9 @@ where
                 data,
                 reply_surbs,
                 lane,
-                mix_hops,
             } => {
-                self.handle_repliable_message(
-                    recipient,
-                    data,
-                    reply_surbs,
-                    lane,
-                    PacketType::Mix,
-                    mix_hops,
-                )
-                .await
+                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix)
+                    .await
             }
             InputMessage::Reply {
                 recipient_tag,
@@ -153,9 +135,8 @@ where
                     recipient,
                     data,
                     lane,
-                    mix_hops,
                 } => {
-                    self.handle_plain_message(recipient, data, lane, packet_type, mix_hops)
+                    self.handle_plain_message(recipient, data, lane, packet_type)
                         .await
                 }
                 InputMessage::Anonymous {
@@ -163,17 +144,9 @@ where
                     data,
                     reply_surbs,
                     lane,
-                    mix_hops,
                 } => {
-                    self.handle_repliable_message(
-                        recipient,
-                        data,
-                        reply_surbs,
-                        lane,
-                        packet_type,
-                        mix_hops,
-                    )
-                    .await
+                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type)
+                        .await
                 }
                 InputMessage::Reply {
                     recipient_tag,

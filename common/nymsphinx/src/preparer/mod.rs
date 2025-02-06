@@ -14,9 +14,9 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{Delay, NymPacket};
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
@@ -54,14 +54,13 @@ pub trait FragmentPreparer {
     fn deterministic_route_selection(&self) -> bool;
     fn rng(&mut self) -> &mut Self::Rng;
     fn nonce(&self) -> i32;
-    fn num_mix_hops(&self) -> u8;
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
 
     fn generate_reply_surbs(
         &mut self,
         amount: usize,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         reply_recipient: &Recipient,
     ) -> Result<Vec<ReplySurb>, NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(amount);
@@ -79,7 +78,7 @@ pub trait FragmentPreparer {
         &mut self,
         recipient: &Recipient,
         fragment_id: FragmentIdentifier,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         ack_key: &AckKey,
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
@@ -109,7 +108,7 @@ pub trait FragmentPreparer {
     fn prepare_reply_chunk_for_sending(
         &mut self,
         fragment: Fragment,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         ack_key: &AckKey,
         reply_surb: ReplySurb,
         packet_sender: &Recipient,
@@ -130,9 +129,8 @@ pub trait FragmentPreparer {
             .expect("the message has been incorrectly fragmented");
 
         // this is not going to be accurate by any means. but that's the best estimation we can do
-        let expected_forward_delay = Delay::new_from_millis(
-            (self.average_packet_delay().as_millis() * self.num_mix_hops() as u128) as u64,
-        );
+        let expected_forward_delay =
+            Delay::new_from_millis((self.average_packet_delay().as_millis() * 3) as u64);
 
         let fragment_identifier = fragment.fragment_identifier();
 
@@ -190,12 +188,11 @@ pub trait FragmentPreparer {
     fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         ack_key: &AckKey,
         packet_sender: &Recipient,
         packet_recipient: &Recipient,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         debug!("Preparing chunk for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
@@ -204,8 +201,7 @@ pub trait FragmentPreparer {
 
         let fragment_header = fragment.header();
         let destination = packet_recipient.gateway();
-        let hops = mix_hops.unwrap_or(self.num_mix_hops());
-        monitoring::fragment_sent(&fragment, self.nonce(), *destination, hops);
+        monitoring::fragment_sent(&fragment, self.nonce(), destination);
 
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {
@@ -240,16 +236,16 @@ pub trait FragmentPreparer {
         };
 
         // generate pseudorandom route for the packet
-        log::trace!("Preparing chunk for sending with {hops} mix hops");
+        log::trace!("Preparing chunk for sending");
         let route = if self.deterministic_route_selection() {
             log::trace!("using deterministic route selection");
             let seed = fragment_header.seed().wrapping_mul(self.nonce());
             let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-            topology.random_route_to_gateway(&mut rng, hops, destination)?
+            topology.random_route_to_egress(&mut rng, destination)?
         } else {
             log::trace!("using pseudorandom route selection");
             let mut rng = self.rng();
-            topology.random_route_to_gateway(&mut rng, hops, destination)?
+            topology.random_route_to_egress(&mut rng, destination)?
         };
 
         let destination = packet_recipient.as_sphinx_destination();
@@ -335,10 +331,6 @@ pub struct MessagePreparer<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
-
     nonce: i32,
 }
 
@@ -361,15 +353,8 @@ where
             sender_address,
             average_packet_delay,
             average_ack_delay,
-            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             nonce,
         }
-    }
-
-    /// Allows setting non-default number of expected mix hops in the network.
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
     }
 
     /// Overwrites existing sender address with the provided value.
@@ -380,7 +365,7 @@ where
     pub fn generate_reply_surbs(
         &mut self,
         amount: usize,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
     ) -> Result<Vec<ReplySurb>, NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(amount);
         for _ in 0..amount {
@@ -399,7 +384,7 @@ where
     pub fn prepare_reply_chunk_for_sending(
         &mut self,
         fragment: Fragment,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         ack_key: &AckKey,
         reply_surb: ReplySurb,
         packet_type: PacketType,
@@ -420,11 +405,10 @@ where
     pub fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         ack_key: &AckKey,
         packet_recipient: &Recipient,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
 
@@ -436,7 +420,6 @@ where
             &sender,
             packet_recipient,
             packet_type,
-            mix_hops,
         )
     }
 
@@ -444,7 +427,7 @@ where
     pub fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         ack_key: &AckKey,
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
@@ -481,10 +464,6 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
 
     fn nonce(&self) -> i32 {
         self.nonce
-    }
-
-    fn num_mix_hops(&self) -> u8 {
-        self.num_mix_hops
     }
 
     fn average_packet_delay(&self) -> Duration {

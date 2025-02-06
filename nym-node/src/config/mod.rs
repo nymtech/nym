@@ -13,7 +13,7 @@ use nym_config::defaults::{
     WG_TUN_DEVICE_IP_ADDRESS_V6,
 };
 use nym_config::defaults::{WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6};
-use nym_config::helpers::inaddr_any;
+use nym_config::helpers::{in6addr_any_init, inaddr_any};
 use nym_config::serde_helpers::de_maybe_port;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
@@ -444,7 +444,7 @@ pub struct Host {
 #[serde(deny_unknown_fields)]
 pub struct Http {
     /// Socket address this node will use for binding its http API.
-    /// default: `0.0.0.0:8080`
+    /// default: `[::]:8080`
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
@@ -470,17 +470,27 @@ pub struct Http {
     /// This option is superseded by `expose_system_hardware`
     /// default: true
     pub expose_crypto_hardware: bool,
+
+    /// Specify the cache ttl of the node load.
+    /// default: 30s
+    #[serde(with = "humantime_serde")]
+    pub node_load_cache_ttl: Duration,
+}
+
+impl Http {
+    pub const DEFAULT_NODE_LOAD_CACHE_TTL: Duration = Duration::from_secs(30);
 }
 
 impl Default for Http {
     fn default() -> Self {
         Http {
-            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
+            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             access_token: None,
             expose_system_info: true,
             expose_system_hardware: true,
             expose_crypto_hardware: true,
+            node_load_cache_ttl: Self::DEFAULT_NODE_LOAD_CACHE_TTL,
         }
     }
 }
@@ -490,7 +500,7 @@ impl Default for Http {
 #[serde(deny_unknown_fields)]
 pub struct Mixnet {
     /// Address this node will bind to for listening for mixnet packets
-    /// default: `0.0.0.0:1789`
+    /// default: `[::]:1789`
     pub bind_address: SocketAddr,
 
     /// If applicable, custom port announced in the self-described API that other clients and nodes
@@ -584,7 +594,7 @@ impl Default for Mixnet {
         };
 
         Mixnet {
-            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_MIXNET_PORT),
+            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_MIXNET_PORT),
             announce_port: None,
             nym_api_urls,
             nyxd_urls,
@@ -597,7 +607,7 @@ impl Default for Mixnet {
 #[serde(deny_unknown_fields)]
 pub struct Verloc {
     /// Socket address this node will use for binding its verloc API.
-    /// default: `0.0.0.0:1790`
+    /// default: `[::]:1790`
     pub bind_address: SocketAddr,
 
     /// If applicable, custom port announced in the self-described API that other clients and nodes
@@ -618,7 +628,7 @@ impl Verloc {
 impl Default for Verloc {
     fn default() -> Self {
         Verloc {
-            bind_address: SocketAddr::new(inaddr_any(), Self::DEFAULT_VERLOC_PORT),
+            bind_address: SocketAddr::new(in6addr_any_init(), Self::DEFAULT_VERLOC_PORT),
             announce_port: None,
             debug: Default::default(),
         }
@@ -687,7 +697,7 @@ pub struct Wireguard {
     pub enabled: bool,
 
     /// Socket address this node will use for binding its wireguard interface.
-    /// default: `0.0.0.0:51822`
+    /// default: `[::]:51822`
     pub bind_address: SocketAddr,
 
     /// Private IPv4 address of the wireguard gateway.

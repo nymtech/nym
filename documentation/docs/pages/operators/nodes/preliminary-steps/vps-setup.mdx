@@ -4,6 +4,7 @@ import { Steps } from 'nextra/components';import { Tabs } from 'nextra/component
 import { MyTab } from 'components/generic-tabs.tsx';
 import PortsNymNode from 'components/operators/snippets/ports-nym-node.mdx';
 import PortsValidator from 'components/operators/snippets/ports-validator.mdx'
+import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx'
 
 # VPS Setup & Configuration
 
@@ -13,51 +14,9 @@ We aim for Nym Network to be reliable and quality base layer of privacy accross 
 A sub-optimally configured VPS often results in a non-functional node. To follow these steps carefully will save you time and money later on.
 </Callout>
 
-## VPS Hardware Specs
+<NymNodeSpecs />
 
-You will need to rent a VPS to run your node on. One key reason for this is that your node **must be able to send TCP data using both IPv4 and IPv6** (as other nodes you talk to may use either protocol).
-
-Tor community created a very helpful table called [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), you can use that one as a guideline for your choice of ISP for your VPS.
-
-**Update:** Nym community started an ISP table called [*Where to host your nym node?*](../../community-counsel/isp-list.mdx), check it out and add your findings!
-
-### `nym-node`
-
-Before we conclude the testing with exact results, these are the rough specs:
-
-| **Hardware** | **Minimum Specification** w
-| :---         | ---:                      |
-| CPU Cores    | 4                         |
-| Memory       | 4 GB RAM                  |
-| Storage      | 40 GB                     |
-| Connectivity | IPv4, IPv6, TCP/IP, UDP   |
-| Bandwidth    | 1Tb                       |
-| Port speed   | 1Gbps                     |
-
-### Nyx validator
-
-The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run `nym-api` and a full Nyx node on the same machine for optimum performance.
-
-Bear in mind that credential signing is primarily CPU-bound, so choose the fastest CPU available to you.
-
-#### Minimum Requirements
-
-| Hardware | **Minimum Specification**                  |
-|----------|--------------------------------------------|
-| CPU      | 8-cores, 2.8GHz base clock speed or higher |
-| RAM      | 16GB DDR4+                                 |
-| Disk     | 500 GiB+ NVMe SSD                          |
-
-#### Recommended Requirements
-
-| Hardware | **Minimum Specification**                   |
-|----------|---------------------------------------------|
-| CPU      | 16-cores, 2.8GHz base clock speed or higher |
-| RAM      | 32GB DDR4+                                  |
-| Disk     | 1 TiB+ NVMe SSD                             |
-
-
-#### Full node configuration (validator)
+## Full node configuration (validator)
 
 To install a full node from scratch, refer to the [validator setup guide](../validator-setup.mdx) and follow the steps outlined there.
 

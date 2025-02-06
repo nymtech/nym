@@ -119,6 +119,15 @@ pub trait WasmClientStorage: BaseWasmStorage {
             .map_err(Into::into)
     }
 
+    async fn has_identity_key(&self) -> Result<bool, <Self as WasmClientStorage>::StorageError> {
+        self.has_value(
+            v1::KEYS_STORE,
+            JsValue::from_str(v1::ED25519_IDENTITY_KEYPAIR),
+        )
+        .await
+        .map_err(Into::into)
+    }
+
     async fn store_identity_keypair(
         &self,
         keypair: &identity::KeyPair,
@@ -277,8 +286,8 @@ pub trait WasmClientStorage: BaseWasmStorage {
             .await
             .map_err(Into::into)
             .map(|arr| {
-                arr.to_vec()
-                    .into_iter()
+                arr.iter()
+                    .cloned()
                     .filter_map(|key| key.as_string())
                     .collect()
             })

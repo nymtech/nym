@@ -10,6 +10,80 @@ If you want to run a Validator node, check the [Operator guides](../../../operat
 
 </Callout>
 
-Nyx is a Cosmos SDK blockchain. It records the ledger of `NYM` transactions and executes the smart contracts for distributing `NYM` rewards.
+Nyx is a Cosmos SDK blockchain. The blockchain plays a supporting but fundamental role in the mixnet: the `NYM` token used to incentivise node operators is one of two native tokens of the chain, and the chain is where the [Mixnet](#mixnet-contract), [Vesting](#vesting-contract) and [zk-nym](#zk-nym-contract) smart contracts are deployed.
 
-The blockchain plays a supporting but fundamental role in the mixnet: the `NYM` token used to incentivise node operators is one of two native tokens of the chain (the other being `NYX`, used for Blockchain consensus), and the chain is where the Mixnet, Vesting, and zk-nym-related smart contracts are deployed.
+## Validators
+<Callout type="info" emoji="ℹ️">
+  The validator setup and maintenance guide can be found in the [Operator Docs](../../../operators/nodes/validator-setup).
+</Callout>
+
+Validators secure the Nyx blockchain via Proof of Stake consensus. The Nyx blockchain records the ledger of `NYM` transactions and executes the smart contracts for distributing `NYM` rewards. The Nyx validators are run via the `nyxd` binary ([codebase](https://github.com/nymtech/nyxd)), maintaining a CosmWasm- and IBC-enabled blockchain.
+
+Detailed info on Nyx Validators and token flow can be found in [Nym Reward Sharing for Mixnets document](https://nym.com/nym-cryptoecon-paper.pdf) in section 2.3 and 2.4 and in the [Nym Whitepaper](https://nym.com/nym-whitepaper.pdf) section 3.1.
+
+## NymAPI
+<Callout type="info" emoji="ℹ️">
+  The Nym API setup and maintenance guide has moved to the [Operator Guides book](../../../operators/nodes/validator-setup/nym-api).
+</Callout>
+
+The NymAPI is a binary operated by a subset of the Nyx validator set. This binary can be run in several different modes, and has two main bits of functionality:
+
+* Network monitoring (calculating the routing score of Mixnet nodes)
+* Generation and validation of [zk-nyms](../cryptography/zk-nym/zk-nym-overview), a combination of the Coconut Selective Disclosure Credential and Offline Ecash schemes.
+
+This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments.
+
+## Smart Contracts
+The Nyx blockchain is [CosmWasm](https://cosmwasm.com/) enabled.
+
+The following contracts are deployed to the chain:
+* The [Mixnet contract](#mixnet-contract) which manages the network topology of the mixnet and tracks delegations & rewarding.
+* The [Vesting contract](#vesting-contract) which manages `NYM` token vesting functionality. This will soon be deprecated.
+* The [Quorum Multisig](#multisig-contract) used by the subset of the Nyx Validators that generate and validate [zk-nyms](../cryptography/zk-nym) to manage reward payouts for nodes.
+* The [zk-nym contract](#zk-nym-contract) which keeps track of `NYM` deposits used as payment for zk-nym generation.
+
+The addresses of deployed smart contracts can be found in the [`network-defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) directory of the codebase alongside other network default values.
+
+### Interacting with Contracts
+You can use the [API docs](../../apis/introduction) to see how you can interact with the contracts. The [NymAPI](../../apis/nym-api) in particular has multiple endpoints to query the Mixnet state, topology, and various zk-Nym-related endpoints.
+
+### Mixnet Contract
+The Mixnet smart contract is a core piece of the Nym system, functioning as the mixnet directory and keeping track of delegations and rewards: the core functionality required by an incentivised mixnet.  You can find the code and build instructions [here](https://github.com/nymtech/nym/tree/master/contracts/mixnet).
+
+> Having a smart contract act as a decentralised topology directory for clients connecting to the Mixnet allows us to mitigate several possible attacks which systems relying on P2P networking are susceptible to. See [Why Nym is not P2P](./nym-not-p2p).
+
+The Mixnet contract has multiple functions:
+* Storing bonded mix node and gateway information (and removing this on unbonding).
+* **Providing the network-topology to the (cached) Validator API endpoint used by clients on startup for routing information.**
+* Storing delegation and bond amounts.
+* Storing reward amounts.
+
+### Vesting Contract
+The vesting contract allows for the creation of vesting accounts, allowing `NYM` tokens to vest over time, and for users to minimally interact with the Mixnet using their unvested tokens. You can find the code and build instructions [here](https://github.com/nymtech/nym/tree/master/contracts/vesting).
+
+The Vesting contract has multiple functions:
+* Creating and storing vesting `NYM` token vesting accounts.
+* Interacting with the Mixnet using vesting (i.e. non-transferable) tokens, allowing users to delegate their unvested tokens.
+
+### Multisig Contract
+The multisig contract used by the [NymAPI Quroum](../cryptography/zk-nym/zk-nym-overview) - a subset of the Nyx Validator set taking on the additional work of generating and validating zk-nyms - to execute certain actions in the [zk-nym](../cryptography/zk-nym) contract.
+
+It is essentially an instance of the [canonical](https://github.com/CosmWasm/cw-plus/tree/main/contracts) `cw3-flex-multisig` using the `cw4-group` contract, with one minor change to restrict the addresses allowed to submit proposals.
+
+### Zk-Nym Contract
+
+<Callout type="info" emoji="ℹ️">
+Note that within the monorepo contract repo this contract is referred to as `ecash`. This is a historical artifact that hasn't yet been changed.
+</Callout>
+
+This contract is a hub for zk-nym related actions, being called by either:
+- The zk-nym payment backend
+- Nodes running in Gateway mode
+- The multisig contract
+
+The following functionality is controlled by the multisig contract:
+  - Getting the list of blacklisted addresses who have tried to double-spend a zk-nym.
+  - Proposing to add an address to the blacklist.
+  - Executing an open proposal.
+  - The the zk-nym [payment backend](../cryptography/zk-nym/zk-nym-overview) can deposit funds with information used to identify the deposit.
+  - Finally, nodes running as Gateways can create a proposal to redeem a set of spend zk-nyms.

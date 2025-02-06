@@ -5,7 +5,7 @@ Migrate your `nym-gateway` to `nym-node --mode entry-gateway` or `--mode exit-ga
 <Steps>
 ###### 1. Move relevant info from `config.toml`
 ```sh
-./nym-node migrate --config-file ~/.nym/gateways/<GATEWAY_ID>/config/config.toml gateway
+./nym-node migrate --config-file ~/.nym/gateways/<ID>/config/config.toml gateway
 ```
 
 ###### 2. Initialise with new `nym-node` config chosing one of the options below:
@@ -19,5 +19,6 @@ Migrate your `nym-gateway` to `nym-node --mode entry-gateway` or `--mode exit-ga
 ```sh
 ./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname <HOSTNAME> --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <LOCATION> --accept-operator-terms-and-conditions --wireguard-enabled true
 ```
+
 </Steps>
 </>

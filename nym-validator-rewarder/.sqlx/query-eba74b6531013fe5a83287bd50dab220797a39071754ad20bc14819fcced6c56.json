@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO pre_commit (validator_address, height, timestamp, voting_power, proposer_priority)\n            VALUES (?, ?, ?, ?, ?)\n            ON CONFLICT (validator_address, timestamp) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "eba74b6531013fe5a83287bd50dab220797a39071754ad20bc14819fcced6c56"
+}

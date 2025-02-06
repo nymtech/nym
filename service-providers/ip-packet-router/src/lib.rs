@@ -11,6 +11,7 @@ pub mod error;
 mod ip_packet_router;
 mod mixnet_client;
 mod mixnet_listener;
+pub(crate) mod non_linux_dummy;
 pub mod request_filter;
 mod tun_listener;
 mod util;

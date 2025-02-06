@@ -15,6 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
+      IPINFO_API_TOKEN: ${{ secrets.IPINFO_API_TOKEN }}
     continue-on-error: true
     steps:
       - name: Check out repository code

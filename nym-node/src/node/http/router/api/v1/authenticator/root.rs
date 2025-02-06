@@ -15,8 +15,8 @@ use nym_node_requests::api::v1::authenticator::models::Authenticator;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = Authenticator),
-            ("application/yaml" = Authenticator)
+            (Authenticator = "application/json"),
+            (Authenticator = "application/yaml")
         ))
     ),
     params(OutputParams)

@@ -6,9 +6,9 @@ use nym_crypto::{generic_array::typenum::Unsigned, Digest};
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{NymPacket, SURBMaterial, SphinxError, SURB};
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -89,13 +89,12 @@ impl ReplySurb {
         rng: &mut R,
         recipient: &Recipient,
         average_delay: time::Duration,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
     {
-        let route =
-            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
+        let route = topology.random_route_to_egress(rng, recipient.gateway())?;
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
@@ -110,15 +109,12 @@ impl ReplySurb {
 
     /// Returns the expected number of bytes the [`ReplySURB`] will take after serialization.
     /// Useful for deserialization from a bytes stream.
-    pub fn serialized_len(mix_hops: u8) -> usize {
+    pub fn serialized_len() -> usize {
         use nym_sphinx_types::{HEADER_SIZE, NODE_ADDRESS_LENGTH, PAYLOAD_KEY_SIZE};
 
         // the SURB itself consists of SURB_header, first hop address and set of payload keys
-        // (note extra 1 for the gateway)
-        SurbEncryptionKeySize::USIZE
-            + HEADER_SIZE
-            + NODE_ADDRESS_LENGTH
-            + (1 + mix_hops as usize) * PAYLOAD_KEY_SIZE
+        // for each hop (3x mix + egress)
+        SurbEncryptionKeySize::USIZE + HEADER_SIZE + NODE_ADDRESS_LENGTH + 4 * PAYLOAD_KEY_SIZE
     }
 
     pub fn encryption_key(&self) -> &SurbEncryptionKey {

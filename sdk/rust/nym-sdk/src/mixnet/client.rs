@@ -25,7 +25,7 @@ use nym_client_core::client::{
 };
 use nym_client_core::config::{DebugConfig, StatsReporting};
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::ForgetMe;
@@ -108,7 +108,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
 
 impl<S> MixnetClientBuilder<S>
 where
-    S: MixnetClientStorage + 'static,
+    S: MixnetClientStorage + Clone + 'static,
     S::ReplyStore: Send + Sync,
     S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -177,6 +177,18 @@ where
     #[must_use]
     pub fn request_gateway(mut self, user_chosen_gateway: String) -> Self {
         self.config.user_chosen_gateway = Some(user_chosen_gateway);
+        self
+    }
+
+    #[must_use]
+    pub fn with_extended_topology(mut self, use_extended_topology: bool) -> Self {
+        self.config.debug_config.topology.use_extended_topology = use_extended_topology;
+        self
+    }
+
+    #[must_use]
+    pub fn with_ignore_epoch_roles(mut self, ignore_epoch_roles: bool) -> Self {
+        self.config.debug_config.topology.ignore_egress_epoch_role = ignore_epoch_roles;
         self
     }
 
@@ -314,7 +326,7 @@ where
 /// client.
 pub struct DisconnectedMixnetClient<S>
 where
-    S: MixnetClientStorage,
+    S: MixnetClientStorage + Clone,
 {
     /// Client configuration
     config: Config,
@@ -359,7 +371,7 @@ where
 
 impl<S> DisconnectedMixnetClient<S>
 where
-    S: MixnetClientStorage + 'static,
+    S: MixnetClientStorage + Clone + 'static,
     S::ReplyStore: Send + Sync,
     S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -477,7 +489,7 @@ where
         user_chosen_gateway: &str,
     ) -> Result<bool> {
         let storage = self.storage.gateway_details_store();
-        // Stricly speaking, `set_active_gateway` does this check internally as well, but since the
+        // Strictly speaking, `set_active_gateway` does this check internally as well, but since the
         // error is boxed away and we're using a generic storage, it's not so easy to match on it.
         // This function is at least less likely to fail on something unrelated to the existence of
         // the gateway in the set of registered gateways
@@ -500,15 +512,14 @@ where
 
         let user_agent = self.user_agent.clone();
 
+        let topology_cfg = &self.config.debug_config.topology;
         let mut rng = OsRng;
-        let available_gateways = current_gateways(
+        let available_gateways = gateways_for_init(
             &mut rng,
             &nym_api_endpoints,
             user_agent,
-            self.config
-                .debug_config
-                .topology
-                .minimum_gateway_performance,
+            topology_cfg.minimum_gateway_performance,
+            topology_cfg.ignore_ingress_epoch_role,
         )
         .await?;
 
@@ -610,7 +621,7 @@ where
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
-            self.storage.credential_store(),
+            self.storage.credential_store().clone(),
             client_id,
             ticketbook_type,
         )
@@ -788,6 +799,8 @@ where
             stats_events_reporter,
             started_client.task_handle,
             None,
+            started_client.client_request_sender,
+            started_client.forget_me,
         ))
     }
 }

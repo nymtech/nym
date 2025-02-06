@@ -63,6 +63,7 @@ impl From<v6::request::StaticConnectRequest> for v7::request::StaticConnectReque
     }
 }
 
+#[allow(deprecated)]
 impl From<v6::request::DynamicConnectRequest> for v7::request::DynamicConnectRequest {
     fn from(dynamic_connect_request: v6::request::DynamicConnectRequest) -> Self {
         Self {

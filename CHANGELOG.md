@@ -4,6 +4,86 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.2-hu] (2025-02-04)
+
+- Feature/remove double spending bloomfilter ([#5417])
+- HU - Downgrade harmless log message from info to debug ([#5405])
+- lower default ticket verification quorum to 0.7 ([#5404])
+- Downgrade harmless log message from info to debug ([#5403])
+- Redirect from mixnode page to nodes page ([#5397])
+- chore :update version of chain watcher and validator rewarder ([#5394])
+- bugfix: correctly handle ingore epoch roles flag ([#5390])
+- bugfix: terminate mixnet socket listener on shutdown ([#5389])
+- feat: make client ignore dual mode nodes by default ([#5388])
+- Handle ecash network errors differently ([#5378])
+- Remove empty ephemeral keys ([#5376])
+- fixed sql migration for adding default message timestamp ([#5374])
+- Bind to [::] on nym-node for both IP versions ([#5361])
+- exposed NymApiClient method for obtaining node performance history ([#5360])
+- Client gateway selection ([#5358])
+- chore: refresh wasm sdk ([#5353])
+- chore: update indexed_db_futures ([#5347])
+- build(deps): bump mikefarah/yq from 4.44.6 to 4.45.1 ([#5342])
+- updated cosmrs and tendermint-rpc to their most recent versions ([#5339])
+- build(deps): bump ts-rs from 10.0.0 to 10.1.0 ([#5338])
+- build(deps): bump tempfile from 3.14.0 to 3.15.0 ([#5337])
+- build(deps): bump the patch-updates group with 8 updates ([#5336])
+- feature: introduce /load endpoint for self-reported quantised NymNode load ([#5326])
+- feature: `CancellationToken`-based shutdowns ([#5325])
+- Use expect in geodata test to give error message on failure ([#5314])
+- feature: periodically remove stale gateway messages ([#5312])
+- build(deps): bump the patch-updates group across 1 directory with 35 updates ([#5310])
+- Add dependabot assignes for the root cargo ecosystem ([#5297])
+- Move tun constants to network defaults ([#5286])
+- Include IPINFO_API_TOKEN in nightly CI ([#5285])
+- Nyx Chain Watcher ([#5274])
+- bugfix: remove unnecessary arguments for nym-api swagger endpoints ([#5272])
+- feature: nym topology revamp ([#5271])
+- Add windows to CI builds ([#5269])
+- http-api-client: deduplicate code ([#5267])
+- build(deps): bump http from 1.1.0 to 1.2.0 ([#5228])
+- NS API: add mixnet scraper ([#5200])
+- build(deps): bump criterion from 0.4.0 to 0.5.1 ([#4911])
+
+[#5417]: https://github.com/nymtech/nym/pull/5417
+[#5405]: https://github.com/nymtech/nym/pull/5405
+[#5404]: https://github.com/nymtech/nym/pull/5404
+[#5403]: https://github.com/nymtech/nym/pull/5403
+[#5397]: https://github.com/nymtech/nym/pull/5397
+[#5394]: https://github.com/nymtech/nym/pull/5394
+[#5390]: https://github.com/nymtech/nym/pull/5390
+[#5389]: https://github.com/nymtech/nym/pull/5389
+[#5388]: https://github.com/nymtech/nym/pull/5388
+[#5378]: https://github.com/nymtech/nym/pull/5378
+[#5376]: https://github.com/nymtech/nym/pull/5376
+[#5374]: https://github.com/nymtech/nym/pull/5374
+[#5361]: https://github.com/nymtech/nym/pull/5361
+[#5360]: https://github.com/nymtech/nym/pull/5360
+[#5358]: https://github.com/nymtech/nym/pull/5358
+[#5353]: https://github.com/nymtech/nym/pull/5353
+[#5347]: https://github.com/nymtech/nym/pull/5347
+[#5342]: https://github.com/nymtech/nym/pull/5342
+[#5339]: https://github.com/nymtech/nym/pull/5339
+[#5338]: https://github.com/nymtech/nym/pull/5338
+[#5337]: https://github.com/nymtech/nym/pull/5337
+[#5336]: https://github.com/nymtech/nym/pull/5336
+[#5326]: https://github.com/nymtech/nym/pull/5326
+[#5325]: https://github.com/nymtech/nym/pull/5325
+[#5314]: https://github.com/nymtech/nym/pull/5314
+[#5312]: https://github.com/nymtech/nym/pull/5312
+[#5310]: https://github.com/nymtech/nym/pull/5310
+[#5297]: https://github.com/nymtech/nym/pull/5297
+[#5286]: https://github.com/nymtech/nym/pull/5286
+[#5285]: https://github.com/nymtech/nym/pull/5285
+[#5274]: https://github.com/nymtech/nym/pull/5274
+[#5272]: https://github.com/nymtech/nym/pull/5272
+[#5271]: https://github.com/nymtech/nym/pull/5271
+[#5269]: https://github.com/nymtech/nym/pull/5269
+[#5267]: https://github.com/nymtech/nym/pull/5267
+[#5228]: https://github.com/nymtech/nym/pull/5228
+[#5200]: https://github.com/nymtech/nym/pull/5200
+[#4911]: https://github.com/nymtech/nym/pull/4911
+
 ## [2025.1-reeses] (2025-01-15)
 
 - Feture/legacy alert ([#5346])

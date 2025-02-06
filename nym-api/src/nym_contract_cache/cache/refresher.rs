@@ -9,7 +9,7 @@ use anyhow::Result;
 use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
-use nym_mixnet_contract_common::{LegacyMixLayer, RewardedSet};
+use nym_mixnet_contract_common::{EpochRewardedSet, LegacyMixLayer};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, NymContractsProvider, VestingQueryClient,
@@ -141,9 +141,21 @@ impl NymContractCacheRefresher {
         }
 
         let rewarded_set = self.get_rewarded_set().await;
-        let layer1 = rewarded_set.layer1.iter().collect::<HashSet<_>>();
-        let layer2 = rewarded_set.layer2.iter().collect::<HashSet<_>>();
-        let layer3 = rewarded_set.layer3.iter().collect::<HashSet<_>>();
+        let layer1 = rewarded_set
+            .assignment
+            .layer1
+            .iter()
+            .collect::<HashSet<_>>();
+        let layer2 = rewarded_set
+            .assignment
+            .layer2
+            .iter()
+            .collect::<HashSet<_>>();
+        let layer3 = rewarded_set
+            .assignment
+            .layer3
+            .iter()
+            .collect::<HashSet<_>>();
 
         let layer_choices = [
             LegacyMixLayer::One,
@@ -209,7 +221,7 @@ impl NymContractCacheRefresher {
         Ok(())
     }
 
-    async fn get_rewarded_set(&self) -> RewardedSet {
+    async fn get_rewarded_set(&self) -> EpochRewardedSet {
         self.nyxd_client
             .get_rewarded_set_nodes()
             .await

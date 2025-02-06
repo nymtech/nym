@@ -3,6 +3,7 @@
 
 use crate::block_processor::types::BlockToProcess;
 use crate::error::ScraperError;
+use tendermint_rpc::client::CompatMode;
 use tendermint_rpc::event::Event;
 use tendermint_rpc::query::EventType;
 use tendermint_rpc::{SubscriptionClient, WebSocketClient, WebSocketClientDriver};
@@ -38,7 +39,16 @@ impl ChainSubscriber {
     ) -> Result<Self, ScraperError> {
         // sure, we could have just used websocket client entirely, but let's keep the logic for
         // getting current blocks and historical blocks completely separate with the dual connection
-        let (client, driver) = WebSocketClient::new(websocket_endpoint.as_str())
+        let websocket_url = websocket_endpoint.as_str().try_into().map_err(|source| {
+            ScraperError::WebSocketConnectionFailure {
+                url: websocket_endpoint.to_string(),
+                source,
+            }
+        })?;
+
+        let (client, driver) = WebSocketClient::builder(websocket_url)
+            .compat_mode(CompatMode::V0_37)
+            .build()
             .await
             .map_err(|source| ScraperError::WebSocketConnectionFailure {
                 url: websocket_endpoint.to_string(),

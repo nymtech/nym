@@ -113,8 +113,6 @@ There are a few community explorers as well.
 
 Enter your **identity key** to find your node. Check the contents of the `Mixnode stats` and `Routing score` sections.
 
-You can run [Node API Check CLI](../testing/node-api-check.mdx) to query all API endpoints of your node at once.
-
 [Here](https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json#L158-L187) is a dictionary with Nyx chain registry entry regarding all explorers.
 
 If you want more information, or if your node isn't showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.
@@ -345,7 +343,7 @@ In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/a
 
 **What to do**
 
-Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To query all API endpoints of your node at once, you can run [Node API Check CLI](../testing/node-api-check.mdx). To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.mdx).
+Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.mdx).
 
 Then follow these steps:
 
@@ -439,7 +437,7 @@ wscat -c ws://<PUBLIC_IP>:<PORT>
 
 </Steps>
 
-### My exit Gateway "is still not online..."
+### My Exit Gateway "is still not online..."
 
 The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's essential to start it before the bonding process and let it running. In case it already got [blacklisted](#my-gateway-is-backlisted) check the steps above.
 
@@ -482,7 +480,7 @@ http://<YOUR_LISTENING_IP_ADDRESS>:8080/api/v1/roles
 # in case of hostname domain
 https://<YOUR_DOMAIN>/api/v1/roles
 ```
-3. Make sure all your [ports are open](https://nymtech.net/operators/nodes/maintenance.html#configure-your-firewall) properly
+3. Make sure all your [ports are open](../nodes/preliminary-steps/vps-setup#install-dependencies--configure-firewall) properly
 4. Make sure to run your Gateway with embedded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder
-5. If it's all good in the API but you don't see the right tick/badge in the [Performance testing list](https://nymtech.net/events/fast-and-furious), just wait some time and then try to refresh the page
+5. If it's all good in the API but you don't see the right tick/badge in the [Performance testing list](https://nym.com/events/fast-and-furious), just wait some time and then try to refresh the page
 */}

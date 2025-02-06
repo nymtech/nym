@@ -26,7 +26,6 @@ nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
-nym-ecash-double-spending = { path = "../ecash-double-spending" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-gateway-storage = { path = "../gateway-storage" }
 nym-task = { path = "../task" }

@@ -70,7 +70,6 @@ pub(crate) struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
     destination: PacketDestination,
-    mix_hops: Option<u8>,
     retransmissions: u32,
 }
 
@@ -80,13 +79,11 @@ impl PendingAcknowledgement {
         message_chunk: Fragment,
         delay: SphinxDelay,
         recipient: Recipient,
-        mix_hops: Option<u8>,
     ) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
             destination: PacketDestination::KnownRecipient(recipient.into()),
-            mix_hops,
             retransmissions: 0,
         }
     }
@@ -104,9 +101,6 @@ impl PendingAcknowledgement {
                 recipient_tag,
                 extra_surb_request,
             },
-            // Messages sent using SURBs are using the number of mix hops set by the recipient when
-            // they provided the SURBs, so it doesn't make sense to include it here.
-            mix_hops: None,
             retransmissions: 0,
         }
     }

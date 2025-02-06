@@ -6,7 +6,7 @@ use crate::measurements::packet::{EchoPacket, ReplyPacket};
 use bytes::{BufMut, BytesMut};
 use futures::StreamExt;
 use nym_crypto::asymmetric::identity;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{io, process};
@@ -19,19 +19,19 @@ use tracing::{debug, error, info, trace, warn};
 pub struct PacketListener {
     address: SocketAddr,
     connection_handler: Arc<ConnectionHandler>,
-    shutdown: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl PacketListener {
     pub fn new(
         address: SocketAddr,
         identity: Arc<identity::KeyPair>,
-        shutdown: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         PacketListener {
             address,
             connection_handler: Arc::new(ConnectionHandler { identity }),
-            shutdown,
+            shutdown_token,
         }
     }
 }
@@ -51,26 +51,22 @@ impl PacketListener {
 
         info!("Started listening for echo packets on {}", self.address);
 
-        let mut shutdown_listener = self.shutdown.clone();
-
-        while !shutdown_listener.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
-            let mut handler_shutdown_listener = self.shutdown.clone();
-            handler_shutdown_listener.disarm();
 
             tokio::select! {
                 socket = listener.accept() => {
                     match socket {
                         Ok((socket, remote_addr)) => {
-                            debug!("New verloc connection from {}", remote_addr);
-
-                            tokio::spawn(connection_handler.handle_connection(socket, remote_addr, handler_shutdown_listener));
+                            debug!("New verloc connection from {remote_addr}");
+                            let cancel = self.shutdown_token.child_token(format!("handler_{remote_addr}"));
+                            tokio::spawn(async move { cancel.run_until_cancelled(connection_handler.handle_connection(socket, remote_addr)).await });
                         }
                         Err(err) => warn!("Failed to accept incoming connection - {err}"),
                     }
                 },
-                _ = shutdown_listener.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     trace!("PacketListener: Received shutdown");
                 }
             }
@@ -88,50 +84,29 @@ impl ConnectionHandler {
         packet.construct_reply(self.identity.private_key())
     }
 
-    pub(crate) async fn handle_connection(
-        self: Arc<Self>,
-        conn: TcpStream,
-        remote: SocketAddr,
-        mut shutdown_listener: TaskClient,
-    ) {
-        debug!("Starting connection handler for {:?}", remote);
+    pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
+        debug!("Starting connection handler for {remote}");
 
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
-        while !shutdown_listener.is_shutdown() {
-            tokio::select! {
-                biased;
-               _ = shutdown_listener.recv() => {
-                    trace!("ConnectionHandler: Shutdown received");
+        while let Some(echo_packet) = framed_conn.next().await {
+            let reply_packet = match echo_packet {
+                Ok(echo_packet) => self.handle_echo_packet(echo_packet),
+                Err(err) => {
+                    debug!(
+                        "The socket connection got corrupted with error: {err}. Closing the socket"
+                    );
+                    return;
                 }
-                maybe_echo_packet = framed_conn.next() => {
-                    // handle echo packet
-                    let reply_packet = match maybe_echo_packet {
-                        Some(Ok(echo_packet)) => self.handle_echo_packet(echo_packet),
-                        Some(Err(err)) => {
-                             debug!(
-                                "The socket connection got corrupted with error: {err}. Closing the socket",
-                            );
-                            return;
-                        }
-                        None => {
-                            debug!("The socket connection got terminated by the remote!");
-                            return;
-                        }
-                    };
+            };
 
-                    // write back the reply (note the lack of framing)
-                    if let Err(err) = framed_conn
-                        .get_mut()
-                        .write_all(reply_packet.to_bytes().as_ref())
-                        .await
-                    {
-                        debug!(
-                            "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
-                            err
-                        );
-                        return;
-                    }
-                },
+            // write back the reply (note the lack of framing)
+            if let Err(err) = framed_conn
+                .get_mut()
+                .write_all(reply_packet.to_bytes().as_ref())
+                .await
+            {
+                debug!("Failed to write reply packet back to the sender: {err}. Closing the socket on our end");
+                return;
             }
         }
     }

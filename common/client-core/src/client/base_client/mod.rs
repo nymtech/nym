@@ -1,9 +1,9 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
-use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -24,7 +24,7 @@ use crate::client::replies::reply_storage::{
 };
 use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
-    nym_api_provider, TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
@@ -464,8 +464,8 @@ where
             details_store
                 .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
                 .await.map_err(|err| {
-                    error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
-                    ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
+                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
             })?
         }
 
@@ -473,6 +473,7 @@ where
             .claim_initial_bandwidth()
             .await
             .map_err(gateway_failure)?;
+
         gateway_client
             .start_listening_for_mixnet_messages()
             .map_err(gateway_failure)?;
@@ -539,15 +540,15 @@ where
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
             config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
-                nym_api_provider::Config {
-                    min_mixnode_performance: config_topology.minimum_mixnode_performance,
-                    min_gateway_performance: config_topology.minimum_gateway_performance,
-                },
+                config_topology,
                 nym_api_urls,
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(nym_api_urls, group_by))
+                warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");
+
+                #[allow(deprecated)]
+                Box::new(crate::client::topology_control::GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }
@@ -558,7 +559,7 @@ where
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
-        local_gateway: &NodeIdentity,
+        local_gateway: NodeIdentity,
         wait_for_gateway: bool,
         mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
@@ -590,7 +591,7 @@ where
         };
 
         if let Err(err) = topology_refresher
-            .ensure_contains_gateway(local_gateway)
+            .ensure_contains_routable_egress(local_gateway)
             .await
         {
             if let Some(waiting_timeout) = gateway_wait_timeout {
@@ -645,13 +646,12 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
-        forget_me: ForgetMe,
-    ) -> BatchMixMessageSender {
+    ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) =
-            MixTrafficController::new(gateway_transceiver, forget_me);
+        let (mix_traffic_controller, mix_tx, client_tx) =
+            MixTrafficController::new(gateway_transceiver);
         mix_traffic_controller.start_with_shutdown(shutdown);
-        mix_tx
+        (mix_tx, client_tx)
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -740,7 +740,8 @@ where
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
-        let shared_topology_accessor = TopologyAccessor::new();
+        let shared_topology_accessor =
+            TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = self
@@ -832,10 +833,9 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
 
-        let message_sender = Self::start_mix_traffic_controller(
+        let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
             shutdown.fork("mix_traffic_controller"),
-            self.forget_me,
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
@@ -910,6 +910,8 @@ where
             },
             stats_reporter,
             task_handle: shutdown,
+            client_request_sender,
+            forget_me: self.forget_me,
         })
     }
 }
@@ -921,6 +923,7 @@ pub struct BaseClient {
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
-
+    pub client_request_sender: ClientRequestSender,
     pub task_handle: TaskHandle,
+    pub forget_me: ForgetMe,
 }

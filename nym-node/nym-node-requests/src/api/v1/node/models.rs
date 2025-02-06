@@ -111,6 +111,7 @@ pub struct HostKeys {
     #[serde(alias = "ed25519")]
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub ed25519_identity: ed25519::PublicKey,
 
     /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
@@ -118,12 +119,14 @@ pub struct HostKeys {
     #[serde(alias = "x25519")]
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub x25519_sphinx: x25519::PublicKey,
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
     #[schemars(with = "Option<String>")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 

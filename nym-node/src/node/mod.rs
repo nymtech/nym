@@ -43,8 +43,7 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
-use nym_task::{TaskClient, TaskManager};
-use nym_topology::NetworkAddress;
+use nym_task::{ShutdownManager, ShutdownToken, TaskClient};
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NodeRefreshBody;
 use nym_validator_client::{NymApiClient, UserAgent};
@@ -352,6 +351,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
 pub(crate) struct NymNode {
     config: Config,
     accepted_operator_terms_and_conditions: bool,
+    shutdown_manager: ShutdownManager,
 
     description: NodeDescription,
 
@@ -448,6 +448,10 @@ impl NymNode {
             wireguard: Some(wireguard_data),
             config,
             accepted_operator_terms_and_conditions: false,
+            shutdown_manager: ShutdownManager::new("NymNode")
+                .with_legacy_task_manager()
+                .with_default_shutdown_signals()
+                .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
         })
     }
 
@@ -538,8 +542,10 @@ impl NymNode {
         ))
     }
 
-    fn as_gateway_topology_node(&self) -> Result<nym_topology::gateway::LegacyNode, NymNodeError> {
-        let Some(ip) = self.config.host.public_ips.first() else {
+    fn as_gateway_topology_node(&self) -> Result<nym_topology::RoutingNode, NymNodeError> {
+        let ip_addresses = self.config.host.public_ips.clone();
+
+        let Some(ip) = ip_addresses.first() else {
             return Err(NymNodeError::NoPublicIps);
         };
 
@@ -554,17 +560,24 @@ impl NymNode {
             .config
             .gateway_tasks
             .announce_ws_port
-            .unwrap_or(self.config.gateway_tasks.bind_address.port());
+            .unwrap_or(self.config.gateway_tasks.ws_bind_address.port());
 
-        Ok(nym_topology::gateway::LegacyNode {
+        Ok(nym_topology::RoutingNode {
             node_id: u32::MAX,
             mix_host,
-            host: NetworkAddress::IpAddr(*ip),
-            clients_ws_port,
-            clients_wss_port: self.config.gateway_tasks.announce_wss_port,
+            entry: Some(nym_topology::EntryDetails {
+                ip_addresses,
+                clients_ws_port,
+                hostname: self.config.host.hostname.clone(),
+                clients_wss_port: self.config.gateway_tasks.announce_wss_port,
+            }),
             sphinx_key: *self.x25519_sphinx_key(),
             identity_key: *self.ed25519_identity_key(),
-            version: env!("CARGO_PKG_VERSION").into(),
+            supported_roles: nym_topology::SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
         })
     }
 
@@ -593,7 +606,7 @@ impl NymNode {
         if self.modes().entry {
             info!(
                 "starting the clients websocket... on {}",
-                self.config.gateway_tasks.bind_address
+                self.config.gateway_tasks.ws_bind_address
             );
             let websocket = gateway_tasks_builder
                 .build_websocket_listener(active_clients_store.clone())
@@ -657,6 +670,10 @@ impl NymNode {
             info!("node not running with wireguard: authenticator service provider and wireguard will remain unavailable");
         }
 
+        // start task for removing stale and un-retrieved client messages
+        let stale_messages_cleaner = gateway_tasks_builder.build_stale_messages_cleaner();
+        stale_messages_cleaner.start();
+
         Ok(())
     }
 
@@ -694,7 +711,7 @@ impl NymNode {
                 .config
                 .gateway_tasks
                 .announce_ws_port
-                .unwrap_or(self.config.gateway_tasks.bind_address.port()),
+                .unwrap_or(self.config.gateway_tasks.ws_bind_address.port()),
             wss_port: self.config.gateway_tasks.announce_wss_port,
         });
         let gateway_details = api_requests::v1::gateway::models::Gateway {
@@ -768,7 +785,11 @@ impl NymNode {
             config.api.v1_config.node.roles.ip_packet_router_enabled = true;
         }
 
-        let app_state = AppState::new(self.metrics.clone(), self.verloc_stats.clone());
+        let app_state = AppState::new(
+            self.metrics.clone(),
+            self.verloc_stats.clone(),
+            self.config.http.node_load_cache_ttl,
+        );
 
         Ok(NymNodeRouter::new(config, app_state)
             .build_server(&self.config.http.bind_address)
@@ -811,7 +832,7 @@ impl NymNode {
         }
     }
 
-    pub(crate) fn start_verloc_measurements(&self, shutdown: TaskClient) {
+    pub(crate) fn start_verloc_measurements(&self) {
         info!(
             "Starting the [verloc] round-trip-time measurer on {} ...",
             self.config.verloc.bind_address
@@ -833,8 +854,11 @@ impl NymNode {
         .retry_timeout(self.config.verloc.debug.retry_timeout)
         .build();
 
-        let mut verloc_measurer =
-            VerlocMeasurer::new(config, self.ed25519_identity_keys.clone(), shutdown);
+        let mut verloc_measurer = VerlocMeasurer::new(
+            config,
+            self.ed25519_identity_keys.clone(),
+            self.shutdown_manager.clone_token("verloc"),
+        );
         verloc_measurer.set_shared_state(self.verloc_stats.clone());
         tokio::spawn(async move { verloc_measurer.run().await });
     }
@@ -843,14 +867,14 @@ impl NymNode {
         &self,
         active_clients_store: ActiveClientsStore,
         active_egress_mixnet_connections: ActiveConnections,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> MetricEventsSender {
         info!("setting up node metrics...");
 
         // aggregator (to listen for any metrics events)
         let mut metrics_aggregator = MetricsAggregator::new(
             self.config.metrics.debug.aggregator_update_rate,
-            shutdown.fork("aggregator"),
+            shutdown.clone_with_suffix("aggregator"),
         );
 
         // >>>> START: register all relevant handlers for custom events
@@ -912,12 +936,9 @@ impl NymNode {
             ConsoleLogger::new(
                 self.config.metrics.debug.console_logging_update_interval,
                 self.metrics.clone(),
-                shutdown.named("metrics-console-logger"),
+                shutdown.clone_with_suffix("metrics-console-logger"),
             )
             .start();
-        } else {
-            let mut shutdown = shutdown;
-            shutdown.disarm()
         }
 
         let events_sender = metrics_aggregator.sender();
@@ -931,7 +952,7 @@ impl NymNode {
     pub(crate) fn start_mixnet_listener(
         &self,
         active_clients_store: &ActiveClientsStore,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> (MixForwardingSender, ActiveConnections) {
         let processing_config = ProcessingConfig::new(&self.config);
 
@@ -960,7 +981,7 @@ impl NymNode {
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
             self.metrics.clone(),
-            shutdown.fork("mix-packet-forwarder"),
+            shutdown.clone_with_suffix("mix-packet-forwarder"),
         );
         let mix_packet_sender = packet_forwarder.sender();
         tokio::spawn(async move { packet_forwarder.run().await });
@@ -993,45 +1014,47 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
-        let mut task_manager = TaskManager::default().named("NymNode");
-        let http_server = self
-            .build_http_server()
-            .await?
-            .with_task_client(task_manager.subscribe_named("http-server"));
+        let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
-        tokio::spawn(async move {
+        let server_shutdown = self.shutdown_manager.clone_token("http-server");
+
+        self.shutdown_manager.spawn(async move {
             {
-                info!("started NymNodeHTTPServer on {bind_address}");
-                http_server.run().await
+                info!("starting NymNodeHTTPServer on {bind_address}");
+                http_server
+                    .with_graceful_shutdown(async move { server_shutdown.cancelled().await })
+                    .await
             }
         });
 
         self.try_refresh_remote_nym_api_cache().await;
 
-        self.start_verloc_measurements(task_manager.subscribe_named("verloc-measurements"));
+        self.start_verloc_measurements();
 
         let active_clients_store = ActiveClientsStore::new();
 
         let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
-            task_manager.subscribe_named("mixnet-traffic"),
+            self.shutdown_manager.clone_token("mixnet-traffic"),
         );
 
         let metrics_sender = self.setup_metrics_backend(
             active_clients_store.clone(),
             active_egress_mixnet_connections,
-            task_manager.subscribe_named("metrics"),
+            self.shutdown_manager.clone_token("metrics"),
         );
 
         self.start_gateway_tasks(
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
-            task_manager.subscribe_named("gateway-tasks"),
+            self.shutdown_manager.subscribe_legacy("gateway-tasks"),
         )
         .await?;
 
-        let _ = task_manager.catch_interrupt().await;
+        self.shutdown_manager.close();
+        self.shutdown_manager.wait_for_shutdown_signal().await;
+
         Ok(())
     }
 }

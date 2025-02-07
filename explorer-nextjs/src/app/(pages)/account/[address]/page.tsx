@@ -28,27 +28,31 @@ export default async function Account({
           <Grid size={6}>
             <SectionHeading title="Account Details" />
           </Grid>
+
           <Grid size={6} justifyContent="flex-end">
-            <Box sx={{ display: "flex", justifyContent: "end" }}>
-              <ExplorerButtonGroup
-                onPage="Account"
-                options={[
-                  {
-                    label: "Nym Node",
-                    isSelected: false,
-                    link: nymNode
-                      ? `/nym-node/${nymNode.node_id}`
-                      : "/nym-node/not-found",
-                  },
-                  {
-                    label: "Account",
-                    isSelected: true,
-                    link: `/account/${address}`,
-                  },
-                ]}
-              />
-            </Box>
+            {nymNode?.node_id && (
+              <Box sx={{ display: "flex", justifyContent: "end" }}>
+                <ExplorerButtonGroup
+                  onPage="Account"
+                  options={[
+                    {
+                      label: "Nym Node",
+                      isSelected: false,
+                      link: nymNode
+                        ? `/nym-node/${nymNode.node_id}`
+                        : "/nym-node/not-found",
+                    },
+                    {
+                      label: "Account",
+                      isSelected: true,
+                      link: `/account/${address}`,
+                    },
+                  ]}
+                />
+              </Box>
+            )}
           </Grid>
+
           <Grid size={{ xs: 12, md: 4 }}>
             <AccountInfoCard address={address} />
           </Grid>

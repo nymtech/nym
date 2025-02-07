@@ -69,7 +69,7 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
             >
               <Typography
                 variant="body4"
-                sx={{ wordWrap: "break-word", maxWidth: "95%" }}
+                sx={{ wordWrap: "break-word", maxWidth: "85%" }}
               >
                 {data.address}
               </Typography>

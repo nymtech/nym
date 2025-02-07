@@ -3,7 +3,7 @@
 
 use crate::helpers::validate_usage_coin;
 use crate::storage::NYM_POOL_STORAGE;
-use cosmwasm_std::{BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{coin, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use nym_pool_contract_common::{Allowance, NymPoolContractError, TransferRecipient};
 
 pub fn try_update_contract_admin(
@@ -117,7 +117,7 @@ pub fn try_unlock_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, info.sender, amount)?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, info.sender, &amount)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -148,10 +148,14 @@ pub fn try_use_locked_allowance(
         return Err(NymPoolContractError::GrantExpired);
     }
 
+    let denom = NYM_POOL_STORAGE.pool_denomination.load(deps.storage)?;
+
     // we remove those coins from the locked pool before transferring them to the specified account
-    NYM_POOL_STORAGE
-        .locked
-        .unlock(deps, info.sender.clone(), amount)?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(
+        deps,
+        info.sender.clone(),
+        &Coin { amount, denom },
+    )?;
 
     // TODO: emit events
     Ok(Response::new().add_messages(messages))
@@ -163,8 +167,6 @@ pub fn try_withdraw_locked_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    validate_usage_coin(deps.storage, &amount)?;
-
     // if the grant has already expired, locked coins can no longer be used,
     // ideally, they'd be immediately unlocked here, but we need to revert the transaction
     let grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
@@ -173,9 +175,7 @@ pub fn try_withdraw_locked_allowance(
     }
 
     // we remove those coins from the locked pool before transferring them to the specified account
-    NYM_POOL_STORAGE
-        .locked
-        .unlock(deps, info.sender.clone(), amount.amount)?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, info.sender.clone(), &amount)?;
 
     // TODO: emit events
     // TODO2: after migrating common to cw2.2 use `send_tokens` from `ResponseExt` trait

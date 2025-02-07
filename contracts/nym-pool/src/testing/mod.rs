@@ -7,8 +7,8 @@ use crate::storage::NYM_POOL_STORAGE;
 use crate::testing::storage::{ContractStorageWrapper, StorageWrapper};
 use cosmwasm_std::testing::{message_info, mock_env, MockApi};
 use cosmwasm_std::{
-    coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
-    Storage,
+    coin, coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
+    StdResult, Storage, Uint128,
 };
 use cw_multi_test::{
     App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper, Executor,
@@ -19,6 +19,7 @@ use nym_pool_contract_common::{
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
+use std::collections::HashMap;
 
 mod storage;
 
@@ -181,8 +182,15 @@ impl TestSetup {
         message_info(&self.admin_unchecked(), &[])
     }
 
+    #[track_caller]
     pub fn add_dummy_grant(&mut self) -> Grant {
         let grantee = self.generate_account();
+        self.add_dummy_grant_for(&grantee)
+    }
+
+    #[track_caller]
+    pub fn add_dummy_grant_for(&mut self, grantee: impl Into<String>) -> Grant {
+        let grantee = Addr::unchecked(grantee);
         let granter = self.admin_unchecked();
         let env = self.env();
         NYM_POOL_STORAGE
@@ -199,5 +207,31 @@ impl TestSetup {
             .unwrap();
 
         NYM_POOL_STORAGE.load_grant(self.deps(), &grantee).unwrap()
+    }
+
+    #[track_caller]
+    pub fn lock_allowance(&mut self, grantee: impl Into<String>, amount: impl Into<Uint128>) {
+        let denom = NYM_POOL_STORAGE
+            .pool_denomination
+            .load(self.deps().storage)
+            .unwrap();
+
+        self.execute_msg(
+            Addr::unchecked(grantee),
+            &ExecuteMsg::LockAllowance {
+                amount: coin(amount.into().u128(), denom),
+            },
+        )
+        .unwrap();
+    }
+
+    #[track_caller]
+    pub fn full_locked_map(&self) -> HashMap<Addr, Uint128> {
+        NYM_POOL_STORAGE
+            .locked
+            .grantees
+            .range(self.deps().storage, None, None, Order::Ascending)
+            .collect::<Result<HashMap<_, _>, _>>()
+            .unwrap()
     }
 }

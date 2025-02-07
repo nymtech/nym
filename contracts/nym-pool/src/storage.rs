@@ -293,6 +293,40 @@ impl NymPoolStorage {
 
         self.remove_grant(deps, grantee_address)
     }
+
+    pub fn lock_part_of_allowance(
+        &self,
+        mut deps: DepsMut,
+        env: &Env,
+        grantee: GranteeAddress,
+        amount: Coin,
+    ) -> Result<(), NymPoolContractError> {
+        // ensure correct coin has been specified
+        validate_usage_coin(deps.storage, &amount)?;
+
+        // attempt to deduct the coins from the allowance
+        let mut grant = self.load_grant(deps.as_ref(), &grantee)?;
+        grant.allowance.try_spend(&env, &amount)?;
+        self.update_grant(deps.branch(), grantee.clone(), grant)?;
+
+        // keep track of the locked coins
+        self.locked.lock(deps, grantee, amount.amount)
+    }
+
+    pub fn unlock_part_of_allowance(
+        &self,
+        deps: DepsMut,
+        grantee: GranteeAddress,
+        amount: Coin,
+    ) -> Result<(), NymPoolContractError> {
+        // ensure correct coin has been specified
+        validate_usage_coin(deps.storage, &amount)?;
+
+        // note: unlocking tokens is always possible, even if the underlying grant has already expired
+
+        // keep track of the locked coins
+        self.locked.unlock(deps, grantee, amount.amount)
+    }
 }
 
 pub(crate) struct LockedStorage {
@@ -334,7 +368,7 @@ impl LockedStorage {
 
     /// unconditionally attempts to load specified amount of tokens for the particular grantee
     /// it does not validate permissions nor allowances - that's up to the caller
-    pub(super) fn lock(
+    fn lock(
         &self,
         deps: DepsMut,
         grantee: GranteeAddress,
@@ -352,7 +386,7 @@ impl LockedStorage {
         Ok(())
     }
 
-    pub(super) fn unlock(
+    fn unlock(
         &self,
         deps: DepsMut,
         grantee: GranteeAddress,

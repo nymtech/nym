@@ -36,7 +36,6 @@ const stakingSchema = z
     (data) => {
       const balance = Number.parseFloat(data.balance);
       const amount = Number.parseFloat(data.amount);
-      console.log(balance);
       return balance - amount >= 0;
     },
     {

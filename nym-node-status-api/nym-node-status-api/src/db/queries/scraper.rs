@@ -27,7 +27,6 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
             })
         });
 
-    // TODO dz remove log
     tracing::debug!("Fetched {} 🌟 nym nodes", nodes_to_scrape.len());
 
     let mut conn = pool.acquire().await?;
@@ -42,14 +41,12 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
     .await?;
     drop(conn);
 
-    // TODO dz remove log
     tracing::debug!("Fetched {} 🦖 mixnodes", nodes_to_scrape.len());
 
     let mut duplicates = 0;
     let mut legacy_not_in_nym_node_list = 0;
     let total_legacy_mixnodes = mixnodes.len();
     for mixnode in mixnodes {
-        // TODO dz remove this, only for debugging
         if nodes_to_scrape
             .iter()
             .all(|node| node.node_id != mixnode.node_id)

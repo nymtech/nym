@@ -7,10 +7,11 @@ use crate::{
     db::{
         models::{
             gateway::{GatewaySummary, GatewaySummaryBonded, GatewaySummaryHistorical},
-            mixnode::{MixnodeSummary, MixnodeSummaryBonded, MixnodeSummaryHistorical},
-            NetworkSummary, SummaryDto, SummaryHistoryDto, GATEWAYS_BONDED_COUNT,
-            GATEWAYS_HISTORICAL_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
-            MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
+            mixnode::{MixingNodesSummary, MixnodeSummary, MixnodeSummaryHistorical},
+            NetworkSummary, SummaryDto, SummaryHistoryDto, ASSIGNED_ENTRY_COUNT,
+            ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
+            GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
+            NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
         },
         DbPool,
     },
@@ -80,12 +81,15 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
 
     // check we have all the keys we are expecting, and build up a map of errors for missing one
     let keys = [
-        GATEWAYS_BONDED_COUNT,
-        GATEWAYS_HISTORICAL_COUNT,
-        MIXNODES_BONDED_ACTIVE,
-        MIXNODES_BONDED_COUNT,
+        NYMNODE_COUNT,
+        ASSIGNED_MIXING_COUNT,
         MIXNODES_LEGACY_COUNT,
+        NYMNODES_DESCRIBED_COUNT,
+        GATEWAYS_BONDED_COUNT,
+        ASSIGNED_ENTRY_COUNT,
+        ASSIGNED_EXIT_COUNT,
         MIXNODES_HISTORICAL_COUNT,
+        GATEWAYS_HISTORICAL_COUNT,
     ];
 
     let mut errors: Vec<&str> = vec![];
@@ -102,10 +106,15 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
     }
 
     // strip the options and use default values (anything missing is trapped above)
-    let mixnodes_bonded_count: SummaryDto =
-        map.get(MIXNODES_BONDED_COUNT).cloned().unwrap_or_default();
-    let mixnodes_bonded_active: SummaryDto =
-        map.get(MIXNODES_BONDED_ACTIVE).cloned().unwrap_or_default();
+    let total_nodes: SummaryDto = map.get(NYMNODE_COUNT).cloned().unwrap_or_default();
+    let assigned_mixing_count: SummaryDto =
+        map.get(ASSIGNED_MIXING_COUNT).cloned().unwrap_or_default();
+    let assigned_entry: SummaryDto = map.get(ASSIGNED_ENTRY_COUNT).cloned().unwrap_or_default();
+    let assigned_exit: SummaryDto = map.get(ASSIGNED_EXIT_COUNT).cloned().unwrap_or_default();
+    let self_described: SummaryDto = map
+        .get(NYMNODES_DESCRIBED_COUNT)
+        .cloned()
+        .unwrap_or_default();
     let legacy_mixnodes_count: SummaryDto =
         map.get(MIXNODES_LEGACY_COUNT).cloned().unwrap_or_default();
     let gateways_bonded_count: SummaryDto =
@@ -120,12 +129,13 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         .unwrap_or_default();
 
     Ok(NetworkSummary {
+        total_nodes: to_count_i32(&total_nodes),
         mixnodes: MixnodeSummary {
-            bonded: MixnodeSummaryBonded {
-                count: to_count_i32(&mixnodes_bonded_count),
-                active: to_count_i32(&mixnodes_bonded_active),
+            bonded: MixingNodesSummary {
+                count: to_count_i32(&assigned_mixing_count),
+                self_described: to_count_i32(&self_described),
                 legacy: to_count_i32(&legacy_mixnodes_count),
-                last_updated_utc: to_timestamp(&mixnodes_bonded_count),
+                last_updated_utc: to_timestamp(&assigned_mixing_count),
             },
             historical: MixnodeSummaryHistorical {
                 count: to_count_i32(&mixnodes_historical_count),
@@ -135,6 +145,8 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         gateways: GatewaySummary {
             bonded: GatewaySummaryBonded {
                 count: to_count_i32(&gateways_bonded_count),
+                entry: to_count_i32(&assigned_entry),
+                exit: to_count_i32(&assigned_exit),
                 last_updated_utc: to_timestamp(&gateways_bonded_count),
             },
             historical: GatewaySummaryHistorical {

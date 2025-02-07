@@ -1,9 +1,9 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BONDED_COUNT,
-    GATEWAYS_HISTORICAL_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
-    MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
+    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, ASSIGNED_ENTRY_COUNT,
+    ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT,
+    MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{Location, NodeGeoData};
@@ -15,7 +15,7 @@ use nym_validator_client::client::{NodeId, NymApiClientExt};
 use nym_validator_client::models::{
     LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription,
 };
-use nym_validator_client::nym_nodes::SkimmedNode;
+use nym_validator_client::nym_nodes::{NodeRole, SkimmedNode};
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
@@ -111,11 +111,6 @@ impl Monitor {
             .iter()
             .filter(|node| node.description.declared_role.entry)
             .collect::<Vec<_>>();
-        tracing::debug!(
-            "{}/{} with declared entry gateway capability",
-            gateways.len(),
-            described_nodes.len()
-        );
 
         let bonded_node_info = api_client
             .get_all_bonded_nym_nodes()
@@ -124,17 +119,6 @@ impl Monitor {
             .map(|node| (node.bond_information.node_id, node.bond_information))
             // for faster reads
             .collect::<HashMap<_, _>>();
-
-        let mixnodes = described_nodes
-            .iter()
-            .filter(|node| node.description.declared_role.mixnode)
-            .collect::<Vec<_>>();
-
-        tracing::debug!(
-            "{}/{} with declared mixnode capability",
-            mixnodes.len(),
-            described_nodes.len()
-        );
 
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {
@@ -154,9 +138,6 @@ impl Monitor {
             .get_all_basic_nodes()
             .await
             .log_error("get_all_basic_nodes")?;
-
-        // TODO dz clean up these debug logs
-        tracing::info!("🟣 nym nodes: {}", nym_nodes.len());
 
         queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone()).await?;
 
@@ -182,7 +163,6 @@ impl Monitor {
                 mixnodes_detailed_set.contains(&node.ed25519_identity_pubkey.to_base58_string())
             })
             .collect::<Vec<_>>();
-        tracing::info!("🟣 mixnodes_legacy: {}", mixnodes_legacy.len());
 
         let mixnodes_described = api_client
             .nym_api
@@ -199,20 +179,23 @@ impl Monitor {
             .nodes
             .data;
 
-        tracing::info!(
-            "🟣 mixing assigned nodes in this epoch: {}",
-            mixing_assigned_nodes.len()
-        );
         let delegation_program_members =
             get_delegation_program_details(&self.network_details, &self.nyxd_addr).await?;
 
         // keep stats for later
-        let count_bonded_mixnodes = mixnodes.len();
+        let assigned_entry_count = nym_nodes
+            .iter()
+            .filter(|elem| matches!(elem.role, NodeRole::EntryGateway))
+            .count();
+        let assigned_exit_count = nym_nodes
+            .iter()
+            .filter(|elem| matches!(elem.role, NodeRole::ExitGateway))
+            .count();
         let count_bonded_gateways = gateways.len();
-        let count_bonded_mixnodes_active = mixing_assigned_nodes.len();
+        let assigned_mixing_count = mixing_assigned_nodes.len();
         let count_legacy_mixnodes = mixnodes_legacy.len();
 
-        let gateway_records = self.prepare_gateway_data(&gateways, gateway_geodata, nym_nodes)?;
+        let gateway_records = self.prepare_gateway_data(&gateways, gateway_geodata, &nym_nodes)?;
 
         let pool = self.db_pool.clone();
         queries::insert_gateways(&pool, gateway_records)
@@ -239,19 +222,13 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            // TODO dz to introduce:
-            // BONDED_NYM_NODES (as opposed to bonded mixnodes/bonded gws)
-            // ASSIGNED_ENTRY
-            // ASSIGNED_EXIT
-            // ASSIGNED_MIX
-            // UNASSIGNED_NODE (not assigned anything of the above in the current epoch)
-            // TODO dz: nym_nodes_count
-            // TODO dz: entry_gateways
-            // TODO dz: exit_gateways
+            (NYMNODE_COUNT, nym_nodes.len()),
+            (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
             (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
-            (MIXNODES_BONDED_COUNT, count_bonded_mixnodes),
-            (MIXNODES_BONDED_ACTIVE, count_bonded_mixnodes_active),
+            (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
             (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
+            (ASSIGNED_ENTRY_COUNT, assigned_entry_count),
+            (ASSIGNED_EXIT_COUNT, assigned_exit_count),
             // TODO dz doesn't make sense, could make sense with historical Nym
             // Nodes if we really need this data
             (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
@@ -261,10 +238,11 @@ impl Monitor {
         let last_updated = chrono::offset::Utc::now();
         let last_updated_utc = last_updated.timestamp().to_string();
         let network_summary = NetworkSummary {
+            total_nodes: nym_nodes.len().cast_checked()?,
             mixnodes: mixnode::MixnodeSummary {
-                bonded: mixnode::MixnodeSummaryBonded {
-                    count: count_bonded_mixnodes.cast_checked()?,
-                    active: count_bonded_mixnodes_active.cast_checked()?,
+                bonded: mixnode::MixingNodesSummary {
+                    count: assigned_mixing_count.cast_checked()?,
+                    self_described: described_nodes.len().cast_checked()?,
                     legacy: count_legacy_mixnodes.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
@@ -276,9 +254,10 @@ impl Monitor {
             gateways: gateway::GatewaySummary {
                 bonded: gateway::GatewaySummaryBonded {
                     count: count_bonded_gateways.cast_checked()?,
+                    entry: assigned_entry_count.cast_checked()?,
+                    exit: assigned_exit_count.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
-
                 historical: gateway::GatewaySummaryHistorical {
                     count: all_historical_gateways.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
@@ -322,7 +301,7 @@ impl Monitor {
         &self,
         gateways: &[&NymNodeDescription],
         gateway_geodata: Vec<NodeGeoData>,
-        skimmed_gateways: Vec<SkimmedNode>,
+        skimmed_gateways: &Vec<SkimmedNode>,
     ) -> anyhow::Result<Vec<GatewayRecord>> {
         let mut gateway_records = Vec::new();
 

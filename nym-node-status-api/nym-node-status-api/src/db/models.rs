@@ -210,22 +210,27 @@ impl TryFrom<SummaryHistoryDto> for SummaryHistory {
     }
 }
 
-pub(crate) const MIXNODES_LEGACY_COUNT: &str = "legacy.mixnodes.count";
+pub(crate) const MIXNODES_LEGACY_COUNT: &str = "mixnodes.legacy.count";
+pub(crate) const NYMNODES_DESCRIBED_COUNT: &str = "nymnode.described.count";
 
-pub(crate) const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
-pub(crate) const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
+pub(crate) const NYMNODE_COUNT: &str = "nymnode.total.count";
+pub(crate) const ASSIGNED_ENTRY_COUNT: &str = "assigned.entry.count";
+pub(crate) const ASSIGNED_EXIT_COUNT: &str = "assigned.exit.count";
+pub(crate) const ASSIGNED_MIXING_COUNT: &str = "assigned.mixing.count";
+
 pub(crate) const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
 
 pub(crate) const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
 pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 
-// `utoipa`` goes crazy if you use module-qualified prefix as field type so we
+// `utoipa` goes crazy if you use module-qualified prefix as field type so we
 //  have to import it
 use gateway::GatewaySummary;
 use mixnode::MixnodeSummary;
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub(crate) struct NetworkSummary {
+    pub(crate) total_nodes: i32,
     pub(crate) mixnodes: MixnodeSummary,
     pub(crate) gateways: GatewaySummary,
 }
@@ -235,14 +240,14 @@ pub(crate) mod mixnode {
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummary {
-        pub(crate) bonded: MixnodeSummaryBonded,
+        pub(crate) bonded: MixingNodesSummary,
         pub(crate) historical: MixnodeSummaryHistorical,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct MixnodeSummaryBonded {
+    pub(crate) struct MixingNodesSummary {
         pub(crate) count: i32,
-        pub(crate) active: i32,
+        pub(crate) self_described: i32,
         pub(crate) legacy: i32,
         pub(crate) last_updated_utc: String,
     }
@@ -260,12 +265,15 @@ pub(crate) mod gateway {
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummary {
         pub(crate) bonded: GatewaySummaryBonded,
+
         pub(crate) historical: GatewaySummaryHistorical,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryBonded {
         pub(crate) count: i32,
+        pub(crate) entry: i32,
+        pub(crate) exit: i32,
         pub(crate) last_updated_utc: String,
     }
 

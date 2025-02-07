@@ -40,7 +40,7 @@ impl SentNotificationListener {
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
-        loop {
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 frag_id = self.sent_notifier.next() => match frag_id {
                     Some(frag_id) => {
@@ -51,7 +51,7 @@ impl SentNotificationListener {
                         break;
                     }
                 },
-                _ = shutdown.recv_with_delay() => {
+                _ = shutdown.recv() => {
                     log::trace!("SentNotificationListener: Received shutdown");
                     break;
                 }

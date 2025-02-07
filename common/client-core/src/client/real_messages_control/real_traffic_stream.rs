@@ -542,7 +542,7 @@ where
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
 
-            loop {
+            while !shutdown.is_shutdown() {
                 tokio::select! {
                     biased;
                     _ = shutdown.recv() => {

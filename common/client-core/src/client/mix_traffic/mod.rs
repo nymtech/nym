@@ -113,7 +113,7 @@ impl MixTrafficController {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
-            loop {
+            while !shutdown.is_shutdown() {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
@@ -146,7 +146,7 @@ impl MixTrafficController {
                             log::trace!("MixTrafficController, client request channel closed");
                         }
                     },
-                    _ = shutdown.recv_with_delay() => {
+                    _ = shutdown.recv() => {
                         log::trace!("MixTrafficController: Received shutdown");
                         break;
                     }

@@ -182,6 +182,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "",
         Header: <ColumnHeading>ID</ColumnHeading>,
         accessorKey: "nodeId",
+        size: 40,
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
@@ -201,10 +202,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
       {
         id: "qos",
-        header: "Quality of Service",
+        header: "Qlt of Service",
         align: "center",
         accessorKey: "qualityOfService",
-        Header: <ColumnHeading>Quality of Service</ColumnHeading>,
+        size: 100,
+
+        Header: <ColumnHeading>Qlt of Service</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
             {row.original.qualityOfService}%
@@ -215,6 +218,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "location",
         header: "Location",
         accessorKey: "countryName",
+        size: 100,
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.countryCode && row.original.countryName ? (
@@ -256,6 +260,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "Action",
         header: "Action",
         accessorKey: "Action",
+        size: 120,
+
         Header: <ColumnHeading>Action</ColumnHeading>,
         hidden: !isWalletConnected,
         enableColumnFilter: false,
@@ -278,6 +284,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableColumnFilter: false,
         header: "Favorite",
         accessorKey: "Favorite",
+        size: 110,
+
         Header: (
           <Stack direction="row" alignItems="center">
             <ColumnHeading>Favorite</ColumnHeading>

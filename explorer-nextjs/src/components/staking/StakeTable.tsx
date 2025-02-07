@@ -371,6 +371,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "",
         Header: <ColumnHeading>ID</ColumnHeading>,
         accessorKey: "delegation.node_id",
+        size: 40,
+
         Cell: ({ row }) =>
           row.original.delegation?.node_id ? (
             <Typography variant="body4">
@@ -401,6 +403,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "location",
         header: "Location",
         accessorKey: "node.countryCode",
+        size: 80,
+
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.node?.countryCode && row.original.node?.countryName ? (
@@ -421,6 +425,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Staked amount",
         accessorKey: "delegation.amount.amount",
         Header: <ColumnHeading>Stake</ColumnHeading>,
+        size: 80,
+
         sortingFn: (rowA, rowB) => {
           const stakeA = Number.parseFloat(
             rowA.original.delegation.amount.amount,
@@ -441,6 +447,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "stakeSaturation",
         header: "Stake saturation",
         accessorKey: "node.stakeSaturation",
+        size: 200,
+
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.node?.stakeSaturation ? (
@@ -456,6 +464,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Favorite",
         accessorKey: "Favorite",
         enableColumnFilter: false,
+        size: 80,
+
         Header: (
           <Stack direction="row" alignItems="center">
             <ColumnHeading>Favorite</ColumnHeading>
@@ -484,6 +494,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "action",
         header: "Action",
         Header: <ColumnHeading>Action</ColumnHeading>,
+        size: 80,
+
         enableColumnFilter: false,
         Cell: ({ row }) => {
           return (

@@ -100,20 +100,12 @@ pub fn try_withdraw_allowance(
 }
 
 pub fn try_lock_allowance(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    validate_usage_coin(deps.storage, &amount)?;
-
-    let mut grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
-    grant.allowance.try_spend(&env, &amount)?;
-
-    NYM_POOL_STORAGE
-        .locked
-        .lock(deps.branch(), info.sender.clone(), amount.amount)?;
-    NYM_POOL_STORAGE.update_grant(deps, info.sender.clone(), grant)?;
+    NYM_POOL_STORAGE.lock_part_of_allowance(deps, &env, info.sender, amount)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -125,12 +117,7 @@ pub fn try_unlock_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    validate_usage_coin(deps.storage, &amount)?;
-
-    // unlocking tokens is always possible, even if the underlying grant has already expired
-    NYM_POOL_STORAGE
-        .locked
-        .unlock(deps, info.sender.clone(), amount.amount)?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, info.sender, amount)?;
 
     // TODO: emit events
     Ok(Response::new())

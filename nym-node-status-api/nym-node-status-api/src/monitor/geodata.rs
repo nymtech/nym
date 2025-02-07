@@ -151,10 +151,8 @@ pub(crate) mod ipinfo {
 #[cfg(test)]
 mod api_regression {
 
-    use tokio::time::sleep;
-
     use super::*;
-    use std::{env::var, sync::LazyLock, time::Duration};
+    use std::{env::var, sync::LazyLock};
 
     static IPINFO_TOKEN: LazyLock<Option<String>> = LazyLock::new(|| var("IPINFO_API_TOKEN").ok());
     static CI: LazyLock<Option<String>> = LazyLock::new(|| var("CI").ok());

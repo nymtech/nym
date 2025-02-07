@@ -59,7 +59,7 @@ const ExplorerButtonGroup = ({
   useEffect(() => {
     if (!hasEpochStarted) return;
     handleRefetch();
-    const interval = setInterval(handleRefetch, 10000);
+    const interval = setInterval(handleRefetch, 30000);
     return () => clearInterval(interval);
   }, [hasEpochStarted, handleRefetch]);
 

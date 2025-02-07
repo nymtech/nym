@@ -93,7 +93,6 @@ const SubHeaderRowActions = () => {
         fee,
         "Redeeming all rewards",
       );
-      console.log("Rewards redeemed successfully:", result);
       // Success state
       handleRefetch();
       setIsLoading(false);

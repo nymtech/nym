@@ -1,9 +1,13 @@
+"use client";
+import { COSMOS_KIT_USE_CHAIN } from "@/config";
+import { useChain } from "@cosmos-kit/react";
 import { Stack, Typography } from "@mui/material";
 import React from "react";
 import { Token } from "../../components/icons/Token";
 import useGetWalletBalance from "../../hooks/useGetWalletBalance";
 
 export const WalletBalance = () => {
+  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { formattedBalance, isLoading, isError, refetch } =
     useGetWalletBalance();
 
@@ -18,7 +22,10 @@ export const WalletBalance = () => {
     );
   }
   if (isError) {
-    refetch();
+    if (isWalletConnected) {
+      refetch();
+    }
+    return;
   }
 
   return (

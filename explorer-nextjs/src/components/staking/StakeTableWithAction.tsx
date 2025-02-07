@@ -3,8 +3,7 @@
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
-import getNymNodes from "../../actions/getNymNodes";
-import { fetchEpochRewards } from "../../app/api";
+import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
 import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
 import StakeTable from "./StakeTable";
 
@@ -72,7 +71,7 @@ const StakeTableWithAction = () => {
     isError: isNodesError,
   } = useQuery({
     queryKey: ["nymNodes"],
-    queryFn: getNymNodes,
+    queryFn: fetchObservatoryNodes,
   });
 
   // Handle loading state

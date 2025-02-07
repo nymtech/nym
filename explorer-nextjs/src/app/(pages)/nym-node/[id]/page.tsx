@@ -34,6 +34,7 @@ export default async function NymNode({
               <SectionHeading title="Nym Node Details" />
               {observatoryNymNode.bonding_address && (
                 <ExplorerButtonGroup
+                  onPage="Nym Node"
                   options={[
                     {
                       label: "Nym Node",

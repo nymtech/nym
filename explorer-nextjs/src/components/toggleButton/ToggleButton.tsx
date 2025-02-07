@@ -18,9 +18,11 @@ type Options = [Option, Option];
 const ExplorerButtonGroup = ({
   size = "small",
   options,
+  onPage,
 }: {
   size?: "small" | "medium" | "large";
   options: Options;
+  onPage: string;
 }) => {
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
@@ -62,6 +64,7 @@ const ExplorerButtonGroup = ({
   }, [hasEpochStarted, handleRefetch]);
 
   const handleClick = (label: string) => {
+    if (onPage === label) return;
     setLoading(label);
   };
 

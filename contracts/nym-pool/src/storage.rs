@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::validate_usage_coin;
 use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Env, Storage, Uint128};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
@@ -317,7 +318,7 @@ impl NymPoolStorage {
         &self,
         deps: DepsMut,
         grantee: GranteeAddress,
-        amount: Coin,
+        amount: &Coin,
     ) -> Result<(), NymPoolContractError> {
         // ensure correct coin has been specified
         validate_usage_coin(deps.storage, &amount)?;
@@ -436,4 +437,232 @@ pub mod retrieval_limits {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(test)]
+    mod locked_storage {
+        use super::*;
+        use crate::testing::TestSetup;
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn is_initialised_with_zero_total_locked() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let storage = LockedStorage::new();
+
+            // by default, when created, the `total_locked` is inaccessible
+            assert!(storage.total_locked.load(&deps.storage).is_err());
+
+            storage.initialise(deps.as_mut())?;
+            // but after proper initialisation, it's correctly set to 0
+            assert_eq!(storage.total_locked.load(&deps.storage)?, Uint128::zero());
+
+            Ok(())
+        }
+
+        #[test]
+        fn getting_grantee_locked() -> anyhow::Result<()> {
+            let mut test = TestSetup::init();
+            let grantee = test.generate_account();
+
+            let storage = LockedStorage::new();
+
+            // returns zero when there's nothing
+            assert!(storage
+                .grantee_locked(test.deps().storage, grantee.clone())?
+                .is_zero());
+
+            // even when a grant is created (but with nothing locked!)
+            test.add_dummy_grant_for(&grantee);
+            assert!(storage
+                .grantee_locked(test.deps().storage, grantee.clone())?
+                .is_zero());
+            let to_lock = Uint128::new(100);
+
+            // lock some tokens...
+            test.lock_allowance(&grantee, to_lock);
+
+            // now we're talking!
+            assert_eq!(
+                storage.grantee_locked(test.deps().storage, grantee.clone())?,
+                to_lock
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn getting_maybe_grantee_locked() -> anyhow::Result<()> {
+            let mut test = TestSetup::init();
+            let grantee = test.generate_account();
+
+            let storage = LockedStorage::new();
+
+            // returns None when there's nothing
+            assert!(storage
+                .maybe_grantee_locked(test.deps().storage, grantee.clone())?
+                .is_none());
+
+            // even when a grant is created (but with nothing locked!)
+            test.add_dummy_grant_for(&grantee);
+            assert!(storage
+                .maybe_grantee_locked(test.deps().storage, grantee.clone())?
+                .is_none());
+            let to_lock = Uint128::new(100);
+
+            // lock some tokens...
+            test.lock_allowance(&grantee, to_lock);
+
+            // now we're talking!
+            assert_eq!(
+                storage.maybe_grantee_locked(test.deps().storage, grantee.clone())?,
+                Some(to_lock)
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn locking_tokens() -> anyhow::Result<()> {
+            let mut test = TestSetup::init();
+            let storage = LockedStorage::new();
+
+            let grantee1 = test.generate_account();
+            let grantee2 = test.generate_account();
+
+            let first = Uint128::new(100);
+            let second = Uint128::new(200);
+            let third = Uint128::new(500);
+
+            let all = test.full_locked_map();
+            assert!(all.is_empty());
+
+            // fresh one creates entry for grantee with the amount
+            // and updates the total
+            let deps = test.deps_mut();
+            storage.lock(deps, grantee1.clone(), first)?;
+
+            let deps = test.deps();
+            assert_eq!(storage.total_locked.load(deps.storage)?, first);
+            assert_eq!(
+                storage.grantee_locked(deps.storage, grantee1.clone())?,
+                first
+            );
+
+            let all = test.full_locked_map();
+            assert_eq!(all.len(), 1);
+
+            // another one updates existing entries (and doesn't overwrite them!)
+            let deps = test.deps_mut();
+            storage.lock(deps, grantee1.clone(), second)?;
+
+            let deps = test.deps();
+            assert_eq!(storage.total_locked.load(deps.storage)?, first + second);
+            assert_eq!(
+                storage.grantee_locked(deps.storage, grantee1.clone())?,
+                first + second
+            );
+
+            let all = test.full_locked_map();
+            assert_eq!(all.len(), 1);
+
+            // if we do it for a new grantee, another entry is created, but the same total is updated
+            let deps = test.deps_mut();
+            storage.lock(deps, grantee2.clone(), third)?;
+
+            let deps = test.deps();
+            assert_eq!(
+                storage.total_locked.load(deps.storage)?,
+                first + second + third
+            );
+            assert_eq!(
+                storage.grantee_locked(deps.storage, grantee1)?,
+                first + second
+            );
+            assert_eq!(storage.grantee_locked(deps.storage, grantee2)?, third);
+
+            let all = test.full_locked_map();
+            assert_eq!(all.len(), 2);
+            Ok(())
+        }
+
+        #[test]
+        fn unlocking_tokens() -> anyhow::Result<()> {
+            let mut test = TestSetup::init();
+            let storage = LockedStorage::new();
+
+            let grantee1 = test.generate_account();
+            let grantee2 = test.generate_account();
+
+            test.add_dummy_grant_for(&grantee1);
+            test.add_dummy_grant_for(&grantee2);
+
+            let first = Uint128::new(100);
+            let second = Uint128::new(200);
+            let third = Uint128::new(500);
+
+            let all = test.full_locked_map();
+            assert!(all.is_empty());
+
+            let deps = test.deps_mut();
+
+            // can't unlock anything if there's nothing locked
+            assert!(matches!(
+                storage.unlock(deps, grantee1.clone(), first).unwrap_err(),
+                NymPoolContractError::InsufficientLockedTokens { .. }
+            ));
+
+            test.lock_allowance(&grantee1, first);
+
+            // can't unlock more than the total locked amount
+            let deps = test.deps_mut();
+            assert!(matches!(
+                storage
+                    .unlock(deps, grantee1.clone(), first + second)
+                    .unwrap_err(),
+                NymPoolContractError::InsufficientLockedTokens { .. }
+            ));
+            test.lock_allowance(&grantee1, second);
+            test.lock_allowance(&grantee2, third);
+            let all = test.full_locked_map();
+            assert_eq!(all.len(), 2);
+
+            // unlocking partial amount correctly updates entries
+            let deps = test.deps_mut();
+            assert!(storage.unlock(deps, grantee1.clone(), first).is_ok());
+
+            let deps = test.deps_mut();
+            assert_eq!(storage.total_locked.load(deps.storage)?, second + third);
+            assert_eq!(
+                storage.grantee_locked(deps.storage, grantee1.clone())?,
+                second
+            );
+            let all = test.full_locked_map();
+            assert_eq!(all.len(), 2);
+
+            // unlocking the remaining amount will remove the entry
+            let deps = test.deps_mut();
+            assert!(storage.unlock(deps, grantee1.clone(), second).is_ok());
+            let deps = test.deps_mut();
+            assert_eq!(storage.total_locked.load(deps.storage)?, third);
+            assert!(storage
+                .grantee_locked(deps.storage, grantee1.clone())?
+                .is_zero());
+            let all = test.full_locked_map();
+            assert_eq!(all.len(), 1);
+
+            // similarly if the full amount is unlocked immediately
+            let deps = test.deps_mut();
+            assert!(storage.unlock(deps, grantee2.clone(), third).is_ok());
+            let deps = test.deps_mut();
+            assert!(storage.total_locked.load(deps.storage)?.is_zero());
+            assert!(storage
+                .grantee_locked(deps.storage, grantee2.clone())?
+                .is_zero());
+
+            let all = test.full_locked_map();
+            assert!(all.is_empty());
+
+            Ok(())
+        }
+    }
 }

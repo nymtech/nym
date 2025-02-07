@@ -268,7 +268,7 @@ impl ActionController {
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started ActionController with graceful shutdown support");
 
-        loop {
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
@@ -286,7 +286,7 @@ impl ActionController {
                         break;
                     }
                 },
-                _ = shutdown.recv_with_delay() => {
+                _ = shutdown.recv() => {
                     log::trace!("ActionController: Received shutdown");
                     break;
                 }

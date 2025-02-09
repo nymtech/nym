@@ -30,27 +30,25 @@ export default async function Account({
           </Grid>
 
           <Grid size={6} justifyContent="flex-end">
-            {nymNode?.node_id && (
-              <Box sx={{ display: "flex", justifyContent: "end" }}>
-                <ExplorerButtonGroup
-                  onPage="Account"
-                  options={[
-                    {
-                      label: "Nym Node",
-                      isSelected: false,
-                      link: nymNode
-                        ? `/nym-node/${nymNode.node_id}`
-                        : "/nym-node/not-found",
-                    },
-                    {
-                      label: "Account",
-                      isSelected: true,
-                      link: `/account/${address}`,
-                    },
-                  ]}
-                />
-              </Box>
-            )}
+            <Box sx={{ display: "flex", justifyContent: "end" }}>
+              <ExplorerButtonGroup
+                onPage="Account"
+                options={[
+                  {
+                    label: "Nym Node",
+                    isSelected: false,
+                    link: nymNode
+                      ? `/nym-node/${nymNode.node_id}`
+                      : `/account/${address}/not-found`,
+                  },
+                  {
+                    label: "Account",
+                    isSelected: true,
+                    link: `/account/${address}`,
+                  },
+                ]}
+              />
+            </Box>
           </Grid>
 
           <Grid size={{ xs: 12, md: 4 }}>

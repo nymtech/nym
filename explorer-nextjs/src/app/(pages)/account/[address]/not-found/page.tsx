@@ -1,14 +1,6 @@
-import { fetchNodeInfo } from "@/app/api";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
-import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
-import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
-import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
-import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
-import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
-import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
-import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";

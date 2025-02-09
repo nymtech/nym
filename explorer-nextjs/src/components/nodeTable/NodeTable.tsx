@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Stack,
-  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,

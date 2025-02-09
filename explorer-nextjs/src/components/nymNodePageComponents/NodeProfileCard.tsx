@@ -1,14 +1,7 @@
 "use client";
 
 import { useChain } from "@cosmos-kit/react";
-import {
-  Box,
-  Button,
-  Skeleton,
-  Stack,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";

@@ -132,6 +132,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         const pendingEvent = pendingEvents?.find(
           (event) => event?.mixId === delegation.node_id,
         );
+        console.log("node,delegation,pendingEvent,:>> ", {
+          node,
+          delegation,
+          pendingEvent,
+        });
         return {
           node,
           delegation,
@@ -403,8 +408,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "location",
         header: "Location",
         accessorKey: "node.countryCode",
-        size: 80,
-
+        size: 160,
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.node?.countryCode && row.original.node?.countryName ? (
@@ -446,8 +450,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Stake saturation",
         accessorKey: "node.stakeSaturation",
         size: 200,
-
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
+        sortingFn: (rowA, rowB) => {
+          const saturationA = rowA.original.node?.stakeSaturation || 0;
+          const saturationB = rowB.original.node?.stakeSaturation || 0;
+          console.log("sorting :>> ", saturationA, saturationB);
+          return saturationA - saturationB;
+        },
         Cell: ({ row }) =>
           row.original.node?.stakeSaturation ? (
             <Typography variant="body4">

@@ -217,11 +217,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "location",
         header: "Location",
         accessorKey: "countryName",
-        size: 100,
+        size: 160,
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.countryCode && row.original.countryName ? (
-            <Box>
+            <Box width="100%">
               <CountryFlag
                 countryCode={row.original.countryCode || ""}
                 countryName={countryName(row.original.countryName) || ""}

@@ -19,7 +19,7 @@ function getNodeSaturationPoint(
   }
 
   const ratio = (totalStake / saturation) * 100;
-  return Number(ratio.toFixed());
+  return Number.parseFloat(ratio.toFixed());
 }
 
 // Map nodes with rewards data
@@ -46,7 +46,7 @@ const mappedNymNodes = (
       profitMarginPercentage:
         +node.rewarding_details.cost_params.profit_margin_percent * 100,
       owner: node.bonding_address,
-      stakeSaturation: nodeSaturationPoint || 0,
+      stakeSaturation: +nodeSaturationPoint || 0,
     };
   });
 

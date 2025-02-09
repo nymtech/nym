@@ -369,9 +369,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       {
         id: "id",
         header: "",
-        Header: <ColumnHeading>ID</ColumnHeading>,
+        Header: <ColumnHeading>Node ID</ColumnHeading>,
         accessorKey: "delegation.node_id",
-        size: 40,
+        size: 90,
 
         Cell: ({ row }) =>
           row.original.delegation?.node_id ? (
@@ -408,14 +408,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.node?.countryCode && row.original.node?.countryName ? (
-            <Tooltip title={countryName(row.original.node?.countryName)}>
-              <Box>
-                <CountryFlag
-                  countryCode={row.original.node.countryCode}
-                  countryName={row.original.node.countryCode}
-                />
-              </Box>
-            </Tooltip>
+            <Box>
+              <CountryFlag
+                countryCode={row.original.node.countryCode}
+                countryName={countryName(row.original.node?.countryName) || ""}
+              />
+            </Box>
           ) : (
             "-"
           ),

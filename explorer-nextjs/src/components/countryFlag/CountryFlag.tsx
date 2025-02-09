@@ -3,7 +3,7 @@ import Flag from "react-world-flags";
 
 interface ICountryFlag {
   countryCode: string;
-  countryName?: string;
+  countryName?: string | JSX.Element;
 }
 
 const CountryFlag = ({ countryCode, countryName }: ICountryFlag) => {

@@ -180,9 +180,9 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       {
         id: "id",
         header: "",
-        Header: <ColumnHeading>ID</ColumnHeading>,
+        Header: <ColumnHeading>Node ID</ColumnHeading>,
         accessorKey: "nodeId",
-        size: 40,
+        size: 90,
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
@@ -222,14 +222,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.countryCode && row.original.countryName ? (
-            <Tooltip title={countryName(row.original.countryName)}>
-              <Box>
-                <CountryFlag
-                  countryCode={row.original.countryCode || ""}
-                  countryName={row.original.countryCode || ""}
-                />
-              </Box>
-            </Tooltip>
+            <Box>
+              <CountryFlag
+                countryCode={row.original.countryCode || ""}
+                countryName={countryName(row.original.countryName) || ""}
+              />
+            </Box>
           ) : (
             "-"
           ),

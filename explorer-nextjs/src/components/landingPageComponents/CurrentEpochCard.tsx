@@ -1,61 +1,19 @@
 "use client";
 
-import { Box, Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
-import { subSeconds } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import { differenceInMinutes, format } from "date-fns";
 import { fetchCurrentEpoch } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import EpochProgressBar from "../progressBars/EpochProgressBar";
 
 export const CurrentEpochCard = () => {
-  const queryClient = useQueryClient();
-
-  const [hasEpochStarted, setHasEpochStarted] = useState(false);
-
   // Use React Query to fetch data
   const { data, isError, isLoading } = useQuery({
-    enabled: true,
     queryKey: ["currentEpoch"],
     queryFn: fetchCurrentEpoch,
     refetchInterval: 30000,
-    staleTime: 30000,
-    refetchOnMount: true, // Force UI update
-    keepPreviousData: false, // Ensure new data updates UI
   });
-
-  const handleRefetch = useCallback(() => {
-    queryClient.invalidateQueries(); // This will refetch ALL active queries
-  }, [queryClient]);
-
-  useEffect(() => {
-    const checkEpochStatus = () => {
-      if (!data?.dateTime) return;
-
-      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime();
-
-      const now = Date.now();
-      setHasEpochStarted(now >= oneHourLater);
-    };
-
-    checkEpochStatus();
-
-    const interval = setInterval(checkEpochStatus, 30000); // Check every 30s, regardless of data updates
-
-    return () => clearInterval(interval);
-  });
-
-  // Refetch all queries on epoch change
-  useEffect(() => {
-    if (!hasEpochStarted) return;
-
-    handleRefetch();
-
-    const interval = setInterval(handleRefetch, 30000); // refetch every 30sec after the epoch has started
-
-    return () => clearInterval(interval);
-  }, [hasEpochStarted, handleRefetch]);
 
   if (isLoading) {
     return (
@@ -65,7 +23,7 @@ export const CurrentEpochCard = () => {
     );
   }
 
-  if (isError || !data) {
+  if (isError) {
     return (
       <ExplorerCard label="Current mixnet epoch">
         Failed to load data
@@ -73,22 +31,43 @@ export const CurrentEpochCard = () => {
     );
   }
 
+  if (!data) {
+    return (
+      <ExplorerCard label="Current mixnet epoch">
+        No data available
+      </ExplorerCard>
+    );
+  }
+
+  const isEpochTimeValid = new Date(data.dateTime) > new Date();
+
+  if (!isEpochTimeValid) {
+    return (
+      <ExplorerCard label="Current mixnet epoch">
+        <Typography variant="body3" fontWeight="light">
+          Waiting for next epoch to start...
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
   const currentEpochStart = data.data.current_epoch_start || "";
 
+  const startDate = new Date(currentEpochStart);
+  const endDate = new Date(data.dateTime);
+
+  const startTime = format(startDate, "HH:mm:ss");
+  const endTime = format(endDate, "HH:mm:ss");
+
+  const difference = differenceInMinutes(endDate, new Date());
+
+  const progress = Math.max(0, 100 - (difference / 60) * 100);
   return (
     <ExplorerCard label="Current mixnet epoch">
       <EpochProgressBar
-        start={currentEpochStart}
-        showEpoch={!hasEpochStarted}
-        waitingForEpoch={
-          hasEpochStarted ? (
-            <Box mt={3}>
-              <Typography variant="body3" fontWeight="light">
-                Waiting for next epoch to start...
-              </Typography>
-            </Box>
-          ) : undefined
-        }
+        startTime={startTime}
+        endTime={endTime}
+        progress={progress}
       />
     </ExplorerCard>
   );

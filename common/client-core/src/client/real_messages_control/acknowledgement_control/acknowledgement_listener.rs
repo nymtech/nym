@@ -64,9 +64,12 @@ impl AcknowledgementListener {
         trace!("Received {} from the mix network", frag_id);
         self.stats_tx
             .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()).into());
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::new_remove(frag_id))
-            .unwrap();
+        {
+            error!("Failed to send remove action to action controller: {err}");
+        }
     }
 
     async fn handle_ack_receiver_item(&mut self, item: Vec<Vec<u8>>) {

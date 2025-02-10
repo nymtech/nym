@@ -175,7 +175,7 @@ impl LoopCoverTrafficStream<OsRng> {
             }
         };
 
-        let cover_message = generate_loop_cover_packet(
+        let cover_message = match generate_loop_cover_packet(
             &mut self.rng,
             topology_ref,
             &self.ack_key,
@@ -184,8 +184,15 @@ impl LoopCoverTrafficStream<OsRng> {
             self.cover_traffic.loop_cover_traffic_average_delay,
             cover_traffic_packet_size,
             self.packet_type,
-        )
-        .expect("Somehow failed to generate a loop cover message with a valid topology");
+        ) {
+            Ok(cover_message) => cover_message,
+            Err(err) => {
+                warn!(
+                    "Somehow failed to generate a loop cover message with a valid topology: {err}"
+                );
+                return;
+            }
+        };
 
         if let Err(err) = self.mix_tx.try_send(vec![cover_message]) {
             match err {

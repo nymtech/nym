@@ -79,9 +79,12 @@ where
         if let Some(limit) = self.maximum_retransmissions {
             if timed_out_ack.retransmissions >= limit {
                 warn!("reached maximum number of allowed retransmissions for the packet");
-                self.action_sender
+                if let Err(err) = self
+                    .action_sender
                     .unbounded_send(Action::new_remove(frag_id))
-                    .unwrap();
+                {
+                    error!("Failed to send remove action to the controller: {err}");
+                }
                 return;
             }
         }
@@ -114,9 +117,12 @@ where
             Err(err) => {
                 warn!("Could not retransmit the packet - {err}");
                 // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
-                self.action_sender
+                if let Err(err) = self
+                    .action_sender
                     .unbounded_send(Action::new_start_timer(frag_id))
-                    .unwrap();
+                {
+                    error!("Failed to send start timer action to the controller: {err}");
+                }
                 return;
             }
         };
@@ -141,9 +147,12 @@ where
         // is sent to the `OutQueueControl` and has gone through its internal queue
         // with the additional poisson delay.
         // And since Actions are executed in order `UpdateTimer` will HAVE TO be executed before `StartTimer`
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::new_update_pending_ack(frag_id, new_delay))
-            .unwrap();
+        {
+            error!("Failed to send update pending ack action to the controller: {err}");
+        }
 
         // send to `OutQueueControl` to eventually send to the mix network
         self.message_handler

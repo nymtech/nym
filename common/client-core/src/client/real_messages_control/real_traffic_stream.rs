@@ -198,7 +198,9 @@ where
         // queues and client load rather than the required delay. So realistically we can treat
         // whatever is about to happen as negligible additional delay.
         trace!("{} is about to get sent to the mixnet", frag_id);
-        self.sent_notifier.unbounded_send(frag_id).unwrap();
+        if let Err(err) = self.sent_notifier.unbounded_send(frag_id) {
+            error!("Failed to notify about sent message: {err}");
+        }
     }
 
     fn loop_cover_message_size(&mut self) -> PacketSize {

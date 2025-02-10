@@ -31,13 +31,16 @@ impl ReplyControllerSender {
         timed_out_ack: Weak<PendingAcknowledgement>,
         extra_surb_request: bool,
     ) {
-        self.0
+        if let Err(err) = self
+            .0
             .unbounded_send(ReplyControllerMessage::RetransmitReply {
                 recipient,
                 timed_out_ack,
                 extra_surb_request,
             })
-            .expect("ReplyControllerReceiver has died!")
+        {
+            error!("Failed to send retransmission data to reply controller: {err}",);
+        }
     }
 
     pub(crate) fn send_reply(
@@ -46,13 +49,13 @@ impl ReplyControllerSender {
         message: Vec<u8>,
         lane: TransmissionLane,
     ) {
-        self.0
-            .unbounded_send(ReplyControllerMessage::SendReply {
-                recipient,
-                message,
-                lane,
-            })
-            .expect("ReplyControllerReceiver has died!")
+        if let Err(err) = self.0.unbounded_send(ReplyControllerMessage::SendReply {
+            recipient,
+            message,
+            lane,
+        }) {
+            error!("Failed to send reply to reply controller: {err}",);
+        }
     }
 
     pub(crate) fn send_additional_surbs(
@@ -61,32 +64,41 @@ impl ReplyControllerSender {
         reply_surbs: Vec<ReplySurb>,
         from_surb_request: bool,
     ) {
-        self.0
+        if let Err(err) = self
+            .0
             .unbounded_send(ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
                 from_surb_request,
             })
-            .expect("ReplyControllerReceiver has died!")
+        {
+            error!("Failed to send additional surbs to reply controller: {err}",);
+        }
     }
 
     pub(crate) fn send_additional_surbs_request(&self, recipient: Recipient, amount: u32) {
-        self.0
+        if let Err(err) = self
+            .0
             .unbounded_send(ReplyControllerMessage::AdditionalSurbsRequest {
                 recipient: Box::new(recipient),
                 amount,
             })
-            .expect("ReplyControllerReceiver has died!")
+        {
+            error!("Failed to send additional surbs request to reply controller: {err}");
+        }
     }
 
     pub async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> usize {
         let (response_tx, response_rx) = oneshot::channel();
-        self.0
+        if let Err(err) = self
+            .0
             .unbounded_send(ReplyControllerMessage::LaneQueueLength {
                 connection_id,
                 response_channel: response_tx,
             })
-            .expect("ReplyControllerReceiver has died!");
+        {
+            error!("Failed to send lane queue length request to reply controller: {err}");
+        }
 
         match response_rx.await {
             Ok(length) => length,

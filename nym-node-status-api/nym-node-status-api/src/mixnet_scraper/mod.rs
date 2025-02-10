@@ -69,7 +69,7 @@ impl Scraper {
         });
     }
 
-    #[instrument(level = "debug", name = "description_scraper", skip_all)]
+    #[instrument(level = "info", name = "description_scraper", skip_all)]
     async fn run_description_scraper(
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
@@ -86,7 +86,7 @@ impl Scraper {
         Ok(())
     }
 
-    #[instrument(level = "debug", name = "packet_scraper", skip_all)]
+    #[instrument(level = "info", name = "packet_scraper", skip_all)]
     async fn run_packet_scraper(
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,

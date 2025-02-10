@@ -2,8 +2,7 @@ ALTER TABLE mixnodes DROP COLUMN blacklisted;
 ALTER TABLE gateways DROP COLUMN blacklisted;
 
 CREATE TABLE nym_nodes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    node_id INTEGER NOT NULL UNIQUE,
+    node_id INTEGER PRIMARY KEY,
     ed25519_identity_pubkey VARCHAR NOT NULL UNIQUE,
     total_stake INTEGER NOT NULL,
     ip_addresses TEXT NOT NULL,

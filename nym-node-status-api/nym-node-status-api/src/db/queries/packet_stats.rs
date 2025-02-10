@@ -1,5 +1,5 @@
 use crate::db::{
-    models::{NodeKind, NodeStats, ScraperNodeInfo},
+    models::{MixingNodeKind, NodeStats, ScraperNodeInfo},
     DbPool,
 };
 use anyhow::Result;
@@ -7,14 +7,14 @@ use anyhow::Result;
 pub(crate) async fn insert_node_packet_stats(
     pool: &DbPool,
     node_id: i64,
-    node_kind: &NodeKind,
+    node_kind: &MixingNodeKind,
     stats: &NodeStats,
     timestamp_utc: i64,
 ) -> Result<()> {
     let mut conn = pool.acquire().await?;
 
     match node_kind {
-        NodeKind::LegacyMixnode => {
+        MixingNodeKind::LegacyMixnode => {
             sqlx::query!(
                 r#"
                 INSERT INTO mixnode_packet_stats_raw (
@@ -30,7 +30,7 @@ pub(crate) async fn insert_node_packet_stats(
             .execute(&mut *conn)
             .await?;
         }
-        NodeKind::NymNode => {
+        MixingNodeKind::NymNode => {
             sqlx::query!(
                 r#"
                 INSERT INTO nym_nodes_packet_stats_raw (
@@ -60,7 +60,7 @@ pub(crate) async fn get_raw_node_stats(
     let packets = match node.node_kind {
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
-        NodeKind::LegacyMixnode => {
+        MixingNodeKind::LegacyMixnode => {
             sqlx::query_as!(
                 NodeStats,
                 r#"
@@ -78,7 +78,7 @@ pub(crate) async fn get_raw_node_stats(
             .fetch_optional(&mut *conn)
             .await?
         }
-        NodeKind::NymNode => {
+        MixingNodeKind::NymNode => {
             sqlx::query_as!(
                 NodeStats,
                 r#"
@@ -110,7 +110,7 @@ pub(crate) async fn insert_daily_node_stats(
     let mut conn = pool.acquire().await?;
 
     match node.node_kind {
-        NodeKind::LegacyMixnode => {
+        MixingNodeKind::LegacyMixnode => {
             let total_stake = sqlx::query_scalar!(
                 r#"
                     SELECT
@@ -146,7 +146,7 @@ pub(crate) async fn insert_daily_node_stats(
             .execute(&mut *conn)
             .await?;
         }
-        NodeKind::NymNode => {
+        MixingNodeKind::NymNode => {
             let total_stake = sqlx::query_scalar!(
                 r#"
                 SELECT

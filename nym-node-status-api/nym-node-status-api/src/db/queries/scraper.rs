@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        models::{NodeKind, ScraperNodeInfo},
+        models::{MixingNodeKind, ScraperNodeInfo},
         queries, DbPool,
     },
     mixnet_scraper::helpers::NodeDescriptionResponse,
@@ -17,7 +17,7 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
         .for_each(|node| {
             nodes_to_scrape.push(ScraperNodeInfo {
                 node_id: node.node_id.into(),
-                node_kind: NodeKind::NymNode,
+                node_kind: MixingNodeKind::NymNode,
                 hosts: node
                     .ip_addresses
                     .into_iter()
@@ -64,7 +64,7 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
         {
             nodes_to_scrape.push(ScraperNodeInfo {
                 node_id: mixnode.node_id,
-                node_kind: NodeKind::LegacyMixnode,
+                node_kind: MixingNodeKind::LegacyMixnode,
                 hosts: vec![mixnode.host],
                 http_api_port: mixnode.http_api_port,
             })
@@ -89,7 +89,7 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
 
 pub(crate) async fn insert_scraped_node_description(
     pool: &DbPool,
-    node_kind: &NodeKind,
+    node_kind: &MixingNodeKind,
     node_id: i64,
     description: &NodeDescriptionResponse,
 ) -> Result<()> {
@@ -97,7 +97,7 @@ pub(crate) async fn insert_scraped_node_description(
     let mut conn = pool.acquire().await?;
 
     match node_kind {
-        NodeKind::LegacyMixnode => {
+        MixingNodeKind::LegacyMixnode => {
             sqlx::query!(
                 r#"
                 INSERT INTO mixnode_description (
@@ -120,7 +120,7 @@ pub(crate) async fn insert_scraped_node_description(
             .execute(&mut *conn)
             .await?;
         }
-        NodeKind::NymNode => {
+        MixingNodeKind::NymNode => {
             sqlx::query!(
                 r#"
                 INSERT INTO nym_node_descriptions (

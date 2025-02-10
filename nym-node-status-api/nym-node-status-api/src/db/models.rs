@@ -360,14 +360,14 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
-pub(crate) enum NodeKind {
+pub(crate) enum MixingNodeKind {
     LegacyMixnode,
     NymNode,
 }
 
 pub(crate) struct ScraperNodeInfo {
     pub node_id: i64,
-    pub node_kind: NodeKind,
+    pub node_kind: MixingNodeKind,
     pub hosts: Vec<String>,
     pub http_api_port: i64,
 }
@@ -409,8 +409,6 @@ pub(crate) struct NymNodeDto {
 
 #[derive(Debug)]
 pub(crate) struct NymNodeInsertRecord {
-    #[allow(dead_code)]
-    pub id: i64,
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,
     pub total_stake: i64,
@@ -429,7 +427,6 @@ impl NymNodeInsertRecord {
         let now = OffsetDateTime::now_utc().to_string();
 
         let record = Self {
-            id: Default::default(),
             node_id: skimmed_node.node_id.into(),
             ed25519_identity_pubkey: skimmed_node.ed25519_identity_pubkey.to_base58_string(),
             total_stake,

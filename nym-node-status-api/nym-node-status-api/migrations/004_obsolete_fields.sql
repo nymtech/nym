@@ -16,8 +16,8 @@ CREATE TABLE nym_nodes (
     last_updated_utc INTEGER NOT NULL
 );
 
-CREATE INDEX idx_nym_nodes_mix_id ON mixnodes (mix_id);
-CREATE INDEX idx_nym_nodes_identity_key ON mixnodes (identity_key);
+CREATE INDEX idx_nym_nodes_node_id ON nym_nodes (node_id);
+CREATE INDEX idx_nym_nodes_ed25519_identity_pubkey ON nym_nodes (ed25519_identity_pubkey);
 
 CREATE TABLE nym_node_descriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

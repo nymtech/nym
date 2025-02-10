@@ -116,30 +116,30 @@ impl Monitor {
             .get_all_bonded_nym_nodes()
             .await?
             .into_iter()
-            .map(|node| (node.bond_information.node_id, node.bond_information))
+            .map(|node| (node.bond_information.node_id, node))
             // for faster reads
             .collect::<HashMap<_, _>>();
 
-        let mut gateway_geodata = Vec::new();
-        for gateway in gateways.iter() {
-            if let Some(node_info) = bonded_node_info.get(&gateway.node_id) {
-                let gw_geodata = NodeGeoData {
-                    identity_key: node_info.node.identity_key.to_owned(),
-                    owner: node_info.owner.to_owned(),
-                    pledge_amount: node_info.original_pledge.to_owned(),
-                    location: self.location_cached(gateway).await,
-                };
-                gateway_geodata.push(gw_geodata);
-            }
-        }
-
-        // contains performance data
         let nym_nodes = api_client
             .get_all_basic_nodes()
             .await
             .log_error("get_all_basic_nodes")?;
 
-        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone()).await?;
+        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info).await?;
+
+        let mut gateway_geodata = Vec::new();
+        for gateway in gateways.iter() {
+            if let Some(node_details) = bonded_node_info.get(&gateway.node_id) {
+                let bond_info = &node_details.bond_information;
+                let gw_geodata = NodeGeoData {
+                    identity_key: bond_info.node.identity_key.to_owned(),
+                    owner: bond_info.owner.to_owned(),
+                    pledge_amount: bond_info.original_pledge.to_owned(),
+                    location: self.location_cached(gateway).await,
+                };
+                gateway_geodata.push(gw_geodata);
+            }
+        }
 
         let mixnodes_detailed = api_client
             .nym_api
@@ -301,7 +301,7 @@ impl Monitor {
         &self,
         gateways: &[&NymNodeDescription],
         gateway_geodata: Vec<NodeGeoData>,
-        skimmed_gateways: &Vec<SkimmedNode>,
+        skimmed_gateways: &[SkimmedNode],
     ) -> anyhow::Result<Vec<GatewayRecord>> {
         let mut gateway_records = Vec::new();
 
@@ -465,7 +465,7 @@ async fn get_delegation_program_details(
     Ok(mix_ids)
 }
 
-fn decimal_to_i64(decimal: Decimal) -> i64 {
+pub(crate) fn decimal_to_i64(decimal: Decimal) -> i64 {
     // Convert the underlying Uint128 to a u128
     let atomics = decimal.atomics().u128();
     let precision = 1_000_000_000_000_000_000u128;

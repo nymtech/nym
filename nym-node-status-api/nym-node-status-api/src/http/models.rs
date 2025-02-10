@@ -51,9 +51,7 @@ pub struct DailyStats {
     pub total_packets_received: i64,
     pub total_packets_sent: i64,
     pub total_packets_dropped: i64,
-    // TODO dz uncomment
-    // pub total_stake: i64,
-}
+    pub total_stake: i64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

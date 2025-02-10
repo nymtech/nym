@@ -396,6 +396,8 @@ impl ScraperNodeInfo {
 pub(crate) struct NymNodeDto {
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,
+    #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
+    pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
     pub mix_port: i64,
     pub x25519_sphinx_pubkey: String,
@@ -411,6 +413,7 @@ pub(crate) struct NymNodeInsertRecord {
     pub id: i64,
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,
+    pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
     pub mix_port: i64,
     pub x25519_sphinx_pubkey: String,
@@ -421,23 +424,22 @@ pub(crate) struct NymNodeInsertRecord {
     pub last_updated_utc: String,
 }
 
-impl TryFrom<SkimmedNode> for NymNodeInsertRecord {
-    type Error = anyhow::Error;
-
-    fn try_from(other: SkimmedNode) -> Result<Self, Self::Error> {
+impl NymNodeInsertRecord {
+    pub fn new(skimmed_node: SkimmedNode, total_stake: i64) -> anyhow::Result<Self> {
         let now = OffsetDateTime::now_utc().to_string();
 
         let record = Self {
             id: Default::default(),
-            node_id: other.node_id.into(),
-            ed25519_identity_pubkey: other.ed25519_identity_pubkey.to_base58_string(),
-            ip_addresses: serde_json::to_value(&other.ip_addresses)?,
-            mix_port: other.mix_port as i64,
-            x25519_sphinx_pubkey: other.x25519_sphinx_pubkey.to_base58_string(),
-            node_role: serde_json::to_value(&other.role)?,
-            supported_roles: serde_json::to_value(other.supported_roles)?,
-            performance: other.performance.value().to_string(),
-            entry: match other.entry {
+            node_id: skimmed_node.node_id.into(),
+            ed25519_identity_pubkey: skimmed_node.ed25519_identity_pubkey.to_base58_string(),
+            total_stake,
+            ip_addresses: serde_json::to_value(&skimmed_node.ip_addresses)?,
+            mix_port: skimmed_node.mix_port as i64,
+            x25519_sphinx_pubkey: skimmed_node.x25519_sphinx_pubkey.to_base58_string(),
+            node_role: serde_json::to_value(&skimmed_node.role)?,
+            supported_roles: serde_json::to_value(skimmed_node.supported_roles)?,
+            performance: skimmed_node.performance.value().to_string(),
+            entry: match skimmed_node.entry {
                 Some(entry) => Some(serde_json::to_value(entry)?),
                 None => None,
             },

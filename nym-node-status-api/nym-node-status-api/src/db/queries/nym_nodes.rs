@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+
 use futures_util::TryStreamExt;
-use nym_validator_client::nym_api::SkimmedNode;
+use nym_validator_client::{client::NymNodeDetails, nym_api::SkimmedNode};
 use tracing::instrument;
 
-use crate::db::{
-    models::{NymNodeDto, NymNodeInsertRecord},
-    DbPool,
+use crate::{
+    db::{
+        models::{NymNodeDto, NymNodeInsertRecord},
+        DbPool,
+    },
+    monitor::decimal_to_i64,
 };
 
 pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNode>> {
@@ -15,6 +20,7 @@ pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNo
         r#"SELECT
             node_id,
             ed25519_identity_pubkey,
+            total_stake,
             ip_addresses as "ip_addresses!: serde_json::Value",
             mix_port,
             x25519_sphinx_pubkey,
@@ -48,21 +54,28 @@ pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNo
 pub(crate) async fn insert_nym_nodes(
     pool: &DbPool,
     nym_nodes: Vec<SkimmedNode>,
+    bonded_node_info: &HashMap<u32, NymNodeDetails>,
 ) -> anyhow::Result<()> {
     let mut conn = pool.acquire().await?;
 
     for nym_node in nym_nodes.into_iter() {
-        let record: NymNodeInsertRecord = nym_node.try_into()?;
+        let total_stake = bonded_node_info
+            .get(&nym_node.node_id)
+            .map(|details| decimal_to_i64(details.total_stake()))
+            .unwrap_or(0);
+
+        let record = NymNodeInsertRecord::new(nym_node, total_stake)?;
         // https://www.sqlite.org/lang_upsert.html
         sqlx::query!(
             "INSERT INTO nym_nodes
                 (node_id, ed25519_identity_pubkey,
+                    total_stake,
                     ip_addresses, mix_port,
                     x25519_sphinx_pubkey, node_role,
                     supported_roles, entry,
                     performance, last_updated_utc
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id) DO UPDATE SET
                 ed25519_identity_pubkey=excluded.ed25519_identity_pubkey,
                 ip_addresses=excluded.ip_addresses,
@@ -76,6 +89,7 @@ pub(crate) async fn insert_nym_nodes(
                 ;",
             record.node_id,
             record.ed25519_identity_pubkey,
+            record.total_stake,
             record.ip_addresses,
             record.mix_port,
             record.x25519_sphinx_pubkey,

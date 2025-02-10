@@ -5,6 +5,7 @@ CREATE TABLE nym_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     node_id INTEGER NOT NULL UNIQUE,
     ed25519_identity_pubkey VARCHAR NOT NULL UNIQUE,
+    total_stake INTEGER NOT NULL,
     ip_addresses TEXT NOT NULL,
     mix_port INTEGER NOT NULL,
     x25519_sphinx_pubkey VARCHAR NOT NULL UNIQUE,
@@ -44,6 +45,7 @@ CREATE INDEX idx_nym_nodes_packet_stats_raw_node_id_timestamp_utc ON nym_nodes_p
 CREATE TABLE nym_node_daily_mixing_stats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     node_id INTEGER NOT NULL,
+    total_stake BIGINT NOT NULL,
     date_utc VARCHAR NOT NULL,
     packets_received INTEGER DEFAULT 0,
     packets_sent INTEGER DEFAULT 0,

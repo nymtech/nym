@@ -17,11 +17,18 @@ pub(crate) async fn start_http_api(
     nym_http_cache_ttl: u64,
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
-    hm_url: String
+    hm_url: String,
 ) -> anyhow::Result<ShutdownHandles> {
     let router_builder = RouterBuilder::with_default_routes();
 
-    let state = AppState::new(db_pool, nym_http_cache_ttl, agent_key_list, agent_max_count, hm_url).await;
+    let state = AppState::new(
+        db_pool,
+        nym_http_cache_ttl,
+        agent_key_list,
+        agent_max_count,
+        hm_url,
+    )
+    .await;
     let router = router_builder.with_state(state);
 
     let bind_addr = format!("0.0.0.0:{}", http_port);

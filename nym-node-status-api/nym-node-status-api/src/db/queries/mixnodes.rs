@@ -91,12 +91,14 @@ pub(crate) async fn get_daily_stats(pool: &DbPool, offset: i64) -> anyhow::Resul
         r#"
         SELECT
             date_utc as "date_utc!",
+            SUM(total_stake) as "total_stake!: i64",
             SUM(packets_received) as "total_packets_received!: i64",
             SUM(packets_sent) as "total_packets_sent!: i64",
             SUM(packets_dropped) as "total_packets_dropped!: i64"
         FROM (
             SELECT
                 date_utc,
+                n.total_stake,
                 n.packets_received,
                 n.packets_sent,
                 n.packets_dropped
@@ -104,6 +106,7 @@ pub(crate) async fn get_daily_stats(pool: &DbPool, offset: i64) -> anyhow::Resul
             UNION ALL
             SELECT
                 m.date_utc,
+                m.total_stake,
                 m.packets_received,
                 m.packets_sent,
                 m.packets_dropped

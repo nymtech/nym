@@ -108,12 +108,27 @@ pub(crate) async fn insert_daily_node_stats(
     packets: NodeStats,
 ) -> Result<()> {
     let mut conn = pool.acquire().await?;
+
     match node.node_kind {
         NodeKind::LegacyMixnode => {
+            let total_stake = sqlx::query_scalar!(
+                r#"
+                    SELECT
+                        total_stake
+                    FROM mixnodes
+                    WHERE mix_id = ?
+                   "#,
+                node.node_id
+            )
+            .fetch_one(&mut *conn)
+            .await?;
+
             sqlx::query!(
                 r#"
                 INSERT INTO mixnode_daily_stats (
-                    mix_id, date_utc, total_stake, packets_received, packets_sent, packets_dropped
+                    mix_id, date_utc,
+                    total_stake, packets_received,
+                    packets_sent, packets_dropped
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(mix_id, date_utc) DO UPDATE SET
                     total_stake = excluded.total_stake,
@@ -123,8 +138,7 @@ pub(crate) async fn insert_daily_node_stats(
                 "#,
                 node.node_id,
                 date_utc,
-                // TODO is total stake relevant anymore?
-                0,
+                total_stake,
                 packets.packets_received,
                 packets.packets_sent,
                 packets.packets_dropped,
@@ -133,18 +147,34 @@ pub(crate) async fn insert_daily_node_stats(
             .await?;
         }
         NodeKind::NymNode => {
+            let total_stake = sqlx::query_scalar!(
+                r#"
+                SELECT
+                    total_stake
+                FROM nym_nodes
+                WHERE node_id = ?
+                "#,
+                node.node_id
+            )
+            .fetch_one(&mut *conn)
+            .await?;
+
             sqlx::query!(
                 r#"
                 INSERT INTO nym_node_daily_mixing_stats (
-                    node_id, date_utc, packets_received, packets_sent, packets_dropped
-                ) VALUES (?, ?, ?, ?, ?)
+                    node_id, date_utc,
+                    total_stake, packets_received,
+                    packets_sent, packets_dropped
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id, date_utc) DO UPDATE SET
+                    total_stake = nym_node_daily_mixing_stats.total_stake + excluded.total_stake,
                     packets_received = nym_node_daily_mixing_stats.packets_received + excluded.packets_received,
                     packets_sent = nym_node_daily_mixing_stats.packets_sent + excluded.packets_sent,
                     packets_dropped = nym_node_daily_mixing_stats.packets_dropped + excluded.packets_dropped
                 "#,
                 node.node_id,
                 date_utc,
+                total_stake,
                 packets.packets_received,
                 packets.packets_sent,
                 packets.packets_dropped,

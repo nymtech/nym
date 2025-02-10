@@ -1073,12 +1073,30 @@ const config = {
       ? `
         default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
         script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
-        worker-src 'self' blob:;
+        font-src 'self' data: blob: *;
+        style-src 'self' 'unsafe-inline' data: blob: *;
+        img-src 'self' data: blob: *;
+        object-src 'self' data: blob: *;
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'self';
+        upgrade-insecure-requests;
+        connect-src 'self' data: blob: *;
+        frame-src 'self' data: blob: *;
       `
       : `
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' *.nym.com https://nym.com;
-        worker-src 'self' 'unsafe-inline' 'unsafe-eval' *.nym.com https://nym.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live *.nymtech.net *.nymvpn.com *.vercel.app *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        font-src 'self' data:;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+        upgrade-insecure-requests;
+        connect-src 'self' https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
       `;
     return [
       {

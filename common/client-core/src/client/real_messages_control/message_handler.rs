@@ -609,15 +609,21 @@ where
     }
 
     pub(crate) fn update_ack_delay(&self, id: FragmentIdentifier, new_delay: Delay) {
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::UpdatePendingAck(id, new_delay))
-            .expect("action control task has died")
+        {
+            error!("Failed to send update action to the controller: {err}");
+        }
     }
 
     pub(crate) fn insert_pending_acks(&self, pending_acks: Vec<PendingAcknowledgement>) {
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::new_insert(pending_acks))
-            .expect("action control task has died")
+        {
+            error!("Failed to send insert action to the controller: {err}");
+        }
     }
 
     // tells real message sender (with the poisson timer) to send this to the mix network

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::persistence::KeyStore;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::{
+    asymmetric::{encryption, identity},
+    hkdf::{DerivationMaterial, InvalidLength},
+};
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
@@ -41,6 +44,21 @@ impl ClientKeys {
             encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
             ack_key: Arc::new(AckKey::new(rng)),
         }
+    }
+
+    pub fn from_master_key<R>(
+        rng: &mut R,
+        derivation_material: &DerivationMaterial,
+    ) -> Result<Self, InvalidLength>
+    where
+        R: RngCore + CryptoRng,
+    {
+        let secret = derivation_material.derive_secret()?;
+        Ok(ClientKeys {
+            identity_keypair: Arc::new(identity::KeyPair::from_secret(secret)),
+            encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
+            ack_key: Arc::new(AckKey::new(rng)),
+        })
     }
 
     pub fn from_keys(

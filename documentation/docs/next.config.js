@@ -1067,6 +1067,31 @@ const config = {
     unoptimized: true,
   },
   transpilePackages: ["@nymproject/contract-clients"],
+  async headers() {
+    const isDev = process.env.NODE_ENV === "development";
+    const csp = isDev
+      ? `
+        default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
+        worker-src 'self' blob:;
+      `
+      : `
+        default-src 'self';
+        script-src 'self' *.nym.com https://nym.com;
+        worker-src 'self' *.nym.com https://nym.com;
+      `;
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: csp.replace(/\s{2,}/g, " ").trim(),
+          }
+        ]
+      }
+    ]
+  }
 };
 
 module.exports = config;

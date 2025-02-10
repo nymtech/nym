@@ -1077,8 +1077,8 @@ const config = {
       `
       : `
         default-src 'self';
-        script-src 'self' *.nym.com https://nym.com;
-        worker-src 'self' *.nym.com https://nym.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' *.nym.com https://nym.com;
+        worker-src 'self' 'unsafe-inline' 'unsafe-eval' *.nym.com https://nym.com;
       `;
     return [
       {

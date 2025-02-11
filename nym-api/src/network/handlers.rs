@@ -6,9 +6,21 @@ use crate::support::http::state::AppState;
 use axum::{extract, Router};
 use nym_contracts_common::ContractBuildInformation;
 use std::collections::HashMap;
+use tower_http::compression::CompressionLayer;
 use utoipa::ToSchema;
 
 pub(crate) fn nym_network_routes() -> Router<AppState> {
+    // This should compress responses unless:
+    //
+    // * They’re gRPC, which has its own protocol specific compression scheme.
+    // * It’s an image as determined by the content-type starting with image/.
+    // * They’re Server-Sent Events (SSE) as determined by the content-type being text/event-stream.
+    // * The response is less than 32 bytes.
+    let compression_layer: CompressionLayer = CompressionLayer::new()
+        .br(true)
+        .deflate(true)
+        .gzip(true)
+        .zstd(true);
     Router::new()
         .route("/details", axum::routing::get(network_details))
         .route("/nym-contracts", axum::routing::get(nym_contracts))
@@ -16,6 +28,7 @@ pub(crate) fn nym_network_routes() -> Router<AppState> {
             "/nym-contracts-detailed",
             axum::routing::get(nym_contracts_detailed),
         )
+        .layer(compression_layer)
 }
 
 #[utoipa::path(

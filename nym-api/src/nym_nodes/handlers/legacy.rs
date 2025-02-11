@@ -7,10 +7,22 @@ use axum::extract::State;
 use axum::{Json, Router};
 use nym_api_requests::legacy::LegacyMixNodeBondWithLayer;
 use nym_api_requests::models::{LegacyDescribedGateway, LegacyDescribedMixNode};
+use tower_http::compression::CompressionLayer;
 
 // we want to mark the routes as deprecated in swagger, but still expose them
 #[allow(deprecated)]
 pub(crate) fn legacy_nym_node_routes() -> Router<AppState> {
+    // This should compress responses unless:
+    //
+    // * They’re gRPC, which has its own protocol specific compression scheme.
+    // * It’s an image as determined by the content-type starting with image/.
+    // * They’re Server-Sent Events (SSE) as determined by the content-type being text/event-stream.
+    // * The response is less than 32 bytes.
+    let compression_layer: CompressionLayer = CompressionLayer::new()
+        .br(true)
+        .deflate(true)
+        .gzip(true)
+        .zstd(true);
     Router::new()
         .route(
             "/gateways/described",
@@ -20,6 +32,7 @@ pub(crate) fn legacy_nym_node_routes() -> Router<AppState> {
             "/mixnodes/described",
             axum::routing::get(get_mixnodes_described),
         )
+        .layer(compression_layer)
 }
 
 #[utoipa::path(

@@ -63,12 +63,17 @@ use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
+
 pub use reqwest::IntoUrl;
 
 mod user_agent;
 pub use user_agent::UserAgent;
 
+#[cfg(not(target_arch = "wasm32"))]
 mod dns;
+#[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
 /// Default HTTP request connection timeout.
@@ -123,6 +128,8 @@ pub enum HttpClientError<E: Display = String> {
     RequestTimeout,
 }
 
+/// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
+/// and state tracked across subsequent requests.
 pub struct ClientBuilder {
     url: Url,
     timeout: Option<Duration>,
@@ -131,6 +138,9 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
+    /// Constructs a new `ClientBuilder`.
+    ///
+    /// This is the same as `Client::builder()`.
     pub fn new<U, E>(url: U) -> Result<Self, HttpClientError<E>>
     where
         U: IntoUrl,
@@ -145,25 +155,48 @@ impl ClientBuilder {
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
+            #[cfg(target_arch = "wasm32")]
+            let reqwest_client_builder = reqwest::ClientBuilder::new();
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let reqwest_client_builder = {
+                let r = reqwest::ClientBuilder::new()
+                    .dns_resolver(Arc::new(HickoryDnsResolver::default()));
+
+                // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
+                // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
+                //
+                // I am going to leave it here anyways so that gzip decompression is attempted even if
+                // that feature is removed.
+                r.gzip(true)
+            };
+
             Ok(ClientBuilder {
                 url: url.into_url()?,
                 timeout: None,
                 custom_user_agent: false,
-                reqwest_client_builder: reqwest::ClientBuilder::new(),
+                reqwest_client_builder,
             })
         }
     }
 
+    /// Enables a total request timeout other than the default.
+    ///
+    /// The timeout is applied from when the request starts connecting until the response body has finished. Also considered a total deadline.
+    ///
+    /// Default is [`DEFAULT_TIMEOUT`].
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
 
+    /// Provide a pre-configured [`reqwest::ClientBuilder`]
     pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
         self.reqwest_client_builder = reqwest_builder;
         self
     }
 
+    /// Sets the `User-Agent` header to be used by this client.
     pub fn with_user_agent<V>(mut self, value: V) -> Self
     where
         V: TryInto<HeaderValue>,
@@ -174,6 +207,7 @@ impl ClientBuilder {
         self
     }
 
+    /// Returns a Client that uses this ClientBuilder configuration.
     pub fn build<E>(self) -> Result<Client, HttpClientError<E>>
     where
         E: Display,

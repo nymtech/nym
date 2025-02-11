@@ -6,7 +6,7 @@ use crate::api::v1::ticketbook::models::{
     TicketbookWalletSharesResponse,
 };
 use async_trait::async_trait;
-use nym_http_api_client::{parse_response, HttpClientError, Params, PathSegments, NO_PARAMS};
+use nym_http_api_client::{parse_response, HttpClientError, Params, PathSegments, NO_PARAMS, ApiClient};
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

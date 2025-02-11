@@ -1,39 +1,93 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Nym HTTP API Client
+//!
+//! Centralizes and implements the core API client functionality.
+//!
+//! ## Making GET requests
+//!
+//! Client and reuse it
+//!
+//! ```rust
+//! # async fn run() -> Result<(), reqwest::Error> {
+//! let body = reqwest::get("https://www.rust-lang.org")
+//!     .await?
+//!     .text()
+//!     .await?;
+//!
+//! println!("body = {body:?}");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## JSON
+//!
+//! There is also a json method helper on the RequestBuilder that works in a similar fashion the
+//! form method. It can take any value that can be serialized into JSON. The feature json is
+//! required.
+//!
+//! ```rust
+//! # use reqwest::Error;
+//! # use std::collections::HashMap;
+//! #
+//! # #[cfg(feature = "json")]
+//! # async fn run() -> Result<(), Error> {
+//! // This will POST a body of `{"lang":"rust","body":"json"}`
+//! let mut map = HashMap::new();
+//! map.insert("lang", "rust");
+//! map.insert("body", "json");
+//!
+//! let client = reqwest::Client::new();
+//! let res = client.post("http://httpbin.org/post")
+//!     .json(&map)
+//!     .send()
+//!     .await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Creating an ApiClient Wrapper
+//!
+//! TODO - add more docs
+//!
+//! ## Optional Features
+//! * **tunneling** - enable configuration options for request tunneling based on header values
+#![warn(missing_docs)]
+
 use async_trait::async_trait;
 use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::time::Duration;
 use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::Arc;
-use std::{fmt::Display, time::Duration};
-
 pub use reqwest::IntoUrl;
 
-mod user_agent;
 pub use user_agent::UserAgent;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod dns;
-#[cfg(not(target_arch = "wasm32"))]
-pub use dns::{HickoryDnsError, HickoryDnsResolver};
+mod user_agent;
 
+/// Default HTTP request connection timeout.
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
 // high and chatty protocols take a while to complete.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
+/// Collection of HTTP Request Parameters
 pub type Params<'a, K, V> = &'a [(K, V)];
 
+/// Empty collection of HTTP Request Parameters.
 pub const NO_PARAMS: Params<'_, &'_ str, &'_ str> = &[];
 
+/// The Errors that may occur when creating or using an HTTP client.
 #[derive(Debug, Error)]
+#[allow(missing_docs)]
 pub enum HttpClientError<E: Display = String> {
     #[error("there was an issue with the REST request: {source}")]
     ReqwestClientError {
@@ -75,6 +129,8 @@ pub struct ClientBuilder {
     timeout: Option<Duration>,
     custom_user_agent: bool,
     reqwest_client_builder: reqwest::ClientBuilder,
+    #[cfg(feature = "tunneling")]
+    front: Option<fronted::Front>,
 }
 
 impl ClientBuilder {
@@ -92,18 +148,13 @@ impl ClientBuilder {
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
-            #[cfg(target_arch = "wasm32")]
-            let reqwest_client_builder = reqwest::ClientBuilder::new();
-
-            #[cfg(not(target_arch = "wasm32"))]
-            let reqwest_client_builder =
-                reqwest::ClientBuilder::new().dns_resolver(Arc::new(HickoryDnsResolver::default()));
-
             Ok(ClientBuilder {
                 url: url.into_url()?,
                 timeout: None,
                 custom_user_agent: false,
-                reqwest_client_builder,
+                reqwest_client_builder: reqwest::ClientBuilder::new(),
+                #[cfg(feature = "tunneling")]
+                front: None,
             })
         }
     }
@@ -153,6 +204,9 @@ impl ClientBuilder {
             base_url: self.url,
             reqwest_client,
 
+            #[cfg(feature = "tunneling")]
+            front: self.front,
+
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
         })
@@ -165,11 +219,15 @@ pub struct Client {
     base_url: Url,
     reqwest_client: reqwest::Client,
 
+    #[cfg(feature = "tunneling")]
+    front: Option<fronted::Front>,
+
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
 }
 
 impl Client {
+    /// Create a new http `Client`
     // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
@@ -177,6 +235,7 @@ impl Client {
         )
     }
 
+    /// Attempt to create a new http client from a something that can be converted to a URL
     pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
     where
         U: IntoUrl,
@@ -189,6 +248,9 @@ impl Client {
         }
     }
 
+    /// Creates a [`ClientBuilder`] to configure a [`Client`].
+    ///
+    /// This is the same as [`ClientBuilder::new()`].
     pub fn builder<U, E>(url: U) -> Result<ClientBuilder, HttpClientError<E>>
     where
         U: IntoUrl,
@@ -197,15 +259,27 @@ impl Client {
         ClientBuilder::new(url)
     }
 
+    /// Update the host that this client uses when sending API requests.
     pub fn change_base_url(&mut self, new_url: Url) {
         self.base_url = new_url
     }
 
+    /// Get the currently configured host that this client uses when sending API requests.
     pub fn current_url(&self) -> &Url {
         &self.base_url
     }
+}
 
-    pub fn create_request<B, K, V>(
+/// Core functionality required for types acting as API clients.
+///
+/// This trait defines the "skinny waist" of behaviors that are required by an API client. More
+/// likely downstream libraries should use functions from the [`ApiClient`] interface which provide
+/// a more ergonomic set of functionalities.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait ApiClientCore {
+    /// Create an HTTP request using the host configured in this client.
+    fn create_request<B, K, V>(
         &self,
         method: reqwest::Method,
         path: PathSegments<'_>,
@@ -215,74 +289,65 @@ impl Client {
     where
         B: Serialize + ?Sized,
         K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        let url = sanitize_url(&self.base_url, path, params);
-        let mut request = self.reqwest_client.request(method.clone(), url);
+        V: AsRef<str>;
 
-        if let Some(body) = json_body {
-            request = request.json(body);
+    /// Create an HTTP request using the host configured in this client and an API endpoint (i.e.
+    /// `"/api/v1/mixnodes?since=12345"`). If the provided endpoint fails to parse as path (and
+    /// optionally query parameters).
+    ///
+    /// Endpoint Examples
+    /// - `"/api/v1/mixnodes?since=12345"`
+    /// - `"/api/v1/mixnodes"`
+    /// - `"/api/v1/mixnodes/img.png"`
+    /// - `"/api/v1/mixnodes/img.png?since=12345"`
+    /// - `"/"`
+    /// - `"/?since=12345"`
+    /// - `""`
+    /// - `"?since=12345"`
+    ///
+    /// for more information about URL percent encodings see [`url::Url::set_path()`]
+    fn create_request_endpoint<B, S>(
+        &self,
+        method: reqwest::Method,
+        endpoint: S,
+        json_body: Option<&B>,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        S: AsRef<str>,
+    {
+        // Use a stand-in url to extract the path and queries from the provided endpoint string
+        // which could potentially fail.
+        //
+        // This parse cannot fail
+        let mut standin_url: Url = "http://example.com".parse().unwrap();
+
+        match endpoint.as_ref().split_once("?") {
+            Some((path, query)) => {
+                standin_url.set_path(path);
+                standin_url.set_query(Some(query));
+            }
+            // There is no query in the provided endpoint
+            None => standin_url.set_path(endpoint.as_ref()),
         }
 
-        request
+        let path: Vec<&str> = match standin_url.path_segments() {
+            Some(segments) => segments.collect(),
+            None => Vec::new(),
+        };
+        let params: Vec<(String, String)> = standin_url.query_pairs().into_owned().collect();
+
+        self.create_request(method, &path, &params, json_body)
     }
 
-    pub fn create_get_request<K, V>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> RequestBuilder
+    /// Send a created HTTP request.
+    ///
+    /// A [`RequestBuilder`] can be created with [`create_request()`] or [`create_request_endpoint`].
+    async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
     where
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.get(url)
-    }
+        E: Display;
 
-    pub fn create_post_request<B, K, V>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> RequestBuilder
-    where
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.post(url).json(json_body)
-    }
-
-    pub fn create_delete_request<K, V>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> RequestBuilder
-    where
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.delete(url)
-    }
-
-    pub fn create_patch_request<B, K, V>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> RequestBuilder
-    where
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.patch(url).json(json_body)
-    }
-
+    /// Create and send a created HTTP request.
     async fn send_request<B, K, V, E>(
         &self,
         method: reqwest::Method,
@@ -291,19 +356,65 @@ impl Client {
         json_body: Option<&B>,
     ) -> Result<Response, HttpClientError<E>>
     where
+        B: Serialize + ?Sized + Sync,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display,
+    {
+        let req = self.create_request(method, path, params, json_body);
+        self.send(req).await
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ApiClientCore for Client {
+    fn create_request<B, K, V>(
+        &self,
+        method: reqwest::Method,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: Option<&B>,
+    ) -> RequestBuilder
+    where
         B: Serialize + ?Sized,
         K: AsRef<str>,
         V: AsRef<str>,
-        E: Display,
     {
-        let url = sanitize_url(&self.base_url, path, params);
+        let mut url = sanitize_url(&self.base_url, path, params);
+
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            // this should never fail as we are transplanting the host from one url to another
+            url.set_host(front.host_str()).unwrap();
+        }
 
         let mut request = self.reqwest_client.request(method.clone(), url);
+
+        #[cfg(feature = "tunneling")]
+        if self.front.is_some() {
+            request = request.header(
+                reqwest::header::HOST,
+                self.base_url.host_str().unwrap_or(""),
+            );
+        }
+
+        // Indicate that compressed responses are preferred, but if not supported other encodings are fine.
+        // TODO: Down the road we can be more selective about adding this, but it's inclusion here guarantees
+        // that we use compression when available.
+        request = request.header(reqwest::header::ACCEPT_ENCODING, "gzip;q=1.0, *;q=0.5");
 
         if let Some(body) = json_body {
             request = request.json(body);
         }
 
+        request
+    }
+
+    async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
+    where
+        E: Display,
+    {
         #[cfg(target_arch = "wasm32")]
         {
             Ok(
@@ -318,7 +429,71 @@ impl Client {
             Ok(request.send().await?)
         }
     }
+}
 
+/// Common usage functionality for the http client.
+///
+/// These functions allow for cleaner downstream usage free of type parameters and unneeded imports.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait ApiClient: ApiClientCore {
+    /// Create an HTTP GET Request with the provided path and parameters
+    fn create_get_request<K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> RequestBuilder
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        self.create_request(reqwest::Method::GET, path, params, None::<&()>)
+    }
+
+    /// Create an HTTP POST Request with the provided path, parameters, and json body
+    fn create_post_request<B, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        self.create_request(reqwest::Method::POST, path, params, Some(json_body))
+    }
+
+    /// Create an HTTP DELETE Request with the provided path and parameters
+    fn create_delete_request<K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> RequestBuilder
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        self.create_request(reqwest::Method::DELETE, path, params, None::<&()>)
+    }
+
+    /// Create an HTTP PATCH Request with the provided path, parameters, and json body
+    fn create_patch_request<B, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        self.create_request(reqwest::Method::PATCH, path, params, Some(json_body))
+    }
+
+    /// Create and send an HTTP GET Request with the provided path and parameters
     #[instrument(level = "debug", skip_all, fields(path=?path))]
     async fn send_get_request<K, V, E>(
         &self,
@@ -326,14 +501,15 @@ impl Client {
         params: Params<'_, K, V>,
     ) -> Result<Response, HttpClientError<E>>
     where
-        K: AsRef<str>,
-        V: AsRef<str>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
         E: Display,
     {
         self.send_request(reqwest::Method::GET, path, params, None::<&()>)
             .await
     }
 
+    /// Create and send an HTTP POST Request with the provided path, parameters, and json data
     async fn send_post_request<B, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -341,288 +517,51 @@ impl Client {
         json_body: &B,
     ) -> Result<Response, HttpClientError<E>>
     where
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>,
+        B: Serialize + ?Sized + Sync,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
         E: Display,
     {
         self.send_request(reqwest::Method::POST, path, params, Some(json_body))
             .await
     }
 
-    pub async fn send_delete_request<K, V, E>(
+    /// Create and send an HTTP DELETE Request with the provided path and parameters
+    async fn send_delete_request<K, V, E>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
     ) -> Result<Response, HttpClientError<E>>
     where
-        K: AsRef<str>,
-        V: AsRef<str>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
         E: Display,
     {
         self.send_request(reqwest::Method::DELETE, path, params, None::<&()>)
             .await
     }
 
-    pub async fn send_patch_request<B, K, V, E>(
+    /// Create and send an HTTP PATCH Request with the provided path, parameters, and json data
+    async fn send_patch_request<B, K, V, E>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> Result<Response, HttpClientError<E>>
     where
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>,
+        B: Serialize + ?Sized + Sync,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
         E: Display,
     {
         self.send_request(reqwest::Method::PATCH, path, params, Some(json_body))
             .await
     }
 
+    /// 'get' json data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
+    /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
+    /// into the provided type `T`.
     #[instrument(level = "debug", skip_all)]
-    pub async fn get_json<T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display + DeserializeOwned,
-    {
-        let res = self.send_get_request(path, params).await?;
-        parse_response(res, false).await
-    }
-
-    pub async fn post_json<B, T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized,
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display + DeserializeOwned,
-    {
-        let res = self.send_post_request(path, params, json_body).await?;
-        parse_response(res, true).await
-    }
-
-    pub async fn delete_json<T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display + DeserializeOwned,
-    {
-        let res = self.send_delete_request(path, params).await?;
-        parse_response(res, false).await
-    }
-
-    pub async fn patch_json<B, T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized,
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display + DeserializeOwned,
-    {
-        let res = self.send_patch_request(path, params, json_body).await?;
-        parse_response(res, true).await
-    }
-
-    async fn call_json_endpoint<B, T, S, E>(
-        &self,
-        method: reqwest::Method,
-        endpoint: S,
-        json_body: Option<&B>,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized,
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str>,
-    {
-        let mut request = self
-            .reqwest_client
-            .request(method.clone(), self.base_url.join(endpoint.as_ref())?);
-
-        if let Some(body) = json_body {
-            request = request.json(body);
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        let res = {
-            wasmtimer::tokio::timeout(self.request_timeout, request.send())
-                .await
-                .map_err(|_timeout| HttpClientError::RequestTimeout)??
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let res = { request.send().await? };
-
-        parse_response(res, false).await
-    }
-
-    #[instrument(level = "debug", skip_all)]
-    pub async fn get_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str>,
-    {
-        self.call_json_endpoint(reqwest::Method::GET, endpoint, None::<&()>)
-            .await
-    }
-
-    pub async fn post_json_endpoint<B, T, S, E>(
-        &self,
-        endpoint: S,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized,
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str>,
-    {
-        self.call_json_endpoint(reqwest::Method::POST, endpoint, Some(json_body))
-            .await
-    }
-
-    pub async fn delete_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str>,
-    {
-        self.call_json_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>)
-            .await
-    }
-
-    pub async fn patch_json_endpoint<B, T, S, E>(
-        &self,
-        endpoint: S,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized,
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str>,
-    {
-        self.call_json_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body))
-            .await
-    }
-}
-
-// define those methods on the trait for nicer extensions (and not having to type the thing twice)
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ApiClient {
-    /// 'get' json data from the segment-defined path, i.e. for example `["api", "v1", "mixnodes"]`,
-    /// with tuple defined key-value parameters, i.e. for example `[("since", "12345")]`
-    async fn get_json<T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str> + Sync,
-        V: AsRef<str> + Sync,
-        E: Display + DeserializeOwned;
-
-    async fn post_json<B, T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized + Sync,
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str> + Sync,
-        V: AsRef<str> + Sync,
-        E: Display + DeserializeOwned;
-
-    async fn delete_json<T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str> + Sync,
-        V: AsRef<str> + Sync,
-        E: Display + DeserializeOwned;
-
-    async fn patch_json<B, T, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized + Sync,
-        for<'a> T: Deserialize<'a>,
-        K: AsRef<str> + Sync,
-        V: AsRef<str> + Sync,
-        E: Display + DeserializeOwned;
-
-    /// `get` json data from the provided absolute endpoint, i.e. for example `"/api/v1/mixnodes?since=12345"`
-    async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str> + Sync + Send;
-
-    async fn post_json_data_to<B, T, S, E>(
-        &self,
-        endpoint: S,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized + Sync,
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str> + Sync + Send;
-
-    async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
-    where
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str> + Sync + Send;
-
-    async fn patch_json_data_at<B, T, S, E>(
-        &self,
-        endpoint: S,
-        json_body: &B,
-    ) -> Result<T, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized + Sync,
-        for<'a> T: Deserialize<'a>,
-        E: Display + DeserializeOwned,
-        S: AsRef<str> + Sync + Send;
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ApiClient for Client {
     async fn get_json<T, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -634,9 +573,15 @@ impl ApiClient for Client {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned,
     {
-        self.get_json(path, params).await
+        let res = self
+            .send_request(reqwest::Method::GET, path, params, None::<&()>)
+            .await?;
+        parse_response(res, false).await
     }
 
+    /// 'post' json data to the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
+    /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
+    /// into the provided type `T`.
     async fn post_json<B, T, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -650,9 +595,15 @@ impl ApiClient for Client {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned,
     {
-        self.post_json(path, params, json_body).await
+        let res = self
+            .send_request(reqwest::Method::POST, path, params, Some(json_body))
+            .await?;
+        parse_response(res, false).await
     }
 
+    /// 'delete' json data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with
+    /// tuple defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the
+    /// response into the provided type `T`.
     async fn delete_json<T, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -664,9 +615,15 @@ impl ApiClient for Client {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned,
     {
-        self.delete_json(path, params).await
+        let res = self
+            .send_request(reqwest::Method::DELETE, path, params, None::<&()>)
+            .await?;
+        parse_response(res, false).await
     }
 
+    /// 'patch' json data at the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
+    /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
+    /// into the provided type `T`.
     async fn patch_json<B, T, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -680,18 +637,27 @@ impl ApiClient for Client {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned,
     {
-        self.patch_json(path, params, json_body).await
+        let res = self
+            .send_request(reqwest::Method::PATCH, path, params, Some(json_body))
+            .await?;
+        parse_response(res, false).await
     }
 
+    /// `get` json data from the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
+    /// Attempt to parse the response into the provided type `T`.
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
         for<'a> T: Deserialize<'a>,
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        self.get_json_endpoint(endpoint).await
+        let req = self.create_request_endpoint(reqwest::Method::GET, endpoint, None::<&()>);
+        let res = self.send(req).await?;
+        parse_response(res, false).await
     }
 
+    /// `post` json data to the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
+    /// Attempt to parse the response into the provided type `T`.
     async fn post_json_data_to<B, T, S, E>(
         &self,
         endpoint: S,
@@ -703,18 +669,26 @@ impl ApiClient for Client {
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        self.post_json_endpoint(endpoint, json_body).await
+        let req = self.create_request_endpoint(reqwest::Method::POST, endpoint, Some(json_body));
+        let res = self.send(req).await?;
+        parse_response(res, false).await
     }
 
+    /// `delete` json data from the provided absolute endpoint, e.g.
+    /// `"/api/v1/mixnodes?since=12345"`. Attempt to parse the response into the provided type `T`.
     async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
         for<'a> T: Deserialize<'a>,
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        self.delete_json_endpoint(endpoint).await
+        let req = self.create_request_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>);
+        let res = self.send(req).await?;
+        parse_response(res, false).await
     }
 
+    /// `patch` json data at the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
+    /// Attempt to parse the response into the provided type `T`.
     async fn patch_json_data_at<B, T, S, E>(
         &self,
         endpoint: S,
@@ -726,12 +700,18 @@ impl ApiClient for Client {
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        self.patch_json_endpoint(endpoint, json_body).await
+        let req = self.create_request_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body));
+        let res = self.send(req).await?;
+        parse_response(res, false).await
     }
 }
 
-// utility function that should solve the double slash problem in API urls forever.
-pub fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> ApiClient for C where C: ApiClientCore + Sync {}
+
+/// utility function that should solve the double slash problem in API urls forever.
+fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     base: &Url,
     segments: PathSegments<'_>,
     params: Params<'_, K, V>,
@@ -761,7 +741,8 @@ pub fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
-#[tracing::instrument(level = "debug", skip_all)]
+/// Attempt to parse a json object from an HTTP response
+#[instrument(level = "debug", skip_all)]
 pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
 where
     T: DeserializeOwned,

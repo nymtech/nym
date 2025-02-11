@@ -14,12 +14,12 @@
 //! ```rust
 //! # use url::Url;
 //! # use nym_http_api_client::{ApiClient, NO_PARAMS, HttpClientError};
-//! 
+//!
 //! # type Err = HttpClientError<String>;
 //! # async fn run() -> Result<(), Err> {
 //! let url: Url = "https://nymvpn.com".parse()?;
 //! let client = nym_http_api_client::Client::new(url, None);
-//! 
+//!
 //! // Send a get request to the `/v1/status` path with no query parameters.
 //! let resp = client.send_get_request(&["v1", "status"], NO_PARAMS).await?;
 //! let body = resp.text().await?;
@@ -38,14 +38,14 @@
 //! # use std::collections::HashMap;
 //! # use std::time::Duration;
 //! use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS};
-//! 
+//!
 //! # use serde::{Serialize, Deserialize};
 //! #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 //! pub struct ApiHealthResponse {
 //!     pub status: ApiStatus,
 //!     pub uptime: u64,
 //! }
-//! 
+//!
 //! #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 //! pub enum ApiStatus {
 //!     Up,
@@ -73,7 +73,7 @@
 //!
 //! ## Creating an ApiClient Wrapper
 //!
-//! An example API implementation that relies on this crate for managing the HTTP client. 
+//! An example API implementation that relies on this crate for managing the HTTP client.
 //!
 //! ```rust
 //! # use async_trait::async_trait;

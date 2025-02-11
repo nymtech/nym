@@ -1,70 +1,39 @@
 "use client";
 
+import {
+  type EpochResponseData,
+  useEpochContext,
+} from "@/providers/EpochProvider";
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
-import { useQueryClient } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
-import { subSeconds } from "date-fns";
+import { differenceInMinutes } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
-import { fetchCurrentEpoch } from "../../app/api";
+
+const calculateMinutesRemaining = (epochEndTime: string) => {
+  const endDate = new Date(epochEndTime);
+  const difference = differenceInMinutes(endDate, new Date());
+  return difference;
+};
 
 const NextEpochTime = () => {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["currentEpoch"],
-    queryFn: fetchCurrentEpoch,
-    refetchInterval: 30000, // Keep refetching every 30s
-    staleTime: 30000,
-    refetchOnMount: true,
-    keepPreviousData: false,
-  });
-  const queryClient = useQueryClient();
-
-  const [hasEpochStarted, setHasEpochStarted] = useState(false);
-
+  const { data, isLoading, isError, epochStatus } = useEpochContext();
   const [minutesRemaining, setMinutesRemaining] = useState(0);
 
-  const handleRefetch = useCallback(() => {
-    queryClient.invalidateQueries(); // This will refetch ALL active queries
-  }, [queryClient]);
+  const updateState = useCallback((data: EpochResponseData) => {
+    if (!data) return;
+    const minutesRemaining = calculateMinutesRemaining(data.current_epoch_end);
+    setMinutesRemaining(minutesRemaining);
+  }, []);
 
-  // checking if new epoch has already started & update remaining minutes
   useEffect(() => {
-    const checkEpochStatus = () => {
-      if (!data?.dateTime) return;
+    updateState(data);
 
-      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime();
-
-      const now = Date.now(); // Current time in ms
-      setHasEpochStarted(now >= oneHourLater);
-    };
-
-    checkEpochStatus();
-
-    // calculate remainting minutes
-    const updateMinutesRemaining = () => {
-      if (!data?.dateTime) return;
-
-      const epochTime = new Date(data.dateTime).getTime();
-      const now = Date.now();
-      setMinutesRemaining(Math.max(0, Math.floor((epochTime - now) / 60000)));
-    };
-    updateMinutesRemaining();
-
-    const interval = setInterval(checkEpochStatus, 30000); // Check every 30s, regardless of data updates
+    const interval = setInterval(() => {
+      updateState(data);
+    }, 30_000);
 
     return () => clearInterval(interval);
-  });
-
-  // Refetch all data on epoch change
-  useEffect(() => {
-    if (!hasEpochStarted) return;
-
-    handleRefetch();
-
-    const interval = setInterval(handleRefetch, 30000); // Run every 30s
-
-    return () => clearInterval(interval);
-  }, [hasEpochStarted, handleRefetch]);
+  }, [data, updateState]);
 
   if (isLoading) {
     return (
@@ -91,7 +60,7 @@ const NextEpochTime = () => {
   return (
     <Stack direction="row" spacing={1}>
       <AccessTime />
-      {hasEpochStarted ? (
+      {epochStatus === "pending" ? (
         <Typography variant="h5" fontWeight="light">
           Waiting for next mixnet epoch to start...
         </Typography>

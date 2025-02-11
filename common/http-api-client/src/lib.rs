@@ -50,9 +50,6 @@
 //! ## Creating an ApiClient Wrapper
 //!
 //! TODO - add more docs
-//!
-//! ## Optional Features
-//! * **tunneling** - enable configuration options for request tunneling based on header values
 #![warn(missing_docs)]
 
 use async_trait::async_trait;
@@ -68,9 +65,11 @@ use url::Url;
 
 pub use reqwest::IntoUrl;
 
+mod user_agent;
 pub use user_agent::UserAgent;
 
-mod user_agent;
+mod dns;
+pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
 /// Default HTTP request connection timeout.
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
@@ -95,7 +94,7 @@ pub enum HttpClientError<E: Display = String> {
         source: reqwest::Error,
     },
 
-    #[error("failed to deserialise received response: {source}")]
+    #[error("failed to deserialize received response: {source}")]
     ResponseDeserialisationFailure { source: serde_json::Error },
 
     #[error("provided url is malformed: {source}")]
@@ -129,8 +128,6 @@ pub struct ClientBuilder {
     timeout: Option<Duration>,
     custom_user_agent: bool,
     reqwest_client_builder: reqwest::ClientBuilder,
-    #[cfg(feature = "tunneling")]
-    front: Option<fronted::Front>,
 }
 
 impl ClientBuilder {
@@ -153,8 +150,6 @@ impl ClientBuilder {
                 timeout: None,
                 custom_user_agent: false,
                 reqwest_client_builder: reqwest::ClientBuilder::new(),
-                #[cfg(feature = "tunneling")]
-                front: None,
             })
         }
     }
@@ -204,9 +199,6 @@ impl ClientBuilder {
             base_url: self.url,
             reqwest_client,
 
-            #[cfg(feature = "tunneling")]
-            front: self.front,
-
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
         })
@@ -218,9 +210,6 @@ impl ClientBuilder {
 pub struct Client {
     base_url: Url,
     reqwest_client: reqwest::Client,
-
-    #[cfg(feature = "tunneling")]
-    front: Option<fronted::Front>,
 
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
@@ -381,23 +370,9 @@ impl ApiClientCore for Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let mut url = sanitize_url(&self.base_url, path, params);
-
-        #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            // this should never fail as we are transplanting the host from one url to another
-            url.set_host(front.host_str()).unwrap();
-        }
+        let url = sanitize_url(&self.base_url, path, params);
 
         let mut request = self.reqwest_client.request(method.clone(), url);
-
-        #[cfg(feature = "tunneling")]
-        if self.front.is_some() {
-            request = request.header(
-                reqwest::header::HOST,
-                self.base_url.host_str().unwrap_or(""),
-            );
-        }
 
         // Indicate that compressed responses are preferred, but if not supported other encodings are fine.
         // TODO: Down the road we can be more selective about adding this, but it's inclusion here guarantees

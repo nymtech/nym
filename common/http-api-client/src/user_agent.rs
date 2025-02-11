@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 /// Strut containing characteristic elements sent to the API providing basic context information of the requesting client.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserAgent {
-    /// The internal crate / application / subsystem making use of API client 
+    /// The internal crate / application / subsystem making use of API client
     pub application: String,
     /// version of the calling crate / application / subsystem
     pub version: String,
-    /// client platform 
+    /// client platform
     pub platform: String,
     /// source commit version for the calling calling crate / subsystem
     pub git_commit: String,

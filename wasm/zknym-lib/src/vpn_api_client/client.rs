@@ -10,7 +10,7 @@ use crate::vpn_api_client::types::{
 use async_trait::async_trait;
 use nym_coconut::BlindSignRequest;
 pub use nym_http_api_client::Client;
-use nym_http_api_client::{parse_response, PathSegments, NO_PARAMS, ApiClient};
+use nym_http_api_client::{parse_response, ApiClient, PathSegments, NO_PARAMS};
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 

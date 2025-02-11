@@ -36,10 +36,18 @@ fn read_env_var(var: &str) -> Result<String> {
 
 /// use `./enter_db.sh` to inspect DB
 async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Result<()> {
+    let mut file = File::create("settings.sql").await?;
+    let settings = ".mode columns
+.headers on";
+    file.write_all(settings.as_bytes()).await?;
+
     let mut file = File::create("enter_db.sh").await?;
-    let _ = file.write(b"#!/bin/bash\n").await?;
-    file.write_all(format!("sqlite3 {}/{}", out_dir, db_filename).as_bytes())
-        .await?;
+    let contents = format!(
+        "#!/bin/bash\n\
+        sqlite3 -init settings.sql {}/{}",
+        out_dir, db_filename,
+    );
+    file.write_all(contents.as_bytes()).await?;
 
     #[cfg(target_family = "unix")]
     file.set_permissions(Permissions::from_mode(0o755))

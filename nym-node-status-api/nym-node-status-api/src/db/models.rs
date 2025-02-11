@@ -1,18 +1,24 @@
+use std::str::FromStr;
+
 use crate::{
     http::{self, models::SummaryHistory},
     monitor::NumericalCheckedCast,
 };
+use anyhow::Context;
+use nym_contracts_common::Percent;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::v1::node::models::NodeDescription;
+use nym_validator_client::nym_api::SkimmedNode;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use strum_macros::{EnumString, FromRepr};
-use time::Date;
+use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
 
 pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
     pub(crate) bonded: bool,
-    pub(crate) blacklisted: bool,
     pub(crate) self_described: String,
     // TODO dz shouldn't be an option
     pub(crate) explorer_pretty_bond: Option<String>,
@@ -24,7 +30,6 @@ pub(crate) struct GatewayRecord {
 pub(crate) struct GatewayDto {
     pub(crate) gateway_identity_key: String,
     pub(crate) bonded: bool,
-    pub(crate) blacklisted: bool,
     pub(crate) performance: i64,
     pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
@@ -69,7 +74,6 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         let last_probe_result = serde_json::from_str(&last_probe_result).unwrap_or(None);
 
         let bonded = value.bonded;
-        let blacklisted = value.blacklisted;
         let performance = value.performance as u8;
 
         let description = NodeDescription {
@@ -82,7 +86,6 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         Ok(http::models::Gateway {
             gateway_identity_key: value.gateway_identity_key.clone(),
             bonded,
-            blacklisted,
             performance,
             self_described,
             explorer_pretty_bond,
@@ -109,7 +112,6 @@ pub(crate) struct MixnodeRecord {
     pub(crate) total_stake: i64,
     pub(crate) host: String,
     pub(crate) http_port: u16,
-    pub(crate) blacklisted: bool,
     pub(crate) full_details: String,
     pub(crate) self_described: Option<String>,
     pub(crate) last_updated_utc: i64,
@@ -120,7 +122,6 @@ pub(crate) struct MixnodeRecord {
 pub(crate) struct MixnodeDto {
     pub(crate) mix_id: i64,
     pub(crate) bonded: bool,
-    pub(crate) blacklisted: bool,
     pub(crate) is_dp_delegatee: bool,
     pub(crate) total_stake: i64,
     pub(crate) full_details: String,
@@ -147,7 +148,6 @@ impl TryFrom<MixnodeDto> for http::models::Mixnode {
 
         let last_updated_utc =
             timestamp_as_utc(value.last_updated_utc.cast_checked()?).to_rfc3339();
-        let blacklisted = value.blacklisted;
         let is_dp_delegatee = value.is_dp_delegatee;
         let moniker = value.moniker.clone();
         let website = value.website.clone();
@@ -157,7 +157,6 @@ impl TryFrom<MixnodeDto> for http::models::Mixnode {
         Ok(http::models::Mixnode {
             mix_id,
             bonded: value.bonded,
-            blacklisted,
             is_dp_delegatee,
             total_stake: value.total_stake,
             full_details,
@@ -211,25 +210,27 @@ impl TryFrom<SummaryHistoryDto> for SummaryHistory {
     }
 }
 
-pub(crate) const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
-pub(crate) const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
-pub(crate) const MIXNODES_BONDED_INACTIVE: &str = "mixnodes.bonded.inactive";
-pub(crate) const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
-pub(crate) const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
+pub(crate) const MIXNODES_LEGACY_COUNT: &str = "mixnodes.legacy.count";
+pub(crate) const NYMNODES_DESCRIBED_COUNT: &str = "nymnode.described.count";
+
+pub(crate) const NYMNODE_COUNT: &str = "nymnode.total.count";
+pub(crate) const ASSIGNED_ENTRY_COUNT: &str = "assigned.entry.count";
+pub(crate) const ASSIGNED_EXIT_COUNT: &str = "assigned.exit.count";
+pub(crate) const ASSIGNED_MIXING_COUNT: &str = "assigned.mixing.count";
 
 pub(crate) const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-pub(crate) const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
 
 pub(crate) const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
 pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 
-// `utoipa`` goes crazy if you use module-qualified prefix as field type so we
+// `utoipa` goes crazy if you use module-qualified prefix as field type so we
 //  have to import it
 use gateway::GatewaySummary;
 use mixnode::MixnodeSummary;
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub(crate) struct NetworkSummary {
+    pub(crate) total_nodes: i32,
     pub(crate) mixnodes: MixnodeSummary,
     pub(crate) gateways: GatewaySummary,
 }
@@ -239,23 +240,15 @@ pub(crate) mod mixnode {
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummary {
-        pub(crate) bonded: MixnodeSummaryBonded,
-        pub(crate) blacklisted: MixnodeSummaryBlacklisted,
+        pub(crate) bonded: MixingNodesSummary,
         pub(crate) historical: MixnodeSummaryHistorical,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct MixnodeSummaryBonded {
+    pub(crate) struct MixingNodesSummary {
         pub(crate) count: i32,
-        pub(crate) active: i32,
-        pub(crate) inactive: i32,
-        pub(crate) reserve: i32,
-        pub(crate) last_updated_utc: String,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct MixnodeSummaryBlacklisted {
-        pub(crate) count: i32,
+        pub(crate) self_described: i32,
+        pub(crate) legacy: i32,
         pub(crate) last_updated_utc: String,
     }
 
@@ -272,30 +265,20 @@ pub(crate) mod gateway {
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummary {
         pub(crate) bonded: GatewaySummaryBonded,
-        pub(crate) blacklisted: GatewaySummaryBlacklisted,
-        pub(crate) historical: GatewaySummaryHistorical,
-    }
 
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct GatewaySummaryExplorer {
-        pub(crate) count: i32,
-        pub(crate) last_updated_utc: String,
+        pub(crate) historical: GatewaySummaryHistorical,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryBonded {
         pub(crate) count: i32,
+        pub(crate) entry: i32,
+        pub(crate) exit: i32,
         pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryHistorical {
-        pub(crate) count: i32,
-        pub(crate) last_updated_utc: String,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct GatewaySummaryBlacklisted {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
@@ -377,8 +360,130 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
+pub(crate) enum MixingNodeKind {
+    LegacyMixnode,
+    NymNode,
+}
+
 pub(crate) struct ScraperNodeInfo {
     pub node_id: i64,
-    pub host: String,
+    pub node_kind: MixingNodeKind,
+    pub hosts: Vec<String>,
     pub http_api_port: i64,
+}
+
+impl ScraperNodeInfo {
+    pub(crate) fn contact_addresses(&self) -> Vec<String> {
+        let mut urls = Vec::new();
+        for host in &self.hosts {
+            urls.append(&mut vec![
+                format!("http://{}:{}", host, DEFAULT_NYM_NODE_HTTP_PORT),
+                format!("http://{}:8000", host),
+                format!("https://{}", host),
+                format!("http://{}", host),
+            ]);
+
+            if self.http_api_port != DEFAULT_NYM_NODE_HTTP_PORT as i64 {
+                urls.insert(0, format!("http://{}:{}", host, self.http_api_port));
+            }
+        }
+
+        urls
+    }
+}
+
+#[derive(sqlx::Decode, Debug)]
+pub(crate) struct NymNodeDto {
+    pub node_id: i64,
+    pub ed25519_identity_pubkey: String,
+    #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
+    pub total_stake: i64,
+    pub ip_addresses: serde_json::Value,
+    pub mix_port: i64,
+    pub x25519_sphinx_pubkey: String,
+    pub node_role: serde_json::Value,
+    pub supported_roles: serde_json::Value,
+    pub entry: Option<serde_json::Value>,
+    pub performance: String,
+}
+
+#[derive(Debug)]
+pub(crate) struct NymNodeInsertRecord {
+    pub node_id: i64,
+    pub ed25519_identity_pubkey: String,
+    pub total_stake: i64,
+    pub ip_addresses: serde_json::Value,
+    pub mix_port: i64,
+    pub x25519_sphinx_pubkey: String,
+    pub node_role: serde_json::Value,
+    pub supported_roles: serde_json::Value,
+    pub performance: String,
+    pub entry: Option<serde_json::Value>,
+    pub last_updated_utc: String,
+}
+
+impl NymNodeInsertRecord {
+    pub fn new(skimmed_node: SkimmedNode, total_stake: i64) -> anyhow::Result<Self> {
+        let now = OffsetDateTime::now_utc().to_string();
+
+        let record = Self {
+            node_id: skimmed_node.node_id.into(),
+            ed25519_identity_pubkey: skimmed_node.ed25519_identity_pubkey.to_base58_string(),
+            total_stake,
+            ip_addresses: serde_json::to_value(&skimmed_node.ip_addresses)?,
+            mix_port: skimmed_node.mix_port as i64,
+            x25519_sphinx_pubkey: skimmed_node.x25519_sphinx_pubkey.to_base58_string(),
+            node_role: serde_json::to_value(&skimmed_node.role)?,
+            supported_roles: serde_json::to_value(skimmed_node.supported_roles)?,
+            performance: skimmed_node.performance.value().to_string(),
+            entry: match skimmed_node.entry {
+                Some(entry) => Some(serde_json::to_value(entry)?),
+                None => None,
+            },
+            last_updated_utc: now,
+        };
+
+        Ok(record)
+    }
+}
+
+impl TryFrom<NymNodeDto> for SkimmedNode {
+    type Error = anyhow::Error;
+
+    fn try_from(other: NymNodeDto) -> Result<Self, Self::Error> {
+        let node_id = u32::try_from(other.node_id).context("Invalid node_id in DB")?;
+        let supported_roles =
+            serde_json::from_value(other.supported_roles).context("supported_roles")?;
+        let node_role = serde_json::from_value(other.node_role).context("node_role")?;
+        let ip_addresses = serde_json::from_value(other.ip_addresses).context("ip_addresses")?;
+        let entry = match other.entry {
+            Some(raw) => Some(serde_json::from_value(raw).context("entry")?),
+            None => None,
+        };
+
+        let skimmed_node = SkimmedNode {
+            node_id,
+            ed25519_identity_pubkey: ed25519::PublicKey::from_base58_string(
+                other.ed25519_identity_pubkey,
+            )
+            .context("ed25519_identity_pubkey")?,
+            ip_addresses,
+            mix_port: other.mix_port.try_into()?,
+            x25519_sphinx_pubkey: x25519::PublicKey::from_base58_string(other.x25519_sphinx_pubkey)
+                .context("x25519_sphinx_pubkey")?,
+            role: node_role,
+            supported_roles,
+            entry,
+            performance: Percent::from_str(&other.performance).context("can't parse Percent")?,
+        };
+
+        Ok(skimmed_node)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Decode)]
+pub struct NodeStats {
+    pub packets_received: i64,
+    pub packets_sent: i64,
+    pub packets_dropped: i64,
 }

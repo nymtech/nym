@@ -123,6 +123,7 @@ impl MetricsScrapingData {
         }
     }
 
+    #[instrument(level = "debug", name = "metrics_scraper", skip_all)]
     async fn try_scrape_metrics(&self) -> Option<SessionStats> {
         match self.try_get_client().await {
             Ok(client) => {
@@ -136,13 +137,13 @@ impl MetricsScrapingData {
                         }
                     }
                     Err(e) => {
-                        tracing::error!("[metrics scraper]: {e}");
+                        tracing::warn!("{e}");
                         None
                     }
                 }
             }
             Err(e) => {
-                tracing::error!("[metrics scraper]: {e}");
+                tracing::warn!("{e}");
                 None
             }
         }

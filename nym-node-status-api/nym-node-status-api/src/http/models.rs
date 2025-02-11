@@ -8,7 +8,6 @@ pub(crate) use nym_node_status_client::models::TestrunAssignment;
 pub struct Gateway {
     pub gateway_identity_key: String,
     pub bonded: bool,
-    pub blacklisted: bool,
     pub performance: u8,
     pub self_described: Option<serde_json::Value>,
     pub explorer_pretty_bond: Option<serde_json::Value>,
@@ -38,7 +37,6 @@ pub struct GatewaySkinny {
 pub struct Mixnode {
     pub mix_id: u32,
     pub bonded: bool,
-    pub blacklisted: bool,
     pub is_dp_delegatee: bool,
     pub total_stake: i64,
     pub full_details: Option<serde_json::Value>,

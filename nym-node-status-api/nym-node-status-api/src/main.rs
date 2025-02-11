@@ -35,7 +35,6 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         scraper.start().await;
     });
-    tracing::info!("Started node scraper task");
 
     // Start the monitor
     let args_clone = args.clone();
@@ -67,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
         args.nym_http_cache_ttl,
         agent_key_list.to_owned(),
         args.max_agent_count,
+        args.hm_url,
     )
     .await
     .expect("Failed to start server");

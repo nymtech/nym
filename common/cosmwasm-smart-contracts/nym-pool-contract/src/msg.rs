@@ -22,7 +22,14 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     /// Change the admin
-    UpdateAdmin { admin: String },
+    UpdateAdmin {
+        admin: String,
+        // flag to determine whether old admin should be removed from the granter set
+        // and new one should be included instead
+        // the reason it's provided as an option is to make it possible to skip this field
+        // when creating transaction directly with nyxd
+        update_granter_set: Option<bool>,
+    },
 
     /// Attempt to grant new allowance to the specified grantee
     GrantAllowance {
@@ -53,6 +60,12 @@ pub enum ExecuteMsg {
 
     /// Attempt to remove expired grant from the storage and unlock (if any) locked tokens
     RemoveExpiredGrant { grantee: String },
+    // AddNewGranter {
+    //     granter: String,
+    // },
+    // RevokeGranter {
+    //     grantee: String,
+    // },
 }
 
 #[cw_serde]

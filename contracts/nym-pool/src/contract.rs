@@ -45,7 +45,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, NymPoolContractError> {
     match msg {
-        ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
+        ExecuteMsg::UpdateAdmin {
+            admin,
+            update_granter_set,
+        } => try_update_contract_admin(deps, env, info, admin, update_granter_set),
         ExecuteMsg::GrantAllowance { grantee, allowance } => {
             try_grant_allowance(deps, env, info, grantee, *allowance)
         }

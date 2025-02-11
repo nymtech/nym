@@ -100,7 +100,12 @@ const StakeTableWithAction = () => {
   }
 
   // Map nodes with rewards data
-  const data = mappedNymNodes(nymNodes, epochRewardsData);
+
+  if (!epochRewardsData) {
+    return null;
+  }
+
+  const data = mappedNymNodes(nymNodes || [], epochRewardsData);
 
   return <StakeTable nodes={data} />;
 };

@@ -1,6 +1,7 @@
 import { addSeconds } from "date-fns";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
+  CurrentEpochData,
   ExplorerData,
   GatewayStatus,
   IAccountBalancesInfo,
@@ -103,13 +104,13 @@ export const fetchCurrentEpoch = async () => {
     throw new Error("Failed to fetch current epoch data");
   }
 
-  const data = await response.json();
-  const dateTime = addSeconds(
+  const data: CurrentEpochData = await response.json();
+  const epochEndTime = addSeconds(
     new Date(data.current_epoch_start),
     data.epoch_length.secs,
-  );
+  ).toISOString();
 
-  return { data, dateTime };
+  return { ...data, current_epoch_end: epochEndTime };
 };
 
 // Fetch balances based on the address

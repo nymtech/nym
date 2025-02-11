@@ -20,7 +20,6 @@ export default async function Account({
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <SectionHeading title="Nym Node Details" />
               <ExplorerButtonGroup
-                onPage="Nym Node"
                 options={[
                   {
                     label: "Nym Node",

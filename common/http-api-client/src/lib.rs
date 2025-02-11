@@ -22,7 +22,7 @@
 //! ```
 //!
 //! ## JSON
-//! 
+//!
 //! There is also a json method helper on the RequestBuilder that works in a similar fashion the
 //! form method. It can take any value that can be serialized into JSON. The feature json is
 //! required.
@@ -48,9 +48,9 @@
 //! ```
 //!
 //! ## Creating an ApiClient Wrapper
-//! 
+//!
 //! TODO - add more docs
-//! 
+//!
 //! ## Optional Features
 //! * **tunneling** - enable configuration options for request tunneling based on header values
 #![warn(missing_docs)]
@@ -400,6 +400,9 @@ impl ApiClientCore for Client {
                 self.base_url.host_str().unwrap_or(""),
             );
         }
+
+        // Indicate that compressed responses are preferred, but if not supported other encodings are fine.
+        request = request.header(reqwest::header::ACCEPT_ENCODING, "gzip;q=1.0, *;q=0.5");
 
         if let Some(body) = json_body {
             request = request.json(body);

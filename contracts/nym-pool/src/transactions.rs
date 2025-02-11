@@ -3,21 +3,32 @@
 
 use crate::helpers::validate_usage_coin;
 use crate::storage::NYM_POOL_STORAGE;
-use cosmwasm_std::{coin, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use nym_pool_contract_common::{Allowance, NymPoolContractError, TransferRecipient};
 
 pub fn try_update_contract_admin(
     mut deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     new_admin: String,
+    update_granter_set: Option<bool>,
 ) -> Result<Response, NymPoolContractError> {
     let new_admin = deps.api.addr_validate(&new_admin)?;
+    let old_admin = info.sender.clone();
 
-    let res = NYM_POOL_STORAGE.contract_admin.execute_update_admin(
-        deps.branch(),
-        info,
-        Some(new_admin.clone()),
-    )?;
+    if let Some(true) = update_granter_set {
+        // remove current/old admin from the granter set, if present
+        NYM_POOL_STORAGE
+            .granters
+            .remove(deps.storage, old_admin.clone());
+
+        // insert new admin into the granter set
+        NYM_POOL_STORAGE.add_new_granter(deps.branch(), &env, &old_admin, &new_admin)?;
+    }
+
+    let res = NYM_POOL_STORAGE
+        .contract_admin
+        .execute_update_admin(deps, info, Some(new_admin))?;
 
     Ok(res)
 }
@@ -31,7 +42,7 @@ pub fn try_grant_allowance(
 ) -> Result<Response, NymPoolContractError> {
     let grantee = deps.api.addr_validate(&grantee)?;
 
-    NYM_POOL_STORAGE.insert_new_grant(deps, &env, &info.sender, grantee, allowance)?;
+    NYM_POOL_STORAGE.insert_new_grant(deps, &env, &info.sender, &grantee, allowance)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -45,7 +56,7 @@ pub fn try_revoke_grant(
 ) -> Result<Response, NymPoolContractError> {
     let grantee = deps.api.addr_validate(&grantee)?;
 
-    NYM_POOL_STORAGE.revoke_grant(deps, grantee, info.sender)?;
+    NYM_POOL_STORAGE.revoke_grant(deps, &grantee, &info.sender)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -71,9 +82,7 @@ pub fn try_use_allowance(
         }))
     }
 
-    let mut grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
-    grant.allowance.try_spend(&env, &Coin { amount, denom })?;
-    NYM_POOL_STORAGE.update_grant(deps, info.sender, grant)?;
+    NYM_POOL_STORAGE.try_spend_part_of_grant(deps, &env, &info.sender, &Coin { amount, denom })?;
 
     // TODO: emit events
     Ok(Response::new().add_messages(messages))
@@ -86,10 +95,7 @@ pub fn try_withdraw_allowance(
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
     validate_usage_coin(deps.storage, &amount)?;
-
-    let mut grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
-    grant.allowance.try_spend(&env, &amount)?;
-    NYM_POOL_STORAGE.update_grant(deps, info.sender.clone(), grant)?;
+    NYM_POOL_STORAGE.try_spend_part_of_grant(deps, &env, &info.sender, &amount)?;
 
     // TODO: emit events
     // TODO2: after migrating common to cw2.2 use `send_tokens` from `ResponseExt` trait
@@ -105,7 +111,7 @@ pub fn try_lock_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    NYM_POOL_STORAGE.lock_part_of_allowance(deps, &env, info.sender, amount)?;
+    NYM_POOL_STORAGE.lock_part_of_allowance(deps, &env, &info.sender, amount)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -117,7 +123,7 @@ pub fn try_unlock_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, info.sender, &amount)?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, &info.sender, &amount)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -151,11 +157,7 @@ pub fn try_use_locked_allowance(
     let denom = NYM_POOL_STORAGE.pool_denomination.load(deps.storage)?;
 
     // we remove those coins from the locked pool before transferring them to the specified account
-    NYM_POOL_STORAGE.unlock_part_of_allowance(
-        deps,
-        info.sender.clone(),
-        &Coin { amount, denom },
-    )?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, &info.sender, &Coin { amount, denom })?;
 
     // TODO: emit events
     Ok(Response::new().add_messages(messages))
@@ -175,7 +177,7 @@ pub fn try_withdraw_locked_allowance(
     }
 
     // we remove those coins from the locked pool before transferring them to the specified account
-    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, info.sender.clone(), &amount)?;
+    NYM_POOL_STORAGE.unlock_part_of_allowance(deps, &info.sender, &amount)?;
 
     // TODO: emit events
     // TODO2: after migrating common to cw2.2 use `send_tokens` from `ResponseExt` trait
@@ -199,7 +201,7 @@ pub fn try_remove_expired(
         return Err(NymPoolContractError::GrantNotExpired);
     }
 
-    NYM_POOL_STORAGE.remove_grant(deps, grantee)?;
+    NYM_POOL_STORAGE.remove_grant(deps, &grantee)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -213,8 +215,10 @@ mod tests {
     mod updating_contract_admin {
         use super::*;
         use crate::testing::TestSetup;
+        use cosmwasm_std::{Deps, Order};
         use cw_controllers::AdminError;
-        use nym_pool_contract_common::ExecuteMsg;
+        use nym_pool_contract_common::{ExecuteMsg, GranterAddress, GranterInformation};
+        use std::collections::HashMap;
 
         #[test]
         fn can_only_be_performed_by_current_admin() -> anyhow::Result<()> {
@@ -227,6 +231,7 @@ mod tests {
                     random_acc,
                     ExecuteMsg::UpdateAdmin {
                         admin: new_admin.to_string(),
+                        update_granter_set: None,
                     },
                 )
                 .unwrap_err();
@@ -238,6 +243,7 @@ mod tests {
                 actual_admin.clone(),
                 ExecuteMsg::UpdateAdmin {
                     admin: new_admin.to_string(),
+                    update_granter_set: None,
                 },
             );
             assert!(res.is_ok());
@@ -257,6 +263,7 @@ mod tests {
                 test.admin_unchecked(),
                 ExecuteMsg::UpdateAdmin {
                     admin: bad_account.to_string(),
+                    update_granter_set: None,
                 },
             );
 
@@ -267,12 +274,64 @@ mod tests {
                 test.admin_unchecked(),
                 ExecuteMsg::UpdateAdmin {
                     admin: empty_account.to_string(),
+                    update_granter_set: None,
                 },
             );
 
             assert!(res.is_err());
 
             Ok(())
+        }
+
+        #[test]
+        fn updates_granter_set_if_specified() {
+            fn granters(deps: Deps) -> HashMap<GranterAddress, GranterInformation> {
+                NYM_POOL_STORAGE
+                    .granters
+                    .range(deps.storage, None, None, Order::Ascending)
+                    .map(|res| res.unwrap())
+                    .collect()
+            }
+
+            let mut test = TestSetup::init();
+            let current_admin = test.admin_unchecked();
+            let new_admin = test.generate_account();
+
+            let old_granters = granters(test.deps());
+
+            // no change to the granter set
+            let res = test.execute_raw(
+                current_admin.clone(),
+                ExecuteMsg::UpdateAdmin {
+                    admin: new_admin.to_string(),
+                    update_granter_set: Some(false),
+                },
+            );
+            assert!(res.is_ok());
+            let new_granters = granters(test.deps());
+            assert_eq!(old_granters, new_granters);
+
+            //
+            //
+            //
+
+            let mut test = TestSetup::init();
+            let current_admin = test.admin_unchecked();
+            let new_admin = test.generate_account();
+            let old_granters = granters(test.deps());
+
+            let res = test.execute_raw(
+                current_admin.clone(),
+                ExecuteMsg::UpdateAdmin {
+                    admin: new_admin.to_string(),
+                    update_granter_set: Some(true),
+                },
+            );
+            assert!(res.is_ok());
+            let new_granters = granters(test.deps());
+            assert_ne!(old_granters, new_granters);
+            assert!(old_granters.contains_key(&current_admin));
+            assert!(new_granters.contains_key(&new_admin));
         }
     }
 
@@ -289,10 +348,7 @@ mod tests {
 
             let env = test.env();
             let admin = test.admin_msg();
-            let dummy_grant = Allowance::Basic(BasicAllowance {
-                spend_limit: None,
-                expiration_unix_timestamp: None,
-            });
+            let dummy_grant = Allowance::Basic(BasicAllowance::unlimited());
 
             assert!(matches!(
                 try_grant_allowance(

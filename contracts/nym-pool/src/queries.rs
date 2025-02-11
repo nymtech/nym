@@ -45,7 +45,7 @@ pub fn query_locked_tokens(
     let denom = NYM_POOL_STORAGE.pool_denomination.load(deps.storage)?;
     let amount = NYM_POOL_STORAGE
         .locked
-        .maybe_grantee_locked(deps.storage, grantee.clone())?;
+        .maybe_grantee_locked(deps.storage, &grantee)?;
 
     Ok(LockedTokensResponse {
         locked: amount.map(|amount| Coin::new(amount, denom)),
@@ -208,6 +208,7 @@ mod tests {
                 initial_admin.clone(),
                 &ExecuteMsg::UpdateAdmin {
                     admin: new_admin.to_string(),
+                    update_granter_set: None,
                 },
             )?;
 

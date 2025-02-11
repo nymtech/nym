@@ -11,7 +11,7 @@ use cosmwasm_std::{
     StdResult, Storage, Uint128,
 };
 use cw_multi_test::{
-    App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper, Executor,
+    next_block, App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper, Executor,
 };
 use nym_pool_contract_common::{
     Allowance, BasicAllowance, ExecuteMsg, Grant, InstantiateMsg, NymPoolContractError, QueryMsg,
@@ -78,6 +78,14 @@ impl TestSetup {
             )
             .unwrap();
 
+        // send some tokens to the contract
+        app.send_tokens(
+            master_address.clone(),
+            contract_address.clone(),
+            &[coin(100000000, TEST_DENOM)],
+        )
+        .unwrap();
+
         TestSetup {
             app,
             rng: test_rng(),
@@ -103,6 +111,11 @@ impl TestSetup {
         }
     }
 
+    pub fn deps_mut_env(&mut self) -> (DepsMut<'_>, Env) {
+        let env = self.env().clone();
+        (self.deps_mut(), env)
+    }
+
     pub fn storage(&self) -> &dyn Storage {
         &self.storage
     }
@@ -119,6 +132,10 @@ impl TestSetup {
             },
             ..mock_env()
         }
+    }
+
+    pub fn next_block(&mut self) {
+        self.app.update_block(next_block)
     }
 
     pub fn execute_raw(
@@ -178,8 +195,34 @@ impl TestSetup {
             .unwrap()
     }
 
+    pub fn change_admin(&mut self, new_admin: &Addr) {
+        self.execute_msg(
+            self.admin_unchecked(),
+            &ExecuteMsg::UpdateAdmin {
+                admin: new_admin.to_string(),
+                update_granter_set: Some(true),
+            },
+        )
+        .unwrap();
+    }
+
     pub fn admin_msg(&self) -> MessageInfo {
         message_info(&self.admin_unchecked(), &[])
+    }
+
+    pub fn denom(&self) -> String {
+        NYM_POOL_STORAGE
+            .pool_denomination
+            .load(self.storage())
+            .unwrap()
+    }
+
+    pub fn coin(&self, amount: u128) -> Coin {
+        coin(amount, self.denom())
+    }
+
+    pub fn coins(&self, amount: u128) -> Vec<Coin> {
+        coins(amount, self.denom())
     }
 
     #[track_caller]
@@ -198,11 +241,8 @@ impl TestSetup {
                 self.deps_mut(),
                 &env,
                 &granter,
-                grantee.clone(),
-                Allowance::Basic(BasicAllowance {
-                    spend_limit: None,
-                    expiration_unix_timestamp: None,
-                }),
+                &grantee,
+                Allowance::Basic(BasicAllowance::unlimited()),
             )
             .unwrap();
 
@@ -233,5 +273,14 @@ impl TestSetup {
             .range(self.deps().storage, None, None, Order::Ascending)
             .collect::<Result<HashMap<_, _>, _>>()
             .unwrap()
+    }
+
+    #[track_caller]
+    pub fn add_granter(&mut self, granter: &Addr) {
+        let env = self.env();
+        let admin = self.admin_unchecked();
+        NYM_POOL_STORAGE
+            .add_new_granter(self.deps_mut(), &env, &admin, granter)
+            .unwrap();
     }
 }

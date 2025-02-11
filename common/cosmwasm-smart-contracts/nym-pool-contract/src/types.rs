@@ -48,6 +48,30 @@ pub mod grants {
         Delayed(DelayedAllowance),
     }
 
+    impl From<BasicAllowance> for Allowance {
+        fn from(value: BasicAllowance) -> Self {
+            Allowance::Basic(value)
+        }
+    }
+
+    impl From<ClassicPeriodicAllowance> for Allowance {
+        fn from(value: ClassicPeriodicAllowance) -> Self {
+            Allowance::ClassicPeriodic(value)
+        }
+    }
+
+    impl From<CumulativePeriodicAllowance> for Allowance {
+        fn from(value: CumulativePeriodicAllowance) -> Self {
+            Allowance::CumulativePeriodic(value)
+        }
+    }
+
+    impl From<DelayedAllowance> for Allowance {
+        fn from(value: DelayedAllowance) -> Self {
+            Allowance::Delayed(value)
+        }
+    }
+
     impl Allowance {
         pub fn expired(&self, env: &Env) -> bool {
             self.basic().expired(env)
@@ -59,6 +83,15 @@ pub mod grants {
                 Allowance::ClassicPeriodic(allowance) => &allowance.basic,
                 Allowance::CumulativePeriodic(allowance) => &allowance.basic,
                 Allowance::Delayed(allowance) => &allowance.basic,
+            }
+        }
+
+        pub fn basic_mut(&mut self) -> &mut BasicAllowance {
+            match self {
+                Allowance::Basic(ref mut allowance) => allowance,
+                Allowance::ClassicPeriodic(ref mut allowance) => &mut allowance.basic,
+                Allowance::CumulativePeriodic(ref mut allowance) => &mut allowance.basic,
+                Allowance::Delayed(ref mut allowance) => &mut allowance.basic,
             }
         }
 
@@ -146,6 +179,12 @@ pub mod grants {
             }
         }
 
+        pub fn increase_spend_limit(&mut self, amount: Uint128) {
+            if let Some(ref mut limit) = self.basic_mut().spend_limit {
+                limit.amount += amount
+            }
+        }
+
         pub fn is_used_up(&self) -> bool {
             let Some(ref limit) = self.basic().spend_limit else {
                 return false;
@@ -168,6 +207,13 @@ pub mod grants {
     }
 
     impl BasicAllowance {
+        pub fn unlimited() -> BasicAllowance {
+            BasicAllowance {
+                spend_limit: None,
+                expiration_unix_timestamp: None,
+            }
+        }
+
         pub fn validate(&self, env: &Env, denom: &str) -> Result<(), NymPoolContractError> {
             // expiration shouldn't be in the past.
             if let Some(expiration) = self.expiration_unix_timestamp {
@@ -707,6 +753,11 @@ mod tests {
             basic: mock_basic_allowance(),
             available_at_unix_timestamp: 1643650000,
         }
+    }
+
+    #[test]
+    fn increasing_spend_limit() {
+        todo!()
     }
 
     #[cfg(test)]

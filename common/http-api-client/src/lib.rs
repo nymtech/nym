@@ -3,18 +3,26 @@
 
 //! Nym HTTP API Client
 //!
-//! Centralizes and implements the core API client functionality.
+//! Centralizes and implements the core API client functionality. This crate provides custom,
+//! configurable middleware for a re-usable HTTP client that takes advantage of connection pooling
+//! and other benefits provided by the [`reqwest`] `Client`.
 //!
 //! ## Making GET requests
 //!
-//! Client and reuse it
+//! Create an HTTP `Client` and use it to make a GET request.
 //!
 //! ```rust
-//! # async fn run() -> Result<(), reqwest::Error> {
-//! let body = reqwest::get("https://www.rust-lang.org")
-//!     .await?
-//!     .text()
-//!     .await?;
+//! # use url::Url;
+//! # use nym_http_api_client::{ApiClient, NO_PARAMS, HttpClientError};
+//! 
+//! # type Err = HttpClientError<String>;
+//! # async fn run() -> Result<(), Err> {
+//! let url: Url = "https://nymvpn.com".parse()?;
+//! let client = nym_http_api_client::Client::new(url, None);
+//! 
+//! // Send a get request to the `/v1/status` path with no query parameters.
+//! let resp = client.send_get_request(&["v1", "status"], NO_PARAMS).await?;
+//! let body = resp.text().await?;
 //!
 //! println!("body = {body:?}");
 //! # Ok(())
@@ -23,25 +31,41 @@
 //!
 //! ## JSON
 //!
-//! There is also a json method helper on the RequestBuilder that works in a similar fashion the
-//! form method. It can take any value that can be serialized into JSON. The feature json is
-//! required.
+//! There are also json helper methods that assist in executing requests that send or receive json.
+//! It can take any value that can be serialized into JSON.
 //!
 //! ```rust
-//! # use reqwest::Error;
 //! # use std::collections::HashMap;
-//! #
-//! # #[cfg(feature = "json")]
-//! # async fn run() -> Result<(), Error> {
+//! # use std::time::Duration;
+//! use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS};
+//! 
+//! # use serde::{Serialize, Deserialize};
+//! #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+//! pub struct ApiHealthResponse {
+//!     pub status: ApiStatus,
+//!     pub uptime: u64,
+//! }
+//! 
+//! #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+//! pub enum ApiStatus {
+//!     Up,
+//! }
+//!
+//! # type Err = HttpClientError<String>;
+//! # async fn run() -> Result<(), Err> {
 //! // This will POST a body of `{"lang":"rust","body":"json"}`
 //! let mut map = HashMap::new();
 //! map.insert("lang", "rust");
 //! map.insert("body", "json");
 //!
-//! let client = reqwest::Client::new();
-//! let res = client.post("http://httpbin.org/post")
-//!     .json(&map)
-//!     .send()
+//! // Create a client using the ClientBuilder and set a custom timeout.
+//! let client = nym_http_api_client::Client::builder("https://nymvpn.com")?
+//!     .with_timeout(Duration::from_secs(10))
+//!     .build()?;
+//!
+//! // Send a POST request with our json `map` as the body and attempt to parse the body
+//! // of the response as an ApiHealthResponse from json.
+//! let res: ApiHealthResponse = client.post_json(&["v1", "status"], NO_PARAMS, &map)
 //!     .await?;
 //! # Ok(())
 //! # }
@@ -49,7 +73,67 @@
 //!
 //! ## Creating an ApiClient Wrapper
 //!
-//! TODO - add more docs
+//! An example API implementation that relies on this crate for managing the HTTP client. 
+//!
+//! ```rust
+//! # use async_trait::async_trait;
+//! use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS};
+//!
+//! mod routes {
+//!     pub const API_VERSION: &str = "v1";
+//!     pub const API_STATUS_ROUTES: &str = "api-status";
+//!     pub const HEALTH: &str = "health";
+//! }
+//!
+//! mod responses {
+//!     # use serde::{Serialize, Deserialize};
+//!     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+//!     pub struct ApiHealthResponse {
+//!         pub status: ApiStatus,
+//!         pub uptime: u64,
+//!     }
+//!     
+//!     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+//!     pub enum ApiStatus {
+//!         Up,
+//!     }
+//! }
+//!
+//! mod error {
+//!     # use serde::{Serialize, Deserialize};
+//!     # use core::fmt::{Display, Formatter, Result as FmtResult};
+//!     #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+//!     pub struct RequestError {
+//!         message: String,
+//!     }
+//!
+//!     impl Display for RequestError {
+//!         fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+//!             Display::fmt(&self.message, f)
+//!         }
+//!     }
+//! }
+//!
+//! pub type SpecificAPIError = HttpClientError<error::RequestError>;
+//!
+//! #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+//! #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+//! pub trait SpecificApi: ApiClient {
+//!     async fn health(&self) -> Result<responses::ApiHealthResponse, SpecificAPIError> {
+//!         self.get_json(
+//!             &[
+//!                 routes::API_VERSION,
+//!                 routes::API_STATUS_ROUTES,
+//!                 routes::HEALTH,
+//!             ],
+//!             NO_PARAMS,
+//!         )
+//!         .await
+//!     }
+//! }
+//!
+//! impl<T: ApiClient> SpecificApi for T {}
+//! ```
 #![warn(missing_docs)]
 
 use async_trait::async_trait;
@@ -77,8 +161,9 @@ mod dns;
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
 /// Default HTTP request connection timeout.
-// The timeout is relatively high as we are often making requests over the mixnet, where latency is
-// high and chatty protocols take a while to complete.
+///
+/// The timeout is relatively high as we are often making requests over the mixnet, where latency is
+/// high and chatty protocols take a while to complete.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Collection of URL Path Segments
@@ -365,7 +450,9 @@ pub trait ApiClientCore {
 
     /// Send a created HTTP request.
     ///
-    /// A [`RequestBuilder`] can be created with [`create_request()`] or [`create_request_endpoint`].
+    /// A [`RequestBuilder`] can be created with [`ApiClientCore::create_request`] or
+    /// [`ApiClientCore::create_request_endpoint`] or if absolutely necessary, using reqwest
+    /// tooling directly.
     async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
     where
         E: Display;

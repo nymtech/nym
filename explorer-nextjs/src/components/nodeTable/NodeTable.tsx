@@ -83,8 +83,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 
-  const handleRefetch = useCallback(() => {
-    queryClient.invalidateQueries();
+  const handleRefetch = useCallback(async () => {
+    await queryClient.invalidateQueries();
   }, [queryClient]);
 
   const handleStakeOnNode = useCallback(
@@ -108,9 +108,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           message: "This operation can take up to one hour to process",
           tx: tx?.transactionHash,
 
-          onClose: () => setInfoModalProps({ open: false }),
+          onClose: async () => {
+            await handleRefetch();
+            setInfoModalProps({ open: false });
+          },
         });
-        handleRefetch();
+        await handleRefetch();
       } catch (e) {
         const errorMessage =
           e instanceof Error ? e.message : "An error occurred while staking";

@@ -105,8 +105,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
   // Custom Hook for fetching pending events
 
-  const handleRefetch = useCallback(() => {
-    queryClient.invalidateQueries();
+  const handleRefetch = useCallback(async () => {
+    await queryClient.invalidateQueries();
   }, [queryClient]);
 
   useEffect(() => {
@@ -216,7 +216,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           uNymFunds,
         );
         setSelectedNodeForStaking(undefined);
-        handleRefetch();
 
         setInfoModalProps({
           open: true,
@@ -224,7 +223,10 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           message: "This operation can take up to one hour to process",
           tx: tx?.transactionHash,
 
-          onClose: () => setInfoModalProps({ open: false }),
+          onClose: async () => {
+            await handleRefetch();
+            setInfoModalProps({ open: false });
+          },
         });
       } catch (e) {
         const errorMessage =
@@ -290,7 +292,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           `Explorer V2: Unstaking node ${nodeId}`,
         );
         setIsLoading(false);
-        handleRefetch();
+        await handleRefetch();
         setInfoModalProps({
           open: true,
           title: "Success",

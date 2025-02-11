@@ -7,7 +7,7 @@ use http::HeaderValue;
 use nym_bin_common::build_information::{BinaryBuildInformation, BinaryBuildInformationOwned};
 use serde::{Deserialize, Serialize};
 
-/// Strut containing characteristic elements sent to the API providing basic context information of the requesting client.
+/// Characteristic elements sent to the API providing basic context information of the requesting client.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserAgent {
     /// The internal crate / application / subsystem making use of API client

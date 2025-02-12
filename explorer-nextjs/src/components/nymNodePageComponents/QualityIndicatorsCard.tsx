@@ -1,14 +1,9 @@
 "use client";
 
-import type {
-  GatewayStatus,
-  IObservatoryNode,
-  LastProbeResult,
-  NodeDescription,
-} from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
-import { Chip, Stack } from "@mui/material";
+import { Chip, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { fetchGatewayStatus, fetchNodeInfo } from "../../app/api";
+import type { LastProbeResult, NodeDescription } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
@@ -26,38 +21,6 @@ const roleMapping: Record<DeclaredRoleKey, RoleString> = {
   exit_ipr: "Exit IPR Node",
   exit_nr: "Exit NR Node",
   mixnode: "Mix Node",
-};
-
-// Fetch node data based on ID
-const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes: IObservatoryNode[] = await response.json();
-  return nodes.find((node) => node.node_id === id) || null;
-};
-
-// Fetch gateway status based on identity key
-const fetchGatewayStatus = async (
-  identityKey: string,
-): Promise<GatewayStatus | null> => {
-  const response = await fetch(
-    `https://mainnet-node-status-api.nymtech.cc/v2/gateways/${identityKey}`,
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch gateway status");
-  }
-
-  return response.json();
 };
 
 const getNodeRoles = (
@@ -180,39 +143,50 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
   // Fetch node info
   const {
     data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    isLoading,
+    isError,
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
-    refetchInterval: 60000,
-    staleTime: 60000,
   });
 
-  // Fetch gateway status if nodeInfo is available
+  // Extract node roles once `nodeInfo` is available
+  const nodeRoles = nodeInfo
+    ? getNodeRoles(nodeInfo.description.declared_role)
+    : [];
+
+  // Define whether to fetch gateway status
+  const shouldFetchGatewayStatus = nodeRoles.some((role) =>
+    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
+  );
+
+  // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
     queryKey: ["gatewayStatus", nodeInfo?.identity_key],
-    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key),
-    enabled: !!nodeInfo?.identity_key, // Only fetch if identity key is available
+    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
+    enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
   });
 
-  if (isNodeLoading) {
+  if (isLoading) {
     return (
       <ExplorerCard label="Quality indicators">
-        <div>Loading...</div>
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={300} />
       </ExplorerCard>
     );
   }
 
-  if (isNodeError || !nodeInfo) {
+  if (isError || !nodeInfo) {
     return (
       <ExplorerCard label="Quality indicators">
-        <div>Failed to load node data.</div>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }
 
-  const nodeRoles = getNodeRoles(nodeInfo.description.declared_role);
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />
@@ -254,7 +228,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
         label="Quality of service"
         value={<StarRating value={qualityOfServiceStars} />}
       />
-      {!nodeIsMixNodeOnly && (
+      {!nodeIsMixNodeOnly && gatewayStatus && (
         <ExplorerListItem
           row
           divider
@@ -262,7 +236,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
           value={<StarRating value={configScoreStars} />}
         />
       )}
-      {!nodeIsMixNodeOnly && (
+      {!nodeIsMixNodeOnly && gatewayStatus && (
         <ExplorerListItem
           row
           divider

@@ -1,21 +1,71 @@
-import type { NymTokenomics } from "@/app/api/types";
-import { NYM_PRICES_API } from "@/app/api/urls";
-import { Box, Stack } from "@mui/material";
+"use client";
+import { fetchEpochRewards, fetchNoise, fetchNymPrice } from "@/app/api";
+import { formatBigNum } from "@/utils/formatBigNumbers";
+import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+import type { ExplorerData, NymTokenomics } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
 
-export const TokenomicsCard = async () => {
-  const nymPrice = await fetch(NYM_PRICES_API, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-    // refresh event list cache at given interval
+export const TokenomicsCard = () => {
+  const {
+    data: nymPrice,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["nymPrice"],
+    queryFn: fetchNymPrice,
   });
 
-  const nymPriceData: NymTokenomics = await nymPrice.json();
+  const {
+    data: epochRewards,
+    isLoading: isEpochLoading,
+    isError: isEpochError,
+  } = useQuery({
+    queryKey: ["epochRewards"],
+    queryFn: fetchEpochRewards,
+  });
+
+  const {
+    data: packetsAndStaking,
+    isLoading: isStakingLoading,
+    isError: isStakingError,
+  } = useQuery({
+    queryKey: ["noise"],
+    queryFn: fetchNoise,
+  });
+
+  if (isLoading || isEpochLoading || isStakingLoading) {
+    return (
+      <ExplorerCard label="Tokenomics overview">
+        <Stack gap={1}>
+          <Skeleton variant="text" />
+          <Skeleton variant="text" height={238} />
+        </Stack>
+      </ExplorerCard>
+    );
+  }
+
+  if (
+    isStakingError ||
+    isEpochError ||
+    isError ||
+    !nymPrice ||
+    !epochRewards ||
+    !packetsAndStaking
+  ) {
+    return (
+      <ExplorerCard label="Tokenomics overview">
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Failed to load tokenomics overview.
+        </Typography>
+        <Skeleton variant="text" height={80} />
+      </ExplorerCard>
+    );
+  }
+
+  const nymPriceData: NymTokenomics = nymPrice;
   const nymPriceDataFormated = Number(nymPriceData.quotes.USD.price.toFixed(2));
 
   const titlePrice = {
@@ -25,11 +75,35 @@ export const TokenomicsCard = async () => {
     //   numberWentUp: true,
     // },
   };
-  const marketCap = nymPriceData.quotes.USD.market_cap;
-  const volume24H = nymPriceData.quotes.USD.volume_24h.toFixed(2);
+  const marketCap = formatBigNum(nymPriceData.quotes.USD.market_cap);
+  const volume24H = formatBigNum(nymPriceData.quotes.USD.volume_24h);
+
+  const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
+    epochRewards;
+  const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
+    packetsAndStaking;
+
+  function calculateTVL(
+    epochRewards: ExplorerData["currentEpochRewardsData"],
+    nymPriceData: NymTokenomics,
+    packetsAndStaking: ExplorerData["packetsAndStakingData"],
+  ): number {
+    const lastTotalStake =
+      packetsAndStaking[packetsAndStaking.length - 1]?.total_stake || 0;
+    return (
+      (Number.parseFloat(epochRewards.interval.reward_pool) / 1000000 +
+        lastTotalStake / 1000000) *
+      nymPriceData.quotes.USD.price
+    );
+  }
+  const TVL = formatBigNum(
+    calculateTVL(epochRewardsData, nymPrice, packetsAndStakingData),
+  );
+
   const dataRows = [
     { key: "Market cap", value: `$ ${marketCap}` },
     { key: "24H VOL", value: `$ ${volume24H}` },
+    { key: "TVL", value: `$ ${TVL}` },
   ];
 
   return (

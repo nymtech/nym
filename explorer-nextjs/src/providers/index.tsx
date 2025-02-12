@@ -1,13 +1,16 @@
 import CosmosKitProvider from "./CosmosKitProvider";
+import { EpochProvider } from "./EpochProvider";
 import { QueryProvider } from "./QueryProvider";
 import ThemeProvider from "./ThemeProvider";
 
 const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
     <ThemeProvider>
-      <CosmosKitProvider>
-        <QueryProvider>{children}</QueryProvider>
-      </CosmosKitProvider>
+      <QueryProvider>
+        <EpochProvider>
+          <CosmosKitProvider>{children}</CosmosKitProvider>
+        </EpochProvider>
+      </QueryProvider>
     </ThemeProvider>
   );
 };

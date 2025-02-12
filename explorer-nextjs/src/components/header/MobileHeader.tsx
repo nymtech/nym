@@ -1,9 +1,9 @@
 "use client";
-import { Link } from "@/components/muiLink";
-import { Wrapper } from "@/components/wrapper";
 import { Close as CloseIcon, Menu as MenuIcon } from "@mui/icons-material";
 import { Box, Drawer, IconButton, Typography } from "@mui/material";
 import { useState } from "react";
+import { Link } from "../../components/muiLink";
+import { Wrapper } from "../../components/wrapper";
 import NymLogo from "../icons/NymLogo";
 import ConnectWallet from "../wallet/ConnectWallet";
 import MENU_DATA from "./menuItems";
@@ -148,7 +148,8 @@ const MobileMenuHeader = ({
           </IconButton>
         </Box>
       </Box>
-      <ConnectWallet size="small" />
+      {!drawerOpen && <ConnectWallet size="small" />}
+      <Box height={40} />
     </Wrapper>
   );
 };

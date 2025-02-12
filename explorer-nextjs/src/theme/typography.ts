@@ -1,4 +1,4 @@
-import { labGrotesque, labGrotesqueMono } from "@/fonts";
+import { labGrotesque, labGrotesqueMono } from "../fonts";
 
 export const headings = {
   display: {

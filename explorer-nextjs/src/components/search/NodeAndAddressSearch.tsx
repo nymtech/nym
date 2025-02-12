@@ -1,10 +1,10 @@
 "use client";
-import type NodeData from "@/app/api/types";
-import { NYM_NODE_BONDED } from "@/app/api/urls";
+import type { NodeData } from "@/app/api/types";
 import { Search } from "@mui/icons-material";
 import { Button, CircularProgress, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { NYM_NODE_BONDED } from "../../app/api/urls";
 import Input from "../input/Input";
 
 const NodeAndAddressSearch = () => {
@@ -32,11 +32,19 @@ const NodeAndAddressSearch = () => {
               return;
             }
           } catch {
-            setErrorText("Such Nym address doesn't exist");
+            setErrorText(
+              "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+            );
+            setIsLoading(false); // Stop loading
+
             return;
           }
         } else {
-          setErrorText("Such Nym address doesn't exist");
+          setErrorText(
+            "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+          );
+          setIsLoading(false); // Stop loading
+
           return;
         }
       } else {
@@ -55,12 +63,16 @@ const NodeAndAddressSearch = () => {
             return;
           }
         }
-        setErrorText("Such Nym Node identity key doesn't exist");
+        setErrorText(
+          "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+        );
+        setIsLoading(false); // Stop loading
       }
     } catch (error) {
-      setErrorText("An unexpected error occurred. Please try again.");
+      setErrorText(
+        "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+      );
       console.error(error);
-    } finally {
       setIsLoading(false); // Stop loading
     }
   };
@@ -73,6 +85,11 @@ const NodeAndAddressSearch = () => {
           fullWidth
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
           rounded
         />
         <Button

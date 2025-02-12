@@ -1,32 +1,11 @@
 "use client";
 
-import type { ObservatoryBalance } from "@/app/api/types";
-import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
-import { useNymClient } from "@/hooks/useNymClient";
-import { formatBigNum } from "@/utils/formatBigNumbers";
-import { Typography } from "@mui/material";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { fetchTotalStakerRewards } from "../../app/api";
+import { useNymClient } from "../../hooks/useNymClient";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
-
-// Fetch function to get total staker rewards
-const fetchTotalStakerRewards = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch balances");
-  }
-
-  const balances: ObservatoryBalance = await response.json();
-
-  // Return the staking rewards amount
-  return Number(balances.rewards.staking_rewards.amount);
-};
 
 const TotalRewardsCard = () => {
   const { address } = useNymClient();
@@ -40,8 +19,6 @@ const TotalRewardsCard = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address exists
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   if (!address) {
@@ -51,7 +28,7 @@ const TotalRewardsCard = () => {
   if (isLoading) {
     return (
       <ExplorerCard label="Total Rewards">
-        <Typography variant="body2">Loading...</Typography>
+        <Skeleton variant="text" />
       </ExplorerCard>
     );
   }
@@ -59,7 +36,7 @@ const TotalRewardsCard = () => {
   if (isError) {
     return (
       <ExplorerCard label="Total Rewards">
-        <Typography variant="body2" color="error">
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load total rewards.
         </Typography>
       </ExplorerCard>

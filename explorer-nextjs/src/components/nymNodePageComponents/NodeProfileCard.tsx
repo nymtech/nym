@@ -1,13 +1,14 @@
 "use client";
 
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
-import { COSMOS_KIT_USE_CHAIN } from "@/config";
-import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Box, Button, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
+import { fetchNodeInfo } from "../../app/api";
+import { COSMOS_KIT_USE_CHAIN } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
 import ExplorerCard from "../cards/ExplorerCard";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
@@ -20,23 +21,6 @@ import ConnectWallet from "../wallet/ConnectWallet";
 interface INodeProfileCardProps {
   id: number; // Node ID
 }
-
-// Fetch node info
-const fetchNodeInfo = async (id: number) => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes = await response.json();
-  return nodes.find((node: { node_id: number }) => node.node_id === id) || null;
-};
 
 export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
@@ -58,8 +42,6 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
-    refetchInterval: 60000,
-    staleTime: 60000,
   });
 
   const handleStakeOnNode = async ({
@@ -135,7 +117,9 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   if (isNodeLoading) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <div>Loading...</div>
+        <Skeleton variant="rectangular" height={80} width={80} />
+        <Skeleton variant="text" />
+        <Skeleton variant="text" height={200} />
       </ExplorerCard>
     );
   }
@@ -143,10 +127,26 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   if (isNodeError || !nodeInfo) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <div>Failed to load node information.</div>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }
+  const cleanMoniker = DOMPurify.sanitize(
+    nodeInfo?.self_description.moniker,
+  ).replace(/&amp;/g, "&");
+
+  const cleanDescription = DOMPurify.sanitize(
+    nodeInfo?.self_description.details,
+  ).replace(/&amp;/g, "&");
+
+  // get full country name
+  const countryName = (countryCode: string) => {
+    const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+    return <span>{regionNames.of(countryCode)}</span>;
+  };
 
   return (
     <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
@@ -160,20 +160,25 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
           mb={1}
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          {nodeInfo?.self_description.moniker || "Moniker"}
+          {cleanMoniker || "Moniker"}
         </Typography>
         {nodeInfo.description.auxiliary_details.location && (
           <Box display={"flex"} gap={1}>
             <Typography variant="h6">Location:</Typography>
-            <CountryFlag
-              countryCode={nodeInfo.description.auxiliary_details.location}
-              countryName={nodeInfo.description.auxiliary_details.location}
-            />
+
+            <Box>
+              <CountryFlag
+                countryCode={nodeInfo.description.auxiliary_details.location}
+                countryName={countryName(
+                  nodeInfo.description.auxiliary_details.location,
+                )}
+              />
+            </Box>
           </Box>
         )}
         {nodeInfo && (
           <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>
-            {nodeInfo.self_description.details}
+            {cleanDescription}
           </Typography>
         )}
         <Box mt={3} display={"flex"} gap={1}>

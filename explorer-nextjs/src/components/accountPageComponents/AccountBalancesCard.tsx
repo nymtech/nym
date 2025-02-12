@@ -1,5 +1,8 @@
 "use client";
-import type { IAccountBalancesInfo, IRewardDetails } from "@/app/api/types";
+import { fetchAccountBalance, fetchNymPrice } from "@/app/api";
+import { Skeleton, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+import type { IRewardDetails } from "../../app/api/types";
 import { AccountBalancesTable } from "../cards/AccountBalancesTable";
 import ExplorerCard from "../cards/ExplorerCard";
 
@@ -14,8 +17,7 @@ export interface IAccontStatsRowProps {
 }
 
 interface IAccountBalancesCardProps {
-  accountInfo: IAccountBalancesInfo;
-  nymPrice: number;
+  address: string;
 }
 
 const getNymsFormated = (unyms: number) => {
@@ -46,16 +48,59 @@ const calculateStakingRewards = (
 };
 
 export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
-  const { accountInfo, nymPrice } = props;
+  const { address } = props;
+
+  const {
+    data: accountInfo,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["accountBalance", address],
+    queryFn: () => fetchAccountBalance(address),
+    enabled: !!address,
+  });
+
+  const {
+    data: nymPrice,
+    isLoading: isLoadingPrice,
+    error: priceError,
+  } = useQuery({
+    queryKey: ["nymPrice"],
+    queryFn: fetchNymPrice,
+  });
+
+  if (isLoading || isLoadingPrice) {
+    return (
+      <ExplorerCard label="Total value">
+        <Stack gap={1}>
+          <Skeleton variant="text" height={38} />
+          <Skeleton variant="text" height={380} />
+        </Stack>
+      </ExplorerCard>
+    );
+  }
+
+  if (isError || priceError || !accountInfo || !nymPrice) {
+    return (
+      <ExplorerCard label="Total value">
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Failed to account data.
+        </Typography>
+        <Skeleton variant="text" height={238} />
+      </ExplorerCard>
+    );
+  }
+
+  const nymPriceData = nymPrice.quotes.USD.price;
 
   const totalBalanceUSD = getPriceInUSD(
     Number(accountInfo.total_value.amount),
-    nymPrice,
+    nymPriceData,
   );
   const spendableNYM = getNymsFormated(Number(accountInfo.balances[0].amount));
   const spendableUSD = getPriceInUSD(
     Number(accountInfo.balances[0].amount),
-    nymPrice,
+    nymPriceData,
   );
   const spendableAllocation = getAllocation(
     Number(accountInfo.balances[0].amount),
@@ -67,7 +112,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   );
   const delegationsUSD = getPriceInUSD(
     Number(accountInfo.total_delegations.amount),
-    nymPrice,
+    nymPriceData,
   );
   const delegationsAllocation = getAllocation(
     Number(accountInfo.total_delegations.amount),
@@ -79,7 +124,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   );
   const claimableUSD = getPriceInUSD(
     Number(accountInfo.claimable_rewards.amount),
-    nymPrice,
+    nymPriceData,
   );
   const claimableAllocation = getAllocation(
     Number(accountInfo.claimable_rewards.amount),

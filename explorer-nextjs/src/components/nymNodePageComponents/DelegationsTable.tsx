@@ -1,6 +1,5 @@
 "use client";
 
-import type { NodeRewardDetails } from "@/app/api/types";
 import { Stack, Typography } from "@mui/material";
 import {
   type MRT_ColumnDef,
@@ -9,6 +8,7 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import type { NodeRewardDetails } from "../../app/api/types";
 
 const ColumnHeading = ({
   children,
@@ -62,6 +62,11 @@ const DelegationsTable = ({
         header: "Amount",
         accessorKey: "amount",
         Header: <ColumnHeading>Amount</ColumnHeading>,
+        sortingFn: (rowA, rowB) => {
+          const stakeA = Number.parseFloat(rowA.original.amount.amount);
+          const stakeB = Number.parseFloat(rowB.original.amount.amount);
+          return stakeA - stakeB;
+        },
         Cell: ({ row }) => (
           <Typography variant="body4">
             {getNymsFormated(row.original.amount.amount)} NYM

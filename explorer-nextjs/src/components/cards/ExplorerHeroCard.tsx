@@ -1,4 +1,3 @@
-import ArrowUpRight from "@/components/icons/ArrowUpRight";
 import {
   Card,
   CardContent,
@@ -8,6 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
+import ArrowUpRight from "../../components/icons/ArrowUpRight";
 import { Link } from "../muiLink";
 
 const cardStyles = {
@@ -40,7 +40,7 @@ const ExplorerHeroCard = ({
   sx?: SxProps;
 }) => {
   return (
-    <Link href={link} sx={{ textDecoration: "none" }}>
+    <Link href={link} sx={{ textDecoration: "none", height: "100%" }}>
       <Card sx={{ ...cardStyles, ...sx }} elevation={0}>
         <CardHeader
           title={

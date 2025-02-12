@@ -1,6 +1,6 @@
-import { Elips } from "@/components/icons/Elips";
 import { Stack, Typography } from "@mui/material";
 import React from "react";
+import { Elips } from "../../components/icons/Elips";
 
 export const trimAddress = (address = "", trimBy = 6) =>
   `${address.slice(0, trimBy)}...${address.slice(-trimBy)}`;

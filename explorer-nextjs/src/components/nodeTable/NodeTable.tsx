@@ -1,9 +1,14 @@
 "use client";
-
-import { COSMOS_KIT_USE_CHAIN } from "@/config";
-import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
@@ -12,9 +17,13 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+
+import { COSMOS_KIT_USE_CHAIN } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
+// import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
@@ -26,16 +35,42 @@ const ColumnHeading = ({
 }: {
   children: string | React.ReactNode;
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   return (
-    <Typography sx={{ py: 2, textAlign: "center" }} variant="h5">
-      {children}
-    </Typography>
+    <Box
+      sx={{
+        width: isMobile ? "80px" : "unset",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-start",
+        alignItems: "baseline",
+        p: 0,
+      }}
+    >
+      <Typography
+        sx={{
+          py: 2,
+          textAlign: "center",
+          whiteSpace: isMobile ? "normal" : "unset", // Ensure text can wrap
+          wordWrap: isMobile ? "break-word" : "unset", // Break long words
+          overflowWrap: isMobile ? "break-word" : "unset", // Ensure text breaks inside the cell
+          textTransform: "uppercase",
+        }}
+        variant={isMobile ? "caption" : "h5"}
+      >
+        {children}
+      </Typography>
+    </Box>
   );
 };
 
 const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const router = useRouter();
   const { nymClient } = useNymClient();
+  const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
@@ -47,6 +82,10 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+
+  const handleRefetch = useCallback(async () => {
+    await queryClient.invalidateQueries();
+  }, [queryClient]);
 
   const handleStakeOnNode = useCallback(
     async ({ nodeId, amount }: { nodeId: number; amount: string }) => {
@@ -69,8 +108,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           message: "This operation can take up to one hour to process",
           tx: tx?.transactionHash,
 
-          onClose: () => setInfoModalProps({ open: false }),
+          onClose: async () => {
+            await handleRefetch();
+            setInfoModalProps({ open: false });
+          },
         });
+        await handleRefetch();
       } catch (e) {
         const errorMessage =
           e instanceof Error ? e.message : "An error occurred while staking";
@@ -85,7 +128,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient],
+    [nymClient, handleRefetch],
   );
 
   const handleOnSelectStake = useCallback(
@@ -116,6 +159,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     [isWalletConnected],
   );
+  // get full country name
+  const countryName = useCallback((countryCode: string) => {
+    const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+    return <span>{regionNames.of(countryCode)}</span>;
+  }, []);
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
     () => [
@@ -131,23 +180,36 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ),
       },
       {
-        id: "node",
+        id: "id",
         header: "",
-        Header: <ColumnHeading>Node</ColumnHeading>,
-        accessorKey: "identity_key",
+        Header: <ColumnHeading>Node ID</ColumnHeading>,
+        accessorKey: "nodeId",
+        size: 90,
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
+          </Stack>
+        ),
+      },
+      {
+        id: "identity_key",
+        header: "",
+        Header: <ColumnHeading>Identity Key</ColumnHeading>,
+        accessorKey: "identity_key",
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
             <Typography variant="body5">{row.original.identity_key}</Typography>
           </Stack>
         ),
       },
       {
         id: "qos",
-        header: "Quality of Service",
+        header: "Qlt of Service",
         align: "center",
         accessorKey: "qualityOfService",
-        Header: <ColumnHeading>Quality of Service</ColumnHeading>,
+        size: 100,
+
+        Header: <ColumnHeading>Qlt of Service</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
             {row.original.qualityOfService}%
@@ -158,17 +220,16 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "location",
         header: "Location",
         accessorKey: "countryName",
+        size: 160,
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.countryCode && row.original.countryName ? (
-            <Tooltip title={row.original.countryName}>
-              <Box>
-                <CountryFlag
-                  countryCode={row.original.countryCode || ""}
-                  countryName={row.original.countryCode || ""}
-                />
-              </Box>
-            </Tooltip>
+            <Box width="100%">
+              <CountryFlag
+                countryCode={row.original.countryCode || ""}
+                countryName={countryName(row.original.countryName) || ""}
+              />
+            </Box>
           ) : (
             "-"
           ),
@@ -199,6 +260,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "Action",
         header: "Action",
         accessorKey: "Action",
+        size: 120,
+
         Header: <ColumnHeading>Action</ColumnHeading>,
         hidden: !isWalletConnected,
         enableColumnFilter: false,
@@ -221,6 +284,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableColumnFilter: false,
         header: "Favorite",
         accessorKey: "Favorite",
+        size: 110,
+
         Header: (
           <Stack direction="row" alignItems="center">
             <ColumnHeading>Favorite</ColumnHeading>
@@ -241,7 +306,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => <Favorite address={row.original.owner} />,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites],
+    [isWalletConnected, handleOnSelectStake, favorites, countryName],
   );
   const table = useMaterialReactTable({
     columns,
@@ -264,7 +329,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     initialState: {
-      columnPinning: { right: ["Action", "Favorite"] },
+      columnPinning: isMobile ? {} : { right: ["Action", "Favorite"] }, // No pinning on mobile
     },
     muiColumnActionsButtonProps: {
       sx: {
@@ -280,9 +345,17 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         bgcolor: "background.paper",
       },
     },
+    muiTableHeadCellProps: {
+      sx: {
+        alignItems: "center",
+      },
+    },
+
     muiTableBodyCellProps: {
       sx: {
         border: "none",
+        whiteSpace: "unset", // Allow text wrapping in body cells
+        wordBreak: "break-word", // Ensure long text breaks correctly
       },
     },
     muiTableBodyRowProps: ({ row }) => ({
@@ -301,9 +374,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
     }),
   });
+
   return (
     <>
       {isLoading && <Loading />}
+
       <StakeModal
         nodeId={selectedNodeForStaking?.nodeId}
         identityKey={selectedNodeForStaking?.identityKey}
@@ -312,6 +387,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       />
 
       <InfoModal {...infoModalProps} />
+
       <MaterialReactTable table={table} />
     </>
   );

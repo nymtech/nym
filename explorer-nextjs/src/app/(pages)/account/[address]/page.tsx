@@ -1,14 +1,12 @@
-import type { IAccountBalancesInfo, NymTokenomics } from "@/app/api/types";
-import type NodeData from "@/app/api/types";
-import { NYM_ACCOUNT_ADDRESS, NYM_NODES, NYM_PRICES_API } from "@/app/api/urls";
-import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
-import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
-import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
-import { ContentLayout } from "@/components/contentLayout/ContentLayout";
-import SectionHeading from "@/components/headings/SectionHeading";
-import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
+import { fetchNodes } from "@/app/api";
+import type { NodeData } from "@/app/api/types";
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import { AccountBalancesCard } from "../../../../components/accountPageComponents/AccountBalancesCard";
+import { AccountInfoCard } from "../../../../components/accountPageComponents/AccountInfoCard";
+import { ContentLayout } from "../../../../components/contentLayout/ContentLayout";
+import SectionHeading from "../../../../components/headings/SectionHeading";
+import ExplorerButtonGroup from "../../../../components/toggleButton/ToggleButton";
 
 export default async function Account({
   params,
@@ -16,49 +14,13 @@ export default async function Account({
   params: Promise<{ address: string }>;
 }) {
   try {
-    const { address } = await params;
+    const address = (await params).address;
 
-    const accountData = await fetch(`${NYM_ACCOUNT_ADDRESS}${address}`, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      next: { revalidate: 60 },
-      // refresh event list cache at given interval
-    });
-
-    const response = await fetch(NYM_NODES, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      next: { revalidate: 60 },
-      // refresh event list cache at given interval
-    });
-
-    const nymNodes: NodeData[] = await response.json();
+    const nymNodes: NodeData[] = await fetchNodes();
 
     const nymNode = nymNodes.find(
       (node) => node.bond_information.owner === address,
     );
-
-    const nymAccountBalancesData: IAccountBalancesInfo =
-      await accountData.json();
-
-    if (!nymAccountBalancesData) {
-      return <Typography>Account not found</Typography>;
-    }
-
-    const nymPrice = await fetch(NYM_PRICES_API, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      next: { revalidate: 60 },
-      // refresh event list cache at given interval
-    });
-
-    const nymPriceData: NymTokenomics = await nymPrice.json();
 
     return (
       <ContentLayout>
@@ -66,6 +28,7 @@ export default async function Account({
           <Grid size={6}>
             <SectionHeading title="Account Details" />
           </Grid>
+
           <Grid size={6} justifyContent="flex-end">
             <Box sx={{ display: "flex", justifyContent: "end" }}>
               <ExplorerButtonGroup
@@ -75,7 +38,7 @@ export default async function Account({
                     isSelected: false,
                     link: nymNode
                       ? `/nym-node/${nymNode.node_id}`
-                      : "/nym-node/not-found",
+                      : `/account/${address}/not-found`,
                   },
                   {
                     label: "Account",
@@ -86,21 +49,13 @@ export default async function Account({
               />
             </Box>
           </Grid>
-          <Grid size={4}>
-            <AccountInfoCard accountInfo={nymAccountBalancesData} />
+
+          <Grid size={{ xs: 12, md: 4 }}>
+            <AccountInfoCard address={address} />
           </Grid>
-          <Grid size={8}>
-            <AccountBalancesCard
-              accountInfo={nymAccountBalancesData}
-              nymPrice={nymPriceData.quotes.USD.price}
-            />
+          <Grid size={{ xs: 12, md: 8 }}>
+            <AccountBalancesCard address={address} />
           </Grid>
-        </Grid>
-        <Grid container columnSpacing={5} rowSpacing={5}>
-          <Grid size={12}>
-            <SectionHeading title="Onboarding" />
-          </Grid>
-          <BlogArticlesCards limit={4} />
         </Grid>
       </ContentLayout>
     );

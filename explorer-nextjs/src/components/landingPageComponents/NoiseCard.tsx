@@ -1,23 +1,40 @@
-import type { IPacketsAndStakingData } from "@/app/api";
-import { HARBOURMASTER_API_MIXNODES_STATS } from "@/app/api/urls";
-import { formatBigNum } from "@/utils/formatBigNumbers";
-import { Box, Stack, Typography } from "@mui/material";
+"use client";
+import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+import type { IPacketsAndStakingData } from "../../app/api/types";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
 
-export const NoiseCard = async () => {
-  const response = await fetch(HARBOURMASTER_API_MIXNODES_STATS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
+import { fetchNoise } from "@/app/api";
+
+export const NoiseCard = () => {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["noise"],
+    queryFn: fetchNoise,
   });
 
-  const data: IPacketsAndStakingData[] = await response.json();
+  if (isLoading) {
+    return (
+      <ExplorerCard label="Noise generated last 24h">
+        <Stack gap={1}>
+          <Skeleton variant="text" />
+          <Skeleton variant="text" height={238} />
+        </Stack>
+      </ExplorerCard>
+    );
+  }
 
-  if (!data) {
-    return null;
+  if (isError || !data) {
+    return (
+      <ExplorerCard label="Noise generated last 24h">
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Failed to load data
+        </Typography>
+        <Skeleton variant="text" height={238} />
+      </ExplorerCard>
+    );
   }
 
   const todaysData = data[data.length - 1];

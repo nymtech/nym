@@ -1,14 +1,14 @@
 "use client";
 
-import type { NodeRewardDetails, ObservatoryBalance } from "@/app/api/types";
-import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
-import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "@/config";
-import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import { fetchTotalStakerRewards } from "../../app/api";
+import type { NodeRewardDetails } from "../../app/api/types";
+import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
@@ -25,24 +25,6 @@ const fetchDelegations = async (
   return data.delegations;
 };
 
-// Fetch total staker rewards
-const fetchTotalRewards = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch balances");
-  }
-
-  const balances: ObservatoryBalance = await response.json();
-  return Number(balances.rewards.staking_rewards.amount);
-};
-
 const SubHeaderRowActions = () => {
   const [openRedeemRewardsModal, setOpenRedeemRewardsModal] =
     useState<boolean>(false);
@@ -54,6 +36,8 @@ const SubHeaderRowActions = () => {
   const { address, nymClient } = useNymClient();
   const { getSigningCosmWasmClient } = useChain(COSMOS_KIT_USE_CHAIN);
 
+  const queryClient = useQueryClient();
+
   // Fetch delegations using React Query
   const {
     data: delegations = [],
@@ -63,8 +47,6 @@ const SubHeaderRowActions = () => {
     queryKey: ["delegations", address],
     queryFn: () => fetchDelegations(address || "", nymClient),
     enabled: !!address && !!nymClient, // Only fetch if address and nymClient are available
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000,
   });
 
   // Fetch total rewards using React Query
@@ -72,13 +54,17 @@ const SubHeaderRowActions = () => {
     data: totalStakerRewards = 0,
     isLoading: isRewardsLoading,
     isError: isRewardsError,
+    refetch,
   } = useQuery({
-    queryKey: ["totalRewards", address],
-    queryFn: () => fetchTotalRewards(address || ""),
+    queryKey: ["totalStakerRewards", address],
+    queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address is available
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000,
   });
+
+  const handleRefetch = useCallback(async () => {
+    refetch();
+    queryClient.invalidateQueries(); // This will refetch ALL active queries
+  }, [queryClient, refetch]);
 
   const handleRedeemRewards = useCallback(async () => {
     setIsLoading(true);
@@ -107,13 +93,18 @@ const SubHeaderRowActions = () => {
         fee,
         "Redeeming all rewards",
       );
-      console.log("Rewards redeemed successfully:", result);
-
+      // Success state
+      setIsLoading(false);
       setInfoModalProps({
         open: true,
         title: "Success",
         message: "All rewards have been redeemed successfully!",
-        onClose: () => setInfoModalProps({ open: false }),
+        tx: result?.transactionHash,
+
+        onClose: async () => {
+          await handleRefetch();
+          setInfoModalProps({ open: false });
+        },
       });
     } catch (error) {
       console.error("Error redeeming rewards:", error);
@@ -127,7 +118,13 @@ const SubHeaderRowActions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [address, nymClient, delegations, getSigningCosmWasmClient]);
+  }, [
+    address,
+    nymClient,
+    delegations,
+    getSigningCosmWasmClient,
+    handleRefetch,
+  ]);
 
   const handleRedeemRewardsButtonClick = () => {
     setOpenRedeemRewardsModal(true);
@@ -153,7 +150,11 @@ const SubHeaderRowActions = () => {
 
   return (
     <Stack direction="row" spacing={3} justifyContent={"end"}>
-      <Button variant="contained" onClick={handleRedeemRewardsButtonClick}>
+      <Button
+        variant="contained"
+        onClick={handleRedeemRewardsButtonClick}
+        disabled={totalStakerRewards === 0}
+      >
         Redeem NYM
       </Button>
       {isLoading && <Loading />}

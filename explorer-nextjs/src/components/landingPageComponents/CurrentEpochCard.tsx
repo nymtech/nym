@@ -1,51 +1,104 @@
 "use client";
 
-import type { CurrentEpochData } from "@/app/api";
-import { CURRENT_EPOCH } from "@/app/api/urls";
-import { useQuery } from "@tanstack/react-query";
+import {
+  type EpochResponseData,
+  useEpochContext,
+} from "@/providers/EpochProvider";
+import { Skeleton, Typography } from "@mui/material";
+import { differenceInMinutes, format } from "date-fns";
+import { useCallback, useEffect, useState } from "react";
 import ExplorerCard from "../cards/ExplorerCard";
 import EpochProgressBar from "../progressBars/EpochProgressBar";
 
-// Fetch function
-const fetchCurrentEpoch = async (): Promise<CurrentEpochData> => {
-  const response = await fetch(CURRENT_EPOCH, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
+const calulateProgress = (end: string) => {
+  const endDate = new Date(end);
+  const difference = differenceInMinutes(endDate, new Date());
+  const progress = Math.max(0, 100 - (difference / 60) * 100);
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch current epoch data");
-  }
+  return progress;
+};
 
-  return response.json();
+const getStartEndTime = (start: string, end: string) => {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  const startTime = format(startDate, "HH:mm:ss");
+  const endTime = format(endDate, "HH:mm:ss");
+
+  return { startTime, endTime };
 };
 
 export const CurrentEpochCard = () => {
-  // Use React Query to fetch data
-  const { data, isError, isLoading } = useQuery({
-    queryKey: ["currentEpoch"], // Unique query key
-    queryFn: fetchCurrentEpoch, // Fetch function
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is considered fresh for 60 seconds
-  });
+  const { data, isError, isLoading, epochStatus } = useEpochContext();
+
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  const updateState = useCallback((data: NonNullable<EpochResponseData>) => {
+    const { startTime, endTime } = getStartEndTime(
+      data.current_epoch_start,
+      data.current_epoch_end,
+    );
+    const progress = calulateProgress(data.current_epoch_end);
+
+    setStartTime(startTime);
+    setEndTime(endTime);
+    setProgress(progress);
+  }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    updateState(data);
+
+    const intervalId = setInterval(() => {
+      updateState(data);
+    }, 30_000);
+
+    return () => clearInterval(intervalId);
+  }, [data, updateState]);
 
   if (isLoading) {
-    return <ExplorerCard label="Current NGM epoch">Loading...</ExplorerCard>;
-  }
-
-  if (isError || !data) {
     return (
-      <ExplorerCard label="Current NGM epoch">Failed to load data</ExplorerCard>
+      <ExplorerCard label="Current mixnet epoch">
+        <Skeleton variant="text" height={80} />
+      </ExplorerCard>
     );
   }
 
-  const currentEpochStart = data.current_epoch_start || "";
+  if (isError) {
+    return (
+      <ExplorerCard label="Current mixnet epoch">
+        Failed to load data
+      </ExplorerCard>
+    );
+  }
+
+  if (!data) {
+    return (
+      <ExplorerCard label="Current mixnet epoch">
+        No data available
+      </ExplorerCard>
+    );
+  }
+
+  if (epochStatus === "pending") {
+    return (
+      <ExplorerCard label="Current mixnet epoch">
+        <Typography variant="body3" fontWeight="light">
+          Waiting for next epoch to start...
+        </Typography>
+      </ExplorerCard>
+    );
+  }
 
   return (
-    <ExplorerCard label="Current NGM epoch">
-      <EpochProgressBar start={currentEpochStart} showEpoch={true} />
+    <ExplorerCard label="Current mixnet epoch">
+      <EpochProgressBar
+        startTime={startTime}
+        endTime={endTime}
+        progress={progress}
+      />
     </ExplorerCard>
   );
 };

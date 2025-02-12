@@ -1,7 +1,7 @@
-import NymLogo from "@/components/icons/NymLogo";
-import { Link } from "@/components/muiLink";
-import { Wrapper } from "@/components/wrapper";
 import { Box, Divider } from "@mui/material";
+import NymLogo from "../../components/icons/NymLogo";
+import { Link } from "../../components/muiLink";
+import { Wrapper } from "../../components/wrapper";
 import ConnectWallet from "../wallet/ConnectWallet";
 import HeaderItem from "./HeaderItem";
 import MENU_DATA from "./menuItems";

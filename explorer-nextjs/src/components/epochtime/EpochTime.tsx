@@ -1,49 +1,46 @@
 "use client";
 
-import { CURRENT_EPOCH } from "@/app/api/urls";
+import {
+  type EpochResponseData,
+  useEpochContext,
+} from "@/providers/EpochProvider";
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
-import { addSeconds } from "date-fns";
-import { format } from "date-fns";
+import { differenceInMinutes } from "date-fns";
+import { useCallback, useEffect, useState } from "react";
 
-// Fetch function for the next epoch
-const fetchNextEpoch = async () => {
-  const res = await fetch(CURRENT_EPOCH, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch current epoch");
-  }
-
-  const data = await res.json();
-  const dateTime = addSeconds(
-    new Date(data.current_epoch_start),
-    data.epoch_length.secs,
-  );
-
-  return { data, dateTime };
+const calculateMinutesRemaining = (epochEndTime: string) => {
+  const endDate = new Date(epochEndTime);
+  const difference = differenceInMinutes(endDate, new Date());
+  return difference;
 };
 
 const NextEpochTime = () => {
-  // Use React Query to fetch next epoch data
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["nextEpoch"], // Unique key for this query
-    queryFn: fetchNextEpoch, // Fetch function
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is considered fresh for 60 seconds
-  });
+  const { data, isLoading, isError, epochStatus } = useEpochContext();
+  const [minutesRemaining, setMinutesRemaining] = useState(0);
+
+  const updateState = useCallback((data: EpochResponseData) => {
+    if (!data) return;
+    const minutesRemaining = calculateMinutesRemaining(data.current_epoch_end);
+    setMinutesRemaining(minutesRemaining);
+  }, []);
+
+  useEffect(() => {
+    updateState(data);
+
+    const interval = setInterval(() => {
+      updateState(data);
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [data, updateState]);
 
   if (isLoading) {
     return (
       <Stack direction="row" spacing={1}>
         <AccessTime />
         <Typography variant="h5" fontWeight="light">
-          Loading next epoch...
+          Loading next mixnet epoch...
         </Typography>
       </Stack>
     );
@@ -60,14 +57,18 @@ const NextEpochTime = () => {
     );
   }
 
-  const formattedDate = format(data.dateTime, "HH:mm:ss");
-
   return (
     <Stack direction="row" spacing={1}>
       <AccessTime />
-      <Typography variant="h5" fontWeight="light">
-        Next epoch: {formattedDate}
-      </Typography>
+      {epochStatus === "pending" ? (
+        <Typography variant="h5" fontWeight="light">
+          Waiting for next mixnet epoch to start...
+        </Typography>
+      ) : (
+        <Typography variant="h5" fontWeight="light">
+          Next mixnet epoch starts in: {minutesRemaining} min
+        </Typography>
+      )}
     </Stack>
   );
 };

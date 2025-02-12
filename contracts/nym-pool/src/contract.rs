@@ -7,9 +7,10 @@ use crate::queries::{
 };
 use crate::storage::NYM_POOL_STORAGE;
 use crate::transactions::{
-    try_grant_allowance, try_lock_allowance, try_remove_expired, try_revoke_grant,
-    try_unlock_allowance, try_update_contract_admin, try_use_allowance, try_use_locked_allowance,
-    try_withdraw_allowance, try_withdraw_locked_allowance,
+    try_add_new_granter, try_grant_allowance, try_lock_allowance, try_remove_expired,
+    try_revoke_grant, try_revoke_granter, try_unlock_allowance, try_update_contract_admin,
+    try_use_allowance, try_use_locked_allowance, try_withdraw_allowance,
+    try_withdraw_locked_allowance,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -63,6 +64,8 @@ pub fn execute(
         ExecuteMsg::WithdrawLockedAllowance { amount } => {
             try_withdraw_locked_allowance(deps, env, info, amount)
         }
+        ExecuteMsg::AddNewGranter { granter } => try_add_new_granter(deps, env, info, granter),
+        ExecuteMsg::RevokeGranter { granter } => try_revoke_granter(deps, env, info, granter),
         ExecuteMsg::RemoveExpiredGrant { grantee } => try_remove_expired(deps, env, info, grantee),
     }
 }

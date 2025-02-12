@@ -58,14 +58,14 @@ pub enum ExecuteMsg {
     /// Attempt to withdraw the specified amount of locked tokens into the grantee's account
     WithdrawLockedAllowance { amount: Coin },
 
+    /// Attempt to add a new account to the permitted set of grant granters
+    AddNewGranter { granter: String },
+
+    /// Revoke the provided account from the permitted set of granters
+    RevokeGranter { granter: String },
+
     /// Attempt to remove expired grant from the storage and unlock (if any) locked tokens
     RemoveExpiredGrant { grantee: String },
-    // AddNewGranter {
-    //     granter: String,
-    // },
-    // RevokeGranter {
-    //     grantee: String,
-    // },
 }
 
 #[cw_serde]

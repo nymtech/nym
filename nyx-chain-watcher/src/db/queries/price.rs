@@ -11,18 +11,20 @@ pub(crate) async fn insert_nym_prices(
     let timestamp = price_data.timestamp;
     sqlx::query!(
         "INSERT INTO price_history
-                (timestamp, chf, usd, eur, btc)
+                (timestamp, chf, usd, eur, gbp, btc)
                 VALUES
-                ($1, $2, $3, $4, $5)
+                ($1, $2, $3, $4, $5, $6)
             ON CONFLICT(timestamp) DO UPDATE SET
             chf=excluded.chf,
             usd=excluded.usd,
             eur=excluded.eur,
+            gbp=excluded.gbp,
             btc=excluded.btc;",
         timestamp,
         price_data.nym.chf,
         price_data.nym.usd,
         price_data.nym.eur,
+        price_data.nym.gbp,
         price_data.nym.btc,
     )
     .execute(&mut *conn)
@@ -33,7 +35,7 @@ pub(crate) async fn insert_nym_prices(
 
 pub(crate) async fn get_latest_price(pool: &DbPool) -> anyhow::Result<PriceHistory> {
     let result = sqlx::query!(
-        "SELECT timestamp, chf, usd, eur, btc FROM price_history ORDER BY timestamp DESC LIMIT 1;"
+        "SELECT timestamp, chf, usd, eur, gbp, btc FROM price_history ORDER BY timestamp DESC LIMIT 1;"
     )
     .fetch_one(pool)
     .await?;
@@ -43,6 +45,7 @@ pub(crate) async fn get_latest_price(pool: &DbPool) -> anyhow::Result<PriceHisto
         chf: result.chf,
         usd: result.usd,
         eur: result.eur,
+        gbp: result.gbp,
         btc: result.btc,
     })
 }
@@ -52,7 +55,7 @@ pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHist
     let earliest_timestamp = Local::now().sub(chrono::Duration::days(1)).timestamp();
 
     let result = sqlx::query!(
-        "SELECT timestamp, chf, usd, eur, btc FROM price_history WHERE timestamp >= $1;",
+        "SELECT timestamp, chf, usd, eur, gbp, btc FROM price_history WHERE timestamp >= $1;",
         earliest_timestamp
     )
     .fetch_all(pool)
@@ -65,6 +68,7 @@ pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHist
         chf: 0f64,
         usd: 0f64,
         eur: 0f64,
+        gbp: 0f64,
         btc: 0f64,
     };
 
@@ -72,6 +76,7 @@ pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHist
         price.chf += p.chf;
         price.usd += p.usd;
         price.eur += p.eur;
+        price.gbp += p.gbp;
         price.btc += p.btc;
     }
 
@@ -79,6 +84,7 @@ pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHist
         price.chf /= count;
         price.usd /= count;
         price.eur /= count;
+        price.gbp /= count;
         price.btc /= count;
     }
 

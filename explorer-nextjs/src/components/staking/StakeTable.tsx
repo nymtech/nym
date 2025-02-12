@@ -539,6 +539,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     enableFullScreenToggle: false,
     enableHiding: false,
     paginationDisplayMode: "pages",
+    enableDensityToggle: false,
     renderEmptyRowsFallback: () => (
       <Stack
         gap={3}

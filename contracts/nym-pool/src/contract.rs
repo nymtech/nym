@@ -169,32 +169,158 @@ mod tests {
 
         #[test]
         fn adds_sender_to_set_of_initial_granters() -> anyhow::Result<()> {
-            todo!()
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let init_msg = InstantiateMsg {
+                pool_denomination: TEST_DENOM.to_string(),
+                grants: Default::default(),
+            };
+
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            let granter = query_granter(deps.as_ref(), some_sender.to_string())?;
+            assert!(granter.information.is_some());
+
+            Ok(())
         }
 
         #[cfg(test)]
         mod setting_initial_grants {
             use super::*;
+            use cosmwasm_std::{coin, Order, Storage};
+            use nym_pool_contract_common::{Allowance, BasicAllowance, Grant, GranteeAddress};
+            use std::collections::HashMap;
 
-            #[test]
-            fn with_empty_map() {
-                todo!()
+            fn all_grants(storage: &dyn Storage) -> HashMap<GranteeAddress, Grant> {
+                NYM_POOL_STORAGE
+                    .grants
+                    .range(storage, None, None, Order::Ascending)
+                    .collect::<Result<HashMap<_, _>, _>>()
+                    .unwrap()
             }
 
             #[test]
-            fn with_insufficient_tokens() {
-                todo!()
+            fn with_empty_map() -> anyhow::Result<()> {
+                let mut deps = mock_dependencies();
+                let env = mock_env();
+                let grants = HashMap::new();
+                let init_msg = InstantiateMsg {
+                    pool_denomination: TEST_DENOM.to_string(),
+                    grants,
+                };
+
+                let some_sender = deps.api.addr_make("some_sender");
+                instantiate(
+                    deps.as_mut(),
+                    env,
+                    message_info(&some_sender, &[]),
+                    init_msg,
+                )?;
+
+                assert!(all_grants(&deps.storage).is_empty());
+                Ok(())
             }
 
             #[test]
-            fn with_valid_request() {
-                todo!()
-            }
-        }
+            fn with_insufficient_tokens() -> anyhow::Result<()> {
+                // limited grant
+                let mut deps = mock_dependencies();
+                let env = mock_env();
+                let mut grants = HashMap::new();
+                grants.insert(
+                    "grantee1".to_string(),
+                    Allowance::Basic(BasicAllowance {
+                        spend_limit: Some(coin(100, TEST_DENOM)),
+                        expiration_unix_timestamp: None,
+                    }),
+                );
+                let init_msg = InstantiateMsg {
+                    pool_denomination: TEST_DENOM.to_string(),
+                    grants,
+                };
 
-        #[test]
-        fn sets_pool_value_to_transferred_tokens() -> anyhow::Result<()> {
-            todo!()
+                let some_sender = deps.api.addr_make("some_sender");
+                let res = instantiate(
+                    deps.as_mut(),
+                    env,
+                    message_info(&some_sender, &[]),
+                    init_msg,
+                );
+                assert!(res.is_err());
+
+                // unlimited grant
+                let mut deps = mock_dependencies();
+                let env = mock_env();
+                let mut grants = HashMap::new();
+                grants.insert(
+                    "grantee1".to_string(),
+                    Allowance::Basic(BasicAllowance::unlimited()),
+                );
+                let init_msg = InstantiateMsg {
+                    pool_denomination: TEST_DENOM.to_string(),
+                    grants,
+                };
+
+                let some_sender = deps.api.addr_make("some_sender");
+                let res = instantiate(
+                    deps.as_mut(),
+                    env,
+                    message_info(&some_sender, &[]),
+                    init_msg,
+                );
+                assert!(res.is_err());
+
+                Ok(())
+            }
+
+            #[test]
+            fn with_valid_request() -> anyhow::Result<()> {
+                let mut deps = mock_dependencies();
+                let env = mock_env();
+                let mut grants = HashMap::new();
+                grants.insert(
+                    "grantee1".to_string(),
+                    Allowance::Basic(BasicAllowance {
+                        spend_limit: Some(coin(100, TEST_DENOM)),
+                        expiration_unix_timestamp: None,
+                    }),
+                );
+                grants.insert(
+                    "grantee2".to_string(),
+                    Allowance::Basic(BasicAllowance {
+                        spend_limit: Some(coin(200, TEST_DENOM)),
+                        expiration_unix_timestamp: None,
+                    }),
+                );
+                grants.insert(
+                    "grantee3".to_string(),
+                    Allowance::Basic(BasicAllowance {
+                        spend_limit: Some(coin(300, TEST_DENOM)),
+                        expiration_unix_timestamp: None,
+                    }),
+                );
+                let init_msg = InstantiateMsg {
+                    pool_denomination: TEST_DENOM.to_string(),
+                    grants,
+                };
+
+                let some_sender = deps.api.addr_make("some_sender");
+                instantiate(
+                    deps.as_mut(),
+                    env,
+                    message_info(&some_sender, &[coin(600, TEST_DENOM)]),
+                    init_msg,
+                )?;
+
+                assert_eq!(all_grants(&deps.storage).len(), 3);
+                Ok(())
+            }
         }
     }
 }

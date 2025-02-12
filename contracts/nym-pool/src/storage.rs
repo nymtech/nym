@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::validate_usage_coin;
-use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Env, Storage, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Deps, DepsMut, Env, Storage, Uint128};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
 use nym_pool_contract_common::constants::storage_keys;
 use nym_pool_contract_common::{
     Allowance, Grant, GranteeAddress, GranterAddress, GranterInformation, NymPoolContractError,
 };
+use std::cmp::max;
 use std::collections::HashMap;
 
 pub const NYM_POOL_STORAGE: NymPoolStorage = NymPoolStorage::new();
@@ -56,14 +57,32 @@ impl NymPoolStorage {
         // set the admin to be a whitelisted granter
         self.add_new_granter(deps.branch(), &env, &admin, &admin)?;
 
+        // initialise the locked storage (with the total of 0)
+        self.locked.initialise(deps.branch())?;
+
+        let included_grants = !initial_grants.is_empty();
+
         // add all initial grants
+        let mut required_amount = Uint128::zero();
         for (grantee, allowance) in initial_grants {
             let grantee = deps.api.addr_validate(&grantee)?;
+            if let Some(ref limit) = allowance.basic().spend_limit {
+                required_amount += limit.amount;
+            }
             self.insert_new_grant(deps.branch(), &env, &admin, &grantee, allowance)?;
         }
 
-        // initialise the locked storage (with the total of 0)
-        self.locked.initialise(deps)?;
+        // special case: during initialisation, even if we're inserting unlimited grants,
+        // we have to have _some_ tokens available
+        if included_grants {
+            let balance = self.contract_balance(deps.as_ref(), &env)?;
+            if required_amount > balance.amount || balance.amount.is_zero() {
+                return Err(NymPoolContractError::InsufficientTokens {
+                    requested_grant: coin(max(required_amount.u128(), 1), &balance.denom),
+                    available: balance,
+                });
+            }
+        }
 
         Ok(())
     }
@@ -482,7 +501,7 @@ mod tests {
             use super::*;
             use crate::testing::TEST_DENOM;
             use cosmwasm_std::testing::{mock_dependencies, mock_env};
-            use cosmwasm_std::{coin, Order};
+            use cosmwasm_std::{coin, MemoryStorage, Order};
             use nym_pool_contract_common::BasicAllowance;
 
             fn all_grants(storage: &dyn Storage) -> HashMap<GranteeAddress, Grant> {
@@ -494,10 +513,154 @@ mod tests {
             }
 
             #[test]
-            fn inserts_all_initial_grants() -> anyhow::Result<()> {
+            fn requires_some_tokens_for_unlimited_initial_grants() -> anyhow::Result<()> {
                 let storage = NymPoolStorage::new();
                 let mut deps = mock_dependencies();
                 let env = mock_env();
+                let admin = deps.api.addr_make("admin");
+
+                let mut grants = HashMap::new();
+                grants.insert(
+                    deps.api.addr_make("gr1").to_string(),
+                    Allowance::Basic(BasicAllowance::unlimited()),
+                );
+                let res = storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    &TEST_DENOM.to_string(),
+                    grants.clone(),
+                );
+                // we haven't got any tokens - this should have failed
+                assert!(res.is_err());
+
+                let address = &env.contract.address;
+                let mem_storage = MockStorage::default();
+                let api = MockApi::default();
+
+                let querier: MockQuerier<Empty> =
+                    MockQuerier::new(&[(address.as_str(), coins(1, TEST_DENOM).as_slice())]);
+
+                let mut deps: OwnedDeps<_, _, _, Empty> = OwnedDeps {
+                    storage: mem_storage,
+                    api,
+                    querier,
+                    custom_query_type: Default::default(),
+                };
+
+                // while we don't have a lot, we have some tokens which should allow this tx to proceed
+                let res = storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    &TEST_DENOM.to_string(),
+                    grants.clone(),
+                );
+                assert!(res.is_ok());
+
+                Ok(())
+            }
+
+            #[test]
+            fn requires_specified_amount_of_tokens_for_bounded_grants() -> anyhow::Result<()> {
+                fn bounded_allowance() -> Allowance {
+                    Allowance::Basic(BasicAllowance {
+                        spend_limit: Some(coin(100, TEST_DENOM)),
+                        expiration_unix_timestamp: None,
+                    })
+                }
+
+                let storage = NymPoolStorage::new();
+                let mut deps = mock_dependencies();
+                let env = mock_env();
+                let admin = deps.api.addr_make("admin");
+
+                let mut grants = HashMap::new();
+                grants.insert(deps.api.addr_make("gr1").to_string(), bounded_allowance());
+                grants.insert(deps.api.addr_make("gr2").to_string(), bounded_allowance());
+                grants.insert(deps.api.addr_make("gr3").to_string(), bounded_allowance());
+                grants.insert(deps.api.addr_make("gr4").to_string(), bounded_allowance());
+                let res = storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    &TEST_DENOM.to_string(),
+                    grants.clone(),
+                );
+                // we haven't got any tokens - this should have failed
+                assert!(res.is_err());
+
+                let address = &env.contract.address;
+                let mem_storage = MockStorage::default();
+                let api = MockApi::default();
+
+                let querier: MockQuerier<Empty> =
+                    MockQuerier::new(&[(address.as_str(), coins(399, TEST_DENOM).as_slice())]);
+
+                let mut deps: OwnedDeps<_, _, _, Empty> = OwnedDeps {
+                    storage: mem_storage,
+                    api,
+                    querier,
+                    custom_query_type: Default::default(),
+                };
+
+                // we haven't got enough tokens (we need at least 400) - still a failure!
+                let res = storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    &TEST_DENOM.to_string(),
+                    grants.clone(),
+                );
+                assert!(res.is_err());
+
+                // finally, with at least 400, it should work
+                let mem_storage = MockStorage::default();
+                let api = MockApi::default();
+
+                let querier: MockQuerier<Empty> =
+                    MockQuerier::new(&[(address.as_str(), coins(400, TEST_DENOM).as_slice())]);
+
+                let mut deps: OwnedDeps<_, _, _, Empty> = OwnedDeps {
+                    storage: mem_storage,
+                    api,
+                    querier,
+                    custom_query_type: Default::default(),
+                };
+
+                let res = storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    &TEST_DENOM.to_string(),
+                    grants,
+                );
+                assert!(res.is_ok());
+
+                Ok(())
+            }
+
+            #[test]
+            fn inserts_all_initial_grants() -> anyhow::Result<()> {
+                fn deps_with_balance(
+                    env: &Env,
+                ) -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
+                    OwnedDeps {
+                        storage: MockStorage::default(),
+                        api: MockApi::default(),
+                        querier: MockQuerier::<Empty>::new(&[(
+                            env.contract.address.as_str(),
+                            coins(10000000, TEST_DENOM).as_slice(),
+                        )]),
+                        custom_query_type: Default::default(),
+                    }
+                }
+
+                let storage = NymPoolStorage::new();
+                let env = mock_env();
+
+                let mut deps = deps_with_balance(&env);
+
                 let admin = deps.api.addr_make("admin");
                 let denom = &TEST_DENOM.to_string();
 
@@ -507,7 +670,7 @@ mod tests {
                 assert!(all_grants(&deps.storage).is_empty());
 
                 // one grant
-                let mut deps = mock_dependencies();
+                let mut deps = deps_with_balance(&env);
                 let mut grants = HashMap::new();
                 grants.insert(deps.api.addr_make("gr1").to_string(), dummy_allowance());
                 storage.initialise(deps.as_mut(), env.clone(), admin.clone(), denom, grants)?;
@@ -518,7 +681,7 @@ mod tests {
                 assert_eq!(grant.allowance, dummy_allowance());
 
                 // multiple grants
-                let mut deps = mock_dependencies();
+                let mut deps = deps_with_balance(&env);
                 let mut grants = HashMap::new();
                 grants.insert(deps.api.addr_make("gr1").to_string(), dummy_allowance());
                 grants.insert(deps.api.addr_make("gr2").to_string(), dummy_allowance());
@@ -533,7 +696,7 @@ mod tests {
                 assert_eq!(grant.grantee, deps.api.addr_make("gr3"));
 
                 // fails on invalid grantee address
-                let mut deps = mock_dependencies();
+                let mut deps = deps_with_balance(&env);
                 let mut grants = HashMap::new();
                 grants.insert(deps.api.addr_make("gr1").to_string(), dummy_allowance());
                 grants.insert("invalid_address".to_string(), dummy_allowance());
@@ -542,7 +705,7 @@ mod tests {
                     .is_err());
 
                 // fails on invalid allowance
-                let mut deps = mock_dependencies();
+                let mut deps = deps_with_balance(&env);
                 let mut grants = HashMap::new();
                 grants.insert(
                     deps.api.addr_make("gr1").to_string(),

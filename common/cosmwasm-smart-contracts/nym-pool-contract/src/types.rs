@@ -228,6 +228,10 @@ pub mod grants {
                         got: spend_limit.denom.to_string(),
                     });
                 }
+
+                if spend_limit.amount.is_zero() {
+                    return Err(NymPoolContractError::ZeroAmount);
+                }
             }
 
             Ok(())
@@ -307,6 +311,10 @@ pub mod grants {
                     expected: denom.to_string(),
                     got: self.period_spend_limit.denom.to_string(),
                 });
+            }
+
+            if self.period_spend_limit.amount.is_zero() {
+                return Err(NymPoolContractError::ZeroAmount);
             }
 
             // if the basic spend limit is set, the period spend limit cannot be larger than it
@@ -446,6 +454,10 @@ pub mod grants {
                     expected: denom.to_string(),
                     got: self.period_grant.denom.to_string(),
                 });
+            }
+
+            if self.period_grant.amount.is_zero() {
+                return Err(NymPoolContractError::ZeroAmount);
             }
 
             // the period grant must not be larger than the total spend limit, if set
@@ -812,6 +824,21 @@ mod tests {
                 allowance.spend_limit = None;
                 assert!(allowance.validate(&env, TEST_DENOM).is_ok());
             }
+
+            #[test]
+            fn spend_limit_must_be_non_zero() {
+                let mut allowance = mock_basic_allowance();
+
+                let env = mock_env();
+
+                // zero amount
+                allowance.spend_limit = Some(coin(0, TEST_DENOM));
+                assert!(allowance.validate(&env, TEST_DENOM).is_err());
+
+                // non-zero amount
+                allowance.spend_limit = Some(coin(69, TEST_DENOM));
+                assert!(allowance.validate(&env, TEST_DENOM).is_ok());
+            }
         }
 
         #[cfg(test)]
@@ -841,6 +868,19 @@ mod tests {
                 assert!(allowance.validate_new_inner("baddenom").is_err());
 
                 // matched denom
+                assert!(allowance.validate_new_inner(TEST_DENOM).is_ok());
+            }
+
+            #[test]
+            fn spend_limit_must_be_non_zero() {
+                let mut allowance = mock_classic_periodic_allowance();
+
+                // zero amount
+                allowance.period_spend_limit = coin(0, TEST_DENOM);
+                assert!(allowance.validate_new_inner(TEST_DENOM).is_err());
+
+                // non-zero amount
+                allowance.period_spend_limit = coin(69, TEST_DENOM);
                 assert!(allowance.validate_new_inner(TEST_DENOM).is_ok());
             }
 
@@ -899,6 +939,19 @@ mod tests {
                 assert!(allowance.validate_new_inner("baddenom").is_err());
 
                 // matched denom
+                assert!(allowance.validate_new_inner(TEST_DENOM).is_ok());
+            }
+
+            #[test]
+            fn grant_must_be_non_zero() {
+                let mut allowance = mock_cumulative_periodic_allowance();
+
+                // zero amount
+                allowance.period_grant = coin(0, TEST_DENOM);
+                assert!(allowance.validate_new_inner(TEST_DENOM).is_err());
+
+                // non-zero amount
+                allowance.period_grant = coin(69, TEST_DENOM);
                 assert!(allowance.validate_new_inner(TEST_DENOM).is_ok());
             }
 

@@ -5,10 +5,10 @@ use crate::contract;
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::storage::NYM_POOL_STORAGE;
 use crate::testing::storage::{ContractStorageWrapper, StorageWrapper};
-use cosmwasm_std::testing::{message_info, mock_env, MockApi};
+use cosmwasm_std::testing::{message_info, mock_env, MockApi, MockQuerier, MockStorage};
 use cosmwasm_std::{
-    coin, coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
-    StdResult, Storage, Uint128,
+    coin, coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MemoryStorage, MessageInfo,
+    Order, OwnedDeps, Response, StdResult, Storage, Uint128,
 };
 use cw_multi_test::{
     next_block, App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper, Executor,
@@ -26,6 +26,18 @@ mod storage;
 pub fn test_rng() -> ChaCha20Rng {
     let dummy_seed = [42u8; 32];
     ChaCha20Rng::from_seed(dummy_seed)
+}
+
+pub fn deps_with_balance(env: &Env) -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
+    OwnedDeps {
+        storage: MockStorage::default(),
+        api: MockApi::default(),
+        querier: MockQuerier::<Empty>::new(&[(
+            env.contract.address.as_str(),
+            coins(100000000000, TEST_DENOM).as_slice(),
+        )]),
+        custom_query_type: Default::default(),
+    }
 }
 
 pub const TEST_DENOM: &str = "unym";

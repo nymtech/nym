@@ -193,7 +193,9 @@ mod tests {
         #[cfg(test)]
         mod setting_initial_grants {
             use super::*;
-            use cosmwasm_std::{coin, Order, Storage};
+            use crate::testing::deps_with_balance;
+            use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
+            use cosmwasm_std::{coin, coins, Empty, MemoryStorage, Order, OwnedDeps, Storage};
             use nym_pool_contract_common::{Allowance, BasicAllowance, Grant, GranteeAddress};
             use std::collections::HashMap;
 
@@ -234,7 +236,7 @@ mod tests {
                 let env = mock_env();
                 let mut grants = HashMap::new();
                 grants.insert(
-                    "grantee1".to_string(),
+                    deps.api.addr_make("grantee1").to_string(),
                     Allowance::Basic(BasicAllowance {
                         spend_limit: Some(coin(100, TEST_DENOM)),
                         expiration_unix_timestamp: None,
@@ -259,7 +261,7 @@ mod tests {
                 let env = mock_env();
                 let mut grants = HashMap::new();
                 grants.insert(
-                    "grantee1".to_string(),
+                    deps.api.addr_make("grantee1").to_string(),
                     Allowance::Basic(BasicAllowance::unlimited()),
                 );
                 let init_msg = InstantiateMsg {
@@ -281,25 +283,25 @@ mod tests {
 
             #[test]
             fn with_valid_request() -> anyhow::Result<()> {
-                let mut deps = mock_dependencies();
                 let env = mock_env();
+                let mut deps = deps_with_balance(&env);
                 let mut grants = HashMap::new();
                 grants.insert(
-                    "grantee1".to_string(),
+                    deps.api.addr_make("grantee1").to_string(),
                     Allowance::Basic(BasicAllowance {
                         spend_limit: Some(coin(100, TEST_DENOM)),
                         expiration_unix_timestamp: None,
                     }),
                 );
                 grants.insert(
-                    "grantee2".to_string(),
+                    deps.api.addr_make("grantee2").to_string(),
                     Allowance::Basic(BasicAllowance {
                         spend_limit: Some(coin(200, TEST_DENOM)),
                         expiration_unix_timestamp: None,
                     }),
                 );
                 grants.insert(
-                    "grantee3".to_string(),
+                    deps.api.addr_make("grantee3").to_string(),
                     Allowance::Basic(BasicAllowance {
                         spend_limit: Some(coin(300, TEST_DENOM)),
                         expiration_unix_timestamp: None,

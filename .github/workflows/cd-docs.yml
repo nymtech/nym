@@ -18,7 +18,7 @@ jobs:
       - name: Install Python3 modules
         run: sudo pip3 install pandas tabulate
       - name: Install rsync
-        run: sudo apt-get install rsync
+        run: sudo apt-get install -y rsync
       - uses: rlespinasse/github-slug-action@v3.x
       - name: Setup pnpm
         uses: pnpm/action-setup@v4.0.0

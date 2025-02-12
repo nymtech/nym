@@ -8,7 +8,7 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::{Interval, NodeId};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use time::OffsetDateTime;
@@ -18,14 +18,11 @@ use utoipa::ToSchema;
 #[serde(rename_all = "kebab-case")]
 pub enum TopologyRequestStatus {
     NoUpdates,
-    Fresh(OffsetDateTimeJsonSchemaWrapper),
+    Fresh(Interval),
 }
-
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct CachedNodesResponse<T: ToSchema> {
-    pub epoch_uid: Option<u32>,
-    pub topology_request_status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: Vec<T>,
 }
@@ -47,8 +44,7 @@ impl<T: ToSchema> CachedNodesResponse<T> {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PaginatedCachedNodesResponse<T> {
-    pub epoch_uid: Option<u32>,
-    pub topology_request_status: Option<TopologyRequestStatus>,
+    pub status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
 }
@@ -68,6 +64,28 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 },
                 data: nodes,
             },
+            status: None,
+        }
+    }
+
+    pub fn fresh(mut self, interval: Option<Interval>) -> Self {
+        let iv = interval.and_then(|i| Some(TopologyRequestStatus::Fresh(i)));
+        self.status = iv;
+        self
+    }
+
+    pub fn no_updates() -> Self {
+        PaginatedCachedNodesResponse {
+            refreshed_at: OffsetDateTime::now_utc().into(),
+            nodes: PaginatedResponse {
+                pagination: Pagination {
+                    total: 0,
+                    page: 0,
+                    size: 0,
+                },
+                data: Vec::new(),
+            },
+            status: Some(TopologyRequestStatus::NoUpdates),
         }
     }
 }

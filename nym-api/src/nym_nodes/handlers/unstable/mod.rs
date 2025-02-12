@@ -114,7 +114,7 @@ impl From<NodesParamsWithRole> for NodesParams {
             no_legacy: params.no_legacy,
             page: params.page,
             per_page: params.per_page,
-            epoch_uid: params.epoch_uid,   
+            epoch_uid: params.epoch_uid,
         }
     }
 }

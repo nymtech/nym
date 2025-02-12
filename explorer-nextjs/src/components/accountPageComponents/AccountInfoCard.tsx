@@ -43,7 +43,8 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
     );
   }
 
-  const balance = Number(data.balances[0].amount) / 1000000;
+  const balance =
+    data.balances.length > 0 ? Number(data.balances[0].amount) / 1000000 : 0;
   const balanceFormated = `${balance} NYM`;
 
   return (

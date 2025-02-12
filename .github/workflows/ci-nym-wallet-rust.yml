@@ -30,6 +30,12 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Set debug to false
+        working-directory: nym-wallet
+        run: |
+          sed -i.bak '1s/^/\[profile.dev\]\ndebug = false\n\n/' Cargo.toml
+          git diff
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:

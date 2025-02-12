@@ -45,6 +45,11 @@ jobs:
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli
 
+      - name: Set debug to false
+        run: |
+          sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
+          git diff
+
       - name: "Build"
         run: make sdk-wasm-build
 

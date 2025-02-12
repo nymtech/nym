@@ -69,7 +69,9 @@ export const CurrentEpochCard = () => {
   if (isError) {
     return (
       <ExplorerCard label="Current mixnet epoch">
-        Failed to load data
+        <Typography variant="body3" fontWeight="light">
+          Failed to load data
+        </Typography>
       </ExplorerCard>
     );
   }
@@ -77,7 +79,9 @@ export const CurrentEpochCard = () => {
   if (!data) {
     return (
       <ExplorerCard label="Current mixnet epoch">
-        No data available
+        <Typography variant="body3" fontWeight="light">
+          No data available
+        </Typography>
       </ExplorerCard>
     );
   }
@@ -85,7 +89,7 @@ export const CurrentEpochCard = () => {
   if (epochStatus === "pending") {
     return (
       <ExplorerCard label="Current mixnet epoch">
-        <Typography variant="body3" fontWeight="light">
+        <Typography variant="body3" fontWeight="light" height={80}>
           Waiting for next epoch to start...
         </Typography>
       </ExplorerCard>

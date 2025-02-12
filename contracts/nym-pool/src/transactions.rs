@@ -187,6 +187,32 @@ pub fn try_withdraw_locked_allowance(
     })))
 }
 
+pub fn try_add_new_granter(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    granter: String,
+) -> Result<Response, NymPoolContractError> {
+    let granter = deps.api.addr_validate(&granter)?;
+    NYM_POOL_STORAGE.add_new_granter(deps, &env, &info.sender, &granter)?;
+
+    // TODO: emit events
+    Ok(Response::new())
+}
+
+pub fn try_revoke_granter(
+    deps: DepsMut<'_>,
+    _env: Env,
+    info: MessageInfo,
+    granter: String,
+) -> Result<Response, NymPoolContractError> {
+    let granter = deps.api.addr_validate(&granter)?;
+    NYM_POOL_STORAGE.remove_granter(deps, &info.sender, &granter)?;
+
+    // TODO: emit events
+    Ok(Response::new())
+}
+
 // can be called by anyone, because expired grants are unusable anyway
 pub fn try_remove_expired(
     deps: DepsMut<'_>,

@@ -53,6 +53,9 @@ pub enum NymPoolContractError {
     #[error("the period length can't be zero")]
     ZeroAllowancePeriod,
 
+    #[error("the provided coin value is zero")]
+    ZeroAmount,
+
     #[error("the periodic spend limit of {periodic} was set to be higher than the total spend limit {total_limit}")]
     PeriodicGrantOverSpendLimit { periodic: Coin, total_limit: Coin },
 

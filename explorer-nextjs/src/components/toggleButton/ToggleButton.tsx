@@ -1,4 +1,6 @@
-import { Button, ButtonGroup } from "@mui/material";
+"use client";
+import { Button, ButtonGroup, CircularProgress } from "@mui/material";
+import { useState } from "react";
 import { Link } from "../muiLink";
 
 type Option = {
@@ -12,10 +14,17 @@ type Options = [Option, Option];
 const ExplorerButtonGroup = ({
   size = "small",
   options,
+  onPage,
 }: {
   size?: "small" | "medium" | "large";
   options: Options;
+  onPage: string;
 }) => {
+  const [loading, setLoading] = useState<string | null>(null);
+  const handleClick = (label: string) => {
+    if (onPage === label) return;
+    setLoading(label);
+  };
   return (
     <ButtonGroup size={size}>
       {options.map((option) => (
@@ -23,6 +32,7 @@ const ExplorerButtonGroup = ({
           href={option.link}
           key={option.label}
           sx={{ textDecoration: "none" }}
+          onClick={() => handleClick(option.label)}
         >
           <Button
             sx={{
@@ -36,7 +46,11 @@ const ExplorerButtonGroup = ({
             }}
             variant="outlined"
           >
-            {option.label}
+            {loading === option.label ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              option.label
+            )}
           </Button>
         </Link>
       ))}

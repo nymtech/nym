@@ -11,7 +11,7 @@ use crate::db::DbPool;
 const REFRESH_DELAY: Duration = Duration::from_secs(300);
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60 * 2);
 const COINGECKO_API_URL: &str =
-    "https://api.coingecko.com/api/v3/simple/price?ids=nym&vs_currencies=chf,usd,eur,btc";
+    "https://api.coingecko.com/api/v3/simple/price?ids=nym&vs_currencies=chf,usd,eur,gbp,btc";
 
 pub(crate) async fn run_price_scraper(db_pool: &DbPool) -> JoinHandle<()> {
     loop {

@@ -14,8 +14,18 @@ use std::net::IpAddr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum TopologyRequestStatus {
+    NoUpdates,
+    Fresh(OffsetDateTimeJsonSchemaWrapper),
+}
+
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct CachedNodesResponse<T: ToSchema> {
+    pub epoch_uid: Option<u32>,
+    pub topology_request_status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: Vec<T>,
 }
@@ -37,6 +47,8 @@ impl<T: ToSchema> CachedNodesResponse<T> {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PaginatedCachedNodesResponse<T> {
+    pub epoch_uid: Option<u32>,
+    pub topology_request_status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
 }

@@ -499,7 +499,7 @@ mod tests {
         #[cfg(test)]
         mod initialisation {
             use super::*;
-            use crate::testing::TEST_DENOM;
+            use crate::testing::{deps_with_balance, TEST_DENOM};
             use cosmwasm_std::testing::{mock_dependencies, mock_env};
             use cosmwasm_std::{coin, MemoryStorage, Order};
             use nym_pool_contract_common::BasicAllowance;
@@ -642,20 +642,6 @@ mod tests {
 
             #[test]
             fn inserts_all_initial_grants() -> anyhow::Result<()> {
-                fn deps_with_balance(
-                    env: &Env,
-                ) -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
-                    OwnedDeps {
-                        storage: MockStorage::default(),
-                        api: MockApi::default(),
-                        querier: MockQuerier::<Empty>::new(&[(
-                            env.contract.address.as_str(),
-                            coins(10000000, TEST_DENOM).as_slice(),
-                        )]),
-                        custom_query_type: Default::default(),
-                    }
-                }
-
                 let storage = NymPoolStorage::new();
                 let env = mock_env();
 

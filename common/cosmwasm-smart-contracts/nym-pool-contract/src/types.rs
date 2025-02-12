@@ -728,7 +728,7 @@ pub mod query_responses {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::coin;
+    use cosmwasm_std::{coin, Uint128};
 
     const TEST_DENOM: &str = "unym";
 
@@ -769,7 +769,77 @@ mod tests {
 
     #[test]
     fn increasing_spend_limit() {
-        todo!()
+        // no-op if there's no limit
+        let mut basic = mock_basic_allowance();
+        basic.spend_limit = None;
+        let mut basic = Allowance::Basic(basic);
+
+        let mut classic = mock_classic_periodic_allowance();
+        classic.basic.spend_limit = None;
+        let mut classic = Allowance::ClassicPeriodic(classic);
+
+        let mut cumulative = mock_cumulative_periodic_allowance();
+        cumulative.basic.spend_limit = None;
+        let mut cumulative = Allowance::CumulativePeriodic(cumulative);
+
+        let mut delayed = mock_delayed_allowance();
+        delayed.basic.spend_limit = None;
+        let mut delayed = Allowance::Delayed(delayed);
+
+        let basic_og = basic.clone();
+        let classic_og = classic.clone();
+        let cumulative_og = cumulative.clone();
+        let delayed_og = delayed.clone();
+
+        basic.increase_spend_limit(Uint128::new(100));
+        classic.increase_spend_limit(Uint128::new(100));
+        cumulative.increase_spend_limit(Uint128::new(100));
+        delayed.increase_spend_limit(Uint128::new(100));
+
+        assert_eq!(basic, basic_og);
+        assert_eq!(classic, classic_og);
+        assert_eq!(cumulative, cumulative_og);
+        assert_eq!(delayed, delayed_og);
+
+        // adds to spend limit otherwise
+        let limit = coin(1000, TEST_DENOM);
+        let mut basic = mock_basic_allowance();
+        basic.spend_limit = Some(limit.clone());
+        let mut basic = Allowance::Basic(basic);
+
+        let mut classic = mock_classic_periodic_allowance();
+        classic.basic.spend_limit = Some(limit.clone());
+        let mut classic = Allowance::ClassicPeriodic(classic);
+
+        let mut cumulative = mock_cumulative_periodic_allowance();
+        cumulative.basic.spend_limit = Some(limit.clone());
+        let mut cumulative = Allowance::CumulativePeriodic(cumulative);
+
+        let mut delayed = mock_delayed_allowance();
+        delayed.basic.spend_limit = Some(limit.clone());
+        let mut delayed = Allowance::Delayed(delayed);
+
+        basic.increase_spend_limit(Uint128::new(100));
+        classic.increase_spend_limit(Uint128::new(100));
+        cumulative.increase_spend_limit(Uint128::new(100));
+        delayed.increase_spend_limit(Uint128::new(100));
+
+        assert_eq!(
+            basic.basic().spend_limit.as_ref().unwrap().amount,
+            limit.amount + Uint128::new(100)
+        );
+        assert_eq!(
+            classic.basic().spend_limit.as_ref().unwrap().amount,
+            limit.amount + Uint128::new(100)
+        );
+        assert_eq!(
+            cumulative.basic().spend_limit.as_ref().unwrap().amount,
+            limit.amount + Uint128::new(100)
+        );
+        assert_eq!(
+            delayed.basic().spend_limit.as_ref().unwrap().amount,
+            limit.amount + Uint128::new(100)
+        );
     }
 
     #[cfg(test)]
@@ -1114,25 +1184,72 @@ mod tests {
     #[cfg(test)]
     mod setting_initial_state {
         use super::*;
+        use cosmwasm_std::testing::mock_env;
 
         #[test]
         fn basic_allowance() {
-            todo!()
+            let mut basic = Allowance::Basic(mock_basic_allowance());
+
+            let og = basic.clone();
+
+            // this is a no-op
+            let env = mock_env();
+            basic.set_initial_state(&env);
+            assert_eq!(basic, og);
         }
 
         #[test]
         fn classic_periodic_allowance() {
-            todo!()
+            let mut inner = mock_classic_periodic_allowance();
+            let mut cumulative = Allowance::ClassicPeriodic(inner.clone());
+
+            let env = mock_env();
+
+            let mut expected = inner.clone();
+
+            // sets the spendable amount to min(basic_limit, period_limit)
+            expected.period_can_spend = Some(expected.period_spend_limit.clone());
+
+            // set period reset to current block time + period duration
+            expected.period_reset_unix_timestamp =
+                env.block.time.seconds() + expected.period_duration_secs;
+
+            inner.set_initial_state(&env);
+            assert_eq!(inner, expected);
+
+            cumulative.set_initial_state(&env);
+            assert_eq!(cumulative, Allowance::ClassicPeriodic(inner));
         }
 
         #[test]
         fn cumulative_periodic_allowance() {
-            todo!()
+            let mut inner = mock_cumulative_periodic_allowance();
+            let mut cumulative = Allowance::CumulativePeriodic(inner.clone());
+
+            let env = mock_env();
+
+            // sets the last applied grant to current time and spendable to a single grant value
+            let mut expected = inner.clone();
+            expected.last_grant_applied_unix_timestamp = env.block.time.seconds();
+            expected.spendable = Some(expected.period_grant.clone());
+
+            inner.set_initial_state(&env);
+            assert_eq!(inner, expected);
+
+            cumulative.set_initial_state(&env);
+            assert_eq!(cumulative, Allowance::CumulativePeriodic(inner));
         }
 
         #[test]
         fn delayed_allowance() {
-            todo!()
+            let mut delayed = Allowance::Delayed(mock_delayed_allowance());
+
+            let og = delayed.clone();
+
+            // this is a no-op
+            let env = mock_env();
+            delayed.set_initial_state(&env);
+            assert_eq!(delayed, og);
         }
     }
 }

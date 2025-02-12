@@ -69,7 +69,7 @@ impl<T> PaginatedCachedNodesResponse<T> {
     }
 
     pub fn fresh(mut self, interval: Option<Interval>) -> Self {
-        let iv = interval.and_then(|i| Some(TopologyRequestStatus::Fresh(i)));
+        let iv = interval.map(TopologyRequestStatus::Fresh);
         self.status = iv;
         self
     }

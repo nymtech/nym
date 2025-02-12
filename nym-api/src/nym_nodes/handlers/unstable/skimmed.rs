@@ -14,7 +14,6 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::nym_nodes::{
     CachedNodesResponse, NodeRole, NodeRoleQueryParam, PaginatedCachedNodesResponse, SkimmedNode,
-    TopologyRequestStatus,
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_mixnet_contract_common::NodeId;

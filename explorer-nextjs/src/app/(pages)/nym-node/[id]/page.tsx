@@ -1,6 +1,4 @@
-import type { IObservatoryNode } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
-import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
+import { fetchNodeInfo } from "@/app/api";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
@@ -22,25 +20,7 @@ export default async function NymNode({
   try {
     const id = Number((await params).id);
 
-    const observatoryResponse = await fetch(DATA_OBSERVATORY_NODES_URL, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      next: { revalidate: 60 },
-      // refresh event list cache at given interval
-    });
-
-    const observatoryNymNodes: IObservatoryNode[] =
-      await observatoryResponse.json();
-
-    if (!observatoryNymNodes) {
-      return null;
-    }
-
-    const observatoryNymNode = observatoryNymNodes.find(
-      (node) => node.node_id === id,
-    );
+    const observatoryNymNode = await fetchNodeInfo(id);
 
     if (!observatoryNymNode) {
       return null;
@@ -125,12 +105,6 @@ export default async function NymNode({
           >
             <NodeChatCard />
           </Grid>
-        </Grid>
-        <Grid container columnSpacing={5} rowSpacing={5}>
-          <Grid size={12}>
-            <SectionHeading title="Onboarding" />
-          </Grid>
-          <BlogArticlesCards limit={4} />
         </Grid>
       </ContentLayout>
     );

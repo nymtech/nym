@@ -1,7 +1,7 @@
 "use client";
 
-import { useNymClient } from "@/hooks/useNymClient";
 import { Grid2 } from "@mui/material";
+import { useNymClient } from "../../hooks/useNymClient";
 import OriginalStakeCard from "./OriginalStakeCard";
 import TotalRewardsCard from "./TotalRewardsCard";
 import TotalStakeCard from "./TotalStakeCard";

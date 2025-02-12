@@ -1,52 +1,15 @@
 "use client";
 
-import type { ExplorerData } from "@/app/api";
-import type { IObservatoryNode, RewardingDetails } from "@/app/api/types";
-import {
-  CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_NODES_URL,
-} from "@/app/api/urls";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
+import type { RewardingDetails } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeRewardsCardProps {
   id: number; // Node ID
 }
-
-// Fetch functions
-const fetchEpochRewards = async (): Promise<
-  ExplorerData["currentEpochRewardsData"]
-> => {
-  const response = await fetch(CURRENT_EPOCH_REWARDS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch epoch rewards");
-  }
-
-  return response.json();
-};
-
-const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes: IObservatoryNode[] = await response.json();
-  return nodes.find((node) => node.node_id === id) || null;
-};
 
 export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   // Fetch epoch rewards
@@ -57,8 +20,6 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   // Fetch node information
@@ -69,8 +30,6 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   if (isEpochLoading || isNodeLoading) {
@@ -79,7 +38,10 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
         label="Node rewards (last epoch/hour)"
         sx={{ height: "100%" }}
       >
-        <div>Loading...</div>
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
       </ExplorerCard>
     );
   }
@@ -90,7 +52,9 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
         label="Node rewards (last epoch/hour)"
         sx={{ height: "100%" }}
       >
-        <div>Failed to load data</div>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }

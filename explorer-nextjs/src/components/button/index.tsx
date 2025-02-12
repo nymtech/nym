@@ -1,10 +1,10 @@
 "use client";
-import { colours } from "@/theme/colours";
 import { Button as MUIButton } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import type { Theme } from "@mui/material/styles";
 import Link from "next/link";
+import { colours } from "../../theme/colours";
 import type { ButtonProps } from "./types";
 
 export const Button = ({

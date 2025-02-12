@@ -1,9 +1,9 @@
-import { colours } from "@/theme/colours";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { Box, Typography } from "@mui/material";
 import type React from "react";
 import type { ReactElement } from "react";
+import { colours } from "../../theme/colours";
 
 export interface IUpDownPriceIndicatorProps {
   percentage: number;

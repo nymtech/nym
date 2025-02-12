@@ -1,6 +1,5 @@
 "use client";
 
-import { TABLET_WIDTH } from "@/app/constants";
 import CircleIcon from "@mui/icons-material/Circle";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -15,6 +14,7 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import * as React from "react";
+import { TABLET_WIDTH } from "../../app/constants";
 import { MultiSegmentProgressBar } from "../progressBars/MultiSegmentProgressBar";
 import { StaticProgressBar } from "../progressBars/StaticProgressBar";
 

@@ -1,10 +1,10 @@
-import SimpleModal from "@/components/modal/SimpleModal";
-import useGetWalletBalance from "@/hooks/useGetWalletBalance";
 import { Button, Stack, Typography } from "@mui/material";
 import { CurrencyFormField } from "@nymproject/react/currency/CurrencyFormField.js";
 import { IdentityKeyFormField } from "@nymproject/react/mixnodes/IdentityKeyFormField.js";
 import type { DecCoin } from "@nymproject/types";
 import { useCallback, useEffect, useState } from "react";
+import SimpleModal from "../../components/modal/SimpleModal";
+import useGetWalletBalance from "../../hooks/useGetWalletBalance";
 import ExplorerListItem from "../list/ListItem";
 import stakingSchema, { MIN_AMOUNT_TO_DELEGATE } from "./schemas";
 

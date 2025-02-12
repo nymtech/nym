@@ -1,29 +1,11 @@
 "use client";
 
-import getNymNodes from "@/actions/getNymNodes";
-import type { ExplorerData } from "@/app/api";
-import type { IObservatoryNode } from "@/app/api/types";
-import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
+import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "isomorphic-dompurify";
+import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
+import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
 import NodeTable from "./NodeTable";
-
-// Fetch function for epoch rewards
-const fetchEpochRewards = async (): Promise<
-  ExplorerData["currentEpochRewardsData"]
-> => {
-  const response = await fetch(CURRENT_EPOCH_REWARDS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch epoch rewards");
-  }
-
-  return response.json();
-};
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
@@ -52,8 +34,12 @@ const mappedNymNodes = (
       epochRewardsData.interval.stake_saturation_point,
     );
 
+    const cleanMoniker = DOMPurify.sanitize(
+      node.self_description.moniker,
+    ).replace(/&amp;/g, "&");
+
     return {
-      name: node.self_description.moniker,
+      name: cleanMoniker,
       nodeId: node.node_id,
       identity_key: node.identity_key,
       countryCode: node.description.auxiliary_details.location || null,
@@ -78,8 +64,6 @@ const NodeTableWithAction = () => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
-    staleTime: 60000, // Data is fresh for 60 seconds
-    refetchInterval: 60000, // Refetch every 60 seconds
   });
 
   // Use React Query to fetch Nym nodes
@@ -89,23 +73,41 @@ const NodeTableWithAction = () => {
     isError: isNodesError,
   } = useQuery({
     queryKey: ["nymNodes"],
-    queryFn: getNymNodes,
-    staleTime: 60000,
-    refetchInterval: 60000,
+    queryFn: fetchObservatoryNodes,
   });
 
   // Handle loading state
   if (isEpochLoading || isNodesLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Card sx={{ height: "100%", mt: 5 }}>
+        <CardContent>
+          <Skeleton variant="text" height={100} />
+          <Skeleton variant="text" height={100} />
+          <Skeleton variant="text" height={100} />
+          <Skeleton variant="text" height={100} />
+        </CardContent>
+      </Card>
+    );
   }
 
   // Handle error state
   if (isEpochError || isNodesError) {
-    return <div>Error loading data. Please try again later.</div>;
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Error loading data. Please try again later.
+        </Typography>
+      </Stack>
+    );
   }
 
   // Map nodes with rewards data
-  const data = mappedNymNodes(nymNodes, epochRewardsData);
+
+  if (!epochRewardsData) {
+    return null;
+  }
+
+  const data = mappedNymNodes(nymNodes || [], epochRewardsData);
 
   return <NodeTable nodes={data} />;
 };

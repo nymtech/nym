@@ -163,7 +163,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
   // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
     queryKey: ["gatewayStatus", nodeInfo?.identity_key],
-    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key),
+    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
     enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
   });
 

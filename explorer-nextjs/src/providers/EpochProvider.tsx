@@ -84,7 +84,7 @@ const EpochProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const refreshQueries = async () => {
       await QueryClient.invalidateQueries({
-        queryKey: ["accountBalance", "noise", "epochRewards"],
+        predicate: (query) => query.queryKey[0] !== "currentEpoch",
       });
     };
 

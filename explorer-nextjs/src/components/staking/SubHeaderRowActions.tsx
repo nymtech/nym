@@ -61,7 +61,7 @@ const SubHeaderRowActions = () => {
     enabled: !!address, // Only fetch if address is available
   });
 
-  const handleRefetch = useCallback(() => {
+  const handleRefetch = useCallback(async () => {
     refetch();
     queryClient.invalidateQueries(); // This will refetch ALL active queries
   }, [queryClient, refetch]);
@@ -94,14 +94,17 @@ const SubHeaderRowActions = () => {
         "Redeeming all rewards",
       );
       // Success state
-      handleRefetch();
       setIsLoading(false);
       setInfoModalProps({
         open: true,
         title: "Success",
         message: "All rewards have been redeemed successfully!",
-        onClose: () => setInfoModalProps({ open: false }),
         tx: result?.transactionHash,
+
+        onClose: async () => {
+          await handleRefetch();
+          setInfoModalProps({ open: false });
+        },
       });
     } catch (error) {
       console.error("Error redeeming rewards:", error);

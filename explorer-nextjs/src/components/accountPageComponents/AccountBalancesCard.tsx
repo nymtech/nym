@@ -3,8 +3,8 @@ import { fetchAccountBalance, fetchNymPrice } from "@/app/api";
 import { Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { IRewardDetails } from "../../app/api/types";
-import { AccountBalancesTable } from "../cards/AccountBalancesTable";
 import ExplorerCard from "../cards/ExplorerCard";
+import { AccountBalancesTable } from "./AccountBalancesTable";
 
 export interface IAccontStatsRowProps {
   type: string;

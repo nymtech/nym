@@ -4,6 +4,7 @@ import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import Markdown from "react-markdown";
 
 export default async function Account({
   params,
@@ -20,6 +21,7 @@ export default async function Account({
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <SectionHeading title="Nym Node Details" />
               <ExplorerButtonGroup
+                onPage="Account"
                 options={[
                   {
                     label: "Nym Node",
@@ -37,13 +39,16 @@ export default async function Account({
           </Grid>
         </Grid>
         <Typography variant="h5">
-          Is this your accont? Set up your node!
+          <Markdown className="reactMarkDownLink">
+            This account does’t have a Nym node bonded. Is this your account?
+            Start [setting up your node](https://nym.com/docs) today!
+          </Markdown>
         </Typography>
         <Grid container columnSpacing={5} rowSpacing={5}>
           <Grid size={12}>
             <SectionHeading title="Onboarding" />
           </Grid>
-          <BlogArticlesCards limit={4} />
+          <BlogArticlesCards ids={[4]} />
         </Grid>
       </ContentLayout>
     );

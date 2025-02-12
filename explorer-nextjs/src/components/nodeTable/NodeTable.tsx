@@ -284,11 +284,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableColumnFilter: false,
         header: "Favorite",
         accessorKey: "Favorite",
-        size: 110,
+        size: 50,
 
         Header: (
           <Stack direction="row" alignItems="center">
-            <ColumnHeading>Favorite</ColumnHeading>
+            <ColumnHeading>Fav</ColumnHeading>
           </Stack>
         ),
         sortingFn: (a, b) => {

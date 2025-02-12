@@ -52,3 +52,9 @@ a {
   width: 8px;
   height: 8px;
 }
+
+.reactMarkDownLink a {
+  color: #00ca33;
+  display: inline;
+  font-weight: 700;
+}

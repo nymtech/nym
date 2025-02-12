@@ -456,7 +456,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         sortingFn: (rowA, rowB) => {
           const saturationA = rowA.original.node?.stakeSaturation || 0;
           const saturationB = rowB.original.node?.stakeSaturation || 0;
-          console.log("sorting :>> ", saturationA, saturationB);
           return saturationA - saturationB;
         },
         Cell: ({ row }) =>
@@ -473,11 +472,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Favorite",
         accessorKey: "Favorite",
         enableColumnFilter: false,
-        size: 80,
+        size: 50,
 
         Header: (
           <Stack direction="row" alignItems="center">
-            <ColumnHeading>Favorite</ColumnHeading>
+            <ColumnHeading>Fav</ColumnHeading>
           </Stack>
         ),
         sortingFn: (rowA, rowB) => {

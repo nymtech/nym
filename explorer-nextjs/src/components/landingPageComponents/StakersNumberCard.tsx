@@ -41,7 +41,7 @@ export const RewardsCard = () => {
   const allStakers = getActiveStakersNumber(observatoryNodes);
 
   return (
-    <ExplorerCard label="Active stakers number">
+    <ExplorerCard label="NYM Stakers">
       <Typography variant="h3" sx={{ color: "pine.950" }}>
         {allStakers}
       </Typography>

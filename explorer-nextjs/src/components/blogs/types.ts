@@ -1,6 +1,7 @@
 type Content = { type: string; text: string };
 
 type BlogArticle = {
+  id: number;
   title: string;
   label: string;
   description: string;

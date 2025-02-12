@@ -15,13 +15,13 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
-use nym_http_api_common::middleware::compression::new_compression_layer;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
+use tower_http::compression::CompressionLayer;
 use utoipa::{IntoParams, ToSchema};
 
 pub(crate) mod legacy;
@@ -46,7 +46,7 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         // to make it compatible with all the explorers that were used to using 0-100 values
         .route("/uptime-history/:node_id", get(get_node_uptime_history))
         .route("/rewarded-set", get(rewarded_set))
-        .layer(new_compression_layer())
+        .layer(CompressionLayer::new())
 }
 
 #[utoipa::path(

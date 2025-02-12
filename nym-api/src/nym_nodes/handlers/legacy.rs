@@ -7,7 +7,7 @@ use axum::extract::State;
 use axum::{Json, Router};
 use nym_api_requests::legacy::LegacyMixNodeBondWithLayer;
 use nym_api_requests::models::{LegacyDescribedGateway, LegacyDescribedMixNode};
-use nym_http_api_common::middleware::compression::new_compression_layer;
+use tower_http::compression::CompressionLayer;
 
 // we want to mark the routes as deprecated in swagger, but still expose them
 #[allow(deprecated)]
@@ -21,7 +21,7 @@ pub(crate) fn legacy_nym_node_routes() -> Router<AppState> {
             "/mixnodes/described",
             axum::routing::get(get_mixnodes_described),
         )
-        .layer(new_compression_layer())
+        .layer(CompressionLayer::new())
 }
 
 #[utoipa::path(

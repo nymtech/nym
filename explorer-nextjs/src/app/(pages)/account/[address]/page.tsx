@@ -32,7 +32,6 @@ export default async function Account({
           <Grid size={6} justifyContent="flex-end">
             <Box sx={{ display: "flex", justifyContent: "end" }}>
               <ExplorerButtonGroup
-                onPage="Account"
                 options={[
                   {
                     label: "Nym Node",

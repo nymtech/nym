@@ -15,30 +15,19 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
+use nym_http_api_common::middleware::compression::new_compression_layer;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
-use tower_http::compression::CompressionLayer;
 use utoipa::{IntoParams, ToSchema};
 
 pub(crate) mod legacy;
 pub(crate) mod unstable;
 
 pub(crate) fn nym_node_routes() -> Router<AppState> {
-    // This should compress responses unless:
-    //
-    // * They’re gRPC, which has its own protocol specific compression scheme.
-    // * It’s an image as determined by the content-type starting with image/.
-    // * They’re Server-Sent Events (SSE) as determined by the content-type being text/event-stream.
-    // * The response is less than 32 bytes.
-    let compression_layer: CompressionLayer = CompressionLayer::new()
-        .br(true)
-        .deflate(true)
-        .gzip(true)
-        .zstd(true);
     Router::new()
         .route("/refresh-described", post(refresh_described))
         .route("/noise", get(nodes_noise))
@@ -57,7 +46,7 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         // to make it compatible with all the explorers that were used to using 0-100 values
         .route("/uptime-history/:node_id", get(get_node_uptime_history))
         .route("/rewarded-set", get(rewarded_set))
-        .layer(compression_layer)
+        .layer(new_compression_layer())
 }
 
 #[utoipa::path(

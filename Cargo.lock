@@ -5954,6 +5954,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tower 0.4.13",
+ "tower-http",
  "tracing",
  "utoipa",
  "zeroize",

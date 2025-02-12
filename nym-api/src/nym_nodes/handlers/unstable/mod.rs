@@ -32,8 +32,8 @@ use crate::support::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
 use nym_api_requests::nym_nodes::NodeRoleQueryParam;
+use nym_http_api_common::middleware::compression::new_compression_layer;
 use serde::Deserialize;
-use tower_http::compression::CompressionLayer;
 
 pub(crate) mod full_fat;
 mod helpers;
@@ -42,17 +42,6 @@ pub(crate) mod skimmed;
 
 #[allow(deprecated)]
 pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
-    // This should compress responses unless:
-    //
-    // * They’re gRPC, which has its own protocol specific compression scheme.
-    // * It’s an image as determined by the content-type starting with image/.
-    // * They’re Server-Sent Events (SSE) as determined by the content-type being text/event-stream.
-    // * The response is less than 32 bytes.
-    let compression_layer: CompressionLayer = CompressionLayer::new()
-        .br(true)
-        .deflate(true)
-        .gzip(true)
-        .zstd(true);
     Router::new()
         .nest(
             "/skimmed",
@@ -85,7 +74,7 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
         .nest("/full-fat", Router::new().route("/", get(nodes_detailed)))
         .route("/gateways/skimmed", get(skimmed::deprecated_gateways_basic))
         .route("/mixnodes/skimmed", get(skimmed::deprecated_mixnodes_basic))
-        .layer(compression_layer)
+        .layer(new_compression_layer())
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

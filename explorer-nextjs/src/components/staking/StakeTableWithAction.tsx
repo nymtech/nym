@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
 import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
+import { countryName } from "../../utils/countryName";
 import StakeTable from "./StakeTable";
 
 // Utility function to calculate node saturation point
@@ -42,7 +43,8 @@ const mappedNymNodes = (
       nodeId: node.node_id,
       identity_key: node.identity_key,
       countryCode: node.description.auxiliary_details.location || null,
-      countryName: node.description.auxiliary_details.location || null,
+      countryName:
+        countryName(node.description.auxiliary_details.location) || null,
       profitMarginPercentage:
         +node.rewarding_details.cost_params.profit_margin_percent * 100,
       owner: node.bonding_address,

@@ -159,12 +159,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     [isWalletConnected],
   );
-  // get full country name
-  const countryName = useCallback((countryCode: string) => {
-    const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
-
-    return <span>{regionNames.of(countryCode)}</span>;
-  }, []);
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
     () => [
@@ -227,7 +221,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             <Box width="100%">
               <CountryFlag
                 countryCode={row.original.countryCode || ""}
-                countryName={countryName(row.original.countryName) || ""}
+                countryName={row.original.countryName || ""}
               />
             </Box>
           ) : (
@@ -306,7 +300,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => <Favorite address={row.original.owner} />,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites, countryName],
+    [isWalletConnected, handleOnSelectStake, favorites],
   );
   const table = useMaterialReactTable({
     columns,

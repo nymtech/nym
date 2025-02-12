@@ -17,7 +17,7 @@ export const RewardsCard = () => {
 
   if (isLoading) {
     return (
-      <ExplorerCard label="Active stakers number">
+      <ExplorerCard label="NYM Stakers">
         <Skeleton variant="text" height={90} />
       </ExplorerCard>
     );
@@ -25,7 +25,7 @@ export const RewardsCard = () => {
 
   if (isError || !observatoryNodes) {
     return (
-      <ExplorerCard label="Active stakers number">
+      <ExplorerCard label="NYM Stakers">
         <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load node data.
         </Typography>

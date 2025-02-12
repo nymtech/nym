@@ -134,6 +134,18 @@ impl StoragePaths {
         Ok(non_wasm_helpers::setup_fs_gateways_storage(&self.gateway_registrations).await?)
     }
 
+    pub fn credential_database_paths(&self) -> Vec<PathBuf> {
+        Self::with_sqlite_journal_paths(&self.credential_database_path)
+    }
+
+    pub fn reply_surb_database_paths(&self) -> Vec<PathBuf> {
+        Self::with_sqlite_journal_paths(&self.reply_surb_database_path)
+    }
+
+    pub fn gateway_registrations_paths(&self) -> Vec<PathBuf> {
+        Self::with_sqlite_journal_paths(&self.gateway_registrations)
+    }
+
     fn client_keys_paths(&self) -> ClientKeysPaths {
         ClientKeysPaths {
             private_identity_key_file: self.private_identity.clone(),
@@ -142,6 +154,19 @@ impl StoragePaths {
             public_encryption_key_file: self.public_encryption.clone(),
             ack_key_file: self.ack_key.clone(),
         }
+    }
+
+    /// Returns a list of paths that include the sqlite database and journal files (wal, shm)
+    fn with_sqlite_journal_paths<P: AsRef<Path>>(db_file: P) -> Vec<PathBuf> {
+        ["-shm", "-wal"]
+            .iter()
+            .map(|ext_suffix| {
+                let mut new_ext = db_file.as_ref().extension().unwrap_or_default().to_owned();
+                new_ext.push(ext_suffix);
+                db_file.as_ref().with_extension(new_ext)
+            })
+            .chain([db_file.as_ref().to_path_buf()])
+            .collect()
     }
 }
 

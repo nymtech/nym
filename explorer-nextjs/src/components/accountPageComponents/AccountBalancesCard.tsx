@@ -20,17 +20,26 @@ interface IAccountBalancesCardProps {
   address: string;
 }
 
-const getNymsFormated = (unyms: number) => {
+const getNymsFormated = (unyms: number): number => {
+  if (unyms === 0) {
+    return 0;
+  }
   const balance = unyms / 1000000;
   return balance;
 };
-const getPriceInUSD = (unyms: number, usdPrice: number) => {
+const getPriceInUSD = (unyms: number, usdPrice: number): number => {
+  if (unyms === 0) {
+    return 0;
+  }
   const balanceInUSD = (unyms / 1000000) * usdPrice;
   const balanceFormated = Number(balanceInUSD.toFixed(2));
   return balanceFormated;
 };
 
 const getAllocation = (unyms: number, totalUnyms: number): number => {
+  if (unyms === 0) {
+    return 0;
+  }
   const allocationPercentage = (unyms * 100) / totalUnyms;
   return Number(allocationPercentage.toFixed(2));
 };
@@ -38,13 +47,16 @@ const getAllocation = (unyms: number, totalUnyms: number): number => {
 const calculateStakingRewards = (
   accumulatedRewards: IRewardDetails[],
 ): number => {
-  const totalRewards = accumulatedRewards.reduce((total, rewardDetail) => {
-    return total + Number.parseFloat(rewardDetail.rewards.amount);
-  }, 0);
+  if (accumulatedRewards.length > 0) {
+    const totalRewards = accumulatedRewards.reduce((total, rewardDetail) => {
+      return total + Number.parseFloat(rewardDetail.rewards.amount);
+    }, 0);
 
-  const result = getNymsFormated(totalRewards);
+    const result = getNymsFormated(totalRewards);
 
-  return result;
+    return result;
+  }
+  return 0;
 };
 
 export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
@@ -68,6 +80,8 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     queryKey: ["nymPrice"],
     queryFn: fetchNymPrice,
   });
+
+  console.log("accountInfo :>> ", accountInfo);
 
   if (isLoading || isLoadingPrice) {
     return (
@@ -97,15 +111,21 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     Number(accountInfo.total_value.amount),
     nymPriceData,
   );
-  const spendableNYM = getNymsFormated(Number(accountInfo.balances[0].amount));
-  const spendableUSD = getPriceInUSD(
-    Number(accountInfo.balances[0].amount),
-    nymPriceData,
-  );
-  const spendableAllocation = getAllocation(
-    Number(accountInfo.balances[0].amount),
-    Number(accountInfo.total_value.amount),
-  );
+  const spendableNYM =
+    accountInfo.balances.length > 0
+      ? getNymsFormated(Number(accountInfo.balances[0].amount))
+      : 0;
+  const spendableUSD =
+    accountInfo.balances.length > 0
+      ? getPriceInUSD(Number(accountInfo.balances[0].amount), nymPriceData)
+      : 0;
+  const spendableAllocation =
+    accountInfo.balances.length > 0
+      ? getAllocation(
+          Number(accountInfo.balances[0].amount),
+          Number(accountInfo.total_value.amount),
+        )
+      : 0;
 
   const delegationsNYM = getNymsFormated(
     Number(accountInfo.total_delegations.amount),

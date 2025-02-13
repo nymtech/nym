@@ -55,7 +55,10 @@ impl ClientKeys {
     {
         let secret = derivation_material.derive_secret()?;
         Ok(ClientKeys {
-            identity_keypair: Arc::new(identity::KeyPair::from_secret(secret)),
+            identity_keypair: Arc::new(identity::KeyPair::from_secret(
+                secret,
+                derivation_material.index(),
+            )),
             encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
             ack_key: Arc::new(AckKey::new(rng)),
         })

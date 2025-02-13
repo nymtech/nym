@@ -66,6 +66,14 @@ pub struct DerivationMaterial {
 }
 
 impl DerivationMaterial {
+    pub fn index(&self) -> u32 {
+        self.index
+    }
+
+    pub fn salt(&self) -> &[u8] {
+        &self.salt
+    }
+
     /// Derives a 32-byte seed from a master seed and an index using HKDF (with SHA-512).
     ///
     /// The `salt` and the use of the index (as info) bind this derivation to an application/client.

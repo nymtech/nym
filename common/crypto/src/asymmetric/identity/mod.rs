@@ -82,13 +82,13 @@ impl KeyPair {
         }
     }
 
-    pub fn from_secret(secret: SecretKey) -> Self {
+    pub fn from_secret(secret: SecretKey, index: u32) -> Self {
         let ed25519_signing_key = SigningKey::from(secret);
 
         KeyPair {
             private_key: PrivateKey(ed25519_signing_key.to_bytes()),
             public_key: PublicKey(ed25519_signing_key.verifying_key()),
-            index: fake_index(secret.as_slice()),
+            index,
         }
     }
 

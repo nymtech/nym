@@ -31,7 +31,7 @@ nym-pemstore = { path = "../pemstore" }
 nym-network-defaults = { path = "../network-defaults", default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports"] }
+criterion = { workspace = true, features = ["html_reports"] }
 
 
 [[bench]]

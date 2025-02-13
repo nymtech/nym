@@ -20,11 +20,11 @@ thiserror.workspace = true
 zeroize = { workspace = true }
 
 # wasm-specific deps
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 wasm-bindgen = { workspace = true }
-js-sys = "0.3.76"
+js-sys = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
-serde-wasm-bindgen = "0.6.5"
+serde-wasm-bindgen = { workspace = true }
 
 # NYM:
 nym-bin-common = { path = "../../common/bin-common" }

@@ -6,20 +6,20 @@ license.workspace = true
 
 [dependencies]
 # Async runtime
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging)
 nym-sdk = { path = "../../rust/nym-sdk/" }
 nym-bin-common = { path = "../../../common/bin-common" }
 nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 # static var macro
-lazy_static = "1.5.0"
+lazy_static = { workspace = true }
 # error handling
-anyhow = "1.0.95"
+anyhow = { workspace = true }
 # base58 en/decoding
-bs58 = "0.5.0"
+bs58 = { workspace = true }
 # UDL test
-uniffi = { version = "0.29.0", features = ["cli"] }
+uniffi = { workspace = true, features = ["cli"] }
 
 [build-dependencies]
-uniffi = { version = "0.29.0", features = ["build"] }
-uniffi_build = { version = "0.29.0", features = ["builtin-bindgen"] }
+uniffi = { workspace = true, features = ["build"] }
+uniffi_build = { workspace = true, features = ["builtin-bindgen"] }

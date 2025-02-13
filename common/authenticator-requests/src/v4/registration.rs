@@ -60,7 +60,7 @@ impl From<IpAddr> for IpPair {
             std::net::IpAddr::V4(ipv4_addr) => (ipv4_addr.octets()[2], ipv4_addr.octets()[3]),
             std::net::IpAddr::V6(ipv6_addr) => (ipv6_addr.octets()[14], ipv6_addr.octets()[15]),
         };
-        let last_bytes = (before_last_byte as u16) << 8 | last_byte as u16;
+        let last_bytes = ((before_last_byte as u16) << 8) | last_byte as u16;
         let ipv4 = Ipv4Addr::new(
             WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[0],
             WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[1],

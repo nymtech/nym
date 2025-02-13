@@ -33,6 +33,7 @@ use axum::routing::get;
 use axum::Router;
 use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 use serde::Deserialize;
+use tower_http::compression::CompressionLayer;
 
 pub(crate) mod full_fat;
 mod helpers;
@@ -73,6 +74,7 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
         .nest("/full-fat", Router::new().route("/", get(nodes_detailed)))
         .route("/gateways/skimmed", get(skimmed::deprecated_gateways_basic))
         .route("/mixnodes/skimmed", get(skimmed::deprecated_mixnodes_basic))
+        .layer(CompressionLayer::new())
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

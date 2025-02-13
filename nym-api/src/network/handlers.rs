@@ -6,6 +6,7 @@ use crate::support::http::state::AppState;
 use axum::{extract, Router};
 use nym_contracts_common::ContractBuildInformation;
 use std::collections::HashMap;
+use tower_http::compression::CompressionLayer;
 use utoipa::ToSchema;
 
 pub(crate) fn nym_network_routes() -> Router<AppState> {
@@ -16,6 +17,7 @@ pub(crate) fn nym_network_routes() -> Router<AppState> {
             "/nym-contracts-detailed",
             axum::routing::get(nym_contracts_detailed),
         )
+        .layer(CompressionLayer::new())
 }
 
 #[utoipa::path(

@@ -65,7 +65,7 @@ zeroize = { workspace = true }
 # for axum server
 axum = { workspace = true, features = ["tokio"] }
 axum-extra = { workspace = true, features = ["typed-header"] }
-tower-http = { workspace = true, features = ["cors", "trace"] }
+tower-http = { workspace = true, features = ["cors", "trace", "compression-br", "compression-deflate", "compression-gzip", "compression-zstd"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipauto = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }

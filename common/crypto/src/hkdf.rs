@@ -11,6 +11,7 @@ use hkdf::{
 use sha2::Sha512;
 
 pub use hkdf::InvalidLength;
+use zeroize::ZeroizeOnDrop;
 
 /// Perform HKDF `extract` then `expand` as a single step.
 pub fn extract_then_expand<D>(
@@ -57,10 +58,11 @@ where
 /// // Prepare for the next derivation
 /// let next_material = material.next();
 /// ```
+#[derive(ZeroizeOnDrop)]
 pub struct DerivationMaterial {
     master_key: [u8; 32],
     index: u32,
-    salt: String,
+    salt: Vec<u8>,
 }
 
 impl DerivationMaterial {
@@ -68,7 +70,7 @@ impl DerivationMaterial {
     ///
     /// The `salt` and the use of the index (as info) bind this derivation to an application/client.
     pub fn derive_secret(&self) -> Result<[u8; 32], hkdf::InvalidLength> {
-        let salt = self.salt.as_bytes();
+        let salt = &self.salt;
         let info = self.index.to_be_bytes(); // Use the index as info
         let hk = Hkdf::<Sha512>::new(Some(salt), &self.master_key);
         let mut okm = [0u8; 32];
@@ -76,11 +78,11 @@ impl DerivationMaterial {
         Ok(okm)
     }
 
-    pub fn new(master_key: [u8; 32], index: u32, salt: String) -> Self {
+    pub fn new(master_key: [u8; 32], index: u32, salt: &[u8]) -> Self {
         Self {
             master_key,
             index,
-            salt,
+            salt: salt.to_vec(),
         }
     }
 

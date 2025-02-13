@@ -78,7 +78,7 @@ impl NymPoolStorage {
             let balance = self.contract_balance(deps.as_ref(), &env)?;
             if required_amount > balance.amount || balance.amount.is_zero() {
                 return Err(NymPoolContractError::InsufficientTokens {
-                    requested_grant: coin(max(required_amount.u128(), 1), &balance.denom),
+                    required: coin(max(required_amount.u128(), 1), &balance.denom),
                     available: balance,
                 });
             }
@@ -243,7 +243,7 @@ impl NymPoolStorage {
             if spend_limit.amount > available.amount {
                 return Err(NymPoolContractError::InsufficientTokens {
                     available,
-                    requested_grant: spend_limit.clone(),
+                    required: spend_limit.clone(),
                 });
             }
         }
@@ -501,7 +501,7 @@ mod tests {
             use super::*;
             use crate::testing::{deps_with_balance, TEST_DENOM};
             use cosmwasm_std::testing::{mock_dependencies, mock_env};
-            use cosmwasm_std::{coin, MemoryStorage, Order};
+            use cosmwasm_std::{coin, Order};
             use nym_pool_contract_common::BasicAllowance;
 
             fn all_grants(storage: &dyn Storage) -> HashMap<GranteeAddress, Grant> {
@@ -1922,9 +1922,10 @@ mod tests {
                 let storage = NymPoolStorage::new();
                 let env = test.env();
                 let grantee = test.add_dummy_grant().grantee;
-                let amount = test.coin(100);
+                let amount1 = test.coin(100);
+                let amount2 = test.coin(200);
 
-                storage.lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)?;
+                storage.lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount1)?;
                 assert_eq!(
                     storage.locked.grantee_locked(test.storage(), &grantee)?,
                     Uint128::new(100)
@@ -1932,6 +1933,17 @@ mod tests {
                 assert_eq!(
                     storage.locked.total_locked.load(test.storage())?,
                     Uint128::new(100)
+                );
+
+                // more locked by same grantee
+                storage.lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount2)?;
+                assert_eq!(
+                    storage.locked.grantee_locked(test.storage(), &grantee)?,
+                    Uint128::new(300)
+                );
+                assert_eq!(
+                    storage.locked.total_locked.load(test.storage())?,
+                    Uint128::new(300)
                 );
 
                 Ok(())

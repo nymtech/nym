@@ -107,6 +107,19 @@ impl TestSetup {
         }
     }
 
+    pub fn set_contract_balance(&mut self, balance: Coin) {
+        let contract_address = &self.contract_address;
+        self.app
+            .router()
+            .bank
+            .init_balance(
+                &mut self.storage.inner_storage(),
+                contract_address,
+                vec![balance],
+            )
+            .unwrap();
+    }
+
     pub fn deps(&self) -> Deps<'_> {
         Deps {
             storage: &self.storage,

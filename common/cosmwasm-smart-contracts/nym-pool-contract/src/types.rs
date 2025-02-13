@@ -159,12 +159,16 @@ pub mod grants {
 
         // check whether given the current allowance state, the provided amount could be spent
         // note: it's responsibility of the caller to call `try_update_state` before the call.
-        pub fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+        pub fn ensure_can_spend(
+            &self,
+            env: &Env,
+            amount: &Coin,
+        ) -> Result<(), NymPoolContractError> {
             match self {
-                Allowance::Basic(allowance) => allowance.can_spend(env, amount),
-                Allowance::ClassicPeriodic(allowance) => allowance.can_spend(env, amount),
-                Allowance::CumulativePeriodic(allowance) => allowance.can_spend(env, amount),
-                Allowance::Delayed(allowance) => allowance.can_spend(env, amount),
+                Allowance::Basic(allowance) => allowance.ensure_can_spend(env, amount),
+                Allowance::ClassicPeriodic(allowance) => allowance.ensure_can_spend(env, amount),
+                Allowance::CumulativePeriodic(allowance) => allowance.ensure_can_spend(env, amount),
+                Allowance::Delayed(allowance) => allowance.ensure_can_spend(env, amount),
             }
         }
 
@@ -255,14 +259,18 @@ pub mod grants {
             spend_limit.amount >= amount.amount
         }
 
-        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
-            !self.expired(env) && self.within_spendable_limits(amount)
+        fn ensure_can_spend(&self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if self.expired(env) {
+                return Err(NymPoolContractError::GrantExpired);
+            }
+            if !self.within_spendable_limits(amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+            Ok(())
         }
 
         fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
-            if !self.can_spend(env, amount) {
-                return Err(NymPoolContractError::SpendingAboveAllowance);
-            }
+            self.ensure_can_spend(env, amount)?;
 
             if let Some(ref mut spend_limit) = self.spend_limit {
                 spend_limit.amount -= amount.amount;
@@ -391,14 +399,18 @@ pub mod grants {
             available.amount >= amount.amount
         }
 
-        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
-            !self.basic.expired(env) && self.within_spendable_limits(amount)
+        fn ensure_can_spend(&self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if self.basic.expired(env) {
+                return Err(NymPoolContractError::GrantExpired);
+            }
+            if !self.within_spendable_limits(amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+            Ok(())
         }
 
         fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
-            if !self.can_spend(env, amount) {
-                return Err(NymPoolContractError::SpendingAboveAllowance);
-            }
+            self.ensure_can_spend(env, amount)?;
 
             // deduct from both the current period and the max amount
             if let Some(ref mut spend_limit) = self.basic.spend_limit {
@@ -567,14 +579,18 @@ pub mod grants {
             available.amount >= amount.amount
         }
 
-        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
-            !self.basic.expired(env) && self.within_spendable_limits(amount)
+        fn ensure_can_spend(&self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if self.basic.expired(env) {
+                return Err(NymPoolContractError::GrantExpired);
+            }
+            if !self.within_spendable_limits(amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+            Ok(())
         }
 
         fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
-            if !self.can_spend(env, amount) {
-                return Err(NymPoolContractError::SpendingAboveAllowance);
-            }
+            self.ensure_can_spend(env, amount)?;
 
             // deduct from both the current period and the max amount
             if let Some(ref mut spend_limit) = self.basic.spend_limit {
@@ -625,16 +641,24 @@ pub mod grants {
             self.basic.within_spendable_limits(amount)
         }
 
-        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
-            !self.basic.expired(env)
-                && self.within_spendable_limits(amount)
-                && self.available_at_unix_timestamp >= env.block.time.seconds()
+        fn ensure_can_spend(&self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if self.basic.expired(env) {
+                return Err(NymPoolContractError::GrantExpired);
+            }
+            if !self.within_spendable_limits(amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+            if self.available_at_unix_timestamp < env.block.time.seconds() {
+                return Err(NymPoolContractError::GrantNotYetAvailable {
+                    available_at_timestamp: self.available_at_unix_timestamp,
+                });
+            }
+
+            Ok(())
         }
 
         fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
-            if !self.can_spend(env, amount) {
-                return Err(NymPoolContractError::SpendingAboveAllowance);
-            }
+            self.ensure_can_spend(env, amount)?;
 
             if let Some(ref mut spend_limit) = self.basic.spend_limit {
                 spend_limit.amount -= amount.amount;

@@ -29,6 +29,12 @@ pub(crate) struct ContractStorageWrapper {
     inner: StorageWrapper,
 }
 
+impl ContractStorageWrapper {
+    pub fn inner_storage(&self) -> StorageWrapper {
+        self.inner.clone()
+    }
+}
+
 impl Storage for StorageWrapper {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         self.0.borrow().get(key)

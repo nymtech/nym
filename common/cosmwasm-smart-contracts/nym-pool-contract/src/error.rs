@@ -44,11 +44,8 @@ pub enum NymPoolContractError {
         current_block_timestamp: u64,
     },
 
-    #[error("there are not enough tokens to process this grant. {available} are available, but {requested_grant} was requested.")]
-    InsufficientTokens {
-        available: Coin,
-        requested_grant: Coin,
-    },
+    #[error("there are not enough tokens to process this request. {available} are available, but {required} is needed.")]
+    InsufficientTokens { available: Coin, required: Coin },
 
     #[error("the period length can't be zero")]
     ZeroAllowancePeriod,
@@ -95,4 +92,7 @@ pub enum NymPoolContractError {
 
     #[error("the associated grant hasn't expired yet")]
     GrantNotExpired,
+
+    #[error("this grant is not available yet. it will become usable at {available_at_timestamp}")]
+    GrantNotYetAvailable { available_at_timestamp: u64 },
 }

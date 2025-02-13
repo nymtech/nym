@@ -183,9 +183,7 @@ mod tests {
     use super::*;
     use crate::contract::instantiate;
     use crate::testing::{TestSetup, TEST_DENOM};
-    use cosmwasm_std::testing::{
-        message_info, mock_dependencies, mock_dependencies_with_balance, mock_env,
-    };
+    use cosmwasm_std::testing::{message_info, mock_dependencies_with_balance, mock_env};
     use cosmwasm_std::{coin, Uint128};
     use nym_pool_contract_common::{Allowance, BasicAllowance, GranterInformation, InstantiateMsg};
 
@@ -564,7 +562,6 @@ mod tests {
     #[cfg(test)]
     mod grants_paged_query {
         use super::*;
-        use nym_pool_contract_common::GranteeAddress;
 
         fn grants_sorted(test: &mut TestSetup, count: usize) -> Vec<GrantInformation> {
             let mut grantees = Vec::new();

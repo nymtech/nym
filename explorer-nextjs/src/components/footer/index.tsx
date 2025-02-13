@@ -1,12 +1,12 @@
 // API
 
-import { SocialChannels } from "@/components/footer/SocialChannels";
+import { SocialChannels } from "./SocialChannels";
 // Components
-import { Wrapper } from "@/components/wrapper";
+import { Wrapper } from "./Wrapper";
 
-import { getFooter } from "@/app/features/footer/api/getFooter";
 // MUI Components
 import { Box, Typography } from "@mui/material";
+import { getFooter } from "../../app/features/footer/api/getFooter";
 import { NewsletterSignUp } from "./NewsLetterSignUp";
 import { FooterLinks } from "./footer-links";
 

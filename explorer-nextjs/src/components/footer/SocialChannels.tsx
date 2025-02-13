@@ -1,7 +1,7 @@
 "use client";
-import { Link } from "@/components/muiLink";
 import { Box } from "@mui/material";
 import socialChannels from "../../app/i18n/locales/en/social-channels.json";
+import { Link } from "./MuiLink";
 
 import { SocialIcon } from "./SocialIcon";
 

@@ -40,6 +40,7 @@ use nym_client_core_config_types::ForgetMe;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::hkdf::DerivationMaterial;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
@@ -192,6 +193,8 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<C, S> BaseClientBuilder<C, S>
@@ -216,7 +219,17 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
+            derivation_material: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_derivation_material(
+        mut self,
+        derivation_material: Option<DerivationMaterial>,
+    ) -> Self {
+        self.derivation_material = derivation_material;
+        self
     }
 
     #[must_use]
@@ -684,6 +697,7 @@ where
         setup_method: GatewaySetup,
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
+        derivation_material: Option<DerivationMaterial>,
     ) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
@@ -693,7 +707,12 @@ where
         if key_store.load_keys().await.is_err() {
             info!("could not find valid client keys - a new set will be generated");
             let mut rng = OsRng;
-            let keys = ClientKeys::generate_new(&mut rng);
+            let keys = if let Some(derivation_material) = derivation_material {
+                ClientKeys::from_master_key(&mut rng, &derivation_material)
+                    .map_err(|_| ClientCoreError::HkdfDerivationError {})?
+            } else {
+                ClientKeys::generate_new(&mut rng)
+            };
             store_client_keys(keys, key_store).await?;
         }
 
@@ -715,6 +734,7 @@ where
             self.setup_method,
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
+            self.derivation_material,
         )
         .await?;
 

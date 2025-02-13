@@ -32,6 +32,31 @@ where
     Ok(okm)
 }
 
+/// `DerivationMaterial` encapsulates parameters for deterministic key derivation using
+/// HKDF (SHA-512).
+///
+/// It consists of:
+///   - A master key (`master_key`): the base secret.
+///   - An index (`index`): ensures unique derivations.
+///   - A salt (`salt`): adds additional uniqueness.
+///
+/// Use the `derive_secret()` method to generate a 32-byte secret. To prepare for a new derivation,
+/// call the `next()` method, which increments the index. **It is the caller's responsibility to
+/// track and persist the derivation index if keys need to be rederived.**
+///
+/// # Example
+///
+/// ```rust
+/// let master_key = [0u8; 32]; // your secret master key
+/// let salt = "unique-salt-value".to_string();
+/// let material = DerivationMaterial::new(master_key, 0, salt);
+///
+/// // Derive a secret
+/// let secret = material.derive_secret().expect("Failed to derive secret");
+///
+/// // Prepare for the next derivation
+/// let next_material = material.next();
+/// ```
 pub struct DerivationMaterial {
     master_key: [u8; 32],
     index: u32,
@@ -56,6 +81,14 @@ impl DerivationMaterial {
             master_key,
             index,
             salt,
+        }
+    }
+
+    pub fn next(&self) -> Self {
+        Self {
+            master_key: self.master_key,
+            index: self.index + 1,
+            salt: self.salt.clone(),
         }
     }
 }

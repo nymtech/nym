@@ -76,7 +76,7 @@ impl KeyPair {
         KeyPair {
             private_key: PrivateKey(ed25519_signing_key.to_bytes()),
             public_key: PublicKey(ed25519_signing_key.verifying_key()),
-            index: index,
+            index,
         }
     }
 

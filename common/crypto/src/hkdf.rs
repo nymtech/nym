@@ -8,7 +8,7 @@ use hkdf::{
     },
     Hkdf,
 };
-use sha2::Sha512;
+use sha2::{Sha256, Sha512};
 
 pub use hkdf::InvalidLength;
 use zeroize::ZeroizeOnDrop;
@@ -39,7 +39,7 @@ where
 /// It consists of:
 ///   - A master key (`master_key`): the base secret.
 ///   - An index (`index`): ensures unique derivations.
-///   - A salt (`salt`): adds additional uniqueness.
+///   - A salt (`salt`): adds additional uniqueness, should be application specific.
 ///
 /// Use the `derive_secret()` method to generate a 32-byte secret. To prepare for a new derivation,
 /// call the `next()` method, which increments the index. **It is the caller's responsibility to
@@ -49,7 +49,7 @@ where
 ///
 /// ```rust
 /// let master_key = [0u8; 32]; // your secret master key
-/// let salt = "unique-salt-value".to_string();
+/// let salt = b"unique-salt-value";
 /// let material = DerivationMaterial::new(master_key, 0, salt);
 ///
 /// // Derive a secret
@@ -78,11 +78,16 @@ impl DerivationMaterial {
         Ok(okm)
     }
 
-    pub fn new(master_key: [u8; 32], index: u32, salt: &[u8]) -> Self {
+    pub fn new<T: AsRef<[u8]>>(master_key: T, index: u32, salt: T) -> Self {
+        // Coerce master_key to [u8; 32]
+        let mut hasher = Sha256::new();
+        hasher.update(master_key.as_ref());
+        let master_key = hasher.finalize().into();
+
         Self {
             master_key,
             index,
-            salt: salt.to_vec(),
+            salt: salt.as_ref().to_vec(),
         }
     }
 

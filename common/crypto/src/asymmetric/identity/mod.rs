@@ -67,7 +67,6 @@ pub struct KeyPair {
     index: u32,
 }
 
-
 /// All keys will always have an index field populated this is to prevent anyone from figuring out if
 /// the keys are derived or random, and alter their behaviour based on that.
 impl KeyPair {

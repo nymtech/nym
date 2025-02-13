@@ -1,5 +1,5 @@
 // Types
-import type { components } from "@/types/strapi";
+import type { components } from "../../../lib/strapi";
 
 // Components
 import { Link } from "@/components/muiLink";

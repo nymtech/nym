@@ -242,6 +242,7 @@ pub mod grants {
                 return false;
             };
             let current_unix_timestamp = env.block.time.seconds();
+
             expiration < current_unix_timestamp
         }
 
@@ -663,7 +664,6 @@ pub mod query_responses {
     pub struct LockedTokensResponse {
         pub grantee: GranteeAddress,
 
-        // a `None` value implies no grant
         pub locked: Option<Coin>,
     }
 

@@ -1,0 +1,53 @@
+{
+  "pages": [
+    { "name": "Features", "link": "features" },
+    {
+      "name": "Download",
+      "link": "download",
+      "submenu": {
+        "sections": [
+          {
+            "name": "Desktop",
+            "items": [
+              { "name": "Linux", "link": "download/linux" },
+              { "name": "macOS", "link": "download/macos" },
+              { "name": "Windows", "link": "download/windows" }
+            ]
+          },
+          {
+            "name": "Mobile",
+            "items": [
+              { "name": "Android", "link": "download/android" },
+              { "name": "iOS", "link": "download/ios" }
+            ]
+          }
+        ]
+      }
+    },
+    { "name": "Trust Center", "link": "trust-center" },
+    {
+      "name": "Support",
+      "link": "https://support.nymvpn.com/hc/en-us"
+    },
+    {
+      "name": "Resources",
+      "submenu": [
+        { "name": "Blog", "link": "blog" },
+        {
+          "name": "Download the litepaper",
+          "link": "nymVPN-litepaper.pdf",
+          "isNewTab": true
+        }
+      ]
+    },
+    {
+      "name": "Visit nymtech.net",
+      "link": "https://nymtech.net"
+    }
+  ],
+  "cta": {
+    "id": "topnav_getnymvpn_button_clicked",
+    "text": "Get app",
+    "link": "/en/download"
+  }
+}

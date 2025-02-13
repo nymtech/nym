@@ -1,0 +1,30 @@
+{
+  "title": "Contact",
+  "description": "Get in touch with the NymVPN team",
+  "contactOptions": [
+    {
+      "title": "Support",
+      "description": "Send us message if you need help. Make sure to check our [Support page](https://support.nymvpn.com/hc/en-us) first ❤️",
+      "link": {
+        "name": "support@nymvpn.com",
+        "href": "mailto:support@nymvpn.com"
+      }
+    },
+    {
+      "title": "General",
+      "description": "Get in touch for general inquiries, press or public affairs",
+      "link": {
+        "name": "contact@nymtech.net",
+        "href": "mailto:contact@nymtech.net"
+      }
+    },
+    {
+      "title": "Community",
+      "description": "Chat directly with the team, Developer Relations and Community Managers on the Nym Matrix, Discord or Telegram groups",
+      "link": {
+        "name": "Community page",
+        "href": "https://nymtech.net/community"
+      }
+    }
+  ]
+}

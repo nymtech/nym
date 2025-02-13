@@ -194,8 +194,7 @@ mod tests {
         mod setting_initial_grants {
             use super::*;
             use crate::testing::deps_with_balance;
-            use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
-            use cosmwasm_std::{coin, coins, Empty, MemoryStorage, Order, OwnedDeps, Storage};
+            use cosmwasm_std::{coin, Order, Storage};
             use nym_pool_contract_common::{Allowance, BasicAllowance, Grant, GranteeAddress};
             use std::collections::HashMap;
 

@@ -13,7 +13,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-ammonia = "4"
+ammonia = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
 chrono = { workspace = true }

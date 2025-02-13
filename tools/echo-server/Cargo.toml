@@ -15,11 +15,11 @@ dashmap.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream.workspace = true
 tokio-util.workspace = true
-uuid = { version = "1", features = ["v4", "serde"] }
-bincode = "1.0"
-serde = { version = "1", features = ["derive"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
+bincode = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
-tracing-subscriber = "0.3"
+tracing-subscriber = { workspace = true }
 bytecodec = { workspace = true }
 nym-sdk = { path = "../../sdk/rust/nym-sdk/" }
 bytes.workspace = true

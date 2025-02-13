@@ -61,8 +61,6 @@ pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHist
     .fetch_all(pool)
     .await?;
 
-    let count = result.len() as f64;
-
     let mut price = PriceHistory {
         timestamp: Local::now().timestamp(),
         chf: 0f64,
@@ -72,20 +70,49 @@ pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHist
         btc: 0f64,
     };
 
+    let mut chf_count = 0;
+    let mut usd_count = 0;
+    let mut eur_count = 0;
+    let mut gbp_count = 0;
+    let mut btc_count = 0;
+
     for p in &result {
-        price.chf += p.chf;
-        price.usd += p.usd;
-        price.eur += p.eur;
-        price.gbp += p.gbp;
-        price.btc += p.btc;
+        if p.chf != 0f64 {
+            price.chf += p.chf;
+            chf_count += 1;
+        }
+        if p.usd != 0f64 {
+            price.usd += p.usd;
+            usd_count += 1;
+        }
+        if p.eur != 0f64 {
+            price.eur += p.eur;
+            eur_count += 1;
+        }
+        if p.gbp != 0f64 {
+            price.gbp += p.gbp;
+            gbp_count += 1;
+        }
+        if p.btc != 0f64 {
+            price.btc += p.btc;
+            btc_count += 1;
+        }
     }
 
-    if count > 0f64 {
-        price.chf /= count;
-        price.usd /= count;
-        price.eur /= count;
-        price.gbp /= count;
-        price.btc /= count;
+    if chf_count > 0 {
+        price.chf /= chf_count as f64;
+    }
+    if usd_count > 0 {
+        price.usd /= usd_count as f64;
+    }
+    if eur_count > 0 {
+        price.eur /= eur_count as f64;
+    }
+    if gbp_count > 0 {
+        price.gbp /= gbp_count as f64;
+    }
+    if btc_count > 0 {
+        price.btc /= btc_count as f64;
     }
 
     Ok(price)

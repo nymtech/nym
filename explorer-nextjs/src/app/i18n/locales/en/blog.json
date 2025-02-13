@@ -1,0 +1,15 @@
+{
+  "title": "Blog",
+  "subtitle": "Latest posts",
+  "description": "Explore the NymVPN blog for the latest in online security and privacy",
+  "banner": {
+    "cta": { "text": "Sign up now", "href": "/" },
+    "title": "Want to help test NymVPN?",
+
+    "bulletPoints": [
+      "Protect your privacy with the anonymous 5-hop mixnet",
+      "Get everyday privacy with the fast 2-hop WireGuard dVPN",
+      "Use for free during the beta test phase"
+    ]
+  }
+}

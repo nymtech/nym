@@ -1,0 +1,12 @@
+{
+  "socialChannels": [
+    { "name": "Telegram", "link": "https://nym.com/go/telegram" },
+    { "name": "Twitter", "link": "https://nym.com/go/x" },
+    {
+      "name": "Discord",
+      "link": "https://nym.com/go/discord"
+    },
+    { "name": "GitHub", "link": "https://nym.com/go/github" },
+    { "name": "YouTube", "link": "https://nym.com/go/youtube" }
+  ]
+}

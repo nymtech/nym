@@ -1,0 +1,219 @@
+{
+  "title": "1. Create account",
+  "accountGeneration": {
+    "title": "Loging / Create an account",
+    "description": "Generate secret recovery phrase for your account, you will use it to log in into NymVPN",
+    "buttonText": "Generate secret phrase",
+    "generationSection": {
+      "title": "Your secret recovery phrase",
+      "description": "Make sure to write down your 24-word secret phrase and store it in a safe place. You will need it to log into the NymVPN. **Never show your mnemonic to anyone!**",
+      "confirmationText": "I have saved my secret recovery phrase in safe place"
+    }
+  },
+  "orderSumary": {
+    "biannualPlan": "2-year plan",
+    "annualPlan": "1-year plan",
+    "monthlyPlan": "1-month plan",
+    "saveText": "Save",
+    "taxationCountryText1": "Country of taxation:",
+    "taxationCountryText2": "Country of taxation"
+  },
+  "PaymentMethod": {
+    "title": "2. Select payment method",
+    "description": "Zero-knowledge access ensures your payments and identity are private in mixnet/dVPN, though your Nym payment may appear in your financial history.",
+    "payments": {
+      "creditCard": {
+        "type": "credit-card",
+        "title": "Credit card",
+        "isEnabled": true
+      },
+      "googlePay": {
+        "type": "google-pay",
+        "title": "Pay with Google Pay",
+        "isEnabled": false
+      },
+      "applePay": {
+        "type": "apple-pay",
+        "title": "Pay with Apple Pay",
+        "isEnabled": false
+      },
+      "bitcoin": {
+        "type": "bitcoin",
+        "title": "Pay with cryptocurrency",
+        "isEnabled": true
+      },
+      "nymToken": {
+        "type": "nym-token",
+        "title": "Pay with Nym token",
+        "isEnabled": true
+      }
+    }
+  },
+  "creditCard": {
+    "cardNumberLabel": "Card number",
+    "expiryDateLabel": "Expiration",
+    "cvcLabel": "CVV",
+    "text1": "By submitting your information and continuing to purchase, you accept the [Terms of Service](/terms), [Privacy Policy](/privacy) and electronic document delivery.",
+    "text2": "The Services are subscription based and will automatically renew until canceled. Please see subscription and cancellation terms."
+  },
+  "stripeModal": {
+    "generic_decline": {
+      "title": "Card declined",
+      "subtitle": "Sorry, your card was declined by the bank.",
+      "suggestion": "Please double-check your card details, verify sufficient funds, or contact your bank for assistance.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "insufficient_funds": {
+      "title": "Insufficient Funds",
+      "subtitle": "Oops! It seems there are insufficient funds in your account to complete this transaction.",
+      "suggestion": "Please check your account balance or choose an alternative payment method.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "lost_card": {
+      "title": "Card declined",
+      "subtitle": "Sorry, your card was declined by the bank.",
+      "suggestion": "Please double-check your card details, verify sufficient funds, or contact your bank for assistance.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "stolen_card": {
+      "title": "Card declined",
+      "subtitle": "Sorry, your card was declined by the bank.",
+      "suggestion": "Please double-check your card details, verify sufficient funds, or contact your bank for assistance.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "expired_card": {
+      "title": "Card expired",
+      "subtitle": "Sorry, your card has expired.",
+      "suggestion": "Please use a different card or contact your bank for assistance.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "incorrect_cvc": {
+      "title": "Incorrect CVC",
+      "subtitle": "Sorry, the CVC you entered is incorrect.",
+      "suggestion": "Please double-check your card details and try again.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "incorrect_number": {
+      "title": "Incorrect card number",
+      "subtitle": "Sorry, the card number you entered is incorrect.",
+      "suggestion": "Please double-check your card details and try again.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "processing_error": {
+      "title": "Processing error",
+      "subtitle": "Sorry, we are unable to process your payment at this time.",
+      "suggestion": "Please try again later or contact your bank for assistance.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "card_velocity_exceeded": {
+      "title": "Card declined",
+      "subtitle": "Sorry, your card was declined by the bank.",
+      "suggestion": "Please double-check your card details, verify sufficient funds, or contact your bank for assistance.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "default": {
+      "title": "Error",
+      "subtitle": "Oops! It seems something went bad",
+      "suggestion": "Please double-check your card details, and try again.",
+      "nextButton": { "text": "Review Details", "link": "goBack" }
+    },
+    "required_action": {
+      "title": "Additional action required",
+      "subtitle": "Your payment requires additional action before it can be completed.",
+      "description": "Please follow the instructions provided by your bank to complete the payment.",
+      "nextButton": {
+        "text": "Follow instructions"
+      }
+    },
+    "card_network_error": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "checkout_abandoned": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "network_timeout": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "application_fees_not_allowed": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "server_error": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "service_owntime": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "service_unavailable": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "session_expired": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    },
+    "browser_not_supported": {
+      "title": "Card network error",
+      "subtitle": "We are unable to process your payment at this time. Please try again later.",
+      "prevButton": "Prev again",
+      "nextButton": {
+        "text": "Next again",
+        "link": "contact",
+        "target": "_self"
+      }
+    }
+  }
+}

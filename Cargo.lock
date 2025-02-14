@@ -5316,16 +5316,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw2",
- "nym-multisig-contract-common",
-]
-
-[[package]]
 name = "nym-coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
@@ -7009,7 +6999,6 @@ dependencies = [
  "futures",
  "itertools 0.13.0",
  "nym-api-requests",
- "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
@@ -7050,7 +7039,6 @@ dependencies = [
  "humantime 2.1.0",
  "humantime-serde",
  "nym-bin-common",
- "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",

@@ -1,8 +1,5 @@
 schema: coconut-dkg-schema mixnet-schema vesting-schema multisig-schema group-schema ecash-schema
 
-#coconut-bandwidth-schema:
-#	$(MAKE) -C coconut-bandwidth generate-schema
-
 coconut-dkg-schema:
 	$(MAKE) -C coconut-dkg generate-schema
 

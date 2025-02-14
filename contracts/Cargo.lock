@@ -244,12 +244,6 @@ checksum = "3e31ea183f6ee62ac8b8a8cf7feddd766317adfb13ff469de57ce033efd6a790"
 
 [[package]]
 name = "bs58"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
-
-[[package]]
-name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
@@ -331,33 +325,6 @@ checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common",
  "inout",
-]
-
-[[package]]
-name = "coconut-test"
-version = "0.1.0"
-dependencies = [
- "bs58 0.4.0",
- "cosmwasm-std",
- "cw-controllers",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "cw3",
- "cw3-flex-multisig",
- "cw4",
- "cw4-group",
- "nym-coconut-bandwidth",
- "nym-coconut-bandwidth-contract-common",
- "nym-coconut-dkg",
- "nym-coconut-dkg-common",
- "nym-group-contract-common",
- "nym-multisig-contract-common",
- "rand_chacha",
- "schemars",
- "serde",
- "subtle-encoding",
- "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -1248,30 +1215,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-coconut-bandwidth"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-storage-plus",
- "nym-coconut-bandwidth-contract-common",
- "nym-multisig-contract-common",
- "serde",
- "thiserror 2.0.11",
-]
-
-[[package]]
-name = "nym-coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw2",
- "nym-multisig-contract-common",
-]
-
-[[package]]
 name = "nym-coconut-dkg"
 version = "0.1.0"
 dependencies = [
@@ -1283,6 +1226,7 @@ dependencies = [
  "cw2",
  "cw4",
  "cw4-group",
+ "easy-addr",
  "nym-coconut-dkg-common",
  "nym-contracts-common",
  "nym-group-contract-common",
@@ -1306,7 +1250,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
@@ -1320,7 +1264,7 @@ dependencies = [
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "ed25519-dalek",
  "nym-pemstore",
  "nym-sphinx-types",
@@ -1336,7 +1280,7 @@ name = "nym-ecash"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1363,7 +1307,7 @@ dependencies = [
 name = "nym-ecash-contract-common"
 version = "0.1.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1389,7 +1333,7 @@ name = "nym-mixnet-contract"
 version = "1.5.1"
 dependencies = [
  "anyhow",
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-derive",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1412,7 +1356,7 @@ dependencies = [
 name = "nym-mixnet-contract-common"
 version = "0.6.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1937,7 +1881,7 @@ dependencies = [
  "aes",
  "arrayref",
  "blake2",
- "bs58 0.5.1",
+ "bs58",
  "byteorder",
  "chacha",
  "ctr",

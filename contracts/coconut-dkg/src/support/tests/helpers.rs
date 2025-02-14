@@ -10,6 +10,7 @@ use cosmwasm_std::{
     QuerierResult, SystemResult, WasmQuery,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
+use easy_addr::addr;
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
 use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
@@ -18,9 +19,9 @@ use std::sync::Mutex;
 
 use super::fixtures::TEST_MIX_DENOM;
 
-pub const ADMIN_ADDRESS: &str = "admin address";
-pub const GROUP_CONTRACT: &str = "group contract address";
-pub const MULTISIG_CONTRACT: &str = "multisig contract address";
+pub const ADMIN_ADDRESS: &str = addr!("admin address");
+pub const GROUP_CONTRACT: &str = addr!("group contract address");
+pub const MULTISIG_CONTRACT: &str = addr!("multisig contract address");
 
 // wtf, why is this a thing?
 pub(crate) static GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(Vec::new());

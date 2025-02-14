@@ -121,7 +121,7 @@ impl StatisticsControl {
         let mut snapshot_interval =
             gloo_timers::future::IntervalStream::new(SNAPSHOT_INTERVAL.as_millis() as u32);
 
-        loop {
+        while !task_client.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = task_client.recv() => {

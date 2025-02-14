@@ -32,15 +32,18 @@ impl SentNotificationListener {
             trace!("sent off a cover message - no need to start retransmission timer!");
             return;
         }
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::new_start_timer(frag_id))
-            .unwrap();
+        {
+            error!("Failed to send start timer action to action controller: {err}");
+        }
     }
 
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
-        loop {
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 frag_id = self.sent_notifier.next() => match frag_id {
                     Some(frag_id) => {
@@ -51,7 +54,7 @@ impl SentNotificationListener {
                         break;
                     }
                 },
-                _ = shutdown.recv_with_delay() => {
+                _ = shutdown.recv() => {
                     log::trace!("SentNotificationListener: Received shutdown");
                     break;
                 }

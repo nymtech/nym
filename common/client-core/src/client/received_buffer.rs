@@ -428,7 +428,7 @@ impl<R: MessageReceiver> RequestReceiver<R> {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv_with_delay() => {
+                _ = shutdown.recv() => {
                     log::trace!("RequestReceiver: Received shutdown");
                 }
                 request = self.query_receiver.next() => {
@@ -441,7 +441,7 @@ impl<R: MessageReceiver> RequestReceiver<R> {
                 },
             }
         }
-        shutdown.recv_timeout().await;
+        shutdown.recv().await;
         log::debug!("RequestReceiver: Exiting");
     }
 }

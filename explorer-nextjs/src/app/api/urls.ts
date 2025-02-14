@@ -2,6 +2,8 @@ export const NYM_NODES =
   "https://explorer.nymtech.net/api/v1/tmp/unstable/nym-nodes";
 export const HARBOURMASTER_API_MIXNODES_STATS =
   "https://harbourmaster.nymtech.net/v2/mixnodes/stats";
+export const NS_API_MIXNODES_STATS =
+  "https://mainnet-node-status-api.nymtech.cc/v2/mixnodes/stats";
 export const CURRENT_EPOCH =
   "https://validator.nymtech.net/api/v1/epoch/current";
 export const CURRENT_EPOCH_REWARDS =

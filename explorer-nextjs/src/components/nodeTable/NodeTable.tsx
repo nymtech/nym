@@ -206,7 +206,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Qlt of Service</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
-            {row.original.qualityOfService}%
+            {row.original.qualityOfService.toFixed()}%
           </Typography>
         ),
       },

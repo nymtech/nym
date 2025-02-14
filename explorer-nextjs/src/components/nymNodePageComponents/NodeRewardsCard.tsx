@@ -61,10 +61,11 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
 
   // Extract reward details
   const rewardDetails: RewardingDetails = nodeInfo.rewarding_details;
+  console.log("rewardDetails :>> ", rewardDetails);
 
   // Calculated data
   const operatorRewards = Number(rewardDetails.operator) / 1_000_000;
-  const operatorRewardsFormated = `${operatorRewards} NYM`;
+  const operatorRewardsFormated = `${operatorRewards.toFixed(2)} NYM`;
 
   const profitMarginPercent =
     Number(rewardDetails.cost_params.profit_margin_percent) * 100;

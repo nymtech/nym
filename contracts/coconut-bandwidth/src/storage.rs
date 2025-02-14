@@ -13,7 +13,7 @@ pub(crate) const SPEND_CREDENTIAL_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 pub(crate) struct SpendCredentialIndex<'a> {
-    pub(crate) blinded_serial_number: UniqueIndex<'a, String, SpendCredential>,
+    pub(crate) blinded_serial_number: UniqueIndex<'a, String, SpendCredential, ()>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
@@ -27,7 +27,7 @@ impl IndexList<SpendCredential> for SpendCredentialIndex<'_> {
 
 // spent_credentials() is the storage access function.
 pub(crate) fn spent_credentials<'a>(
-) -> IndexedMap<'a, &'a str, SpendCredential, SpendCredentialIndex<'a>> {
+) -> IndexedMap<&'a str, SpendCredential, SpendCredentialIndex<'a>> {
     let indexes = SpendCredentialIndex {
         blinded_serial_number: UniqueIndex::new(
             |d| d.blinded_serial_number().to_string(),
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn mark_as_spent_credential() {
         let mut mock_storage = MockStorage::new();
-        let funds = Coin::new(100, TEST_MIX_DENOM);
+        let funds = Coin::new(100u32, TEST_MIX_DENOM);
         let blind_serial_number = "blind_serial_number";
         let gateway_cosmos_address: Addr = Addr::unchecked("gateway_cosmos_address");
 

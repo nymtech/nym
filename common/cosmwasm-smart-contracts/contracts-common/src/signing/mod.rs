@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{from_slice, to_vec, Addr, Coin, MessageInfo, StdResult};
+use cosmwasm_std::{from_json, to_json_vec, Addr, Coin, MessageInfo, StdResult};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -164,7 +164,7 @@ where
     where
         T: Serialize,
     {
-        to_vec(self)
+        to_json_vec(self)
     }
 
     pub fn to_sha256_plaintext_digest(&self) -> StdResult<Vec<u8>>
@@ -195,7 +195,7 @@ where
     where
         T: DeserializeOwned,
     {
-        from_slice(bytes)
+        from_json(bytes)
     }
 
     pub fn try_from_string(raw: &str) -> StdResult<SignableMessage<T>>

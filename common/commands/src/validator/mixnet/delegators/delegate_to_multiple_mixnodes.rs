@@ -155,7 +155,7 @@ async fn fetch_delegation_data(
         match event.event.kind {
             // If a pending undelegate tx is found, remove it from delegation map
             PendingEpochEventKind::Undelegate { owner, node_id, .. } => {
-                if owner == address.as_ref()
+                if owner.as_str() == address.as_ref()
                     && existing_delegation_map.contains_key(&node_id.to_string())
                 {
                     existing_delegation_map.remove(&node_id.to_string());
@@ -169,7 +169,7 @@ async fn fetch_delegation_data(
                 amount,
                 ..
             } => {
-                if owner == address.as_ref() {
+                if owner.as_str() == address.as_ref() {
                     let mut amount = Coin::from(amount);
                     if let Some(pending_record) = pending_delegation_map.get(&node_id.to_string()) {
                         amount.amount += pending_record.amount;

@@ -93,7 +93,7 @@ fn spend_credential_creates_proposal() {
 
     let msg = CoconutBandwidthExecuteMsg::SpendCredential {
         data: SpendCredentialData::new(
-            Coin::new(1, TEST_COIN_DENOM),
+            Coin::new(1u64, TEST_COIN_DENOM),
             String::from("blinded_serial_number"),
             String::from("gateway_cosmos_address"),
         ),
@@ -136,7 +136,7 @@ fn spend_credential_creates_proposal() {
 
     let msg = CoconutBandwidthExecuteMsg::SpendCredential {
         data: SpendCredentialData::new(
-            Coin::new(1, TEST_COIN_DENOM),
+            Coin::new(1u64, TEST_COIN_DENOM),
             String::from("blinded_serial_number2"),
             String::from("gateway_cosmos_address"),
         ),

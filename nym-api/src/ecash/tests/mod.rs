@@ -441,13 +441,13 @@ impl FakeChainState {
 
     // TODO: make it return a result
     fn execute_contract_msg(&mut self, contract: &String, msg: &Binary, sender: MessageInfo) {
-        if contract == &self.group_contract.address {
+        if contract == self.group_contract.address.as_str() {
             unimplemented!("group contract exec")
         }
-        if contract == &self.multisig_contract.address {
+        if contract == self.multisig_contract.address.as_str() {
             unimplemented!("multisig contract exec")
         }
-        if contract == &self.ecash_contract.address {
+        if contract == self.ecash_contract.address.as_str() {
             unimplemented!("bandwidth contract exec")
         }
         if contract == self.dkg_contract.address.as_ref() {

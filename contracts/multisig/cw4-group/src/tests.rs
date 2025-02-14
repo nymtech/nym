@@ -1,5 +1,5 @@
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{from_slice, Addr, Api, DepsMut, OwnedDeps, Querier, Storage, SubMsg};
+use cosmwasm_std::{from_json, Addr, Api, DepsMut, OwnedDeps, Querier, Storage, SubMsg};
 use cw4::{member_key, Member, MemberChangedHookMsg, MemberDiff, TOTAL_KEY};
 use cw_controllers::{AdminError, HookError};
 
@@ -10,10 +10,12 @@ use crate::state::{ADMIN, HOOKS};
 use crate::ContractError;
 use nym_group_contract_common::msg::{ExecuteMsg, InstantiateMsg};
 
-const INIT_ADMIN: &str = "juan";
-const USER1: &str = "somebody";
-const USER2: &str = "else";
-const USER3: &str = "funny";
+use easy_addr::addr;
+
+const INIT_ADMIN: &str = addr!("juan");
+const USER1: &str = addr!("somebody");
+const USER2: &str = addr!("else");
+const USER3: &str = addr!("funny");
 
 fn set_up(deps: DepsMut) {
     let msg = InstantiateMsg {
@@ -278,8 +280,8 @@ fn add_remove_hooks() {
     let hooks = HOOKS.query_hooks(deps.as_ref()).unwrap();
     assert!(hooks.hooks.is_empty());
 
-    let contract1 = String::from("hook1");
-    let contract2 = String::from("hook2");
+    let contract1 = deps.api.addr_make("hook1").to_string();
+    let contract2 = deps.api.addr_make("hook2").to_string();
 
     let add_msg = ExecuteMsg::AddHook {
         addr: contract1.clone(),
@@ -346,8 +348,8 @@ fn hooks_fire() {
     let hooks = HOOKS.query_hooks(deps.as_ref()).unwrap();
     assert!(hooks.hooks.is_empty());
 
-    let contract1 = String::from("hook1");
-    let contract2 = String::from("hook2");
+    let contract1 = deps.api.addr_make("hook1").to_string();
+    let contract2 = deps.api.addr_make("hook2").to_string();
 
     // register 2 hooks
     let admin_info = mock_info(INIT_ADMIN, &[]);
@@ -407,12 +409,12 @@ fn raw_queries_work() {
 
     // get total from raw key
     let total_raw = deps.storage.get(TOTAL_KEY.as_bytes()).unwrap();
-    let total: u64 = from_slice(&total_raw).unwrap();
+    let total: u64 = from_json(total_raw).unwrap();
     assert_eq!(17, total);
 
     // get member votes from raw key
     let member2_raw = deps.storage.get(&member_key(USER2)).unwrap();
-    let member2: u64 = from_slice(&member2_raw).unwrap();
+    let member2: u64 = from_json(member2_raw).unwrap();
     assert_eq!(6, member2);
 
     // and execute misses

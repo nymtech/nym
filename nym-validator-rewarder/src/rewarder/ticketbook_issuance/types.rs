@@ -32,7 +32,7 @@ impl OperatorIssuing {
             return Coin::new(0, &operator_budget.denom);
         }
 
-        let amount = Uint128::new(operator_budget.amount) * self.issued_ratio;
+        let amount = Uint128::new(operator_budget.amount).mul_floor(self.issued_ratio);
 
         Coin::new(amount.u128(), &operator_budget.denom)
     }

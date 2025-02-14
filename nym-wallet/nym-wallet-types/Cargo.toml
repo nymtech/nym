@@ -12,8 +12,8 @@ serde_json = "1.0"
 strum = { version = "0.23", features = ["derive"] }
 ts-rs = "10.0.0"
 
-cosmwasm-std = "1.4.3"
-cosmrs = "=0.15.0"
+cosmwasm-std = "2.2.1"
+cosmrs = "=0.21.1"
 
 nym-config = { path = "../../common/config" }
 nym-network-defaults = { path = "../../common/network-defaults" }

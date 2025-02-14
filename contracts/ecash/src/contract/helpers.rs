@@ -11,14 +11,14 @@ use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
 use nym_network_defaults::TICKETBOOK_SIZE;
-use sylvia::types::ExecCtx;
+use sylvia::ctx::ExecCtx;
 
 #[cw_serde]
 pub(crate) struct Invariants {
     pub(crate) ticket_book_size: u64,
 }
 
-impl NymEcashContract<'_> {
+impl NymEcashContract {
     pub(crate) fn get_ticketbook_size(
         &self,
         storage: &dyn Storage,
@@ -47,7 +47,7 @@ impl NymEcashContract<'_> {
         let book_ratio = Decimal::from_ratio(tickets, ticketbook_size);
 
         // return = ticketbook_price * (tickets / ticketbook_size)
-        let return_amount = book_ratio * deposit_amount;
+        let return_amount = deposit_amount.mul_floor(book_ratio);
 
         Ok(Coin {
             denom: config.deposit_amount.denom.clone(),

@@ -70,9 +70,9 @@ pub mod rewarded_set {
 }
 
 pub(crate) struct NymNodeBondIndex<'a> {
-    pub(crate) owner: UniqueIndex<'a, Addr, NymNodeBond>,
+    pub(crate) owner: UniqueIndex<'a, Addr, NymNodeBond, ()>,
 
-    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, NymNodeBond>,
+    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, NymNodeBond, ()>,
 }
 
 impl IndexList<NymNodeBond> for NymNodeBondIndex<'_> {
@@ -83,7 +83,7 @@ impl IndexList<NymNodeBond> for NymNodeBondIndex<'_> {
 }
 
 // nym_nodes() is the storage access function.
-pub(crate) fn nym_nodes<'a>() -> IndexedMap<'a, NodeId, NymNodeBond, NymNodeBondIndex<'a>> {
+pub(crate) fn nym_nodes<'a>() -> IndexedMap<NodeId, NymNodeBond, NymNodeBondIndex<'a>> {
     let indexes = NymNodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), NYMNODE_OWNER_IDX_NAMESPACE),
         identity_key: UniqueIndex::new(
@@ -111,7 +111,7 @@ impl IndexList<UnbondedNymNode> for UnbondedNymNodeIndex<'_> {
 }
 
 pub(crate) fn unbonded_nym_nodes<'a>(
-) -> IndexedMap<'a, NodeId, UnbondedNymNode, UnbondedNymNodeIndex<'a>> {
+) -> IndexedMap<NodeId, UnbondedNymNode, UnbondedNymNodeIndex<'a>> {
     let indexes = UnbondedNymNodeIndex {
         owner: MultiIndex::new(
             |_pk, d| d.owner.clone(),

@@ -27,7 +27,7 @@ impl Mul<Gas> for &GasPrice {
 
     fn mul(self, gas_limit: Gas) -> Self::Output {
         let limit_uint128 = Uint128::from(gas_limit);
-        let mut amount = self.amount * limit_uint128;
+        let mut amount = limit_uint128.mul_floor(self.amount);
 
         let gas_price_numerator = self.amount.numerator();
         let gas_price_denominator = self.amount.denominator();
@@ -35,7 +35,7 @@ impl Mul<Gas> for &GasPrice {
         // gas price is a fraction of the smallest fee token unit, so we must ensure that
         // for any multiplication, we have rounded up
         //
-        // I don't really like the this solution as it has a theoretical chance of
+        // I don't really like this solution as it has a theoretical chance of
         // overflowing (internally cosmwasm uses U256 to avoid that)
         // however, realistically that is impossible to happen as the resultant value
         // would have to be way higher than our token limit of 10^15 (1 billion of tokens * 1 million for denomination)

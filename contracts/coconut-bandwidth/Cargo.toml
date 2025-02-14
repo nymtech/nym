@@ -18,7 +18,7 @@ nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/m
 
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true, optional = true }
-cosmwasm-storage = { workspace = true }
+
 cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 

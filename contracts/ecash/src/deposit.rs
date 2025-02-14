@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Order, StdResult, Storage};
-use cw_storage_plus::{Bound, Item, Key, Path, Prefix, PrimaryKey};
+use cw_storage_plus::{range_with_prefix, Bound, Item, Key, Path, Prefix, PrimaryKey};
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_contract_common::{deposit::Deposit, EcashContractError};
+use std::ops::Deref;
 
-pub(crate) struct DepositStorage<'a> {
-    pub(crate) deposit_id_counter: Item<'a, DepositId>,
+pub(crate) struct DepositStorage {
+    pub(crate) deposit_id_counter: Item<DepositId>,
     pub(crate) deposits: StoredDeposits,
 }
 
-impl<'a> DepositStorage<'a> {
+impl DepositStorage {
     pub const fn new() -> Self {
         DepositStorage {
             deposit_id_counter: Item::new("deposit_ids"),
@@ -65,14 +66,23 @@ impl<'a> DepositStorage<'a> {
 
         Ok(Some(Deposit::try_from_bytes(&deposit_bytes)?))
     }
-    pub fn range(
+    pub fn range<'a>(
         &'a self,
         store: &'a dyn Storage,
         min: Option<Bound<'a, DepositId>>,
         max: Option<Bound<'a, DepositId>>,
         order: Order,
     ) -> impl Iterator<Item = StdResult<(DepositId, Deposit)>> + 'a {
-        self.deposits.no_prefix().range(store, min, max, order)
+        let prefix = self.deposits.no_prefix();
+        let mapped = range_with_prefix(
+            store,
+            prefix.deref(),
+            min.map(|b| b.to_raw_bound()),
+            max.map(|b| b.to_raw_bound()),
+            order,
+        )
+        .map(StoredDeposits::deserialize_deposit_record);
+        Box::new(mapped)
     }
 }
 
@@ -89,15 +99,8 @@ impl StoredDeposits {
         Ok((id, Deposit::try_from_bytes(&deposit_bytes)?))
     }
 
-    fn no_prefix(&self) -> Prefix<DepositId, Deposit, DepositId> {
-        cw_storage_plus::Prefix::with_deserialization_functions(
-            Self::NAMESPACE,
-            &[],
-            &[],
-            // explicitly panic to make sure we're never attempting to call an unexpected deserializer on our data
-            |_, _, kv| Self::deserialize_deposit_record(kv),
-            |_, _, _| panic!("attempted to call custom de_fn_v"),
-        )
+    fn no_prefix(&self) -> Prefix<DepositId, Deposit> {
+        Prefix::new(Self::NAMESPACE, &[])
     }
 
     fn storage_key(deposit_id: u32) -> Path<Vec<u8>> {

@@ -4,13 +4,13 @@
 use crate::contract::NymEcashContract;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
 use cosmwasm_std::{coin, Addr, Empty, Env, MemoryStorage, OwnedDeps};
-use sylvia::types::{InstantiateCtx, QueryCtx};
+use sylvia::ctx::{InstantiateCtx, QueryCtx};
 
 pub const TEST_DENOM: &str = "unym";
 
 #[allow(dead_code)]
 pub struct TestSetup {
-    pub contract: NymEcashContract<'static>,
+    pub contract: NymEcashContract,
     pub deps: OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
     pub env: Env,
 

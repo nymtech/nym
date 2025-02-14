@@ -13,7 +13,7 @@ use nym_coconut_dkg_common::verification_key::ContractVKShare;
 
 pub(crate) type Dealer<'a> = &'a Addr;
 
-pub(crate) const CURRENT_EPOCH: Item<'_, Epoch> = Item::new("current_epoch");
+pub(crate) const CURRENT_EPOCH: Item<Epoch> = Item::new("current_epoch");
 
 pub const THRESHOLD: Item<u64> = Item::new("threshold");
 
@@ -40,7 +40,7 @@ impl IndexList<ContractVKShare> for VkShareIndex<'_> {
     }
 }
 
-pub(crate) fn vk_shares<'a>() -> IndexedMap<'a, VKShareKey<'a>, ContractVKShare, VkShareIndex<'a>> {
+pub(crate) fn vk_shares<'a>() -> IndexedMap<VKShareKey<'a>, ContractVKShare, VkShareIndex<'a>> {
     let indexes = VkShareIndex {
         epoch_id: MultiIndex::new(|_pk, d| d.epoch_id, "vksp", "vkse"),
     };

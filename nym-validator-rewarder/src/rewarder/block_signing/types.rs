@@ -38,8 +38,8 @@ impl ValidatorSigning {
             return Coin::new(0, &signing_budget.denom);
         }
 
-        let amount =
-            Uint128::new(signing_budget.amount) * self.ratio_signed * self.voting_power_ratio;
+        let amount = Uint128::new(signing_budget.amount)
+            .mul_floor(self.ratio_signed * self.voting_power_ratio);
 
         Coin::new(amount.u128(), &signing_budget.denom)
     }

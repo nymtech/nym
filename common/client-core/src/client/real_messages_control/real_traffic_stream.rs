@@ -219,7 +219,11 @@ where
         }
     }
 
-    async fn on_message(&mut self, next_message: StreamMessage) {
+    async fn on_message(
+        &mut self,
+        next_message: StreamMessage,
+        task_client: &mut nym_task::TaskClient,
+    ) {
         trace!("created new message");
 
         let (next_message, fragment_id, packet_size) = match next_message {
@@ -273,7 +277,9 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send: {err}");
+            if !task_client.is_shutdown_poll() {
+                log::error!("Failed to send: {err}");
+            }
         } else {
             let event = if fragment_id.is_some() {
                 PacketStatisticsEvent::RealPacketSent(packet_size)
@@ -555,7 +561,7 @@ where
                         self.log_status(&mut shutdown);
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
-                        self.on_message(next_message).await;
+                        self.on_message(next_message, &mut shutdown).await;
                     } else {
                         log::trace!("OutQueueControl: Stopping since channel closed");
                         break;

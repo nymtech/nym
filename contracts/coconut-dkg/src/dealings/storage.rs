@@ -4,12 +4,11 @@
 use crate::error::ContractError;
 use crate::Dealer;
 use cosmwasm_std::Storage;
-use cw_storage_plus::{range_with_prefix, Key, Map, Path, PrimaryKey};
+use cw_storage_plus::{Key, Map, Path, PrimaryKey};
 use nym_coconut_dkg_common::dealing::{DealingMetadata, PartialContractDealing};
 use nym_coconut_dkg_common::types::{
     ChunkIndex, ContractSafeBytes, DealingIndex, EpochId, PartialContractDealingData,
 };
-use std::ops::Deref;
 
 /// Metadata for a dealing for given `EpochId`, submitted by particular `Dealer` for given `DealingIndex`.
 pub(crate) const DEALINGS_METADATA: Map<(EpochId, Dealer, DealingIndex), DealingMetadata> =
@@ -94,9 +93,9 @@ impl StoredDealing {
         let dealing_index = prefix.2;
         let prefix = Self::prefix(prefix);
 
-        range_with_prefix(
+        cw_storage_plus::range_with_prefix(
             storage,
-            prefix.deref(),
+            &prefix,
             start.map(|b| b.to_raw_bound()),
             None,
             cosmwasm_std::Order::Ascending,
@@ -191,9 +190,9 @@ impl StoredDealing {
         let empty_prefix: cw_storage_plus::Prefix<StorageKey, PartialContractDealingData> =
             cw_storage_plus::Prefix::new(Self::NAMESPACE, &[]);
 
-        range_with_prefix(
+        cw_storage_plus::range_with_prefix(
             storage,
-            empty_prefix.deref(),
+            &empty_prefix,
             None,
             None,
             cosmwasm_std::Order::Ascending,

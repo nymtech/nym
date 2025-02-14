@@ -4,7 +4,7 @@
 use crate::msg::ExecuteMsg;
 use crate::types::{EpochId, NodeIndex};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, StdResult, Timestamp, WasmMsg};
+use cosmwasm_std::{from_json, to_json_binary, Addr, CosmosMsg, StdResult, Timestamp, WasmMsg};
 use cw_utils::Expiration;
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
@@ -49,7 +49,7 @@ pub fn to_cosmos_msg(
     };
     let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: coconut_dkg_addr,
-        msg: to_binary(&verify_vk_share_req)?,
+        msg: to_json_binary(&verify_vk_share_req)?,
         funds: vec![],
     });
     let req = MultisigExecuteMsg::Propose {
@@ -60,7 +60,7 @@ pub fn to_cosmos_msg(
     };
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: multisig_addr,
-        msg: to_binary(&req)?,
+        msg: to_json_binary(&req)?,
         funds: vec![],
     });
 
@@ -82,7 +82,7 @@ pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<String> {
     })) = msgs.first()
     {
         if let Ok(ExecuteMsg::VerifyVerificationKeyShare { owner, .. }) =
-            from_binary::<ExecuteMsg>(msg)
+            from_json::<ExecuteMsg>(msg)
         {
             return Some(owner);
         }

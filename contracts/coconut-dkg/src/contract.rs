@@ -26,7 +26,7 @@ use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_pa
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
-    entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    entry_point, to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -129,50 +129,52 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
-        QueryMsg::GetState {} => to_binary(&query_state(deps.storage)?)?,
-        QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
-        QueryMsg::CanAdvanceState {} => to_binary(&query_can_advance_state(deps.storage, env)?)?,
+        QueryMsg::GetState {} => to_json_binary(&query_state(deps.storage)?)?,
+        QueryMsg::GetCurrentEpochState {} => to_json_binary(&query_current_epoch(deps.storage)?)?,
+        QueryMsg::CanAdvanceState {} => {
+            to_json_binary(&query_can_advance_state(deps.storage, env)?)?
+        }
         QueryMsg::GetCurrentEpochThreshold {} => {
-            to_binary(&query_current_epoch_threshold(deps.storage)?)?
+            to_json_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
         QueryMsg::GetEpochThreshold { epoch_id } => {
-            to_binary(&query_epoch_threshold(deps.storage, epoch_id)?)?
+            to_json_binary(&query_epoch_threshold(deps.storage, epoch_id)?)?
         }
         QueryMsg::GetRegisteredDealer {
             dealer_address,
             epoch_id,
-        } => to_binary(&query_registered_dealer_details(
+        } => to_json_binary(&query_registered_dealer_details(
             deps,
             dealer_address,
             epoch_id,
         )?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
-            to_binary(&query_dealer_details(deps, dealer_address)?)?
+            to_json_binary(&query_dealer_details(deps, dealer_address)?)?
         }
         QueryMsg::GetCurrentDealers { limit, start_after } => {
-            to_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
+            to_json_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealerIndices { limit, start_after } => {
-            to_binary(&query_dealers_indices_paged(deps, start_after, limit)?)?
+            to_json_binary(&query_dealers_indices_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealingsMetadata {
             epoch_id,
             dealer,
             dealing_index,
-        } => to_binary(&query_dealing_metadata(
+        } => to_json_binary(&query_dealing_metadata(
             deps,
             epoch_id,
             dealer,
             dealing_index,
         )?)?,
         QueryMsg::GetDealerDealingsStatus { epoch_id, dealer } => {
-            to_binary(&query_dealer_dealings_status(deps, epoch_id, dealer)?)?
+            to_json_binary(&query_dealer_dealings_status(deps, epoch_id, dealer)?)?
         }
         QueryMsg::GetDealingStatus {
             epoch_id,
             dealer,
             dealing_index,
-        } => to_binary(&query_dealing_status(
+        } => to_json_binary(&query_dealing_status(
             deps,
             epoch_id,
             dealer,
@@ -183,7 +185,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             dealer,
             dealing_index,
             chunk_index,
-        } => to_binary(&query_dealing_chunk_status(
+        } => to_json_binary(&query_dealing_chunk_status(
             deps,
             epoch_id,
             dealer,
@@ -195,7 +197,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             dealer,
             dealing_index,
             chunk_index,
-        } => to_binary(&query_dealing_chunk(
+        } => to_json_binary(&query_dealing_chunk(
             deps,
             epoch_id,
             dealer,
@@ -203,14 +205,16 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             chunk_index,
         )?)?,
         QueryMsg::GetVerificationKey { owner, epoch_id } => {
-            to_binary(&query_vk_share(deps, owner, epoch_id)?)?
+            to_json_binary(&query_vk_share(deps, owner, epoch_id)?)?
         }
         QueryMsg::GetVerificationKeys {
             epoch_id,
             limit,
             start_after,
-        } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
-        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?)?,
+        } => to_json_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
+        QueryMsg::GetCW2ContractVersion {} => {
+            to_json_binary(&cw2::get_contract_version(deps.storage)?)?
+        }
     };
 
     Ok(response)

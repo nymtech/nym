@@ -6,7 +6,7 @@ use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
+    from_json, to_json_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
     QuerierResult, SystemResult, WasmQuery,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
@@ -80,7 +80,7 @@ fn querier_handler(query: &WasmQuery) -> QuerierResult {
             if contract_addr != GROUP_CONTRACT {
                 panic!("Not supported");
             }
-            match from_binary(msg) {
+            match from_json(msg) {
                 Ok(Cw4QueryMsg::Member { addr, at_height }) => {
                     let weight = GROUP_MEMBERS.lock().unwrap().iter().find_map(|(m, h)| {
                         if m.addr == addr {
@@ -94,7 +94,7 @@ fn querier_handler(query: &WasmQuery) -> QuerierResult {
                             None
                         }
                     });
-                    to_binary(&MemberResponse { weight }).unwrap()
+                    to_json_binary(&MemberResponse { weight }).unwrap()
                 }
                 Ok(Cw4QueryMsg::ListMembers { .. }) => {
                     let members = GROUP_MEMBERS
@@ -103,7 +103,7 @@ fn querier_handler(query: &WasmQuery) -> QuerierResult {
                         .iter()
                         .map(|m| m.0.clone())
                         .collect();
-                    to_binary(&MemberListResponse { members }).unwrap()
+                    to_json_binary(&MemberListResponse { members }).unwrap()
                 }
                 _ => panic!("Not supported"),
             }

@@ -699,9 +699,9 @@ dependencies = [
 
 [[package]]
 name = "bip39"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
+checksum = "33415e24172c1b7d6066f6d999545375ab8e1d95421d6784bdfff9496f292387"
 dependencies = [
  "bitcoin_hashes",
  "rand 0.8.5",
@@ -712,10 +712,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoin_hashes"
-version = "0.11.0"
+name = "bitcoin-internals"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90064b8dee6815a6470d60bad07bbbaee885c0e12d04177138fa3291a01b7bc4"
+checksum = "9425c3bf7089c983facbae04de54513cce73b41c7f9ff8c845b54e7bc64ebbfb"
+
+[[package]]
+name = "bitcoin_hashes"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1930a4dabfebb8d7d9992db18ebe3ae2876f0a305fab206fd168df931ede293b"
+dependencies = [
+ "bitcoin-internals",
+ "hex-conservative",
+]
 
 [[package]]
 name = "bitflags"
@@ -809,15 +819,15 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.8.0"
-source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect#22cd0a16b674af1629110a2dc8b6cf6c73ea4cd9"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
 dependencies = [
- "digest 0.9.0",
+ "digest 0.10.7",
  "ff",
  "group",
  "pairing",
  "rand_core 0.6.4",
  "serde",
- "serdect 0.3.0-pre.0",
+ "serdect 0.3.0",
  "subtle 2.5.0",
  "zeroize",
 ]
@@ -2265,9 +2275,9 @@ dependencies = [
 
 [[package]]
 name = "elliptic-curve"
-version = "0.13.7"
+version = "0.13.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9775b22bc152ad86a0cf23f0f348b884b26add12bf741e7ffc4d4ab2ab4d205"
+checksum = "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47"
 dependencies = [
  "base16ct",
  "crypto-bigint",
@@ -3124,6 +3134,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hex-conservative"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "212ab92002354b4819390025006c897e8140934349e8635c9b077f47b4dcbd20"
+
+[[package]]
 name = "hex-literal"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3977,9 +3993,9 @@ dependencies = [
 
 [[package]]
 name = "k256"
-version = "0.13.2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f01b677d82ef7a676aa37e099defd83a28e15687112cafdd112d60236b6115b"
+checksum = "f6e3919bbaa2945715f0bb6d3934a173d1e9a59ac23767fbaaef277265a7411b"
 dependencies = [
  "cfg-if",
  "ecdsa",
@@ -4812,7 +4828,7 @@ dependencies = [
  "semver 1.0.25",
  "serde",
  "serde_json",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "sqlx",
  "tempfile",
  "thiserror 2.0.11",
@@ -5265,7 +5281,7 @@ dependencies = [
  "bls12_381",
  "bs58",
  "criterion",
- "digest 0.9.0",
+ "digest 0.10.7",
  "doc-comment",
  "ff",
  "getrandom 0.2.15",
@@ -5277,7 +5293,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "serde_derive",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "thiserror 2.0.11",
  "zeroize",
 ]
@@ -5314,7 +5330,7 @@ dependencies = [
  "bs58",
  "cfg-if",
  "criterion",
- "digest 0.9.0",
+ "digest 0.10.7",
  "ff",
  "group",
  "itertools 0.13.0",
@@ -5323,7 +5339,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "subtle 2.5.0",
  "thiserror 2.0.11",
  "zeroize",
@@ -5596,7 +5612,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_derive",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "thiserror 2.0.11",
  "zeroize",
 ]
@@ -9244,9 +9260,9 @@ dependencies = [
 
 [[package]]
 name = "serdect"
-version = "0.3.0-pre.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "791ef964bfaba6be28a5c3f0c56836e17cb711ac009ca1074b9c735a3ebf240a"
+checksum = "f42f67da2385b51a5f9652db9c93d78aeaf7610bf5ec366080b6de810604af53"
 dependencies = [
  "base16ct",
  "serde",
@@ -12134,9 +12150,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.6.0"
+version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
+checksum = "ced3678a2879b30306d323f4542626697a464a97c0a07c9aebf7ebca65cd4dde"
 dependencies = [
  "zeroize_derive",
 ]

@@ -113,17 +113,13 @@ const G1_HASH_DOMAIN: &[u8] = b"NYMECASH-V01-CS02-with-BLS12381G1_XMD:SHA-256_SS
 const SCALAR_HASH_DOMAIN: &[u8] = b"NYMECASH-V01-CS02-with-expander-SHA256";
 
 pub fn hash_g1<M: AsRef<[u8]>>(msg: M) -> G1Projective {
-    <G1Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(msg, G1_HASH_DOMAIN)
+    <G1Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve([msg], G1_HASH_DOMAIN)
 }
 
 pub fn hash_to_scalar<M: AsRef<[u8]>>(msg: M) -> Scalar {
     let mut output = vec![Scalar::zero()];
 
-    Scalar::hash_to_field::<ExpandMsgXmd<sha2::Sha256>>(
-        msg.as_ref(),
-        SCALAR_HASH_DOMAIN,
-        &mut output,
-    );
+    Scalar::hash_to_field::<ExpandMsgXmd<sha2::Sha256>, _>([msg], SCALAR_HASH_DOMAIN, &mut output);
     output[0]
 }
 

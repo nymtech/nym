@@ -10,13 +10,13 @@ license.workspace = true
 [dependencies]
 bls12_381 = { workspace = true, default-features = false, features = ["pairings", "alloc", "experimental"] }
 itertools = { workspace = true }
-digest = "0.9"
+digest = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 bs58 = { workspace = true }
-sha2 = "0.9"
+sha2 = { workspace = true }
 zeroize = { workspace = true, optional = true }
 
 nym-dkg = { path = "../dkg" }
@@ -45,4 +45,4 @@ default = []
 
 
 [target.'cfg(target_env = "wasm32-unknown-unknown")'.dependencies]
-getrandom = { version="0.2", features=["js"] }
+getrandom = { version = "0.2", features = ["js"] }

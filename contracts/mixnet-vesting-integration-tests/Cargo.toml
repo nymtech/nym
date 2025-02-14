@@ -10,7 +10,6 @@ publish = false
 
 # cosmwasm dependencies
 cosmwasm-std = { workspace = true }
-cosmwasm-storage = { workspace = true }
 cw-multi-test = { workspace = true }
 
 # contracts dependencies

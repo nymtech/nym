@@ -585,7 +585,7 @@ impl EcashState {
         }
 
         // check if it was actually created by the ecash contract
-        if proposal.proposer != self.global.contract_address.as_ref() {
+        if proposal.proposer.as_str() != self.global.contract_address.as_ref() {
             return Err(RedemptionError::InvalidProposer {
                 proposal_id,
                 received: proposal.proposer.into_string(),

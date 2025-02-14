@@ -135,8 +135,8 @@ mod tests {
             Err(ContractError::NoCoin)
         );
 
-        let coin = Coin::new(1000000, crate::support::tests::fixtures::TEST_MIX_DENOM);
-        let second_coin = Coin::new(1000000, "some_denom");
+        let coin = Coin::new(1000000u32, crate::support::tests::fixtures::TEST_MIX_DENOM);
+        let second_coin = Coin::new(1000000u32, "some_denom");
 
         let info = mock_info("requester", &[coin, second_coin.clone()]);
         assert_eq!(
@@ -161,7 +161,7 @@ mod tests {
         let deposit_info = String::from("Deposit info");
         let verification_key = String::from("Verification key");
         let encryption_key = String::from("Encryption key");
-        let deposit_value = 424242;
+        let deposit_value = 424242u32;
         let data = DepositData::new(
             deposit_info.clone(),
             verification_key.clone(),
@@ -219,13 +219,13 @@ mod tests {
         let mut deps = helpers::init_contract();
         let env = mock_env();
         let invalid_admin = "invalid admin";
-        let funds = Coin::new(1, crate::support::tests::fixtures::TEST_MIX_DENOM);
+        let funds = Coin::new(1u32, crate::support::tests::fixtures::TEST_MIX_DENOM);
 
         let err = release_funds(
             deps.as_mut(),
             env.clone(),
             mock_info(invalid_admin, &[]),
-            Coin::new(1, "invalid denom"),
+            Coin::new(1u32, "invalid denom"),
         )
         .unwrap_err();
         assert_eq!(
@@ -245,6 +245,7 @@ mod tests {
         assert_eq!(err, ContractError::NotEnoughFunds);
 
         deps.querier
+            .bank
             .update_balance(env.contract.address.clone(), vec![funds.clone()]);
         let err =
             release_funds(deps.as_mut(), env, mock_info(invalid_admin, &[]), funds).unwrap_err();
@@ -255,9 +256,10 @@ mod tests {
     fn valid_release() {
         let mut deps = helpers::init_contract();
         let env = mock_env();
-        let coin = Coin::new(1, crate::support::tests::fixtures::TEST_MIX_DENOM);
+        let coin = Coin::new(1u32, crate::support::tests::fixtures::TEST_MIX_DENOM);
 
         deps.querier
+            .bank
             .update_balance(env.contract.address.clone(), vec![coin.clone()]);
         let res = release_funds(
             deps.as_mut(),
@@ -329,7 +331,7 @@ mod tests {
         let info = mock_info("requester", &[]);
 
         let invalid_data = SpendCredentialData::new(
-            Coin::new(1, "invalid_denom".to_string()),
+            Coin::new(1u32, "invalid_denom".to_string()),
             String::new(),
             String::new(),
         );
@@ -342,7 +344,7 @@ mod tests {
         );
 
         let invalid_data = SpendCredentialData::new(
-            Coin::new(1, crate::support::tests::fixtures::TEST_MIX_DENOM),
+            Coin::new(1u32, crate::support::tests::fixtures::TEST_MIX_DENOM),
             String::new(),
             "Blinded Serial Number".to_string(),
         );

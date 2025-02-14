@@ -1060,18 +1060,18 @@ pub(crate) mod tests {
         // when it doesnt exist
         let res = query_owned_mixnode(test.deps(), address.clone()).unwrap();
         assert!(res.mixnode_details.is_none());
-        assert_eq!(address, res.address);
+        assert_eq!(address, res.address.as_str());
 
         // when it [fully] exists
         let id = test.add_legacy_mixnode(&address, None);
         let res = query_owned_mixnode(test.deps(), address.clone()).unwrap();
         let details = res.mixnode_details.unwrap();
-        assert_eq!(address, details.bond_information.owner);
+        assert_eq!(address, details.bond_information.owner.as_str());
         assert_eq!(
             good_mixnode_pledge()[0],
             details.bond_information.original_pledge
         );
-        assert_eq!(address, res.address);
+        assert_eq!(address, res.address.as_str());
 
         // when it partially exists, i.e. case when the operator unbonded, but there are still some pending delegates
         // TODO: perhaps this should work slightly differently, to return the underlying mixnode rewarding?
@@ -1087,7 +1087,7 @@ pub(crate) mod tests {
         pending_events::unbond_mixnode(test.deps_mut(), &mock_env(), 123, id).unwrap();
         let res = query_owned_mixnode(test.deps(), address.clone()).unwrap();
         assert!(res.mixnode_details.is_none());
-        assert_eq!(address, res.address);
+        assert_eq!(address, res.address.as_str());
     }
 
     #[test]
@@ -1168,7 +1168,7 @@ pub(crate) mod tests {
         pending_events::unbond_mixnode(test.deps_mut(), &mock_env(), 123, mix_id).unwrap();
 
         let res = query_unbonded_mixnode(test.deps(), mix_id).unwrap();
-        assert_eq!(res.unbonded_info.unwrap().owner, sender);
+        assert_eq!(res.unbonded_info.unwrap().owner.as_str(), sender);
         assert_eq!(mix_id, res.mix_id);
     }
 

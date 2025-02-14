@@ -639,7 +639,7 @@ pub mod tests {
 
         let update = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
-            interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
+            interval_operating_cost: Coin::new(12345678u32, TEST_COIN_DENOM),
         };
 
         for bad_state in bad_states {
@@ -676,7 +676,7 @@ pub mod tests {
         let info = mock_info(owner, &[]);
         let update = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
-            interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
+            interval_operating_cost: Coin::new(12345678u32, TEST_COIN_DENOM),
         };
 
         let node_id = test.add_legacy_mixnode(owner, None);

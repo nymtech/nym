@@ -25,7 +25,8 @@ use nym_ecash_contract_common::events::{
 };
 use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
-use sylvia::types::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx, ReplyCtx};
+use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
+use sylvia::types::ReplyCtx;
 use sylvia::{contract, entry_points};
 
 mod helpers;
@@ -34,22 +35,22 @@ mod queued_migrations;
 #[cfg(test)]
 mod test;
 
-pub struct NymEcashContract<'a> {
-    pub(crate) contract_admin: Admin<'a>,
-    pub(crate) multisig: Admin<'a>,
-    pub(crate) config: Item<'a, Config>,
-    pub(crate) pool_counters: Item<'a, PoolCounters>,
-    pub(crate) expected_invariants: Item<'a, Invariants>,
+pub struct NymEcashContract {
+    pub(crate) contract_admin: Admin,
+    pub(crate) multisig: Admin,
+    pub(crate) config: Item<Config>,
+    pub(crate) pool_counters: Item<PoolCounters>,
+    pub(crate) expected_invariants: Item<Invariants>,
 
-    pub(crate) blacklist: Map<'a, BlacklistKey, Blacklisting>,
+    pub(crate) blacklist: Map<BlacklistKey, Blacklisting>,
 
-    pub(crate) deposits: DepositStorage<'a>,
+    pub(crate) deposits: DepositStorage,
 }
 
 #[entry_points]
 #[contract]
-#[error(EcashContractError)]
-impl NymEcashContract<'_> {
+#[sv::error(EcashContractError)]
+impl NymEcashContract {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
@@ -63,7 +64,7 @@ impl NymEcashContract<'_> {
         }
     }
 
-    #[msg(instantiate)]
+    #[sv::msg(instantiate)]
     pub fn instantiate(
         &self,
         mut ctx: InstantiateCtx,
@@ -119,7 +120,7 @@ impl NymEcashContract<'_> {
     /*==================
     ======QUERIES=======
     ==================*/
-    #[msg(query)]
+    #[sv::msg(query)]
     pub fn get_blacklist_paged(
         &self,
         ctx: QueryCtx,
@@ -150,7 +151,7 @@ impl NymEcashContract<'_> {
         ))
     }
 
-    #[msg(query)]
+    #[sv::msg(query)]
     pub fn get_blacklisted_account(
         &self,
         ctx: QueryCtx,
@@ -160,14 +161,14 @@ impl NymEcashContract<'_> {
         Ok(BlacklistedAccountResponse::new(account))
     }
 
-    #[msg(query)]
+    #[sv::msg(query)]
     pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
 
         Ok(deposit_amount)
     }
 
-    #[msg(query)]
+    #[sv::msg(query)]
     pub fn get_deposit(
         &self,
         ctx: QueryCtx,
@@ -179,7 +180,7 @@ impl NymEcashContract<'_> {
         })
     }
 
-    #[msg(query)]
+    #[sv::msg(query)]
     pub fn get_latest_deposit(
         &self,
         ctx: QueryCtx,
@@ -198,7 +199,7 @@ impl NymEcashContract<'_> {
         })
     }
 
-    #[msg(query)]
+    #[sv::msg(query)]
     pub fn get_deposits_paged(
         &self,
         ctx: QueryCtx,
@@ -230,7 +231,7 @@ impl NymEcashContract<'_> {
     ======EXECUTIONS=======
     =====================*/
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn deposit_ticket_book_funds(
         &self,
         ctx: ExecCtx,
@@ -266,7 +267,7 @@ impl NymEcashContract<'_> {
             .set_data(deposit_id.to_be_bytes()))
     }
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn request_redemption(
         &self,
         ctx: ExecCtx,
@@ -285,7 +286,7 @@ impl NymEcashContract<'_> {
         Ok(Response::new().add_submessage(msg))
     }
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn redeem_tickets(
         &self,
         ctx: ExecCtx,
@@ -319,7 +320,7 @@ impl NymEcashContract<'_> {
         }))
     }
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn update_admin(
         &self,
         ctx: ExecCtx,
@@ -333,7 +334,7 @@ impl NymEcashContract<'_> {
             .execute_update_admin(ctx.deps, ctx.info, Some(new_admin))?)
     }
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn update_deposit_value(
         &self,
         ctx: ExecCtx,
@@ -352,7 +353,7 @@ impl NymEcashContract<'_> {
         Ok(Response::new().add_attribute("updated_deposit", deposit_str))
     }
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn propose_to_blacklist(
         &self,
         ctx: ExecCtx,
@@ -381,7 +382,7 @@ impl NymEcashContract<'_> {
         // }
     }
 
-    #[msg(exec)]
+    #[sv::msg(exec)]
     pub fn add_to_blacklist(
         &self,
         ctx: ExecCtx,
@@ -405,7 +406,7 @@ impl NymEcashContract<'_> {
     /*=====================
     =========REPLY=========
     =====================*/
-    #[msg(reply)]
+    #[sv::msg(reply)]
     pub fn reply(&self, ctx: ReplyCtx, msg: Reply) -> Result<Response, EcashContractError> {
         match msg.id {
             n if n == BLACKLIST_PROPOSAL_REPLY_ID => self.handle_blacklist_proposal_reply(ctx, msg),
@@ -451,7 +452,7 @@ impl NymEcashContract<'_> {
     /*=====================
     =======MIGRATION=======
     =====================*/
-    #[msg(migrate)]
+    #[sv::msg(migrate)]
     pub fn migrate(&self, ctx: MigrateCtx) -> Result<Response, EcashContractError> {
         set_build_information!(ctx.deps.storage)?;
         cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;

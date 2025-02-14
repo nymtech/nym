@@ -15,8 +15,8 @@ use mixnet_contract_common::{
     EpochEventId, EpochStatus, Interval, IntervalEventId, PendingIntervalEventKind,
 };
 
-pub(crate) const CURRENT_EPOCH_STATUS: Item<'_, EpochStatus> = Item::new(CURRENT_EPOCH_STATUS_KEY);
-pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new(CURRENT_INTERVAL_KEY);
+pub(crate) const CURRENT_EPOCH_STATUS: Item<EpochStatus> = Item::new(CURRENT_EPOCH_STATUS_KEY);
+pub(crate) const CURRENT_INTERVAL: Item<Interval> = Item::new(CURRENT_INTERVAL_KEY);
 
 pub(crate) const EPOCH_EVENT_ID_COUNTER: Item<EpochEventId> = Item::new(EPOCH_EVENT_ID_COUNTER_KEY);
 pub(crate) const INTERVAL_EVENT_ID_COUNTER: Item<IntervalEventId> =

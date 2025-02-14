@@ -16,15 +16,15 @@ use mixnet_contract_common::{
 };
 use std::str::FromStr;
 
-pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
+pub(crate) const CONTRACT_STATE: Item<ContractState> = Item::new(CONTRACT_STATE_KEY);
 pub(crate) const ADMIN: Admin = Admin::new(ADMIN_STORAGE_KEY);
 
-pub(crate) struct NymNodeVersionHistory<'a> {
-    pub(crate) id_counter: Item<'a, u32>,
-    pub(crate) version_history: Map<'a, u32, HistoricalNymNodeVersion>,
+pub(crate) struct NymNodeVersionHistory {
+    pub(crate) id_counter: Item<u32>,
+    pub(crate) version_history: Map<u32, HistoricalNymNodeVersion>,
 }
 
-impl NymNodeVersionHistory<'_> {
+impl NymNodeVersionHistory {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {

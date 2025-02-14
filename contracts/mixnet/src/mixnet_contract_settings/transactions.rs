@@ -170,7 +170,7 @@ pub mod tests {
         );
 
         assert_eq!(
-            state.rewarding_validator_address,
+            state.rewarding_validator_address.as_str(),
             query_rewarding_validator_address(deps.as_ref()).unwrap()
         );
     }

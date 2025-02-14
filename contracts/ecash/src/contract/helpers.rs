@@ -6,7 +6,7 @@ use crate::helpers::{
     create_batch_redemption_proposal, create_blacklist_proposal, Config, ProposalId,
 };
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_binary, Addr, Coin, Decimal, Deps, Storage, SubMsg, Uint128};
+use cosmwasm_std::{to_json_binary, Addr, Coin, Decimal, Deps, Storage, SubMsg, Uint128};
 use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
@@ -111,7 +111,7 @@ impl NymEcashContract {
         let proposal_response: ProposalResponse = deps.querier.query(
             &cosmwasm_std::QueryRequest::Wasm(cosmwasm_std::WasmQuery::Smart {
                 contract_addr: multisig_addr.to_string(),
-                msg: to_binary(&msg)?,
+                msg: to_json_binary(&msg)?,
             }),
         )?;
         Ok(proposal_response)

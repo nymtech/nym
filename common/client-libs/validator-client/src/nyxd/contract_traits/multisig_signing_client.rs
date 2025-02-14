@@ -7,7 +7,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
-use cosmwasm_std::{to_binary, CosmosMsg, Empty, WasmMsg};
+use cosmwasm_std::{CosmosMsg, Empty};
 use cw3::Vote;
 use cw4::{MemberChangedHookMsg, MemberDiff};
 use cw_utils::Expiration;

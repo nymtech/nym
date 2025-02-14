@@ -222,7 +222,7 @@ mod tests {
         use crate::mixnodes::helpers::get_mixnode_details_by_id;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{from_binary, Addr, CosmosMsg, WasmMsg};
+        use cosmwasm_std::{from_json, Addr, CosmosMsg, WasmMsg};
 
         #[test]
         fn with_no_bonded_nodes() {
@@ -277,7 +277,7 @@ mod tests {
             };
 
             assert_eq!(
-                from_binary::<VestingExecuteMsg>(msg).unwrap(),
+                from_json::<VestingExecuteMsg>(msg).unwrap(),
                 VestingExecuteMsg::TrackMigratedMixnode {
                     owner: "owner".to_string()
                 }
@@ -291,7 +291,7 @@ mod tests {
         use crate::delegations::storage::delegations;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{from_binary, Addr, CosmosMsg, Order, Uint128, WasmMsg};
+        use cosmwasm_std::{from_json, Addr, CosmosMsg, Order, Uint128, WasmMsg};
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::nym_node::Role;
         use mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};
@@ -371,7 +371,7 @@ mod tests {
             };
 
             assert_eq!(
-                from_binary::<VestingExecuteMsg>(msg).unwrap(),
+                from_json::<VestingExecuteMsg>(msg).unwrap(),
                 VestingExecuteMsg::TrackMigratedDelegation {
                     owner: delegation.owner.to_string(),
                     mix_id,
@@ -438,7 +438,7 @@ mod tests {
             };
 
             assert_eq!(
-                from_binary::<VestingExecuteMsg>(msg).unwrap(),
+                from_json::<VestingExecuteMsg>(msg).unwrap(),
                 VestingExecuteMsg::TrackMigratedDelegation {
                     owner: problematic_delegator.to_string(),
                     mix_id,

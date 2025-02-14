@@ -54,6 +54,8 @@ export const FooterLinks = ({
                             ? `https://nym.com${link.url}`
                             : "/"
                       }
+                      target="_blank"
+                      rel="noopener noreferrer"
                       sx={{
                         textDecoration: "none",
                         "&:hover": {

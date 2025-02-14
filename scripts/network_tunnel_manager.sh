@@ -167,6 +167,8 @@ joke_through_tunnel() {
         else
             echo -e "${red}IPv4 connectivity is not working for $interface. verify your routing and NAT settings.${reset}"
         fi
+    else
+        echo -e "${red}no IPv4 address found on $interface. unable to fetch a joke via IPv4.${reset}"
     fi
 
     if [[ -n "$ipv6_address" ]]; then
@@ -183,6 +185,8 @@ joke_through_tunnel() {
         else
             echo -e "${red}IPv6 connectivity is not working for $interface. verify your routing and NAT settings.${reset}"
         fi
+    else
+        echo -e "${red}no IPv6 address found on $interface. unable to fetch a joke via IPv6.${reset}"
     fi
 
     echo -e "${green}joke fetching processes completed for $interface.${reset}"

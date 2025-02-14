@@ -40,10 +40,43 @@ export const NoiseCard = () => {
   const todaysData = data[data.length - 1];
   const yesterdaysData = data[data.length - 2];
 
+  const filterData = (
+    data: IPacketsAndStakingData[],
+    cutoffDateStr = "2025-02-11",
+  ): IPacketsAndStakingData[] => {
+    const cutoffDate = new Date(cutoffDateStr);
+
+    return data.filter((entry) => new Date(entry.date_utc) >= cutoffDate);
+  };
+
+  console.log("filterData :>> ", filterData(data));
+
   const noiseLast24H =
     todaysData.total_packets_sent + todaysData.total_packets_received;
   const noisePrevious24H =
     yesterdaysData.total_packets_sent + yesterdaysData.total_packets_received;
+
+  const formatNoiseVolume = (packets: number): string => {
+    if (packets < 0) {
+      throw new Error("Packets cannot be negative");
+    }
+
+    const BYTES_PER_PACKET = 2048;
+    const totalBytes = packets * BYTES_PER_PACKET;
+    const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+
+    let size = totalBytes;
+    let unitIndex = 0;
+
+    // Convert to the most appropriate unit
+    for (; size >= 1024 && unitIndex < units.length - 1; unitIndex++) {
+      size /= 1024;
+    }
+
+    return `${size.toFixed(2)} ${units[unitIndex]}`;
+  };
+
+  const formatedNoiseVolume = formatNoiseVolume(noiseLast24H);
 
   const calculatePercentageChange = (last24H: number, previous24H: number) => {
     if (previous24H === 0) {
@@ -59,23 +92,28 @@ export const NoiseCard = () => {
 
   const noiseLast24HFormatted = formatBigNum(noiseLast24H)?.toString() || "";
 
-  const noiseLineGraphData = data.map((item: IPacketsAndStakingData) => {
-    return {
-      date_utc: item.date_utc,
-      numericData: item.total_packets_sent + item.total_packets_received,
-    };
-  });
+  const noiseLineGraphData = filterData(data).map(
+    (item: IPacketsAndStakingData) => {
+      return {
+        date_utc: item.date_utc,
+        numericData: item.total_packets_sent + item.total_packets_received,
+      };
+    },
+  );
 
   return (
     <ExplorerCard label="Noise generated last 24h" sx={{ height: "100%" }}>
-      <Stack>
+      <Box display={"flex"} gap={2} flexDirection={{ xs: "column", sm: "row" }}>
         <Typography
-          variant="h3"
+          variant="h4"
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
           {noiseLast24HFormatted}
         </Typography>
-      </Stack>
+        <Typography variant="h4" sx={{ color: "#8482FD" }}>
+          ({formatedNoiseVolume})
+        </Typography>
+      </Box>
       <UpDownPriceIndicator
         percentage={Math.abs(percentage) || 0}
         numberWentUp={percentage > 0}

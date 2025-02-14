@@ -16,7 +16,7 @@ import {
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
   DATA_OBSERVATORY_NODES_URL,
-  HARBOURMASTER_API_MIXNODES_STATS,
+  NS_API_MIXNODES_STATS,
   NYM_ACCOUNT_ADDRESS,
   NYM_NODES,
   NYM_PRICES_API,
@@ -176,7 +176,7 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
 };
 
 export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
-  const response = await fetch(HARBOURMASTER_API_MIXNODES_STATS, {
+  const response = await fetch(NS_API_MIXNODES_STATS, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",

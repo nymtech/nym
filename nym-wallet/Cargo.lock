@@ -3313,15 +3313,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "nym-multisig-contract-common",
-]
-
-[[package]]
 name = "nym-coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
@@ -3658,7 +3649,6 @@ dependencies = [
  "futures",
  "itertools 0.14.0",
  "nym-api-requests",
- "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",

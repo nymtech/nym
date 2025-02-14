@@ -1,0 +1,32 @@
+[package]
+name = "nym-pool-contract"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# don't inherit from the workspace as there are breaking changes in existing contracts that need to be fixed first
+cosmwasm-std = "2.2.0"
+cw2 = "2.0.0"
+cw-storage-plus = "2.0.0"
+cw-controllers = "2.0.0"
+
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-pool-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-pool-contract" }
+
+
+[dev-dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+rand_chacha = "0.3"
+rand = "0.8.5"
+cw-multi-test = "2.3.1"

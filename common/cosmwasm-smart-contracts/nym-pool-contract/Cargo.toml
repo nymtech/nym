@@ -1,0 +1,24 @@
+[package]
+name = "nym-pool-contract-common"
+version = "0.1.0"
+description = "Common library for the Nym Pool contract"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true }
+schemars = { workspace = true }
+
+cosmwasm-std = "2.2.0"
+cosmwasm-schema = "2.2.0"
+cw-controllers = "2.0.0"
+
+[dev-dependencies]
+time = { workspace = true, features = ["macros"] }

@@ -36,9 +36,9 @@ impl ClientStatsSender {
     /// Report a statistics event using the sender.
     pub fn report(&self, event: ClientStatsEvents) {
         if let Some(tx) = &self.stats_tx {
-            if let Err(err) = tx.send(event) {
-                log::error!("Failed to send stats event: {:?}", err);
-            }
+            tx.send(event)
+                .inspect_err(|err| log::debug!("Failed to send stats event: {err}"))
+                .ok();
         }
     }
 }

@@ -5508,6 +5508,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "serde_bytes",
+ "sha2 0.10.8",
  "subtle-encoding",
  "thiserror 2.0.11",
  "x25519-dalek",

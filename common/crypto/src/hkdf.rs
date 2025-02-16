@@ -86,7 +86,7 @@ impl DerivationMaterial {
         Ok(okm)
     }
 
-    pub fn new<T: AsRef<[u8]>>(master_key: T, index: u32, salt: T) -> Self {
+    pub fn new<T: AsRef<[u8]>>(master_key: T, index: u32, salt: &[u8]) -> Self {
         // Coerce master_key to [u8; 32]
         let mut hasher = Sha256::new();
         hasher.update(master_key.as_ref());
@@ -95,7 +95,7 @@ impl DerivationMaterial {
         Self {
             master_key,
             index,
-            salt: salt.as_ref().to_vec(),
+            salt: salt.to_vec(),
         }
     }
 

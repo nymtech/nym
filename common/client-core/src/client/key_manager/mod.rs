@@ -13,6 +13,7 @@ use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 
 pub mod persistence;
+mod test;
 
 // Note: to support key rotation in the future, all keys will require adding an extra smart pointer,
 // most likely an AtomicCell, or if it doesn't work as I think it does, a Mutex. Although I think

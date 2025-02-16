@@ -14,7 +14,7 @@ use log::*;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
-use nym_task::connections::TransmissionLane;
+use nym_task::{connections::TransmissionLane, TaskClient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
@@ -25,6 +25,7 @@ pub(super) struct RetransmissionRequestListener<R> {
     message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
     reply_controller_sender: ReplyControllerSender,
+    task_client: TaskClient,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -37,6 +38,7 @@ where
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
         reply_controller_sender: ReplyControllerSender,
+        task_client: TaskClient,
     ) -> Self {
         RetransmissionRequestListener {
             maximum_retransmissions,
@@ -44,6 +46,7 @@ where
             message_handler,
             request_receiver,
             reply_controller_sender,
+            task_client,
         }
     }
 
@@ -96,11 +99,16 @@ where
             } => {
                 // if this is retransmission for reply, offload it to the dedicated task
                 // that deals with all the surbs
-                return self.reply_controller_sender.send_retransmission_data(
+                if let Err(err) = self.reply_controller_sender.send_retransmission_data(
                     *recipient_tag,
                     weak_timed_out_ack,
                     *extra_surb_request,
-                );
+                ) {
+                    if !self.task_client.is_shutdown_poll() {
+                        error!("Failed to send retransmission data to the reply controller: {err}");
+                    }
+                }
+                return;
             }
             PacketDestination::KnownRecipient(recipient) => {
                 self.prepare_normal_retransmission_chunk(
@@ -151,7 +159,9 @@ where
             .action_sender
             .unbounded_send(Action::new_update_pending_ack(frag_id, new_delay))
         {
-            error!("Failed to send update pending ack action to the controller: {err}");
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send update pending ack action to the controller: {err}");
+            }
         }
 
         // send to `OutQueueControl` to eventually send to the mix network
@@ -166,14 +176,10 @@ where
             .await
     }
 
-    pub(super) async fn run_with_shutdown(
-        &mut self,
-        mut shutdown: nym_task::TaskClient,
-        packet_type: PacketType,
-    ) {
+    pub(super) async fn run(&mut self, packet_type: PacketType) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 timed_out_ack = self.request_receiver.next() => match timed_out_ack {
                     Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack, packet_type).await,
@@ -182,12 +188,12 @@ where
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("RetransmissionRequestListener: Received shutdown");
                 }
             }
         }
-        shutdown.recv_timeout().await;
+        self.task_client.recv_timeout().await;
         log::debug!("RetransmissionRequestListener: Exiting");
     }
 }

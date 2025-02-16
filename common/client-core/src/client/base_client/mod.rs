@@ -384,8 +384,9 @@ where
                 reply_key_storage,
                 reply_controller_sender,
                 metrics_reporter,
+                shutdown,
             );
-        controller.start_with_shutdown(shutdown)
+        controller.start()
     }
 
     #[allow(clippy::too_many_arguments)]

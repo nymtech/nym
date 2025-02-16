@@ -9,6 +9,7 @@ use log::*;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::Delay as SphinxDelay;
+use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -101,6 +102,8 @@ pub(super) struct ActionController {
 
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,
+
+    task_client: TaskClient,
 }
 
 impl ActionController {
@@ -108,6 +111,7 @@ impl ActionController {
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
         incoming_actions: AckActionReceiver,
+        task_client: TaskClient,
     ) -> Self {
         ActionController {
             config,
@@ -115,6 +119,7 @@ impl ActionController {
             pending_acks_timers: NonExhaustiveDelayQueue::new(),
             incoming_actions,
             retransmission_sender,
+            task_client,
         }
     }
 
@@ -216,11 +221,7 @@ impl ActionController {
     }
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
-    fn handle_expired_ack_timer(
-        &mut self,
-        expired_ack: Expired<FragmentIdentifier>,
-        task_client: &mut nym_task::TaskClient,
-    ) {
+    fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
         // I'm honestly not sure how to handle it, because getting it means other things in our
         // system are already misbehaving. If we ever see this panic, then I guess we should worry
         // about it. Perhaps just reschedule it at later point?
@@ -238,15 +239,13 @@ impl ActionController {
             // downgrading an arc and then upgrading vs cloning is difference of 30ns vs 15ns
             // so it's literally a NO difference while it might prevent us from unnecessarily
             // resending data (in maybe 1 in 1 million cases, but it's something)
-            if self
+            if let Err(err) = self
                 .retransmission_sender
                 .unbounded_send(Arc::downgrade(pending_ack_data))
-                .is_err()
             {
-                assert!(
-                    task_client.is_shutdown_poll(),
-                    "Failed to send pending ack for retransmission"
-                );
+                if !self.task_client.is_shutdown_poll() {
+                    log::error!("Failed to send pending ack for retransmission: {err}");
+                }
             }
         } else {
             // this shouldn't cause any issues but shouldn't have happened to begin with!
@@ -265,10 +264,10 @@ impl ActionController {
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run(&mut self) {
         debug!("Started ActionController with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
@@ -280,19 +279,19 @@ impl ActionController {
                     }
                 },
                 expired_ack = self.pending_acks_timers.next() => match expired_ack {
-                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack, &mut shutdown),
+                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
                     None => {
                         log::trace!("ActionController: Stopping since ack channel closed");
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("ActionController: Received shutdown");
                     break;
                 }
             }
         }
-        shutdown.recv_timeout().await;
+        self.task_client.recv_timeout().await;
         log::debug!("ActionController: Exiting");
     }
 }

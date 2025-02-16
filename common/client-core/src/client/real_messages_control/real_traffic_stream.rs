@@ -224,10 +224,7 @@ where
         }
     }
 
-    async fn on_message(
-        &mut self,
-        next_message: StreamMessage,
-    ) {
+    async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
         let (next_message, fragment_id, packet_size) = match next_message {

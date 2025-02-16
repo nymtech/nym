@@ -125,10 +125,17 @@ impl Handler {
         };
 
         // get the number of pending replies waiting for reply surbs
-        let reply_queue_length = self
+        let reply_queue_length = match self
             .reply_controller_sender
             .get_lane_queue_length(connection_id)
-            .await;
+            .await
+        {
+            Ok(length) => length,
+            Err(err) => {
+                error!("Failed to get reply queue length for connection {connection_id}: {err}");
+                0
+            }
+        };
 
         let queue_length = base_length + reply_queue_length;
 

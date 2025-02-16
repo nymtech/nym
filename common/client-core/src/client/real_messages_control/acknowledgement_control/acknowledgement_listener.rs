@@ -11,6 +11,7 @@ use nym_sphinx::{
     acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
+use nym_task::TaskClient;
 use std::sync::Arc;
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
@@ -20,6 +21,7 @@ pub(super) struct AcknowledgementListener {
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
     stats_tx: ClientStatsSender,
+    task_client: TaskClient,
 }
 
 impl AcknowledgementListener {
@@ -28,12 +30,14 @@ impl AcknowledgementListener {
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
             stats_tx,
+            task_client,
         }
     }
 
@@ -68,7 +72,9 @@ impl AcknowledgementListener {
             .action_sender
             .unbounded_send(Action::new_remove(frag_id))
         {
-            error!("Failed to send remove action to action controller: {err}");
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send remove action to action controller: {err}");
+            }
         }
     }
 
@@ -79,10 +85,10 @@ impl AcknowledgementListener {
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 acks = self.ack_receiver.next() => match acks {
                     Some(acks) => self.handle_ack_receiver_item(acks).await,
@@ -91,12 +97,12 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("AcknowledgementListener: Received shutdown");
                 }
             }
         }
-        shutdown.recv_timeout().await;
+        self.task_client.recv_timeout().await;
         log::debug!("AcknowledgementListener: Exiting");
     }
 }

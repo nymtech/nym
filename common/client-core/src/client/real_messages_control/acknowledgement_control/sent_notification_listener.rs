@@ -6,6 +6,7 @@ use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
 use nym_sphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
+use nym_task::TaskClient;
 
 /// Module responsible for starting up retransmission timers.
 /// It is required because when we send our packet to the `real traffic stream` controlled
@@ -14,16 +15,19 @@ use nym_sphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
     action_sender: AckActionSender,
+    task_client: TaskClient,
 }
 
 impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
         action_sender: AckActionSender,
+        task_client: TaskClient,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,
             action_sender,
+            task_client,
         }
     }
 
@@ -36,14 +40,16 @@ impl SentNotificationListener {
             .action_sender
             .unbounded_send(Action::new_start_timer(frag_id))
         {
-            error!("Failed to send start timer action to action controller: {err}");
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send start timer action to action controller: {err}");
+            }
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run(&mut self) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 frag_id = self.sent_notifier.next() => match frag_id {
                     Some(frag_id) => {
@@ -54,13 +60,13 @@ impl SentNotificationListener {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("SentNotificationListener: Received shutdown");
                     break;
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        assert!(self.task_client.is_shutdown_poll());
         log::debug!("SentNotificationListener: Exiting");
     }
 }

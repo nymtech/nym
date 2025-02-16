@@ -20,6 +20,7 @@ use nym_sphinx::message::{NymMessage, PlainMessage};
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
+use nym_task::TaskClient;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -152,6 +153,7 @@ struct ReceivedMessagesBuffer<R: MessageReceiver> {
     inner: Arc<Mutex<ReceivedMessagesBufferInner<R>>>,
     reply_key_storage: SentReplyKeys,
     reply_controller_sender: ReplyControllerSender,
+    task_client: TaskClient,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
@@ -160,6 +162,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -172,6 +175,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
             })),
             reply_key_storage,
             reply_controller_sender,
+            task_client,
         }
     }
 
@@ -257,11 +261,15 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
             };
 
-            self.reply_controller_sender.send_additional_surbs(
+            if let Err(err) = self.reply_controller_sender.send_additional_surbs(
                 msg.sender_tag,
                 reply_surbs,
                 from_surb_request,
-            )
+            ) {
+                if !self.task_client.is_shutdown_poll() {
+                    error!("{err}");
+                }
+            }
         }
         reconstructed
     }
@@ -276,8 +284,14 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 ReplyMessageContent::Data { message } => reconstructed.push(message.into()),
                 ReplyMessageContent::SurbRequest { recipient, amount } => {
                     debug!("received request for {amount} additional reply SURBs from {recipient}");
-                    self.reply_controller_sender
-                        .send_additional_surbs_request(*recipient, amount);
+                    if let Err(err) = self
+                        .reply_controller_sender
+                        .send_additional_surbs_request(*recipient, amount)
+                    {
+                        if !self.task_client.is_shutdown_poll() {
+                            error!("{err}");
+                        }
+                    }
                 }
             }
         }
@@ -399,16 +413,19 @@ pub enum ReceivedBufferMessage {
 struct RequestReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     query_receiver: ReceivedBufferRequestReceiver,
+    task_client: TaskClient,
 }
 
 impl<R: MessageReceiver> RequestReceiver<R> {
     fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         query_receiver: ReceivedBufferRequestReceiver,
+        task_client: TaskClient,
     ) -> Self {
         RequestReceiver {
             received_buffer,
             query_receiver,
+            task_client,
         }
     }
 
@@ -423,12 +440,12 @@ impl<R: MessageReceiver> RequestReceiver<R> {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    async fn run(&mut self) {
         debug!("Started RequestReceiver with graceful shutdown support");
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("RequestReceiver: Received shutdown");
                 }
                 request = self.query_receiver.next() => {
@@ -441,7 +458,7 @@ impl<R: MessageReceiver> RequestReceiver<R> {
                 },
             }
         }
-        shutdown.recv().await;
+        self.task_client.recv().await;
         log::debug!("RequestReceiver: Exiting");
     }
 }
@@ -449,25 +466,25 @@ impl<R: MessageReceiver> RequestReceiver<R> {
 struct FragmentedMessageReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     mixnet_packet_receiver: MixnetMessageReceiver,
+    task_client: TaskClient,
 }
 
 impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
     fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         mixnet_packet_receiver: MixnetMessageReceiver,
+        task_client: TaskClient,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
+            task_client,
         }
     }
 
-    async fn run_with_shutdown(
-        &mut self,
-        mut shutdown: nym_task::TaskClient,
-    ) -> Result<(), MessageRecoveryError> {
+    async fn run(&mut self) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 new_messages = self.mixnet_packet_receiver.next() => {
                     if let Some(new_messages) = new_messages {
@@ -477,12 +494,12 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
                         break;
                     }
                 },
-                _ = shutdown.recv_with_delay() => {
+                _ = self.task_client.recv_with_delay() => {
                     log::trace!("FragmentedMessageReceiver: Received shutdown");
                 }
             }
         }
-        shutdown.recv_timeout().await;
+        self.task_client.recv_timeout().await;
         log::debug!("FragmentedMessageReceiver: Exiting");
         Ok(())
     }
@@ -501,41 +518,42 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         metrics_reporter: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
             metrics_reporter,
+            task_client.fork("received_messages_buffer"),
         );
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
+                task_client.fork("fragmented_message_receiver"),
             ),
-            request_receiver: RequestReceiver::new(received_buffer, query_receiver),
+            request_receiver: RequestReceiver::new(
+                received_buffer,
+                query_receiver,
+                task_client.with_suffix("request_receiver"),
+            ),
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
+    pub fn start(self) {
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 
-        let shutdown_handle = shutdown.fork("fragmented_message_receiver");
         spawn_future(async move {
-            match fragmented_message_receiver
-                .run_with_shutdown(shutdown_handle)
-                .await
-            {
+            match fragmented_message_receiver.run().await {
                 Ok(_) => {}
                 Err(e) => error!("{e}"),
             }
         });
         spawn_future(async move {
-            request_receiver
-                .run_with_shutdown(shutdown.with_suffix("request_receiver"))
-                .await;
+            request_receiver.run().await;
         });
     }
 }

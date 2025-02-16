@@ -310,7 +310,7 @@ where
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
         stats_tx: ClientStatsSender,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -323,9 +323,10 @@ where
             debug_config.traffic,
             debug_config.cover_traffic,
             stats_tx,
+            task_client,
         );
 
-        stream.start_with_shutdown(shutdown);
+        stream.start();
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -340,7 +341,7 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        shutdown: TaskClient,
+        task_client: TaskClient,
         packet_type: PacketType,
         stats_tx: ClientStatsSender,
     ) {
@@ -358,8 +359,9 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
+            task_client,
         )
-        .start_with_shutdown(shutdown, packet_type);
+        .start(packet_type);
     }
 
     // buffer controlling all messages fetched from provider

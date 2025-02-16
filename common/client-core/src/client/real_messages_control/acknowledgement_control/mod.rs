@@ -24,6 +24,7 @@ use nym_sphinx::{
     Delay as SphinxDelay,
 };
 use nym_statistics_common::clients::ClientStatsSender;
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
@@ -203,6 +204,7 @@ where
     retransmission_request_listener: RetransmissionRequestListener<R>,
     sent_notification_listener: SentNotificationListener,
     action_controller: ActionController,
+    task_client: TaskClient,
 }
 
 impl<R> AcknowledgementController<R>
@@ -216,6 +218,7 @@ where
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -262,21 +265,18 @@ where
             retransmission_request_listener,
             sent_notification_listener,
             action_controller,
+            task_client,
         }
     }
 
-    pub(super) fn start_with_shutdown(
-        self,
-        shutdown: nym_task::TaskClient,
-        packet_type: PacketType,
-    ) {
+    pub(super) fn start(self, packet_type: PacketType) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;
         let mut retransmission_request_listener = self.retransmission_request_listener;
         let mut sent_notification_listener = self.sent_notification_listener;
         let mut action_controller = self.action_controller;
 
-        let shutdown_handle = shutdown.fork("acknowledgement_listener");
+        let shutdown_handle = self.task_client.fork("acknowledgement_listener");
         spawn_future(async move {
             acknowledgement_listener
                 .run_with_shutdown(shutdown_handle)
@@ -284,7 +284,7 @@ where
             debug!("The acknowledgement listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.fork("input_message_listener");
+        let shutdown_handle = self.task_client.fork("input_message_listener");
         spawn_future(async move {
             input_message_listener
                 .run_with_shutdown(shutdown_handle)
@@ -292,7 +292,7 @@ where
             debug!("The input listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.fork("retransmission_request_listener");
+        let shutdown_handle = self.task_client.fork("retransmission_request_listener");
         spawn_future(async move {
             retransmission_request_listener
                 .run_with_shutdown(shutdown_handle, packet_type)
@@ -300,7 +300,7 @@ where
             debug!("The retransmission request listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.fork("sent_notification_listener");
+        let shutdown_handle = self.task_client.fork("sent_notification_listener");
         spawn_future(async move {
             sent_notification_listener
                 .run_with_shutdown(shutdown_handle)
@@ -310,7 +310,7 @@ where
 
         spawn_future(async move {
             action_controller
-                .run_with_shutdown(shutdown.with_suffix("action_controller"))
+                .run_with_shutdown(self.task_client.with_suffix("action_controller"))
                 .await;
             debug!("The controller has finished execution!");
         });

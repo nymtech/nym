@@ -74,7 +74,7 @@ impl StatisticsControl {
                 stats_rx,
                 report_tx,
                 reporting_config,
-                task_client: task_client.fork("statistics-control"),
+                task_client: task_client.fork("statistics_control"),
             },
             ClientStatsSender::new(Some(stats_tx), task_client),
         )

@@ -22,6 +22,7 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -117,6 +118,8 @@ where
 
     /// Channel used for sending metrics events (specifically `PacketStatistics` events) to the metrics tracker.
     stats_tx: ClientStatsSender,
+
+    task_client: TaskClient,
 }
 
 #[derive(Debug)]
@@ -176,6 +179,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         OutQueueControl {
             config,
@@ -190,6 +194,7 @@ where
             client_connection_rx,
             lane_queue_lengths,
             stats_tx,
+            task_client,
         }
     }
 
@@ -222,7 +227,6 @@ where
     async fn on_message(
         &mut self,
         next_message: StreamMessage,
-        task_client: &mut nym_task::TaskClient,
     ) {
         trace!("created new message");
 
@@ -277,7 +281,7 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            if !task_client.is_shutdown_poll() {
+            if !self.task_client.is_shutdown_poll() {
                 log::error!("Failed to send: {err}");
             }
         } else {
@@ -512,7 +516,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut nym_task::TaskClient) {
+    fn log_status(&self, shutdown: &mut TaskClient) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -543,8 +547,10 @@ where
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
+
+        let mut shutdown = self.task_client.fork("select");
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -561,7 +567,7 @@ where
                         self.log_status(&mut shutdown);
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
-                        self.on_message(next_message, &mut shutdown).await;
+                        self.on_message(next_message).await;
                     } else {
                         log::trace!("OutQueueControl: Stopping since channel closed");
                         break;

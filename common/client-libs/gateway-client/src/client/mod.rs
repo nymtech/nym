@@ -1053,7 +1053,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             connection: SocketState::NotConnected,
             packet_router,
             bandwidth_controller: None,
-            stats_reporter: ClientStatsSender::new(None),
+            stats_reporter: ClientStatsSender::new(None, task_client.clone()),
             negotiated_protocol: None,
             #[cfg(unix)]
             connection_fd_callback: None,

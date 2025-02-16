@@ -184,7 +184,10 @@ impl PacketSender {
             shared_keys,
             gateway_packet_router,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            nym_statistics_common::clients::ClientStatsSender::new(None),
+            nym_statistics_common::clients::ClientStatsSender::new(
+                None,
+                task_client.fork("client-stats-sender"),
+            ),
             #[cfg(unix)]
             None,
             task_client,

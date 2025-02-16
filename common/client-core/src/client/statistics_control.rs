@@ -51,6 +51,9 @@ pub(crate) struct StatisticsControl {
 
     /// Config for stats reporting (enabled, address, interval)
     reporting_config: StatsReporting,
+
+    /// Task client for listening for shutdown
+    task_client: nym_task::TaskClient,
 }
 
 impl StatisticsControl {
@@ -59,6 +62,7 @@ impl StatisticsControl {
         client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
+        task_client: nym_task::TaskClient,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -70,8 +74,9 @@ impl StatisticsControl {
                 stats_rx,
                 report_tx,
                 reporting_config,
+                task_client: task_client.fork("statistics-control"),
             },
-            ClientStatsSender::new(Some(stats_tx)),
+            ClientStatsSender::new(Some(stats_tx), task_client),
         )
     }
 
@@ -91,7 +96,7 @@ impl StatisticsControl {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut task_client: nym_task::TaskClient) {
+    async fn run(&mut self) {
         log::debug!("Started StatisticsControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -121,10 +126,10 @@ impl StatisticsControl {
         let mut snapshot_interval =
             gloo_timers::future::IntervalStream::new(SNAPSHOT_INTERVAL.as_millis() as u32);
 
-        while !task_client.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = task_client.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("StatisticsControl: Received shutdown");
                     break;
                 },
@@ -149,16 +154,16 @@ impl StatisticsControl {
                 }
 
                 _ = local_report_interval.next() => {
-                    self.stats.local_report(&mut task_client);
+                    self.stats.local_report(&mut self.task_client);
                 }
             }
         }
         log::debug!("StatisticsControl: Exiting");
     }
 
-    pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
+    pub(crate) fn start(mut self) {
         spawn_future(async move {
-            self.run_with_shutdown(task_client).await;
+            self.run().await;
         })
     }
 
@@ -169,9 +174,14 @@ impl StatisticsControl {
         report_tx: InputMessageSender,
         task_client: nym_task::TaskClient,
     ) -> ClientStatsSender {
-        let (controller, sender) =
-            Self::create(reporting_config, client_type, client_stats_id, report_tx);
-        controller.start_with_shutdown(task_client);
+        let (controller, sender) = Self::create(
+            reporting_config,
+            client_type,
+            client_stats_id,
+            report_tx,
+            task_client,
+        );
+        controller.start();
         sender
     }
 }

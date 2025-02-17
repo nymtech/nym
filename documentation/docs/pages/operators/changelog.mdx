@@ -67,6 +67,8 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
+- **Operators who use Debian based distributions must run their `nym-node` on Debian bookworm (Debian 12)/ Ubuntu 22.04 (and newer). In case of runing older operation system make sure to upgrade your server.**
+
 #### Service Grant Program v2 (SGPv2)
 
 As we announced in [`hu` release notes](#service-grant-program-v2), we are starting a second iteration of Service Grant Program bootstrap node operations in key target geographies for Nym and ensures the network can provide a good quality of service.
@@ -85,7 +87,7 @@ As we announced in [`hu` release notes](#service-grant-program-v2), we are start
 - Every participant of SGPv1 can submit for SGPv2 as many nodes as they currently have grant for, more slots may be offered later on.
 - New submissions can only do one node per operator.
 - Actual locations and approximate slots are listed below. If you want to have a node in a location which is not listed but it's near by some of the listed ones, it's not a problem, be honest in the form so we know where you planning to run nodes.
-- February is the last month we proceed with grants under SGPv1. You are all welcome to join SGPv2 or will remain without grant after March 1st.
+- February is the last month we proceed with grants under SGPv1.
 
 ##### How to sign in
 
@@ -95,61 +97,48 @@ As we announced in [`hu` release notes](#service-grant-program-v2), we are start
 
 ##### Locations
 
-These locations and slots are approximate and may change based on operators requirements and possibilities.
+These locations and slots are approximate and may change based on operators requirements and possibilities. Please keep in mind that we are going to chose people with respect to empty slots in the given location at the time of their submission. In case of competing submissions in the same location we will take the one with better specs vs price ratio. 
 
-```markdown
-United States	    14
-Germany	              7
-India	              5
-Finland	              4
-United Kingdom   3
-Austria	              3
-Hong Kong	      3
-Poland	              3
-Russia	              3
-France	              2
-Australia	              2
-Belgium	              2
-Canada	              2
-South Africa	      2
-Sweden	              2
-Latvia	              2
-Portugal	              1
-Lithuania	              1
-Bahrain	              1
-Czech Republic    1
-Denmark	              1
-Indonesia	      1
-Italy	                       1
-Norway	              1
-Singapore	      1
-South Korea	      1
-Spain	              1
-Ukraine	              1
-Vietnam	              1
-Argentina	      1
-Armenia	              1
-Belarus	              1
-Bulgaria	              1
-Croatia	              1
-Cyprus	              1
-Ecuador	              1
-Estonia	              1
-Greece	              1
-Hungary	              1
-Iceland	              1
-Israel	              1
-Malta	              1
-New Zealand	      1
-Romania	              1
-Serbia	              1
-```
+| LOCATION       | SLOTS |
+| :--            | --:   |
+| United States  | 10    |
+| Germany        | 6     |
+| United Kingdom | 3     |
+| India          | 5     |
+| Finland        | 3     |
+| Austria        | 2     |
+| Poland         | 1     |
+| Russia         | 2     |
+| Canada         | 1     |
+| South Africa   | 2     |
+| Sweden         | 2     |
+| Latvia         | 2     |
+| Portugal       | 1     |
+| Lithuania      | 1     |
+| Bahrain        | 1     |
+| Czech Republic | 1     |
+| Denmark        | 1     |
+| Norway         | 1     |
+| South Korea    | 1     |
+| Ukraine        | 1     |
+| Vietnam        | 1     |
+| Argentina      | 1     |
+| Belarus        | 1     |
+| Bulgaria       | 1     |
+| Croatia        | 1     |
+| Cyprus         | 1     |
+| Ecuador        | 1     |
+| Greece         | 1     |
+| Hungary        | 1     |
+| Israel         | 1     |
+| Malta          | 1     |
+| New Zealand    | 1     |
 
 ##### ISPs
 
-- Have a look into our [ISP list](https://nym.com/docs/operators/community-counsel/isp-list) page
+- Have a look into our [ISP list](community-counsel/isp-list) page
 - Further you can check out Tor community [Good Bad ISPs](https://community.torproject.org/relay/community-resources/good-bad-isps/) page
-- With any findings or feedback, please add it to this [csv](https://github.com/nymtech/nym/blob/develop/documentation/docs/data/csv/isp-sheet.csv), issue a [Pull Request](https://nym.com/docs/operators/community-counsel/add-content) and ping me for review.
+- With any findings or feedback, please add it to this [csv](https://github.com/nymtech/nym/blob/develop/documentation/docs/data/csv/isp-sheet.csv), issue a [Pull Request](community-counsel/add-content) and ping me for review.
 - We will add much more providers in the coming days
 
 ### Features

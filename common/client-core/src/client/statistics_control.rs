@@ -22,7 +22,7 @@ use nym_sphinx::addressing::Recipient;
 use nym_statistics_common::clients::{
     ClientStatsController, ClientStatsReceiver, ClientStatsSender,
 };
-use nym_task::connections::TransmissionLane;
+use nym_task::{connections::TransmissionLane, TaskClient};
 use std::time::Duration;
 
 use crate::{
@@ -53,7 +53,7 @@ pub(crate) struct StatisticsControl {
     reporting_config: StatsReporting,
 
     /// Task client for listening for shutdown
-    task_client: nym_task::TaskClient,
+    task_client: TaskClient,
 }
 
 impl StatisticsControl {
@@ -62,11 +62,14 @@ impl StatisticsControl {
         client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
-        task_client: nym_task::TaskClient,
+        task_client: TaskClient,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let stats = ClientStatsController::new(client_stats_id, client_type);
+
+        let mut task_client_stats_sender = task_client.fork("stats_sender");
+        task_client_stats_sender.disarm();
 
         (
             StatisticsControl {
@@ -74,9 +77,9 @@ impl StatisticsControl {
                 stats_rx,
                 report_tx,
                 reporting_config,
-                task_client: task_client.fork("statistics_control"),
+                task_client,
             },
-            ClientStatsSender::new(Some(stats_tx), task_client),
+            ClientStatsSender::new(Some(stats_tx), task_client_stats_sender),
         )
     }
 
@@ -172,7 +175,7 @@ impl StatisticsControl {
         client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
-        task_client: nym_task::TaskClient,
+        task_client: TaskClient,
     ) -> ClientStatsSender {
         let (controller, sender) = Self::create(
             reporting_config,

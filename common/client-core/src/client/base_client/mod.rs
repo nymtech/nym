@@ -646,7 +646,7 @@ where
         user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
         StatisticsControl::create_and_start(
@@ -656,7 +656,7 @@ where
                 .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
-            shutdown.with_suffix("controller"),
+            task_client,
         )
     }
 

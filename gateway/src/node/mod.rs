@@ -225,7 +225,7 @@ impl GatewayTasksBuilder {
                 handler_config,
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
-                self.shutdown.fork("ecash-manager"),
+                self.shutdown.fork("ecash_manager"),
                 self.storage.clone(),
             )
             .await?,
@@ -279,13 +279,13 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown.fork("network-requester-message-router"),
+            self.shutdown.fork("network_requester_message_router"),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
-            .with_shutdown(self.shutdown.fork("network-requester-sp"))
+            .with_shutdown(self.shutdown.fork("network_requester_sp"))
             .with_custom_gateway_transceiver(transceiver)
             .with_wait_for_gateway(true)
             .with_minimum_gateway_performance(0)
@@ -314,13 +314,13 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown.fork("ipr-message-router"),
+            self.shutdown.fork("ipr_message_router"),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router = IpPacketRouter::new(ip_opts.config.clone())
-            .with_shutdown(self.shutdown.fork("ipr-sp"))
+            .with_shutdown(self.shutdown.fork("ipr_sp"))
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
             .with_minimum_gateway_performance(0)
@@ -418,7 +418,7 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown.fork("authenticator-message-router"),
+            self.shutdown.fork("authenticator_message_router"),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
@@ -431,7 +431,7 @@ impl GatewayTasksBuilder {
         )
         .with_ecash_verifier(ecash_manager)
         .with_custom_gateway_transceiver(transceiver)
-        .with_shutdown(self.shutdown.fork("authenticator-sp"))
+        .with_shutdown(self.shutdown.fork("authenticator_sp"))
         .with_wait_for_gateway(true)
         .with_minimum_gateway_performance(0)
         .with_custom_topology_provider(topology_provider)
@@ -451,7 +451,7 @@ impl GatewayTasksBuilder {
     pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {
         StaleMessagesCleaner::new(
             &self.storage,
-            self.shutdown.fork("stale-messages-cleaner"),
+            self.shutdown.fork("stale_messages_cleaner"),
             self.config.debug.stale_messages_max_age,
             self.config.debug.stale_messages_cleaner_run_interval,
         )

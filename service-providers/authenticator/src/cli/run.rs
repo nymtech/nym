@@ -41,7 +41,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
         Arc::new(KeyPair::new(&mut OsRng)),
     );
     let task_handler = TaskHandle::default();
-    let handler = DummyHandler::new(peer_rx, task_handler.fork("peer-handler"));
+    let handler = DummyHandler::new(peer_rx, task_handler.fork("peer_handler"));
     tokio::spawn(async move {
         handler.run().await;
     });

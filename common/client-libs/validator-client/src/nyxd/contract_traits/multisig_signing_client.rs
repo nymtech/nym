@@ -149,7 +149,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]

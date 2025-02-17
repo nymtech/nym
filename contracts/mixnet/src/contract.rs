@@ -635,7 +635,7 @@ pub fn migrate(
 mod tests {
     use super::*;
     use crate::rewards::storage as rewards_storage;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
     use cosmwasm_std::{Decimal, Uint128};
     use mixnet_contract_common::reward_params::{
         IntervalRewardParams, RewardedSetParams, RewardingParams,
@@ -651,8 +651,8 @@ mod tests {
         let env = mock_env();
 
         let init_msg = InstantiateMsg {
-            rewarding_validator_address: "foomp123".to_string(),
-            vesting_contract_address: "bar456".to_string(),
+            rewarding_validator_address: deps.api.addr_make("foomp123").to_string(),
+            vesting_contract_address: deps.api.addr_make("bar456").to_string(),
             rewarding_denom: "uatom".to_string(),
             epochs_in_interval: 1234,
             epoch_duration: Duration::from_secs(4321),
@@ -683,15 +683,15 @@ mod tests {
             },
         };
 
-        let sender = mock_info("sender", &[]);
+        let sender = message_info(&deps.api.addr_make("sender"), &[]);
         let res = instantiate(deps.as_mut(), env, sender, init_msg);
         assert!(res.is_ok());
 
         #[allow(deprecated)]
         let expected_state = ContractState {
-            owner: Some(Addr::unchecked("sender")),
-            rewarding_validator_address: Addr::unchecked("foomp123"),
-            vesting_contract_address: Addr::unchecked("bar456"),
+            owner: Some(deps.api.addr_make("sender")),
+            rewarding_validator_address: deps.api.addr_make("foomp123"),
+            vesting_contract_address: deps.api.addr_make("bar456"),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

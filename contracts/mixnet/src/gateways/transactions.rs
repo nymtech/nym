@@ -151,10 +151,9 @@ pub mod tests {
     use crate::mixnet_contract_settings::storage::minimum_node_pledge;
     use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
     use crate::signing::storage as signing_storage;
-    use crate::support::tests;
     use crate::support::tests::fixtures::{good_gateway_pledge, good_mixnode_pledge};
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Addr, BankMsg, Uint128};
     use mixnet_contract_common::ExecuteMsg;
 
@@ -163,12 +162,12 @@ pub mod tests {
         let mut test = TestSetup::new();
 
         // if we fail validation (by say not sending enough funds
-        let sender = "alice";
-        let minimum_pledge = minimum_node_pledge(test.deps().storage).unwrap();
+        let sender = &test.make_addr("alice");
+        let minimum_pledge = minimum_node_pledge(test.deps().storage)?;
         let mut insufficient_pledge = minimum_pledge.clone();
         insufficient_pledge.amount -= Uint128::new(1000);
 
-        let info = mock_info(sender, &[insufficient_pledge.clone()]);
+        let info = message_info(sender, &[insufficient_pledge.clone()]);
         let (gateway, sig) =
             test.gateway_with_signature(sender, Some(vec![insufficient_pledge.clone()]));
 
@@ -191,7 +190,7 @@ pub mod tests {
         );
 
         // if the signature provided is invalid, the bonding also fails
-        let info = mock_info(sender, &[minimum_pledge]);
+        let info = message_info(sender, &[minimum_pledge]);
 
         // if there was already a gateway bonded by particular user
         test.add_legacy_gateway(sender, None);
@@ -201,11 +200,11 @@ pub mod tests {
         assert_eq!(Err(MixnetContractError::AlreadyOwnsGateway), result);
 
         // the same holds if the user already owns a mixnode
-        let sender2 = "mixnode-owner";
+        let sender2 = &test.make_addr("mixnode-owner");
 
         let mix_id = test.add_legacy_mixnode(sender2, None);
 
-        let info = mock_info(sender2, &good_gateway_pledge());
+        let info = message_info(sender2, &good_gateway_pledge());
         let (gateway, sig) = test.gateway_with_signature(sender2, None);
 
         let result = try_add_gateway(
@@ -225,8 +224,7 @@ pub mod tests {
 
         // and the node has been added as a nym-node
         let nym_node =
-            get_node_details_by_identity(test.deps().storage, gateway.identity_key.clone())
-                .unwrap()
+            get_node_details_by_identity(test.deps().storage, gateway.identity_key.clone())?
                 .unwrap();
         assert_eq!(nym_node.bond_information.owner, info.sender);
 
@@ -235,8 +233,7 @@ pub mod tests {
         assert!(maybe_legacy.is_none());
 
         // make sure we got assigned the next id (note: we have already bonded a mixnode and a gateway before in this test)
-        let bond =
-            must_get_node_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2)).unwrap();
+        let bond = must_get_node_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2))?;
         assert_eq!(3, bond.node_id);
 
         Ok(())
@@ -247,9 +244,9 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let sender = "alice";
+        let sender = &test.make_addr("alice");
         let pledge = good_mixnode_pledge();
-        let info = mock_info(sender, pledge.as_ref());
+        let info = message_info(sender, pledge.as_ref());
 
         let (gateway, signature) = test.gateway_with_signature(sender, Some(pledge.clone()));
 
@@ -269,7 +266,7 @@ pub mod tests {
         let mut different_pledge = pledge.clone();
         different_pledge[0].amount += Uint128::new(12345);
 
-        let info = mock_info(sender, different_pledge.as_ref());
+        let info = message_info(sender, different_pledge.as_ref());
         let res = try_add_gateway(
             test.deps_mut(),
             env.clone(),
@@ -279,7 +276,7 @@ pub mod tests {
         );
         assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
 
-        let other_sender = mock_info("another-sender", pledge.as_ref());
+        let other_sender = message_info(&test.make_addr("another-sender"), pledge.as_ref());
         let res = try_add_gateway(
             test.deps_mut(),
             env.clone(),
@@ -290,7 +287,7 @@ pub mod tests {
         assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
 
         // trying to reuse the same signature for another bonding fails (because nonce doesn't match!)
-        let info = mock_info(sender, pledge.as_ref());
+        let info = message_info(sender, pledge.as_ref());
         let current_nonce =
             signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
                 .unwrap();
@@ -321,7 +318,7 @@ pub mod tests {
         let env = test.env();
 
         // try unbond when no nodes exist yet
-        let info = mock_info("anyone", &[]);
+        let info = message_info(&test.make_addr("anyone"), &[]);
         let msg = ExecuteMsg::UnbondGateway {};
         let result = execute(test.deps_mut(), env.clone(), info, msg);
 
@@ -334,10 +331,10 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        test.add_legacy_gateway("bob", None);
+        test.add_legacy_gateway(&test.make_addr("bob"), None);
 
         // attempt to unbond fred's node, which doesn't exist
-        let info = mock_info("fred", &[]);
+        let info = message_info(&test.make_addr("fred"), &[]);
         let msg = ExecuteMsg::UnbondGateway {};
         let result = execute(test.deps_mut(), env.clone(), info, msg);
         assert_eq!(
@@ -357,7 +354,7 @@ pub mod tests {
         assert_eq!(&Addr::unchecked("bob"), first_node.owner());
 
         // add a node owned by fred
-        let (fred_identity, _) = test.add_legacy_gateway("fred", None);
+        let (fred_identity, _) = test.add_legacy_gateway(&test.make_addr("fred"), None);
 
         // let's make sure we now have 2 nodes:
         let nodes = queries::query_gateways_paged(test.deps(), None, None)
@@ -366,7 +363,7 @@ pub mod tests {
         assert_eq!(2, nodes.len());
 
         // unbond fred's node
-        let info = mock_info("fred", &[]);
+        let info = message_info(&test.make_addr("fred"), &[]);
         let msg = ExecuteMsg::UnbondGateway {};
         let remove_fred = execute(test.deps_mut(), env, info.clone(), msg).unwrap();
 
@@ -381,8 +378,8 @@ pub mod tests {
             Response::new()
                 .add_message(expected_message)
                 .add_event(new_gateway_unbonding_event(
-                    &Addr::unchecked("fred"),
-                    &tests::fixtures::good_gateway_pledge()[0],
+                    &test.make_addr("fred"),
+                    &good_gateway_pledge()[0],
                     &fred_identity,
                 ));
 
@@ -393,15 +390,15 @@ pub mod tests {
             .unwrap()
             .nodes;
         assert_eq!(1, nodes.len());
-        assert_eq!(&Addr::unchecked("bob"), nodes[0].owner());
+        assert_eq!(&test.make_addr("bob"), nodes[0].owner());
     }
 
     #[test]
     fn update_gateway_config() {
         let mut test = TestSetup::new();
 
-        let owner = "alice";
-        let info = mock_info(owner, &[]);
+        let owner = &test.make_addr("alice");
+        let info = message_info(owner, &[]);
         let update = GatewayConfigUpdate {
             host: "1.1.1.1:1234".to_string(),
             mix_port: 1234,

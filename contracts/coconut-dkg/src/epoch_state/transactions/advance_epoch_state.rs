@@ -95,7 +95,7 @@ mod tests {
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::state::storage::STATE;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{StdResult, Storage};
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
@@ -359,7 +359,7 @@ mod tests {
             ContractError::WaitingInitialisation
         );
 
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(
@@ -584,7 +584,7 @@ mod tests {
     fn verify_threshold() {
         let mut deps = init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
         assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 

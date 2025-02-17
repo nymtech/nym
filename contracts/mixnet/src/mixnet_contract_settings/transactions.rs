@@ -130,7 +130,7 @@ pub mod tests {
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Addr, Coin, Uint128};
     use cw_controllers::AdminError::NotAdmin;
     use mixnet_contract_common::OperatorsParamsUpdate;
@@ -139,7 +139,7 @@ pub mod tests {
     fn update_contract_rewarding_validator_address() {
         let mut deps = test_helpers::init_contract();
 
-        let info = mock_info("not-the-creator", &[]);
+        let info = message_info(&deps.api.addr_make("not-the-creator"), &[]);
         let res = try_update_rewarding_validator_address(
             deps.as_mut(),
             info,
@@ -147,7 +147,7 @@ pub mod tests {
         );
         assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
-        let info = mock_info("creator", &[]);
+        let info = message_info(&deps.api.addr_make("creator"), &[]);
         let res = try_update_rewarding_validator_address(
             deps.as_mut(),
             info,
@@ -194,12 +194,12 @@ pub mod tests {
         };
 
         // cannot be updated from non-owner account
-        let info = mock_info("not-the-creator", &[]);
+        let info = message_info(&deps.api.addr_make("not-the-creator"), &[]);
         let res = try_update_contract_settings(deps.as_mut(), info, pledge_update.clone());
         assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
         // but works fine from the creator account
-        let info = mock_info("creator", &[]);
+        let info = message_info(&deps.api.addr_make("creator"), &[]);
         let res = try_update_contract_settings(deps.as_mut(), info, pledge_update.clone());
         assert_eq!(
             res,
@@ -218,21 +218,21 @@ pub mod tests {
         );
 
         // // error is thrown if rewarded set is smaller than the active set
-        // let info = mock_info("creator", &[]);
+        // let info = message_info("creator", &[]);
         // let mut new_params = current_state.params.clone();
         // new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
         // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         // assert_eq!(Err(MixnetContractError::InvalidActiveSetSize), res);
         //
         // // error is thrown for 0 size rewarded set
-        // let info = mock_info("creator", &[]);
+        // let info = message_info("creator", &[]);
         // let mut new_params = current_state.params.clone();
         // new_params.mixnode_rewarded_set_size = 0;
         // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         // assert_eq!(Err(MixnetContractError::ZeroRewardedSet), res);
         //
         // // error is thrown for 0 size active set
-        // let info = mock_info("creator", &[]);
+        // let info = message_info("creator", &[]);
         // let mut new_params = current_state.params;
         // new_params.mixnode_active_set_size = 0;
         // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
@@ -249,8 +249,8 @@ pub mod tests {
         fn is_restricted_to_the_admin() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let not_admin = mock_info("not-admin", &[]);
-            let admin = mock_info(test.admin().as_ref(), &[]);
+            let not_admin = message_info(&test.make_addr("not-admin"), &[]);
+            let admin = message_info(&test.admin(), &[]);
 
             let env = test.env();
             let res = try_update_current_nym_node_semver(

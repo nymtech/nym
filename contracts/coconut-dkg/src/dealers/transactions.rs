@@ -88,7 +88,7 @@ pub(crate) mod tests {
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
@@ -96,10 +96,10 @@ pub(crate) mod tests {
     fn invalid_state() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let owner = Addr::unchecked("owner");
-        let info = mock_info(owner.as_str(), &[]);
+        let info = message_info(owner.as_str(), &[]);
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let identity = String::from("identity");
         let announce_address = String::from("localhost:8000");

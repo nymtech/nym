@@ -74,7 +74,7 @@ pub mod helpers {
     use crate::traits::VestingAccount;
     use crate::vesting::{populate_vesting_periods, StorableVestingAccountExt};
     use contracts_common::Percent;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
     use cosmwasm_std::{
         coin, Addr, BlockInfo, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MemoryStorage,
         MessageInfo, OwnedDeps, Storage, Timestamp, Uint128,
@@ -112,7 +112,7 @@ pub mod helpers {
                 deps,
                 env: mock_env(),
                 rng: test_rng(),
-                admin: mock_info(admin.as_str(), &[]),
+                admin: message_info(admin.as_str(), &[]),
             }
         }
 
@@ -143,7 +143,7 @@ pub mod helpers {
                 deps,
                 env,
                 rng: test_rng(),
-                admin: mock_info(admin.as_str(), &[]),
+                admin: message_info(admin.as_str(), &[]),
             }
         }
 
@@ -324,7 +324,7 @@ pub mod helpers {
             mix_denom: TEST_COIN_DENOM.to_string(),
         };
         let env = mock_env();
-        let info = mock_info("admin", &[]);
+        let info = message_info("admin", &[]);
         instantiate(deps.as_mut(), env, info, msg).unwrap();
         deps
     }

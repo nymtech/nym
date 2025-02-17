@@ -1340,6 +1340,7 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus",
  "cw2",
+ "easy-addr",
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",

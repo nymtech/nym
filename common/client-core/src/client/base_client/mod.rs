@@ -575,15 +575,22 @@ where
         topology_accessor: TopologyAccessor,
         local_gateway: NodeIdentity,
         wait_for_gateway: bool,
-        mut shutdown: TaskClient,
+        mut task_client: TaskClient,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
             TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
+
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The background topology refesher is not going to be started");
+            task_client.disarm();
+        }
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
             topology_accessor,
             topology_provider,
+            task_client,
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
@@ -624,15 +631,11 @@ where
             }
         }
 
-        if topology_config.disable_refreshing {
-            // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The topology refesher is not going to be started");
-            shutdown.disarm();
-        } else {
+        if !topology_config.disable_refreshing {
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
             info!("Starting topology refresher...");
-            topology_refresher.start_with_shutdown(shutdown);
+            topology_refresher.start();
         }
 
         Ok(())
@@ -646,7 +649,7 @@ where
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
-        StatisticsControl::create_and_start_with_shutdown(
+        StatisticsControl::create_and_start(
             config.debug.stats_reporting,
             user_agent
                 .map(|u| u.application)
@@ -663,8 +666,8 @@ where
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
         let (mix_traffic_controller, mix_tx, client_tx) =
-            MixTrafficController::new(gateway_transceiver);
-        mix_traffic_controller.start_with_shutdown(shutdown);
+            MixTrafficController::new(gateway_transceiver, shutdown);
+        mix_traffic_controller.start();
         (mix_tx, client_tx)
     }
 

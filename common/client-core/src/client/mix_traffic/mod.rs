@@ -7,6 +7,7 @@ use crate::spawn_future;
 use log::*;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::TaskClient;
 use transceiver::ErasedGatewayError;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
@@ -32,11 +33,14 @@ pub struct MixTrafficController {
     // TODO: this is temporary work-around.
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
     consecutive_gateway_failure_count: usize,
+
+    task_client: TaskClient,
 }
 
 impl MixTrafficController {
     pub fn new<T>(
         gateway_transceiver: T,
+        task_client: TaskClient,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -56,6 +60,7 @@ impl MixTrafficController {
                 mix_rx: message_receiver,
                 client_rx: client_receiver,
                 consecutive_gateway_failure_count: 0,
+                task_client,
             },
             message_sender,
             client_sender,
@@ -64,6 +69,7 @@ impl MixTrafficController {
 
     pub fn new_dynamic(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
+        task_client: TaskClient,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -78,6 +84,7 @@ impl MixTrafficController {
                 mix_rx: message_receiver,
                 client_rx: client_receiver,
                 consecutive_gateway_failure_count: 0,
+                task_client,
             },
             message_sender,
             client_sender,
@@ -109,11 +116,11 @@ impl MixTrafficController {
         result
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
+    pub fn start(mut self) {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
-            while !shutdown.is_shutdown() {
+            while !self.task_client.is_shutdown() {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
@@ -125,7 +132,7 @@ impl MixTrafficController {
                                     error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
                                     // Do we need to handle the embedded mixnet client case
                                     // separately?
-                                    shutdown.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
+                                    self.task_client.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
                                     break;
                                 }
                             }
@@ -146,13 +153,13 @@ impl MixTrafficController {
                             log::trace!("MixTrafficController, client request channel closed");
                         }
                     },
-                    _ = shutdown.recv() => {
+                    _ = self.task_client.recv() => {
                         log::trace!("MixTrafficController: Received shutdown");
                         break;
                     }
                 }
             }
-            shutdown.recv_timeout().await;
+            self.task_client.recv_timeout().await;
 
             log::debug!("MixTrafficController: Exiting");
         });

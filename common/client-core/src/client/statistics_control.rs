@@ -167,7 +167,7 @@ impl StatisticsControl {
         })
     }
 
-    pub(crate) fn create_and_start_with_shutdown(
+    pub(crate) fn create_and_start(
         reporting_config: StatsReporting,
         client_type: String,
         client_stats_id: String,

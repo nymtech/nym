@@ -198,8 +198,8 @@ pub mod test_helpers {
 
             let choices = [true, false];
 
-            // every epoch there's a 2% chance of somebody bonding a node
-            let bonding_weights = [2, 98];
+            // every epoch there's a 3% chance of somebody bonding a node
+            let bonding_weights = [3, 97];
 
             // and 15% of making a delegation
             let delegation_weights = [15, 85];
@@ -246,28 +246,28 @@ pub mod test_helpers {
 
                 // make sure we cover our edge case of somebody having both liquid and vested delegation towards the same node
                 if epoch_id == 123 {
-                    test.add_immediate_delegation(problematic_delegator, stake, 4);
-                    test.add_immediate_delegation(problematic_delegator_twin, stake, 4);
+                    test.add_immediate_delegation(problematic_delegator, stake, 3);
+                    test.add_immediate_delegation(problematic_delegator_twin, stake, 3);
                 }
 
                 if epoch_id == 666 {
-                    test.add_immediate_delegation_with_legal_proxy(problematic_delegator, stake, 4);
+                    test.add_immediate_delegation_with_legal_proxy(problematic_delegator, stake, 3);
                     test.add_immediate_delegation_with_legal_proxy(
                         problematic_delegator_twin,
                         stake,
-                        4,
+                        3,
                     );
                 }
 
                 if epoch_id == 234 {
-                    test.add_immediate_delegation(problematic_delegator_alt_twin, stake, 4);
+                    test.add_immediate_delegation(problematic_delegator_alt_twin, stake, 3);
                 }
 
                 if epoch_id == 420 {
                     test.add_immediate_delegation_with_legal_proxy(
                         problematic_delegator_alt_twin,
                         stake,
-                        4,
+                        3,
                     );
                 }
 

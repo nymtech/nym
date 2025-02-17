@@ -47,6 +47,147 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.3-ruta`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.3-ruta)
+- [`nym-node`](nodes/nym-node.mdx) version `1.5.0`
+
+```
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-02-13T11:49:34.670488195Z
+Build Version:      1.5.0
+Commit SHA:         a3e19b4563843055b305ea9a397eb1ad84b5c378
+Commit Date:        2025-02-10T18:14:47.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.84.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+#### Service Grant Program v2 (SGPv2)
+
+As we announced in [`hu` release notes](#service-grant-program-v2), we are starting a second iteration of Service Grant Program bootstrap node operations in key target geographies for Nym and ensures the network can provide a good quality of service.
+
+##### Conditions to join of SGPv2
+
+<Callout type="warning">
+**If you are interested to become a part of SGPv2, read the point below. Do *not* buy new machines neither do *not* migrate nodes just yet!**
+</Callout>
+
+- [Read specs & rules first](#service-grant-program-v2)
+- The program will start from March 1st.
+- Accepted participants are expected to run their nodes in assigned location and with [new specs](#service-grant-program-v2) by February 28th the latest.
+- Squads orchestrating multiple nodes will be prioritized in locations with more slots.
+- There is no final budget, neither a size per node as we expect that the next round of Service Grants program will be individual grants of varying sizes, depending on how many nodes, location, specs etc.
+- Every participant of SGPv1 can submit for SGPv2 as many nodes as they currently have grant for, more slots may be offered later on.
+- New submissions can only do one node per operator.
+- Actual locations and approximate slots are listed below. If you want to have a node in a location which is not listed but it's near by some of the listed ones, it's not a problem, be honest in the form so we know where you planning to run nodes.
+- February is the last month we proceed with grants under SGPv1. You are all welcome to join SGPv2 or will remain without grant after March 1st.
+
+##### How to sign in
+
+1. Have a look at locations, specs and providers. You can contact them directly and make a calculation how much running a node on their service would cost and what size of a grant you expect to receive.
+2. To apply for a service grant, the first step is to fill in [this form](https://nymtech2.typeform.com/to/LyPJer49) per each node.
+3. Be responsive on Element for follow up communication.
+
+##### Locations
+
+These locations and slots are approximate and may change based on operators requirements and possibilities.
+
+```markdown
+United States	    14
+Germany	              7
+India	              5
+Finland	              4
+United Kingdom   3
+Austria	              3
+Hong Kong	      3
+Poland	              3
+Russia	              3
+France	              2
+Australia	              2
+Belgium	              2
+Canada	              2
+South Africa	      2
+Sweden	              2
+Latvia	              2
+Portugal	              1
+Lithuania	              1
+Bahrain	              1
+Czech Republic    1
+Denmark	              1
+Indonesia	      1
+Italy	                       1
+Norway	              1
+Singapore	      1
+South Korea	      1
+Spain	              1
+Ukraine	              1
+Vietnam	              1
+Argentina	      1
+Armenia	              1
+Belarus	              1
+Bulgaria	              1
+Croatia	              1
+Cyprus	              1
+Ecuador	              1
+Estonia	              1
+Greece	              1
+Hungary	              1
+Iceland	              1
+Israel	              1
+Malta	              1
+New Zealand	      1
+Romania	              1
+Serbia	              1
+```
+
+##### ISPs
+
+- Have a look into our [ISP list](https://nym.com/docs/operators/community-counsel/isp-list) page
+- Further you can check out Tor community [Good Bad ISPs](https://community.torproject.org/relay/community-resources/good-bad-isps/) page
+- With any findings or feedback, please add it to this [csv](https://github.com/nymtech/nym/blob/develop/documentation/docs/data/csv/isp-sheet.csv), issue a [Pull Request](https://nym.com/docs/operators/community-counsel/add-content) and ping me for review.
+- We will add much more providers in the coming days
+
+### Features
+
+- [DNS resolver configuration for internal HTTP client lookups](https://github.com/nymtech/nym/pull/5355): The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints supporting DoH, DoT, and for google DoH3 as well. This resolver implements a fallback mechanism where, should the DNS-over-X resolution fail, a followup resolution will be done using the hosts configured default (e.g. `/etc/resolve.conf` on linux).
+
+- [Bump tokio from `1.40.0` to `1.43.0`](https://github.com/nymtech/nym/pull/5370)
+
+- [Uncouple storage reference for bandwidth client](https://github.com/nymtech/nym/pull/5372): Because of the `Storage` reference in the bandwidth client, the client can't be separated and used in a different place, as it will be linked to the `DisconnectedClient`. Cloning it ensures we uncouple this unnecessary dependence.
+
+- [`MixnetClient` can send `ClientRequests`](https://github.com/nymtech/nym/pull/5381): Adding a channel to the `MixnetClient`, so that it can signal to the `MixTrafficController` that can send a `ClientRequest` via its `GatewayTransciver`. Additionaly adds a sleep to the `disconnect` call as the socket would close before the channel message got processed.
+
+- [Use secure DNS for websocket connection establishment](https://github.com/nymtech/nym/pull/5386): Adjust the websocket connection establishment (using `tokio_tungstenite`) to use a custom DNS resolver that tries DoH and DoT. Instead of relying on the `tokio_tungstenite` to open the `tokio::net::TcpStream` ([which it does here](https://github.com/snapview/tokio-tungstenite/blob/aafb2f9e036162f7bffa002cfea502376a690724/src/connect.rs#L91)) which would kick in the default network resolver we do the resolution and open the `TcpStream` ourselves before handing off to the websocket libary.
+
+- [Reduce log severity for checking topology validity](https://github.com/nymtech/nym/pull/5395)
+
+- [Change Explorer URL to new smooshed nodes](https://github.com/nymtech/nym/pull/5396)
+
+- [Send shutdown instead of panic when reaching max fail](https://github.com/nymtech/nym/pull/5398): Remove a panic and an unwrap inside `client-core` that is hit occasionally in the vpn client. This is a change that can have wide ranging impact since it changes the task handling and it's inside `client-core`, which is used in many components and services, so preventing regressions is important.
+
+- [Relocate a validator api function](https://github.com/nymtech/nym/pull/5401): Adds a function to the `nym-validator-client` crate that hits the network details endpoint and returns an object parsed from `json`. This was floating loose in the `nym-vpn-client` repo. 
+
+- [Bump the patch-updates group across 1 directory with 9 updates](https://github.com/nymtech/nym/pull/5406)
+
+- [Upgrade to `thiserror` 2.0](https://github.com/nymtech/nym/pull/5414)
+
+- [Make `wait_for_graceful_shutdown` to be pub](https://github.com/nymtech/nym/pull/5424)
+
+- [Fix statistics shutdown](https://github.com/nymtech/nym/pull/5426)
+
+- [Push down forget me to client configs](https://github.com/nymtech/nym/pull/5431)
+
+### Bugfix
+
+- [Fix missing path triggers for CI](https://github.com/nymtech/nym/pull/5380): Fix missing path triggers for CI and sort crate list alphabetically to make it easier to maintain.
+
+
+
 ## `v2025.2-hu`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.2-hu)

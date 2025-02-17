@@ -20,10 +20,10 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](.
 ```sh
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2025-02-04T09:35:42.399220545Z
-Build Version:      1.4.0
-Commit SHA:         4c2bf3642e8eec0d55c7753e14429d73ac2d0e99
-Commit Date:        2025-02-04T10:29:48.000000000+01:00
+Build Timestamp:    2025-02-13T11:49:34.670488195Z
+Build Version:      1.5.0
+Commit SHA:         a3e19b4563843055b305ea9a397eb1ad84b5c378
+Commit Date:        2025-02-10T18:14:47.000000000+01:00
 Commit Branch:      HEAD
 rustc Version:      1.84.1
 rustc Channel:      stable
@@ -62,7 +62,7 @@ Exit Gateway is the only mode routing data directly to the open internet. Theref
 
 ***dVPN routing (2-hop) is the Fast option of NymVPN. It runs a wireguard tunnel inside another wireguard tunnel. dVPN uses 2 Gateway layers (entry and exit) and no Mixnode layers. If an operator announces and [correctly configure](configuration#connectivity-test-and-configuration) their node to route wireguard, the node can be chosen as entry or exit by any client at any time.***
 
-To activate wireguard routing, operators need to add `--wireguard-enabled true` alongside `nym-node` command `run`. 
+To activate wireguard routing, operators need to add `--wireguard-enabled true` alongside `nym-node` command `run`.
 
 <Callout type="warning">
 Wireguard nodes route data directly to the open internet. Therefore it exposes IP of operators server (VPS) to abuse complains. Before you decide to run a node with active wireguard routing, please read our [Community Counsel pages](../../community-counsel/exit-gateway) containing more information and some legal content.

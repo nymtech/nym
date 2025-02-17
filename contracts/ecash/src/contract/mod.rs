@@ -26,7 +26,6 @@ use nym_ecash_contract_common::events::{
 use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
-use sylvia::types::ReplyCtx;
 use sylvia::{contract, entry_points};
 
 mod helpers;
@@ -407,7 +406,12 @@ impl NymEcashContract {
     =========REPLY=========
     =====================*/
     #[sv::msg(reply)]
-    pub fn reply(&self, ctx: ReplyCtx, msg: Reply) -> Result<Response, EcashContractError> {
+    #[allow(deprecated)]
+    pub fn reply(
+        &self,
+        ctx: sylvia::types::ReplyCtx,
+        msg: Reply,
+    ) -> Result<Response, EcashContractError> {
         match msg.id {
             n if n == BLACKLIST_PROPOSAL_REPLY_ID => self.handle_blacklist_proposal_reply(ctx, msg),
             n if n == REDEMPTION_PROPOSAL_REPLY_ID => {
@@ -417,9 +421,10 @@ impl NymEcashContract {
         }
     }
 
+    #[allow(deprecated)]
     fn handle_blacklist_proposal_reply(
         &self,
-        ctx: ReplyCtx,
+        ctx: sylvia::types::ReplyCtx,
         msg: Reply,
     ) -> Result<Response, EcashContractError> {
         let proposal_id = msg.multisig_proposal_id()?;
@@ -436,9 +441,10 @@ impl NymEcashContract {
         Ok(Response::new().add_attribute(PROPOSAL_ID_ATTRIBUTE_NAME, proposal_id.to_string()))
     }
 
+    #[allow(deprecated)]
     fn handle_redemption_proposal_reply(
         &self,
-        _ctx: ReplyCtx,
+        _ctx: sylvia::types::ReplyCtx,
         msg: Reply,
     ) -> Result<Response, EcashContractError> {
         let proposal_id = msg.multisig_proposal_id()?;

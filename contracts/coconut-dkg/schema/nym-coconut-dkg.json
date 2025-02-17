@@ -1357,9 +1357,7 @@
         },
         "dealing_submission_status": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/DealingStatus"
-          }
+          "additionalProperties": false
         },
         "epoch_id": {
           "type": "integer",
@@ -1397,9 +1395,7 @@
           "properties": {
             "chunk_submission_status": {
               "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/ChunkSubmissionStatus"
-              }
+              "additionalProperties": false
             },
             "fully_submitted": {
               "type": "boolean"
@@ -1744,9 +1740,7 @@
           "properties": {
             "chunk_submission_status": {
               "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/ChunkSubmissionStatus"
-              }
+              "additionalProperties": false
             },
             "fully_submitted": {
               "type": "boolean"
@@ -1841,9 +1835,7 @@
             },
             "submitted_chunks": {
               "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/SubmittedChunk"
-              }
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

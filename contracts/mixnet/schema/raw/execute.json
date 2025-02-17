@@ -1022,7 +1022,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "ConfigScoreParamsUpdate": {
       "type": "object",

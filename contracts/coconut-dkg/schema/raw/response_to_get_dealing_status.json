@@ -56,9 +56,7 @@
       "properties": {
         "chunk_submission_status": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/ChunkSubmissionStatus"
-          }
+          "additionalProperties": false
         },
         "fully_submitted": {
           "type": "boolean"

@@ -218,10 +218,15 @@ pub(crate) mod tests {
     fn invalid_commit_dealing_chunk() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let owner = Addr::unchecked("owner1");
-        let info = message_info(owner.as_str(), &[]);
+        let owner = deps.api.addr_make("owner1");
+        let info = message_info(&owner, &[]);
         let chunk = partial_dealing_fixture();
 
         // no dealing metadata

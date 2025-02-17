@@ -96,10 +96,15 @@ pub(crate) mod tests {
     fn invalid_state() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let owner = Addr::unchecked("owner");
-        let info = message_info(owner.as_str(), &[]);
+        let owner = deps.api.addr_make("owner");
+        let info = message_info(&owner, &[]);
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let identity = String::from("identity");
         let announce_address = String::from("localhost:8000");

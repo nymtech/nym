@@ -33,18 +33,15 @@ impl TestSetupSimple {
     pub fn new() -> Self {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let owner = Addr::unchecked("owner");
-
-        let init_ctx = InstantiateCtx::from((
-            deps.as_mut(),
-            env.clone(),
-            message_info(owner.as_str(), &[]),
-        ));
+        let owner = deps.api.addr_make("owner");
 
         let rng = test_rng();
-        let holding_account = Addr::unchecked("holding_account");
-        let multisig_contract = Addr::unchecked("multisig_contract");
-        let group_contract = Addr::unchecked("group_contract");
+        let holding_account = deps.api.addr_make("holding_account");
+        let multisig_contract = deps.api.addr_make("multisig_contract");
+        let group_contract = deps.api.addr_make("group_contract");
+
+        let init_ctx =
+            InstantiateCtx::from((deps.as_mut(), env.clone(), message_info(&owner, &[])));
 
         CONTRACT
             .instantiate(
@@ -73,7 +70,7 @@ impl TestSetupSimple {
             .get(self.deps.as_ref())
             .unwrap()
             .unwrap();
-        message_info(admin.as_str(), &[])
+        message_info(&admin, &[])
     }
 
     pub fn execute_ctx(&mut self, sender: MessageInfo) -> ExecCtx {

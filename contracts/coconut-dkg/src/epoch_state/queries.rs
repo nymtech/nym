@@ -58,6 +58,7 @@ pub(crate) mod test {
     use crate::epoch_state::transactions::try_initiate_dkg;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{message_info, mock_env};
+    use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
@@ -68,7 +69,12 @@ pub(crate) mod test {
         assert_eq!(epoch.deadline, None);
 
         let env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
         let epoch = query_current_epoch(deps.as_mut().storage).unwrap();
         assert_eq!(

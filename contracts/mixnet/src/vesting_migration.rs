@@ -400,7 +400,7 @@ mod tests {
 
             let problematic_delegator = "n1foomp";
             let problematic_delegator_twin = "n1bar";
-            let mix_id = 4;
+            let mix_id = 3;
 
             let liquid_storage_key = Delegation::generate_storage_key(
                 mix_id,

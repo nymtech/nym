@@ -547,15 +547,16 @@ dependencies = [
 
 [[package]]
 name = "axum-test"
-version = "16.2.0"
+version = "16.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3254184de359bbae2a8ca10b050870a7a4f1c8332a2c27d53f360b9835bb3911"
+checksum = "d6ba5211f2e0b77d1cbe1e1c7c826edc20fb1f69720a7fdb1d2a25289c98978e"
 dependencies = [
  "anyhow",
  "assert-json-diff",
  "auto-future",
  "axum 0.7.7",
  "bytes",
+ "bytesize",
  "cookie",
  "http 1.1.0",
  "http-body-util",
@@ -849,6 +850,12 @@ checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "bytesize"
+version = "1.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d2c12f985c78475a6b8d629afd0c360260ef34cfef52efccdcfd31972f81c2e"
 
 [[package]]
 name = "camino"

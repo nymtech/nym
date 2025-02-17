@@ -24,7 +24,7 @@ mod tests {
     use crate::vesting::account::StorableVestingAccountExt;
     use crate::vesting::populate_vesting_periods;
     use contracts_common::signing::MessageSignature;
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::NodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
@@ -44,7 +44,7 @@ mod tests {
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
 
-        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+        let info = message_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert_eq!(
             response,
@@ -58,7 +58,7 @@ mod tests {
     fn test_ownership_transfer() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("owner", &[]);
+        let info = message_info("owner", &[]);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
@@ -75,7 +75,7 @@ mod tests {
     fn test_staking_account() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("staking", &[]);
+        let info = message_info("staking", &[]);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
@@ -104,7 +104,7 @@ mod tests {
         let response = execute(
             deps.as_mut(),
             env.clone(),
-            mock_info(original_staker.as_ref(), &[]),
+            message_info(original_staker.as_ref(), &[]),
             stake_msg.clone(),
         );
         assert_eq!(
@@ -132,7 +132,7 @@ mod tests {
         let response = execute(
             deps.as_mut(),
             env.clone(),
-            mock_info("admin", &[amount.clone()]),
+            message_info("admin", &[amount.clone()]),
             msg,
         );
         assert_eq!(
@@ -400,7 +400,7 @@ mod tests {
             vesting_spec: None,
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
-        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+        let info = message_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
 
         let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
@@ -445,7 +445,7 @@ mod tests {
                 denom: TEST_COIN_DENOM.to_string(),
             },
         };
-        let info = mock_info(account.owner_address.as_str(), &[]);
+        let info = message_info(account.owner_address.as_str(), &[]);
         let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
             response,

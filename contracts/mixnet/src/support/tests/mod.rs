@@ -49,12 +49,12 @@ pub mod test_helpers {
         good_gateway_pledge, good_mixnode_pledge, good_node_plegge, TEST_COIN_DENOM,
     };
     use crate::support::tests::{legacy, test_helpers};
+    use cosmwasm_std::testing::message_info;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, coins, Addr, Api, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, coins, Addr, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -96,6 +96,14 @@ pub mod test_helpers {
     use std::fmt::Debug;
     use std::str::FromStr;
     use std::time::Duration;
+
+    pub(crate) fn addr<S: AsRef<str>>(raw: S) -> Addr {
+        mock_dependencies().api.addr_make(raw.as_ref())
+    }
+
+    pub(crate) fn sender<S: AsRef<str>>(raw: S) -> MessageInfo {
+        message_info(&addr(raw), &[])
+    }
 
     pub(crate) trait ExtractBankMsg {
         fn unwrap_bank_msg(self) -> Option<BankMsg>;
@@ -172,18 +180,14 @@ pub mod test_helpers {
             let deps = init_contract();
             let rewarding_validator_address =
                 rewarding_validator_address(deps.as_ref().storage).unwrap();
-            let owner = mixnet_params_storage::ADMIN
-                .query_admin(deps.as_ref())
-                .unwrap()
-                .admin
-                .unwrap();
+            let owner = ADMIN.query_admin(deps.as_ref()).unwrap().admin.unwrap();
 
             TestSetup {
                 deps,
                 env: mock_env(),
                 rng: test_rng(),
-                rewarding_validator: mock_info(rewarding_validator_address.as_ref(), &[]),
-                owner: mock_info(owner.as_str(), &[]),
+                rewarding_validator: message_info(&rewarding_validator_address, &[]),
+                owner: message_info(&Addr::unchecked(&owner), &[]),
             }
         }
 
@@ -192,9 +196,9 @@ pub mod test_helpers {
 
             let mut nodes = Vec::new();
 
-            let problematic_delegator = "n1foomp";
-            let problematic_delegator_twin = "n1bar";
-            let problematic_delegator_alt_twin = "n1whatever";
+            let problematic_delegator = test.make_addr("n1foomp");
+            let problematic_delegator_twin = test.make_addr("n1bar");
+            let problematic_delegator_alt_twin = test.make_addr("n1whatever");
 
             let choices = [true, false];
 
@@ -246,26 +250,30 @@ pub mod test_helpers {
 
                 // make sure we cover our edge case of somebody having both liquid and vested delegation towards the same node
                 if epoch_id == 123 {
-                    test.add_immediate_delegation(problematic_delegator, stake, 3);
-                    test.add_immediate_delegation(problematic_delegator_twin, stake, 3);
+                    test.add_immediate_delegation(&problematic_delegator, stake, 3);
+                    test.add_immediate_delegation(&problematic_delegator_twin, stake, 3);
                 }
 
                 if epoch_id == 666 {
-                    test.add_immediate_delegation_with_legal_proxy(problematic_delegator, stake, 3);
                     test.add_immediate_delegation_with_legal_proxy(
-                        problematic_delegator_twin,
+                        &problematic_delegator,
+                        stake,
+                        3,
+                    );
+                    test.add_immediate_delegation_with_legal_proxy(
+                        &problematic_delegator_twin,
                         stake,
                         3,
                     );
                 }
 
                 if epoch_id == 234 {
-                    test.add_immediate_delegation(problematic_delegator_alt_twin, stake, 3);
+                    test.add_immediate_delegation(&problematic_delegator_alt_twin, stake, 3);
                 }
 
                 if epoch_id == 420 {
                     test.add_immediate_delegation_with_legal_proxy(
-                        problematic_delegator_alt_twin,
+                        &problematic_delegator_alt_twin,
                         stake,
                         3,
                     );
@@ -298,6 +306,14 @@ pub mod test_helpers {
             test
         }
 
+        pub fn make_addr<S: AsRef<str>>(&self, raw: S) -> Addr {
+            self.deps.api.addr_make(raw.as_ref())
+        }
+
+        pub fn make_sender<S: AsRef<str>>(&self, raw: S) -> MessageInfo {
+            message_info(&self.make_addr(raw), &[])
+        }
+
         #[track_caller]
         pub fn ensure_delegation_sync(&self, mix_id: NodeId) {
             let mix_info = self.mix_rewarding(mix_id);
@@ -322,8 +338,8 @@ pub mod test_helpers {
             ADMIN.get(self.deps()).unwrap().unwrap()
         }
 
-        pub fn random_address(&mut self) -> String {
-            format!("n1foomp{}", self.rng.next_u64())
+        pub fn random_address(&mut self) -> Addr {
+            addr(format!("n1foomp{}", self.rng.next_u64()))
         }
 
         pub fn deps(&self) -> Deps<'_> {
@@ -358,10 +374,10 @@ pub mod test_helpers {
         #[allow(unused)]
         pub fn execute_no_funds(
             &mut self,
-            sender: impl Into<String>,
+            sender: &Addr,
             msg: ExecuteMsg,
         ) -> Result<Response, MixnetContractError> {
-            self.execute(self.mock_info(sender), msg)
+            self.execute(message_info(sender, &[]), msg)
         }
 
         pub fn execute_fn<F>(
@@ -380,12 +396,12 @@ pub mod test_helpers {
         pub fn execute_fn_no_funds<F>(
             &mut self,
             exec_fn: F,
-            sender: impl Into<String>,
+            sender: &Addr,
         ) -> Result<Response, MixnetContractError>
         where
             F: FnOnce(DepsMut<'_>, Env, MessageInfo) -> Result<Response, MixnetContractError>,
         {
-            let info = self.mock_info(sender);
+            let info = message_info(sender, &[]);
             self.execute_fn(exec_fn, info)
         }
 
@@ -401,11 +417,7 @@ pub mod test_helpers {
 
         #[allow(unused)]
         #[track_caller]
-        pub fn assert_simple_execution_no_funds<F>(
-            &mut self,
-            exec_fn: F,
-            sender: impl Into<String>,
-        ) -> Response
+        pub fn assert_simple_execution_no_funds<F>(&mut self, exec_fn: F, sender: &Addr) -> Response
         where
             F: FnOnce(DepsMut<'_>, Env, MessageInfo) -> Result<Response, MixnetContractError>,
         {
@@ -467,11 +479,6 @@ pub mod test_helpers {
             }
         }
 
-        #[allow(unused)]
-        pub fn mock_info(&self, sender: impl Into<String>) -> MessageInfo {
-            mock_info(&sender.into(), &[])
-        }
-
         pub fn rewarding_validator(&self) -> MessageInfo {
             self.rewarding_validator.clone()
         }
@@ -483,7 +490,7 @@ pub mod test_helpers {
         }
 
         pub fn admin_sender(&self) -> MessageInfo {
-            mock_info(self.admin().as_ref(), &[])
+            message_info(&self.admin(), &[])
         }
 
         pub fn owner(&self) -> MessageInfo {
@@ -630,7 +637,7 @@ pub mod test_helpers {
 
         pub fn add_rewarded_set_nymnode(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> (NymNodeBond, MessageSignature, KeyPair) {
             let res = self.add_nymnode(owner, stake);
@@ -642,7 +649,7 @@ pub mod test_helpers {
 
         pub fn add_rewarded_set_nymnode_id(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> NodeId {
             self.add_rewarded_set_nymnode(owner, stake).0.node_id
@@ -650,14 +657,14 @@ pub mod test_helpers {
 
         pub fn add_nymnode(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> (NymNodeBond, MessageSignature, KeyPair) {
             let stake = self.make_node_pledge(stake);
             let (node, owner_signature, keypair) =
                 self.node_with_signature(owner, Some(stake.clone()));
 
-            let info = mock_info(owner, stake.as_ref());
+            let info = message_info(owner, stake.as_ref());
             let env = self.env();
 
             try_add_nym_node(
@@ -675,14 +682,14 @@ pub mod test_helpers {
             (bond, owner_signature, keypair)
         }
 
-        pub fn add_dummy_nymnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+        pub fn add_dummy_nymnode(&mut self, owner: &Addr, stake: Option<Uint128>) -> NodeId {
             self.add_nymnode(owner, stake).0.node_id
         }
 
         #[allow(unused)]
         pub fn add_dummy_nym_node_with_keypair(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> (NodeId, identity::KeyPair) {
             let (bond, _, keypair) = self.add_nymnode(owner, stake);
@@ -690,11 +697,11 @@ pub mod test_helpers {
         }
 
         #[track_caller]
-        pub fn add_legacy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+        pub fn add_legacy_mixnode(&mut self, owner: &Addr, stake: Option<Uint128>) -> NodeId {
             let stake = self.make_mix_pledge(stake);
             let (mixnode, _, _) = self.mixnode_with_signature(owner, Some(stake.clone()));
 
-            let info = mock_info(owner, stake.as_ref());
+            let info = message_info(owner, stake.as_ref());
             let env = self.env();
 
             ensure_no_existing_bond(&info.sender, &self.deps.storage).unwrap();
@@ -711,7 +718,7 @@ pub mod test_helpers {
             .unwrap()
         }
 
-        pub fn add_rewarded_mixing_node(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+        pub fn add_rewarded_mixing_node(&mut self, owner: &Addr, stake: Option<Uint128>) -> NodeId {
             let node_id = self.add_dummy_nymnode(owner, stake);
             self.immediately_assign_lowest_mix_layer(node_id);
             node_id
@@ -719,7 +726,7 @@ pub mod test_helpers {
 
         pub fn add_rewarded_entry_gateway_node(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> NodeId {
             let node_id = self.add_dummy_nymnode(owner, stake);
@@ -729,7 +736,7 @@ pub mod test_helpers {
 
         pub fn add_rewarded_exit_gateway_node(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> NodeId {
             let node_id = self.add_dummy_nymnode(owner, stake);
@@ -737,7 +744,7 @@ pub mod test_helpers {
             node_id
         }
 
-        pub fn add_standby_node(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+        pub fn add_standby_node(&mut self, owner: &Addr, stake: Option<Uint128>) -> NodeId {
             let node_id = self.add_dummy_nymnode(owner, stake);
             self.immediately_assign_standby_role(node_id);
             node_id
@@ -745,7 +752,7 @@ pub mod test_helpers {
 
         pub fn add_legacy_mixnode_with_proxy_and_keypair(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> (NodeId, identity::KeyPair) {
             let pledge = self.make_mix_pledge(stake).pop().unwrap();
@@ -800,7 +807,7 @@ pub mod test_helpers {
 
         pub fn add_legacy_mixnode_with_legal_proxy(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> NodeId {
             self.add_legacy_mixnode_with_proxy_and_keypair(owner, stake)
@@ -809,7 +816,7 @@ pub mod test_helpers {
 
         pub fn add_rewarded_legacy_mixnode(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> NodeId {
             let node_id = self.add_legacy_mixnode(owner, stake);
@@ -820,14 +827,14 @@ pub mod test_helpers {
 
         pub fn add_legacy_gateway(
             &mut self,
-            sender: &str,
+            sender: &Addr,
             stake: Option<Uint128>,
         ) -> (IdentityKey, NodeId) {
             let stake = self.make_gateway_pledge(stake);
             let (gateway, _) = self.gateway_with_signature(sender, Some(stake.clone()));
 
             let env = self.env();
-            let info = mock_info(sender, &stake);
+            let info = message_info(sender, &stake);
 
             legacy::save_new_gateway(
                 &mut self.deps.storage,
@@ -854,13 +861,13 @@ pub mod test_helpers {
 
         pub fn add_legacy_mixnodes(&mut self, n: usize) {
             for i in 0..n {
-                self.add_legacy_mixnode(&format!("owner{i}"), None);
+                self.add_legacy_mixnode(&addr(&format!("owner{i}")), None);
             }
         }
 
         pub fn add_dummy_gateways(&mut self, n: usize) {
             for i in 0..n {
-                self.add_legacy_gateway(&format!("owner{i}"), None);
+                self.add_legacy_gateway(&addr(&format!("owner{i}")), None);
             }
         }
 
@@ -894,7 +901,7 @@ pub mod test_helpers {
         pub fn mixnode_bonding_signature(
             &mut self,
             key: &identity::PrivateKey,
-            owner: &str,
+            owner: &Addr,
             mixnode: MixNode,
             stake: Option<Uint128>,
         ) -> MessageSignature {
@@ -905,13 +912,13 @@ pub mod test_helpers {
 
         pub fn add_legacy_mixnode_with_keypair(
             &mut self,
-            owner: &str,
+            owner: &Addr,
             stake: Option<Uint128>,
         ) -> (NodeId, identity::KeyPair) {
             let stake = self.make_mix_pledge(stake);
             let (mixnode, _, keypair) = self.mixnode_with_signature(owner, Some(stake.clone()));
 
-            let info = mock_info(owner, stake.as_ref());
+            let info = message_info(owner, stake.as_ref());
             let env = self.env();
 
             ensure_no_existing_bond(&info.sender, &self.deps.storage).unwrap();
@@ -932,7 +939,7 @@ pub mod test_helpers {
 
         pub fn node_with_signature(
             &mut self,
-            sender: &str,
+            sender: &Addr,
             stake: Option<Vec<Coin>>,
         ) -> (NymNode, MessageSignature, KeyPair) {
             let stake = stake.unwrap_or(good_node_plegge());
@@ -953,7 +960,7 @@ pub mod test_helpers {
 
         pub fn mixnode_with_signature(
             &mut self,
-            sender: &str,
+            sender: &Addr,
             stake: Option<Vec<Coin>>,
         ) -> (MixNode, MessageSignature, KeyPair) {
             let stake = stake.unwrap_or(good_mixnode_pledge());
@@ -975,7 +982,7 @@ pub mod test_helpers {
 
         pub fn gateway_with_signature(
             &mut self,
-            sender: impl Into<String>,
+            sender: &Addr,
             stake: Option<Vec<Coin>>,
         ) -> (Gateway, MessageSignature) {
             let stake = stake.unwrap_or(good_gateway_pledge());
@@ -990,12 +997,7 @@ pub mod test_helpers {
                 ..tests::fixtures::gateway_fixture()
             };
 
-            let msg = gateway_bonding_sign_payload(
-                self.deps(),
-                sender.into().as_str(),
-                gateway.clone(),
-                stake,
-            );
+            let msg = gateway_bonding_sign_payload(self.deps(), sender, gateway.clone(), stake);
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
             (gateway, owner_signature)
@@ -1008,12 +1010,8 @@ pub mod test_helpers {
                 .unwrap();
 
             let env = self.env();
-            try_remove_mixnode(
-                self.deps_mut(),
-                env,
-                mock_info(bond_details.owner.as_str(), &[]),
-            )
-            .unwrap();
+            try_remove_mixnode(self.deps_mut(), env, message_info(&bond_details.owner, &[]))
+                .unwrap();
         }
 
         #[track_caller]
@@ -1023,12 +1021,8 @@ pub mod test_helpers {
                 .unwrap();
 
             let env = self.env();
-            try_remove_nym_node(
-                self.deps_mut(),
-                env,
-                mock_info(bond_details.owner.as_str(), &[]),
-            )
-            .unwrap();
+            try_remove_nym_node(self.deps_mut(), env, message_info(&bond_details.owner, &[]))
+                .unwrap();
         }
 
         #[track_caller]
@@ -1053,7 +1047,7 @@ pub mod test_helpers {
 
         pub fn add_immediate_delegation(
             &mut self,
-            delegator: &str,
+            delegator: &Addr,
             amount: impl Into<Uint128>,
             target: NodeId,
         ) {
@@ -1076,7 +1070,7 @@ pub mod test_helpers {
 
         pub fn add_immediate_delegation_with_legal_proxy(
             &mut self,
-            delegator: &str,
+            delegator: &Addr,
             amount: impl Into<Uint128>,
             target: NodeId,
         ) {
@@ -1087,8 +1081,7 @@ pub mod test_helpers {
             };
             let proxy = self.vesting_contract();
 
-            let owner = self.deps.api.addr_validate(delegator).unwrap();
-            let storage_key = Delegation::generate_storage_key(target, &owner, Some(&proxy));
+            let storage_key = Delegation::generate_storage_key(target, &delegator, Some(&proxy));
 
             let mut mix_rewarding = self.mix_rewarding(target);
 
@@ -1107,7 +1100,7 @@ pub mod test_helpers {
                 .unwrap();
 
             let delegation = Delegation {
-                owner,
+                owner: delegator.clone(),
                 node_id: target,
                 cumulative_reward_ratio: mix_rewarding.total_unit_reward,
                 amount: stored_delegation_amount,
@@ -1126,7 +1119,7 @@ pub mod test_helpers {
         #[allow(unused)]
         pub fn add_delegation(
             &mut self,
-            delegator: &str,
+            delegator: &Addr,
             amount: impl Into<Uint128>,
             target: NodeId,
         ) {
@@ -1139,7 +1132,7 @@ pub mod test_helpers {
             delegate(self.deps_mut(), env, delegator, vec![amount], target)
         }
 
-        pub fn remove_immediate_delegation(&mut self, delegator: &str, target: NodeId) {
+        pub fn remove_immediate_delegation(&mut self, delegator: &Addr, target: NodeId) {
             let height = self.env.block.height;
             pending_events::undelegate(self.deps_mut(), height, Addr::unchecked(delegator), target)
                 .unwrap();
@@ -1204,7 +1197,7 @@ pub mod test_helpers {
         }
 
         #[allow(unused)]
-        pub fn pending_delegator_reward(&mut self, delegator: &str, target: NodeId) -> Decimal {
+        pub fn pending_delegator_reward(&mut self, delegator: &Addr, target: NodeId) -> Decimal {
             query_pending_delegator_reward(self.deps(), delegator.into(), target, None)
                 .unwrap()
                 .amount_earned_detailed
@@ -1492,7 +1485,7 @@ pub mod test_helpers {
         pub fn read_delegation(
             &mut self,
             mix: NodeId,
-            owner: &str,
+            owner: &Addr,
             proxy: Option<&str>,
         ) -> Delegation {
             read_delegation(
@@ -1516,13 +1509,12 @@ pub mod test_helpers {
         }
 
         #[track_caller]
-        pub fn delegation(&self, mix: NodeId, owner: &str, proxy: &Option<Addr>) -> Delegation {
+        pub fn delegation(&self, mix: NodeId, owner: &Addr, proxy: &Option<Addr>) -> Delegation {
             let caller = std::panic::Location::caller();
 
-            read_delegation(self.deps().storage, mix, &Addr::unchecked(owner), proxy)
-                .unwrap_or_else(|| {
-                    panic!("{caller} failed with: delegation for {mix}/{owner} doesn't exist")
-                })
+            read_delegation(self.deps().storage, mix, &owner, proxy).unwrap_or_else(|| {
+                panic!("{caller} failed with: delegation for {mix}/{owner} doesn't exist")
+            })
         }
     }
 
@@ -1705,14 +1697,14 @@ pub mod test_helpers {
         n: usize,
     ) {
         for i in 0..n {
-            add_unbonded_mixnode(&mut rng, deps.branch(), None, &format!("owner{}", i));
+            add_unbonded_mixnode(&mut rng, deps.branch(), None, &addr(&format!("owner{}", i)));
         }
     }
 
     pub fn add_dummy_unbonded_mixnodes_with_owner(
         mut rng: impl RngCore + CryptoRng,
         mut deps: DepsMut<'_>,
-        owner: &str,
+        owner: &Addr,
         n: usize,
     ) {
         for _ in 0..n {
@@ -1731,7 +1723,7 @@ pub mod test_helpers {
                 &mut rng,
                 deps.branch(),
                 Some(identity),
-                &format!("owner{}", i),
+                &addr(&format!("owner{}", i)),
             );
         }
     }
@@ -1741,7 +1733,7 @@ pub mod test_helpers {
         mut rng: impl RngCore + CryptoRng,
         deps: DepsMut<'_>,
         identity_key: Option<&str>,
-        owner: &str,
+        owner: &Addr,
     ) -> NodeId {
         let id = loop {
             let candidate = rng.next_u32();
@@ -1771,7 +1763,7 @@ pub mod test_helpers {
 
     pub fn nymnode_bonding_sign_payload(
         deps: Deps<'_>,
-        owner: &str,
+        owner: &Addr,
         node: NymNode,
         stake: Vec<Coin>,
     ) -> SignableNymNodeBondingMsg {
@@ -1786,7 +1778,7 @@ pub mod test_helpers {
 
     pub fn mixnode_bonding_sign_payload(
         deps: Deps<'_>,
-        owner: &str,
+        owner: &Addr,
         mixnode: MixNode,
         stake: Vec<Coin>,
     ) -> SignableMixNodeBondingMsg {
@@ -1801,7 +1793,7 @@ pub mod test_helpers {
 
     pub fn gateway_bonding_sign_payload(
         deps: Deps<'_>,
-        owner: &str,
+        owner: &Addr,
         gateway: Gateway,
         stake: Vec<Coin>,
     ) -> SignableGatewayBondingMsg {
@@ -1840,8 +1832,8 @@ pub mod test_helpers {
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
-            rewarding_validator_address: "rewarder".into(),
-            vesting_contract_address: "vesting-contract".to_string(),
+            rewarding_validator_address: deps.api.addr_make("rewarder").to_string(),
+            vesting_contract_address: deps.api.addr_make("vesting-contract").to_string(),
             rewarding_denom: TEST_COIN_DENOM.to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
@@ -1853,13 +1845,13 @@ pub mod test_helpers {
             interval_operating_cost: Default::default(),
         };
         let env = mock_env();
-        let info = mock_info("creator", &[]);
+        let info = sender("creator");
         instantiate(deps.as_mut(), env, info, msg).unwrap();
         deps
     }
 
-    pub fn delegate(deps: DepsMut<'_>, env: Env, sender: &str, stake: Vec<Coin>, mix_id: NodeId) {
-        let info = mock_info(sender, &stake);
+    pub fn delegate(deps: DepsMut<'_>, env: Env, sender: &Addr, stake: Vec<Coin>, mix_id: NodeId) {
+        let info = message_info(sender, &stake);
         try_delegate_to_node(deps, env, info, mix_id).unwrap();
     }
 

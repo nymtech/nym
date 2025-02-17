@@ -4,7 +4,7 @@
 use crate::contract::instantiate;
 use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
 use crate::epoch_state::storage::CURRENT_EPOCH;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
+use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
     QuerierResult, SystemResult, WasmQuery,
@@ -124,7 +124,7 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
         key_size: DEFAULT_DEALINGS as u32,
     };
     let env = mock_env();
-    let info = mock_info(ADMIN_ADDRESS, &[]);
+    let info = message_info(ADMIN_ADDRESS, &[]);
     instantiate(deps.as_mut(), env, info, msg).unwrap();
     deps
 }

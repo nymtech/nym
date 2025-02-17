@@ -266,7 +266,7 @@ pub mod tests {
     use crate::support::tests::fixtures::{good_mixnode_pledge, TEST_COIN_DENOM};
     use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Addr, Order, StdResult, Uint128};
     use mixnet_contract_common::mixnode::PendingMixNodeChanges;
     use mixnet_contract_common::nym_node::Role;
@@ -277,15 +277,15 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let sender = "alice";
-        let minimum_pledge = minimum_node_pledge(test.deps().storage).unwrap();
+        let sender = test.make_addr("alice");
+        let minimum_pledge = minimum_node_pledge(test.deps().storage)?;
         let mut insufficient_pledge = minimum_pledge.clone();
         insufficient_pledge.amount -= Uint128::new(1000);
 
         // if we don't send enough funds
-        let info = mock_info(sender, &[insufficient_pledge.clone()]);
+        let info = message_info(&sender, &[insufficient_pledge.clone()]);
         let (mixnode, sig, _) =
-            test.mixnode_with_signature(sender, Some(vec![insufficient_pledge.clone()]));
+            test.mixnode_with_signature(&sender, Some(vec![insufficient_pledge.clone()]));
         let cost_params = fixtures::node_cost_params_fixture();
 
         // we are informed that we didn't send enough funds
@@ -306,10 +306,10 @@ pub mod tests {
         );
 
         // if the signature provided is invalid, the bonding also fails
-        let info = mock_info(sender, &[minimum_pledge]);
+        let info = message_info(&sender, &[minimum_pledge]);
 
         // if there was already a mixnode bonded by particular user
-        test.add_legacy_mixnode(sender, None);
+        test.add_legacy_mixnode(&sender, None);
 
         // it fails
         let result = try_add_mixnode(
@@ -323,12 +323,12 @@ pub mod tests {
         assert_eq!(Err(MixnetContractError::AlreadyOwnsMixnode), result);
 
         // the same holds if the user already owns a gateway
-        let sender2 = "gateway-owner";
+        let sender2 = test.make_addr("gateway-owner");
 
-        test.add_legacy_gateway(sender2, None);
+        test.add_legacy_gateway(&sender2, None);
 
-        let info = mock_info(sender2, &tests::fixtures::good_mixnode_pledge());
-        let (mixnode, sig, _) = test.mixnode_with_signature(sender2, None);
+        let info = message_info(&sender2, &good_mixnode_pledge());
+        let (mixnode, sig, _) = test.mixnode_with_signature(&sender2, None);
 
         let result = try_add_mixnode(
             test.deps_mut(),
@@ -342,7 +342,7 @@ pub mod tests {
 
         // but after he unbonds it, it's all fine again
         let msg = ExecuteMsg::UnbondGateway {};
-        execute(test.deps_mut(), env.clone(), info.clone(), msg).unwrap();
+        execute(test.deps_mut(), env.clone(), info.clone(), msg)?;
 
         let result = try_add_mixnode(
             test.deps_mut(),
@@ -356,8 +356,7 @@ pub mod tests {
 
         // and the node has been added as a nym-node
         let nym_node =
-            get_node_details_by_identity(test.deps().storage, mixnode.identity_key.clone())
-                .unwrap()
+            get_node_details_by_identity(test.deps().storage, mixnode.identity_key.clone())?
                 .unwrap();
         assert_eq!(nym_node.bond_information.owner, info.sender);
 
@@ -366,8 +365,7 @@ pub mod tests {
         assert!(maybe_legacy.is_none());
 
         // make sure we got assigned the next id (note: we have already bonded a mixnode and a gateway before in this test)
-        let bond =
-            must_get_node_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2)).unwrap();
+        let bond = must_get_node_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2))?;
         assert_eq!(3, bond.node_id);
 
         Ok(())
@@ -378,11 +376,11 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let sender = "alice";
+        let sender = test.make_addr("alice");
         let pledge = good_mixnode_pledge();
-        let info = mock_info(sender, pledge.as_ref());
+        let info = message_info(&sender, pledge.as_ref());
 
-        let (mixnode, signature, _) = test.mixnode_with_signature(sender, Some(pledge.clone()));
+        let (mixnode, signature, _) = test.mixnode_with_signature(&sender, Some(pledge.clone()));
         // the above using cost params fixture
         let cost_params = fixtures::node_cost_params_fixture();
 
@@ -403,7 +401,7 @@ pub mod tests {
         let mut different_pledge = pledge.clone();
         different_pledge[0].amount += Uint128::new(12345);
 
-        let info = mock_info(sender, different_pledge.as_ref());
+        let info = message_info(&sender, different_pledge.as_ref());
         let res = try_add_mixnode(
             test.deps_mut(),
             env.clone(),
@@ -414,7 +412,7 @@ pub mod tests {
         );
         assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
 
-        let other_sender = mock_info("another-sender", pledge.as_ref());
+        let other_sender = message_info(&test.make_addr("another-sender"), pledge.as_ref());
         let res = try_add_mixnode(
             test.deps_mut(),
             env.clone(),
@@ -426,10 +424,9 @@ pub mod tests {
         assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
 
         // trying to reuse the same signature for another bonding fails (because nonce doesn't match!)
-        let info = mock_info(sender, pledge.as_ref());
+        let info = message_info(&sender, pledge.as_ref());
         let current_nonce =
-            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
-                .unwrap();
+            signing_storage::get_signing_nonce(test.deps().storage, sender.clone()).unwrap();
         assert_eq!(0, current_nonce);
         let res = try_add_mixnode(
             test.deps_mut(),
@@ -441,8 +438,7 @@ pub mod tests {
         );
         assert!(res.is_ok());
         let updated_nonce =
-            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
-                .unwrap();
+            signing_storage::get_signing_nonce(test.deps().storage, sender.clone()).unwrap();
         assert_eq!(1, updated_nonce);
 
         test.immediately_unbond_node(1);
@@ -466,10 +462,10 @@ pub mod tests {
         for bad_state in bad_states {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "alice";
-            let info = mock_info(owner, &[]);
+            let owner = test.make_addr("alice");
+            let info = message_info(&owner, &[]);
 
-            test.add_legacy_mixnode(owner, None);
+            test.add_legacy_mixnode(&owner, None);
 
             let mut status = EpochStatus::new(test.rewarding_validator().sender);
             status.state = bad_state;
@@ -488,19 +484,19 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let owner = "alice";
-        let info = mock_info(owner, &[]);
+        let owner = test.make_addr("alice");
+        let info = message_info(&owner, &[]);
 
         // trying to remove your mixnode fails if you never had one in the first place
         let res = try_remove_mixnode(test.deps_mut(), env.clone(), info.clone());
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: Addr::unchecked(owner)
+                owner: owner.clone(),
             })
         );
 
-        let mix_id = test.add_legacy_mixnode(owner, None);
+        let mix_id = test.add_legacy_mixnode(&owner, None);
 
         // "normal" unbonding succeeds and unbonding event is pushed to the pending epoch events
         let res = try_remove_mixnode(test.deps_mut(), env.clone(), info.clone());
@@ -528,10 +524,10 @@ pub mod tests {
         let env = test.env();
 
         // prior increase
-        let owner = "mix-owner1";
-        test.add_legacy_mixnode(owner, None);
+        let owner = test.make_addr("mix-owner1");
+        test.add_legacy_mixnode(&owner, None);
 
-        let sender = mock_info(owner, &[test.coin(1000)]);
+        let sender = message_info(&owner, &[test.coin(1000)]);
         try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
 
         let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender);
@@ -543,13 +539,13 @@ pub mod tests {
         );
 
         // prior decrease
-        let owner = "mix-owner2";
-        let node_id = test.add_legacy_mixnode(owner, Some(Uint128::new(10000000000)));
+        let owner = test.make_addr("mix-owner2");
+        let node_id = test.add_legacy_mixnode(&owner, Some(Uint128::new(10000000000)));
         let details = test.mixnode_by_id(node_id).unwrap();
         let amount = test.coin(1000);
         try_decrease_mixnode_pledge(test.deps_mut(), env.clone(), amount, details).unwrap();
 
-        let sender = mock_info(owner, &[test.coin(1000)]);
+        let sender = message_info(&owner, &[test.coin(1000)]);
         let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender);
         assert_eq!(
             res,
@@ -559,8 +555,8 @@ pub mod tests {
         );
 
         // artificial event
-        let owner = "mix-owner3";
-        let mix_id = test.add_legacy_mixnode(owner, None);
+        let owner = test.make_addr("mix-owner3");
+        let mix_id = test.add_legacy_mixnode(&owner, None);
         let pending_change = PendingMixNodeChanges {
             pledge_change: Some(1234),
             cost_params_change: None,
@@ -569,7 +565,7 @@ pub mod tests {
             .save(test.deps_mut().storage, mix_id, &pending_change)
             .unwrap();
 
-        let sender = mock_info(owner, &[test.coin(1000)]);
+        let sender = message_info(&owner, &[test.coin(1000)]);
         let res = try_remove_mixnode(test.deps_mut(), env, sender);
         assert_eq!(
             res,
@@ -584,8 +580,8 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let owner = "alice";
-        let info = mock_info(owner, &[]);
+        let owner = test.make_addr("alice");
+        let info = message_info(&owner, &[]);
         let update = MixNodeConfigUpdate {
             host: "1.1.1.1:1234".to_string(),
             mix_port: 1234,
@@ -599,11 +595,11 @@ pub mod tests {
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: Addr::unchecked(owner)
+                owner: owner.clone()
             })
         );
 
-        let mix_id = test.add_legacy_mixnode(owner, None);
+        let mix_id = test.add_legacy_mixnode(&owner, None);
 
         // "normal" update succeeds
         let res = try_update_mixnode_config(test.deps_mut(), info.clone(), update.clone());
@@ -645,9 +641,9 @@ pub mod tests {
         for bad_state in bad_states {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "alice";
+            let owner = test.make_addr("alice");
 
-            let node_id = test.add_legacy_mixnode(owner, None);
+            let node_id = test.add_legacy_mixnode(&owner, None);
             let details = test.mixnode_by_id(node_id).unwrap();
 
             let mut status = EpochStatus::new(test.rewarding_validator().sender);
@@ -672,14 +668,14 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let owner = "alice";
-        let info = mock_info(owner, &[]);
+        let owner = test.make_addr("alice");
+        let info = message_info(&owner, &[]);
         let update = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
             interval_operating_cost: Coin::new(12345678u32, TEST_COIN_DENOM),
         };
 
-        let node_id = test.add_legacy_mixnode(owner, None);
+        let node_id = test.add_legacy_mixnode(&owner, None);
         let details = test.mixnode_by_id(node_id).unwrap();
 
         // "normal" update succeeds
@@ -750,13 +746,21 @@ pub mod tests {
             .public_key()
             .to_base58_string();
 
-        let sig1 =
-            test.mixnode_bonding_signature(keypair1.private_key(), "alice", mixnode1.clone(), None);
-        let sig2 =
-            test.mixnode_bonding_signature(keypair2.private_key(), "bob", mixnode2.clone(), None);
+        let sig1 = test.mixnode_bonding_signature(
+            keypair1.private_key(),
+            &test.make_addr("alice"),
+            mixnode1.clone(),
+            None,
+        );
+        let sig2 = test.mixnode_bonding_signature(
+            keypair2.private_key(),
+            &test.make_addr("bob"),
+            mixnode2.clone(),
+            None,
+        );
 
-        let info_alice = mock_info("alice", &tests::fixtures::good_mixnode_pledge());
-        let info_bob = mock_info("bob", &tests::fixtures::good_mixnode_pledge());
+        let info_alice = message_info(&test.make_addr("alice"), &good_mixnode_pledge());
+        let info_bob = message_info(&test.make_addr("bob"), &good_mixnode_pledge());
 
         assert!(try_add_mixnode(
             test.deps_mut(),
@@ -795,14 +799,14 @@ pub mod tests {
             for bad_state in bad_states {
                 let mut test = TestSetup::new();
                 let env = test.env();
-                let owner = "mix-owner";
+                let owner = test.make_addr("mix-owner");
 
                 let mut status = EpochStatus::new(test.rewarding_validator().sender);
                 status.state = bad_state;
                 interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
                     .unwrap();
 
-                let node_id = test.add_legacy_mixnode(owner, None);
+                let node_id = test.add_legacy_mixnode(&owner, None);
                 let details = test.mixnode_by_id(node_id).unwrap();
                 let increase = test.coins(1000);
                 let res = try_increase_mixnode_pledge(test.deps_mut(), env, increase, details);
@@ -843,9 +847,9 @@ pub mod tests {
         fn is_not_allowed_if_no_tokens_were_sent() {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "mix-owner";
+            let owner = test.make_addr("mix-owner");
 
-            let node_id = test.add_legacy_mixnode(owner, None);
+            let node_id = test.add_legacy_mixnode(&owner, None);
             let details = test.mixnode_by_id(node_id).unwrap();
 
             let sender_empty = Vec::new();
@@ -875,8 +879,8 @@ pub mod tests {
             let env = test.env();
 
             // prior increase
-            let owner = "mix-owner1";
-            let node_id = test.add_legacy_mixnode(owner, None);
+            let owner = test.make_addr("mix-owner1");
+            let node_id = test.add_legacy_mixnode(&owner, None);
             let details = test.mixnode_by_id(node_id).unwrap();
             let sender = test.coins(1000);
             try_increase_mixnode_pledge(
@@ -897,8 +901,8 @@ pub mod tests {
             );
 
             // prior decrease
-            let owner = "mix-owner2";
-            let node_id = test.add_legacy_mixnode(owner, Some(Uint128::new(10000000000)));
+            let owner = test.make_addr("mix-owner2");
+            let node_id = test.add_legacy_mixnode(&owner, Some(Uint128::new(10000000000)));
             let details = test.mixnode_by_id(node_id).unwrap();
 
             let amount = test.coin(1000);
@@ -920,8 +924,8 @@ pub mod tests {
         fn with_valid_information_creates_pending_event() {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "mix-owner";
-            let mix_id = test.add_legacy_mixnode(owner, None);
+            let owner = test.make_addr("mix-owner");
+            let mix_id = test.add_legacy_mixnode(&owner, None);
             let details = test.mixnode_by_id(mix_id).unwrap();
 
             let events = test.pending_epoch_events();
@@ -963,10 +967,10 @@ pub mod tests {
             for bad_state in bad_states {
                 let mut test = TestSetup::new();
                 let env = test.env();
-                let owner = "mix-owner";
+                let owner = test.make_addr("mix-owner");
                 let decrease = test.coin(1000);
 
-                let node_id = test.add_legacy_mixnode(owner, Some(Uint128::new(100_000_000_000)));
+                let node_id = test.add_legacy_mixnode(&owner, Some(Uint128::new(100_000_000_000)));
                 let details = test.mixnode_by_id(node_id).unwrap();
 
                 let mut status = EpochStatus::new(test.rewarding_validator().sender);
@@ -1012,12 +1016,12 @@ pub mod tests {
         fn is_not_allowed_if_it_would_result_going_below_minimum_pledge() {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "mix-owner";
+            let owner = test.make_addr("mix-owner");
 
             let minimum_pledge = minimum_node_pledge(test.deps().storage).unwrap();
             let pledge_amount = minimum_pledge.amount + Uint128::new(100);
             let pledged = test.coin(pledge_amount.u128());
-            let node_id = test.add_legacy_mixnode(owner, Some(pledge_amount));
+            let node_id = test.add_legacy_mixnode(&owner, Some(pledge_amount));
             let details = test.mixnode_by_id(node_id).unwrap();
 
             let invalid_decrease = test.coin(150);
@@ -1051,8 +1055,8 @@ pub mod tests {
             let stake = Uint128::new(100_000_000_000);
             let decrease = test.coin(0);
 
-            let owner = "mix-owner";
-            let node_id = test.add_legacy_mixnode(owner, Some(stake));
+            let owner = test.make_addr("mix-owner");
+            let node_id = test.add_legacy_mixnode(&owner, Some(stake));
             let details = test.mixnode_by_id(node_id).unwrap();
 
             let res = try_decrease_mixnode_pledge(test.deps_mut(), env, decrease, details);
@@ -1067,8 +1071,8 @@ pub mod tests {
             let decrease = test.coin(1000);
 
             // prior increase
-            let owner = "mix-owner1";
-            let node_id = test.add_legacy_mixnode(owner, Some(stake));
+            let owner = test.make_addr("mix-owner1");
+            let node_id = test.add_legacy_mixnode(&owner, Some(stake));
             let details = test.mixnode_by_id(node_id).unwrap();
 
             let sender = test.coins(1000);
@@ -1090,8 +1094,8 @@ pub mod tests {
             );
 
             // prior decrease
-            let owner = "mix-owner2";
-            let node_id = test.add_legacy_mixnode(owner, Some(stake));
+            let owner = test.make_addr("mix-owner2");
+            let node_id = test.add_legacy_mixnode(&owner, Some(stake));
             let details = test.mixnode_by_id(node_id).unwrap();
             let amount = test.coin(1000);
             try_decrease_mixnode_pledge(test.deps_mut(), env.clone(), amount, details).unwrap();
@@ -1111,8 +1115,8 @@ pub mod tests {
             );
 
             // artificial event
-            let owner = "mix-owner3";
-            let mix_id = test.add_legacy_mixnode(owner, Some(stake));
+            let owner = test.make_addr("mix-owner3");
+            let mix_id = test.add_legacy_mixnode(&owner, Some(stake));
             let pending_change = PendingMixNodeChanges {
                 pledge_change: Some(1234),
                 cost_params_change: None,
@@ -1140,8 +1144,8 @@ pub mod tests {
             let stake = Uint128::new(100_000_000_000);
             let decrease = test.coin(1000);
 
-            let owner = "mix-owner";
-            let mix_id = test.add_legacy_mixnode(owner, Some(stake));
+            let owner = test.make_addr("mix-owner");
+            let mix_id = test.add_legacy_mixnode(&owner, Some(stake));
             let details = test.mixnode_by_id(mix_id).unwrap();
 
             let events = test.pending_epoch_events();

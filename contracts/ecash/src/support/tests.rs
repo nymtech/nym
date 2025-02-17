@@ -3,7 +3,7 @@
 
 use crate::contract::NymEcashContract;
 use crate::helpers::Config;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
+use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{coin, Addr, Deps, Empty, Env, MemoryStorage, MessageInfo, OwnedDeps};
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
@@ -35,8 +35,11 @@ impl TestSetupSimple {
         let env = mock_env();
         let owner = Addr::unchecked("owner");
 
-        let init_ctx =
-            InstantiateCtx::from((deps.as_mut(), env.clone(), mock_info(owner.as_str(), &[])));
+        let init_ctx = InstantiateCtx::from((
+            deps.as_mut(),
+            env.clone(),
+            message_info(owner.as_str(), &[]),
+        ));
 
         let rng = test_rng();
         let holding_account = Addr::unchecked("holding_account");
@@ -70,7 +73,7 @@ impl TestSetupSimple {
             .get(self.deps.as_ref())
             .unwrap()
             .unwrap();
-        mock_info(admin.as_str(), &[])
+        message_info(admin.as_str(), &[])
     }
 
     pub fn execute_ctx(&mut self, sender: MessageInfo) -> ExecCtx {

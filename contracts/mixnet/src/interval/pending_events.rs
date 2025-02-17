@@ -652,21 +652,20 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
         use cosmwasm_std::coin;
-        use cosmwasm_std::testing::mock_info;
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
         fn returns_the_tokens_if_mixnode_has_unbonded() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(delegation, TEST_COIN_DENOM);
-            let owner1 = "delegator1";
-            let owner2 = "delegator2";
+            let owner1 = &test.make_addr("delegator1");
+            let owner2 = &test.make_addr("delegator2");
 
             // add pre-existing delegation
-            test.add_immediate_delegation(owner1, delegation, mix_id);
+            test.add_immediate_delegation(&owner1, delegation, mix_id);
 
             let env = test.env();
             unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
@@ -682,8 +681,7 @@ mod tests {
             .unwrap();
 
             // delegation wasn't increased
-            let storage_key =
-                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner1), None);
+            let storage_key = Delegation::generate_storage_key(mix_id, owner1, None);
             let amount = delegations_storage::delegations()
                 .load(test.deps().storage, storage_key)
                 .unwrap()
@@ -692,7 +690,7 @@ mod tests {
 
             // and all tokens are returned back to the delegator
             let (receiver, sent_amount) = get_bank_send_msg(&res_increase).unwrap();
-            assert_eq!(receiver, owner1);
+            assert_eq!(receiver, owner1.to_string());
             assert_eq!(sent_amount[0], delegation_coin);
 
             // for a fresh delegation, nothing was added to the storage either
@@ -714,25 +712,26 @@ mod tests {
 
             // and all tokens are returned back to the delegator
             let (receiver, sent_amount) = get_bank_send_msg(&res_fresh).unwrap();
-            assert_eq!(receiver, owner2);
+            assert_eq!(receiver, owner2.to_string());
             assert_eq!(sent_amount[0], delegation_coin);
         }
 
         #[test]
         fn returns_the_tokens_is_mixnode_is_unbonding() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(delegation, TEST_COIN_DENOM);
-            let owner1 = "delegator1";
-            let owner2 = "delegator2";
+            let owner1 = &test.make_addr("delegator1");
+            let owner2 = &test.make_addr("delegator2");
 
             // add pre-existing delegation
-            test.add_immediate_delegation(owner1, delegation, mix_id);
+            test.add_immediate_delegation(&owner1, delegation, mix_id);
 
             let env = test.env();
-            try_remove_mixnode(test.deps_mut(), env.clone(), mock_info("mix-owner", &[])).unwrap();
+            let sender = test.make_sender("mix-owner");
+            try_remove_mixnode(test.deps_mut(), env.clone(), sender).unwrap();
 
             let res_increase = delegate(
                 test.deps_mut(),
@@ -745,8 +744,7 @@ mod tests {
             .unwrap();
 
             // delegation wasn't increased
-            let storage_key =
-                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner1), None);
+            let storage_key = Delegation::generate_storage_key(mix_id, owner1, None);
             let amount = delegations_storage::delegations()
                 .load(test.deps().storage, storage_key)
                 .unwrap()
@@ -755,7 +753,7 @@ mod tests {
 
             // and all tokens are returned back to the delegator
             let (receiver, sent_amount) = get_bank_send_msg(&res_increase).unwrap();
-            assert_eq!(receiver, owner1);
+            assert_eq!(receiver, owner1.to_string());
             assert_eq!(sent_amount[0], delegation_coin);
 
             // for a fresh delegation, nothing was added to the storage either
@@ -768,8 +766,7 @@ mod tests {
                 delegation_coin.clone(),
             )
             .unwrap();
-            let storage_key =
-                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner2), None);
+            let storage_key = Delegation::generate_storage_key(mix_id, owner2, None);
             assert!(delegations_storage::delegations()
                 .may_load(test.deps().storage, storage_key)
                 .unwrap()
@@ -777,21 +774,23 @@ mod tests {
 
             // and all tokens are returned back to the delegator
             let (receiver, sent_amount) = get_bank_send_msg(&res_fresh).unwrap();
-            assert_eq!(receiver, owner2);
+            assert_eq!(receiver, owner2.to_string());
             assert_eq!(sent_amount[0], delegation_coin);
         }
 
         #[test]
         fn if_delegation_already_exists_a_fresh_one_with_sum_of_both_is_created() {
             let mut test = TestSetup::new();
-            let mix_id =
-                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner"),
+                Some(100_000_000_000u128.into()),
+            );
 
             let delegation_og = 120_000_000u128;
             let delegation_new = 543_000_000u128;
             let delegation_coin_new = coin(delegation_new, TEST_COIN_DENOM);
 
-            let owner = "delegator";
+            let owner = &test.make_addr("delegator");
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             let env = test.env();
@@ -814,8 +813,7 @@ mod tests {
             let rewarding = rewards_storage::MIXNODE_REWARDING
                 .load(test.deps().storage, mix_id)
                 .unwrap();
-            let storage_key =
-                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
+            let storage_key = Delegation::generate_storage_key(mix_id, owner, None);
             let delegation = delegations_storage::delegations()
                 .load(test.deps().storage, storage_key)
                 .unwrap();
@@ -829,8 +827,10 @@ mod tests {
         #[test]
         fn if_delegation_already_exists_with_unclaimed_rewards_fresh_one_is_created() {
             let mut test = TestSetup::new();
-            let mix_id =
-                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner"),
+                Some(100_000_000_000u128.into()),
+            );
 
             let delegation_og = 120_000_000u128;
             let delegation_new = 543_000_000u128;
@@ -846,7 +846,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
-            let owner = "delegator";
+            let owner = &test.make_addr("delegator");
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             test.skip_to_next_epoch_end();
@@ -854,8 +854,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
-            let storage_key =
-                Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
+            let storage_key = Delegation::generate_storage_key(mix_id, &owner, None);
             let delegation_pre = delegations_storage::delegations()
                 .load(test.deps().storage, storage_key.clone())
                 .unwrap();
@@ -903,8 +902,10 @@ mod tests {
         #[test]
         fn appropriately_updates_state_for_fresh_delegation() {
             let mut test = TestSetup::new();
-            let mix_id =
-                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner"),
+                Some(100_000_000_000u128.into()),
+            );
             let owner = "delegator";
 
             let delegation = 120_000_000u128;
@@ -964,7 +965,7 @@ mod tests {
         #[test]
         fn doesnt_return_any_tokens_if_it_doesnt_exist() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let owner = Addr::unchecked("delegator");
 
@@ -975,15 +976,15 @@ mod tests {
         #[test]
         fn errors_out_if_mix_rewarding_doesnt_exist() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
-            let owner = Addr::unchecked("delegator");
-            test.add_immediate_delegation(owner.as_str(), 100_000_000u32, mix_id);
+            let owner = &test.make_addr("delegator");
+            test.add_immediate_delegation(owner, 100_000_000u32, mix_id);
 
             // this should never happen in actual code, but if we manually messed something up,
             // lets make sure this throws an error
             rewards_storage::MIXNODE_REWARDING.remove(test.deps_mut().storage, mix_id);
-            let res = undelegate(test.deps_mut(), 123, owner, mix_id);
+            let res = undelegate(test.deps_mut(), 123, owner.clone(), mix_id);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -993,10 +994,12 @@ mod tests {
         #[test]
         fn returns_all_delegated_tokens_with_earned_rewards() {
             let mut test = TestSetup::new();
-            let mix_id =
-                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner"),
+                Some(100_000_000_000u128.into()),
+            );
 
-            let owner = "delegator";
+            let owner = &test.make_addr("delegator");
             let delegation = 120_000_000u128;
 
             let active_params = test.active_node_params(100.0);
@@ -1008,7 +1011,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
-            test.add_immediate_delegation(owner, delegation, mix_id);
+            test.add_immediate_delegation(&owner, delegation, mix_id);
 
             test.skip_to_next_epoch_end();
             let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -1022,7 +1025,7 @@ mod tests {
 
             let res = undelegate(test.deps_mut(), 123, Addr::unchecked(owner), mix_id).unwrap();
             let (receiver, sent_amount) = get_bank_send_msg(&res).unwrap();
-            assert_eq!(receiver, owner);
+            assert_eq!(receiver, owner.to_string());
             assert_eq!(sent_amount[0].amount.u128(), expected_return);
 
             // make sure delegation no longer exists
@@ -1047,7 +1050,7 @@ mod tests {
         use crate::mixnodes::storage as mixnodes_storage;
         use crate::rewards::storage as rewards_storage;
         use crate::support::tests::test_helpers::{get_bank_send_msg, TestSetup};
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{Addr, Uint128};
         use mixnet_contract_common::error::MixnetContractError;
         use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
@@ -1073,11 +1076,12 @@ mod tests {
             let change = test.coins(1234);
 
             // increase
-            let owner = "mix-owner1";
+            let owner = &test.make_addr("mix-owner1");
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
-            try_increase_pledge(test.deps_mut(), env.clone(), mock_info(owner, &change)).unwrap();
+            try_increase_pledge(test.deps_mut(), env.clone(), message_info(owner, &change))
+                .unwrap();
 
             let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
             assert!(matches!(
@@ -1086,14 +1090,14 @@ mod tests {
             ));
 
             // decrease
-            let owner = "mix-owner2";
+            let owner = &test.make_addr("mix-owner2");
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
             try_decrease_pledge(
                 test.deps_mut(),
                 env.clone(),
-                mock_info(owner, &[]),
+                message_info(owner, &[]),
                 change[0].clone(),
             )
             .unwrap();
@@ -1105,7 +1109,7 @@ mod tests {
             ));
 
             // artificial
-            let owner = "mix-owner3";
+            let owner = &test.make_addr("mix-owner3");
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
@@ -1128,7 +1132,7 @@ mod tests {
         fn returns_original_pledge_alongside_any_earned_rewards() {
             let mut test = TestSetup::new();
 
-            let owner = "mix-owner";
+            let owner = &test.make_addr("mix-owner");
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
             let mix_details = mixnodes_storage::mixnode_bonds()
@@ -1149,7 +1153,7 @@ mod tests {
             let env = test.env();
             let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
             let (receiver, sent_amount) = get_bank_send_msg(&res).unwrap();
-            assert_eq!(receiver, owner);
+            assert_eq!(receiver, owner.to_string());
             assert_eq!(sent_amount[0].amount, expected_return);
 
             assert!(rewards_storage::MIXNODE_REWARDING
@@ -1201,7 +1205,7 @@ mod tests {
             let mut test = TestSetup::new();
             let change = test.coin(1234);
 
-            let owner = "mix-owner";
+            let owner = &test.make_addr("mix-owner");
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
@@ -1215,7 +1219,7 @@ mod tests {
         #[test]
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
             test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
@@ -1249,21 +1253,43 @@ mod tests {
             let pledge3 = Uint128::new(200_000_000);
             let active_params = test.active_node_params(100.0);
 
-            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             let increase = test.coin(pledge2.u128());
             increase_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
-            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(pledge3));
 
-            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_repledge);
-            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_repledge);
-            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(&test.make_addr("bob"), 500_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111u128,
+                mix_id_repledge,
+            );
 
-            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_full_pledge);
-            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111u128,
+                mix_id_full_pledge,
+            );
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
@@ -1282,12 +1308,25 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000_000);
             let active_params = test.active_node_params(100.0);
 
-            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_repledge,
+            );
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
@@ -1298,11 +1337,24 @@ mod tests {
             increase_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
             let pledge3 = Uint128::new(200_000_000_000) + truncate_reward_amount(dist.operator);
-            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(pledge3));
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_full_pledge,
+            );
 
             let lost_operator = dist.operator
                 - Decimal::from_atomics(truncate_reward_amount(dist.operator), 0).unwrap();
@@ -1322,7 +1374,7 @@ mod tests {
                 .unwrap();
 
             test.add_immediate_delegation(
-                "dave",
+                &test.make_addr("dave"),
                 truncate_reward_amount(dist.delegates).u128(),
                 mix_id_full_pledge,
             );
@@ -1349,12 +1401,25 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000_000);
             let active_params = test.active_node_params(100.0);
 
-            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_repledge,
+            );
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
@@ -1376,11 +1441,24 @@ mod tests {
 
             let pledge3 =
                 Uint128::new(200_000_000_000) + truncate_reward_amount(cumulative_op_reward);
-            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(pledge3));
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_full_pledge,
+            );
 
             let lost_operator = cumulative_op_reward
                 - Decimal::from_atomics(truncate_reward_amount(cumulative_op_reward), 0).unwrap();
@@ -1400,7 +1478,7 @@ mod tests {
                 .unwrap();
 
             test.add_immediate_delegation(
-                "dave",
+                &test.make_addr("dave"),
                 truncate_reward_amount(cumulative_del_reward).u128(),
                 mix_id_full_pledge,
             );
@@ -1423,7 +1501,7 @@ mod tests {
         #[test]
         fn updates_the_pending_pledge_changes_field() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
             test.set_pending_pledge_change(mix_id, None);
 
             let amount = test.coin(12345);
@@ -1459,7 +1537,7 @@ mod tests {
             let mut test = TestSetup::new();
             let change = test.coin(1234);
 
-            let owner = "mix-owner";
+            let owner = &test.make_addr("mix-owner");
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
@@ -1473,7 +1551,7 @@ mod tests {
         #[test]
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
             test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
@@ -1502,7 +1580,7 @@ mod tests {
         #[test]
         fn returns_tokens_back_to_the_owner() {
             let mut test = TestSetup::new();
-            let owner = "mix-owner";
+            let owner = &test.make_addr("mix-owner");
             let mix_id = test.add_rewarded_legacy_mixnode(owner, None);
             test.set_pending_pledge_change(mix_id, None);
 
@@ -1528,21 +1606,43 @@ mod tests {
             let pledge3 = Uint128::new(150_000_000);
             let active_params = test.active_node_params(100.0);
 
-            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             let decrease = test.coin(pledge_change.u128());
             decrease_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
 
-            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(pledge3));
 
-            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_repledge);
-            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_repledge);
-            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(&test.make_addr("bob"), 500_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111u128,
+                mix_id_repledge,
+            );
 
-            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_full_pledge);
-            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111u128,
+                mix_id_full_pledge,
+            );
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
@@ -1561,12 +1661,25 @@ mod tests {
             let pledge_change = Uint128::new(50_000_000_000);
             let active_params = test.active_node_params(100.0);
 
-            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_repledge,
+            );
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
@@ -1577,11 +1690,24 @@ mod tests {
             decrease_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
 
             let pledge3 = Uint128::new(150_000_000_000) + truncate_reward_amount(dist.operator);
-            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(pledge3));
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_full_pledge,
+            );
 
             let lost_operator = dist.operator
                 - Decimal::from_atomics(truncate_reward_amount(dist.operator), 0).unwrap();
@@ -1601,7 +1727,7 @@ mod tests {
                 .unwrap();
 
             test.add_immediate_delegation(
-                "dave",
+                &test.make_addr("dave"),
                 truncate_reward_amount(dist.delegates).u128(),
                 mix_id_full_pledge,
             );
@@ -1628,12 +1754,25 @@ mod tests {
             let pledge_change = Uint128::new(50_000_000_000);
             let active_params = test.active_node_params(100.0);
 
-            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_repledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_repledge,
+            );
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
@@ -1655,11 +1794,24 @@ mod tests {
 
             let pledge3 =
                 Uint128::new(150_000_000_000) + truncate_reward_amount(cumulative_op_reward);
-            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(pledge3));
 
-            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
-            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation(
+                &test.make_addr("alice"),
+                123_456_789_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("bob"),
+                500_000_000_000u128,
+                mix_id_full_pledge,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("carol"),
+                111_111_111_000u128,
+                mix_id_full_pledge,
+            );
 
             let lost_operator = cumulative_op_reward
                 - Decimal::from_atomics(truncate_reward_amount(cumulative_op_reward), 0).unwrap();
@@ -1679,7 +1831,7 @@ mod tests {
                 .unwrap();
 
             test.add_immediate_delegation(
-                "dave",
+                &test.make_addr("dave"),
                 truncate_reward_amount(cumulative_del_reward).u128(),
                 mix_id_full_pledge,
             );
@@ -1702,7 +1854,7 @@ mod tests {
         #[test]
         fn updates_the_pending_pledge_changes_field() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
             test.set_pending_pledge_change(mix_id, None);
 
             let amount = test.coin(12345);
@@ -1750,7 +1902,7 @@ mod tests {
         #[test]
         fn doesnt_do_anything_if_mixnode_has_unbonded() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let env = test.env();
             unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
@@ -1767,7 +1919,7 @@ mod tests {
         #[test]
         fn for_bonded_mixnode_updates_saved_value() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let before = test.mix_rewarding(mix_id).cost_params;
 

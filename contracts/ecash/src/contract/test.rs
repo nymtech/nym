@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::NymEcashContract;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
+use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{coin, Addr, Empty, Env, MemoryStorage, OwnedDeps};
 use sylvia::ctx::{InstantiateCtx, QueryCtx};
 
@@ -23,7 +23,7 @@ impl TestSetup {
     pub fn init() -> TestSetup {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let admin = mock_info("admin", &[]);
+        let admin = message_info("admin", &[]);
         let init_ctx = InstantiateCtx::from((deps.as_mut(), env.clone(), admin));
 
         let multisig_contract = "multisig";

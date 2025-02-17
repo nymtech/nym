@@ -240,7 +240,7 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
@@ -321,7 +321,7 @@ mod tests {
             mix_denom: "nym".to_string(),
             key_size: 5,
         };
-        let info = mock_info("creator", &[]);
+        let info = message_info("creator", &[]);
 
         let res = instantiate(deps.as_mut(), env, info, msg);
         assert!(res.is_ok())

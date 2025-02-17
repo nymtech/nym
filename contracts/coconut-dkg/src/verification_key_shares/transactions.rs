@@ -106,7 +106,7 @@ mod tests {
     use crate::support::tests::helpers::{
         add_current_dealer, add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT,
     };
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
@@ -116,9 +116,9 @@ mod tests {
     fn current_epoch_id() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
-        let info = mock_info("requester", &[]);
+        let info = message_info("requester", &[]);
         let share = "share".to_string();
 
         add_fixture_dealer(deps.as_mut());
@@ -163,9 +163,9 @@ mod tests {
     fn commit_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
-        let info = mock_info("requester", &[]);
+        let info = message_info("requester", &[]);
         let share = "share".to_string();
 
         let ret = try_commit_verification_key_share(
@@ -238,11 +238,11 @@ mod tests {
     fn invalid_verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
-        let info = mock_info("requester", &[]);
+        let info = message_info("requester", &[]);
         let owner = "owner".to_string();
-        let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
+        let multisig_info = message_info(MULTISIG_CONTRACT, &[]);
 
         let ret =
             try_verify_verification_key_share(deps.as_mut(), info.clone(), owner.clone(), false)
@@ -297,12 +297,12 @@ mod tests {
     fn verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let owner = "owner".to_string();
-        let info = mock_info(owner.as_ref(), &[]);
+        let info = message_info(owner.as_ref(), &[]);
         let share = "share".to_string();
-        let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
+        let multisig_info = message_info(MULTISIG_CONTRACT, &[]);
 
         add_fixture_dealer(deps.as_mut());
         env.block.time = env

@@ -1,4 +1,4 @@
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
 use cosmwasm_std::{from_json, Addr, Api, DepsMut, OwnedDeps, Querier, Storage, SubMsg};
 use cw4::{member_key, Member, MemberChangedHookMsg, MemberDiff, TOTAL_KEY};
 use cw_controllers::{AdminError, HookError};
@@ -13,6 +13,7 @@ use nym_group_contract_common::msg::{ExecuteMsg, InstantiateMsg};
 use easy_addr::addr;
 
 const INIT_ADMIN: &str = addr!("juan");
+const CREATOR: &str = addr!("creator");
 const USER1: &str = addr!("somebody");
 const USER2: &str = addr!("else");
 const USER3: &str = addr!("funny");
@@ -31,7 +32,7 @@ fn set_up(deps: DepsMut) {
             },
         ],
     };
-    let info = mock_info("creator", &[]);
+    let info = message_info(&Addr::unchecked(CREATOR), &[]);
     instantiate(deps, mock_env(), info, msg).unwrap();
 }
 
@@ -88,7 +89,7 @@ fn duplicate_members_instantiation() {
             },
         ],
     };
-    let info = mock_info("creator", &[]);
+    let info = message_info(&Addr::unchecked(CREATOR), &[]);
     let err = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(
         err,
@@ -288,7 +289,7 @@ fn add_remove_hooks() {
     };
 
     // non-admin cannot add hook
-    let user_info = mock_info(USER1, &[]);
+    let user_info = message_info(&Addr::unchecked(USER1), &[]);
     let err = execute(
         deps.as_mut(),
         mock_env(),
@@ -299,7 +300,7 @@ fn add_remove_hooks() {
     assert_eq!(err, HookError::Admin(AdminError::NotAdmin {}).into());
 
     // admin can add it, and it appears in the query
-    let admin_info = mock_info(INIT_ADMIN, &[]);
+    let admin_info = message_info(&Addr::unchecked(INIT_ADMIN), &[]);
     let _ = execute(
         deps.as_mut(),
         mock_env(),
@@ -352,7 +353,7 @@ fn hooks_fire() {
     let contract2 = deps.api.addr_make("hook2").to_string();
 
     // register 2 hooks
-    let admin_info = mock_info(INIT_ADMIN, &[]);
+    let admin_info = message_info(&Addr::unchecked(INIT_ADMIN), &[]);
     let add_msg = ExecuteMsg::AddHook {
         addr: contract1.clone(),
     };

@@ -210,7 +210,7 @@ pub(crate) mod tests {
     use crate::support::tests::fixtures::{dealing_metadata_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_current_dealer, re_register_dealer, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::{ContractSafeBytes, TimeConfiguration};
 
@@ -218,10 +218,10 @@ pub(crate) mod tests {
     fn invalid_commit_dealing_chunk() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let owner = Addr::unchecked("owner1");
-        let info = mock_info(owner.as_str(), &[]);
+        let info = message_info(owner.as_str(), &[]);
         let chunk = partial_dealing_fixture();
 
         // no dealing metadata

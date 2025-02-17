@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;
 use axum_test::{TestResponse, TestServer};
-use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::testing::{message_info, mock_env};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, MessageInfo, WasmMsg,
 };
@@ -464,7 +464,7 @@ impl FakeChainState {
                 msg,
                 funds,
             } => {
-                let sender = mock_info(sender_address.as_ref(), funds);
+                let sender = message_info(sender_address.as_ref(), funds);
                 self.execute_contract_msg(contract_addr, msg, sender)
             }
             other => unimplemented!("unimplemented wasm proposal for {other:?}"),

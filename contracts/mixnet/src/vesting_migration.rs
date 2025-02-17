@@ -221,14 +221,14 @@ mod tests {
         use super::*;
         use crate::mixnodes::helpers::get_mixnode_details_by_id;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{from_json, Addr, CosmosMsg, WasmMsg};
 
         #[test]
         fn with_no_bonded_nodes() {
             let mut test = TestSetup::new();
 
-            let sender = mock_info("owner", &[]);
+            let sender = test.make_sender("owner");
             let deps = test.deps_mut();
 
             // nothing happens
@@ -244,9 +244,9 @@ mod tests {
         #[test]
         fn with_liquid_node_bonded() {
             let mut test = TestSetup::new();
-            test.add_legacy_mixnode("owner", None);
+            test.add_legacy_mixnode(&test.make_addr("owner"), None);
 
-            let sender = mock_info("owner", &[]);
+            let sender = message_info(&test.make_addr("owner"), &[]);
             let deps = test.deps_mut();
 
             // nothing happens
@@ -257,9 +257,9 @@ mod tests {
         #[test]
         fn with_vested_node_bonded() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_legacy_mixnode_with_legal_proxy("owner", None);
+            let mix_id = test.add_legacy_mixnode_with_legal_proxy(&test.make_addr("owner"), None);
 
-            let sender = mock_info("owner", &[]);
+            let sender = message_info(&test.make_addr("owner"), &[]);
             let deps = test.deps_mut();
 
             let existing_node = get_mixnode_details_by_id(deps.storage, mix_id)
@@ -279,7 +279,7 @@ mod tests {
             assert_eq!(
                 from_json::<VestingExecuteMsg>(msg).unwrap(),
                 VestingExecuteMsg::TrackMigratedMixnode {
-                    owner: "owner".to_string()
+                    owner: test.make_addr("owner").to_string()
                 }
             );
         }
@@ -290,7 +290,7 @@ mod tests {
         use super::*;
         use crate::delegations::storage::delegations;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{from_json, Addr, CosmosMsg, Order, Uint128, WasmMsg};
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::nym_node::Role;
@@ -304,7 +304,7 @@ mod tests {
             let mut test = TestSetup::new_complex();
             let env = test.env();
 
-            let sender = mock_info("owner-without-any-delegations", &[]);
+            let sender = test.make_sender("owner-without-any-delegations");
 
             // it simply fails for there is nothing to migrate
             let res = try_migrate_vested_delegation(test.deps_mut(), env, sender, 42).unwrap_err();
@@ -329,7 +329,7 @@ mod tests {
                 .filter_map(|d| d.map(|(_, del)| del).ok())
                 .any(|d| d.proxy.is_some() && d.owner.as_str() == delegation.owner.as_str()));
 
-            let sender = mock_info(delegation.owner.as_str(), &[]);
+            let sender = message_info(&delegation.owner, &[]);
             let mix_id = delegation.node_id;
 
             // it also fails because the method is only allowed for vested delegations
@@ -361,7 +361,7 @@ mod tests {
             expected_liquid.proxy = None;
             let expected_new_storage_key = expected_liquid.storage_key();
 
-            let sender = mock_info(delegation.owner.as_str(), &[]);
+            let sender = message_info(&delegation.owner, &[]);
             let mix_id = delegation.node_id;
 
             //  a track message is sent into the vesting contract
@@ -398,18 +398,15 @@ mod tests {
             let mut test = TestSetup::new_complex();
             let env = test.env();
 
-            let problematic_delegator = "n1foomp";
-            let problematic_delegator_twin = "n1bar";
+            let problematic_delegator = test.make_addr("n1foomp");
+            let problematic_delegator_twin = test.make_addr("n1bar");
             let mix_id = 3;
 
-            let liquid_storage_key = Delegation::generate_storage_key(
-                mix_id,
-                &Addr::unchecked(problematic_delegator),
-                None,
-            );
+            let liquid_storage_key =
+                Delegation::generate_storage_key(mix_id, &problematic_delegator, None);
             let vested_storage_key = Delegation::generate_storage_key(
                 mix_id,
-                &Addr::unchecked(problematic_delegator),
+                &problematic_delegator,
                 Some(&test.vesting_contract()),
             );
 
@@ -431,7 +428,7 @@ mod tests {
             test.ensure_delegation_sync(mix_id);
 
             //  a track message is sent into the vesting contract
-            let sender = mock_info(problematic_delegator, &[]);
+            let sender = message_info(&problematic_delegator, &[]);
             let res = try_migrate_vested_delegation(test.deps_mut(), env, sender, mix_id).unwrap();
             let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = &res.messages[0].msg else {
                 panic!("no track message present")
@@ -488,14 +485,11 @@ mod tests {
             // would be the same as if the delegations remained separate
             let all_nodes = test.all_mixnodes();
 
-            let twin_liquid_storage_key = Delegation::generate_storage_key(
-                mix_id,
-                &Addr::unchecked(problematic_delegator_twin),
-                None,
-            );
+            let twin_liquid_storage_key =
+                Delegation::generate_storage_key(mix_id, &problematic_delegator_twin, None);
             let twin_vested_storage_key = Delegation::generate_storage_key(
                 mix_id,
-                &Addr::unchecked(problematic_delegator_twin),
+                &problematic_delegator_twin,
                 Some(&test.vesting_contract()),
             );
 

@@ -84,6 +84,8 @@ const DelegationsTable = ({
     enableColumnActions: false,
     enableFullScreenToggle: false,
     enableHiding: false,
+    enableDensityToggle: false,
+
     paginationDisplayMode: "pages",
     muiPaginationProps: {
       showRowsPerPage: false,

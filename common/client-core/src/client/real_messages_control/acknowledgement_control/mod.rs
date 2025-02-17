@@ -262,7 +262,7 @@ where
         let sent_notification_listener = SentNotificationListener::new(
             connectors.sent_notifier,
             connectors.ack_action_sender,
-            task_client.fork("sent_notification_listener"),
+            task_client.with_suffix("sent_notification_listener"),
         );
 
         AcknowledgementController {

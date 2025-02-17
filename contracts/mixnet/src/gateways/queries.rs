@@ -85,7 +85,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
-    use crate::support::tests::test_helpers::TestSetup;
+    use crate::support::tests::test_helpers::{sorted_addresses, TestSetup};
     use cosmwasm_std::testing::message_info;
 
     #[test]
@@ -136,65 +136,65 @@ pub(crate) mod tests {
 
     #[test]
     fn gateway_pagination_works() {
-        todo!();
-        // let stake = tests::fixtures::good_gateway_pledge();
-        // let mut test = TestSetup::new();
-        //
-        // // prepare 4 gateways that are sorted by the generated identities
-        // // (because we query them in an ascended manner)
-        // let mut gateways = (0..4)
-        //     .map(|i| test.gateway_with_signature(format!("sender{}", i), None).0)
-        //     .collect::<Vec<_>>();
-        // gateways.sort_by(|g1, g2| g1.identity_key.cmp(&g2.identity_key));
-        //
-        // let info = message_info("sender0", &stake);
-        // test.save_legacy_gateway(gateways[0].clone(), &info);
-        //
-        // let per_page = 2;
-        // let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
-        //
-        // // page should have 1 result on it
-        // assert_eq!(1, page1.nodes.len());
-        //
-        // // save another
-        // let info = message_info("sender1", &stake);
-        // test.save_legacy_gateway(gateways[1].clone(), &info);
-        //
-        // // page1 should have 2 results on it
-        // let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
-        // assert_eq!(2, page1.nodes.len());
-        //
-        // let info = message_info("sender2", &stake);
-        // test.save_legacy_gateway(gateways[2].clone(), &info);
-        //
-        // // page1 still has 2 results
-        // let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
-        // assert_eq!(2, page1.nodes.len());
-        //
-        // // retrieving the next page should start after the last key on this page
-        // let start_after = page1.start_next_after.unwrap();
-        // let page2 = query_gateways_paged(
-        //     test.deps(),
-        //     Option::from(start_after.clone()),
-        //     Option::from(per_page),
-        // )
-        // .unwrap();
-        //
-        // assert_eq!(1, page2.nodes.len());
-        //
-        // // save another one
-        // let info = message_info("sender3", &stake);
-        // test.save_legacy_gateway(gateways[3].clone(), &info);
-        //
-        // let page2 = query_gateways_paged(
-        //     test.deps(),
-        //     Option::from(start_after),
-        //     Option::from(per_page),
-        // )
-        // .unwrap();
-        //
-        // // now we have 2 pages, with 2 results on the second page
-        // assert_eq!(2, page2.nodes.len());
+        let stake = tests::fixtures::good_gateway_pledge();
+        let mut test = TestSetup::new();
+        let owners = sorted_addresses(4);
+
+        // prepare 4 gateways that are sorted by the generated identities
+        // (because we query them in an ascended manner)
+        let mut gateways = (0..4)
+            .map(|i| test.gateway_with_signature(&owners[i], None).0)
+            .collect::<Vec<_>>();
+        gateways.sort_by(|g1, g2| g1.identity_key.cmp(&g2.identity_key));
+
+        let info = message_info(&owners[0], &stake);
+        test.save_legacy_gateway(gateways[0].clone(), &info);
+
+        let per_page = 2;
+        let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
+
+        // page should have 1 result on it
+        assert_eq!(1, page1.nodes.len());
+
+        // save another
+        let info = message_info(&owners[1], &stake);
+        test.save_legacy_gateway(gateways[1].clone(), &info);
+
+        // page1 should have 2 results on it
+        let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
+        assert_eq!(2, page1.nodes.len());
+
+        let info = message_info(&owners[2], &stake);
+        test.save_legacy_gateway(gateways[2].clone(), &info);
+
+        // page1 still has 2 results
+        let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
+        assert_eq!(2, page1.nodes.len());
+
+        // retrieving the next page should start after the last key on this page
+        let start_after = page1.start_next_after.unwrap();
+        let page2 = query_gateways_paged(
+            test.deps(),
+            Option::from(start_after.clone()),
+            Option::from(per_page),
+        )
+        .unwrap();
+
+        assert_eq!(1, page2.nodes.len());
+
+        // save another one
+        let info = message_info(&owners[3], &stake);
+        test.save_legacy_gateway(gateways[3].clone(), &info);
+
+        let page2 = query_gateways_paged(
+            test.deps(),
+            Option::from(start_after),
+            Option::from(per_page),
+        )
+        .unwrap();
+
+        // now we have 2 pages, with 2 results on the second page
+        assert_eq!(2, page2.nodes.len());
     }
 
     #[test]

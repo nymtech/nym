@@ -107,7 +107,7 @@ mod tests {
         let response = execute(
             deps.as_mut(),
             env.clone(),
-            message_info(&original_staker, &[]),
+            message_info(original_staker, &[]),
             stake_msg.clone(),
         );
         assert_eq!(

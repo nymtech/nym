@@ -131,21 +131,30 @@ pub(crate) mod tests {
     use crate::dealers::storage::{DEALERS_PAGE_DEFAULT_LIMIT, DEALERS_PAGE_MAX_LIMIT};
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers::{init_contract, insert_dealer};
-    use cosmwasm_std::DepsMut;
+    use cosmwasm_std::testing::{MockApi, MockQuerier};
+    use cosmwasm_std::{Empty, MemoryStorage, OwnedDeps};
 
-    fn fill_dealers(mut deps: DepsMut<'_>, epoch_id: EpochId, size: usize) {
+    fn fill_dealers(
+        deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
+        epoch_id: EpochId,
+        size: usize,
+    ) {
         for assigned_index in 0..size {
-            let dealer_details = dealer_details_fixture(assigned_index as u64);
-            insert_dealer(deps.branch(), epoch_id, &dealer_details);
+            let dealer_details = dealer_details_fixture(&deps.api, assigned_index as u64);
+            insert_dealer(deps.as_mut(), epoch_id, &dealer_details);
         }
     }
 
-    fn remove_dealers(deps: DepsMut<'_>, epoch_id: EpochId, size: usize) {
+    fn remove_dealers(
+        deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
+        epoch_id: EpochId,
+        size: usize,
+    ) {
         for assigned_index in 0..size {
-            let dealer_details = dealer_details_fixture(assigned_index as u64);
-            DEALERS_INDICES.remove(deps.storage, &dealer_details.address);
+            let dealer_details = dealer_details_fixture(&deps.api, assigned_index as u64);
+            DEALERS_INDICES.remove(deps.as_mut().storage, &dealer_details.address);
 
-            EPOCH_DEALERS_MAP.remove(deps.storage, (epoch_id, &dealer_details.address));
+            EPOCH_DEALERS_MAP.remove(deps.as_mut().storage, (epoch_id, &dealer_details.address));
         }
     }
 
@@ -162,26 +171,26 @@ pub(crate) mod tests {
         let mut deps = init_contract();
         let limit = 2;
 
-        fill_dealers(deps.as_mut(), 0, 1000);
+        fill_dealers(&mut deps, 0, 1000);
 
         let page1 = query_current_dealers_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.dealers.len() as u32);
 
-        remove_dealers(deps.as_mut(), 0, 1000);
+        remove_dealers(&mut deps, 0, 1000);
     }
 
     #[test]
     fn dealers_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
 
-        fill_dealers(deps.as_mut(), 0, 1000);
+        fill_dealers(&mut deps, 0, 1000);
 
         // query without explicitly setting a limit
         let page1 = query_current_dealers_paged(deps.as_ref(), None, None).unwrap();
 
         assert_eq!(DEALERS_PAGE_DEFAULT_LIMIT, page1.dealers.len() as u32);
 
-        remove_dealers(deps.as_mut(), 0, 1000);
+        remove_dealers(&mut deps, 0, 1000);
     }
 
     #[test]
@@ -191,7 +200,7 @@ pub(crate) mod tests {
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * DEALERS_PAGE_MAX_LIMIT;
 
-        fill_dealers(deps.as_mut(), 0, 1000);
+        fill_dealers(&mut deps, 0, 1000);
 
         let page1 =
             query_current_dealers_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
@@ -200,7 +209,7 @@ pub(crate) mod tests {
         let expected_limit = DEALERS_PAGE_MAX_LIMIT;
         assert_eq!(expected_limit, page1.dealers.len() as u32);
 
-        remove_dealers(deps.as_mut(), 0, 1000);
+        remove_dealers(&mut deps, 0, 1000);
     }
 
     #[test]
@@ -209,22 +218,22 @@ pub(crate) mod tests {
 
         let per_page = 2;
 
-        fill_dealers(deps.as_mut(), 0, 1);
+        fill_dealers(&mut deps, 0, 1);
         let page1 =
             query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
 
         // page should have 1 result on it
         assert_eq!(1, page1.dealers.len());
-        remove_dealers(deps.as_mut(), 0, 1);
+        remove_dealers(&mut deps, 0, 1);
 
-        fill_dealers(deps.as_mut(), 0, 2);
+        fill_dealers(&mut deps, 0, 2);
         // page1 should have 2 results on it
         let page1 =
             query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.dealers.len());
-        remove_dealers(deps.as_mut(), 0, 2);
+        remove_dealers(&mut deps, 0, 2);
 
-        fill_dealers(deps.as_mut(), 0, 3);
+        fill_dealers(&mut deps, 0, 3);
         // page1 still has 2 results
         let page1 =
             query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
@@ -240,9 +249,9 @@ pub(crate) mod tests {
         .unwrap();
 
         assert_eq!(1, page2.dealers.len());
-        remove_dealers(deps.as_mut(), 0, 3);
+        remove_dealers(&mut deps, 0, 3);
 
-        fill_dealers(deps.as_mut(), 0, 4);
+        fill_dealers(&mut deps, 0, 4);
         let page1 =
             query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
         let start_after = page1.start_next_after.unwrap();
@@ -255,6 +264,6 @@ pub(crate) mod tests {
 
         // now we have 2 pages, with 2 results on the second page
         assert_eq!(2, page2.dealers.len());
-        remove_dealers(deps.as_mut(), 0, 4);
+        remove_dealers(&mut deps, 0, 4);
     }
 }

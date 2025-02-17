@@ -665,7 +665,7 @@ mod tests {
             let owner2 = &test.make_addr("delegator2");
 
             // add pre-existing delegation
-            test.add_immediate_delegation(&owner1, delegation, mix_id);
+            test.add_immediate_delegation(owner1, delegation, mix_id);
 
             let env = test.env();
             unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
@@ -727,7 +727,7 @@ mod tests {
             let owner2 = &test.make_addr("delegator2");
 
             // add pre-existing delegation
-            test.add_immediate_delegation(&owner1, delegation, mix_id);
+            test.add_immediate_delegation(owner1, delegation, mix_id);
 
             let env = test.env();
             let sender = test.make_sender("mix-owner");
@@ -854,7 +854,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
-            let storage_key = Delegation::generate_storage_key(mix_id, &owner, None);
+            let storage_key = Delegation::generate_storage_key(mix_id, owner, None);
             let delegation_pre = delegations_storage::delegations()
                 .load(test.deps().storage, storage_key.clone())
                 .unwrap();
@@ -1011,7 +1011,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
-            test.add_immediate_delegation(&owner, delegation, mix_id);
+            test.add_immediate_delegation(owner, delegation, mix_id);
 
             test.skip_to_next_epoch_end();
             let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);

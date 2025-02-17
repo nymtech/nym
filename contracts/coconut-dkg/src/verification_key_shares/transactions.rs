@@ -137,7 +137,7 @@ mod tests {
             .time
             .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let dealer = Addr::unchecked("requester");
+        let dealer = deps.api.addr_make("requester");
         let announce_address = String::from("localhost");
         let dealer_details = DealerDetails {
             address: dealer.clone(),
@@ -215,7 +215,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(ret, ContractError::NotADealer { epoch_id: 0 });
 
-        let dealer = Addr::unchecked("requester");
+        let dealer = deps.api.addr_make("requester");
         let dealer_details = DealerDetails {
             address: dealer.clone(),
             bte_public_key_with_proof: String::new(),
@@ -256,7 +256,7 @@ mod tests {
         .unwrap();
 
         let info = message_info(&deps.api.addr_make("requester"), &[]);
-        let owner = "owner".to_string();
+        let owner = deps.api.addr_make("owner").to_string();
         let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
 
         let ret =

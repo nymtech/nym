@@ -97,6 +97,16 @@ pub mod test_helpers {
     use std::str::FromStr;
     use std::time::Duration;
 
+    pub(crate) fn sorted_addresses(n: usize) -> Vec<Addr> {
+        let mut rng = test_rng();
+        let mut addrs = Vec::with_capacity(n);
+        for i in 0..n {
+            addrs.push(MockApi::default().addr_make(&format!("addr{i}{}", rng.next_u64())));
+        }
+        addrs.sort();
+        addrs
+    }
+
     pub(crate) fn addr<S: AsRef<str>>(raw: S) -> Addr {
         mock_dependencies().api.addr_make(raw.as_ref())
     }
@@ -861,13 +871,13 @@ pub mod test_helpers {
 
         pub fn add_legacy_mixnodes(&mut self, n: usize) {
             for i in 0..n {
-                self.add_legacy_mixnode(&addr(&format!("owner{i}")), None);
+                self.add_legacy_mixnode(&addr(format!("owner{i}")), None);
             }
         }
 
         pub fn add_dummy_gateways(&mut self, n: usize) {
             for i in 0..n {
-                self.add_legacy_gateway(&addr(&format!("owner{i}")), None);
+                self.add_legacy_gateway(&addr(format!("owner{i}")), None);
             }
         }
 
@@ -1081,7 +1091,7 @@ pub mod test_helpers {
             };
             let proxy = self.vesting_contract();
 
-            let storage_key = Delegation::generate_storage_key(target, &delegator, Some(&proxy));
+            let storage_key = Delegation::generate_storage_key(target, delegator, Some(&proxy));
 
             let mut mix_rewarding = self.mix_rewarding(target);
 
@@ -1512,7 +1522,7 @@ pub mod test_helpers {
         pub fn delegation(&self, mix: NodeId, owner: &Addr, proxy: &Option<Addr>) -> Delegation {
             let caller = std::panic::Location::caller();
 
-            read_delegation(self.deps().storage, mix, &owner, proxy).unwrap_or_else(|| {
+            read_delegation(self.deps().storage, mix, owner, proxy).unwrap_or_else(|| {
                 panic!("{caller} failed with: delegation for {mix}/{owner} doesn't exist")
             })
         }
@@ -1697,7 +1707,7 @@ pub mod test_helpers {
         n: usize,
     ) {
         for i in 0..n {
-            add_unbonded_mixnode(&mut rng, deps.branch(), None, &addr(&format!("owner{}", i)));
+            add_unbonded_mixnode(&mut rng, deps.branch(), None, &addr(format!("owner{}", i)));
         }
     }
 
@@ -1723,7 +1733,7 @@ pub mod test_helpers {
                 &mut rng,
                 deps.branch(),
                 Some(identity),
-                &addr(&format!("owner{}", i)),
+                &addr(format!("owner{i}")),
             );
         }
     }

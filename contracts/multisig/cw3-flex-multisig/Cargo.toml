@@ -36,6 +36,7 @@ nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contract
 nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
 
 [dev-dependencies]
+easy-addr = { path = "../../../common/cosmwasm-smart-contracts/easy_addr" }
 cw4-group = { path = "../cw4-group" }
 cw-multi-test = { workspace = true }
 cw20-base = { workspace = true }

@@ -326,7 +326,7 @@ pub mod tests {
         assert_eq!(
             result,
             Err(MixnetContractError::NoAssociatedGatewayBond {
-                owner: Addr::unchecked("anyone")
+                owner: test.make_addr("anyone")
             })
         );
 
@@ -340,7 +340,7 @@ pub mod tests {
         assert_eq!(
             result,
             Err(MixnetContractError::NoAssociatedGatewayBond {
-                owner: Addr::unchecked("fred")
+                owner: test.make_addr("fred")
             })
         );
 
@@ -351,7 +351,7 @@ pub mod tests {
         assert_eq!(1, nodes.len());
 
         let first_node = &nodes[0];
-        assert_eq!(&Addr::unchecked("bob"), first_node.owner());
+        assert_eq!(&test.make_addr("bob"), first_node.owner());
 
         // add a node owned by fred
         let (fred_identity, _) = test.add_legacy_gateway(&test.make_addr("fred"), None);

@@ -222,7 +222,7 @@ mod tests {
         use crate::mixnodes::helpers::get_mixnode_details_by_id;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{from_json, Addr, CosmosMsg, WasmMsg};
+        use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
 
         #[test]
         fn with_no_bonded_nodes() {
@@ -236,7 +236,7 @@ mod tests {
             assert_eq!(
                 res,
                 MixnetContractError::NoAssociatedMixNodeBond {
-                    owner: Addr::unchecked("owner")
+                    owner: test.make_addr("owner")
                 }
             )
         }
@@ -291,7 +291,7 @@ mod tests {
         use crate::delegations::storage::delegations;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{from_json, Addr, CosmosMsg, Order, Uint128, WasmMsg};
+        use cosmwasm_std::{from_json, CosmosMsg, Order, Uint128, WasmMsg};
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::nym_node::Role;
         use mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};

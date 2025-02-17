@@ -139,10 +139,10 @@ mod tests {
 
     fn add_dummy_mixes_with_delegations(test: &mut TestSetup, delegators: usize, mixes: usize) {
         for i in 0..mixes {
-            let mix_id = test.add_legacy_mixnode(&test.make_addr(&format!("mix-owner{}", i)), None);
+            let mix_id = test.add_legacy_mixnode(&test.make_addr(format!("mix-owner{}", i)), None);
             for delegator in 0..delegators {
-                let name = &test.make_addr(&format!("delegator{}", delegator));
-                test.add_immediate_delegation(&name, 100_000_000u32, mix_id)
+                let name = &test.make_addr(format!("delegator{}", delegator));
+                test.add_immediate_delegation(name, 100_000_000u32, mix_id)
             }
         }
     }
@@ -151,6 +151,7 @@ mod tests {
     mod mixnode_delegations {
         use super::*;
         use crate::support::tests::test_helpers;
+        use crate::support::tests::test_helpers::sorted_addresses;
 
         #[test]
         fn obeys_limits() {
@@ -207,8 +208,10 @@ mod tests {
         fn pagination_works() {
             let mut test = TestSetup::new();
 
+            let delegators = sorted_addresses(4);
+
             let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
-            test.add_immediate_delegation(&test.make_addr("addr1"), 1000u32, mix_id);
+            test.add_immediate_delegation(&delegators[0], 1000u32, mix_id);
 
             let per_page = 2;
             let page1 =
@@ -218,14 +221,14 @@ mod tests {
             assert_eq!(1, page1.delegations.len());
 
             // save another
-            test.add_immediate_delegation(&test.make_addr("addr2"), 1000u32, mix_id);
+            test.add_immediate_delegation(&delegators[1], 1000u32, mix_id);
 
             // page1 should have 2 results on it
             let page1 =
                 query_node_delegations_paged(test.deps(), mix_id, None, Some(per_page)).unwrap();
             assert_eq!(2, page1.delegations.len());
 
-            test.add_immediate_delegation(&test.make_addr("addr3"), 1000u32, mix_id);
+            test.add_immediate_delegation(&delegators[2], 1000u32, mix_id);
 
             // page1 still has the same 2 results
             let another_page1 =
@@ -246,7 +249,7 @@ mod tests {
             assert_eq!(1, page2.delegations.len());
 
             // save another one
-            test.add_immediate_delegation(&test.make_addr("addr4"), 1000u32, mix_id);
+            test.add_immediate_delegation(&delegators[3], 1000u32, mix_id);
 
             let page2 = query_node_delegations_paged(
                 test.deps(),
@@ -299,7 +302,6 @@ mod tests {
 
     mod delegator_delegations {
         use super::*;
-        use cosmwasm_std::Addr;
 
         #[test]
         fn obeys_limits() {
@@ -312,7 +314,7 @@ mod tests {
 
             let page1 = query_delegator_delegations_paged(
                 test.deps(),
-                "delegator1".into(),
+                test.make_addr("delegator1").to_string(),
                 None,
                 Some(limit),
             )
@@ -326,9 +328,13 @@ mod tests {
             add_dummy_mixes_with_delegations(&mut test, 10, 500);
 
             // query without explicitly setting a limit
-            let page1 =
-                query_delegator_delegations_paged(test.deps(), "delegator1".into(), None, None)
-                    .unwrap();
+            let page1 = query_delegator_delegations_paged(
+                test.deps(),
+                test.make_addr("delegator1").to_string(),
+                None,
+                None,
+            )
+            .unwrap();
 
             assert_eq!(
                 DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT,
@@ -345,7 +351,7 @@ mod tests {
             let crazy_limit = 10000;
             let page1 = query_delegator_delegations_paged(
                 test.deps(),
-                "delegator1".into(),
+                test.make_addr("delegator1").to_string(),
                 None,
                 Some(crazy_limit),
             )
@@ -452,28 +458,37 @@ mod tests {
             add_dummy_mixes_with_delegations(&mut test, 50, 100);
 
             // make few queries
-            let res1 =
-                query_delegator_delegations_paged(test.deps(), "delegator2".into(), None, None)
-                    .unwrap();
+            let res1 = query_delegator_delegations_paged(
+                test.deps(),
+                test.make_addr("delegator2").into(),
+                None,
+                None,
+            )
+            .unwrap();
             assert_eq!(res1.delegations.len(), 100);
             assert!(res1
                 .delegations
                 .into_iter()
-                .all(|d| d.owner == Addr::unchecked("delegator2")));
+                .all(|d| d.owner == test.make_addr("delegator2")));
 
-            let res2 =
-                query_delegator_delegations_paged(test.deps(), "delegator35".into(), None, None)
-                    .unwrap();
+            let res2 = query_delegator_delegations_paged(
+                test.deps(),
+                test.make_addr("delegator35").into(),
+                None,
+                None,
+            )
+            .unwrap();
             assert_eq!(res2.delegations.len(), 100);
             assert!(res2
                 .delegations
                 .into_iter()
-                .all(|d| d.owner == Addr::unchecked("delegator35")));
+                .all(|d| d.owner == test.make_addr("delegator35")));
         }
     }
 
     mod all_delegations {
         use super::*;
+        use crate::support::tests::test_helpers::sorted_addresses;
 
         #[test]
         fn obeys_limits() {
@@ -526,10 +541,11 @@ mod tests {
             let mix_id1 = test.add_legacy_mixnode(&test.make_addr("mix-owner1"), None);
             let mix_id2 = test.add_legacy_mixnode(&test.make_addr("mix-owner2"), None);
 
-            let delegator1 = test.make_addr("delegator1");
-            let delegator2 = test.make_addr("delegator2");
+            let delegators = sorted_addresses(2);
+            let delegator1 = &delegators[0];
+            let delegator2 = &delegators[1];
 
-            test.add_immediate_delegation(&delegator1, 1000u32, mix_id1);
+            test.add_immediate_delegation(delegator1, 1000u32, mix_id1);
 
             let per_page = 2;
             let page1 = query_all_delegations_paged(test.deps(), None, Some(per_page)).unwrap();
@@ -540,7 +556,7 @@ mod tests {
                 page1.delegations[0].owner == delegator1 && page1.delegations[0].node_id == mix_id1
             );
 
-            test.add_immediate_delegation(&delegator1, 1000u32, mix_id2);
+            test.add_immediate_delegation(delegator1, 1000u32, mix_id2);
 
             let page1 = query_all_delegations_paged(test.deps(), None, Some(per_page)).unwrap();
 
@@ -553,7 +569,7 @@ mod tests {
                 page1.delegations[1].owner == delegator1 && page1.delegations[1].node_id == mix_id2
             );
 
-            test.add_immediate_delegation(&delegator2, 1000u32, mix_id1);
+            test.add_immediate_delegation(delegator2, 1000u32, mix_id1);
 
             // note that the order of results changed on page1
             let another_page1 =
@@ -580,7 +596,7 @@ mod tests {
             );
 
             // save another one
-            test.add_immediate_delegation(&delegator2, 1000u32, mix_id2);
+            test.add_immediate_delegation(delegator2, 1000u32, mix_id2);
 
             let page2 = query_all_delegations_paged(test.deps(), Some(start_after), Some(per_page))
                 .unwrap();

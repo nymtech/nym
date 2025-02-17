@@ -318,7 +318,7 @@ mod tests {
         use super::*;
         use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use crate::support::tests::test_helpers::{sender, TestSetup};
+        use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::message_info;
         use mixnet_contract_common::nym_node::Role;
@@ -340,7 +340,7 @@ mod tests {
             for bad_state in bad_states {
                 let mut test = TestSetup::new();
                 let mix_id = test.add_legacy_mixnode(&test.make_addr("owner"), None);
-                test.add_immediate_delegation(&&test.make_addr("foomp"), 1000u32, mix_id);
+                test.add_immediate_delegation(&test.make_addr("foomp"), 1000u32, mix_id);
 
                 let mut status = EpochStatus::new(test.rewarding_validator().sender);
                 status.state = bad_state;
@@ -414,9 +414,9 @@ mod tests {
             let mix_id_unbonded_leftover =
                 test.add_legacy_mixnode(&test.make_addr("mix-owner-unbonded-leftover"), None);
 
-            test.add_immediate_delegation(&owner, 10000u32, normal_mix_id);
-            test.add_immediate_delegation(&owner, 10000u32, mix_id_unbonding);
-            test.add_immediate_delegation(&owner, 10000u32, mix_id_unbonded_leftover);
+            test.add_immediate_delegation(owner, 10000u32, normal_mix_id);
+            test.add_immediate_delegation(owner, 10000u32, mix_id_unbonding);
+            test.add_immediate_delegation(owner, 10000u32, mix_id_unbonded_leftover);
 
             let mix_sender = test.make_sender("mix-owner-unbonded-leftover");
             try_remove_mixnode(test.deps_mut(), env.clone(), mix_sender).unwrap();

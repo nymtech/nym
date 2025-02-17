@@ -15,7 +15,7 @@ use crate::transactions::{
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
-use nym_contracts_common::set_build_information_cw22;
+use nym_contracts_common::set_build_information;
 use nym_pool_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NymPoolContractError, QueryMsg,
 };
@@ -31,7 +31,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, NymPoolContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    set_build_information_cw22!(deps.storage)?;
+    set_build_information!(deps.storage)?;
 
     NYM_POOL_STORAGE.initialise(deps, env, info.sender, &msg.pool_denomination, msg.grants)?;
 
@@ -99,7 +99,7 @@ pub fn migrate(
     _env: Env,
     _msg: MigrateMsg,
 ) -> Result<Response, NymPoolContractError> {
-    set_build_information_cw22!(deps.storage)?;
+    set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Default::default())

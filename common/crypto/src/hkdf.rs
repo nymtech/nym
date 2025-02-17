@@ -48,6 +48,8 @@ where
 /// # Example
 ///
 /// ```rust
+/// use nym_crypto::hkdf::DerivationMaterial;
+///
 /// let master_key = [0u8; 32]; // your secret master key
 /// let salt = b"unique-salt-value";
 /// let material = DerivationMaterial::new(master_key, 0, salt);

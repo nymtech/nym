@@ -2,19 +2,18 @@ name: publish-nym-contracts
 on:
   workflow_dispatch:
   release:
-    types: [created]
+    types: [ created ]
 
 jobs:
   build:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-contracts-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
-    runs-on: [self-hosted, custom-ubuntu-20.04]
+    runs-on: [ self-hosted, custom-ubuntu-20.04 ]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.77
           target: wasm32-unknown-unknown
           override: true
 

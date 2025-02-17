@@ -336,7 +336,6 @@ mod tests {
     use crate::rewards::storage as rewards_storage;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::Addr;
     use mixnet_contract_common::pending_events::PendingEpochEventKind;
     use mixnet_contract_common::NodeId;
 
@@ -487,7 +486,7 @@ mod tests {
                 123,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
-                to_address: "foomp".to_string(),
+                to_address: test.make_addr("foomp").to_string(),
                 amount: coins(123, TEST_COIN_DENOM),
             }));
 
@@ -1296,7 +1295,7 @@ mod tests {
                 123,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
-                to_address: "foomp".to_string(),
+                to_address: test.make_addr("foomp").to_string(),
                 amount: coins(123, TEST_COIN_DENOM),
             }));
             expected_events.push(new_pending_epoch_events_execution_event(1));
@@ -1355,7 +1354,7 @@ mod tests {
             let mut test = TestSetup::new();
 
             for i in 0..10 {
-                test.add_dummy_nymnode(&&test.make_addr(&format!("node-owner-{i}")), None);
+                test.add_dummy_nymnode(&test.make_addr(format!("node-owner-{i}")), None);
             }
 
             test.skip_to_current_epoch_end();

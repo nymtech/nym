@@ -130,8 +130,8 @@ pub mod tests {
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::testing::message_info;
-    use cosmwasm_std::{Addr, Coin, Uint128};
+    use cosmwasm_std::testing::{message_info, MockApi};
+    use cosmwasm_std::{Coin, Uint128};
     use cw_controllers::AdminError::NotAdmin;
     use mixnet_contract_common::OperatorsParamsUpdate;
 
@@ -143,7 +143,7 @@ pub mod tests {
         let res = try_update_rewarding_validator_address(
             deps.as_mut(),
             info,
-            "not-the-creator".to_string(),
+            MockApi::default().addr_make("not-the-creator").to_string(),
         );
         assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
@@ -151,14 +151,14 @@ pub mod tests {
         let res = try_update_rewarding_validator_address(
             deps.as_mut(),
             info,
-            "new-good-address".to_string(),
+            MockApi::default().addr_make("new-good-address").to_string(),
         );
         assert_eq!(
             res,
             Ok(
                 Response::default().add_event(new_rewarding_validator_address_update_event(
-                    Addr::unchecked("rewarder"),
-                    Addr::unchecked("new-good-address")
+                    MockApi::default().addr_make("rewarder"),
+                    MockApi::default().addr_make("new-good-address")
                 ))
             )
         );
@@ -166,7 +166,7 @@ pub mod tests {
         let state = storage::CONTRACT_STATE.load(&deps.storage).unwrap();
         assert_eq!(
             state.rewarding_validator_address,
-            Addr::unchecked("new-good-address")
+            MockApi::default().addr_make("new-good-address")
         );
 
         assert_eq!(

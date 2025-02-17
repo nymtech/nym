@@ -882,9 +882,10 @@ mod tests {
             test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
+            let addr = test.make_addr("foomper");
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
-                "foomper".into(),
+                addr.to_string(),
                 mix_id,
                 test_helpers::performance(100.0),
                 None,

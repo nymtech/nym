@@ -240,7 +240,7 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
@@ -330,9 +330,11 @@ mod tests {
     #[test]
     fn execute_add_dealer() {
         let init_funds = coins(100, TEST_MIX_DENOM);
+
+        let api = MockApi::default();
         const MEMBER_SIZE: usize = 100;
         let members: [Addr; MEMBER_SIZE] =
-            std::array::from_fn(|idx| Addr::unchecked(format!("member{}", idx)));
+            std::array::from_fn(|idx| api.addr_make(&format!("member{}", idx)));
 
         let mut app = AppBuilder::new().build(|router, _, storage| {
             router
@@ -382,7 +384,7 @@ mod tests {
             assert_eq!(ContractError::AlreadyADealer, err.downcast().unwrap());
         }
 
-        let unauthorized_member = Addr::unchecked("not_a_member");
+        let unauthorized_member = MockApi::default().addr_make("not_a_member");
         let err = app
             .execute_contract(
                 unauthorized_member,

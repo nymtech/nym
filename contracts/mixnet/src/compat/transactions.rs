@@ -103,7 +103,6 @@ mod tests {
         use super::*;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::Addr;
 
         #[test]
         fn when_there_are_no_nodes() -> anyhow::Result<()> {
@@ -295,7 +294,7 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{Addr, Uint128};
+        use cosmwasm_std::Uint128;
         use mixnet_contract_common::{OperatingCostRange, ProfitMarginRange};
         use nym_contracts_common::Percent;
 
@@ -565,7 +564,6 @@ mod tests {
         use super::*;
         use crate::support::tests::test_helpers::{ExtractBankMsg, TestSetup};
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::Addr;
 
         #[test]
         fn when_there_are_no_nodes() -> anyhow::Result<()> {

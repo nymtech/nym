@@ -466,7 +466,7 @@ pub mod tests {
             fn when_target_mixnode_has_zero_performance() {
                 let mut test = TestSetup::new();
                 let node_id = test.add_rewarded_legacy_mixnode(
-                    &test.make_addr(&test.make_addr("mix-owner")),
+                    &test.make_addr(test.make_addr("mix-owner")),
                     None,
                 );
 
@@ -488,7 +488,7 @@ pub mod tests {
             fn when_target_mixnode_has_zero_work_factor() {
                 let mut test = TestSetup::new();
                 let node_id = test.add_rewarded_legacy_mixnode(
-                    &test.make_addr(&test.make_addr("mix-owner")),
+                    &test.make_addr(test.make_addr("mix-owner")),
                     None,
                 );
 
@@ -532,7 +532,7 @@ pub mod tests {
             fn when_target_node_has_zero_workfactor() {
                 let mut test = TestSetup::new();
                 let node_id =
-                    test.add_dummy_nymnode(&test.make_addr(&test.make_addr("mix-owner")), None);
+                    test.add_dummy_nymnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![node_id]);
@@ -555,7 +555,7 @@ pub mod tests {
             fn when_theres_only_one_node_to_reward() {
                 let mut test = TestSetup::new();
                 let node_id = test.add_rewarded_legacy_mixnode(
-                    &test.make_addr(&test.make_addr("mix-owner")),
+                    &test.make_addr(test.make_addr("mix-owner")),
                     None,
                 );
 
@@ -580,7 +580,7 @@ pub mod tests {
                 let mut ids = Vec::new();
                 for i in 0..100 {
                     let node_id = test.add_rewarded_legacy_mixnode(
-                        &test.make_addr(&test.make_addr(&format!("mix-owner{i}"))),
+                        &test.make_addr(test.make_addr(format!("mix-owner{i}"))),
                         None,
                     );
                     ids.push(node_id);
@@ -649,7 +649,7 @@ pub mod tests {
         fn can_only_be_performed_by_specified_rewarding_validator() {
             let mut test = TestSetup::new();
             let node_id = test
-                .add_rewarded_legacy_mixnode(&test.make_addr(&test.make_addr("mix-owner")), None);
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
             let some_sender = message_info(&test.make_addr("foomper"), &[]);
 
             // skip time to when the following epoch is over (since mixnodes are not eligible for rewarding
@@ -732,7 +732,7 @@ pub mod tests {
             let mut test = TestSetup::new();
 
             let node_id = test
-                .add_rewarded_legacy_mixnode(&test.make_addr(&test.make_addr("mix-owner")), None);
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             // node is in the active set BUT the current epoch has just begun
             test.skip_to_next_epoch();
@@ -756,7 +756,7 @@ pub mod tests {
         fn can_only_be_performed_once_per_node_per_epoch() {
             let mut test = TestSetup::new();
             let node_id = test
-                .add_rewarded_legacy_mixnode(&test.make_addr(&test.make_addr("mix-owner")), None);
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id, 42]);
@@ -785,7 +785,7 @@ pub mod tests {
         fn requires_nonzero_performance_score() {
             let mut test = TestSetup::new();
             let node_id = test
-                .add_rewarded_legacy_mixnode(&test.make_addr(&test.make_addr("mix-owner")), None);
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id, 42]);
@@ -824,7 +824,7 @@ pub mod tests {
         fn requires_nonzero_work_factor() {
             let mut test = TestSetup::new();
             let node_id = test
-                .add_rewarded_legacy_mixnode(&test.make_addr(&test.make_addr("mix-owner")), None);
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id, 42]);
@@ -1582,7 +1582,7 @@ pub mod tests {
                 actual_setup.skip_to_next_epoch_end();
 
                 let addr = &actual_setup.make_addr("foomp");
-                let extra = actual_setup.add_dummy_nymnode(&addr, None);
+                let extra = actual_setup.add_dummy_nymnode(addr, None);
 
                 // add extra node to the rewarded set so rewarding wouldn't immediately go into event reconciliation
                 let role = actual_setup.local_node_role(node);
@@ -1984,7 +1984,7 @@ pub mod tests {
         fn can_only_be_done_if_bond_exists() {
             let mut test = TestSetup::new();
 
-            let owner = &test.make_addr(&test.make_addr("mix-owner"));
+            let owner = &test.make_addr(test.make_addr("mix-owner"));
             let node_id =
                 test.add_rewarded_legacy_mixnode(owner, Some(Uint128::new(1_000_000_000_000)));
             let sender = message_info(&test.make_addr("random-guy"), &[]);

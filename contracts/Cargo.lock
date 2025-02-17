@@ -691,6 +691,7 @@ dependencies = [
  "cw3-fixed-multisig",
  "cw4",
  "cw4-group",
+ "easy-addr",
  "nym-contracts-common",
  "nym-group-contract-common",
  "nym-multisig-contract-common",

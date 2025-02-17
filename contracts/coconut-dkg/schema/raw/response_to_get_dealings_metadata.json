@@ -80,9 +80,7 @@
         },
         "submitted_chunks": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/SubmittedChunk"
-          }
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -48,7 +48,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "Gateway": {
       "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",

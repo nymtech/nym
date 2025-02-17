@@ -71,7 +71,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "PendingEpochEventData": {
       "description": "Details of a particular pending epoch event.",

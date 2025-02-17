@@ -16,9 +16,12 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 schemars = { workspace = true }
 
-cosmwasm-std = "2.2.0"
-cosmwasm-schema = "2.2.0"
-cw-controllers = "2.0.0"
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-controllers = { workspace = true }
 
 [dev-dependencies]
 time = { workspace = true, features = ["macros"] }
+
+[features]
+schema = []

@@ -1,15 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{Allowance, TransferRecipient};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
+use std::collections::HashMap;
+
+#[cfg(feature = "schema")]
 use crate::types::{
     AvailableTokensResponse, GrantResponse, GranterResponse, GrantersPagedResponse,
     GrantsPagedResponse, LockedTokensPagedResponse, LockedTokensResponse,
     TotalLockedTokensResponse,
 };
-use crate::{Allowance, TransferRecipient};
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Coin;
-use std::collections::HashMap;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -69,27 +71,27 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-#[derive(QueryResponses)]
+#[cfg_attr(feature = "schema", derive(cosmwasm_schema::QueryResponses))]
 pub enum QueryMsg {
-    #[returns(cw_controllers::AdminResponse)]
+    #[cfg_attr(feature = "schema", returns(cw_controllers::AdminResponse))]
     Admin {},
 
-    #[returns(AvailableTokensResponse)]
+    #[cfg_attr(feature = "schema", returns(AvailableTokensResponse))]
     GetAvailableTokens {},
 
-    #[returns(TotalLockedTokensResponse)]
+    #[cfg_attr(feature = "schema", returns(TotalLockedTokensResponse))]
     GetTotalLockedTokens {},
 
-    #[returns(LockedTokensResponse)]
+    #[cfg_attr(feature = "schema", returns(LockedTokensResponse))]
     GetLockedTokens { grantee: String },
 
-    #[returns(GrantResponse)]
+    #[cfg_attr(feature = "schema", returns(GrantResponse))]
     GetGrant { grantee: String },
 
-    #[returns(GranterResponse)]
+    #[cfg_attr(feature = "schema", returns(GranterResponse))]
     GetGranter { granter: String },
 
-    #[returns(LockedTokensPagedResponse)]
+    #[cfg_attr(feature = "schema", returns(LockedTokensPagedResponse))]
     GetLockedTokensPaged {
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
@@ -98,7 +100,7 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
-    #[returns(GrantersPagedResponse)]
+    #[cfg_attr(feature = "schema", returns(GrantersPagedResponse))]
     GetGrantersPaged {
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
@@ -107,7 +109,7 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
-    #[returns(GrantsPagedResponse)]
+    #[cfg_attr(feature = "schema", returns(GrantsPagedResponse))]
     GetGrantsPaged {
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,

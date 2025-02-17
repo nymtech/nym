@@ -12,6 +12,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurb;
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_task::connections::{ConnectionId, TransmissionLane};
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
@@ -68,6 +69,9 @@ pub struct ReplyController<R> {
 
     message_handler: MessageHandler<R>,
     full_reply_storage: CombinedReplyStorage,
+
+    // Listen for shutdown signals
+    task_client: TaskClient,
 }
 
 impl<R> ReplyController<R>
@@ -79,6 +83,7 @@ where
         message_handler: MessageHandler<R>,
         full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
+        task_client: TaskClient,
     ) -> Self {
         ReplyController {
             config,
@@ -87,6 +92,7 @@ where
             pending_retransmissions: HashMap::new(),
             message_handler,
             full_reply_storage,
+            task_client,
         }
     }
 
@@ -846,8 +852,10 @@ where
     //     todo!()
     // }
 
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(crate) async fn run(&mut self) {
         debug!("Started ReplyController with graceful shutdown support");
+
+        let mut shutdown = self.task_client.fork("select");
 
         let polling_rate = Duration::from_secs(5);
         let mut stale_inspection = new_interval_stream(polling_rate);
@@ -860,7 +868,7 @@ where
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv_with_delay() => {
+                _ = shutdown.recv() => {
                     log::trace!("ReplyController: Received shutdown");
                 },
                 req = self.request_receiver.next() => match req {

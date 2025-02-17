@@ -22,6 +22,7 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -117,6 +118,8 @@ where
 
     /// Channel used for sending metrics events (specifically `PacketStatistics` events) to the metrics tracker.
     stats_tx: ClientStatsSender,
+
+    task_client: TaskClient,
 }
 
 #[derive(Debug)]
@@ -176,6 +179,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         OutQueueControl {
             config,
@@ -190,6 +194,7 @@ where
             client_connection_rx,
             lane_queue_lengths,
             stats_tx,
+            task_client,
         }
     }
 
@@ -198,7 +203,9 @@ where
         // queues and client load rather than the required delay. So realistically we can treat
         // whatever is about to happen as negligible additional delay.
         trace!("{} is about to get sent to the mixnet", frag_id);
-        self.sent_notifier.unbounded_send(frag_id).unwrap();
+        if let Err(err) = self.sent_notifier.unbounded_send(frag_id) {
+            error!("Failed to notify about sent message: {err}");
+        }
     }
 
     fn loop_cover_message_size(&mut self) -> PacketSize {
@@ -271,7 +278,9 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send: {err}");
+            if !self.task_client.is_shutdown_poll() {
+                log::error!("Failed to send: {err}");
+            }
         } else {
             let event = if fragment_id.is_some() {
                 PacketStatisticsEvent::RealPacketSent(packet_size)
@@ -504,7 +513,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut nym_task::TaskClient) {
+    fn log_status(&self, shutdown: &mut TaskClient) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -535,14 +544,16 @@ where
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
+
+        let mut shutdown = self.task_client.fork("select");
 
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
 
-            loop {
+            while !shutdown.is_shutdown() {
                 tokio::select! {
                     biased;
                     _ = shutdown.recv() => {

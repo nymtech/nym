@@ -31,6 +31,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
+use nym_task::TaskClient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 
@@ -147,6 +148,7 @@ impl RealMessagesController<OsRng> {
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         let rng = OsRng;
 
@@ -177,6 +179,7 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
             reply_storage.key_storage(),
             reply_storage.tags_storage(),
+            task_client.fork("message_handler"),
         );
 
         let ack_control = AcknowledgementController::new(
@@ -186,6 +189,7 @@ impl RealMessagesController<OsRng> {
             message_handler.clone(),
             reply_controller_sender,
             stats_tx.clone(),
+            task_client.fork("ack_control"),
         );
 
         let reply_control = ReplyController::new(
@@ -193,6 +197,7 @@ impl RealMessagesController<OsRng> {
             message_handler,
             reply_storage,
             reply_controller_receiver,
+            task_client.fork("reply_controller"),
         );
 
         let out_queue_control = OutQueueControl::new(
@@ -205,6 +210,7 @@ impl RealMessagesController<OsRng> {
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
+            task_client.with_suffix("out_queue_control"),
         );
 
         RealMessagesController {
@@ -214,22 +220,20 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient, packet_type: PacketType) {
+    pub fn start(self, packet_type: PacketType) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;
 
-        let shutdown_handle = shutdown.fork("out_queue_control");
         spawn_future(async move {
-            out_queue_control.run_with_shutdown(shutdown_handle).await;
+            out_queue_control.run().await;
             debug!("The out queue controller has finished execution!");
         });
-        let shutdown_handle = shutdown.fork("reply_control");
         spawn_future(async move {
-            reply_control.run_with_shutdown(shutdown_handle).await;
+            reply_control.run().await;
             debug!("The reply controller has finished execution!");
         });
 
-        ack_control.start_with_shutdown(shutdown.with_suffix("ack_control"), packet_type);
+        ack_control.start(packet_type);
     }
 }

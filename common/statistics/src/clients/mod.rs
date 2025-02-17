@@ -25,19 +25,28 @@ pub type ClientStatsReceiver = tokio::sync::mpsc::UnboundedReceiver<ClientStatsE
 #[derive(Clone)]
 pub struct ClientStatsSender {
     stats_tx: Option<UnboundedSender<ClientStatsEvents>>,
+    task_client: TaskClient,
 }
 
 impl ClientStatsSender {
     /// Create a new statistics Sender
-    pub fn new(stats_tx: Option<UnboundedSender<ClientStatsEvents>>) -> Self {
-        ClientStatsSender { stats_tx }
+    pub fn new(
+        stats_tx: Option<UnboundedSender<ClientStatsEvents>>,
+        task_client: TaskClient,
+    ) -> Self {
+        ClientStatsSender {
+            stats_tx,
+            task_client,
+        }
     }
 
     /// Report a statistics event using the sender.
     pub fn report(&self, event: ClientStatsEvents) {
         if let Some(tx) = &self.stats_tx {
             if let Err(err) = tx.send(event) {
-                log::error!("Failed to send stats event: {:?}", err);
+                if !self.task_client.is_shutdown_poll() {
+                    log::error!("Failed to send stats event: {err}");
+                }
             }
         }
     }

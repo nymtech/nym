@@ -95,7 +95,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     // don't accept any new requests if we have already received shutdown
-    if handle.shutdown.is_shutdown() {
+    if handle.shutdown.is_shutdown_poll() {
         debug!("stopping the handle as we have received a shutdown");
         return;
     }

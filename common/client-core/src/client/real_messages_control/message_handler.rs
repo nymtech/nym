@@ -618,7 +618,7 @@ where
             .action_sender
             .unbounded_send(Action::UpdatePendingAck(id, new_delay))
         {
-            if !self.task_client.is_shutdown() {
+            if !self.task_client.is_shutdown_poll() {
                 error!("Failed to send update action to the controller: {err}");
             }
         }
@@ -629,7 +629,7 @@ where
             .action_sender
             .unbounded_send(Action::new_insert(pending_acks))
         {
-            if !self.task_client.is_shutdown() {
+            if !self.task_client.is_shutdown_poll() {
                 error!("Failed to send insert action to the controller: {err}");
             }
         }
@@ -646,7 +646,7 @@ where
             .send((messages, transmission_lane))
             .await
         {
-            if !self.task_client.is_shutdown() {
+            if !self.task_client.is_shutdown_poll() {
                 error!("Failed to forward messages to the real message sender: {err}");
             }
         }

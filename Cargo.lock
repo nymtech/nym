@@ -2207,7 +2207,6 @@ name = "easy-addr"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
- "proc-macro2",
  "quote",
  "syn 1.0.109",
 ]

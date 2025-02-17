@@ -215,8 +215,8 @@ pub mod test_helpers {
             // every epoch there's a 3% chance of somebody bonding a node
             let bonding_weights = [3, 97];
 
-            // and 15% of making a delegation
-            let delegation_weights = [15, 85];
+            // and 14% of making a delegation
+            let delegation_weights = [14, 85];
 
             // and 1% of making a VESTED delegation
             let vested_delegation_weights = [1, 99];

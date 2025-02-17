@@ -179,6 +179,7 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
             reply_storage.key_storage(),
             reply_storage.tags_storage(),
+            task_client.fork("message_handler"),
         );
 
         let ack_control = AcknowledgementController::new(

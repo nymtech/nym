@@ -116,9 +116,14 @@ mod tests {
     fn current_epoch_id() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let info = message_info("requester", &[]);
+        let info = message_info(&deps.api.addr_make("requester"), &[]);
         let share = "share".to_string();
 
         add_fixture_dealer(deps.as_mut());
@@ -163,9 +168,14 @@ mod tests {
     fn commit_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let info = message_info("requester", &[]);
+        let info = message_info(&deps.api.addr_make("requester"), &[]);
         let share = "share".to_string();
 
         let ret = try_commit_verification_key_share(
@@ -238,11 +248,16 @@ mod tests {
     fn invalid_verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let info = message_info("requester", &[]);
+        let info = message_info(&deps.api.addr_make("requester"), &[]);
         let owner = "owner".to_string();
-        let multisig_info = message_info(MULTISIG_CONTRACT, &[]);
+        let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
 
         let ret =
             try_verify_verification_key_share(deps.as_mut(), info.clone(), owner.clone(), false)
@@ -297,12 +312,17 @@ mod tests {
     fn verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), message_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let owner = "owner".to_string();
-        let info = message_info(owner.as_ref(), &[]);
+        let owner = deps.api.addr_make("owner");
+        let info = message_info(&owner, &[]);
         let share = "share".to_string();
-        let multisig_info = message_info(MULTISIG_CONTRACT, &[]);
+        let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
 
         add_fixture_dealer(deps.as_mut());
         env.block.time = env
@@ -338,6 +358,7 @@ mod tests {
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
         try_advance_epoch_state(deps.as_mut(), env).unwrap();
 
-        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner, false).unwrap();
+        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.to_string(), false)
+            .unwrap();
     }
 }

@@ -315,13 +315,13 @@ mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            group_addr: "group_addr".to_string(),
-            multisig_addr: "multisig_addr".to_string(),
+            group_addr: deps.api.addr_make("group_addr").to_string(),
+            multisig_addr: deps.api.addr_make("multisig_addr").to_string(),
             time_configuration: None,
             mix_denom: "nym".to_string(),
             key_size: 5,
         };
-        let info = message_info("creator", &[]);
+        let info = message_info(&deps.api.addr_make("creator"), &[]);
 
         let res = instantiate(deps.as_mut(), env, info, msg);
         assert!(res.is_ok())

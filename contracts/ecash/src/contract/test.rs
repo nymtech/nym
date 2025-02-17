@@ -23,12 +23,13 @@ impl TestSetup {
     pub fn init() -> TestSetup {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let admin = message_info("admin", &[]);
-        let init_ctx = InstantiateCtx::from((deps.as_mut(), env.clone(), admin));
 
-        let multisig_contract = "multisig";
-        let group_contract = "group";
-        let holding = "holding";
+        let admin = message_info(&deps.api.addr_make("admin"), &[]);
+        let multisig_contract = deps.api.addr_make("multisig");
+        let group_contract = deps.api.addr_make("group");
+        let holding = deps.api.addr_make("holding");
+
+        let init_ctx = InstantiateCtx::from((deps.as_mut(), env.clone(), admin));
 
         let contract = NymEcashContract::new();
         contract

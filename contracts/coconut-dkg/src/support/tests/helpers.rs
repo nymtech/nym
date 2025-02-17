@@ -124,7 +124,7 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
         key_size: DEFAULT_DEALINGS as u32,
     };
     let env = mock_env();
-    let info = message_info(ADMIN_ADDRESS, &[]);
+    let info = message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]);
     instantiate(deps.as_mut(), env, info, msg).unwrap();
     deps
 }

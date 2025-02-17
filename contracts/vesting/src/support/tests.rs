@@ -112,7 +112,7 @@ pub mod helpers {
                 deps,
                 env: mock_env(),
                 rng: test_rng(),
-                admin: message_info(admin.as_str(), &[]),
+                admin: message_info(&admin, &[]),
             }
         }
 
@@ -143,7 +143,7 @@ pub mod helpers {
                 deps,
                 env,
                 rng: test_rng(),
-                admin: message_info(admin.as_str(), &[]),
+                admin: message_info(&admin, &[]),
             }
         }
 
@@ -320,16 +320,19 @@ pub mod helpers {
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
         let msg = InitMsg {
-            mixnet_contract_address: "test".to_string(),
+            mixnet_contract_address: deps.api.addr_make("test").to_string(),
             mix_denom: TEST_COIN_DENOM.to_string(),
         };
         let env = mock_env();
-        let info = message_info("admin", &[]);
+        let info = message_info(&deps.api.addr_make("admin"), &[]);
         instantiate(deps.as_mut(), env, info, msg).unwrap();
         deps
     }
 
-    pub fn vesting_account_mid_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
+    pub fn vesting_account_mid_fixture(
+        deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
+        env: &Env,
+    ) -> Account {
         let start_time_ts = env.block.time;
         let start_time = env.block.time.seconds() - 7200;
         let periods = populate_vesting_periods(
@@ -338,8 +341,8 @@ pub mod helpers {
         );
 
         Account::save_new(
-            Addr::unchecked("owner"),
-            Some(Addr::unchecked("staking")),
+            deps.api.addr_make("owner"),
+            Some(deps.api.addr_make("staking")),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -347,19 +350,22 @@ pub mod helpers {
             start_time_ts,
             periods,
             None,
-            storage,
+            &mut deps.storage,
         )
         .unwrap()
     }
 
-    pub fn vesting_account_new_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
+    pub fn vesting_account_new_fixture(
+        deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
+        env: &Env,
+    ) -> Account {
         let start_time = env.block.time;
         let periods =
             populate_vesting_periods(start_time.seconds(), VestingSpecification::default());
 
         Account::save_new(
-            Addr::unchecked("owner"),
-            Some(Addr::unchecked("staking")),
+            deps.api.addr_make("owner"),
+            Some(deps.api.addr_make("staking")),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -367,19 +373,22 @@ pub mod helpers {
             start_time,
             periods,
             Some(PledgeCap::from_str("0.1").unwrap()),
-            storage,
+            &mut deps.storage,
         )
         .unwrap()
     }
 
-    pub fn vesting_account_percent_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
+    pub fn vesting_account_percent_fixture(
+        deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
+        env: &Env,
+    ) -> Account {
         let start_time = env.block.time;
         let periods =
             populate_vesting_periods(start_time.seconds(), VestingSpecification::default());
 
         Account::save_new(
-            Addr::unchecked("owner"),
-            Some(Addr::unchecked("staking")),
+            deps.api.addr_make("owner"),
+            Some(deps.api.addr_make("staking")),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -389,7 +398,7 @@ pub mod helpers {
             Some(PledgeCap::Percent(
                 Percent::from_percentage_value(10).unwrap(),
             )),
-            storage,
+            &mut deps.storage,
         )
         .unwrap()
     }

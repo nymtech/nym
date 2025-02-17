@@ -355,7 +355,7 @@ uniffi = "0.29.0"
 uniffi_build = "0.29.0"
 url = "2.5"
 utoipa = "5.2"
-utoipa-swagger-ui = "8.0"
+utoipa-swagger-ui = "8.1"
 utoipauto = "0.2"
 uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }

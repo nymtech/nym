@@ -8,6 +8,7 @@ import type {
   IObservatoryNode,
   IPacketsAndStakingData,
   NodeData,
+  NodeRewardDetails,
   NymTokenomics,
   ObservatoryBalance,
 } from "./types";
@@ -15,6 +16,7 @@ import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
+  DATA_OBSERVATORY_NODES_DELEGATIONS_URL,
   DATA_OBSERVATORY_NODES_URL,
   NS_API_MIXNODES_STATS,
   NYM_ACCOUNT_ADDRESS,
@@ -58,24 +60,15 @@ export const fetchGatewayStatus = async (
 export const fetchNodeInfo = async (
   id: number,
 ): Promise<IObservatoryNode | undefined> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes: IObservatoryNode[] = await response.json();
-  return nodes.find((node) => node.node_id === id);
+  const nodes = await fetchObservatoryNodes();
+  return nodes?.find((node) => node.node_id === id);
 };
 
-export const fetchNodeDelegations = async (id: number) => {
+export const fetchNodeDelegations = async (
+  id: number,
+): Promise<NodeRewardDetails[]> => {
   const response = await fetch(
-    `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
+    `${DATA_OBSERVATORY_NODES_DELEGATIONS_URL}/${id}/delegations`,
     {
       headers: {
         Accept: "application/json",

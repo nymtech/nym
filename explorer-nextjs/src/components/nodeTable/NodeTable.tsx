@@ -202,7 +202,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         align: "center",
         accessorKey: "qualityOfService",
         size: 100,
-
         Header: <ColumnHeading>Qlt of Service</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
@@ -311,6 +310,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     enableFullScreenToggle: false,
     enableHiding: false,
     enableDensityToggle: false,
+    enableFilterMatchHighlighting: true,
     paginationDisplayMode: "pages",
     muiPaginationProps: {
       showRowsPerPage: false,

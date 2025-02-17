@@ -19,6 +19,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
+use nym_task::TaskClient;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
@@ -43,9 +44,11 @@ pub(crate) struct HandlerBuilder {
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
     packet_type: Option<PacketType>,
+    task_client: TaskClient,
 }
 
 impl HandlerBuilder {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
@@ -54,6 +57,7 @@ impl HandlerBuilder {
         lane_queue_lengths: LaneQueueLengths,
         reply_controller_sender: ReplyControllerSender,
         packet_type: Option<PacketType>,
+        task_client: TaskClient,
     ) -> Self {
         Self {
             msg_input,
@@ -63,11 +67,14 @@ impl HandlerBuilder {
             lane_queue_lengths,
             reply_controller_sender,
             packet_type,
+            task_client,
         }
     }
 
     // TODO: make sure we only ever have one active handler
     pub fn create_active_handler(&self) -> Handler {
+        let mut task_client = self.task_client.fork("active_handler");
+        task_client.disarm();
         Handler {
             msg_input: self.msg_input.clone(),
             client_connection_tx: self.client_connection_tx.clone(),
@@ -78,6 +85,7 @@ impl HandlerBuilder {
             lane_queue_lengths: self.lane_queue_lengths.clone(),
             reply_controller_sender: self.reply_controller_sender.clone(),
             packet_type: self.packet_type,
+            task_client,
         }
     }
 }
@@ -92,16 +100,18 @@ pub(crate) struct Handler {
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
     packet_type: Option<PacketType>,
+    task_client: TaskClient,
 }
 
 impl Drop for Handler {
     fn drop(&mut self) {
-        if self
+        if let Err(err) = self
             .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-            .is_err()
         {
-            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
+            if !self.task_client.is_shutdown_poll() {
+                error!("failed to disconnect the receiver from the buffer: {err}");
+            }
         }
     }
 }
@@ -132,7 +142,13 @@ impl Handler {
         {
             Ok(length) => length,
             Err(err) => {
-                error!("Failed to get reply queue length for connection {connection_id}: {err}");
+                if !self.task_client.is_shutdown_poll() {
+                    error!(
+                        "Failed to get reply queue length for connection {connection_id}: {err}"
+                    );
+                }
+                // We're just going to assume that the queue is empty, and I think that's okay
+                // during shutdown.
                 0
             }
         };
@@ -175,10 +191,11 @@ impl Handler {
 
         // the ack control is now responsible for chunking, etc.
         let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
-        self.msg_input
-            .send(input_msg)
-            .await
-            .expect("InputMessageReceiver has stopped receiving!");
+        if let Err(err) = self.msg_input.send(input_msg).await {
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send message to the input buffer: {err}");
+            }
+        }
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let TransmissionLane::ConnectionId(connection_id) = lane else {
@@ -207,10 +224,11 @@ impl Handler {
 
         let input_msg =
             InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
-        self.msg_input
-            .send(input_msg)
-            .await
-            .expect("InputMessageReceiver has stopped receiving!");
+        if let Err(err) = self.msg_input.send(input_msg).await {
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send anonymous message to the input buffer: {err}");
+            }
+        }
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let TransmissionLane::ConnectionId(connection_id) = lane else {
@@ -234,10 +252,11 @@ impl Handler {
         });
 
         let input_msg = InputMessage::new_reply(recipient_tag, message, lane, self.packet_type);
-        self.msg_input
-            .send(input_msg)
-            .await
-            .expect("InputMessageReceiver has stopped receiving!");
+        if let Err(err) = self.msg_input.send(input_msg).await {
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send reply message to the input buffer: {err}");
+            }
+        }
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let TransmissionLane::ConnectionId(connection_id) = lane else {
@@ -252,9 +271,14 @@ impl Handler {
     }
 
     fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
-        self.client_connection_tx
+        if let Err(err) = self
+            .client_connection_tx
             .unbounded_send(ConnectionCommand::Close(connection_id))
-            .unwrap();
+        {
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send close connection command: {err}");
+            }
+        }
         None
     }
 
@@ -369,11 +393,10 @@ impl Handler {
         }
     }
 
-    async fn listen_for_requests(
-        &mut self,
-        mut msg_receiver: ReconstructedMessagesReceiver,
-        mut task_client: nym_task::TaskClient,
-    ) {
+    async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
+        let mut task_client = self.task_client.fork("select");
+        task_client.disarm();
+
         while !task_client.is_shutdown() {
             tokio::select! {
                 // we can either get a client request from the websocket
@@ -422,15 +445,7 @@ impl Handler {
     }
 
     // consume self to make sure `drop` is called after this is done
-    pub(crate) async fn handle_connection(
-        mut self,
-        socket: TcpStream,
-        mut task_client: nym_task::TaskClient,
-    ) {
-        // We don't want a crash in the connection handler to trigger a shutdown of the whole
-        // process.
-        task_client.disarm();
-
+    pub(crate) async fn handle_connection(mut self, socket: TcpStream) {
         let ws_stream = match accept_async(socket).await {
             Ok(ws_stream) => ws_stream,
             Err(err) => {
@@ -443,14 +458,18 @@ impl Handler {
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
 
         // tell the buffer to start sending stuff to us
-        self.buffer_requester
-            .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
-                reconstructed_sender,
-            ))
-            .expect("the buffer request failed!");
+        if let Err(err) =
+            self.buffer_requester
+                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                    reconstructed_sender,
+                ))
+        {
+            if !self.task_client.is_shutdown_poll() {
+                error!("failed to announce the receiver to the buffer: {err}");
+            }
+        }
 
-        self.listen_for_requests(reconstructed_receiver, task_client)
-            .await;
+        self.listen_for_requests(reconstructed_receiver).await;
     }
 }
 

@@ -213,22 +213,38 @@ export const fetchNodes = async (): Promise<NodeData[]> => {
   return data;
 };
 
-export const fetchObservatoryNodes = async (): Promise<
-  IObservatoryNode[] | null
-> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
+export const fetchObservatoryNodes = async (): Promise<IObservatoryNode[]> => {
+  const allNodes: IObservatoryNode[] = [];
+  let page = 1;
+  const PAGE_SIZE = 200;
+  let hasMoreData = true;
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
+  while (hasMoreData) {
+    const response = await fetch(
+      `${DATA_OBSERVATORY_NODES_URL}?page=${page}&limit=${PAGE_SIZE}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch observatory nodes (page ${page})`);
+    }
+
+    const nodes: IObservatoryNode[] = await response.json();
+    allNodes.push(...nodes);
+
+    if (nodes.length < PAGE_SIZE) {
+      hasMoreData = false; // Stop fetching when the last page has fewer than 200 items
+    } else {
+      page++; // Move to the next page
+    }
   }
 
-  const nodes: IObservatoryNode[] = await response.json();
-  return nodes;
+  return allNodes;
 };
 
 // 🔹 Fetch NYM Price

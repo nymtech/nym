@@ -3,7 +3,7 @@ use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
-use log::error;
+use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
@@ -12,7 +12,7 @@ use nym_client_core::client::{
     received_buffer::ReconstructedMessagesReceiver,
 };
 use nym_client_core::config::ForgetMe;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
@@ -32,7 +32,7 @@ pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
 
-    pub(crate) identity_keys: Arc<identity::KeyPair>,
+    pub(crate) identity_keys: Arc<ed25519::KeyPair>,
 
     /// Input to the client from the users perspective. This can be either data to send or control
     /// messages.
@@ -67,7 +67,7 @@ impl MixnetClient {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         nym_address: Recipient,
-        identity_keys: Arc<identity::KeyPair>,
+        identity_keys: Arc<ed25519::KeyPair>,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_state: ClientState,
@@ -125,8 +125,13 @@ impl MixnetClient {
         self.client_request_sender.clone()
     }
 
+    /// Get the client's identity keys.
+    pub fn identity_keypair(&self) -> Arc<ed25519::KeyPair> {
+        self.identity_keys.clone()
+    }
+
     /// Sign a message with the client's private identity key.
-    pub fn sign(&self, data: &[u8]) -> identity::Signature {
+    pub fn sign(&self, data: &[u8]) -> ed25519::Signature {
         self.identity_keys.private_key().sign(data)
     }
 
@@ -274,7 +279,9 @@ impl Stream for MixnetClient {
                     }
                     Poll::Ready(Some(next))
                 } else {
-                    error!("the reconstructed messages vector is empty - please let the developers know if you see this message");
+                    // I *think* this happens for SURBs, but I'm not 100% sure. Nonetheless it's
+                    // beneign, but let's log it here anyway as a reminder
+                    debug!("the reconstructed messages vector is empty - please let the developers know if you see this message");
                     cx.waker().wake_by_ref();
                     Poll::Pending
                 }

@@ -1,25 +1,31 @@
+use std::fmt;
+
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{make_bincode_serializer, IpPair};
-
-use super::{
-    signature::{SignatureError, SignedRequest},
-    VERSION,
+use crate::{
+    sign::{SignatureError, SignedRequest},
+    IpPair,
 };
 
-fn generate_random() -> u64 {
-    use rand::RngCore;
-    let mut rng = rand::rngs::OsRng;
-    rng.next_u64()
-}
+use super::VERSION;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct IpPacketRequest {
     pub version: u8,
     pub data: IpPacketRequestData,
+}
+
+impl fmt::Display for IpPacketRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "IpPacketRequest {{ version: {}, data: {} }}",
+            self.version, self.data
+        )
+    }
 }
 
 impl IpPacketRequest {
@@ -30,7 +36,7 @@ impl IpPacketRequest {
         reply_to_avg_mix_delays: Option<f64>,
         buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
-        let request_id = generate_random();
+        let request_id = crate::generate_random();
         (
             Self {
                 version: VERSION,
@@ -58,7 +64,7 @@ impl IpPacketRequest {
         reply_to_avg_mix_delays: Option<f64>,
         buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
-        let request_id = generate_random();
+        let request_id = crate::generate_random();
         (
             Self {
                 version: VERSION,
@@ -79,7 +85,7 @@ impl IpPacketRequest {
     }
 
     pub fn new_disconnect_request(reply_to: Recipient) -> (Self, u64) {
-        let request_id = generate_random();
+        let request_id = crate::generate_random();
         (
             Self {
                 version: VERSION,
@@ -104,7 +110,7 @@ impl IpPacketRequest {
     }
 
     pub fn new_ping(reply_to: Recipient) -> (Self, u64) {
-        let request_id = generate_random();
+        let request_id = crate::generate_random();
         (
             Self {
                 version: VERSION,
@@ -119,7 +125,7 @@ impl IpPacketRequest {
     }
 
     pub fn new_health_request(reply_to: Recipient) -> (Self, u64) {
-        let request_id = generate_random();
+        let request_id = crate::generate_random();
         (
             Self {
                 version: VERSION,
@@ -155,16 +161,27 @@ impl IpPacketRequest {
         }
     }
 
+    pub fn verify(&self) -> Result<(), SignatureError> {
+        match &self.data {
+            IpPacketRequestData::StaticConnect(request) => request.verify(),
+            IpPacketRequestData::DynamicConnect(request) => request.verify(),
+            IpPacketRequestData::Disconnect(request) => request.verify(),
+            IpPacketRequestData::Data(_) => Ok(()),
+            IpPacketRequestData::Ping(_) => Ok(()),
+            IpPacketRequestData::Health(_) => Ok(()),
+        }
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
-        make_bincode_serializer().serialize(self)
+        crate::make_bincode_serializer().serialize(self)
     }
 
     pub fn from_reconstructed_message(
         message: &nym_sphinx::receiver::ReconstructedMessage,
     ) -> Result<Self, bincode::Error> {
         use bincode::Options;
-        make_bincode_serializer().deserialize(&message.message)
+        crate::make_bincode_serializer().deserialize(&message.message)
     }
 }
 
@@ -177,6 +194,19 @@ pub enum IpPacketRequestData {
     Data(DataRequest),
     Ping(PingRequest),
     Health(HealthRequest),
+}
+
+impl fmt::Display for IpPacketRequestData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IpPacketRequestData::StaticConnect(_) => write!(f, "StaticConnect"),
+            IpPacketRequestData::DynamicConnect(_) => write!(f, "DynamicConnect"),
+            IpPacketRequestData::Disconnect(_) => write!(f, "Disconnect"),
+            IpPacketRequestData::Data(_) => write!(f, "Data"),
+            IpPacketRequestData::Ping(_) => write!(f, "Ping"),
+            IpPacketRequestData::Health(_) => write!(f, "Health"),
+        }
+    }
 }
 
 impl IpPacketRequestData {
@@ -202,9 +232,9 @@ impl IpPacketRequestData {
 
     pub fn signable_request(&self) -> Option<Result<Vec<u8>, SignatureError>> {
         match self {
-            IpPacketRequestData::StaticConnect(request) => Some(request.request()),
-            IpPacketRequestData::DynamicConnect(request) => Some(request.request()),
-            IpPacketRequestData::Disconnect(request) => Some(request.request()),
+            IpPacketRequestData::StaticConnect(request) => Some(request.request_as_bytes()),
+            IpPacketRequestData::DynamicConnect(request) => Some(request.request_as_bytes()),
+            IpPacketRequestData::Disconnect(request) => Some(request.request_as_bytes()),
             IpPacketRequestData::Data(_) => None,
             IpPacketRequestData::Ping(_) => None,
             IpPacketRequestData::Health(_) => None,
@@ -242,7 +272,7 @@ pub struct StaticConnectRequest {
 impl StaticConnectRequest {
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
-        make_bincode_serializer().serialize(self)
+        crate::make_bincode_serializer().serialize(self)
     }
 }
 
@@ -257,7 +287,7 @@ impl SignedRequest for SignedStaticConnectRequest {
         self.request.reply_to.identity()
     }
 
-    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+    fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError> {
         self.request
             .to_bytes()
             .map_err(|error| SignatureError::RequestSerializationError {
@@ -306,7 +336,7 @@ pub struct DynamicConnectRequest {
 impl DynamicConnectRequest {
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
-        make_bincode_serializer().serialize(self)
+        crate::make_bincode_serializer().serialize(self)
     }
 }
 
@@ -321,7 +351,7 @@ impl SignedRequest for SignedDynamicConnectRequest {
         self.request.reply_to.identity()
     }
 
-    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+    fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError> {
         self.request
             .to_bytes()
             .map_err(|error| SignatureError::RequestSerializationError {
@@ -355,7 +385,7 @@ pub struct DisconnectRequest {
 impl DisconnectRequest {
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
-        make_bincode_serializer().serialize(self)
+        crate::make_bincode_serializer().serialize(self)
     }
 }
 
@@ -370,7 +400,7 @@ impl SignedRequest for SignedDisconnectRequest {
         self.request.reply_to.identity()
     }
 
-    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+    fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError> {
         self.request
             .to_bytes()
             .map_err(|error| SignatureError::RequestSerializationError {

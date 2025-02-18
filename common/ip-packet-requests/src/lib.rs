@@ -2,24 +2,18 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-// The current version of the protocol.
-// The idea here is that we add new request response types at least one version before we start
-// using them.
-// Also, depending on the version in the client connect message the IPR could respond with a
-// matching older version.
-pub use v6::request;
-pub use v6::response;
-
 pub mod codec;
+pub mod sign;
 pub mod v6;
 pub mod v7;
+pub mod v8;
 
 // version 3: initial version
 // version 4: IPv6 support
 // version 5: Add severity level to info response
 // version 6: Increase the available IPs
 // version 7: Add signature support (for the future)
-pub const CURRENT_VERSION: u8 = 6;
+// version 8: Anonymous sends
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {
@@ -44,4 +38,10 @@ fn make_bincode_serializer() -> impl bincode::Options {
     bincode::DefaultOptions::new()
         .with_big_endian()
         .with_varint_encoding()
+}
+
+fn generate_random() -> u64 {
+    use rand::RngCore;
+    let mut rng = rand::rngs::OsRng;
+    rng.next_u64()
 }

@@ -1,8 +1,12 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use std::net::SocketAddr;
 
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
 use nym_id::NymIdError;
+use nym_ip_packet_requests::{sign::SignatureError, v8::conversion::ConversionError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
@@ -40,6 +44,9 @@ pub enum IpPacketRouterError {
 
     #[error("failed to deserialize tagged packet: {source}")]
     FailedToDeserializeTaggedPacket { source: bincode::Error },
+
+    #[error("failed to convert request to latest version")]
+    FailedToConvertRequestToLatestVersion { source: ConversionError },
 
     #[error("failed to parse incoming packet: {source}")]
     PacketParseFailed { source: etherparse::ReadError },
@@ -90,12 +97,13 @@ pub enum IpPacketRouterError {
     EmptyPacket,
 
     #[error("failed to verify request: {source}")]
-    FailedToVerifyRequest {
-        source: nym_ip_packet_requests::v7::signature::SignatureError,
-    },
+    FailedToVerifyRequest { source: SignatureError },
 
     #[error("client is connected with an invalid version: {version}")]
     InvalidConnectedClientVersion { version: u8 },
+
+    #[error("invalid reply-to address in the response")]
+    InvalidReplyTo,
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

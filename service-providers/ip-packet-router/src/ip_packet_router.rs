@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 
@@ -11,11 +14,7 @@ use nym_client_core::{
 use nym_sdk::mixnet::Recipient;
 use nym_task::{TaskClient, TaskHandle};
 
-use crate::{
-    config::Config,
-    error::IpPacketRouterError,
-    request_filter::{self, RequestFilter},
-};
+use crate::{config::Config, error::IpPacketRouterError, request_filter::RequestFilter};
 
 pub struct OnStartData {
     // to add more fields as required
@@ -127,7 +126,10 @@ impl IpPacketRouter {
     pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
 
-        use crate::{mixnet_listener, tun_listener};
+        use crate::{
+            clients::ConnectedClients, mixnet_listener::MixnetListener,
+            request_filter::RequestFilter, tun_listener::TunListener,
+        };
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
@@ -157,19 +159,19 @@ impl IpPacketRouter {
 
         // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
         // TunListener
-        let (connected_clients, connected_clients_rx) = mixnet_listener::ConnectedClients::new();
+        let (connected_clients, connected_clients_rx) = ConnectedClients::new();
 
-        let tun_listener = tun_listener::TunListener {
+        let tun_listener = TunListener {
             tun_reader,
             task_client: task_handle.get_handle(),
             connected_clients: connected_clients_rx,
         };
         tun_listener.start();
 
-        let request_filter = request_filter::RequestFilter::new(&self.config).await?;
+        let request_filter = RequestFilter::new(&self.config).await?;
         request_filter.start_update_tasks().await;
 
-        let mixnet_listener = mixnet_listener::MixnetListener {
+        let mixnet_listener = MixnetListener {
             _config: self.config,
             request_filter: request_filter.clone(),
             tun_writer,

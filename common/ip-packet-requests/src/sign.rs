@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
+use time::OffsetDateTime;
 
 // For reply protection, if a request is older than this, it will be rejected
 const MAX_REQUEST_AGE: Duration = Duration::from_secs(10);
@@ -22,27 +23,29 @@ pub enum SignatureError {
     #[error("signature verification failed")]
     VerificationFailed {
         message: String,
-        error: identity::SignatureError,
+        error: ed25519::SignatureError,
     },
 }
 
 pub trait SignedRequest {
-    fn identity(&self) -> &identity::PublicKey;
+    fn identity(&self) -> &ed25519::PublicKey;
 
-    fn request(&self) -> Result<Vec<u8>, SignatureError>;
+    fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError>;
 
-    fn signature(&self) -> Option<&identity::Signature>;
+    // The signature is Option in v7. Once v7 is phased out we can change this to remove the
+    // Option
+    fn signature(&self) -> Option<&ed25519::Signature>;
 
-    fn timestamp(&self) -> time::OffsetDateTime;
+    fn timestamp(&self) -> OffsetDateTime;
 
     fn verify(&self) -> Result<(), SignatureError> {
         if let Some(signature) = self.signature() {
             // First check that the request is recent enough
-            if time::OffsetDateTime::now_utc() - self.timestamp() > MAX_REQUEST_AGE {
+            if OffsetDateTime::now_utc() - self.timestamp() > MAX_REQUEST_AGE {
                 return Err(SignatureError::RequestOutOfDate);
             }
 
-            let request_as_bytes = self.request()?;
+            let request_as_bytes = self.request_as_bytes()?;
 
             self.identity()
                 .verify(request_as_bytes, signature)

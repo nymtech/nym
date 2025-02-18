@@ -87,6 +87,11 @@ struct NodesParamsWithRole {
     no_legacy: Option<bool>,
     page: Option<u32>,
     per_page: Option<u32>,
+
+    // Identifier for the current epoch of the topology state. When sent by a client we can check if
+    // the client already knows about the latest topology state, allowing a `no-updates` response
+    // instead of wasting bandwidth serving an unchanged topology.
+    epoch_id: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -97,6 +102,11 @@ struct NodesParams {
     no_legacy: Option<bool>,
     page: Option<u32>,
     per_page: Option<u32>,
+
+    // Identifier for the current epoch of the topology state. When sent by a client we can check if
+    // the client already knows about the latest topology state, allowing a `no-updates` response
+    // instead of wasting bandwidth serving an unchanged topology.
+    epoch_id: Option<u32>,
 }
 
 impl From<NodesParamsWithRole> for NodesParams {
@@ -106,6 +116,7 @@ impl From<NodesParamsWithRole> for NodesParams {
             no_legacy: params.no_legacy,
             page: params.page,
             per_page: params.per_page,
+            epoch_id: params.epoch_id,
         }
     }
 }

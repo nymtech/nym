@@ -49,8 +49,6 @@ export const NoiseCard = () => {
     return data.filter((entry) => new Date(entry.date_utc) >= cutoffDate);
   };
 
-  console.log("filterData :>> ", filterData(data));
-
   const noiseLast24H =
     todaysData.total_packets_sent + todaysData.total_packets_received;
   const noisePrevious24H =
@@ -61,7 +59,7 @@ export const NoiseCard = () => {
       throw new Error("Packets cannot be negative");
     }
 
-    const BYTES_PER_PACKET = 2048;
+    const BYTES_PER_PACKET = (2413 + 386) / 2;
     const totalBytes = packets * BYTES_PER_PACKET;
     const units = ["B", "KB", "MB", "GB", "TB", "PB"];
 

@@ -147,6 +147,7 @@ use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
+use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
@@ -289,6 +290,15 @@ impl ClientBuilder {
     {
         self.custom_user_agent = true;
         self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
+        self
+    }
+
+    /// Override DNS resolution for specific domains to particular IP addresses.
+    ///
+    /// Set the port to `0` to use the conventional port for the given scheme (e.g. 80 for http).
+    /// Ports in the URL itself will always be used instead of the port in the overridden addr.
+    pub fn resolve_to_addrs(mut self, domain: &str, addrs: &[SocketAddr]) -> ClientBuilder {
+        self.reqwest_client_builder = self.reqwest_client_builder.resolve_to_addrs(domain, addrs);
         self
     }
 

@@ -3,7 +3,7 @@
 
 use bytes::Bytes;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
-use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
+use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, Recipient};
 
 use crate::{
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
@@ -21,6 +21,8 @@ use crate::{
 pub(crate) struct ConnectedClientHandler {
     // The address of the client that this handler is connected to
     nym_address: Recipient,
+
+    reply_to_tag: Option<AnonymousSenderTag>,
 
     // Channel to receive packets from the tun_listener
     forward_from_tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
@@ -44,6 +46,7 @@ pub(crate) struct ConnectedClientHandler {
 impl ConnectedClientHandler {
     pub(crate) fn start(
         reply_to: Recipient,
+        reply_to_tag: Option<AnonymousSenderTag>,
         buffer_timeout: std::time::Duration,
         client_version: SupportedClientVersion,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
@@ -52,6 +55,8 @@ impl ConnectedClientHandler {
         tokio::sync::oneshot::Sender<()>,
         tokio::task::JoinHandle<()>,
     ) {
+        log::info!("Starting connected client handler for: {}", reply_to);
+        log::info!("client version: {:?}", client_version);
         let (close_tx, close_rx) = tokio::sync::oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -63,6 +68,7 @@ impl ConnectedClientHandler {
 
         let connected_client_handler = ConnectedClientHandler {
             nym_address: reply_to,
+            reply_to_tag,
             forward_from_tun_rx,
             mixnet_client_sender,
             close_rx,
@@ -83,17 +89,20 @@ impl ConnectedClientHandler {
     async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
         let response_packet = match self.client_version {
             SupportedClientVersion::V6 => {
+                log::info!("Creating response packet for V6 client");
                 nym_ip_packet_requests::v6::response::IpPacketResponse::new_ip_packet(packets)
                     .to_bytes()
             }
             SupportedClientVersion::V7 => {
+                log::info!("Creating response packet for V7 client");
                 nym_ip_packet_requests::v7::response::IpPacketResponse::new_ip_packet(packets)
                     .to_bytes()
             }
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })?;
 
-        let input_message = create_input_message(self.nym_address, response_packet);
+        let input_message =
+            create_input_message(self.nym_address, self.reply_to_tag, response_packet);
 
         self.mixnet_client_sender
             .send(input_message)

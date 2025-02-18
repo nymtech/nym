@@ -16,7 +16,7 @@ use nym_ip_packet_requests::{
     },
     IpPair,
 };
-use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
+use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -420,11 +420,13 @@ impl MixnetListener {
         &mut self,
         connect_request: StaticConnectRequest,
         client_version: SupportedClientVersion,
+        sender_tag: Option<AnonymousSenderTag>,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {sender_address}",
             sender_address = connect_request.reply_to
         );
+        sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
 
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
@@ -463,6 +465,7 @@ impl MixnetListener {
                 let (forward_from_tun_tx, close_tx, handle) =
                     connected_client_handler::ConnectedClientHandler::start(
                         reply_to,
+                        sender_tag,
                         buffer_timeout,
                         client_version,
                         self.mixnet_client.split_sender(),
@@ -507,11 +510,13 @@ impl MixnetListener {
         &mut self,
         connect_request: DynamicConnectRequest,
         client_version: SupportedClientVersion,
+        sender_tag: Option<AnonymousSenderTag>,
     ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {sender_address}",
             sender_address = connect_request.reply_to
         );
+        sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
 
         let request_id = connect_request.request_id;
         let reply_to = connect_request.reply_to;
@@ -555,6 +560,7 @@ impl MixnetListener {
         let (forward_from_tun_tx, close_tx, handle) =
             connected_client_handler::ConnectedClientHandler::start(
                 reply_to,
+                sender_tag,
                 buffer_timeout,
                 client_version,
                 self.mixnet_client.split_sender(),
@@ -668,9 +674,12 @@ impl MixnetListener {
         &mut self,
         reconstructed: ReconstructedMessage,
     ) -> Result<Vec<PacketHandleResult>> {
-        log::debug!(
-            "Received message with sender_tag: {:?}",
-            reconstructed.sender_tag
+        log::info!(
+            "Received message with sender_tag: {}",
+            reconstructed
+                .sender_tag
+                .map(|tag| tag.to_string())
+                .unwrap_or("missing".to_owned())
         );
 
         let (request, client_version) = match deserialize_request(&reconstructed) {
@@ -685,16 +694,25 @@ impl MixnetListener {
                 verify_signed_request(&signed_connect_request, client_version)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![
-                    self.on_static_connect_request(connect_request, client_version)
-                        .await,
+                    self.on_static_connect_request(
+                        connect_request,
+                        client_version,
+                        reconstructed.sender_tag,
+                    )
+                    .await,
                 ])
             }
             IpPacketRequestData::DynamicConnect(signed_connect_request) => {
                 verify_signed_request(&signed_connect_request, client_version)?;
+                log::info!("Received dynamic connect request with version: {client_version:?}");
                 let connect_request = signed_connect_request.request;
                 Ok(vec![
-                    self.on_dynamic_connect_request(connect_request, client_version)
-                        .await,
+                    self.on_dynamic_connect_request(
+                        connect_request,
+                        client_version,
+                        reconstructed.sender_tag,
+                    )
+                    .await,
                 ])
             }
             IpPacketRequestData::Disconnect(signed_disconnect_request) => {
@@ -738,7 +756,11 @@ impl MixnetListener {
 
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
-    async fn handle_response(&self, response: Response) -> Result<()> {
+    async fn handle_response(
+        &self,
+        response: Response,
+        reply_to_tag: Option<AnonymousSenderTag>,
+    ) -> Result<()> {
         let Some(recipient) = response.recipient() else {
             log::error!("No recipient in response packet, this should NOT happen!");
             return Err(IpPacketRouterError::NoRecipientInResponse);
@@ -746,7 +768,7 @@ impl MixnetListener {
 
         let response_packet = response.to_bytes()?;
 
-        let input_message = create_input_message(*recipient, response_packet);
+        let input_message = create_input_message(*recipient, reply_to_tag, response_packet);
         self.mixnet_client
             .send(input_message)
             .await
@@ -755,11 +777,15 @@ impl MixnetListener {
 
     // A single incoming request can trigger multiple responses, such as when data requests contain
     // multiple IP packets.
-    async fn handle_responses(&self, responses: Vec<PacketHandleResult>) {
+    async fn handle_responses(
+        &self,
+        responses: Vec<PacketHandleResult>,
+        reply_to_tag: Option<AnonymousSenderTag>,
+    ) {
         for response in responses {
             match response {
                 Ok(Some(response)) => {
-                    if let Err(err) = self.handle_response(response).await {
+                    if let Err(err) = self.handle_response(response, reply_to_tag).await {
                         log::error!("Mixnet listener failed to handle response: {err}");
                     }
                 }
@@ -787,8 +813,9 @@ impl MixnetListener {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
+                        let sender_tag = msg.sender_tag;
                         match self.on_reconstructed_message(msg).await {
-                            Ok(responses) => self.handle_responses(responses).await,
+                            Ok(responses) => self.handle_responses(responses, sender_tag).await,
                             Err(err) => {
                                 log::error!("Error handling reconstructed mixnet message: {err}");
                             }

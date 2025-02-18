@@ -60,3 +60,5 @@ As a general approach, licensing is as follows this pattern:
 * Nym applications and binaries are [GPL-3.0-only](https://www.gnu.org/licenses/)
 
 * Used libraries and different components are [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) or [MIT](https://mit-license.org/)
+
+

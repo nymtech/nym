@@ -131,7 +131,7 @@ where
         .to_owned();
 
     // 4.0 If the client indicates that they already know about the current topology send empty response
-    if let Some(client_known_epoch) = query_params.epoch_uid {
+    if let Some(client_known_epoch) = query_params.epoch_id {
         if let Some(ref interval) = maybe_interval {
             if client_known_epoch == interval.current_epoch_id() {
                 return Ok(Json(PaginatedCachedNodesResponse::no_updates()));

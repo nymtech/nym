@@ -76,6 +76,10 @@ where
     <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
+    pub fn config(&self) -> Config {
+        self.config.clone()
+    }
+
     pub fn new(
         config: Config,
         storage: S,
@@ -233,7 +237,7 @@ where
         };
 
         let mut base_builder =
-            BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
+            BaseClientBuilder::new(self.config.base(), self.storage, dkg_query_client)
                 .with_gateway_setup(self.setup_method)
                 .with_user_agent(self.user_agent);
 
@@ -241,7 +245,7 @@ where
             base_builder = base_builder.with_stored_topology(custom_mixnet)?;
         }
 
-        let packet_type = self.config.base.debug.traffic.packet_type;
+        let packet_type = self.config.base().debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
@@ -252,7 +256,7 @@ where
 
         Self::start_socks5_listener(
             &self.config.socks5,
-            self.config.base.debug,
+            self.config.base().debug,
             client_input,
             client_output,
             client_state,

@@ -82,6 +82,7 @@ impl From<Init> for OverrideConfig {
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
             stats_reporting_address: init_config.common_args.stats_reporting_address,
+            forget_me: init_config.common_args.forget_me.into(),
         }
     }
 }

@@ -65,6 +65,7 @@ impl From<Run> for OverrideConfig {
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
             outfox: run_config.outfox,
             stats_reporting_address: run_config.common_args.stats_reporting_address,
+            forget_me: run_config.common_args.forget_me.into(),
         }
     }
 }

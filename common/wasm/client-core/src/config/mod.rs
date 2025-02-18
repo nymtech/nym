@@ -5,6 +5,7 @@
 #![allow(clippy::drop_non_drop)]
 
 use crate::error::WasmCoreError;
+use nym_client_core::config::ForgetMe;
 use nym_config::helpers::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
@@ -110,6 +111,8 @@ pub struct DebugWasm {
     /// Defines all configuration options related to stats reporting.
     #[wasm_bindgen(getter_with_clone)]
     pub stats_reporting: StatsReportingWasm,
+
+    pub forget_me: ForgetMeWasm,
 }
 
 impl Default for DebugWasm {
@@ -128,6 +131,7 @@ impl From<DebugWasm> for ConfigDebug {
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
+            forget_me: debug.forget_me.into(),
         }
     }
 }
@@ -142,6 +146,7 @@ impl From<ConfigDebug> for DebugWasm {
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
+            forget_me: ForgetMeWasm::from(debug.forget_me),
         }
     }
 }
@@ -537,6 +542,29 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
             maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
             surb_mix_hops: reply_surbs.surb_mix_hops,
+        }
+    }
+}
+
+#[wasm_bindgen(inspectable)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize, Copy, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ForgetMeWasm {
+    pub client: bool,
+    pub stats: bool,
+}
+
+impl From<ForgetMeWasm> for ForgetMe {
+    fn from(value: ForgetMeWasm) -> Self {
+        ForgetMe::new(value.client, value.stats)
+    }
+}
+
+impl From<ForgetMe> for ForgetMeWasm {
+    fn from(value: ForgetMe) -> Self {
+        Self {
+            client: value.client(),
+            stats: value.stats(),
         }
     }
 }

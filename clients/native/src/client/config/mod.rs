@@ -56,7 +56,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 pub struct Config {
     #[serde(flatten)]
     pub base: BaseClientConfig,
@@ -94,6 +94,10 @@ impl CliClientConfig for Config {
 }
 
 impl Config {
+    pub fn base(&self) -> BaseClientConfig {
+        self.base.clone()
+    }
+
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
@@ -209,7 +213,7 @@ impl SocketType {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 #[serde(default, deny_unknown_fields)]
 pub struct Socket {
     pub socket_type: SocketType,

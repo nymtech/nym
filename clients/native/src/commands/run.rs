@@ -41,6 +41,7 @@ impl From<Run> for OverrideConfig {
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
             stats_reporting_address: run_config.common_args.stats_reporting_address,
+            forget_me: run_config.common_args.forget_me.into(),
         }
     }
 }

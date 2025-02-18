@@ -226,11 +226,8 @@ impl NymClientBuilder {
         let packet_type = self.config.base.debug.traffic.packet_type;
         let storage = Self::initialise_storage(&self.config, client_store);
 
-        let base_builder = BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(
-            &self.config.base,
-            storage,
-            None,
-        );
+        let base_builder =
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
         // if let Some(topology_provider) = maybe_topology_provider {
         //     base_builder = base_builder.with_topology_provider(topology_provider);
         // }

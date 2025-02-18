@@ -93,6 +93,7 @@ impl From<Init> for OverrideConfig {
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
             outfox: false,
             stats_reporting_address: init_config.common_args.stats_reporting_address,
+            forget_me: init_config.common_args.forget_me.into(),
         }
     }
 }

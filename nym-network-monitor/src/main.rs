@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use log::{error, info, warn};
 use nym_bin_common::bin_info;
-use nym_client_core::ForgetMe;
+use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;

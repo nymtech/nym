@@ -17,7 +17,7 @@ use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
-use nym_client_core::config::{GroupBy, TopologyStructure};
+use nym_client_core::config::{ForgetMe, GroupBy, TopologyStructure};
 use nym_config::OptionalSet;
 use nym_sphinx::addressing::Recipient;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -113,6 +113,7 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: Option<bool>,
     outfox: bool,
     stats_reporting_address: Option<Recipient>,
+    forget_me: ForgetMe,
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -179,6 +180,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
             BaseClientConfig::with_topology_structure,
             topology_structure,
         )
+        .with_base(BaseClientConfig::with_forget_me, args.forget_me)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)
         .with_optional(Config::with_ip, args.ip)

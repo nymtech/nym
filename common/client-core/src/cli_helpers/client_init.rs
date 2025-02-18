@@ -93,6 +93,10 @@ pub struct CommonClientInitArgs {
     /// Sets the address to report statistics
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub stats_reporting_address: Option<Recipient>,
+
+    /// Sets the forget me flag
+    #[cfg_attr(feature = "cli", clap(long, hide = true, default_value_t = false))]
+    pub forget_me: bool,
 }
 
 pub struct InitResultsWithConfig<T> {

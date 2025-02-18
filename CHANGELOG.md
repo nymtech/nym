@@ -4,6 +4,42 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.3-ruta] (2025-02-10)
+
+- Push down forget me to client configs ([#5431])
+- Fix statistics shutdown ([#5426])
+- Make wait_for_graceful_shutdown to be pub ([#5424])
+- Upgrade to thiserror 2.0 ([#5414])
+- build(deps): bump the patch-updates group across 1 directory with 9 updates ([#5406])
+- Relocate a validator api function ([#5401])
+- Send shutdown instead of panic when reaching max fail ([#5398])
+- Change Explorer URL to new smooshed nodes ([#5396])
+- reduce log severity for checking topology validity ([#5395])
+- MixnetClient can send ClientRequests ([#5381])
+- Fix missing path triggers for CI ([#5380])
+- Uncouple storage reference for bandwidth client ([#5372])
+- build(deps): bump tokio from 1.40.0 to 1.43.0 ([#5370])
+- DNS resolver configuration for internal HTTP client lookups ([#5355])
+- Update README.md ([#5328])
+- Update README.md ([#5327])
+
+[#5431]: https://github.com/nymtech/nym/pull/5431
+[#5426]: https://github.com/nymtech/nym/pull/5426
+[#5424]: https://github.com/nymtech/nym/pull/5424
+[#5414]: https://github.com/nymtech/nym/pull/5414
+[#5406]: https://github.com/nymtech/nym/pull/5406
+[#5401]: https://github.com/nymtech/nym/pull/5401
+[#5398]: https://github.com/nymtech/nym/pull/5398
+[#5396]: https://github.com/nymtech/nym/pull/5396
+[#5395]: https://github.com/nymtech/nym/pull/5395
+[#5381]: https://github.com/nymtech/nym/pull/5381
+[#5380]: https://github.com/nymtech/nym/pull/5380
+[#5372]: https://github.com/nymtech/nym/pull/5372
+[#5370]: https://github.com/nymtech/nym/pull/5370
+[#5355]: https://github.com/nymtech/nym/pull/5355
+[#5328]: https://github.com/nymtech/nym/pull/5328
+[#5327]: https://github.com/nymtech/nym/pull/5327
+
 ## [2025.2-hu] (2025-02-04)
 
 - Feature/remove double spending bloomfilter ([#5417])

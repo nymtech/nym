@@ -132,11 +132,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         const pendingEvent = pendingEvents?.find(
           (event) => event?.mixId === delegation.node_id,
         );
-        console.log("node,delegation,pendingEvent,:>> ", {
-          node,
-          delegation,
-          pendingEvent,
-        });
+
         return {
           node,
           delegation,

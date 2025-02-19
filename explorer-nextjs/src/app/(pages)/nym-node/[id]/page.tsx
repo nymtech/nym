@@ -2,7 +2,7 @@ import { fetchNodeInfo } from "@/app/api";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
-import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
+// import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
 import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
@@ -98,14 +98,14 @@ export default async function NymNode({
           >
             <NodeDelegationsCard id={id} />
           </Grid>
-
+          {/* 
           <Grid
             size={{
               xs: 12,
             }}
           >
             <NodeChatCard />
-          </Grid>
+          </Grid> */}
         </Grid>
       </ContentLayout>
     );

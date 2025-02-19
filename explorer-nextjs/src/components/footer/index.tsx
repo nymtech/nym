@@ -7,8 +7,35 @@ import { Wrapper } from "./Wrapper";
 // MUI Components
 import { Box, Typography } from "@mui/material";
 import { getFooter } from "../../app/features/footer/api/getFooter";
-import { NewsletterSignUp } from "./NewsLetterSignUp";
+import { Link } from "./MuiLink";
+// import { NewsletterSignUp } from "./NewsLetterSignUp";
 import { FooterLinks } from "./footer-links";
+
+const links = [
+  { id: 1, title: "Imprint", url: "https://nym.com/imprint" },
+
+  {
+    id: 2,
+    title: "nym.com Privacy statement",
+    url: "https://nym.com/nym-com-privacy-statement",
+  },
+  { id: 3, title: "NymVPN Terms of use", url: "https://nym.com/vpn-terms" },
+  {
+    id: 4,
+    title: "NymVPN referrals Terms",
+    url: "https://nym.com/referrals-terms-and-conditions",
+  },
+  {
+    id: 5,
+    title: "NymVPN apps Privacy statement",
+    url: "https://nym.com/vpn-privacy-statement",
+  },
+  {
+    id: 6,
+    title: "Nym Operators and Validators Terms",
+    url: "https://nym.com/operators-validators-terms",
+  },
+];
 
 export async function Footer() {
   const locale = "en";
@@ -40,7 +67,7 @@ export async function Footer() {
               gap: 2,
             }}
           >
-            <Box
+            {/* <Box
               sx={{
                 display: "flex",
                 flexDirection: { xs: "column", md: "row" },
@@ -53,7 +80,7 @@ export async function Footer() {
             >
               <Typography variant="h2">Nym Newsletter</Typography>
               <NewsletterSignUp />
-            </Box>
+            </Box> */}
             <Box
               sx={{
                 display: "flex",
@@ -75,6 +102,43 @@ export async function Footer() {
           </Box>
 
           <FooterLinks linkBlocks={footerLinkBlocks} />
+
+          {/* Hardcoded links */}
+
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: { xs: 3, md: 5 },
+              mt: 9,
+              mb: 6,
+            }}
+          >
+            {links.map((link) => {
+              return (
+                <Box
+                  sx={{
+                    listStyle: "none",
+                  }}
+                  key={link.id}
+                >
+                  <Link
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      textDecoration: "none",
+                      "&:hover": {
+                        textDecoration: "underline",
+                      },
+                    }}
+                  >
+                    <Typography variant="body5">{link.title}</Typography>
+                  </Link>
+                </Box>
+              );
+            })}
+          </Box>
 
           <Box
             sx={{

@@ -1,5 +1,5 @@
 "use client";
-import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
@@ -108,9 +108,15 @@ export const NoiseCard = () => {
         >
           {noiseLast24HFormatted}
         </Typography>
-        <Typography variant="h4" sx={{ color: "#8482FD" }}>
-          ({formatedNoiseVolume})
-        </Typography>
+        <Tooltip
+          placement="left"
+          title={"Self reported noise volume"}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Typography variant="h4" sx={{ color: "#8482FD" }}>
+            ({formatedNoiseVolume})
+          </Typography>
+        </Tooltip>
       </Box>
       <UpDownPriceIndicator
         percentage={Math.abs(percentage) || 0}

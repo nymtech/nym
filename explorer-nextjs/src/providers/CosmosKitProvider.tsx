@@ -42,7 +42,20 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
   const chainsWithNyx = React.useMemo(() => {
     const nyx = chains.find((chain) => chain.chain_id === "nyx");
 
-    return nyx ? [nymSandbox, nyx] : [nymSandbox];
+    const nyxRpc = nyx
+      ? {
+          ...nyx,
+          apis: {
+            rpc: [
+              {
+                address: "https://rpc.nymtech.net/",
+              },
+            ],
+          },
+        }
+      : nymSandbox;
+
+    return nyx ? [nymSandbox, nyxRpc] : [nymSandbox];
   }, []);
 
   // Only use the nyx assets

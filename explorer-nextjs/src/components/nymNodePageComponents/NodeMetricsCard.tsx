@@ -33,7 +33,7 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
 
   if (isEpochLoading || isNodeLoading) {
     return (
-      <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
+      <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
         <Skeleton variant="text" height={50} />
         <Skeleton variant="text" height={50} />
@@ -44,7 +44,7 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
 
   if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
     return (
-      <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
+      <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load node data.
         </Typography>
@@ -80,7 +80,7 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
   );
 
   return (
-    <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
+    <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
       <ExplorerListItem
         row
         divider

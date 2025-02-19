@@ -43,7 +43,7 @@ export const NetworkStakeCard = () => {
     packetsAndStaking;
 
   const lastTotalStake =
-    packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1000000;
+    packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
   const data = packetsAndStakingData.map((item: IPacketsAndStakingData) => {
     return {
       date_utc: item.date_utc,

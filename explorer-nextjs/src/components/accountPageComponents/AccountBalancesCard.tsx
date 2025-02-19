@@ -81,8 +81,6 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     queryFn: fetchNymPrice,
   });
 
-  console.log("accountInfo :>> ", accountInfo);
-
   if (isLoading || isLoadingPrice) {
     return (
       <ExplorerCard label="Total value">

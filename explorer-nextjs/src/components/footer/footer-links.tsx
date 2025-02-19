@@ -5,7 +5,8 @@ import type { components } from "../../app/lib/strapi";
 import { Link } from "./MuiLink";
 
 // MUI Components
-import { Box, Grid2, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import Grid2 from "@mui/material/Grid2";
 
 export const FooterLinks = ({
   linkBlocks = [],

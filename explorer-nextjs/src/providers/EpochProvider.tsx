@@ -50,7 +50,7 @@ const EpochProvider = ({ children }: { children: React.ReactNode }) => {
   const QueryClient = useQueryClient();
 
   const { data, isError, isLoading } = useQuery({
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     queryKey: ["currentEpoch"],
     queryFn: fetchCurrentEpoch,
     refetchInterval: ({ state }) => {

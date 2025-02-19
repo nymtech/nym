@@ -18,7 +18,7 @@ fn generate_random() -> u64 {
     rng.next_u64()
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct IpPacketRequest {
     pub version: u8,
     pub data: IpPacketRequestData,

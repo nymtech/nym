@@ -5,12 +5,12 @@ use nym_ip_packet_requests::v7::response::{
 };
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec,
-    v6,
-    v7::{
+    v6, v7,
+    v8::{
         self,
         request::{
-            DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequest,
-            IpPacketRequestData, StaticConnectRequest,
+            DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequestData,
+            StaticConnectRequest,
         },
         signature::SignedRequest,
     },
@@ -19,8 +19,10 @@ use nym_ip_packet_requests::{
 use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
+use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
+use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr};
 use tap::TapFallible;
 use tokio::io::AsyncWriteExt;
@@ -423,17 +425,18 @@ impl MixnetListener {
         sender_tag: Option<AnonymousSenderTag>,
     ) -> PacketHandleResult {
         log::info!(
-            "Received static connect request from {sender_address}",
-            sender_address = connect_request.reply_to
+            "Received static connect request from {}",
+            connect_request.signed_by
         );
         sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
 
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
-        let reply_to = connect_request.reply_to;
-        // TODO: add to connect request
-        let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
-        // TODO: ignoring reply_to_avg_mix_delays for now
+        let reply_to = connect_request.signed_by;
+        let buffer_timeout = connect_request
+            .buffer_timeout
+            .map(|timeout| Duration::from_millis(timeout))
+            .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
         // Check that the IP is available in the set of connected clients
         let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
@@ -694,7 +697,7 @@ impl MixnetListener {
 
         match request.data {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {
-                verify_signed_request(&signed_connect_request, client_version)?;
+                verify_signed_request(&signed_connect_request)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![
                     self.on_static_connect_request(
@@ -706,8 +709,7 @@ impl MixnetListener {
                 ])
             }
             IpPacketRequestData::DynamicConnect(signed_connect_request) => {
-                verify_signed_request(&signed_connect_request, client_version)?;
-                log::info!("Received dynamic connect request with version: {client_version:?}");
+                verify_signed_request(&signed_connect_request)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![
                     self.on_dynamic_connect_request(
@@ -719,7 +721,7 @@ impl MixnetListener {
                 ])
             }
             IpPacketRequestData::Disconnect(signed_disconnect_request) => {
-                verify_signed_request(&signed_disconnect_request, client_version)?;
+                verify_signed_request(&signed_disconnect_request)?;
                 let disconnect_request = signed_disconnect_request.request;
                 Ok(vec![
                     self.on_disconnect_request(disconnect_request, client_version)
@@ -762,16 +764,10 @@ impl MixnetListener {
     async fn handle_response(
         &self,
         response: Response,
-        reply_to_tag: Option<AnonymousSenderTag>,
+        reply_to_tag: AnonymousSenderTag,
     ) -> Result<()> {
-        let Some(recipient) = response.recipient() else {
-            log::error!("No recipient in response packet, this should NOT happen!");
-            return Err(IpPacketRouterError::NoRecipientInResponse);
-        };
-
         let response_packet = response.to_bytes()?;
-
-        let input_message = create_input_message(*recipient, reply_to_tag, response_packet);
+        let input_message = create_input_message(reply_to_tag, response_packet);
         self.mixnet_client
             .send(input_message)
             .await
@@ -783,7 +779,7 @@ impl MixnetListener {
     async fn handle_responses(
         &self,
         responses: Vec<PacketHandleResult>,
-        reply_to_tag: Option<AnonymousSenderTag>,
+        reply_to_tag: AnonymousSenderTag,
     ) {
         for response in responses {
             match response {
@@ -816,7 +812,10 @@ impl MixnetListener {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
-                        let sender_tag = msg.sender_tag;
+                        let Some(sender_tag) = msg.sender_tag else {
+                            log::info!("Received message without sender tag, dropping");
+                            continue;
+                        };
                         match self.on_reconstructed_message(msg).await {
                             Ok(responses) => self.handle_responses(responses, sender_tag).await,
                             Err(err) => {
@@ -847,15 +846,12 @@ fn deserialize_request(
 
     // Check version of the request and convert to the latest version if necessary
     let request = match request_version {
-        6 => nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(
-            reconstructed,
-        )
-        .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })
-        .map(|r| r.into()),
-        7 => nym_ip_packet_requests::v7::request::IpPacketRequest::from_reconstructed_message(
-            reconstructed,
-        )
-        .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err }),
+        7 => v7::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+            .map(IpPacketRequest::from)
+            .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source }),
+        8 => v8::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+            .map(IpPacketRequest::from)
+            .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source }),
         _ => {
             log::info!("Received packet with invalid version: v{request_version}");
             Err(IpPacketRouterError::InvalidPacketVersion(request_version))
@@ -870,10 +866,46 @@ fn deserialize_request(
     request.map(|r| (r, request_version))
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum IpPacketRequest {
+    V7(v7::request::IpPacketRequest),
+    V8(v8::request::IpPacketRequest),
+}
+
+impl IpPacketRequest {
+    pub(crate) fn version(&self) -> u8 {
+        match self {
+            IpPacketRequest::V7(_) => 7,
+            IpPacketRequest::V8(_) => 8,
+        }
+    }
+}
+
+impl fmt::Display for IpPacketRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IpPacketRequest::V7(request) => write!(f, "{request}"),
+            IpPacketRequest::V8(request) => write!(f, "{request}"),
+        }
+    }
+}
+
+impl From<v7::request::IpPacketRequest> for IpPacketRequest {
+    fn from(request: v7::request::IpPacketRequest) -> Self {
+        IpPacketRequest::V7(request)
+    }
+}
+
+impl From<v8::request::IpPacketRequest> for IpPacketRequest {
+    fn from(request: v8::request::IpPacketRequest) -> Self {
+        IpPacketRequest::V8(request)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum SupportedClientVersion {
-    V6,
     V7,
+    V8,
 }
 
 impl SupportedClientVersion {
@@ -886,18 +918,10 @@ impl SupportedClientVersion {
     }
 }
 
-fn verify_signed_request(
-    request: &impl SignedRequest,
-    client_version: SupportedClientVersion,
-) -> Result<()> {
-    if let Err(err) = request.verify() {
-        // If the client is V6, we don't care about missing signature
-        if client_version == SupportedClientVersion::V6 {
-            return Ok(());
-        }
-        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
-    }
-    Ok(())
+fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
+    request
+        .verify()
+        .map_err(|err| IpPacketRouterError::FailedToVerifyRequest { source: err })
 }
 
 pub(crate) enum ConnectedClientEvent {

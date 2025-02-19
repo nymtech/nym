@@ -1,4 +1,3 @@
-use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
 use crate::{make_bincode_serializer, IpPair};
@@ -12,38 +11,31 @@ pub struct IpPacketResponse {
 }
 
 impl IpPacketResponse {
-    pub fn new_static_connect_success(request_id: u64, reply_to: Recipient) -> Self {
+    pub fn new_static_connect_success(request_id: u64) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
                 request_id,
-                reply_to,
                 reply: StaticConnectResponseReply::Success,
             }),
         }
     }
 
-    pub fn new_static_connect_failure(
-        request_id: u64,
-        reply_to: Recipient,
-        reason: StaticConnectFailureReason,
-    ) -> Self {
+    pub fn new_static_connect_failure(request_id: u64, reason: StaticConnectFailureReason) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
                 request_id,
-                reply_to,
                 reply: StaticConnectResponseReply::Failure(reason),
             }),
         }
     }
 
-    pub fn new_dynamic_connect_success(request_id: u64, reply_to: Recipient, ips: IpPair) -> Self {
+    pub fn new_dynamic_connect_success(request_id: u64, ips: IpPair) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
                 request_id,
-                reply_to,
                 reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ips }),
             }),
         }
@@ -51,55 +43,41 @@ impl IpPacketResponse {
 
     pub fn new_dynamic_connect_failure(
         request_id: u64,
-        reply_to: Recipient,
         reason: DynamicConnectFailureReason,
     ) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
                 request_id,
-                reply_to,
                 reply: DynamicConnectResponseReply::Failure(reason),
             }),
         }
     }
 
-    pub fn new_disconnect_success(request_id: u64, reply_to: Recipient) -> Self {
+    pub fn new_disconnect_success(request_id: u64) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::Disconnect(DisconnectResponse {
                 request_id,
-                reply_to,
                 reply: DisconnectResponseReply::Success,
             }),
         }
     }
 
-    pub fn new_disconnect_failure(
-        request_id: u64,
-        reply_to: Recipient,
-        reason: DisconnectFailureReason,
-    ) -> Self {
+    pub fn new_disconnect_failure(request_id: u64, reason: DisconnectFailureReason) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::Disconnect(DisconnectResponse {
                 request_id,
-                reply_to,
                 reply: DisconnectResponseReply::Failure(reason),
             }),
         }
     }
 
-    pub fn new_unrequested_disconnect(
-        reply_to: Recipient,
-        reason: UnrequestedDisconnectReason,
-    ) -> Self {
+    pub fn new_unrequested_disconnect(reason: UnrequestedDisconnectReason) -> Self {
         Self {
             version: VERSION,
-            data: IpPacketResponseData::UnrequestedDisconnect(UnrequestedDisconnect {
-                reply_to,
-                reason,
-            }),
+            data: IpPacketResponseData::UnrequestedDisconnect(UnrequestedDisconnect { reason }),
         }
     }
 
@@ -110,17 +88,11 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn new_version_mismatch(
-        request_id: u64,
-        reply_to: Recipient,
-        request_version: u8,
-        our_version: u8,
-    ) -> Self {
+    pub fn new_version_mismatch(request_id: u64, request_version: u8, our_version: u8) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::Info(InfoResponse {
                 request_id,
-                reply_to,
                 reply: InfoResponseReply::VersionMismatch {
                     request_version,
                     response_version: our_version,
@@ -130,35 +102,26 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn new_data_info_response(
-        reply_to: Recipient,
-        reply: InfoResponseReply,
-        level: InfoLevel,
-    ) -> Self {
+    pub fn new_data_info_response(reply: InfoResponseReply, level: InfoLevel) -> Self {
         Self {
             version: VERSION,
             data: IpPacketResponseData::Info(InfoResponse {
                 request_id: 0,
-                reply_to,
                 reply,
                 level,
             }),
         }
     }
 
-    pub fn new_pong(request_id: u64, reply_to: Recipient) -> Self {
+    pub fn new_pong(request_id: u64) -> Self {
         Self {
             version: VERSION,
-            data: IpPacketResponseData::Pong(PongResponse {
-                request_id,
-                reply_to,
-            }),
+            data: IpPacketResponseData::Pong(PongResponse { request_id }),
         }
     }
 
     pub fn new_health_response(
         request_id: u64,
-        reply_to: Recipient,
         build_info: nym_bin_common::build_information::BinaryBuildInformationOwned,
         routable: Option<bool>,
     ) -> Self {
@@ -166,7 +129,6 @@ impl IpPacketResponse {
             version: VERSION,
             data: IpPacketResponseData::Health(HealthResponse {
                 request_id,
-                reply_to,
                 reply: HealthResponseReply {
                     build_info,
                     routable,
@@ -188,18 +150,18 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn recipient(&self) -> Option<&Recipient> {
-        match &self.data {
-            IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
-            IpPacketResponseData::DynamicConnect(response) => Some(&response.reply_to),
-            IpPacketResponseData::Disconnect(response) => Some(&response.reply_to),
-            IpPacketResponseData::UnrequestedDisconnect(response) => Some(&response.reply_to),
-            IpPacketResponseData::Data(_) => None,
-            IpPacketResponseData::Pong(response) => Some(&response.reply_to),
-            IpPacketResponseData::Health(response) => Some(&response.reply_to),
-            IpPacketResponseData::Info(response) => Some(&response.reply_to),
-        }
-    }
+    //pub fn recipient(&self) -> Option<&Recipient> {
+    //    match &self.data {
+    //        IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
+    //        IpPacketResponseData::DynamicConnect(response) => Some(&response.reply_to),
+    //        IpPacketResponseData::Disconnect(response) => Some(&response.reply_to),
+    //        IpPacketResponseData::UnrequestedDisconnect(response) => Some(&response.reply_to),
+    //        IpPacketResponseData::Data(_) => None,
+    //        IpPacketResponseData::Pong(response) => Some(&response.reply_to),
+    //        IpPacketResponseData::Health(response) => Some(&response.reply_to),
+    //        IpPacketResponseData::Info(response) => Some(&response.reply_to),
+    //    }
+    //}
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
@@ -252,7 +214,6 @@ impl IpPacketResponseData {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StaticConnectResponse {
     pub request_id: u64,
-    pub reply_to: Recipient,
     pub reply: StaticConnectResponseReply,
 }
 
@@ -286,7 +247,6 @@ pub enum StaticConnectFailureReason {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DynamicConnectResponse {
     pub request_id: u64,
-    pub reply_to: Recipient,
     pub reply: DynamicConnectResponseReply,
 }
 
@@ -323,7 +283,6 @@ pub enum DynamicConnectFailureReason {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DisconnectResponse {
     pub request_id: u64,
-    pub reply_to: Recipient,
     pub reply: DisconnectResponseReply,
 }
 
@@ -343,7 +302,6 @@ pub enum DisconnectFailureReason {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnrequestedDisconnect {
-    pub reply_to: Recipient,
     pub reason: UnrequestedDisconnectReason,
 }
 
@@ -365,13 +323,11 @@ pub struct DataResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PongResponse {
     pub request_id: u64,
-    pub reply_to: Recipient,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HealthResponse {
     pub request_id: u64,
-    pub reply_to: Recipient,
     pub reply: HealthResponseReply,
 }
 
@@ -386,7 +342,6 @@ pub struct HealthResponseReply {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InfoResponse {
     pub request_id: u64,
-    pub reply_to: Recipient,
     pub reply: InfoResponseReply,
     pub level: InfoLevel,
 }

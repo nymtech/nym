@@ -1,7 +1,6 @@
 use std::fmt;
 
-use nym_crypto::asymmetric::identity;
-use nym_sphinx::addressing::clients::Recipient;
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -37,10 +36,9 @@ impl fmt::Display for IpPacketRequest {
 impl IpPacketRequest {
     pub fn new_static_connect_request(
         ips: IpPair,
-        reply_to: Recipient,
-        reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
         buffer_timeout: Option<u64>,
+        signed_by: ed25519::PublicKey,
     ) -> (Self, u64) {
         let request_id = generate_random();
         (
@@ -50,11 +48,10 @@ impl IpPacketRequest {
                     request: StaticConnectRequest {
                         request_id,
                         ips,
-                        reply_to,
-                        reply_to_hops,
                         reply_to_avg_mix_delays,
                         buffer_timeout,
                         timestamp: OffsetDateTime::now_utc(),
+                        signed_by,
                     },
                     signature: None,
                 }),
@@ -63,12 +60,10 @@ impl IpPacketRequest {
         )
     }
 
-    #[allow(deprecated)]
     pub fn new_dynamic_connect_request(
-        reply_to: Recipient,
-        reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
         buffer_timeout: Option<u64>,
+        signed_by: ed25519::PublicKey,
     ) -> (Self, u64) {
         let request_id = generate_random();
         (
@@ -77,11 +72,10 @@ impl IpPacketRequest {
                 data: IpPacketRequestData::DynamicConnect(SignedDynamicConnectRequest {
                     request: DynamicConnectRequest {
                         request_id,
-                        reply_to,
-                        reply_to_hops,
                         reply_to_avg_mix_delays,
                         buffer_timeout,
                         timestamp: OffsetDateTime::now_utc(),
+                        signed_by,
                     },
                     signature: None,
                 }),
@@ -90,7 +84,7 @@ impl IpPacketRequest {
         )
     }
 
-    pub fn new_disconnect_request(reply_to: Recipient) -> (Self, u64) {
+    pub fn new_disconnect_request(signed_by: ed25519::PublicKey) -> (Self, u64) {
         let request_id = generate_random();
         (
             Self {
@@ -98,8 +92,8 @@ impl IpPacketRequest {
                 data: IpPacketRequestData::Disconnect(SignedDisconnectRequest {
                     request: DisconnectRequest {
                         request_id,
-                        reply_to,
                         timestamp: OffsetDateTime::now_utc(),
+                        signed_by,
                     },
                     signature: None,
                 }),
@@ -115,14 +109,13 @@ impl IpPacketRequest {
         }
     }
 
-    pub fn new_ping(reply_to: Recipient) -> (Self, u64) {
+    pub fn new_ping() -> (Self, u64) {
         let request_id = generate_random();
         (
             Self {
                 version: VERSION,
                 data: IpPacketRequestData::Ping(PingRequest {
                     request_id,
-                    reply_to,
                     timestamp: OffsetDateTime::now_utc(),
                 }),
             },
@@ -130,14 +123,13 @@ impl IpPacketRequest {
         )
     }
 
-    pub fn new_health_request(reply_to: Recipient) -> (Self, u64) {
+    pub fn new_health_request() -> (Self, u64) {
         let request_id = generate_random();
         (
             Self {
                 version: VERSION,
                 data: IpPacketRequestData::Health(HealthRequest {
                     request_id,
-                    reply_to,
                     timestamp: OffsetDateTime::now_utc(),
                 }),
             },
@@ -156,14 +148,14 @@ impl IpPacketRequest {
         }
     }
 
-    pub fn recipient(&self) -> Option<&Recipient> {
+    pub fn signed_by(&self) -> Option<&ed25519::PublicKey> {
         match &self.data {
-            IpPacketRequestData::StaticConnect(request) => Some(&request.request.reply_to),
-            IpPacketRequestData::DynamicConnect(request) => Some(&request.request.reply_to),
-            IpPacketRequestData::Disconnect(request) => Some(&request.request.reply_to),
+            IpPacketRequestData::StaticConnect(request) => Some(&request.request.signed_by),
+            IpPacketRequestData::DynamicConnect(request) => Some(&request.request.signed_by),
+            IpPacketRequestData::Disconnect(request) => Some(&request.request.signed_by),
             IpPacketRequestData::Data(_) => None,
-            IpPacketRequestData::Ping(request) => Some(&request.reply_to),
-            IpPacketRequestData::Health(request) => Some(&request.reply_to),
+            IpPacketRequestData::Ping(_) => None,
+            IpPacketRequestData::Health(_) => None,
         }
     }
 
@@ -205,7 +197,7 @@ impl fmt::Display for IpPacketRequestData {
 }
 
 impl IpPacketRequestData {
-    pub fn add_signature(&mut self, signature: identity::Signature) -> Option<identity::Signature> {
+    pub fn add_signature(&mut self, signature: ed25519::Signature) -> Option<ed25519::Signature> {
         match self {
             IpPacketRequestData::StaticConnect(request) => {
                 request.signature = Some(signature);
@@ -243,14 +235,8 @@ impl IpPacketRequestData {
 pub struct StaticConnectRequest {
     pub request_id: u64,
 
+    // The requested internal IP addresses.
     pub ips: IpPair,
-
-    // The nym-address the response should be sent back to
-    pub reply_to: Recipient,
-
-    // The number of mix node hops that responses should take, in addition to the entry and exit
-    // node. Zero means only client -> entry -> exit -> client.
-    pub reply_to_hops: Option<u8>,
 
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
@@ -262,6 +248,8 @@ pub struct StaticConnectRequest {
 
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
+
+    pub signed_by: ed25519::PublicKey,
 }
 
 impl StaticConnectRequest {
@@ -274,14 +262,10 @@ impl StaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedStaticConnectRequest {
     pub request: StaticConnectRequest,
-    pub signature: Option<identity::Signature>,
+    pub signature: Option<ed25519::Signature>,
 }
 
 impl SignedRequest for SignedStaticConnectRequest {
-    fn identity(&self) -> &identity::PublicKey {
-        self.request.reply_to.identity()
-    }
-
     fn request(&self) -> Result<Vec<u8>, SignatureError> {
         self.request
             .to_bytes()
@@ -291,12 +275,16 @@ impl SignedRequest for SignedStaticConnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&identity::Signature> {
-        self.signature.as_ref()
-    }
-
     fn timestamp(&self) -> OffsetDateTime {
         self.request.timestamp
+    }
+
+    fn signed_by(&self) -> &ed25519::PublicKey {
+        &self.request.signed_by
+    }
+
+    fn signature(&self) -> Option<&ed25519::Signature> {
+        self.signature.as_ref()
     }
 }
 
@@ -305,16 +293,6 @@ impl SignedRequest for SignedStaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub request_id: u64,
-
-    // The nym-address the response should be sent back to
-    pub reply_to: Recipient,
-
-    // The number of mix node hops that responses should take, in addition to the entry and exit
-    // node. Zero means only client -> entry -> exit -> client.
-    #[deprecated(
-        note = "clients can no longer control number of hops to use. this field is scheduled for removal in V8"
-    )]
-    pub reply_to_hops: Option<u8>,
 
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
@@ -326,6 +304,8 @@ pub struct DynamicConnectRequest {
 
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
+
+    pub signed_by: ed25519::PublicKey,
 }
 
 impl DynamicConnectRequest {
@@ -338,14 +318,10 @@ impl DynamicConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDynamicConnectRequest {
     pub request: DynamicConnectRequest,
-    pub signature: Option<identity::Signature>,
+    pub signature: Option<ed25519::Signature>,
 }
 
 impl SignedRequest for SignedDynamicConnectRequest {
-    fn identity(&self) -> &identity::PublicKey {
-        self.request.reply_to.identity()
-    }
-
     fn request(&self) -> Result<Vec<u8>, SignatureError> {
         self.request
             .to_bytes()
@@ -355,12 +331,16 @@ impl SignedRequest for SignedDynamicConnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&identity::Signature> {
-        self.signature.as_ref()
-    }
-
     fn timestamp(&self) -> OffsetDateTime {
         self.request.timestamp
+    }
+
+    fn signed_by(&self) -> &ed25519::PublicKey {
+        &self.request.signed_by
+    }
+
+    fn signature(&self) -> Option<&ed25519::Signature> {
+        self.signature.as_ref()
     }
 }
 
@@ -370,11 +350,10 @@ impl SignedRequest for SignedDynamicConnectRequest {
 pub struct DisconnectRequest {
     pub request_id: u64,
 
-    // The nym-address the response should be sent back to
-    pub reply_to: Recipient,
-
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
+
+    pub signed_by: ed25519::PublicKey,
 }
 
 impl DisconnectRequest {
@@ -387,14 +366,10 @@ impl DisconnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDisconnectRequest {
     pub request: DisconnectRequest,
-    pub signature: Option<identity::Signature>,
+    pub signature: Option<ed25519::Signature>,
 }
 
 impl SignedRequest for SignedDisconnectRequest {
-    fn identity(&self) -> &identity::PublicKey {
-        self.request.reply_to.identity()
-    }
-
     fn request(&self) -> Result<Vec<u8>, SignatureError> {
         self.request
             .to_bytes()
@@ -404,12 +379,16 @@ impl SignedRequest for SignedDisconnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&identity::Signature> {
-        self.signature.as_ref()
-    }
-
     fn timestamp(&self) -> OffsetDateTime {
         self.request.timestamp
+    }
+
+    fn signed_by(&self) -> &ed25519::PublicKey {
+        &self.request.signed_by
+    }
+
+    fn signature(&self) -> Option<&ed25519::Signature> {
+        self.signature.as_ref()
     }
 }
 
@@ -424,9 +403,6 @@ pub struct DataRequest {
 pub struct PingRequest {
     pub request_id: u64,
 
-    // The nym-address the response should be sent back to
-    pub reply_to: Recipient,
-
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
 }
@@ -434,9 +410,6 @@ pub struct PingRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct HealthRequest {
     pub request_id: u64,
-
-    // The nym-address the response should be sent back to
-    pub reply_to: Recipient,
 
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
@@ -454,20 +427,23 @@ mod tests {
     fn check_size_of_request() {
         let connect = IpPacketRequest {
             version: 4,
-            data: IpPacketRequestData::StaticConnect(
-                SignedStaticConnectRequest {
-                    request: StaticConnectRequest {
-                        request_id: 123,
-                        ips: IpPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("fc00::1").unwrap()),
-                        reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
-                        reply_to_hops: None,
-                        reply_to_avg_mix_delays: None,
-                        buffer_timeout: None,
-                        timestamp: datetime!(2024-01-01 12:59:59.5 UTC),
-                    },
-                    signature: None,
-                }
-            ),
+            data: IpPacketRequestData::StaticConnect(SignedStaticConnectRequest {
+                request: StaticConnectRequest {
+                    request_id: 123,
+                    ips: IpPair::new(
+                        Ipv4Addr::from_str("10.0.0.1").unwrap(),
+                        Ipv6Addr::from_str("fc00::1").unwrap(),
+                    ),
+                    reply_to_avg_mix_delays: None,
+                    buffer_timeout: None,
+                    timestamp: datetime!(2024-01-01 12:59:59.5 UTC),
+                    signed_by: ed25519::PublicKey::from_base58_string(
+                        "D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9",
+                    )
+                    .unwrap(),
+                },
+                signature: None,
+            }),
         };
         assert_eq!(connect.to_bytes().unwrap().len(), 139);
     }

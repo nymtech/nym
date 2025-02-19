@@ -27,7 +27,7 @@ pub enum SignatureError {
 }
 
 pub trait SignedRequest {
-    fn identity(&self) -> &identity::PublicKey;
+    fn signed_by(&self) -> &identity::PublicKey;
 
     fn request(&self) -> Result<Vec<u8>, SignatureError>;
 
@@ -44,7 +44,7 @@ pub trait SignedRequest {
 
             let request_as_bytes = self.request()?;
 
-            self.identity()
+            self.signed_by()
                 .verify(request_as_bytes, signature)
                 .map_err(|error| SignatureError::VerificationFailed {
                     message: "signature verification failed".to_string(),

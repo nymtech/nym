@@ -8,6 +8,7 @@ pub use v6::response;
 pub mod codec;
 pub mod v6;
 pub mod v7;
+pub mod v8;
 
 // version 3: initial version
 // version 4: IPv6 support

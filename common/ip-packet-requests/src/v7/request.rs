@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,16 @@ fn generate_random() -> u64 {
 pub struct IpPacketRequest {
     pub version: u8,
     pub data: IpPacketRequestData,
+}
+
+impl fmt::Display for IpPacketRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "IpPacketRequest {{ version: {}, data: {} }}",
+            self.version, self.data
+        )
+    }
 }
 
 impl IpPacketRequest {
@@ -177,6 +189,19 @@ pub enum IpPacketRequestData {
     Data(DataRequest),
     Ping(PingRequest),
     Health(HealthRequest),
+}
+
+impl fmt::Display for IpPacketRequestData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IpPacketRequestData::StaticConnect(_) => write!(f, "StaticConnect"),
+            IpPacketRequestData::DynamicConnect(_) => write!(f, "DynamicConnect"),
+            IpPacketRequestData::Disconnect(_) => write!(f, "Disconnect"),
+            IpPacketRequestData::Data(_) => write!(f, "Data"),
+            IpPacketRequestData::Ping(_) => write!(f, "Ping"),
+            IpPacketRequestData::Health(_) => write!(f, "Health"),
+        }
+    }
 }
 
 impl IpPacketRequestData {

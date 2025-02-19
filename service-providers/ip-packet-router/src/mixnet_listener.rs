@@ -674,7 +674,7 @@ impl MixnetListener {
         &mut self,
         reconstructed: ReconstructedMessage,
     ) -> Result<Vec<PacketHandleResult>> {
-        log::info!(
+        log::debug!(
             "Received message with sender_tag: {}",
             reconstructed
                 .sender_tag
@@ -684,10 +684,13 @@ impl MixnetListener {
 
         let (request, client_version) = match deserialize_request(&reconstructed) {
             Err(IpPacketRouterError::InvalidPacketVersion(version)) => {
+                log::debug!("Received packet with invalid version: v{version}");
                 return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
             }
             req => req,
         }?;
+
+        log::debug!("Received request: {request}");
 
         match request.data {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {

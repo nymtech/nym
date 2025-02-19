@@ -89,12 +89,10 @@ impl ConnectedClientHandler {
     async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
         let response_packet = match self.client_version {
             SupportedClientVersion::V6 => {
-                log::info!("Creating response packet for V6 client");
                 nym_ip_packet_requests::v6::response::IpPacketResponse::new_ip_packet(packets)
                     .to_bytes()
             }
             SupportedClientVersion::V7 => {
-                log::info!("Creating response packet for V7 client");
                 nym_ip_packet_requests::v7::response::IpPacketResponse::new_ip_packet(packets)
                     .to_bytes()
             }

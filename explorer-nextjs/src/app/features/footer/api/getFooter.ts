@@ -4,11 +4,17 @@ import { client } from "../../../lib/strapiClient";
 // Types
 import type { Languages } from "../../../i18n";
 
+import type { components } from "@/app/lib/strapi";
 // Constants
 import { footerApiPath } from "../../footer/config/constants";
 
 // Fetch footer data
-export const getFooter = async (locale: Languages) => {
+export const getFooter = async (
+  locale: Languages,
+): Promise<{
+  id?: number;
+  attributes?: components["schemas"]["Footer"];
+} | null> => {
   const footer = await client.GET(footerApiPath, {
     params: {
       query: {

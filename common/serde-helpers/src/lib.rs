@@ -32,6 +32,20 @@ pub mod bs58 {
     }
 }
 
+#[cfg(feature = "hex")]
+pub mod hex {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&::hex::encode(bytes))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        ::hex::decode(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 #[cfg(feature = "date")]
 pub mod date {
     use serde::ser::Error;

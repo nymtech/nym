@@ -31,7 +31,6 @@ export const SocialChannels = () => {
               }}
             >
               <SocialIcon channel={channel?.name} />
-              {/* {channel.name} */}
             </Link>
           );
         },

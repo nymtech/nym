@@ -1,4 +1,6 @@
 "use client";
+import { fetchNoise } from "@/app/api";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { Box, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { IPacketsAndStakingData } from "../../app/api/types";
@@ -6,8 +8,6 @@ import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
-
-import { fetchNoise } from "@/app/api";
 
 export const NoiseCard = () => {
   const { data, isLoading, isError } = useQuery({
@@ -113,8 +113,9 @@ export const NoiseCard = () => {
           title={"Self reported noise volume"}
           onClick={(e) => e.stopPropagation()}
         >
-          <Typography variant="h4" sx={{ color: "#8482FD" }}>
+          <Typography variant="h4" sx={{ color: "#8482FD", cursor: "pointer" }}>
             ({formatedNoiseVolume})
+            <InfoOutlinedIcon sx={{ fontSize: 16 }} />
           </Typography>
         </Tooltip>
       </Box>

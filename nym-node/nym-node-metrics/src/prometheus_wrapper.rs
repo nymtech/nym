@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet::PacketKind;
 use nym_metrics::{metrics_registry, HistogramTimer, Metric};
 use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
@@ -28,6 +29,10 @@ const CLIENT_SESSION_DURATION_BUCKETS: &[f64] = &[
 pub enum PrometheusMetric {
     // # MIXNET
     // ## INGRESS
+    #[strum(to_string = "mixnet_ingress_packet_version_{kind}")]
+    #[strum(props(help = "The number of ingress packets received with the particular version"))]
+    MixnetIngressPacketVersion { kind: PacketKind },
+
     #[strum(props(help = "The number of ingress forward hop sphinx packets received"))]
     MixnetIngressForwardPacketsReceived,
 
@@ -178,7 +183,11 @@ impl PrometheusMetric {
     }
 
     fn is_complex(&self) -> bool {
-        matches!(self, PrometheusMetric::EntryClientSessionsDurations { .. })
+        matches!(
+            self,
+            PrometheusMetric::EntryClientSessionsDurations { .. }
+                | PrometheusMetric::MixnetIngressPacketVersion { .. }
+        )
         // match self {
         //     PrometheusMetric::EntryClientSessionsDurations { .. } => true,
         //     _ => false,
@@ -190,6 +199,9 @@ impl PrometheusMetric {
         let help = self.help();
 
         match self {
+            PrometheusMetric::MixnetIngressPacketVersion { .. } => {
+                Metric::new_int_gauge(&name, help)
+            }
             PrometheusMetric::MixnetIngressForwardPacketsReceived => {
                 Metric::new_int_gauge(&name, help)
             }
@@ -364,7 +376,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(37, PrometheusMetric::COUNT)
+        assert_eq!(38, PrometheusMetric::COUNT)
     }
 
     #[test]
@@ -385,6 +397,24 @@ mod tests {
         assert_eq!(
             "nym_node_entry_client_sessions_durations_vpn",
             parameterised
-        )
+        );
+
+        let parameterised = PrometheusMetric::MixnetIngressPacketVersion {
+            kind: PacketKind::Outfox,
+        }
+        .to_string();
+        assert_eq!(
+            "nym_node_mixnet_ingress_packet_version_outfox",
+            parameterised
+        );
+
+        let parameterised = PrometheusMetric::MixnetIngressPacketVersion {
+            kind: PacketKind::Sphinx(42),
+        }
+        .to_string();
+        assert_eq!(
+            "nym_node_mixnet_ingress_packet_version_sphinx-42",
+            parameterised
+        );
     }
 }

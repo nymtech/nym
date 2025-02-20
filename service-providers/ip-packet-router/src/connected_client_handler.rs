@@ -17,7 +17,7 @@ use tokio::{
 use crate::{
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
-    mixnet_listener::{RequestSender, SupportedClientVersion},
+    messages::{RequestSender, SupportedClientVersion},
     util::create_message::create_input_message,
 };
 

@@ -1,10 +1,9 @@
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v7, v8, IpPair};
-use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, Recipient};
+use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
-use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,6 +13,13 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 use tokio_util::codec::Decoder;
 
+use crate::messages::{
+    DataRequest2, DisconnectRequest2, DynamicConnectFailureReason, DynamicConnectRequest2,
+    DynamicConnectResponse, InfoLevel, InfoResponse, InfoResponseReply, IpPacketRequest,
+    IpPacketRequest2, IpPacketRequestData2, PacketHandleResult, RequestSender, Response2,
+    StaticConnectFailureReason, StaticConnectRequest2, StaticConnectResponse,
+    SupportedClientVersion, VersionedResponse,
+};
 use crate::{
     config::Config,
     connected_client_handler,
@@ -98,7 +104,7 @@ impl ConnectedClients {
         // The map of connected clients that the mixnet listener keeps track of. It monitors
         // activity and disconnects clients that have been inactive for too long.
         let client = ConnectedClient {
-            client_id,
+            client_id: client_id.clone(),
             ipv6: ips.ipv6,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
             close_tx: Arc::new(CloseTx {
@@ -140,7 +146,7 @@ impl ConnectedClients {
                 if connected_client.handle.is_finished() {
                     Some((
                         IpPair::new(*ip, connected_client.ipv6),
-                        connected_client.client_id,
+                        connected_client.client_id.clone(),
                     ))
                 } else {
                     None
@@ -158,7 +164,7 @@ impl ConnectedClients {
             {
                 ret.push((
                     IpPair::new(*ip, connected_client.ipv6),
-                    connected_client.client_id,
+                    connected_client.client_id.clone(),
                 ))
             }
         }
@@ -222,6 +228,9 @@ pub(crate) struct ConnectedClient {
     // Keep track of last activity so we can disconnect inactive clients
     pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
 
+    // Channel to send close signal to the connected client handler
+    // This is currently unused because the disconnect command it not yet implemented.
+    #[allow(dead_code)]
     pub(crate) close_tx: Arc<CloseTx>,
 
     // Handle for the connected client handler
@@ -239,261 +248,6 @@ impl Drop for CloseTx {
         log::debug!("signal to close client: {}", self.client_id);
         if let Some(close_tx) = self.inner.take() {
             close_tx.send(()).ok();
-        }
-    }
-}
-
-type PacketHandleResult = Result<Option<VersionedResponse>>;
-
-struct VersionedResponse {
-    version: SupportedClientVersion,
-    request_id: Option<u64>,
-    reply_to: RequestSender,
-    response: Response2,
-}
-
-#[derive(Debug, Clone)]
-enum Response2 {
-    StaticConnect(StaticConnectResponse),
-    DynamicConnect(DynamicConnectResponse),
-    Disconnect,
-    Data,
-    Pong,
-    Health,
-    Info(InfoResponse),
-}
-
-#[derive(Debug, Clone)]
-enum StaticConnectResponse {
-    Success,
-    Failure(StaticConnectFailureReason),
-}
-
-#[derive(thiserror::Error, Debug, Clone)]
-enum StaticConnectFailureReason {
-    #[error("requested ip address is already in use")]
-    RequestedIpAlreadyInUse,
-    #[error("client already connected")]
-    ClientAlreadyConnected,
-    #[error("request timestamp is out of date")]
-    OutOfDateTimestamp,
-    #[error("{0}")]
-    Other(String),
-}
-
-#[derive(Debug, Clone)]
-enum DynamicConnectResponse {
-    Success,
-    Failure(DynamicConnectFailureReason),
-}
-
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum DynamicConnectFailureReason {
-    #[error("client already connected")]
-    ClientAlreadyConnected,
-    #[error("no available ip address")]
-    NoAvailableIp,
-    #[error("{0}")]
-    Other(String),
-}
-
-impl From<VersionedResponse> for v7::response::IpPacketResponse {
-    fn from(response: VersionedResponse) -> Self {
-        match response.response {
-            Response2::StaticConnect(inner) => v7::response::IpPacketResponse {
-                version: response.version.into_u8(),
-                data: v7::response::IpPacketResponseData::StaticConnect(
-                    v7::response::StaticConnectResponse {
-                        request_id: response.request_id.unwrap(),
-                        reply_to: response.reply_to.into_nym_address().unwrap(),
-                        reply: match inner {
-                            StaticConnectResponse::Success => {
-                                v7::response::StaticConnectResponseReply::Success
-                            }
-                            StaticConnectResponse::Failure(err) => {
-                                v7::response::StaticConnectResponseReply::Failure(err.into())
-                            }
-                        },
-                    },
-                ),
-            },
-            Response2::DynamicConnect(_) => {
-                todo!();
-            }
-            Response2::Disconnect => todo!(),
-            Response2::Data => todo!(),
-            Response2::Pong => todo!(),
-            Response2::Health => todo!(),
-            Response2::Info(inner) => v7::response::IpPacketResponse {
-                version: response.version.into_u8(),
-                data: v7::response::IpPacketResponseData::Info(v7::response::InfoResponse {
-                    request_id: response.request_id.unwrap(),
-                    reply_to: response.reply_to.into_nym_address().unwrap(),
-                    reply: inner.reply.into(),
-                    level: inner.level.into(),
-                }),
-            },
-        }
-    }
-}
-
-impl From<VersionedResponse> for v8::response::IpPacketResponse {
-    fn from(response: VersionedResponse) -> Self {
-        match response.response {
-            Response2::StaticConnect(inner) => v8::response::IpPacketResponse {
-                version: response.version.into_u8(),
-                data: v8::response::IpPacketResponseData::StaticConnect(
-                    v8::response::StaticConnectResponse {
-                        request_id: response.request_id.unwrap(),
-                        reply: match inner {
-                            StaticConnectResponse::Success => {
-                                v8::response::StaticConnectResponseReply::Success
-                            }
-                            StaticConnectResponse::Failure(err) => {
-                                v8::response::StaticConnectResponseReply::Failure(err.into())
-                            }
-                        },
-                    },
-                ),
-            },
-            Response2::DynamicConnect(_) => {
-                todo!();
-            }
-            Response2::Disconnect => todo!(),
-            Response2::Data => todo!(),
-            Response2::Pong => todo!(),
-            Response2::Health => todo!(),
-            Response2::Info(inner) => v8::response::IpPacketResponse {
-                version: response.version.into_u8(),
-                data: v8::response::IpPacketResponseData::Info(v8::response::InfoResponse {
-                    request_id: response.request_id.unwrap(),
-                    reply: inner.reply.into(),
-                    level: inner.level.into(),
-                }),
-            },
-        }
-    }
-}
-
-impl From<StaticConnectFailureReason> for v7::response::StaticConnectFailureReason {
-    fn from(reason: StaticConnectFailureReason) -> Self {
-        match reason {
-            StaticConnectFailureReason::RequestedIpAlreadyInUse => {
-                v7::response::StaticConnectFailureReason::RequestedIpAlreadyInUse
-            }
-            StaticConnectFailureReason::ClientAlreadyConnected => {
-                v7::response::StaticConnectFailureReason::RequestedNymAddressAlreadyInUse
-            }
-            StaticConnectFailureReason::OutOfDateTimestamp => {
-                v7::response::StaticConnectFailureReason::OutOfDateTimestamp
-            }
-            StaticConnectFailureReason::Other(err) => {
-                v7::response::StaticConnectFailureReason::Other(err)
-            }
-        }
-    }
-}
-
-impl From<StaticConnectFailureReason> for v8::response::StaticConnectFailureReason {
-    fn from(reason: StaticConnectFailureReason) -> Self {
-        match reason {
-            StaticConnectFailureReason::RequestedIpAlreadyInUse => {
-                v8::response::StaticConnectFailureReason::RequestedIpAlreadyInUse
-            }
-            StaticConnectFailureReason::ClientAlreadyConnected => {
-                v8::response::StaticConnectFailureReason::ClientAlreadyConnected
-            }
-            StaticConnectFailureReason::OutOfDateTimestamp => {
-                v8::response::StaticConnectFailureReason::OutOfDateTimestamp
-            }
-            StaticConnectFailureReason::Other(err) => {
-                v8::response::StaticConnectFailureReason::Other(err)
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct InfoResponse {
-    pub request_id: Option<u64>,
-    pub reply: InfoResponseReply,
-    pub level: InfoLevel,
-}
-
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum InfoResponseReply {
-    #[error("{msg}")]
-    Generic { msg: String },
-    #[error(
-        "version mismatch: response is v{request_version} and response is v{response_version}"
-    )]
-    VersionMismatch {
-        request_version: u8,
-        response_version: u8,
-    },
-    #[error("destination failed exit policy filter check: {dst}")]
-    ExitPolicyFilterCheckFailed { dst: String },
-}
-
-impl From<InfoResponseReply> for v7::response::InfoResponseReply {
-    fn from(reply: InfoResponseReply) -> Self {
-        match reply {
-            InfoResponseReply::Generic { msg } => v7::response::InfoResponseReply::Generic { msg },
-            InfoResponseReply::VersionMismatch {
-                request_version,
-                response_version,
-            } => v7::response::InfoResponseReply::VersionMismatch {
-                request_version,
-                response_version,
-            },
-            InfoResponseReply::ExitPolicyFilterCheckFailed { dst } => {
-                v7::response::InfoResponseReply::ExitPolicyFilterCheckFailed { dst }
-            }
-        }
-    }
-}
-
-impl From<InfoResponseReply> for v8::response::InfoResponseReply {
-    fn from(reply: InfoResponseReply) -> Self {
-        match reply {
-            InfoResponseReply::Generic { msg } => v8::response::InfoResponseReply::Generic { msg },
-            InfoResponseReply::VersionMismatch {
-                request_version,
-                response_version,
-            } => v8::response::InfoResponseReply::VersionMismatch {
-                request_version,
-                response_version,
-            },
-            InfoResponseReply::ExitPolicyFilterCheckFailed { dst } => {
-                v8::response::InfoResponseReply::ExitPolicyFilterCheckFailed { dst }
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum InfoLevel {
-    Info,
-    Warn,
-    Error,
-}
-
-impl From<InfoLevel> for v7::response::InfoLevel {
-    fn from(level: InfoLevel) -> Self {
-        match level {
-            InfoLevel::Info => v7::response::InfoLevel::Info,
-            InfoLevel::Warn => v7::response::InfoLevel::Warn,
-            InfoLevel::Error => v7::response::InfoLevel::Error,
-        }
-    }
-}
-
-impl From<InfoLevel> for v8::response::InfoLevel {
-    fn from(level: InfoLevel) -> Self {
-        match level {
-            InfoLevel::Info => v8::response::InfoLevel::Info,
-            InfoLevel::Warn => v8::response::InfoLevel::Warn,
-            InfoLevel::Error => v8::response::InfoLevel::Error,
         }
     }
 }
@@ -702,7 +456,7 @@ impl MixnetListener {
                     connected_client_handler::ConnectedClientHandler::start(
                         // reply_to,
                         // sender_tag,
-                        connect_request.sent_by,
+                        connect_request.sent_by.clone(),
                         buffer_timeout,
                         version,
                         self.mixnet_client.split_sender(),
@@ -712,7 +466,7 @@ impl MixnetListener {
                 self.connected_clients.connect(
                     requested_ips,
                     // reply_to,
-                    connect_request.sent_by,
+                    connect_request.sent_by.clone(),
                     forward_from_tun_tx,
                     close_tx,
                     handle,
@@ -803,15 +557,20 @@ impl MixnetListener {
         // Spawn the ConnectedClientHandler for the new client
         let (forward_from_tun_tx, close_tx, handle) =
             connected_client_handler::ConnectedClientHandler::start(
-                reply_to,
+                reply_to.clone(),
                 buffer_timeout,
                 version,
                 self.mixnet_client.split_sender(),
             );
 
         // Register the new client in the set of connected clients
-        self.connected_clients
-            .connect(new_ips, reply_to, forward_from_tun_tx, close_tx, handle);
+        self.connected_clients.connect(
+            new_ips,
+            reply_to.clone(),
+            forward_from_tun_tx,
+            close_tx,
+            handle,
+        );
         Ok(Some(VersionedResponse {
             version,
             request_id: Some(request_id),
@@ -873,7 +632,7 @@ impl MixnetListener {
                 Ok(Some(VersionedResponse {
                     version,
                     request_id: None,
-                    reply_to: connected_client.client_id,
+                    reply_to: connected_client.client_id.clone(),
                     response: Response2::Info(InfoResponse {
                         request_id: None,
                         reply: InfoResponseReply::ExitPolicyFilterCheckFailed {
@@ -1002,7 +761,7 @@ impl MixnetListener {
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
     async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
-        let send_to = response.reply_to;
+        let send_to = response.reply_to.clone();
         let response_packet = match response.version {
             SupportedClientVersion::V7 => v7::response::IpPacketResponse::from(response)
                 .to_bytes()
@@ -1112,244 +871,6 @@ fn deserialize_request(
     // Tag the request with the version of the request
     request.map(|r| (r, request_version))
 }
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct IpPacketRequest2 {
-    pub version: u8,
-    pub data: IpPacketRequestData2,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum IpPacketRequestData2 {
-    StaticConnect(StaticConnectRequest2),
-    DynamicConnect(DynamicConnectRequest2),
-    Disconnect(DisconnectRequest2),
-    Data(DataRequest2),
-    Ping(PingRequest2),
-    Health(HealthRequest2),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct StaticConnectRequest2 {
-    request_id: u64,
-    sent_by: RequestSender,
-    ips: IpPair,
-    buffer_timeout: Option<u64>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct DynamicConnectRequest2 {
-    request_id: u64,
-    sent_by: RequestSender,
-    buffer_timeout: Option<u64>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct DisconnectRequest2 {
-    request_id: u64,
-    sent_by: RequestSender,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct DataRequest2 {
-    ip_packets: bytes::Bytes,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct PingRequest2 {
-    request_id: u64,
-    sent_by: RequestSender,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct HealthRequest2 {
-    request_id: u64,
-    sent_by: RequestSender,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum RequestSender {
-    NymAddress(Recipient),
-    SenderTag(AnonymousSenderTag),
-}
-impl RequestSender {
-    fn into_nym_address(&self) -> Option<Recipient> {
-        match self {
-            RequestSender::NymAddress(nym_address) => Some(*nym_address),
-            RequestSender::SenderTag(_) => None,
-        }
-    }
-
-    fn into_sender_tag(&self) -> Option<AnonymousSenderTag> {
-        match self {
-            RequestSender::NymAddress(_) => None,
-            RequestSender::SenderTag(tag) => Some(*tag),
-        }
-    }
-}
-
-impl fmt::Display for RequestSender {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RequestSender::NymAddress(nym_address) => write!(f, "{nym_address}"),
-            RequestSender::SenderTag(tag) => write!(f, "{tag}"),
-        }
-    }
-}
-
-impl From<v7::request::IpPacketRequest> for IpPacketRequest2 {
-    fn from(request: v7::request::IpPacketRequest) -> Self {
-        Self {
-            version: 7,
-            data: match request.data {
-                v7::request::IpPacketRequestData::StaticConnect(inner) => {
-                    IpPacketRequestData2::StaticConnect(StaticConnectRequest2 {
-                        request_id: inner.request.request_id,
-                        sent_by: RequestSender::NymAddress(inner.request.reply_to),
-                        ips: inner.request.ips,
-                        buffer_timeout: inner.request.buffer_timeout,
-                    })
-                }
-                v7::request::IpPacketRequestData::DynamicConnect(_) => {
-                    todo!();
-                }
-                v7::request::IpPacketRequestData::Disconnect(_) => {
-                    todo!();
-                }
-                v7::request::IpPacketRequestData::Data(inner) => {
-                    IpPacketRequestData2::Data(DataRequest2 {
-                        ip_packets: inner.ip_packets,
-                    })
-                }
-                v7::request::IpPacketRequestData::Ping(_) => {
-                    todo!();
-                }
-                v7::request::IpPacketRequestData::Health(_) => {
-                    todo!();
-                }
-            },
-        }
-    }
-}
-
-impl From<(v8::request::IpPacketRequest, AnonymousSenderTag)> for IpPacketRequest2 {
-    fn from((request, sender_tag): (v8::request::IpPacketRequest, AnonymousSenderTag)) -> Self {
-        Self {
-            version: 8,
-            data: match request.data {
-                v8::request::IpPacketRequestData::StaticConnect(inner) => {
-                    IpPacketRequestData2::StaticConnect(StaticConnectRequest2 {
-                        request_id: inner.request.request_id,
-                        sent_by: RequestSender::SenderTag(sender_tag),
-                        ips: inner.request.ips,
-                        buffer_timeout: inner.request.buffer_timeout,
-                    })
-                }
-                v8::request::IpPacketRequestData::DynamicConnect(_) => {
-                    todo!();
-                }
-                v8::request::IpPacketRequestData::Disconnect(_) => {
-                    todo!();
-                }
-                v8::request::IpPacketRequestData::Data(inner) => {
-                    IpPacketRequestData2::Data(DataRequest2 {
-                        ip_packets: inner.ip_packets,
-                    })
-                }
-                v8::request::IpPacketRequestData::Ping(_) => {
-                    todo!();
-                }
-                v8::request::IpPacketRequestData::Health(_) => {
-                    todo!();
-                }
-            },
-        }
-    }
-}
-
-impl From<IpPacketRequest> for IpPacketRequest2 {
-    fn from(request: IpPacketRequest) -> Self {
-        match request {
-            IpPacketRequest::V7(request) => request.into(),
-            IpPacketRequest::V8(request) => request.into(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum IpPacketRequest {
-    V7(v7::request::IpPacketRequest),
-    V8((v8::request::IpPacketRequest, AnonymousSenderTag)),
-}
-
-impl IpPacketRequest {
-    pub(crate) fn version(&self) -> u8 {
-        match self {
-            IpPacketRequest::V7(_) => 7,
-            IpPacketRequest::V8(_) => 8,
-        }
-    }
-
-    pub(crate) fn verify(&self) -> Result<()> {
-        match self {
-            IpPacketRequest::V7(request) => request.verify(),
-            IpPacketRequest::V8(request) => request.0.verify(),
-        }
-        .map_err(|err| IpPacketRouterError::FailedToVerifyRequest { source: err })
-    }
-}
-
-impl fmt::Display for IpPacketRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IpPacketRequest::V7(request) => write!(f, "{request}"),
-            IpPacketRequest::V8((request, _)) => write!(f, "{request}"),
-        }
-    }
-}
-
-impl From<v7::request::IpPacketRequest> for IpPacketRequest {
-    fn from(request: v7::request::IpPacketRequest) -> Self {
-        IpPacketRequest::V7(request)
-    }
-}
-
-impl From<(v8::request::IpPacketRequest, AnonymousSenderTag)> for IpPacketRequest {
-    fn from(request: (v8::request::IpPacketRequest, AnonymousSenderTag)) -> Self {
-        IpPacketRequest::V8(request)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum SupportedClientVersion {
-    V7,
-    V8,
-}
-
-impl SupportedClientVersion {
-    fn new(request_version: u8) -> Option<Self> {
-        match request_version {
-            7 => Some(SupportedClientVersion::V7),
-            8 => Some(SupportedClientVersion::V8),
-            _ => None,
-        }
-    }
-}
-
-impl SupportedClientVersion {
-    fn into_u8(self) -> u8 {
-        match self {
-            SupportedClientVersion::V7 => 7,
-            SupportedClientVersion::V8 => 8,
-        }
-    }
-}
-
-//fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
-//    request
-//        .verify()
-//        .map_err(|err| IpPacketRouterError::FailedToVerifyRequest { source: err })
-//}
 
 pub(crate) enum ConnectedClientEvent {
     Disconnect(DisconnectEvent),

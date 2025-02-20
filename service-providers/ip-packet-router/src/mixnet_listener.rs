@@ -327,7 +327,53 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
             Response2::Data => todo!(),
             Response2::Pong => todo!(),
             Response2::Health => todo!(),
-            Response2::Info => todo!(),
+            Response2::Info(inner) => v7::response::IpPacketResponse {
+                version: response.version.into_u8(),
+                data: v7::response::IpPacketResponseData::Info(v7::response::InfoResponse {
+                    request_id: response.request_id.unwrap(),
+                    reply_to: response.reply_to.into_nym_address().unwrap(),
+                    reply: inner.reply.into(),
+                    level: inner.level.into(),
+                }),
+            },
+        }
+    }
+}
+
+impl From<VersionedResponse> for v8::response::IpPacketResponse {
+    fn from(response: VersionedResponse) -> Self {
+        match response.response {
+            Response2::StaticConnect(inner) => v8::response::IpPacketResponse {
+                version: response.version.into_u8(),
+                data: v8::response::IpPacketResponseData::StaticConnect(
+                    v8::response::StaticConnectResponse {
+                        request_id: response.request_id.unwrap(),
+                        reply: match inner {
+                            StaticConnectResponse::Success => {
+                                v8::response::StaticConnectResponseReply::Success
+                            }
+                            StaticConnectResponse::Failure(err) => {
+                                v8::response::StaticConnectResponseReply::Failure(err.into())
+                            }
+                        },
+                    },
+                ),
+            },
+            Response2::DynamicConnect(_) => {
+                todo!();
+            }
+            Response2::Disconnect => todo!(),
+            Response2::Data => todo!(),
+            Response2::Pong => todo!(),
+            Response2::Health => todo!(),
+            Response2::Info(inner) => v8::response::IpPacketResponse {
+                version: response.version.into_u8(),
+                data: v8::response::IpPacketResponseData::Info(v8::response::InfoResponse {
+                    request_id: response.request_id.unwrap(),
+                    reply: inner.reply.into(),
+                    level: inner.level.into(),
+                }),
+            },
         }
     }
 }
@@ -351,22 +397,30 @@ impl From<StaticConnectFailureReason> for v7::response::StaticConnectFailureReas
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct InfoResponse {
-    pub request_id: u64,
-    pub reply: InfoResponseReply,
-    pub level: InfoLevel,
-}
-
-impl From<InfoResponse> for v7::response::InfoResponse {
-    fn from(response: InfoResponse) -> Self {
-        v7::response::InfoResponse {
-            request_id: response.request_id,
-            reply_to: response.reply_to.into_nym_address().unwrap(),
-            reply: response.reply.into(),
-            level: response.level.into(),
+impl From<StaticConnectFailureReason> for v8::response::StaticConnectFailureReason {
+    fn from(reason: StaticConnectFailureReason) -> Self {
+        match reason {
+            StaticConnectFailureReason::RequestedIpAlreadyInUse => {
+                v8::response::StaticConnectFailureReason::RequestedIpAlreadyInUse
+            }
+            StaticConnectFailureReason::RequestedNymAddressAlreadyInUse => {
+                v8::response::StaticConnectFailureReason::RequestedNymAddressAlreadyInUse
+            }
+            StaticConnectFailureReason::OutOfDateTimestamp => {
+                v8::response::StaticConnectFailureReason::OutOfDateTimestamp
+            }
+            StaticConnectFailureReason::Other(err) => {
+                v8::response::StaticConnectFailureReason::Other(err)
+            }
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct InfoResponse {
+    pub request_id: Option<u64>,
+    pub reply: InfoResponseReply,
+    pub level: InfoLevel,
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -402,6 +456,24 @@ impl From<InfoResponseReply> for v7::response::InfoResponseReply {
     }
 }
 
+impl From<InfoResponseReply> for v8::response::InfoResponseReply {
+    fn from(reply: InfoResponseReply) -> Self {
+        match reply {
+            InfoResponseReply::Generic { msg } => v8::response::InfoResponseReply::Generic { msg },
+            InfoResponseReply::VersionMismatch {
+                request_version,
+                response_version,
+            } => v8::response::InfoResponseReply::VersionMismatch {
+                request_version,
+                response_version,
+            },
+            InfoResponseReply::ExitPolicyFilterCheckFailed { dst } => {
+                v8::response::InfoResponseReply::ExitPolicyFilterCheckFailed { dst }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum InfoLevel {
     Info,
@@ -415,6 +487,16 @@ impl From<InfoLevel> for v7::response::InfoLevel {
             InfoLevel::Info => v7::response::InfoLevel::Info,
             InfoLevel::Warn => v7::response::InfoLevel::Warn,
             InfoLevel::Error => v7::response::InfoLevel::Error,
+        }
+    }
+}
+
+impl From<InfoLevel> for v8::response::InfoLevel {
+    fn from(level: InfoLevel) -> Self {
+        match level {
+            InfoLevel::Info => v8::response::InfoLevel::Info,
+            InfoLevel::Warn => v8::response::InfoLevel::Warn,
+            InfoLevel::Error => v8::response::InfoLevel::Error,
         }
     }
 }
@@ -763,7 +845,7 @@ impl MixnetListener {
 
     fn on_disconnect_request(
         &self,
-        _disconnect_request: DisconnectRequest,
+        _disconnect_request: DisconnectRequest2,
         _client_version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::info!("Received disconnect request: not implemented, dropping");
@@ -815,7 +897,13 @@ impl MixnetListener {
                     version: client_version,
                     request_id: None,
                     reply_to: connected_client.nym_address,
-                    response: Response2::Info,
+                    response: Response2::Info(InfoResponse {
+                        request_id: None,
+                        reply: InfoResponseReply::ExitPolicyFilterCheckFailed {
+                            dst: dst.to_string(),
+                        },
+                        level: InfoLevel::Warn,
+                    }),
                 }))
                 //Ok(Some(Response::new_data_info_response(
                 //    connected_client.nym_address,
@@ -899,13 +987,11 @@ impl MixnetListener {
                 self.on_dynamic_connect_request(connect_request, version)
                     .await,
             ]),
-            IpPacketRequestData2::Disconnect(disconnect_request) => Ok(vec![
-                // self.on_disconnect_request(disconnect_request, client_version)
-                todo!();
-            ]),
+            IpPacketRequestData2::Disconnect(disconnect_request) => {
+                Ok(vec![self.on_disconnect_request(disconnect_request, version)])
+            }
             IpPacketRequestData2::Data(data_request) => {
-                todo!();
-                // self.on_data_request(data_request, client_version).await
+                self.on_data_request(data_request, version).await
             }
             IpPacketRequestData2::Ping(_) => {
                 log::info!("Received ping request: not implemented, dropping");
@@ -939,12 +1025,22 @@ impl MixnetListener {
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
     async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
+        let send_to = response.reply_to;
+        let response_packet = match response.version {
+            SupportedClientVersion::V7 => v7::response::IpPacketResponse::from(response)
+                .to_bytes()
+                .unwrap(),
+            SupportedClientVersion::V8 => v8::response::IpPacketResponse::from(response)
+                .to_bytes()
+                .unwrap(),
+        };
+
         // Convert from VersionedResponse to Response
         // let request_id = todo!();
-        let reply_to = todo!();
+        // let reply_to = todo!();
 
-        let response_packet = response.to_bytes()?;
-        let input_message = create_input_message(reply_to_tag, response_packet);
+        // let response_packet = response.to_bytes()?;
+        let input_message = create_input_message(&send_to, response_packet);
         self.mixnet_client
             .send(input_message)
             .await

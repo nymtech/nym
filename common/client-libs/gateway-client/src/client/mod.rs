@@ -204,14 +204,14 @@ impl<C, St> GatewayClient<C, St> {
             "Attemting to establish connection to gateway at: {}",
             self.gateway_address
         );
-        let (ws_stream, _) = connect_async(&self.gateway_address).await?;
+        let (ws_stream, _) = connect_async(
+            &self.gateway_address,
+            #[cfg(unix)]
+            self.connection_fd_callback.clone(),
+        )
+        .await?;
 
         self.connection = SocketState::Available(Box::new(ws_stream));
-
-        #[cfg(unix)]
-        if let (Some(callback), Some(fd)) = (self.connection_fd_callback.as_ref(), self.ws_fd()) {
-            callback.as_ref()(fd);
-        }
 
         Ok(())
     }

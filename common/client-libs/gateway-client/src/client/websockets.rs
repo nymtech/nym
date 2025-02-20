@@ -1,6 +1,11 @@
 use crate::error::GatewayClientError;
 
 use nym_http_api_client::HickoryDnsResolver;
+#[cfg(unix)]
+use std::{
+    os::fd::{AsRawFd, RawFd},
+    sync::Arc,
+};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::handshake::client::Response;
@@ -11,7 +16,10 @@ use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async(
     endpoint: &str,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
+    use tokio::net::TcpSocket;
+
     let resolver = HickoryDnsResolver::default();
     let uri =
         Url::parse(endpoint).map_err(|_| GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
@@ -37,14 +45,41 @@ pub(crate) async fn connect_async(
         }
     };
 
-    let stream = TcpStream::connect(&sock_addrs[..]).await.map_err(|error| {
-        GatewayClientError::NetworkConnectionFailed {
-            address: endpoint.to_owned(),
-            source: error.into(),
+    let mut stream = Err(GatewayClientError::NoEndpointForConnection {
+        address: endpoint.to_owned(),
+    });
+    for sock_addr in sock_addrs {
+        let socket = if sock_addr.is_ipv4() {
+            TcpSocket::new_v4()
+        } else {
+            TcpSocket::new_v6()
         }
-    })?;
+        .map_err(|err| GatewayClientError::NetworkConnectionFailed {
+            address: endpoint.to_owned(),
+            source: err.into(),
+        })?;
 
-    tokio_tungstenite::client_async_tls(endpoint, stream)
+        #[cfg(unix)]
+        if let Some(callback) = connection_fd_callback.as_ref() {
+            callback.as_ref()(socket.as_raw_fd());
+        }
+
+        match socket.connect(sock_addr).await {
+            Ok(s) => {
+                stream = Ok(s);
+                break;
+            }
+            Err(err) => {
+                stream = Err(GatewayClientError::NetworkConnectionFailed {
+                    address: endpoint.to_owned(),
+                    source: err.into(),
+                });
+                continue;
+            }
+        }
+    }
+
+    tokio_tungstenite::client_async_tls(endpoint, stream?)
         .await
         .map_err(|error| GatewayClientError::NetworkConnectionFailed {
             address: endpoint.to_owned(),

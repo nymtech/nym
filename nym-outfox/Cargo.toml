@@ -14,7 +14,7 @@ rayon = { workspace = true }
 blake3 = { workspace = true }
 zeroize = { workspace = true }
 chacha20 = { workspace = true, features = ["std"] }
-curve25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
 chacha20poly1305 = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 thiserror = { workspace = true }

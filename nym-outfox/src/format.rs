@@ -54,17 +54,6 @@
 //! routing data for the layer, and the remaining Header; separately the master key is used to lion encrypt
 //! the payload. The process is repeated for each layer (from last to first) to construct the full message.
 
-use chacha20poly1305::AeadInPlace;
-use chacha20poly1305::ChaCha20Poly1305;
-use chacha20poly1305::KeyInit;
-
-use chacha20poly1305::Tag;
-use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
-
-use std::ops::Range;
-
 use crate::constants::groupelementbytes;
 use crate::constants::tagbytes;
 use crate::constants::DEFAULT_HOPS;
@@ -75,6 +64,11 @@ use crate::constants::ROUTING_INFORMATION_LENGTH_BY_STAGE;
 use crate::constants::TAGBYTES;
 use crate::error::OutfoxError;
 use crate::lion::*;
+use chacha20poly1305::AeadInPlace;
+use chacha20poly1305::ChaCha20Poly1305;
+use chacha20poly1305::KeyInit;
+use chacha20poly1305::Tag;
+use std::ops::Range;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
 /// of the routing information at each hop, the number of hops, and the payload length.
@@ -218,13 +212,11 @@ impl MixStageParameters {
     pub fn encode_mix_layer(
         &self,
         buffer: &mut [u8],
-        user_secret_key: &[u8],
-        node_pub_key: &[u8],
+        user_secret_key: &x25519_dalek::StaticSecret,
+        mix_public_key: x25519_dalek::PublicKey,
         destination: &[u8; 32],
-    ) -> Result<MontgomeryPoint, OutfoxError> {
+    ) -> Result<x25519_dalek::SharedSecret, OutfoxError> {
         let routing_data = destination;
-        let mix_public_key = MontgomeryPoint(node_pub_key.try_into()?);
-        let user_secret_key = Scalar::from_bytes_mod_order(user_secret_key.try_into()?);
 
         if buffer.len() != self.incoming_packet_length() {
             return Err(OutfoxError::LenMismatch {
@@ -240,14 +232,14 @@ impl MixStageParameters {
             });
         }
 
-        let user_public_key = (ED25519_BASEPOINT_TABLE * &user_secret_key).to_montgomery();
-        let shared_key = user_secret_key * mix_public_key;
+        let user_public_key = x25519_dalek::PublicKey::from(user_secret_key);
+        let shared_key = user_secret_key.diffie_hellman(&mix_public_key);
 
         // Copy rounting data into buffer
         buffer[self.routing_data_range()].copy_from_slice(routing_data);
 
         // Perform the AEAD
-        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
+        let header_aead_key = ChaCha20Poly1305::new_from_slice(shared_key.as_bytes())?;
         let nonce = [0u8; 12];
 
         let tag = header_aead_key
@@ -258,10 +250,10 @@ impl MixStageParameters {
         buffer[self.tag_range()].copy_from_slice(&tag[..]);
 
         // Copy own public key into buffer
-        buffer[self.pub_element_range()].copy_from_slice(&user_public_key.0[..]);
+        buffer[self.pub_element_range()].copy_from_slice(user_public_key.as_bytes());
 
         // Do a round of LION on the payload
-        lion_transform_encrypt(&mut buffer[self.payload_range()], &shared_key.0)?;
+        lion_transform_encrypt(&mut buffer[self.payload_range()], shared_key.as_bytes())?;
 
         Ok(shared_key)
     }
@@ -269,12 +261,9 @@ impl MixStageParameters {
     pub fn decode_mix_layer(
         &self,
         buffer: &mut [u8],
-        mix_secret_key: &[u8],
+        mix_secret_key: &x25519_dalek::StaticSecret,
     ) -> Result<Vec<u8>, OutfoxError> {
         // Check the length of the incoming buffer is correct.
-
-        let mix_secret_key = Scalar::from_bytes_mod_order(mix_secret_key.try_into()?);
-
         if buffer.len() != self.incoming_packet_length() {
             return Err(OutfoxError::LenMismatch {
                 expected: buffer.len(),
@@ -283,11 +272,12 @@ impl MixStageParameters {
         }
 
         // Derive the shared key for this packet
-        let user_public_key = MontgomeryPoint(buffer[self.pub_element_range()].try_into()?);
-        let shared_key = mix_secret_key * user_public_key;
+        let user_public_key_bytes: [u8; 32] = buffer[self.pub_element_range()].try_into()?;
+        let user_public_key = x25519_dalek::PublicKey::from(user_public_key_bytes);
+        let shared_key = mix_secret_key.diffie_hellman(&user_public_key);
 
         // Compute the AEAD and check the Tag, if wrong return Err
-        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
+        let header_aead_key = ChaCha20Poly1305::new_from_slice(shared_key.as_bytes())?;
         let nonce = [0; 12];
 
         let tag_bytes = buffer[self.tag_range()].to_vec();
@@ -304,7 +294,7 @@ impl MixStageParameters {
 
         let routing_data = buffer[self.routing_data_range()].to_vec();
         // Do a round of LION on the payload
-        lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.0)?;
+        lion_transform_decrypt(&mut buffer[self.payload_range()], shared_key.as_bytes())?;
 
         Ok(routing_data)
     }

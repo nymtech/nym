@@ -9,8 +9,6 @@ mod tests {
         repeat_with(|| fastrand::u8(..)).take(n).collect()
     }
 
-    use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
-    use curve25519_dalek::scalar::Scalar;
     use nym_outfox::packet::OutfoxPacket;
     use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
     use sphinx_packet::crypto::{PrivateKey, PublicKey};
@@ -36,11 +34,9 @@ mod tests {
             payload_length_bytes: 1024, // 1kb
         };
 
-        let user_secret = randombytes(32);
-        let mix_secret = randombytes(32);
-        let mix_secret_scalar =
-            Scalar::from_bytes_mod_order(mix_secret.clone().try_into().unwrap());
-        let mix_public_key = (ED25519_BASEPOINT_TABLE * &mix_secret_scalar).to_montgomery();
+        let user_secret = x25519_dalek::StaticSecret::random();
+        let mix_secret = x25519_dalek::StaticSecret::random();
+        let mix_public_key = x25519_dalek::PublicKey::from(&mix_secret);
 
         let routing = [0; 32];
         let destination = [0; 32];
@@ -58,7 +54,7 @@ mod tests {
             .encode_mix_layer(
                 &mut new_buffer[..],
                 &user_secret,
-                node.pub_key.as_bytes(),
+                node.pub_key,
                 &destination,
             )
             .unwrap();

@@ -290,6 +290,16 @@ enum DynamicConnectResponse {
     Failure(DynamicConnectFailureReason),
 }
 
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum DynamicConnectFailureReason {
+    #[error("requested nym-address is already in use")]
+    RequestedNymAddressAlreadyInUse,
+    #[error("no available ip address")]
+    NoAvailableIp,
+    #[error("{0}")]
+    Other(String),
+}
+
 impl From<VersionedResponse> for v7::response::IpPacketResponse {
     fn from(response: VersionedResponse) -> Self {
         match response.response {
@@ -297,13 +307,20 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::StaticConnect(
                     v7::response::StaticConnectResponse {
-                        request_id: response.request_id,
-                        reply_to: response.reply_to.into_nym_address(),
-                        reply: inner.into(),
+                        request_id: response.request_id.unwrap(),
+                        reply_to: response.reply_to.into_nym_address().unwrap(),
+                        reply: match inner {
+                            StaticConnectResponse::Success => {
+                                v7::response::StaticConnectResponseReply::Success
+                            }
+                            StaticConnectResponse::Failure(err) => {
+                                v7::response::StaticConnectResponseReply::Failure(err.into())
+                            }
+                        },
                     },
                 ),
             },
-            Response2::DynamicConnect(inner) => {
+            Response2::DynamicConnect(_) => {
                 todo!();
             }
             Response2::Disconnect => todo!(),
@@ -315,149 +332,141 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
     }
 }
 
-impl From<StaticConnectResponse> for nym_ip_packet_requests::v7::response::StaticConnectResponse {
-    fn from(response: StaticConnectResponse) -> Self {
-        match response {
-            StaticConnectResponse::Success => {
-                nym_ip_packet_requests::v7::response::StaticConnectResponse {
-                    request_id: todo!(),
-                    reply_to: todo!(),
-                    reply:
-                        nym_ip_packet_requests::v7::response::StaticConnectResponseReply::Success,
-                }
+impl From<StaticConnectFailureReason> for v7::response::StaticConnectFailureReason {
+    fn from(reason: StaticConnectFailureReason) -> Self {
+        match reason {
+            StaticConnectFailureReason::RequestedIpAlreadyInUse => {
+                v7::response::StaticConnectFailureReason::RequestedIpAlreadyInUse
             }
-            StaticConnectResponse::Failure => {
-                nym_ip_packet_requests::v7::response::StaticConnectResponse {
-                    request_id: todo!(),
-                    reply_to: todo!(),
-                    reply:
-                        nym_ip_packet_requests::v7::response::StaticConnectResponseReply::Failure(
-                            todo!(),
-                        ),
-                }
+            StaticConnectFailureReason::RequestedNymAddressAlreadyInUse => {
+                v7::response::StaticConnectFailureReason::RequestedNymAddressAlreadyInUse
+            }
+            StaticConnectFailureReason::OutOfDateTimestamp => {
+                v7::response::StaticConnectFailureReason::OutOfDateTimestamp
+            }
+            StaticConnectFailureReason::Other(err) => {
+                v7::response::StaticConnectFailureReason::Other(err)
             }
         }
     }
 }
 
-impl From<Response2> for nym_ip_packet_requests::v8::response::IpPacketResponse {}
-
-#[derive(Debug, Clone)]
-enum Response {
-    V7(v7::response::IpPacketResponse),
-    V8(v8::response::IpPacketResponse),
-}
-
-impl Response {
-    fn recipient(&self) -> Option<&Recipient> {
-        match self {
-            Response::V7(response) => response.recipient(),
-            Response::V8(response) => response.recipient(),
-        }
-    }
-
-    fn new_static_connect_success(
-        request_id: u64,
-        reply_to: Recipient,
-        client_version: SupportedClientVersion,
-    ) -> Self {
-        match client_version {
-            SupportedClientVersion::V7 => Response::V7(
-                v7::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
-            ),
-            SupportedClientVersion::V8 => Response::V8(
-                v8::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
-            ),
-        }
-    }
-
-    fn new_static_connect_failure(
-        request_id: u64,
-        reply_to: Recipient,
-        reason: StaticConnectFailureReason,
-        client_version: SupportedClientVersion,
-    ) -> Self {
-        match client_version {
-            SupportedClientVersion::V7 => {
-                Response::V7(v7::response::IpPacketResponse::new_static_connect_failure(
-                    request_id, reply_to, reason,
-                ))
-            }
-            SupportedClientVersion::V8 => {
-                Response::V8(v8::response::IpPacketResponse::new_static_connect_failure(
-                    request_id, reply_to, reason,
-                ))
-            }
-        }
-    }
-
-    fn new_dynamic_connect_success(
-        request_id: u64,
-        reply_to: Recipient,
-        ips: IpPair,
-        client_version: SupportedClientVersion,
-    ) -> Self {
-        match client_version {
-            SupportedClientVersion::V7 => {
-                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_success(
-                    request_id, reply_to, ips,
-                ))
-            }
-            SupportedClientVersion::V8 => {
-                Response::V8(v8::response::IpPacketResponse::new_dynamic_connect_success(
-                    request_id, reply_to, ips,
-                ))
-            }
-        }
-    }
-
-    fn new_dynamic_connect_failure(
-        request_id: u64,
-        reply_to: Recipient,
-        reason: DynamicConnectFailureReason,
-        client_version: SupportedClientVersion,
-    ) -> Self {
-        match client_version {
-            SupportedClientVersion::V7 => {
-                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_failure(
-                    request_id, reply_to, reason,
-                ))
-            }
-            SupportedClientVersion::V8 => {
-                Response::V8(v8::response::IpPacketResponse::new_dynamic_connect_failure(
-                    request_id, reply_to, reason,
-                ))
-            }
-        }
-    }
-
-    fn new_data_info_response(
-        reply_to: Recipient,
-        reply: InfoResponseReply,
-        level: InfoLevel,
-        client_version: SupportedClientVersion,
-    ) -> Self {
-        match client_version {
-            SupportedClientVersion::V7 => Response::V7(
-                v7::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
-            ),
-            SupportedClientVersion::V8 => Response::V8(
-                v8::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
-            ),
-        }
-    }
-
-    fn to_bytes(&self) -> Result<Vec<u8>> {
-        match self {
-            Response::V7(response) => response.to_bytes(),
-            Response::V8(response) => response.to_bytes(),
-        }
-        .map_err(|err| {
-            log::error!("Failed to serialize response packet");
-            IpPacketRouterError::FailedToSerializeResponsePacket { source: err }
-        })
-    }
-}
+//#[derive(Debug, Clone)]
+//enum Response {
+//    V7(v7::response::IpPacketResponse),
+//    V8(v8::response::IpPacketResponse),
+//}
+//
+//impl Response {
+//    fn recipient(&self) -> Option<&Recipient> {
+//        match self {
+//            Response::V7(response) => response.recipient(),
+//            Response::V8(response) => response.recipient(),
+//        }
+//    }
+//
+//    fn new_static_connect_success(
+//        request_id: u64,
+//        reply_to: Recipient,
+//        client_version: SupportedClientVersion,
+//    ) -> Self {
+//        match client_version {
+//            SupportedClientVersion::V7 => Response::V7(
+//                v7::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
+//            ),
+//            SupportedClientVersion::V8 => Response::V8(
+//                v8::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
+//            ),
+//        }
+//    }
+//
+//    fn new_static_connect_failure(
+//        request_id: u64,
+//        reply_to: Recipient,
+//        reason: StaticConnectFailureReason,
+//        client_version: SupportedClientVersion,
+//    ) -> Self {
+//        match client_version {
+//            SupportedClientVersion::V7 => {
+//                Response::V7(v7::response::IpPacketResponse::new_static_connect_failure(
+//                    request_id, reply_to, reason,
+//                ))
+//            }
+//            SupportedClientVersion::V8 => {
+//                Response::V8(v8::response::IpPacketResponse::new_static_connect_failure(
+//                    request_id, reply_to, reason,
+//                ))
+//            }
+//        }
+//    }
+//
+//    fn new_dynamic_connect_success(
+//        request_id: u64,
+//        reply_to: Recipient,
+//        ips: IpPair,
+//        client_version: SupportedClientVersion,
+//    ) -> Self {
+//        match client_version {
+//            SupportedClientVersion::V7 => {
+//                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_success(
+//                    request_id, reply_to, ips,
+//                ))
+//            }
+//            SupportedClientVersion::V8 => {
+//                Response::V8(v8::response::IpPacketResponse::new_dynamic_connect_success(
+//                    request_id, reply_to, ips,
+//                ))
+//            }
+//        }
+//    }
+//
+//    fn new_dynamic_connect_failure(
+//        request_id: u64,
+//        reply_to: Recipient,
+//        reason: DynamicConnectFailureReason,
+//        client_version: SupportedClientVersion,
+//    ) -> Self {
+//        match client_version {
+//            SupportedClientVersion::V7 => {
+//                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_failure(
+//                    request_id, reply_to, reason,
+//                ))
+//            }
+//            SupportedClientVersion::V8 => {
+//                Response::V8(v8::response::IpPacketResponse::new_dynamic_connect_failure(
+//                    request_id, reply_to, reason,
+//                ))
+//            }
+//        }
+//    }
+//
+//    fn new_data_info_response(
+//        reply_to: Recipient,
+//        reply: InfoResponseReply,
+//        level: InfoLevel,
+//        client_version: SupportedClientVersion,
+//    ) -> Self {
+//        match client_version {
+//            SupportedClientVersion::V7 => Response::V7(
+//                v7::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
+//            ),
+//            SupportedClientVersion::V8 => Response::V8(
+//                v8::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
+//            ),
+//        }
+//    }
+//
+//    fn to_bytes(&self) -> Result<Vec<u8>> {
+//        match self {
+//            Response::V7(response) => response.to_bytes(),
+//            Response::V8(response) => response.to_bytes(),
+//        }
+//        .map_err(|err| {
+//            log::error!("Failed to serialize response packet");
+//            IpPacketRouterError::FailedToSerializeResponsePacket { source: err }
+//        })
+//    }
+//}
 
 #[cfg(not(target_os = "linux"))]
 type TunDevice = crate::non_linux_dummy::DummyDevice;
@@ -612,21 +621,24 @@ impl MixnetListener {
 
     async fn on_dynamic_connect_request(
         &mut self,
-        connect_request: DynamicConnectRequest,
+        connect_request: DynamicConnectRequest2,
         client_version: SupportedClientVersion,
-        sender_tag: Option<AnonymousSenderTag>,
     ) -> PacketHandleResult {
-        log::info!(
-            "Received dynamic connect request from {sender_address}",
-            sender_address = connect_request.reply_to
-        );
-        sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
+        //log::info!(
+        //    "Received dynamic connect request from {sender_address}",
+        //    sender_address = connect_request.reply_to
+        //);
+        //sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
 
         let request_id = connect_request.request_id;
-        let reply_to = connect_request.reply_to;
+        // let reply_to = connect_request.reply_to;
         // TODO: add to connect request
-        let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
+        // let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
         // TODO: ignoring reply_to_avg_mix_delays for now
+        let buffer_timeout = connect_request
+            .buffer_timeout
+            .map(|timeout| Duration::from_millis(timeout))
+            .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
         // Check if it's the same client connecting again, then we just reuse the same IP
         // TODO: this is problematic. Until we sign connect requests this means you can spam people
@@ -808,9 +820,7 @@ impl MixnetListener {
             .verify()
             .inspect_err(|err| log::error!("Failed to verify request signature: {err}"))?;
 
-        let request = IpPacketRequest2::from(request)
-            // WIP(JON): replace this with including it in the deserialization step
-            .with_maybe_sender_tag(reconstructed.sender_tag);
+        let request = IpPacketRequest2::from(request);
 
         match request.data {
             IpPacketRequestData2::StaticConnect(connect_request) => Ok(vec![
@@ -818,7 +828,7 @@ impl MixnetListener {
                     .await,
             ]),
             IpPacketRequestData2::DynamicConnect(connect_request) => Ok(vec![
-                self.on_dynamic_connect_request(connect_request, version, reconstructed.sender_tag)
+                self.on_dynamic_connect_request(connect_request, version)
                     .await,
             ]),
             IpPacketRequestData2::Disconnect(disconnect_request) => Ok(vec![

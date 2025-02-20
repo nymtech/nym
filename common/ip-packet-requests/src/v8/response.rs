@@ -11,75 +11,75 @@ pub struct IpPacketResponse {
 }
 
 impl IpPacketResponse {
-    pub fn new_static_connect_success(request_id: u64) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
-                request_id,
-                reply: StaticConnectResponseReply::Success,
-            }),
-        }
-    }
-
-    pub fn new_static_connect_failure(request_id: u64, reason: StaticConnectFailureReason) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
-                request_id,
-                reply: StaticConnectResponseReply::Failure(reason),
-            }),
-        }
-    }
-
-    pub fn new_dynamic_connect_success(request_id: u64, ips: IpPair) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
-                request_id,
-                reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ips }),
-            }),
-        }
-    }
-
-    pub fn new_dynamic_connect_failure(
-        request_id: u64,
-        reason: DynamicConnectFailureReason,
-    ) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
-                request_id,
-                reply: DynamicConnectResponseReply::Failure(reason),
-            }),
-        }
-    }
-
-    pub fn new_disconnect_success(request_id: u64) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::Disconnect(DisconnectResponse {
-                request_id,
-                reply: DisconnectResponseReply::Success,
-            }),
-        }
-    }
-
-    pub fn new_disconnect_failure(request_id: u64, reason: DisconnectFailureReason) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::Disconnect(DisconnectResponse {
-                request_id,
-                reply: DisconnectResponseReply::Failure(reason),
-            }),
-        }
-    }
-
-    pub fn new_unrequested_disconnect(reason: UnrequestedDisconnectReason) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::UnrequestedDisconnect(UnrequestedDisconnect { reason }),
-        }
-    }
+    //pub fn new_static_connect_success(request_id: u64) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
+    //            request_id,
+    //            reply: StaticConnectResponseReply::Success,
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_static_connect_failure(request_id: u64, reason: StaticConnectFailureReason) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
+    //            request_id,
+    //            reply: StaticConnectResponseReply::Failure(reason),
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_dynamic_connect_success(request_id: u64, ips: IpPair) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
+    //            request_id,
+    //            reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ips }),
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_dynamic_connect_failure(
+    //    request_id: u64,
+    //    reason: DynamicConnectFailureReason,
+    //) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
+    //            request_id,
+    //            reply: DynamicConnectResponseReply::Failure(reason),
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_disconnect_success(request_id: u64) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::Disconnect(DisconnectResponse {
+    //            request_id,
+    //            reply: DisconnectResponseReply::Success,
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_disconnect_failure(request_id: u64, reason: DisconnectFailureReason) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::Disconnect(DisconnectResponse {
+    //            request_id,
+    //            reply: DisconnectResponseReply::Failure(reason),
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_unrequested_disconnect(reason: UnrequestedDisconnectReason) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::UnrequestedDisconnect(UnrequestedDisconnect { reason }),
+    //    }
+    //}
 
     pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
         Self {
@@ -88,54 +88,54 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn new_version_mismatch(request_id: u64, request_version: u8, our_version: u8) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::Info(InfoResponse {
-                request_id,
-                reply: InfoResponseReply::VersionMismatch {
-                    request_version,
-                    response_version: our_version,
-                },
-                level: InfoLevel::Error,
-            }),
-        }
-    }
-
-    pub fn new_data_info_response(reply: InfoResponseReply, level: InfoLevel) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::Info(InfoResponse {
-                request_id: 0,
-                reply,
-                level,
-            }),
-        }
-    }
-
-    pub fn new_pong(request_id: u64) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::Pong(PongResponse { request_id }),
-        }
-    }
-
-    pub fn new_health_response(
-        request_id: u64,
-        build_info: nym_bin_common::build_information::BinaryBuildInformationOwned,
-        routable: Option<bool>,
-    ) -> Self {
-        Self {
-            version: VERSION,
-            data: IpPacketResponseData::Health(HealthResponse {
-                request_id,
-                reply: HealthResponseReply {
-                    build_info,
-                    routable,
-                },
-            }),
-        }
-    }
+    //pub fn new_version_mismatch(request_id: u64, request_version: u8, our_version: u8) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::Info(InfoResponse {
+    //            request_id,
+    //            reply: InfoResponseReply::VersionMismatch {
+    //                request_version,
+    //                response_version: our_version,
+    //            },
+    //            level: InfoLevel::Error,
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_data_info_response(reply: InfoResponseReply, level: InfoLevel) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::Info(InfoResponse {
+    //            request_id: 0,
+    //            reply,
+    //            level,
+    //        }),
+    //    }
+    //}
+    //
+    //pub fn new_pong(request_id: u64) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::Pong(PongResponse { request_id }),
+    //    }
+    //}
+    //
+    //pub fn new_health_response(
+    //    request_id: u64,
+    //    build_info: nym_bin_common::build_information::BinaryBuildInformationOwned,
+    //    routable: Option<bool>,
+    //) -> Self {
+    //    Self {
+    //        version: VERSION,
+    //        data: IpPacketResponseData::Health(HealthResponse {
+    //            request_id,
+    //            reply: HealthResponseReply {
+    //                build_info,
+    //                routable,
+    //            },
+    //        }),
+    //    }
+    //}
 
     pub fn id(&self) -> Option<u64> {
         match &self.data {
@@ -272,8 +272,8 @@ pub struct DynamicConnectSuccess {
 
 #[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
 pub enum DynamicConnectFailureReason {
-    #[error("requested nym-address is already in use")]
-    RequestedNymAddressAlreadyInUse,
+    #[error("client is already connected")]
+    ClientAlreadyConnected,
     #[error("no available ip address")]
     NoAvailableIp,
     #[error("{0}")]
@@ -294,8 +294,8 @@ pub enum DisconnectResponseReply {
 
 #[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
 pub enum DisconnectFailureReason {
-    #[error("requested nym-address is not currently connected")]
-    RequestedNymAddressNotConnected,
+    #[error("client is not connected")]
+    ClientNotConnected,
     #[error("{0}")]
     Other(String),
 }

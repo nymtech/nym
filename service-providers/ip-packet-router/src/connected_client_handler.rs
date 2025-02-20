@@ -17,7 +17,7 @@ use tokio::{
 use crate::{
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
-    messages::{RequestSender, SupportedClientVersion},
+    messages::{ConnectedClientId, SupportedClientVersion},
     util::create_message::create_input_message,
 };
 
@@ -32,7 +32,7 @@ pub(crate) struct ConnectedClientHandler {
     // nym_address: Recipient,
 
     // reply_to_tag: Option<AnonymousSenderTag>,
-    sent_by: RequestSender,
+    sent_by: ConnectedClientId,
 
     // Channel to receive packets from the tun_listener
     forward_from_tun_rx: mpsc::UnboundedReceiver<Vec<u8>>,
@@ -55,7 +55,7 @@ pub(crate) struct ConnectedClientHandler {
 
 impl ConnectedClientHandler {
     pub(crate) fn start(
-        client_id: RequestSender,
+        client_id: ConnectedClientId,
         buffer_timeout: Duration,
         client_version: SupportedClientVersion,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,

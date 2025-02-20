@@ -3,19 +3,7 @@ use futures::StreamExt;
 use nym_ip_packet_requests::v7::response::{
     DynamicConnectFailureReason, InfoLevel, InfoResponseReply, StaticConnectFailureReason,
 };
-use nym_ip_packet_requests::{
-    codec::MultiIpPacketCodec,
-    v6, v7,
-    v8::{
-        self,
-        request::{
-            DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequestData,
-            StaticConnectRequest,
-        },
-        signature::SignedRequest,
-    },
-    IpPair,
-};
+use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v6, v7, v8, IpPair};
 use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
@@ -111,7 +99,8 @@ impl ConnectedClients {
     fn connect(
         &mut self,
         ips: IpPair,
-        nym_address: Recipient,
+        client_id: RequestSender,
+        // nym_address: Recipient,
         forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
         close_tx: tokio::sync::oneshot::Sender<()>,
         handle: tokio::task::JoinHandle<()>,
@@ -119,7 +108,7 @@ impl ConnectedClients {
         // The map of connected clients that the mixnet listener keeps track of. It monitors
         // activity and disconnects clients that have been inactive for too long.
         let client = ConnectedClient {
-            nym_address,
+            client_id,
             ipv6: ips.ipv6,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
             _close_tx: Arc::new(CloseTx {
@@ -230,7 +219,8 @@ pub(crate) struct CloseTx {
 pub(crate) struct ConnectedClient {
     // The nym address of the connected client that we are communicating with on the other side of
     // the mixnet
-    pub(crate) nym_address: Recipient,
+    // pub(crate) nym_address: Recipient,
+    pub(crate) client_id: RequestSender,
 
     // The assigned IPv6 address of this client
     pub(crate) ipv6: Ipv6Addr,
@@ -259,19 +249,113 @@ impl Drop for CloseTx {
     }
 }
 
-type PacketHandleResult = Result<Option<Response>>;
+type PacketHandleResult = Result<Option<VersionedResponse>>;
+
+struct VersionedResponse {
+    version: SupportedClientVersion,
+    response: Response2,
+}
+
+#[derive(Debug, Clone)]
+enum Response2 {
+    StaticConnect {
+        request_id: u64,
+        response: StaticConnectResponse,
+    },
+    DynamicConnect,
+    Disconnect,
+    Data,
+    Pong,
+    Health,
+    Info,
+}
+
+StaticConnectResponse {
+    request_id: u64,
+    response: StaticConnectResponse {
+        Success,
+        Failure,
+    },
+}
+
+#[derive(Debug, Clone)]
+enum StaticConnectResponse {
+    Success,
+    Failure,
+}
+
+impl From<Response2> for nym_ip_packet_requests::v7::response::IpPacketResponseData {
+    fn from(response: Response2) -> Self {
+        match response {
+            Response2::StaticConnect(inner) => {
+                nym_ip_packet_requests::v7::response::IpPacketResponseData::StaticConnect(
+                    inner.into(),
+                )
+            }
+            Response2::DynamicConnect => {
+                todo!();
+                // nym_ip_packet_requests::v7::response::IpPacketResponseData::DynamicConnect(
+                // inner.into(),
+                // )
+            }
+            Response2::Disconnect => {
+                todo!();
+                //nym_ip_packet_requests::v7::response::IpPacketResponseData::Disconnect(inner.into())
+            }
+            Response2::Data => {
+                todo!();
+                // nym_ip_packet_requests::v7::response::IpPacketResponseData::Data(inner.into())
+            }
+            Response2::Ping => {
+                todo!();
+                // nym_ip_packet_requests::v7::response::IpPacketResponseData::Ping(inner.into())
+            }
+            Response2::Health => {
+                todo!();
+                // nym_ip_packet_requests::v7::response::IpPacketResponseData::Health(inner.into())
+            }
+        }
+    }
+}
+
+impl From<StaticConnectResponse> for nym_ip_packet_requests::v7::response::StaticConnectResponse {
+    fn from(response: StaticConnectResponse) -> Self {
+        match response {
+            StaticConnectResponse::Success => {
+                nym_ip_packet_requests::v7::response::StaticConnectResponse {
+                    request_id: todo!(),
+                    reply_to: todo!(),
+                    reply:
+                        nym_ip_packet_requests::v7::response::StaticConnectResponseReply::Success,
+                }
+            }
+            StaticConnectResponse::Failure => {
+                nym_ip_packet_requests::v7::response::StaticConnectResponse {
+                    request_id: todo!(),
+                    reply_to: todo!(),
+                    reply:
+                        nym_ip_packet_requests::v7::response::StaticConnectResponseReply::Failure(
+                            todo!(),
+                        ),
+                }
+            }
+        }
+    }
+}
+
+impl From<Response2> for nym_ip_packet_requests::v8::response::IpPacketResponse {}
 
 #[derive(Debug, Clone)]
 enum Response {
-    V6(v6::response::IpPacketResponse),
     V7(v7::response::IpPacketResponse),
+    V8(v8::response::IpPacketResponse),
 }
 
 impl Response {
     fn recipient(&self) -> Option<&Recipient> {
         match self {
-            Response::V6(response) => response.recipient(),
             Response::V7(response) => response.recipient(),
+            Response::V8(response) => response.recipient(),
         }
     }
 
@@ -281,11 +365,11 @@ impl Response {
         client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            SupportedClientVersion::V6 => Response::V6(
-                v6::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
-            ),
             SupportedClientVersion::V7 => Response::V7(
                 v7::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
+            ),
+            SupportedClientVersion::V8 => Response::V8(
+                v8::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
             ),
         }
     }
@@ -297,15 +381,13 @@ impl Response {
         client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            SupportedClientVersion::V6 => {
-                Response::V6(v6::response::IpPacketResponse::new_static_connect_failure(
-                    request_id,
-                    reply_to,
-                    reason.into(),
-                ))
-            }
             SupportedClientVersion::V7 => {
                 Response::V7(v7::response::IpPacketResponse::new_static_connect_failure(
+                    request_id, reply_to, reason,
+                ))
+            }
+            SupportedClientVersion::V8 => {
+                Response::V8(v8::response::IpPacketResponse::new_static_connect_failure(
                     request_id, reply_to, reason,
                 ))
             }
@@ -319,13 +401,13 @@ impl Response {
         client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            SupportedClientVersion::V6 => {
-                Response::V6(v6::response::IpPacketResponse::new_dynamic_connect_success(
+            SupportedClientVersion::V7 => {
+                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_success(
                     request_id, reply_to, ips,
                 ))
             }
-            SupportedClientVersion::V7 => {
-                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_success(
+            SupportedClientVersion::V8 => {
+                Response::V8(v8::response::IpPacketResponse::new_dynamic_connect_success(
                     request_id, reply_to, ips,
                 ))
             }
@@ -339,15 +421,13 @@ impl Response {
         client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            SupportedClientVersion::V6 => {
-                Response::V6(v6::response::IpPacketResponse::new_dynamic_connect_failure(
-                    request_id,
-                    reply_to,
-                    reason.into(),
-                ))
-            }
             SupportedClientVersion::V7 => {
                 Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_failure(
+                    request_id, reply_to, reason,
+                ))
+            }
+            SupportedClientVersion::V8 => {
+                Response::V8(v8::response::IpPacketResponse::new_dynamic_connect_failure(
                     request_id, reply_to, reason,
                 ))
             }
@@ -361,23 +441,19 @@ impl Response {
         client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            SupportedClientVersion::V6 => {
-                Response::V6(v6::response::IpPacketResponse::new_data_info_response(
-                    reply_to,
-                    reply.into(),
-                    level.into(),
-                ))
-            }
             SupportedClientVersion::V7 => Response::V7(
                 v7::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
+            ),
+            SupportedClientVersion::V8 => Response::V8(
+                v8::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
             ),
         }
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>> {
         match self {
-            Response::V6(response) => response.to_bytes(),
             Response::V7(response) => response.to_bytes(),
+            Response::V8(response) => response.to_bytes(),
         }
         .map_err(|err| {
             log::error!("Failed to serialize response packet");
@@ -420,19 +496,20 @@ impl MixnetListener {
     // if it's available. If it's not available, we send a failure response.
     async fn on_static_connect_request(
         &mut self,
-        connect_request: StaticConnectRequest,
-        client_version: SupportedClientVersion,
-        sender_tag: Option<AnonymousSenderTag>,
+        // from: RequestSender,
+        connect_request: StaticConnectRequest2,
+        version: SupportedClientVersion,
+        // sender_tag: Option<AnonymousSenderTag>,
     ) -> PacketHandleResult {
-        log::info!(
-            "Received static connect request from {}",
-            connect_request.signed_by
-        );
-        sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
+        //log::info!(
+        //    "Received static connect request from {}",
+        //    connect_request.signed_by
+        //);
+        //sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
 
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
-        let reply_to = connect_request.signed_by;
+        // let reply_to = connect_request.signed_by;
         let buffer_timeout = connect_request
             .buffer_timeout
             .map(|timeout| Duration::from_millis(timeout))
@@ -442,9 +519,19 @@ impl MixnetListener {
         let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
 
         // Check that the nym address isn't already registered
-        let is_nym_address_taken = self.connected_clients.is_nym_address_connected(&reply_to);
+        let is_sent_by_taken = match connect_request.sent_by {
+            RequestSender::NymAddress(recipient) => {
+                self.connected_clients.is_nym_address_connected(&recipient)
+            }
+            RequestSender::SenderTag(tag) => {
+                // self.connected_client.is_tag_connected(&tag)
+                todo!();
+            }
+        };
 
-        match (is_ip_taken, is_nym_address_taken) {
+        // let is_nym_address_taken = self.connected_clients.is_nym_address_connected(&reply_to);
+
+        match (is_ip_taken, is_sent_by_taken) {
             (true, true) => {
                 log::info!("Connecting an already connected client");
                 if self
@@ -455,11 +542,15 @@ impl MixnetListener {
                 {
                     log::error!("Failed to update activity for client");
                 };
-                Ok(Some(Response::new_static_connect_success(
-                    request_id,
-                    reply_to,
-                    client_version,
-                )))
+                Ok(Some(VersionedResponse {
+                    version,
+                    response: Response2::StaticConnect(StaticConnectResponse::Success),
+                }))
+                //Ok(Some(Response::new_static_connect_success(
+                //    request_id,
+                //    reply_to,
+                //    client_version,
+                //)))
             }
             (false, false) => {
                 log::info!("Connecting a new client");
@@ -467,44 +558,67 @@ impl MixnetListener {
                 // Spawn the ConnectedClientHandler for the new client
                 let (forward_from_tun_tx, close_tx, handle) =
                     connected_client_handler::ConnectedClientHandler::start(
-                        reply_to,
-                        sender_tag,
+                        // reply_to,
+                        // sender_tag,
+                        connect_request.sent_by,
                         buffer_timeout,
-                        client_version,
+                        version,
                         self.mixnet_client.split_sender(),
                     );
 
                 // Register the new client in the set of connected clients
                 self.connected_clients.connect(
                     requested_ips,
-                    reply_to,
+                    // reply_to,
+                    connect_request.sent_by,
                     forward_from_tun_tx,
                     close_tx,
                     handle,
                 );
-                Ok(Some(Response::new_static_connect_success(
-                    request_id,
-                    reply_to,
-                    client_version,
-                )))
+                Ok(Some(VersionedResponse {
+                    version,
+                    response: Response2::StaticConnect {
+                        request_id,
+                        response: StaticConnectResponse::Success,
+                    },
+                }))
+                //Ok(Some(Response::new_static_connect_success(
+                //    request_id,
+                //    reply_to,
+                //    client_version,
+                //)))
             }
             (true, false) => {
                 log::info!("Requested IP is not available");
-                Ok(Some(Response::new_static_connect_failure(
-                    request_id,
-                    reply_to,
-                    StaticConnectFailureReason::RequestedIpAlreadyInUse,
-                    client_version,
-                )))
+                Ok(Some(VersionedResponse {
+                    version,
+                    response: Response2::StaticConnect {
+                        request_id,
+                        response: StaticConnectResponse::Failure,
+                    },
+                }))
+                //Ok(Some(Response::new_static_connect_failure(
+                //    request_id,
+                //    reply_to,
+                //    StaticConnectFailureReason::RequestedIpAlreadyInUse,
+                //    client_version,
+                //)))
             }
             (false, true) => {
                 log::info!("Nym address is already registered");
-                Ok(Some(Response::new_static_connect_failure(
-                    request_id,
-                    reply_to,
-                    StaticConnectFailureReason::RequestedNymAddressAlreadyInUse,
-                    client_version,
-                )))
+                Ok(Some(VersionedResponse {
+                    version,
+                    response: Response2::StaticConnect {
+                        request_id,
+                        response: StaticConnectResponse::Failure,
+                    },
+                }))
+                //Ok(Some(Response::new_static_connect_failure(
+                //    request_id,
+                //    reply_to,
+                //    StaticConnectFailureReason::RequestedNymAddressAlreadyInUse,
+                //    client_version,
+                //)))
             }
         }
     }
@@ -648,7 +762,7 @@ impl MixnetListener {
 
     async fn on_data_request(
         &mut self,
-        data_request: DataRequest,
+        data_request: DataRequest2,
         client_version: SupportedClientVersion,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
@@ -685,7 +799,8 @@ impl MixnetListener {
                 .unwrap_or("missing".to_owned())
         );
 
-        let (request, client_version) = match deserialize_request(&reconstructed) {
+        // First deserialize the request
+        let (request, version) = match deserialize_request(&reconstructed) {
             Err(IpPacketRouterError::InvalidPacketVersion(version)) => {
                 log::debug!("Received packet with invalid version: v{version}");
                 return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
@@ -695,46 +810,37 @@ impl MixnetListener {
 
         log::debug!("Received request: {request}");
 
+        // Verify signature
+        request
+            .verify()
+            .inspect_err(|err| log::error!("Failed to verify request signature: {err}"))?;
+
+        let request = IpPacketRequest2::from(request)
+            // WIP(JON): replace this with including it in the deserialization step
+            .with_maybe_sender_tag(reconstructed.sender_tag);
+
         match request.data {
-            IpPacketRequestData::StaticConnect(signed_connect_request) => {
-                verify_signed_request(&signed_connect_request)?;
-                let connect_request = signed_connect_request.request;
-                Ok(vec![
-                    self.on_static_connect_request(
-                        connect_request,
-                        client_version,
-                        reconstructed.sender_tag,
-                    )
+            IpPacketRequestData2::StaticConnect(connect_request) => Ok(vec![
+                self.on_static_connect_request(connect_request, version)
                     .await,
-                ])
-            }
-            IpPacketRequestData::DynamicConnect(signed_connect_request) => {
-                verify_signed_request(&signed_connect_request)?;
-                let connect_request = signed_connect_request.request;
-                Ok(vec![
-                    self.on_dynamic_connect_request(
-                        connect_request,
-                        client_version,
-                        reconstructed.sender_tag,
-                    )
+            ]),
+            IpPacketRequestData2::DynamicConnect(connect_request) => Ok(vec![
+                self.on_dynamic_connect_request(connect_request, version, reconstructed.sender_tag)
                     .await,
-                ])
+            ]),
+            IpPacketRequestData2::Disconnect(disconnect_request) => Ok(vec![
+                // self.on_disconnect_request(disconnect_request, client_version)
+                todo!();
+            ]),
+            IpPacketRequestData2::Data(data_request) => {
+                todo!();
+                // self.on_data_request(data_request, client_version).await
             }
-            IpPacketRequestData::Disconnect(signed_disconnect_request) => {
-                verify_signed_request(&signed_disconnect_request)?;
-                let disconnect_request = signed_disconnect_request.request;
-                Ok(vec![
-                    self.on_disconnect_request(disconnect_request, client_version)
-                ])
-            }
-            IpPacketRequestData::Data(data_request) => {
-                self.on_data_request(data_request, client_version).await
-            }
-            IpPacketRequestData::Ping(_) => {
+            IpPacketRequestData2::Ping(_) => {
                 log::info!("Received ping request: not implemented, dropping");
                 Ok(vec![])
             }
-            IpPacketRequestData::Health(_) => {
+            IpPacketRequestData2::Health(_) => {
                 log::info!("Received health request: not implemented, dropping");
                 Ok(vec![])
             }
@@ -761,11 +867,11 @@ impl MixnetListener {
 
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
-    async fn handle_response(
-        &self,
-        response: Response,
-        reply_to_tag: AnonymousSenderTag,
-    ) -> Result<()> {
+    async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
+        // Convert from VersionedResponse to Response
+        // let request_id = todo!();
+        let reply_to = todo!();
+
         let response_packet = response.to_bytes()?;
         let input_message = create_input_message(reply_to_tag, response_packet);
         self.mixnet_client
@@ -776,15 +882,11 @@ impl MixnetListener {
 
     // A single incoming request can trigger multiple responses, such as when data requests contain
     // multiple IP packets.
-    async fn handle_responses(
-        &self,
-        responses: Vec<PacketHandleResult>,
-        reply_to_tag: AnonymousSenderTag,
-    ) {
+    async fn handle_responses(&self, responses: Vec<PacketHandleResult>) {
         for response in responses {
             match response {
                 Ok(Some(response)) => {
-                    if let Err(err) = self.handle_response(response, reply_to_tag).await {
+                    if let Err(err) = self.handle_response(response).await {
                         log::error!("Mixnet listener failed to handle response: {err}");
                     }
                 }
@@ -812,12 +914,8 @@ impl MixnetListener {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
-                        let Some(sender_tag) = msg.sender_tag else {
-                            log::info!("Received message without sender tag, dropping");
-                            continue;
-                        };
                         match self.on_reconstructed_message(msg).await {
-                            Ok(responses) => self.handle_responses(responses, sender_tag).await,
+                            Ok(responses) => self.handle_responses(responses).await,
                             Err(err) => {
                                 log::error!("Error handling reconstructed mixnet message: {err}");
                             }
@@ -867,6 +965,167 @@ fn deserialize_request(
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub(crate) struct IpPacketRequest2 {
+    pub version: u8,
+    pub data: IpPacketRequestData2,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum IpPacketRequestData2 {
+    StaticConnect(StaticConnectRequest2),
+    DynamicConnect(DynamicConnectRequest2),
+    Disconnect(DisconnectRequest2),
+    Data(DataRequest2),
+    Ping(PingRequest2),
+    Health(HealthRequest2),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct StaticConnectRequest2 {
+    request_id: u64,
+    sent_by: RequestSender,
+    ips: IpPair,
+    buffer_timeout: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct DynamicConnectRequest2 {
+    request_id: u64,
+    sent_by: RequestSender,
+    buffer_timeout: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct DisconnectRequest2 {
+    request_id: u64,
+    sent_by: RequestSender,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct DataRequest2 {
+    ip_packets: bytes::Bytes,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PingRequest2 {
+    request_id: u64,
+    sent_by: RequestSender,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct HealthRequest2 {
+    request_id: u64,
+    sent_by: RequestSender,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum RequestSender {
+    NymAddress(Recipient),
+    SenderTag(AnonymousSenderTag),
+}
+
+impl fmt::Display for RequestSender {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RequestSender::NymAddress(nym_address) => write!(f, "{nym_address}"),
+            RequestSender::SenderTag(tag) => write!(f, "{tag}"),
+        }
+    }
+}
+
+impl From<v7::request::IpPacketRequest> for IpPacketRequest2 {
+    fn from(request: v7::request::IpPacketRequest) -> Self {
+        Self {
+            version: 7,
+            request_id: request.id(),
+            sent_by: None,
+            data: match request.data {
+                v7::request::IpPacketRequestData::StaticConnect(request) => {
+                    IpPacketRequestData2::StaticConnect(StaticConnectRequest2 {
+                        ips: request.ips,
+                        buffer_timeout: request.buffer_timeout,
+                    })
+                }
+                v7::request::IpPacketRequestData::DynamicConnect(_) => {
+                    IpPacketRequestData2::DynamicConnect(DynamicConnectRequest2 {
+                        buffer_timeout: request.buffer_timeout,
+                    })
+                }
+                v7::request::IpPacketRequestData::Disconnect(_) => {
+                    IpPacketRequestData2::Disconnect(DisconnectRequest2 {})
+                }
+                v7::request::IpPacketRequestData::Data(request) => {
+                    IpPacketRequestData2::Data(DataRequest2 {
+                        ip_packets: request.ip_packets,
+                    })
+                }
+                v7::request::IpPacketRequestData::Ping(_) => {
+                    IpPacketRequestData2::Ping(PingRequest2 {})
+                }
+                v7::request::IpPacketRequestData::Health(_) => {
+                    IpPacketRequestData2::Health(HealthRequest2 {})
+                }
+            },
+        }
+    }
+}
+
+impl From<v8::request::IpPacketRequest> for IpPacketRequest2 {
+    fn from(request: v8::request::IpPacketRequest) -> Self {
+        Self {
+            version: 8,
+            request_id: request.id(),
+            sent_by: None,
+            data: match request.data {
+                v8::request::IpPacketRequestData::StaticConnect(request) => {
+                    IpPacketRequestData2::StaticConnect(StaticConnectRequest2 {
+                        ips: request.ips,
+                        buffer_timeout: request.buffer_timeout,
+                    })
+                }
+                v8::request::IpPacketRequestData::DynamicConnect(_) => {
+                    IpPacketRequestData2::DynamicConnect(DynamicConnectRequest2 {
+                        buffer_timeout: request.buffer_timeout,
+                    })
+                }
+                v8::request::IpPacketRequestData::Disconnect(_) => {
+                    IpPacketRequestData2::Disconnect(DisconnectRequest2 {})
+                }
+                v8::request::IpPacketRequestData::Data(request) => {
+                    IpPacketRequestData2::Data(DataRequest2 {
+                        ip_packets: request.ip_packets,
+                    })
+                }
+                v8::request::IpPacketRequestData::Ping(_) => {
+                    IpPacketRequestData2::Ping(PingRequest2 {})
+                }
+                v8::request::IpPacketRequestData::Health(_) => {
+                    IpPacketRequestData2::Health(HealthRequest2 {})
+                }
+            },
+        }
+    }
+}
+
+impl From<IpPacketRequest> for IpPacketRequest2 {
+    fn from(request: IpPacketRequest) -> Self {
+        match request {
+            IpPacketRequest::V7(request) => request.into(),
+            IpPacketRequest::V8(request) => request.into(),
+        }
+    }
+}
+
+impl IpPacketRequest2 {
+    fn with_maybe_sender_tag(mut self, sender_tag: Option<AnonymousSenderTag>) -> Self {
+        if let Some(sender_tag) = sender_tag {
+            self.sent_by = Some(RequestSender::SenderTag(sender_tag));
+        }
+        self
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum IpPacketRequest {
     V7(v7::request::IpPacketRequest),
     V8(v8::request::IpPacketRequest),
@@ -878,6 +1137,14 @@ impl IpPacketRequest {
             IpPacketRequest::V7(_) => 7,
             IpPacketRequest::V8(_) => 8,
         }
+    }
+
+    pub(crate) fn verify(&self) -> Result<()> {
+        match self {
+            IpPacketRequest::V7(request) => request.verify(),
+            IpPacketRequest::V8(request) => request.verify(),
+        }
+        .map_err(|err| IpPacketRouterError::FailedToVerifyRequest { source: err })
     }
 }
 
@@ -918,11 +1185,11 @@ impl SupportedClientVersion {
     }
 }
 
-fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
-    request
-        .verify()
-        .map_err(|err| IpPacketRouterError::FailedToVerifyRequest { source: err })
-}
+//fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
+//    request
+//        .verify()
+//        .map_err(|err| IpPacketRouterError::FailedToVerifyRequest { source: err })
+//}
 
 pub(crate) enum ConnectedClientEvent {
     Disconnect(DisconnectEvent),

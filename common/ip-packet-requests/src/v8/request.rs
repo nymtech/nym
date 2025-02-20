@@ -4,12 +4,9 @@ use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{make_bincode_serializer, IpPair};
+use crate::{make_bincode_serializer, IpPair, SignatureError, SignedRequest};
 
-use super::{
-    signature::{SignatureError, SignedRequest},
-    VERSION,
-};
+use super::VERSION;
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -159,6 +156,17 @@ impl IpPacketRequest {
         }
     }
 
+    pub fn verify(&self) -> Result<(), SignatureError> {
+        match &self.data {
+            IpPacketRequestData::StaticConnect(request) => request.verify(),
+            IpPacketRequestData::DynamicConnect(request) => request.verify(),
+            IpPacketRequestData::Disconnect(request) => request.verify(),
+            IpPacketRequestData::Data(_) => Ok(()),
+            IpPacketRequestData::Ping(_) => Ok(()),
+            IpPacketRequestData::Health(_) => Ok(()),
+        }
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().serialize(self)
@@ -168,6 +176,7 @@ impl IpPacketRequest {
         message: &nym_sphinx::receiver::ReconstructedMessage,
     ) -> Result<Self, bincode::Error> {
         use bincode::Options;
+        // WIP(JON): here add the sender_tag, that is mandatory
         make_bincode_serializer().deserialize(&message.message)
     }
 }
@@ -279,7 +288,7 @@ impl SignedRequest for SignedStaticConnectRequest {
         self.request.timestamp
     }
 
-    fn signed_by(&self) -> &ed25519::PublicKey {
+    fn identity(&self) -> &ed25519::PublicKey {
         &self.request.signed_by
     }
 
@@ -335,7 +344,7 @@ impl SignedRequest for SignedDynamicConnectRequest {
         self.request.timestamp
     }
 
-    fn signed_by(&self) -> &ed25519::PublicKey {
+    fn identity(&self) -> &ed25519::PublicKey {
         &self.request.signed_by
     }
 
@@ -383,7 +392,7 @@ impl SignedRequest for SignedDisconnectRequest {
         self.request.timestamp
     }
 
-    fn signed_by(&self) -> &ed25519::PublicKey {
+    fn identity(&self) -> &ed25519::PublicKey {
         &self.request.signed_by
     }
 

@@ -5,12 +5,9 @@ use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{make_bincode_serializer, IpPair};
+use crate::{make_bincode_serializer, IpPair, SignatureError, SignedRequest};
 
-use super::{
-    signature::{SignatureError, SignedRequest},
-    VERSION,
-};
+use super::VERSION;
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -164,6 +161,17 @@ impl IpPacketRequest {
             IpPacketRequestData::Data(_) => None,
             IpPacketRequestData::Ping(request) => Some(&request.reply_to),
             IpPacketRequestData::Health(request) => Some(&request.reply_to),
+        }
+    }
+
+    pub fn verify(&self) -> Result<(), SignatureError> {
+        match &self.data {
+            IpPacketRequestData::StaticConnect(request) => request.verify(),
+            IpPacketRequestData::DynamicConnect(request) => request.verify(),
+            IpPacketRequestData::Disconnect(request) => request.verify(),
+            IpPacketRequestData::Data(_) => Ok(()),
+            IpPacketRequestData::Ping(_) => Ok(()),
+            IpPacketRequestData::Health(_) => Ok(()),
         }
     }
 

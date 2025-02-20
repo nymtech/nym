@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
 use nym_id::NymIdError;
-use nym_ip_packet_requests::v8::signature::SignatureError;
+use nym_ip_packet_requests::SignatureError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {

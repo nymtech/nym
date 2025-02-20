@@ -1,0 +1,50 @@
+
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import {Accordion, AccordionItem} from "@nextui-org/react";
+import { MyTab } from 'components/generic-tabs.tsx';
+
+# Advanced Server Administration
+
+This page is for experienced operators and aspiring sys-admins who seek for higher optimisation and better efficiency of their work managing Nym infrastructure.
+
+<VarInfo />
+
+## Virtualising a Dedicated Server
+
+Some operators or squads of operators orchestrate multiple Nym nodes. Among other benefits (which are out of scope of this page), these operators can decide to acquire one larger dedicated (or bare-metal) server with enough specs (CPU, RAM, storage, bandwidth and port speed) to meet [minimum requirements](../../nodes#minimum-requirements) for multiple nodes run in parallel.
+
+This guide explains how to prepare your server in order to be able to host multiple nodes running on separated VMs.
+
+<Callout type="info">
+This guide is based on Ubuntu 22.04, in case you prefer another OS, you may have to do a bit of your own research to troubleshoot networking configuration and other parameters.
+</Callout>
+
+### Installing KVM on a Server with Ubuntu 22.04
+
+**KVM** stands for **Kernel-based Virtual Machine**. It is a virtualization technology for Linux that allows a user to run multiple virtual machines (VMs) on a single physical machine. KVM turns the Linux kernel into a hypervisor, enabling it to manage multiple virtualized systems.
+
+Follow the steps below to install KVM on Ubuntu 22.04 LTS:
+
+#### Prerequsities
+
+<Callout type="warning">
+Operators aiming to run Nym node as [Exit Gateway](../../community-counsel/exit-gateway) or with enabled wireguard should faimliarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
+
+This step is essential part of legal self defense because it may prevent your provider immediately shutting down your entire service (with all the VMs on it) when receiving first abuse report.
+</Callout>
+
+Start with obtaining a server with Ubuntu 22.04 LTS:
+- Make sure that your server meets [minimum requirements](../../nodes#minimum-requirements) multiplied by number of `nym-node` instance you aim to run on it.
+- Oder enough IPv4 and IPv6 (static and public) addresses to have one of each for each planned VM plus one extra for the main machine.
+- Most people rent a server from a provider and it comes with a pre-installed OS (in this guide we use Ubuntu 22.04). In case your choice is a bare-metal machine, you probably know what you are doing, there are some useful guides to install a new OS, like [this one on ostechnix.com](https://ostechnix.com/install-ubuntu-server/).
+
+<Steps>
+###### 1.
+
+
+
+
+</Steps>

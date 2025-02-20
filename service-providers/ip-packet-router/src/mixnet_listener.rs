@@ -263,7 +263,7 @@ enum Response2 {
     Data,
     Pong,
     Health,
-    Info,
+    Info(InfoResponse),
 }
 
 #[derive(Debug, Clone)]
@@ -347,6 +347,74 @@ impl From<StaticConnectFailureReason> for v7::response::StaticConnectFailureReas
             StaticConnectFailureReason::Other(err) => {
                 v7::response::StaticConnectFailureReason::Other(err)
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct InfoResponse {
+    pub request_id: u64,
+    pub reply: InfoResponseReply,
+    pub level: InfoLevel,
+}
+
+impl From<InfoResponse> for v7::response::InfoResponse {
+    fn from(response: InfoResponse) -> Self {
+        v7::response::InfoResponse {
+            request_id: response.request_id,
+            reply_to: response.reply_to.into_nym_address().unwrap(),
+            reply: response.reply.into(),
+            level: response.level.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum InfoResponseReply {
+    #[error("{msg}")]
+    Generic { msg: String },
+    #[error(
+        "version mismatch: response is v{request_version} and response is v{response_version}"
+    )]
+    VersionMismatch {
+        request_version: u8,
+        response_version: u8,
+    },
+    #[error("destination failed exit policy filter check: {dst}")]
+    ExitPolicyFilterCheckFailed { dst: String },
+}
+
+impl From<InfoResponseReply> for v7::response::InfoResponseReply {
+    fn from(reply: InfoResponseReply) -> Self {
+        match reply {
+            InfoResponseReply::Generic { msg } => v7::response::InfoResponseReply::Generic { msg },
+            InfoResponseReply::VersionMismatch {
+                request_version,
+                response_version,
+            } => v7::response::InfoResponseReply::VersionMismatch {
+                request_version,
+                response_version,
+            },
+            InfoResponseReply::ExitPolicyFilterCheckFailed { dst } => {
+                v7::response::InfoResponseReply::ExitPolicyFilterCheckFailed { dst }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum InfoLevel {
+    Info,
+    Warn,
+    Error,
+}
+
+impl From<InfoLevel> for v7::response::InfoLevel {
+    fn from(level: InfoLevel) -> Self {
+        match level {
+            InfoLevel::Info => v7::response::InfoLevel::Info,
+            InfoLevel::Warn => v7::response::InfoLevel::Warn,
+            InfoLevel::Error => v7::response::InfoLevel::Error,
         }
     }
 }

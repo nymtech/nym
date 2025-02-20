@@ -11,10 +11,10 @@ pub(crate) fn create_input_message(
     let packet_type = None;
     match recipient {
         RequestSender::NymAddress(recipient) => {
-            InputMessage::new_regular(recipient, response_packet, lane, packet_type)
+            InputMessage::new_regular(*recipient, response_packet, lane, packet_type)
         }
-        RequestSender::AnonymousSenderTag(tag) => {
-            InputMessage::new_reply(tag, response_packet, lane, packet_type)
+        RequestSender::SenderTag(tag) => {
+            InputMessage::new_reply(*tag, response_packet, lane, packet_type)
         }
     }
 }

@@ -236,8 +236,8 @@ impl StaticConnectResponseReply {
 pub enum StaticConnectFailureReason {
     #[error("requested ip address is already in use")]
     RequestedIpAlreadyInUse,
-    #[error("requested nym-address is already in use")]
-    RequestedNymAddressAlreadyInUse,
+    #[error("client is already connected")]
+    ClientAlreadyConnected,
     #[error("request timestamp is out of date")]
     OutOfDateTimestamp,
     #[error("{0}")]

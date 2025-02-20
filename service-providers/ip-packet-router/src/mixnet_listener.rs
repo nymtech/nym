@@ -62,17 +62,17 @@ impl ConnectedClients {
         }
     }
 
-    fn is_nym_address_connected(&self, nym_address: &Recipient) -> bool {
+    fn is_client_connected(&self, client_id: &RequestSender) -> bool {
         self.clients_ipv4_mapping
             .values()
-            .any(|client| client.nym_address == *nym_address)
+            .any(|client| client.client_id == *client_id)
     }
 
-    fn lookup_ip_from_nym_address(&self, nym_address: &Recipient) -> Option<IpPair> {
+    fn lookup_ip_from_client_id(&self, client_id: &RequestSender) -> Option<IpPair> {
         self.clients_ipv4_mapping
             .iter()
             .find_map(|(ipv4, connected_client)| {
-                if connected_client.nym_address == *nym_address {
+                if connected_client.client_id == *client_id {
                     Some(IpPair::new(*ipv4, connected_client.ipv6))
                 } else {
                     None
@@ -80,17 +80,10 @@ impl ConnectedClients {
             })
     }
 
-    #[allow(dead_code)]
-    fn lookup_client_from_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
+    fn lookup_client(&self, client_id: &RequestSender) -> Option<&ConnectedClient> {
         self.clients_ipv4_mapping
-            .iter()
-            .find_map(|(_, connected_client)| {
-                if connected_client.nym_address == *nym_address {
-                    Some(connected_client)
-                } else {
-                    None
-                }
-            })
+            .values()
+            .find(|connected_client| connected_client.client_id == *client_id)
     }
 
     fn connect(
@@ -108,8 +101,8 @@ impl ConnectedClients {
             client_id,
             ipv6: ips.ipv6,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
-            _close_tx: Arc::new(CloseTx {
-                nym_address,
+            close_tx: Arc::new(CloseTx {
+                client_id,
                 inner: Some(close_tx),
             }),
             handle: Arc::new(handle),
@@ -140,14 +133,14 @@ impl ConnectedClients {
     }
 
     // Identify connected client handlers that have stopped without being told to stop
-    fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, Recipient)> {
+    fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, RequestSender)> {
         self.clients_ipv4_mapping
             .iter_mut()
             .filter_map(|(ip, connected_client)| {
                 if connected_client.handle.is_finished() {
                     Some((
                         IpPair::new(*ip, connected_client.ipv6),
-                        connected_client.nym_address,
+                        connected_client.client_id,
                     ))
                 } else {
                     None
@@ -156,7 +149,7 @@ impl ConnectedClients {
             .collect()
     }
 
-    async fn get_inactive_clients(&mut self) -> Vec<(IpPair, Recipient)> {
+    async fn get_inactive_clients(&mut self) -> Vec<(IpPair, RequestSender)> {
         let now = std::time::Instant::now();
         let mut ret = vec![];
         for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
@@ -165,14 +158,17 @@ impl ConnectedClients {
             {
                 ret.push((
                     IpPair::new(*ip, connected_client.ipv6),
-                    connected_client.nym_address,
+                    connected_client.client_id,
                 ))
             }
         }
         ret
     }
 
-    fn disconnect_stopped_client_handlers(&mut self, stopped_clients: Vec<(IpPair, Recipient)>) {
+    fn disconnect_stopped_client_handlers(
+        &mut self,
+        stopped_clients: Vec<(IpPair, RequestSender)>,
+    ) {
         for (ips, _) in &stopped_clients {
             log::info!("Disconnect stopped client: {ips}");
             self.clients_ipv4_mapping.remove(&ips.ipv4);
@@ -186,7 +182,7 @@ impl ConnectedClients {
         }
     }
 
-    fn disconnect_inactive_clients(&mut self, inactive_clients: Vec<(IpPair, Recipient)>) {
+    fn disconnect_inactive_clients(&mut self, inactive_clients: Vec<(IpPair, RequestSender)>) {
         for (ips, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ips}");
             self.clients_ipv4_mapping.remove(&ips.ipv4);
@@ -206,7 +202,8 @@ impl ConnectedClients {
 }
 
 pub(crate) struct CloseTx {
-    pub(crate) nym_address: Recipient,
+    // pub(crate) nym_address: Recipient,
+    pub(crate) client_id: RequestSender,
     // Send to connected clients listener to stop. This is option only because we need to take
     // ownership of it when the client is dropped.
     pub(crate) inner: Option<tokio::sync::oneshot::Sender<()>>,
@@ -225,7 +222,7 @@ pub(crate) struct ConnectedClient {
     // Keep track of last activity so we can disconnect inactive clients
     pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
 
-    pub(crate) _close_tx: Arc<CloseTx>,
+    pub(crate) close_tx: Arc<CloseTx>,
 
     // Handle for the connected client handler
     pub(crate) handle: Arc<tokio::task::JoinHandle<()>>,
@@ -239,7 +236,7 @@ impl ConnectedClient {
 
 impl Drop for CloseTx {
     fn drop(&mut self) {
-        log::debug!("signal to close client: {}", self.nym_address);
+        log::debug!("signal to close client: {}", self.client_id);
         if let Some(close_tx) = self.inner.take() {
             close_tx.send(()).ok();
         }
@@ -276,8 +273,8 @@ enum StaticConnectResponse {
 enum StaticConnectFailureReason {
     #[error("requested ip address is already in use")]
     RequestedIpAlreadyInUse,
-    #[error("requested nym-address is already in use")]
-    RequestedNymAddressAlreadyInUse,
+    #[error("client already connected")]
+    ClientAlreadyConnected,
     #[error("request timestamp is out of date")]
     OutOfDateTimestamp,
     #[error("{0}")]
@@ -292,8 +289,8 @@ enum DynamicConnectResponse {
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum DynamicConnectFailureReason {
-    #[error("requested nym-address is already in use")]
-    RequestedNymAddressAlreadyInUse,
+    #[error("client already connected")]
+    ClientAlreadyConnected,
     #[error("no available ip address")]
     NoAvailableIp,
     #[error("{0}")]
@@ -384,7 +381,7 @@ impl From<StaticConnectFailureReason> for v7::response::StaticConnectFailureReas
             StaticConnectFailureReason::RequestedIpAlreadyInUse => {
                 v7::response::StaticConnectFailureReason::RequestedIpAlreadyInUse
             }
-            StaticConnectFailureReason::RequestedNymAddressAlreadyInUse => {
+            StaticConnectFailureReason::ClientAlreadyConnected => {
                 v7::response::StaticConnectFailureReason::RequestedNymAddressAlreadyInUse
             }
             StaticConnectFailureReason::OutOfDateTimestamp => {
@@ -403,8 +400,8 @@ impl From<StaticConnectFailureReason> for v8::response::StaticConnectFailureReas
             StaticConnectFailureReason::RequestedIpAlreadyInUse => {
                 v8::response::StaticConnectFailureReason::RequestedIpAlreadyInUse
             }
-            StaticConnectFailureReason::RequestedNymAddressAlreadyInUse => {
-                v8::response::StaticConnectFailureReason::RequestedNymAddressAlreadyInUse
+            StaticConnectFailureReason::ClientAlreadyConnected => {
+                v8::response::StaticConnectFailureReason::ClientAlreadyConnected
             }
             StaticConnectFailureReason::OutOfDateTimestamp => {
                 v8::response::StaticConnectFailureReason::OutOfDateTimestamp
@@ -674,20 +671,12 @@ impl MixnetListener {
         // Check that the IP is available in the set of connected clients
         let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
 
-        // Check that the nym address isn't already registered
-        let is_sent_by_taken = match connect_request.sent_by {
-            RequestSender::NymAddress(recipient) => {
-                self.connected_clients.is_nym_address_connected(&recipient)
-            }
-            RequestSender::SenderTag(tag) => {
-                // self.connected_client.is_tag_connected(&tag)
-                todo!();
-            }
-        };
+        // Check that the client_id address isn't already registered
+        let is_client_id_taken = self
+            .connected_clients
+            .is_client_connected(&connect_request.sent_by);
 
-        // let is_nym_address_taken = self.connected_clients.is_nym_address_connected(&reply_to);
-
-        let response = match (is_ip_taken, is_sent_by_taken) {
+        let response = match (is_ip_taken, is_client_id_taken) {
             (true, true) => {
                 log::info!("Connecting an already connected client");
                 if self
@@ -750,7 +739,7 @@ impl MixnetListener {
             (false, true) => {
                 log::info!("Nym address is already registered");
                 Response2::StaticConnect(StaticConnectResponse::Failure(
-                    StaticConnectFailureReason::RequestedNymAddressAlreadyInUse,
+                    StaticConnectFailureReason::ClientAlreadyConnected,
                 ))
                 //Ok(Some(Response::new_static_connect_failure(
                 //    request_id,
@@ -772,7 +761,7 @@ impl MixnetListener {
     async fn on_dynamic_connect_request(
         &mut self,
         connect_request: DynamicConnectRequest2,
-        client_version: SupportedClientVersion,
+        version: SupportedClientVersion,
     ) -> PacketHandleResult {
         //log::info!(
         //    "Received dynamic connect request from {sender_address}",
@@ -781,66 +770,54 @@ impl MixnetListener {
         //sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
 
         let request_id = connect_request.request_id;
-        // let reply_to = connect_request.reply_to;
-        // TODO: add to connect request
-        // let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
+        let reply_to = connect_request.sent_by;
         // TODO: ignoring reply_to_avg_mix_delays for now
         let buffer_timeout = connect_request
             .buffer_timeout
             .map(|timeout| Duration::from_millis(timeout))
             .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
-        // Check if it's the same client connecting again, then we just reuse the same IP
-        // TODO: this is problematic. Until we sign connect requests this means you can spam people
-        // with return traffic
-
-        if let Some(existing_ips) = self.connected_clients.lookup_ip_from_nym_address(&reply_to) {
-            log::info!("Found existing client for nym address");
-            if self
-                .connected_clients
-                .update_activity(&existing_ips)
-                .await
-                .is_err()
-            {
-                log::error!("Failed to update activity for client");
-            }
-            return Ok(Some(Response::new_dynamic_connect_success(
-                request_id,
+        if self.connected_clients.is_client_connected(&reply_to) {
+            return Ok(Some(VersionedResponse {
+                version,
+                request_id: Some(request_id),
                 reply_to,
-                existing_ips,
-                client_version,
-            )));
+                response: Response2::DynamicConnect(DynamicConnectResponse::Failure(
+                    DynamicConnectFailureReason::ClientAlreadyConnected,
+                )),
+            }));
         }
 
         let Some(new_ips) = self.connected_clients.find_new_ip() else {
             log::info!("No available IP address");
-            return Ok(Some(Response::new_dynamic_connect_failure(
-                request_id,
+            return Ok(Some(VersionedResponse {
+                version,
+                request_id: Some(request_id),
                 reply_to,
-                DynamicConnectFailureReason::NoAvailableIp,
-                client_version,
-            )));
+                response: Response2::DynamicConnect(DynamicConnectResponse::Failure(
+                    DynamicConnectFailureReason::NoAvailableIp,
+                )),
+            }));
         };
 
         // Spawn the ConnectedClientHandler for the new client
         let (forward_from_tun_tx, close_tx, handle) =
             connected_client_handler::ConnectedClientHandler::start(
                 reply_to,
-                sender_tag,
                 buffer_timeout,
-                client_version,
+                version,
                 self.mixnet_client.split_sender(),
             );
 
         // Register the new client in the set of connected clients
         self.connected_clients
             .connect(new_ips, reply_to, forward_from_tun_tx, close_tx, handle);
-        Ok(Some(Response::new_dynamic_connect_success(
-            request_id,
+        Ok(Some(VersionedResponse {
+            version,
+            request_id: Some(request_id),
             reply_to,
-            new_ips,
-            client_version,
-        )))
+            response: Response2::DynamicConnect(DynamicConnectResponse::Success),
+        }))
     }
 
     fn on_disconnect_request(
@@ -855,7 +832,7 @@ impl MixnetListener {
     async fn handle_packet(
         &mut self,
         ip_packet: &Bytes,
-        client_version: SupportedClientVersion,
+        version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::trace!("Received data request");
 
@@ -894,9 +871,9 @@ impl MixnetListener {
             } else {
                 log::info!("Denied filter check: {dst}");
                 Ok(Some(VersionedResponse {
-                    version: client_version,
+                    version,
                     request_id: None,
-                    reply_to: connected_client.nym_address,
+                    reply_to: connected_client.client_id,
                     response: Response2::Info(InfoResponse {
                         request_id: None,
                         reply: InfoResponseReply::ExitPolicyFilterCheckFailed {

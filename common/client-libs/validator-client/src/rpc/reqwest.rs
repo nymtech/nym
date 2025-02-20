@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use base64::Engine;
 use cosmrs::tendermint;
 use cosmrs::tendermint::{block::Height, evidence::Evidence, Hash};
+use nym_http_api_client::{ApiClient, Client, NO_PARAMS};
 use reqwest::header::HeaderMap;
 use reqwest::{header, RequestBuilder};
 use tendermint_rpc::dialect::{v0_34, v0_37, v0_38, LatestDialect};
@@ -44,17 +45,21 @@ macro_rules! perform_with_compat {
 
 pub struct ReqwestRpcClient {
     compat: CompatMode,
-    inner: reqwest::Client,
-    url: Url,
+    inner: Client,
+    endpoint: Vec<String>,
+    auth: Option<String>,
 }
 
 impl ReqwestRpcClient {
     pub fn new(url: Url) -> Self {
+        let endpoint = url.path().split("/").map(Into::into).collect();
+        let auth = extract_authorization(&url);
         ReqwestRpcClient {
             // after updating to nyxd 0.42 and thus updating to cometbft, the compat mode changed
             compat: CompatMode::V0_37,
-            inner: reqwest::Client::new(),
-            url,
+            inner: Client::new(url, None),
+            endpoint,
+            auth,
         }
     }
 
@@ -75,13 +80,13 @@ impl ReqwestRpcClient {
                 .parse()
                 .unwrap(),
         );
-        if let Some(auth) = extract_authorization(&self.url) {
+        if let Some(ref auth) = self.auth {
             headers.insert(header::AUTHORIZATION, auth.parse().unwrap());
         }
 
+        let path_segments: Vec<_> = self.endpoint.iter().map(String::as_str).collect();
         self.inner
-            .post(self.url.clone())
-            .body(request.into_json().into_bytes())
+            .create_post_request(&path_segments, NO_PARAMS, &request)
             .headers(headers)
     }
 

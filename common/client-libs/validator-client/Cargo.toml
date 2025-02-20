@@ -87,7 +87,7 @@ name = "offline_signing"
 required-features = ["http-client"]
 
 [features]
-default = ["http-client"]
+default = []
 http-client = ["cosmrs/rpc"]
 generate-ts = []
 contract-testing = ["nym-mixnet-contract-common/contract-testing"]

@@ -22,7 +22,7 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
 
   if (isLoading) {
     return (
-      <ExplorerCard label="">
+      <ExplorerCard label="Total NYM">
         <Stack gap={1}>
           <Skeleton variant="text" height={38} />
           <Skeleton variant="rectangular" height={128} width={128} />
@@ -34,7 +34,7 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
 
   if (isError || !data) {
     return (
-      <ExplorerCard label="">
+      <ExplorerCard label="Total NYM">
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
           Failed to account data.
         </Typography>
@@ -44,14 +44,14 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
   }
 
   const balance =
-    data.balances.length > 0 ? Number(data.balances[0].amount) / 1000000 : 0;
-  const balanceFormated = `${balance} NYM`;
+    data.balances.length > 0 ? Number(data.total_value.amount) / 1000000 : 0;
+  const balanceFormated = `${balance.toFixed(4)} NYM`;
 
   return (
     <ExplorerCard
-      label=""
+      label="Total NYM"
       title={balanceFormated}
-      sx={{ height: "100%", pt: 0 }}
+      sx={{ height: "100%" }}
     >
       <Stack gap={5}>
         <Box display={"flex"} justifyContent={"flex-start"}>

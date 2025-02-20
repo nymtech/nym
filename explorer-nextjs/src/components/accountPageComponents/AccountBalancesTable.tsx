@@ -97,7 +97,7 @@ const Row = (props: IAccontStatsRowProps) => {
             }}
           >
             <Typography variant="body4" sx={{ color: "pine.950" }}>
-              {amount} NYM
+              {amount.toFixed(4)} NYM
             </Typography>
           </TableCell>
           <TableCell
@@ -161,7 +161,7 @@ const Row = (props: IAccontStatsRowProps) => {
               width: "45%",
             }}
           >
-            <Typography>{amount} NYM</Typography>
+            <Typography>{amount.toFixed(4)} NYM</Typography>
             <Typography>$ {value}</Typography>
           </TableCell>
 
@@ -219,7 +219,7 @@ const Row = (props: IAccontStatsRowProps) => {
               }}
             >
               <Typography variant="body4" sx={{ color: "pine.950" }}>
-                {historyRow.amount} NYM
+                {historyRow.amount.toFixed(4)} NYM
               </Typography>
             </TableCell>
 

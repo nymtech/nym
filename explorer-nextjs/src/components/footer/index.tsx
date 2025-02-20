@@ -14,7 +14,8 @@ import { FooterLinks } from "./footer-links";
 export async function Footer() {
   const locale = "en";
   const footerData = await getFooter(locale);
-  const legalContent1 = footerData?.attributes?.legalContent1 || false;
+  const legalContent1 =
+    "Nym Noise Generating Mixnet Explorer, V 2.1.0 Public Beta release.";
   const legalContent2 = footerData?.attributes?.legalContent2 || false;
   const footerLinkBlocks = footerData?.attributes?.linkBlocks || [];
 
@@ -26,19 +27,9 @@ export async function Footer() {
       title: "nym.com Privacy statement",
       url: "https://nym.com/nym-com-privacy-statement",
     },
-    { id: 3, title: "NymVPN Terms of use", url: "https://nym.com/vpn-terms" },
+    { id: 3, title: "Nym Docs", url: "https://nym.com/docs" },
     {
       id: 4,
-      title: "NymVPN referrals Terms",
-      url: "https://nym.com/referrals-terms-and-conditions",
-    },
-    {
-      id: 5,
-      title: "NymVPN apps Privacy statement",
-      url: "https://nym.com/vpn-privacy-statement",
-    },
-    {
-      id: 6,
       title: "Nym Operators and Validators Terms",
       url: "https://nym.com/operators-validators-terms",
     },

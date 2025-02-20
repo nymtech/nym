@@ -66,7 +66,7 @@ export const TokenomicsCard = () => {
   }
 
   const nymPriceData: NymTokenomics = nymPrice;
-  const nymPriceDataFormated = Number(nymPriceData.quotes.USD.price.toFixed(2));
+  const nymPriceDataFormated = Number(nymPriceData.quotes.USD.price.toFixed(4));
 
   const titlePrice = {
     price: nymPriceDataFormated,

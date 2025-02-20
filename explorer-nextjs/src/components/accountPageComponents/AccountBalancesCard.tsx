@@ -137,6 +137,20 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     Number(accountInfo.total_value.amount),
   );
 
+  const operatorRewardsAllocation = getAllocation(
+    Number(accountInfo.operator_rewards?.amount || 0),
+    Number(accountInfo.total_value.amount),
+  );
+
+  const operatorRewardsNYM = getNymsFormated(
+    Number(accountInfo.operator_rewards?.amount || 0),
+  );
+
+  const operatorRewardsUSD = getPriceInUSD(
+    Number(accountInfo.operator_rewards?.amount || 0),
+    nymPriceData,
+  );
+
   const claimableNYM = getNymsFormated(
     Number(accountInfo.claimable_rewards.amount),
   );
@@ -186,10 +200,10 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
       ],
     },
     {
-      type: "Self bonded",
-      allocation: 0,
-      amount: 0,
-      value: 0,
+      type: "Operator Rewards",
+      allocation: operatorRewardsAllocation,
+      amount: operatorRewardsNYM,
+      value: operatorRewardsUSD,
     },
   ];
 

@@ -115,7 +115,7 @@ pub(crate) async fn get_daily_stats(pool: &DbPool, offset: i64) -> anyhow::Resul
             WHERE nym_node_daily_mixing_stats.node_id IS NULL
         )
         GROUP BY date_utc
-        ORDER BY date_utc DESC
+        ORDER BY date_utc ASC
         LIMIT 30
         OFFSET ?
         "#,

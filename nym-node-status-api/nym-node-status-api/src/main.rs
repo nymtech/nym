@@ -10,6 +10,7 @@ mod mixnet_scraper;
 mod monitor;
 mod node_scraper;
 mod testruns;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

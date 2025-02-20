@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use futures_util::TryStreamExt;
 use tracing::error;
 
@@ -121,6 +123,24 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
     .fetch(&mut *conn)
     .try_collect::<Vec<DailyStats>>()
     .await?;
+
+    Ok(items)
+}
+
+pub(crate) async fn get_all_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<i64>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query!(
+        r#"
+            SELECT mix_id
+            FROM mixnodes
+            WHERE bonded = true
+        "#
+    )
+    .fetch_all(&mut *conn)
+    .await?
+    .into_iter()
+    .map(|record| record.mix_id)
+    .collect::<HashSet<_>>();
 
     Ok(items)
 }

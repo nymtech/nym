@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     http::{self, models::SummaryHistory},
-    monitor::NumericalCheckedCast,
+    utils::NumericalCheckedCast,
 };
 use anyhow::Context;
 use nym_contracts_common::Percent;
@@ -16,7 +16,7 @@ use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
 
-pub(crate) struct GatewayRecord {
+pub(crate) struct GatewayInsertRecord {
     pub(crate) identity_key: String,
     pub(crate) bonded: bool,
     pub(crate) self_described: String,

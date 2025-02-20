@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        models::{GatewayDto, GatewayRecord},
+        models::{GatewayDto, GatewayInsertRecord},
         DbPool,
     },
     http::models::Gateway,
@@ -30,7 +30,7 @@ pub(crate) async fn select_gateway_identity(
 
 pub(crate) async fn insert_gateways(
     pool: &DbPool,
-    gateways: Vec<GatewayRecord>,
+    gateways: Vec<GatewayInsertRecord>,
 ) -> anyhow::Result<()> {
     let mut db = pool.acquire().await?;
     for record in gateways {

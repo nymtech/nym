@@ -454,7 +454,7 @@ mod tests {
                 signature: None,
             }),
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 139);
+        assert_eq!(connect.to_bytes().unwrap().len(), 74);
     }
 
     #[test]

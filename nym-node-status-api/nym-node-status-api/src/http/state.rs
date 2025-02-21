@@ -201,16 +201,13 @@ impl HttpCache {
     }
 
     pub async fn get_mixnode_stats(&self, db: &DbPool, offset: usize) -> Vec<DailyStats> {
-        match self.mixstats.get(MIXSTATS_LIST_KEY).await {
+        let mut stats = match self.mixstats.get(MIXSTATS_LIST_KEY).await {
             Some(guard) => {
                 let read_lock = guard.read().await;
-                let mut stats = read_lock.to_vec();
-
-                stats.truncate(MIXNODE_STATS_HISTORY_DAYS + offset);
-                stats.into_iter().skip(offset).collect()
+                read_lock.to_vec()
             }
             None => {
-                let mut new_node_stats = crate::db::queries::get_daily_stats(db, 0)
+                let new_node_stats = crate::db::queries::get_daily_stats(db)
                     .await
                     .unwrap_or_default()
                     .into_iter()
@@ -218,11 +215,12 @@ impl HttpCache {
                     .collect::<Vec<_>>();
                 // cache result without offset
                 self.upsert_mixnode_stats(new_node_stats.clone()).await;
-
-                new_node_stats.truncate(MIXNODE_STATS_HISTORY_DAYS + offset);
-                new_node_stats.into_iter().skip(offset).collect()
+                new_node_stats
             }
-        }
+        };
+
+        stats.truncate(MIXNODE_STATS_HISTORY_DAYS + offset);
+        stats.into_iter().skip(offset).rev().collect()
     }
 
     pub async fn get_summary_history(&self, db: &DbPool) -> Vec<SummaryHistory> {

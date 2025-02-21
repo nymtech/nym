@@ -59,60 +59,48 @@ impl From<(v8::request::IpPacketRequest, AnonymousSenderTag)> for DeserializedIp
     }
 }
 
+impl TryFrom<&ReconstructedMessage> for DeserializedIpPacketRequest {
+    type Error = IpPacketRouterError;
+
+    fn try_from(reconstructed: &ReconstructedMessage) -> std::result::Result<Self, Self::Error> {
+        let request_version = *reconstructed
+            .message
+            .first()
+            .ok_or(IpPacketRouterError::EmptyPacket)?;
+
+        match request_version {
+            7 => v7::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+                .map(Self::from)
+                .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source }),
+            8 => {
+                let sender_tag = reconstructed
+                    .sender_tag
+                    .ok_or(IpPacketRouterError::EmptyPacket)?;
+                v8::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+                    .map(|r| Self::from((r, sender_tag)))
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )
+            }
+            _ => {
+                log::info!("Received packet with invalid version: v{request_version}");
+                Err(IpPacketRouterError::InvalidPacketVersion(request_version))
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum SupportedClientVersion {
+pub(crate) enum ClientVersion {
     V7,
     V8,
 }
 
-impl SupportedClientVersion {
-    pub(crate) fn new(request_version: u8) -> Option<Self> {
-        match request_version {
-            7 => Some(SupportedClientVersion::V7),
-            8 => Some(SupportedClientVersion::V8),
-            _ => None,
-        }
-    }
-
+impl ClientVersion {
     pub(crate) fn into_u8(self) -> u8 {
         match self {
-            SupportedClientVersion::V7 => 7,
-            SupportedClientVersion::V8 => 8,
+            ClientVersion::V7 => 7,
+            ClientVersion::V8 => 8,
         }
     }
-}
-
-pub(crate) fn deserialize_request(
-    reconstructed: &ReconstructedMessage,
-) -> Result<(DeserializedIpPacketRequest, SupportedClientVersion)> {
-    let request_version = *reconstructed
-        .message
-        .first()
-        .ok_or(IpPacketRouterError::EmptyPacket)?;
-
-    // Check version of the request and convert to the latest version if necessary
-    let request = match request_version {
-        7 => v7::request::IpPacketRequest::from_reconstructed_message(reconstructed)
-            .map(DeserializedIpPacketRequest::from)
-            .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source }),
-        8 => {
-            let sender_tag = reconstructed
-                .sender_tag
-                .ok_or(IpPacketRouterError::EmptyPacket)?;
-            v8::request::IpPacketRequest::from_reconstructed_message(reconstructed)
-                .map(|r| DeserializedIpPacketRequest::from((r, sender_tag)))
-                .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source })
-        }
-        _ => {
-            log::info!("Received packet with invalid version: v{request_version}");
-            Err(IpPacketRouterError::InvalidPacketVersion(request_version))
-        }
-    };
-
-    let Some(request_version) = SupportedClientVersion::new(request_version) else {
-        return Err(IpPacketRouterError::InvalidPacketVersion(request_version));
-    };
-
-    // Tag the request with the version of the request
-    request.map(|r| (r, request_version))
 }

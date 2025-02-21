@@ -35,3 +35,15 @@ impl fmt::Display for ConnectedClientId {
         }
     }
 }
+
+impl From<Recipient> for ConnectedClientId {
+    fn from(nym_address: Recipient) -> Self {
+        ConnectedClientId::NymAddress(Box::new(nym_address))
+    }
+}
+
+impl From<AnonymousSenderTag> for ConnectedClientId {
+    fn from(tag: AnonymousSenderTag) -> Self {
+        ConnectedClientId::SenderTag(tag)
+    }
+}

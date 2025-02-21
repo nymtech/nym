@@ -3,29 +3,27 @@
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
-use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v7, v8, IpPair};
+use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v7, v8};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
-use std::time::Duration;
-use std::{collections::HashMap, net::SocketAddr};
-use tokio::io::AsyncWriteExt;
-use tokio::sync::{mpsc, RwLock};
-use tokio::time::interval;
+use std::{net::SocketAddr, time::Duration};
+use tokio::{io::AsyncWriteExt, time::interval};
 use tokio_util::codec::Decoder;
 
-use crate::clients::{ConnectedClientHandler, ConnectedClients};
-use crate::messages::{
-    DataRequest, DisconnectRequest, DynamicConnectFailureReason, DynamicConnectRequest,
-    DynamicConnectResponse, DynamicConnectSuccess, InfoLevel, InfoResponse, InfoResponseReply,
-    IpPacketRequest, IpPacketRequestData, Response, StaticConnectFailureReason,
-    StaticConnectRequest, StaticConnectResponse, SupportedClientVersion, VersionedResponse,
+use crate::{
+    clients::{ConnectedClientHandler, ConnectedClients},
+    messages::{
+        ClientVersion, DataRequest, DeserializedIpPacketRequest, DisconnectRequest,
+        DynamicConnectFailureReason, DynamicConnectRequest, DynamicConnectResponse,
+        DynamicConnectSuccess, InfoLevel, InfoResponse, InfoResponseReply, IpPacketRequest,
+        Response, StaticConnectFailureReason, StaticConnectRequest, StaticConnectResponse,
+        VersionedResponse,
+    },
 };
 use crate::{
     config::Config,
-    constants::{CLIENT_MIXNET_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
+    constants::{DISCONNECT_TIMER_INTERVAL},
     error::{IpPacketRouterError, Result},
     request_filter::{self},
     tun_listener,
@@ -71,13 +69,14 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: StaticConnectRequest,
-        version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {}",
             connect_request.sent_by
         );
 
+        let version = connect_request.version;
+        let sent_by = connect_request.sent_by;
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
         let buffer_timeout = connect_request
@@ -89,9 +88,7 @@ impl MixnetListener {
         let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
 
         // Check that the client_id address isn't already registered
-        let is_client_id_taken = self
-            .connected_clients
-            .is_client_connected(&connect_request.sent_by);
+        let is_client_id_taken = self.connected_clients.is_client_connected(&sent_by);
 
         let response = match (is_ip_taken, is_client_id_taken) {
             (true, true) => {
@@ -111,7 +108,7 @@ impl MixnetListener {
 
                 // Spawn the ConnectedClientHandler for the new client
                 let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
-                    connect_request.sent_by.clone(),
+                    sent_by.clone(),
                     buffer_timeout,
                     version,
                     self.mixnet_client.split_sender(),
@@ -120,7 +117,7 @@ impl MixnetListener {
                 // Register the new client in the set of connected clients
                 self.connected_clients.connect(
                     requested_ips,
-                    connect_request.sent_by.clone(),
+                    sent_by.clone(),
                     forward_from_tun_tx,
                     close_tx,
                     handle,
@@ -144,7 +141,7 @@ impl MixnetListener {
         Ok(Some(VersionedResponse {
             version,
             request_id: Some(request_id),
-            reply_to: connect_request.sent_by,
+            reply_to: sent_by,
             response,
         }))
     }
@@ -152,13 +149,13 @@ impl MixnetListener {
     async fn on_dynamic_connect_request(
         &mut self,
         connect_request: DynamicConnectRequest,
-        version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {}",
             connect_request.sent_by
         );
 
+        let version = connect_request.version;
         let request_id = connect_request.request_id;
         let reply_to = connect_request.sent_by;
         let buffer_timeout = connect_request
@@ -215,11 +212,7 @@ impl MixnetListener {
         }))
     }
 
-    fn on_disconnect_request(
-        &self,
-        _disconnect_request: DisconnectRequest,
-        _client_version: SupportedClientVersion,
-    ) -> PacketHandleResult {
+    fn on_disconnect_request(&self, _disconnect_request: DisconnectRequest) -> PacketHandleResult {
         log::info!("Received disconnect request: not implemented, dropping");
         Ok(None)
     }
@@ -227,7 +220,7 @@ impl MixnetListener {
     async fn handle_packet(
         &mut self,
         ip_packet: &Bytes,
-        version: SupportedClientVersion,
+        version: ClientVersion,
     ) -> PacketHandleResult {
         log::trace!("Received data request");
 
@@ -287,14 +280,13 @@ impl MixnetListener {
     async fn on_data_request(
         &mut self,
         data_request: DataRequest,
-        client_version: SupportedClientVersion,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
         let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
         let mut bytes = BytesMut::new();
         bytes.extend_from_slice(&data_request.ip_packets);
         while let Ok(Some(packet)) = decoder.decode(&mut bytes) {
-            let result = self.handle_packet(&packet, client_version).await;
+            let result = self.handle_packet(&packet, data_request.version).await;
             responses.push(result);
         }
         Ok(responses)
@@ -324,7 +316,7 @@ impl MixnetListener {
         );
 
         // First deserialize the request
-        let (request, version) = match crate::messages::deserialize_request(&reconstructed) {
+        let request = match DeserializedIpPacketRequest::try_from(&reconstructed) {
             Err(IpPacketRouterError::InvalidPacketVersion(version)) => {
                 log::debug!("Received packet with invalid version: v{version}");
                 return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
@@ -339,28 +331,23 @@ impl MixnetListener {
             .verify()
             .inspect_err(|err| log::error!("Failed to verify request signature: {err}"))?;
 
-        let request = IpPacketRequest::from(request);
-
-        match request.data {
-            IpPacketRequestData::StaticConnect(connect_request) => Ok(vec![
-                self.on_static_connect_request(connect_request, version)
-                    .await,
-            ]),
-            IpPacketRequestData::DynamicConnect(connect_request) => Ok(vec![
-                self.on_dynamic_connect_request(connect_request, version)
-                    .await,
-            ]),
-            IpPacketRequestData::Disconnect(disconnect_request) => {
-                Ok(vec![self.on_disconnect_request(disconnect_request, version)])
+        // Convert to the internal representation
+        match IpPacketRequest::from(request) {
+            IpPacketRequest::StaticConnect(connect_request) => {
+                Ok(vec![self.on_static_connect_request(connect_request).await])
             }
-            IpPacketRequestData::Data(data_request) => {
-                self.on_data_request(data_request, version).await
+            IpPacketRequest::DynamicConnect(connect_request) => {
+                Ok(vec![self.on_dynamic_connect_request(connect_request).await])
             }
-            IpPacketRequestData::Ping(_) => {
+            IpPacketRequest::Disconnect(disconnect_request) => {
+                Ok(vec![self.on_disconnect_request(disconnect_request)])
+            }
+            IpPacketRequest::Data(data_request) => self.on_data_request(data_request).await,
+            IpPacketRequest::Ping(_) => {
                 log::info!("Received ping request: not implemented, dropping");
                 Ok(vec![])
             }
-            IpPacketRequestData::Health(_) => {
+            IpPacketRequest::Health(_) => {
                 log::info!("Received health request: not implemented, dropping");
                 Ok(vec![])
             }
@@ -391,8 +378,8 @@ impl MixnetListener {
         let send_to = response.reply_to.clone();
 
         let response_packet = match response.version {
-            SupportedClientVersion::V7 => v7::response::IpPacketResponse::from(response).to_bytes(),
-            SupportedClientVersion::V8 => v8::response::IpPacketResponse::from(response).to_bytes(),
+            ClientVersion::V7 => v7::response::IpPacketResponse::from(response).to_bytes(),
+            ClientVersion::V8 => v8::response::IpPacketResponse::from(response).to_bytes(),
         }
         .map_err(|source| IpPacketRouterError::FailedToSerializeResponsePacket { source })?;
 

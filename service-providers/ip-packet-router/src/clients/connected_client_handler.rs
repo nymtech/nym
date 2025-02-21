@@ -18,7 +18,7 @@ use crate::{
     clients::ConnectedClientId,
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
-    messages::SupportedClientVersion,
+    messages::ClientVersion,
     util::create_message::create_input_message,
 };
 
@@ -51,14 +51,14 @@ pub(crate) struct ConnectedClientHandler {
     encoder: MultiIpPacketCodec,
 
     // The version of the client
-    client_version: SupportedClientVersion,
+    client_version: ClientVersion,
 }
 
 impl ConnectedClientHandler {
     pub(crate) fn start(
         client_id: ConnectedClientId,
         buffer_timeout: Duration,
-        client_version: SupportedClientVersion,
+        client_version: ClientVersion,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     ) -> (
         mpsc::UnboundedSender<Vec<u8>>,
@@ -99,8 +99,8 @@ impl ConnectedClientHandler {
 
     async fn create_ip_packet(&self, packets: Bytes) -> Result<Vec<u8>> {
         match self.client_version {
-            SupportedClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
-            SupportedClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
+            ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
+            ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
     }

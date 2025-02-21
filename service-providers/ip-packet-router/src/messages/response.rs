@@ -6,10 +6,10 @@ use nym_ip_packet_requests::{v7, v8, IpPair};
 
 use crate::clients::ConnectedClientId;
 
-use super::SupportedClientVersion;
+use super::ClientVersion;
 
 pub(crate) struct VersionedResponse {
-    pub(crate) version: SupportedClientVersion,
+    pub(crate) version: ClientVersion,
     pub(crate) request_id: Option<u64>,
     pub(crate) reply_to: ConnectedClientId,
     pub(crate) response: Response,

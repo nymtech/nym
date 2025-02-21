@@ -37,11 +37,10 @@ nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 rand_chacha = { workspace = true }
 
 [features]
-default = ["sphinx"]
+default = []
 aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]
-outfox = ["nym-sphinx-types/outfox"]

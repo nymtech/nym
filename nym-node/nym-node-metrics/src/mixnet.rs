@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
+use std::fmt::Display;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use time::OffsetDateTime;
@@ -52,7 +53,7 @@ impl MixingStats {
         self.ingress.senders.entry(source).or_default().malformed += 1;
     }
 
-    pub fn ingress_received_forward_packet(&self, source: IpAddr) {
+    pub fn ingress_received_forward_packet(&self, source: IpAddr, version: PacketKind) {
         self.ingress
             .forward_hop_packets_received
             .fetch_add(1, Ordering::Relaxed);
@@ -62,9 +63,10 @@ impl MixingStats {
             .or_default()
             .forward_packets
             .received += 1;
+        *self.ingress.received_versions.entry(version).or_default() += 1;
     }
 
-    pub fn ingress_received_final_hop_packet(&self, source: IpAddr) {
+    pub fn ingress_received_final_hop_packet(&self, source: IpAddr, version: PacketKind) {
         self.ingress
             .final_hop_packets_received
             .fetch_add(1, Ordering::Relaxed);
@@ -74,6 +76,7 @@ impl MixingStats {
             .or_default()
             .final_hop_packets
             .received += 1;
+        *self.ingress.received_versions.entry(version).or_default() += 1;
     }
 
     pub fn ingress_excessive_delay_packet(&self) {
@@ -196,8 +199,30 @@ pub struct IngressRecipientStats {
     pub malformed: usize,
 }
 
+#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum PacketKind {
+    #[default]
+    Unknown,
+    Outfox,
+    Sphinx(u16),
+}
+
+impl Display for PacketKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            PacketKind::Unknown => "unknown".fmt(f),
+            PacketKind::Outfox => "outfox".fmt(f),
+            PacketKind::Sphinx(sphinx_version) => {
+                write!(f, "sphinx-{sphinx_version}")
+            }
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct IngressMixingStats {
+    received_versions: DashMap<PacketKind, i64>,
+
     // forward hop packets (i.e. to mixnode)
     forward_hop_packets_received: AtomicUsize,
 
@@ -246,6 +271,10 @@ impl IngressMixingStats {
 
     pub fn senders(&self) -> &DashMap<IpAddr, IngressRecipientStats> {
         &self.senders
+    }
+
+    pub fn packet_versions(&self) -> &DashMap<PacketKind, i64> {
+        &self.received_versions
     }
 
     pub fn remove_stale_sender(&self, sender: IpAddr) {

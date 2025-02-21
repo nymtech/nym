@@ -993,7 +993,7 @@ impl NymNode {
 
         let shared = mixnet::SharedData::new(
             processing_config,
-            self.x25519_sphinx_keys.private_key(),
+            self.x25519_sphinx_keys.clone(),
             mix_packet_sender.clone(),
             final_hop_data,
             self.metrics.clone(),

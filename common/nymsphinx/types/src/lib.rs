@@ -1,14 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::{array::TryFromSliceError, fmt};
+use thiserror::Error;
+
+#[cfg(feature = "outfox")]
+use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
+
+#[cfg(feature = "sphinx")]
+use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
+
 #[cfg(feature = "outfox")]
 pub use nym_outfox::{
     constants::MIN_PACKET_SIZE, constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD,
     error::OutfoxError,
 };
 // re-exporting types and constants available in sphinx
-#[cfg(feature = "outfox")]
-use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
+
 #[cfg(feature = "sphinx")]
 pub use sphinx_packet::{
     constants::{
@@ -21,12 +29,10 @@ pub use sphinx_packet::{
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
-    Error as SphinxError, ProcessedPacket,
+    version::Version,
+    version::UPDATED_LEGACY_VERSION,
+    Error as SphinxError, ProcessedPacket, ProcessedPacketData,
 };
-#[cfg(feature = "sphinx")]
-use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
-use std::{array::TryFromSliceError, fmt};
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum NymPacketError {
@@ -85,8 +91,12 @@ impl NymPacket {
         destination: &Destination,
         delays: &[Delay],
     ) -> Result<NymPacket, NymPacketError> {
+        // FIXME:
+        // for now explicitly use the legacy version until sufficient number of nodes
+        // understand both variants
         Ok(NymPacket::Sphinx(
             SphinxPacketBuilder::new()
+                .with_version(UPDATED_LEGACY_VERSION)
                 .with_payload_size(size)
                 .build_packet(message, route, destination, delays)?,
         ))

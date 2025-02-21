@@ -202,6 +202,18 @@ impl PemStorableKey for PublicKey {
     }
 }
 
+impl From<x25519_dalek::PublicKey> for PublicKey {
+    fn from(public_key: x25519_dalek::PublicKey) -> Self {
+        PublicKey(public_key)
+    }
+}
+
+impl From<PublicKey> for x25519_dalek::PublicKey {
+    fn from(public_key: PublicKey) -> Self {
+        public_key.0
+    }
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
@@ -308,109 +320,15 @@ impl PemStorableKey for PrivateKey {
     }
 }
 
-// compatibility with sphinx keys:
-#[cfg(feature = "sphinx")]
-impl From<PublicKey> for nym_sphinx_types::PublicKey {
-    fn from(key: PublicKey) -> Self {
-        nym_sphinx_types::PublicKey::from(key.to_bytes())
+impl From<x25519_dalek::StaticSecret> for PrivateKey {
+    fn from(secret: x25519_dalek::StaticSecret) -> Self {
+        PrivateKey(secret)
     }
 }
 
-#[cfg(feature = "sphinx")]
-impl<'a> From<&'a PublicKey> for nym_sphinx_types::PublicKey {
-    fn from(key: &'a PublicKey) -> Self {
-        nym_sphinx_types::PublicKey::from((*key).to_bytes())
-    }
-}
-
-#[cfg(feature = "sphinx")]
-impl From<nym_sphinx_types::PublicKey> for PublicKey {
-    fn from(pub_key: nym_sphinx_types::PublicKey) -> Self {
-        Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))
-    }
-}
-
-#[cfg(feature = "sphinx")]
-impl From<PrivateKey> for nym_sphinx_types::PrivateKey {
-    fn from(key: PrivateKey) -> Self {
-        nym_sphinx_types::PrivateKey::from(key.to_bytes())
-    }
-}
-
-#[cfg(feature = "sphinx")]
-impl<'a> From<&'a PrivateKey> for nym_sphinx_types::PrivateKey {
-    fn from(key: &'a PrivateKey) -> Self {
-        nym_sphinx_types::PrivateKey::from(key.to_bytes())
-    }
-}
-
-#[cfg(feature = "sphinx")]
-impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
-    fn from(private_key: nym_sphinx_types::PrivateKey) -> Self {
-        let private_key_bytes = private_key.to_bytes();
-        assert_eq!(private_key_bytes.len(), PRIVATE_KEY_SIZE);
-        Self::from_bytes(&private_key_bytes).unwrap()
-    }
-}
-
-#[cfg(test)]
-mod sphinx_key_conversion {
-    use super::*;
-    use rand_chacha::rand_core::SeedableRng;
-    use rand_chacha::ChaCha20Rng;
-
-    pub(super) fn test_rng() -> ChaCha20Rng {
-        let dummy_seed = [42u8; 32];
-        ChaCha20Rng::from_seed(dummy_seed)
-    }
-
-    const NUM_ITERATIONS: usize = 100;
-
-    #[test]
-    fn works_for_forward_conversion() {
-        let mut rng = test_rng();
-
-        for _ in 0..NUM_ITERATIONS {
-            let keys = KeyPair::new(&mut rng);
-            let private = &keys.private_key;
-            let public = &keys.public_key;
-
-            let dummy_remote = KeyPair::new(&mut rng);
-            let dh1 = private.diffie_hellman(&dummy_remote.public_key);
-
-            let public_bytes = public.to_bytes();
-
-            let sphinx_private: nym_sphinx_types::PrivateKey = private.into();
-            let recovered_private = PrivateKey::from(sphinx_private);
-
-            let dh2 = recovered_private.diffie_hellman(&dummy_remote.public_key);
-
-            let sphinx_public: nym_sphinx_types::PublicKey = public.into();
-            let recovered_public = PublicKey::from(sphinx_public);
-            assert_eq!(public_bytes, recovered_public.to_bytes());
-
-            // even though the byte representation of the private key changed, the resultant DH is the same
-            // which is what matters
-            assert_eq!(dh1, dh2);
-        }
-    }
-
-    #[test]
-    fn works_for_backward_conversion() {
-        for _ in 0..NUM_ITERATIONS {
-            let (sphinx_private, sphinx_public) = nym_sphinx_types::crypto::keygen();
-
-            let private_bytes = sphinx_private.to_bytes();
-            let public_bytes = sphinx_public.as_bytes();
-
-            let private: PrivateKey = sphinx_private.into();
-            let recovered_sphinx_private: nym_sphinx_types::PrivateKey = private.into();
-
-            let public: PublicKey = sphinx_public.into();
-            let recovered_sphinx_public: nym_sphinx_types::PublicKey = public.into();
-            assert_eq!(private_bytes, recovered_sphinx_private.to_bytes());
-            assert_eq!(public_bytes, recovered_sphinx_public.as_bytes());
-        }
+impl AsRef<x25519_dalek::StaticSecret> for PrivateKey {
+    fn as_ref(&self) -> &x25519_dalek::StaticSecret {
+        &self.0
     }
 }
 

@@ -24,23 +24,6 @@ pub struct KeyPairWithEpoch {
     pub(crate) issued_for_epoch: EpochId,
 }
 
-impl From<LegacyCoconutKeyWithEpoch> for KeyPairWithEpoch {
-    fn from(value: LegacyCoconutKeyWithEpoch) -> Self {
-        let (x, ys) = value.secret_key.hazmat_to_raw();
-        let sk = nym_compact_ecash::SecretKeyAuth::create_from_raw(x, ys);
-
-        KeyPairWithEpoch {
-            keys: sk.into(),
-            issued_for_epoch: value.issued_for_epoch,
-        }
-    }
-}
-
-pub struct LegacyCoconutKeyWithEpoch {
-    pub(crate) secret_key: nym_coconut::SecretKey,
-    pub(crate) issued_for_epoch: EpochId,
-}
-
 impl KeyPairWithEpoch {
     pub(crate) fn new(keys: nym_compact_ecash::KeyPairAuth, issued_for_epoch: EpochId) -> Self {
         KeyPairWithEpoch {

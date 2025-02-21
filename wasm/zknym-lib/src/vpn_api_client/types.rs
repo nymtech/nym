@@ -3,26 +3,10 @@
 
 // just copied over from dot com repo
 
-use nym_coconut::BlindSignRequest;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use tsify::Tsify;
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct BandwidthVoucherRequest {
-    /// base58 encoded blind sign request
-    pub blind_sign_request: BlindSignRequest,
-}
-
-#[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
-#[tsify(into_wasm_abi, from_wasm_abi)]
-#[serde(rename_all = "camelCase")]
-pub struct BandwidthVoucherResponse {
-    pub epoch_id: u64,
-    pub shares: Vec<CredentialShare>,
-}
 
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]

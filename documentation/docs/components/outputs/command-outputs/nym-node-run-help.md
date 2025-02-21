@@ -16,8 +16,10 @@ Options:
           If this is a brand new nym-node, specify whether it should only be initialised without actually running the subprocesses [env: NYMNODE_INIT_ONLY=]
       --local
           Flag specifying this node will be running in a local setting [env: NYMNODE_LOCAL=]
-      --mode <MODE>
-          Specifies the current mode of this nym-node [env: NYMNODE_MODE=] [possible values: mixnode, entry-gateway, exit-gateway]
+      --mode [<MODE>...]
+          Specifies the current mode(s) of this nym-node [env: NYMNODE_MODE=] [possible values: mixnode, entry-gateway, exit-gateway, exit-providers-only]
+      --modes <MODES>
+          Specifies the current mode(s) of this nym-node as a single flag [env: NYMNODE_MODES=] [possible values: mixnode, entry-gateway, exit-gateway, exit-providers-only]
   -w, --write-changes
           If this node has been initialised before, specify whether to write any new changes to the config file [env: NYMNODE_WRITE_CONFIG_CHANGES=]
       --bonding-information-output <BONDING_INFORMATION_OUTPUT>
@@ -31,7 +33,7 @@ Options:
       --location <LOCATION>
           Optional **physical** location of this node's server. Either full country name (e.g. 'Poland'), two-letter alpha2 (e.g. 'PL'), three-letter alpha3 (e.g. 'POL') or three-digit numeric-3 (e.g. '616') can be provided [env: NYMNODE_LOCATION=]
       --http-bind-address <HTTP_BIND_ADDRESS>
-          Socket address this node will use for binding its http API. default: `0.0.0.0:8080` [env: NYMNODE_HTTP_BIND_ADDRESS=]
+          Socket address this node will use for binding its http API. default: `[::]:8080` [env: NYMNODE_HTTP_BIND_ADDRESS=]
       --landing-page-assets-path <LANDING_PAGE_ASSETS_PATH>
           Path to assets directory of custom landing page of this node [env: NYMNODE_HTTP_LANDING_ASSETS=]
       --http-access-token <HTTP_ACCESS_TOKEN>
@@ -43,27 +45,29 @@ Options:
       --expose-crypto-hardware <EXPOSE_CRYPTO_HARDWARE>
           Specify whether detailed system crypto hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_CRYPTO_HARDWARE=] [possible values: true, false]
       --mixnet-bind-address <MIXNET_BIND_ADDRESS>
-          Address this node will bind to for listening for mixnet packets default: `0.0.0.0:1789` [env: NYMNODE_MIXNET_BIND_ADDRESS=]
+          Address this node will bind to for listening for mixnet packets default: `[::]:1789` [env: NYMNODE_MIXNET_BIND_ADDRESS=]
       --mixnet-announce-port <MIXNET_ANNOUNCE_PORT>
           If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful when the node is behind a proxy [env: NYMNODE_MIXNET_ANNOUNCE_PORT=]
       --nym-api-urls <NYM_API_URLS>
           Addresses to nym APIs from which the node gets the view of the network [env: NYMNODE_NYM_APIS=]
       --nyxd-urls <NYXD_URLS>
           Addresses to nyxd chain endpoint which the node will use for chain interactions [env: NYMNODE_NYXD=]
+      --enable-console-logging <ENABLE_CONSOLE_LOGGING>
+          Specify whether running statistics of this node should be logged to the console [env: NYMNODE_ENABLE_CONSOLE_LOGGING=] [possible values: true, false]
       --wireguard-enabled <WIREGUARD_ENABLED>
           Specifies whether the wireguard service is enabled on this node [env: NYMNODE_WG_ENABLED=] [possible values: true, false]
       --wireguard-bind-address <WIREGUARD_BIND_ADDRESS>
-          Socket address this node will use for binding its wireguard interface. default: `0.0.0.0:51822` [env: NYMNODE_WG_BIND_ADDRESS=]
+          Socket address this node will use for binding its wireguard interface. default: `[::]:51822` [env: NYMNODE_WG_BIND_ADDRESS=]
       --wireguard-announced-port <WIREGUARD_ANNOUNCED_PORT>
           Port announced to external clients wishing to connect to the wireguard interface. Useful in the instances where the node is behind a proxy [env: NYMNODE_WG_ANNOUNCED_PORT=]
       --wireguard-private-network-prefix <WIREGUARD_PRIVATE_NETWORK_PREFIX>
           The prefix denoting the maximum number of the clients that can be connected via Wireguard. The maximum value for IPv4 is 32 and for IPv6 is 128 [env: NYMNODE_WG_PRIVATE_NETWORK_PREFIX=]
       --verloc-bind-address <VERLOC_BIND_ADDRESS>
-          Socket address this node will use for binding its verloc API. default: `0.0.0.0:1790` [env: NYMNODE_VERLOC_BIND_ADDRESS=]
+          Socket address this node will use for binding its verloc API. default: `[::]:1790` [env: NYMNODE_VERLOC_BIND_ADDRESS=]
       --verloc-announce-port <VERLOC_ANNOUNCE_PORT>
           If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful when the node is behind a proxy [env: NYMNODE_VERLOC_ANNOUNCE_PORT=]
       --entry-bind-address <ENTRY_BIND_ADDRESS>
-          Socket address this node will use for binding its client websocket API. default: `0.0.0.0:9000` [env: NYMNODE_ENTRY_BIND_ADDRESS=]
+          Socket address this node will use for binding its client websocket API. default: `[::]:9000` [env: NYMNODE_ENTRY_BIND_ADDRESS=]
       --announce-ws-port <ANNOUNCE_WS_PORT>
           Custom announced port for listening for websocket client traffic. If unspecified, the value from the `bind_address` will be used instead [env: NYMNODE_ENTRY_ANNOUNCE_WS_PORT=]
       --announce-wss-port <ANNOUNCE_WSS_PORT>

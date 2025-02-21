@@ -3,7 +3,7 @@ use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
-use log::error;
+use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
@@ -274,7 +274,9 @@ impl Stream for MixnetClient {
                     }
                     Poll::Ready(Some(next))
                 } else {
-                    error!("the reconstructed messages vector is empty - please let the developers know if you see this message");
+                    // I *think* this happens for SURBs, but I'm not 100% sure. Nonetheless it's
+                    // beneign, but let's log it here anyway as a reminder
+                    debug!("the reconstructed messages vector is empty - please let the developers know if you see this message");
                     cx.waker().wake_by_ref();
                     Poll::Pending
                 }

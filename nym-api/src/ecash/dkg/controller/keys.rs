@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::client::Client;
-use crate::ecash::keys::{KeyPairWithEpoch, LegacyCoconutKeyWithEpoch};
+use crate::ecash::keys::KeyPairWithEpoch;
 use crate::support::{config, nyxd};
 use anyhow::{anyhow, bail, Context};
 use nym_coconut_dkg_common::types::{EpochId, EpochState};
@@ -43,22 +43,10 @@ pub(crate) fn load_ecash_keypair_if_exists(
         return Ok(None);
     }
 
-    // first attempt to load ecash keys directly,
-    // if that fails fallback to coconut keys and perform migration
     if let Ok(ecash_key) =
         nym_pemstore::load_key::<KeyPairWithEpoch, _>(&config.storage_paths.ecash_key_path)
     {
         return Ok(Some(ecash_key));
-    }
-
-    if let Ok(legacy_coconut_key) =
-        nym_pemstore::load_key::<LegacyCoconutKeyWithEpoch, _>(&config.storage_paths.ecash_key_path)
-    {
-        let migrated_key: KeyPairWithEpoch = legacy_coconut_key.into();
-        nym_pemstore::store_key(&migrated_key, &config.storage_paths.ecash_key_path)
-            .context("migrated key storage failure")?;
-
-        return Ok(Some(migrated_key));
     }
 
     bail!("ecash key load failure")

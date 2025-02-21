@@ -44,7 +44,7 @@ impl ConnectionHandler {
         ConnectionHandler {
             shared: SharedData {
                 processing_config: shared.processing_config,
-                sphinx_key: shared.sphinx_key.clone(),
+                sphinx_keys: shared.sphinx_keys.clone(),
                 mixnet_forwarder: shared.mixnet_forwarder.clone(),
                 final_hop: shared.final_hop.clone(),
                 metrics: shared.metrics.clone(),
@@ -135,7 +135,8 @@ impl ConnectionHandler {
 
         nanos!("handle_received_nym_packet", {
             // 1. attempt to unwrap the packet
-            let unwrapped_packet = process_framed_packet(packet, &self.shared.sphinx_key);
+            let unwrapped_packet =
+                process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
 
             // 2. increment our favourite metrics stats
             self.shared

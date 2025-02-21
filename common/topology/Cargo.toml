@@ -27,7 +27,7 @@ wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
 nym-config = { path = "../config" }
-nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }
+nym-crypto = { path = "../crypto" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
 nym-sphinx-types = { path = "../nymsphinx/types", features = [

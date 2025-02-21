@@ -1,15 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::{array::TryFromSliceError, fmt};
+use thiserror::Error;
+
+#[cfg(feature = "outfox")]
+use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
+
+#[cfg(feature = "sphinx")]
+use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
+
 #[cfg(feature = "outfox")]
 pub use nym_outfox::{
     constants::MIN_PACKET_SIZE, constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD,
     error::OutfoxError,
 };
 // re-exporting types and constants available in sphinx
-#[cfg(feature = "outfox")]
-use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
-use sphinx_packet::version::UPDATED_LEGACY_VERSION;
+
 #[cfg(feature = "sphinx")]
 pub use sphinx_packet::{
     constants::{
@@ -23,12 +30,9 @@ pub use sphinx_packet::{
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
     version::Version,
+    version::UPDATED_LEGACY_VERSION,
     Error as SphinxError, ProcessedPacket, ProcessedPacketData,
 };
-#[cfg(feature = "sphinx")]
-use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
-use std::{array::TryFromSliceError, fmt};
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum NymPacketError {

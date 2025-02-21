@@ -18,6 +18,7 @@ pub(crate) fn generate_node_name(node_id: i64) -> String {
     words.choose_multiple(&mut rng, 3).join(" ")
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod test {
     use rand::Rng;

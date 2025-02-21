@@ -130,11 +130,14 @@ impl Scraper {
                     match scrape_and_store_description(&pool, &node).await {
                         Ok(_) => debug!(
                             "📝 ✅ Description task #{} for node {} complete",
-                            task_id, node.node_id()
+                            task_id,
+                            node.node_id()
                         ),
                         Err(e) => debug!(
                             "📝 ❌ Description task #{} for node {} failed: {}",
-                            task_id, node.node_id(), e
+                            task_id,
+                            node.node_id(),
+                            e
                         ),
                     }
                     TASK_COUNTER.fetch_sub(1, Ordering::Relaxed);
@@ -171,11 +174,14 @@ impl Scraper {
                     match scrape_and_store_packet_stats(&pool, &node).await {
                         Ok(_) => debug!(
                             "📊 ✅ Packet stats task #{} for node {} complete",
-                            task_id, node.node_id()
+                            task_id,
+                            node.node_id()
                         ),
                         Err(e) => debug!(
                             "📊 ❌ Packet stats task #{} for node {} failed: {}",
-                            task_id, node.node_id(), e
+                            task_id,
+                            node.node_id(),
+                            e
                         ),
                     }
                     TASK_COUNTER.fetch_sub(1, Ordering::Relaxed);

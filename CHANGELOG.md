@@ -48,7 +48,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Downgrade harmless log message from info to debug ([#5403])
 - Redirect from mixnode page to nodes page ([#5397])
 - chore :update version of chain watcher and validator rewarder ([#5394])
-- bugfix: correctly handle ingore epoch roles flag ([#5390])
+- bugfix: correctly handle ignore epoch roles flag ([#5390])
 - bugfix: terminate mixnet socket listener on shutdown ([#5389])
 - feat: make client ignore dual mode nodes by default ([#5388])
 - Handle ecash network errors differently ([#5378])
@@ -69,7 +69,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Use expect in geodata test to give error message on failure ([#5314])
 - feature: periodically remove stale gateway messages ([#5312])
 - build(deps): bump the patch-updates group across 1 directory with 35 updates ([#5310])
-- Add dependabot assignes for the root cargo ecosystem ([#5297])
+- Add dependabot assigns for the root cargo ecosystem ([#5297])
 - Move tun constants to network defaults ([#5286])
 - Include IPINFO_API_TOKEN in nightly CI ([#5285])
 - Nyx Chain Watcher ([#5274])
@@ -122,7 +122,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2025.1-reeses] (2025-01-15)
 
-- Feture/legacy alert ([#5346])
+- Feature, Future/legacy alert ([#5346])
 - chore: readjusted --mode behaviour to fix the regression ([#5331])
 - chore: apply 1.84 linter suggestions ([#5330])
 - bugfix: make sure refresh data key matches bond info ([#5329])
@@ -202,7 +202,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2024.14-crunch-patched] (2024-12-17)
 
-- Fixes an issue to allow previously registred clients to connect to latest nym-nodes
+- Fixes an issue to allow previously registered clients to connect to latest nym-nodes
 - Fixes compatibility issues between nym-nodes and older clients
 
 ## [2024.14-crunch] (2024-12-11)
@@ -210,7 +210,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Merge/release/2024.14-crunch ([#5242])
 - bugfix: added explicit openapi servers to account for route prefixes ([#5237])
 - Further config score adjustments ([#5225])
-- feature: remve any filtering on node semver ([#5224])
+- feature: remove any filtering on node semver ([#5224])
 - Backport #5218 ([#5220])
 - Derive serialize for UserAgent (#5210) ([#5217])
 - dont consider legacy nodes for rewarded set selection ([#5215])
@@ -389,7 +389,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - bugfix/feature: added NymApiClient method to get all skimmed nodes ([#5062])
 - Merge1/release/2024.13 magura ([#5061])
 - added hacky routes to return nymnodes alongside legacy nodes ([#5051])
-- bugfix: mark migrated gateways as rewarded in the previous epoch in case theyre in the rewarded set ([#5049])
+- bugfix: mark migrated gateways as rewarded in the previous epoch in case they're, their, there in the rewarded set ([#5049])
 - bugfix: adjust runtime storage migration ([#5047])
 - bugfix: supersede 'cb13be27f8f61d9ae74d924e85d2e6787895eb14' by using… ([#5046])
 - bugfix: restore default http port for nym-api ([#5045])
@@ -450,7 +450,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Fix broken build after merge ([#4937])
 - bugfix: correctly paginate through 'search_tx' endpoint ([#4936])
 - Add more conversions for responses of authenticator messages ([#4929])
-- Directory Sevices v2.1 ([#4903])
+- Directory Services, Devices v2.1 ([#4903])
 - Migrate Legacy Node (Frontend)  ([#4826])
 - Fix critical issues SI84 and SI85 from Cure53 ([#4758])
 
@@ -834,7 +834,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Remove stale peers ([#4640])
 - Add generic wg private network routing ([#4636])
 - Feature/new node endpoints ([#4635])
-- standarised ContractBuildInformation and added it to all contracts ([#4631])
+- standardised ContractBuildInformation and added it to all contracts ([#4631])
 - validate nym-node public ips on startup ([#4630])
 - Bump defguard wg ([#4625])
 - Fix cargo warnings ([#4624])
@@ -1455,7 +1455,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
 - renamed all references to validator_api to nym_api
 - renamed all references to nymd to nyxd ([#2696])
-- all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
+- all-binaries: standardised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
@@ -1960,7 +1960,7 @@ The release also include some additional work for distributed key generation in 
 - Explorer UI tests missing data-testid [\#903](https://github.com/nymtech/nym/pull/903) ([tommyv1987](https://github.com/tommyv1987))
 - Fix up Nym-Wallet README.md [\#899](https://github.com/nymtech/nym/pull/899) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/batch delegator rewarding [\#898](https://github.com/nymtech/nym/pull/898) ([jstuczyn](https://github.com/jstuczyn))
-- Bug mapp nodemap [\#897](https://github.com/nymtech/nym/pull/897) ([Aid19801](https://github.com/Aid19801))
+- Bug map nodemap [\#897](https://github.com/nymtech/nym/pull/897) ([Aid19801](https://github.com/Aid19801))
 - Bug fix/macos keyboard shortcuts [\#896](https://github.com/nymtech/nym/pull/896) ([fmtabbara](https://github.com/fmtabbara))
 - Add a Mobile Nav to the Network Explorer [\#895](https://github.com/nymtech/nym/pull/895) ([Aid19801](https://github.com/Aid19801))
 - Only use ts-rs in tests [\#894](https://github.com/nymtech/nym/pull/894) ([durch](https://github.com/durch))

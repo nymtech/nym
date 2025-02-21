@@ -7,11 +7,12 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
-use nym_sphinx_types::{NymPacket, SURBMaterial, SphinxError, SURB};
+use nym_sphinx_types::{Destination, NymPacket, SURBMaterial, SphinxError, SURB};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sphinx_packet::route::Node;
 
 use std::fmt::{self, Formatter};
 use std::time;
@@ -83,6 +84,25 @@ impl ReplySurb {
         packet_size.plaintext_size() - ack_overhead - ReplySurbKeyDigestAlgorithm::output_size() - 1
     }
 
+    pub fn construct_with_route<R>(
+        rng: &mut R,
+        destination: Destination,
+        average_delay: time::Duration,
+        route: &[Node],
+    ) -> Result<Self, NymTopologyError>
+    where
+        R: RngCore + CryptoRng,
+    {
+        let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
+        let surb_material = SURBMaterial::new(route.to_vec(), delays, destination);
+
+        // this can't fail as we know we have a valid route to gateway and have correct number of delays
+        Ok(ReplySurb {
+            surb: surb_material.construct_SURB().unwrap(),
+            encryption_key: SurbEncryptionKey::new(rng),
+        })
+    }
+
     // TODO: should this return `ReplySURBError` for consistency sake
     // or keep `NymTopologyError` because it's the only error it can actually return?
     pub fn construct<R>(
@@ -123,11 +143,15 @@ impl ReplySurb {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         // KEY || SURB_BYTES
-        self.encryption_key
+        let bytes: Vec<u8> = self.encryption_key
             .to_bytes()
             .into_iter()
             .chain(self.surb.to_bytes())
-            .collect()
+            .collect();
+
+        assert_eq!(bytes.len(), ReplySurb::serialized_len());
+
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySurbError> {

@@ -9,6 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 bytes = { workspace = true }
+cfg-if = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
 log = { workspace = true }
@@ -19,6 +20,9 @@ nym-sphinx-forwarding = { path = "../forwarding" }
 nym-metrics = { path = "../../nym-metrics" }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-acknowledgements = { path = "../acknowledgements" }
+
+[features]
+no-acks = []
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

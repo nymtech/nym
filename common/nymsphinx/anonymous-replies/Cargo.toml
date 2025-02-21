@@ -12,6 +12,7 @@ rand = { workspace = true }
 bs58 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+sphinx-packet = { workspace = true }
 
 nym-crypto = { path = "../../crypto", features = ["stream_cipher", "rand"] }
 nym-sphinx-addressing = { path = "../addressing" }

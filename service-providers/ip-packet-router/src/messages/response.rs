@@ -4,7 +4,10 @@
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_ip_packet_requests::{v7, v8, IpPair};
 
-use crate::clients::ConnectedClientId;
+use crate::{
+    clients::ConnectedClientId,
+    error::{IpPacketRouterError, Result},
+};
 
 use super::ClientVersion;
 
@@ -12,6 +15,16 @@ pub(crate) struct VersionedResponse {
     pub(crate) version: ClientVersion,
     pub(crate) reply_to: ConnectedClientId,
     pub(crate) response: Response,
+}
+
+impl VersionedResponse {
+    pub(crate) fn try_into_bytes(self) -> Result<Vec<u8>> {
+        match self.version {
+            ClientVersion::V7 => v7::response::IpPacketResponse::try_from(self)?.to_bytes(),
+            ClientVersion::V8 => v8::response::IpPacketResponse::from(self).to_bytes(),
+        }
+        .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -24,11 +37,12 @@ pub(crate) enum Response {
         request_id: u64,
         reply: DynamicConnectResponse,
     },
+    // Disconnect is not yet implemented
+    #[allow(unused)]
     Disconnect {
         request_id: u64,
         reply: DisconnectResponse,
     },
-    Data(DataResponse),
     Pong {
         request_id: u64,
     },
@@ -52,10 +66,15 @@ pub(crate) enum StaticConnectResponse {
 pub(crate) enum StaticConnectFailureReason {
     #[error("requested ip address is already in use")]
     RequestedIpAlreadyInUse,
+
     #[error("client already connected")]
     ClientAlreadyConnected,
+
+    #[allow(unused)]
     #[error("request timestamp is out of date")]
     OutOfDateTimestamp,
+
+    #[allow(unused)]
     #[error("{0}")]
     Other(String),
 }
@@ -75,35 +94,32 @@ pub(crate) struct DynamicConnectSuccess {
 pub(crate) enum DynamicConnectFailureReason {
     #[error("client already connected")]
     ClientAlreadyConnected,
+
     #[error("no available ip address")]
     NoAvailableIp,
+
+    #[allow(unused)]
     #[error("{0}")]
     Other(String),
 }
 
+// Disconnect is not yet implemented
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub(crate) enum DisconnectResponse {
     Success,
     Failure(DisconnectFailureReason),
 }
 
+// Disconnect is not yet implemented
+#[allow(unused)]
 #[derive(Debug, Clone, thiserror::Error)]
 pub(crate) enum DisconnectFailureReason {
     #[error("requested client is not currently connected")]
     ClientNotConnected,
+
     #[error("{0}")]
     Other(String),
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct DataResponse {
-    pub(crate) ip_packets: bytes::Bytes,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct PongResponse {
-    pub(crate) request_id: u64,
-    pub(crate) reply_to: ConnectedClientId,
 }
 
 #[derive(Debug, Clone)]
@@ -112,15 +128,17 @@ pub(crate) struct HealthResponse {
     pub(crate) routable: Option<bool>,
 }
 
-impl From<VersionedResponse> for v7::response::IpPacketResponse {
-    fn from(response: VersionedResponse) -> Self {
-        match response.response {
+impl TryFrom<VersionedResponse> for v7::response::IpPacketResponse {
+    type Error = IpPacketRouterError;
+
+    fn try_from(response: VersionedResponse) -> std::result::Result<Self, Self::Error> {
+        Ok(match response.response {
             Response::StaticConnect { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::StaticConnect(
                     v7::response::StaticConnectResponse {
                         request_id,
-                        reply_to: response.reply_to.into_nym_address().unwrap(),
+                        reply_to: response.reply_to.into_nym_address()?,
                         reply: match reply {
                             StaticConnectResponse::Success => {
                                 v7::response::StaticConnectResponseReply::Success
@@ -137,7 +155,7 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                 data: v7::response::IpPacketResponseData::DynamicConnect(
                     v7::response::DynamicConnectResponse {
                         request_id,
-                        reply_to: response.reply_to.into_nym_address().unwrap(),
+                        reply_to: response.reply_to.into_nym_address()?,
                         reply: match reply {
                             DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
                                 v7::response::DynamicConnectResponseReply::Success(
@@ -156,7 +174,7 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                 data: v7::response::IpPacketResponseData::Disconnect(
                     v7::response::DisconnectResponse {
                         request_id,
-                        reply_to: response.reply_to.into_nym_address().unwrap(),
+                        reply_to: response.reply_to.into_nym_address()?,
                         reply: match reply {
                             DisconnectResponse::Success => {
                                 v7::response::DisconnectResponseReply::Success
@@ -168,24 +186,18 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                     },
                 ),
             },
-            Response::Data(inner) => v7::response::IpPacketResponse {
-                version: response.version.into_u8(),
-                data: v7::response::IpPacketResponseData::Data(v7::response::DataResponse {
-                    ip_packet: inner.ip_packets,
-                }),
-            },
             Response::Pong { request_id } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Pong(v7::response::PongResponse {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address().unwrap(),
+                    reply_to: response.reply_to.into_nym_address()?,
                 }),
             },
             Response::Health { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Health(v7::response::HealthResponse {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address().unwrap(),
+                    reply_to: response.reply_to.into_nym_address()?,
                     reply: v7::response::HealthResponseReply {
                         build_info: reply.build_info,
                         routable: reply.routable,
@@ -196,12 +208,12 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Info(v7::response::InfoResponse {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address().unwrap(),
+                    reply_to: response.reply_to.into_nym_address()?,
                     reply: reply.reply.into(),
                     level: reply.level.into(),
                 }),
             },
-        }
+        })
     }
 }
 
@@ -257,12 +269,6 @@ impl From<VersionedResponse> for v8::response::IpPacketResponse {
                         },
                     },
                 ),
-            },
-            Response::Data(inner) => v8::response::IpPacketResponse {
-                version: response.version.into_u8(),
-                data: v8::response::IpPacketResponseData::Data(v8::response::DataResponse {
-                    ip_packet: inner.ip_packets,
-                }),
             },
             Response::Pong { request_id } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
@@ -396,8 +402,11 @@ pub(crate) struct InfoResponse {
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub(crate) enum InfoResponseReply {
+    #[allow(unused)]
     #[error("{msg}")]
     Generic { msg: String },
+
+    #[allow(unused)]
     #[error(
         "version mismatch: response is v{request_version} and response is v{response_version}"
     )]
@@ -405,6 +414,7 @@ pub(crate) enum InfoResponseReply {
         request_version: u8,
         response_version: u8,
     },
+
     #[error("destination failed exit policy filter check: {dst}")]
     ExitPolicyFilterCheckFailed { dst: String },
 }
@@ -447,8 +457,10 @@ impl From<InfoResponseReply> for v8::response::InfoResponseReply {
 
 #[derive(Clone, Debug)]
 pub(crate) enum InfoLevel {
+    #[allow(unused)]
     Info,
     Warn,
+    #[allow(unused)]
     Error,
 }
 

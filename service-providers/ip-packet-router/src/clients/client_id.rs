@@ -5,6 +5,8 @@ use std::fmt;
 
 use nym_sdk::mixnet::{AnonymousSenderTag, Recipient};
 
+use crate::error::{IpPacketRouterError, Result};
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ConnectedClientId {
     NymAddress(Box<Recipient>),
@@ -12,17 +14,10 @@ pub(crate) enum ConnectedClientId {
 }
 
 impl ConnectedClientId {
-    pub(crate) fn into_nym_address(self) -> Option<Recipient> {
+    pub(crate) fn into_nym_address(self) -> Result<Recipient> {
         match self {
-            ConnectedClientId::NymAddress(nym_address) => Some(*nym_address),
-            ConnectedClientId::SenderTag(_) => None,
-        }
-    }
-
-    pub(crate) fn into_sender_tag(self) -> Option<AnonymousSenderTag> {
-        match self {
-            ConnectedClientId::NymAddress(_) => None,
-            ConnectedClientId::SenderTag(tag) => Some(tag),
+            ConnectedClientId::NymAddress(nym_address) => Ok(*nym_address),
+            ConnectedClientId::SenderTag(_) => Err(IpPacketRouterError::InvalidReplyTo),
         }
     }
 }

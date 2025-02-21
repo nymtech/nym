@@ -1,11 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod request;
-mod response;
-
-pub(crate) use request::*;
-pub(crate) use response::*;
+pub(crate) mod request;
+pub(crate) mod response;
 
 use std::fmt;
 
@@ -22,13 +19,6 @@ pub(crate) enum DeserializedIpPacketRequest {
 }
 
 impl DeserializedIpPacketRequest {
-    pub(crate) fn version(&self) -> u8 {
-        match self {
-            DeserializedIpPacketRequest::V7(_) => 7,
-            DeserializedIpPacketRequest::V8(_) => 8,
-        }
-    }
-
     pub(crate) fn verify(&self) -> Result<()> {
         match self {
             DeserializedIpPacketRequest::V7(request) => request.verify(),

@@ -3,7 +3,7 @@
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
-use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v7, v8};
+use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
@@ -13,21 +13,22 @@ use tokio_util::codec::Decoder;
 
 use crate::{
     clients::{ConnectedClientHandler, ConnectedClients},
-    messages::{
-        ClientVersion, DataRequest, DeserializedIpPacketRequest, DisconnectRequest,
-        DynamicConnectFailureReason, DynamicConnectRequest, DynamicConnectResponse,
-        DynamicConnectSuccess, InfoLevel, InfoResponse, InfoResponseReply, IpPacketRequest,
-        Response, StaticConnectFailureReason, StaticConnectRequest, StaticConnectResponse,
-        VersionedResponse,
-    },
-};
-use crate::{
     config::Config,
     constants::DISCONNECT_TIMER_INTERVAL,
     error::{IpPacketRouterError, Result},
-    request_filter::{self},
-    tun_listener,
-    util::generate_new_ip,
+    messages::{
+        request::{
+            DataRequest, DisconnectRequest, DynamicConnectRequest, HealthRequest, IpPacketRequest,
+            PingRequest, StaticConnectRequest,
+        },
+        response::{
+            DynamicConnectFailureReason, DynamicConnectResponse, DynamicConnectSuccess,
+            HealthResponse, InfoLevel, InfoResponse, InfoResponseReply, Response,
+            StaticConnectFailureReason, StaticConnectResponse, VersionedResponse,
+        },
+        ClientVersion, DeserializedIpPacketRequest,
+    },
+    request_filter::RequestFilter,
     util::{
         create_message::create_input_message,
         parse_ip::{parse_packet, ParsedPacket},
@@ -46,7 +47,7 @@ pub(crate) struct MixnetListener {
     pub(crate) _config: Config,
 
     // The request filter that we use to check if a packet should be forwarded
-    pub(crate) request_filter: request_filter::RequestFilter,
+    pub(crate) request_filter: RequestFilter,
 
     // The TUN device that we use to send and receive packets from the internet
     pub(crate) tun_writer: tokio::io::WriteHalf<TunDevice>,
@@ -309,6 +310,30 @@ impl MixnetListener {
         Ok(responses)
     }
 
+    async fn on_ping_request(&self, ping_request: PingRequest) -> PacketHandleResult {
+        Ok(Some(VersionedResponse {
+            version: ping_request.version,
+            reply_to: ping_request.sent_by,
+            response: Response::Pong {
+                request_id: ping_request.request_id,
+            },
+        }))
+    }
+
+    async fn on_health_request(&self, health_request: HealthRequest) -> PacketHandleResult {
+        Ok(Some(VersionedResponse {
+            version: health_request.version,
+            reply_to: health_request.sent_by,
+            response: Response::Health {
+                request_id: health_request.request_id,
+                reply: HealthResponse {
+                    build_info: nym_bin_common::bin_info_owned!(),
+                    routable: None,
+                },
+            },
+        }))
+    }
+
     fn on_version_mismatch(
         &self,
         _version: u8,
@@ -350,23 +375,21 @@ impl MixnetListener {
 
         // Convert to the internal representation
         match IpPacketRequest::from(request) {
-            IpPacketRequest::StaticConnect(connect_request) => {
-                Ok(vec![self.on_static_connect_request(connect_request).await])
+            IpPacketRequest::StaticConnect(connect) => {
+                Ok(vec![self.on_static_connect_request(connect).await])
             }
-            IpPacketRequest::DynamicConnect(connect_request) => {
-                Ok(vec![self.on_dynamic_connect_request(connect_request).await])
+            IpPacketRequest::DynamicConnect(connect) => {
+                Ok(vec![self.on_dynamic_connect_request(connect).await])
             }
-            IpPacketRequest::Disconnect(disconnect_request) => {
-                Ok(vec![self.on_disconnect_request(disconnect_request)])
+            IpPacketRequest::Disconnect(disconnect) => {
+                Ok(vec![self.on_disconnect_request(disconnect)])
             }
             IpPacketRequest::Data(data_request) => self.on_data_request(data_request).await,
-            IpPacketRequest::Ping(_) => {
-                log::info!("Received ping request: not implemented, dropping");
-                Ok(vec![])
+            IpPacketRequest::Ping(ping_request) => {
+                Ok(vec![self.on_ping_request(ping_request).await])
             }
-            IpPacketRequest::Health(_) => {
-                log::info!("Received health request: not implemented, dropping");
-                Ok(vec![])
+            IpPacketRequest::Health(health_request) => {
+                Ok(vec![self.on_health_request(health_request).await])
             }
         }
     }
@@ -393,14 +416,8 @@ impl MixnetListener {
     // connect handshake.
     async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
         let send_to = response.reply_to.clone();
-
-        let response_packet = match response.version {
-            ClientVersion::V7 => v7::response::IpPacketResponse::from(response).to_bytes(),
-            ClientVersion::V8 => v8::response::IpPacketResponse::from(response).to_bytes(),
-        }
-        .map_err(|source| IpPacketRouterError::FailedToSerializeResponsePacket { source })?;
-
-        let input_message = create_input_message(&send_to, response_packet);
+        let response_bytes = response.try_into_bytes()?;
+        let input_message = create_input_message(&send_to, response_bytes);
 
         self.mixnet_client
             .send(input_message)

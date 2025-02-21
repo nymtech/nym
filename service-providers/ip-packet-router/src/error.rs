@@ -98,6 +98,9 @@ pub enum IpPacketRouterError {
 
     #[error("client is connected with an invalid version: {version}")]
     InvalidConnectedClientVersion { version: u8 },
+
+    #[error("invalid reply-to address in the response")]
+    InvalidReplyTo,
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

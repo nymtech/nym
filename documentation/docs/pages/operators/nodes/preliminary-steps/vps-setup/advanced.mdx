@@ -5,6 +5,7 @@ import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import {Accordion, AccordionItem} from "@nextui-org/react";
 import { MyTab } from 'components/generic-tabs.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Advanced Server Administration
 
@@ -31,18 +32,99 @@ Follow the steps below to install KVM on Ubuntu 22.04 LTS:
 #### Prerequsities
 
 <Callout type="warning">
-Operators aiming to run Nym node as [Exit Gateway](../../community-counsel/exit-gateway) or with enabled wireguard should faimliarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
+Operators aiming to run Nym node as mixnet [Exit Gateway](../../community-counsel/exit-gateway) or with wireguard enabled should faimliarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
 
 This step is essential part of legal self defense because it may prevent your provider immediately shutting down your entire service (with all the VMs on it) when receiving first abuse report.
 </Callout>
 
 Start with obtaining a server with Ubuntu 22.04 LTS:
 - Make sure that your server meets [minimum requirements](../../nodes#minimum-requirements) multiplied by number of `nym-node` instance you aim to run on it.
-- Oder enough IPv4 and IPv6 (static and public) addresses to have one of each for each planned VM plus one extra for the main machine.
 - Most people rent a server from a provider and it comes with a pre-installed OS (in this guide we use Ubuntu 22.04). In case your choice is a bare-metal machine, you probably know what you are doing, there are some useful guides to install a new OS, like [this one on ostechnix.com](https://ostechnix.com/install-ubuntu-server/).
 
+Make sure thay your system actually supports hardware virtualisation:
+- Check out the methods documented in [this guide by ostechnix.com](https://ostechnix.com/how-to-find-if-a-cpu-supports-virtualization-technology-vt/).
+
+Oder enough IPv4 and IPv6 (static and public) addresses to have one of each for each planned VM plus one extra for the main machine.
+
+
+When you have your OS installed, validated CPU virtualisation support and obtained IP addresses, you can start configuring your VMs, following the steps below.
+
+> Note that the commands below require root permission. You can either go through the setup as `root` or use `sudo` prefix with the commands used in the guide.
 <Steps>
-###### 1.
+
+##### 1. Install KVM
+
+- Install KVM and required components:
+```sh
+apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst
+```
+<br/>
+<AccordionTemplate name="Component breakdown">
+- `qemu-kvm`: Provides the core **KVM virtualization** support using QEMU.
+- `libvirt-daemon-system`: Manages virtual machines via the **libvirt daemon**.
+- `libvirt-clients` Provides command-line tools like `virsh` to manage VMs.
+- `bridge-utils`: Enables **network bridging**, allowing VMs to communicate over the network.
+- `virtinst`: Includes `virt-install` for **creating virtual machines** via CLI.
+</AccordionTemplate>
+
+- Start the `libvertd` service:
+```sh
+systemctl enable libvirtd
+systemctl start libvirtd
+```
+- Validate by checking status of `libvirt` service:
+```sh
+systemctl status libvirtd
+```
+<br/>
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+
+```
+</AccordionTemplate>
+
+- Add your current user to the `kvm` and `libvirt` groups to enable VM creation and management using the `virsh` command-line tool or the `virt-manager` GUI:
+```bash
+usermod -aG kvm $USER
+usermod -aG libvirt $USER
+```
+
+##### 2. Setup Bridge Networking with KVM
+
+A **bridged network** lets VMs share the host’s network interface, allowing direct IPv4/IPv6 access like a physical machine.
+
+By default, KVM sets up a **private virtual bridge**, enabling VM-to-VM communication within the host. It provides its own subnet, DHCP, and NAT for external access.
+
+Check the IP of KVM’s default virtual interfaces with:
+
+```bash
+ip a
+```
+<br/>
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+
+```
+</AccordionTemplate>
+
+
+By default, KVM uses the `virbr0` network with `<IPv4_ADDRESS>.1/24`, assigning guest VMs IPs in the `<IPv4_ADDRESS>.0/24` range. The host OS is reachable at `<IPv4_ADDRESS>.1`, allowing SSH and file transfers (`scp`) between the host and guests.
+
+This setup works if you only access VMs from the host. However, remote systems on a different subnet (e.g., `<IPv4_ADDRESS_ALT>.0/24`) **cannot** reach the VMs.
+
+To enable external access, we need a *public bridge* that connects VMs to the host’s main network, using its DHCP. This ensures VMs get IPs in the same range as the host.
+
+Before configuring a public bridge, **disable Netfilter** on bridges for better performance and security, as it is enabled by default.
+
+- Create a file located at `/etc/sysctl.d/bridge.conf`:
+```bash
+nano create a file named /etc/sysctl.d/bridge.conf:
+
+# in case of using custom editor, replace nano in the syntax
+```
+
 
 
 

@@ -57,6 +57,8 @@ static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
 static SESSION_STATS_LIST_KEY: &str = "session-stats";
 
+const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
+
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
@@ -204,7 +206,7 @@ impl HttpCache {
                 let read_lock = guard.read().await;
                 let mut stats = read_lock.to_vec();
 
-                stats.truncate(30usize + offset);
+                stats.truncate(MIXNODE_STATS_HISTORY_DAYS + offset);
                 stats.into_iter().skip(offset).collect()
             }
             None => {
@@ -217,8 +219,7 @@ impl HttpCache {
                 // cache result without offset
                 self.upsert_mixnode_stats(new_node_stats.clone()).await;
 
-                // return only 30 days of results
-                new_node_stats.truncate(30usize + offset);
+                new_node_stats.truncate(MIXNODE_STATS_HISTORY_DAYS + offset);
                 new_node_stats.into_iter().skip(offset).collect()
             }
         }

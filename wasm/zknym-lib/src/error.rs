@@ -7,12 +7,6 @@ use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum ZkNymError {
-    #[error("[coconut] cryptographic failure: {source}")]
-    CoconutFailure {
-        #[from]
-        source: nym_coconut::CoconutError,
-    },
-
     #[error("[ecash] cryptographic failure: {source}")]
     EcashFailure {
         #[from]

@@ -236,10 +236,13 @@ impl StaticConnectResponseReply {
 pub enum StaticConnectFailureReason {
     #[error("requested ip address is already in use")]
     RequestedIpAlreadyInUse,
+
     #[error("client is already connected")]
     ClientAlreadyConnected,
+
     #[error("request timestamp is out of date")]
     OutOfDateTimestamp,
+
     #[error("{0}")]
     Other(String),
 }
@@ -274,8 +277,10 @@ pub struct DynamicConnectSuccess {
 pub enum DynamicConnectFailureReason {
     #[error("client is already connected")]
     ClientAlreadyConnected,
+
     #[error("no available ip address")]
     NoAvailableIp,
+
     #[error("{0}")]
     Other(String),
 }

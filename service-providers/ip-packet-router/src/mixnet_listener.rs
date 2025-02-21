@@ -73,11 +73,10 @@ impl MixnetListener {
         connect_request: StaticConnectRequest,
         version: SupportedClientVersion,
     ) -> PacketHandleResult {
-        //log::info!(
-        //    "Received static connect request from {}",
-        //    connect_request.signed_by
-        //);
-        //sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
+        log::info!(
+            "Received static connect request from {}",
+            connect_request.sent_by
+        );
 
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
@@ -155,11 +154,10 @@ impl MixnetListener {
         connect_request: DynamicConnectRequest,
         version: SupportedClientVersion,
     ) -> PacketHandleResult {
-        //log::info!(
-        //    "Received dynamic connect request from {sender_address}",
-        //    sender_address = connect_request.reply_to
-        //);
-        //sender_tag.inspect(|tag| log::info!("Connection is using SURBs: {tag}"));
+        log::info!(
+            "Received dynamic connect request from {}",
+            connect_request.sent_by
+        );
 
         let request_id = connect_request.request_id;
         let reply_to = connect_request.sent_by;

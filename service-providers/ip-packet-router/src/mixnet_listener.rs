@@ -326,10 +326,10 @@ impl MixnetListener {
             reply_to: health_request.sent_by,
             response: Response::Health {
                 request_id: health_request.request_id,
-                reply: HealthResponse {
+                reply: Box::new(HealthResponse {
                     build_info: nym_bin_common::bin_info_owned!(),
                     routable: None,
-                },
+                }),
             },
         }))
     }

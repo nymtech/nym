@@ -48,7 +48,7 @@ pub(crate) enum Response {
     },
     Health {
         request_id: u64,
-        reply: HealthResponse,
+        reply: Box<HealthResponse>,
     },
     Info {
         request_id: u64,

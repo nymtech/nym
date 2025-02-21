@@ -76,6 +76,7 @@ impl Default for IpPacketRouterV1 {
     fn default() -> Self {
         IpPacketRouterV1 {
             disable_poisson_rate: true,
+            #[allow(clippy::expect_used)]
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL
                     .parse()

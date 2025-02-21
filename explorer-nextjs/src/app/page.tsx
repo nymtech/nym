@@ -24,14 +24,14 @@ export default async function Home() {
         <Grid size={12}>
           <SectionHeading title="Noise Generating Mixnet Overview" />
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <NoiseCard />
         </Grid>
         <Grid
           container
           columnSpacing={5}
           rowSpacing={5}
-          size={{ xs: 12, md: 3 }}
+          size={{ xs: 12, sm: 6, md: 3 }}
         >
           <Grid size={12}>
             <RewardsCard />
@@ -41,10 +41,10 @@ export default async function Home() {
           </Grid>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <NetworkStakeCard />
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TokenomicsCard />
         </Grid>
       </Grid>

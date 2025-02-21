@@ -125,8 +125,194 @@ nano create a file named /etc/sysctl.d/bridge.conf:
 # in case of using custom editor, replace nano in the syntax
 ```
 
+- Paste inside the following block, save and exit:
+```ini
+net.bridge.bridge-nf-call-ip6tables=0
+net.bridge.bridge-nf-call-iptables=0
+net.bridge.bridge-nf-call-arptables=0
+```
+
+- Create a file `/etc/udev/rules.d/99-bridge.rules`:
+```bash
+nano /etc/udev/rules.d/99-bridge.rules:
+```
+
+- Paste this line, save and exit:
+```bash
+ACTION=="add", SUBSYSTEM=="module", KERNEL=="br_netfilter", RUN+="/sbin/sysctl -p /etc/sysctl.d/bridge.conf"
+```
+
+This disables Netfilter on bridges at startup. Save, exit, and reboot to apply changes.
+
+- Disable KVM’s default networking. Find the default network interface with:
+```bash
+ip link
+```
+
+<br/>
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+
+```
+
+The `virbr0` interface is KVM’s default network. Note your physical interface’s MAC address (e.g., `enp6s18`).
+</AccordionTemplate>
+
+- Remove the default KVM network:
+```bash
+virsh net-destroy default
+```
+
+- Remove the default network configuration:
+```bash
+virsh net-undefine default
+```
+
+- In case last two commands didn't work, try this:
+```bash
+ip link delete virbr0 type bridge
+```
+-  Verify that the `virbr0` and `virbr0-nic` interfaces are deleted:
+```bash
+ip link
+```
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+
+```
+KVM network is gone.
+</AccordionTemplate>
 
 
+##### 3. Setup KVM public bridge for new VMs
 
+To create a KVM network bridge on Ubuntu, edit `/etc/netplan/00-installer-config.yaml` and add the bridge details.
+
+- Before you edit the file, make a backup to stay on the save side:
+```bash
+cp --backup /etc/netplan/00-installer-config.yaml /etc/netplan/
+```
+
+- Open `00-installer-config.yaml` config in a text editor:
+```bash
+nano 00-installer-config.yaml
+```
+
+- Edit tge block below and paste it to the config file, save and exit:
+```ini
+#####################################################
+######## CHANGE ALL VARIABLES IN <> BRACKETS ########
+#####################################################
+
+# <INTERFACE> is your own one, you can get with command ip link show
+# <HOST> is your server main IPv4 address
+# <ROUTER> value can be found by running: ip route | grep default
+
+
+# This is the network config written by 'subiquity'
+network:
+  ethernets:
+    <INTERFACE>:
+      dhcp4: false
+      dhcp6: false
+
+  # Bridge interface configuration
+  bridges:
+    br0:
+      interfaces: [<INTERFACE>]
+      addresses: [<HOST>/24]
+      routes:
+        - to: default
+          via: <ROUTER>
+      mtu: 1500
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+      parameters:
+        stp: false  # Disable STP unless multiple bridges exist
+        forward-delay: 15 # Can be shortened, 15 sec is a common default
+  version: 2
+```
+
+<Callout type="warning">
+Ensure the indentation matches exactly as shown above. Incorrect spacing will prevent the bridged network interface from activating.
+</Callout>
+
+- Validate `netplan` configuration without applying to prevent breaking network changes:
+```bash
+netplan generate
+
+# Correct configuration output will show nothing
+```
+
+- Safety test your changes to catch syntax errors before applying:
+```bash
+netplan try
+```
+
+- Apply your changes:
+```bash
+netplan --debug  apply
+```
+
+- If things went wrong, you can always revert from the backed up file:
+```bash
+cp /etc/netplan/00-installer-config.yaml.backup /etc/netplan/00-installer-config.yaml
+netplan apply
+```
+
+<Callout type="warning">
+Using different IPs for your physical NIC and KVM bridge will disconnect SSH when applying changes. Reconnect using the bridge's new IP. If both share the same IP, no disruption occurs.
+</Callout>
+
+
+- Verify that the IP address has been assigned to the bridge interface:
+```bash
+ip a
+```
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+
+```
+The bridged interface `br0` now has the IP `<HOST>`, and `<INTERFACE>` shows `master br0`, indicating it is part of the bridge.
+</AccordionTemplate>
+
+Alternatively you can use `brctl` command to display the KVM bridge network status:
+```bash
+brctl show br0
+```
+
+##### 4. Add Bridge Network to KVM
+
+- Configure KVM to use the bridge by creating `host-bridge.xml`, open a text editor and pate the block below:
+```bash
+nano host-bridge.xml
+```
+
+```xml
+<network>
+  <name>host-bridge</name>
+  <forward mode="bridge"/>
+  <bridge name="br0"/>
+</network>
+```
+
+- Start the new bridge and set it as the default for VMs:
+```bash
+virsh net-define host-bridge.xml
+virsh net-start host-bridge
+virsh net-autostart host-bridge
+```
+
+- Verify that the KVM bridge is active:
+```bash
+virsh net-list --all
+```
+
+KVM bridge networking is successfully set up and active!
+
+Your KVM installation is now ready to deploy and manage VMs.
 
 </Steps>

@@ -29,12 +29,26 @@ impl GwProbe {
         }
     }
 
-    pub(crate) fn run_and_get_log(&self, gateway_key: &Option<String>) -> String {
+    pub(crate) fn run_and_get_log(
+        &self,
+        gateway_key: &Option<String>,
+        probe_extra_args: &Vec<String>,
+    ) -> String {
         let mut command = std::process::Command::new(&self.path);
         command.stdout(std::process::Stdio::piped());
 
         if let Some(gateway_id) = gateway_key {
             command.arg("--gateway").arg(gateway_id);
+        }
+
+        tracing::info!("Extra args for the probe:");
+        for arg in probe_extra_args {
+            let mut split = arg.splitn(2, '=');
+            let name = split.next().unwrap_or_default();
+            let value = split.next().unwrap_or_default();
+            tracing::info!("{} {}", name, value);
+
+            command.arg(format!("--{name}")).arg(value);
         }
 
         match command.spawn() {

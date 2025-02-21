@@ -5979,7 +5979,6 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "tap",
  "thiserror 2.0.11",
  "time",
  "tokio",

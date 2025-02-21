@@ -1,7 +1,7 @@
 use nym_sdk::mixnet::InputMessage;
 use nym_task::connections::TransmissionLane;
 
-use crate::messages::ConnectedClientId;
+use crate::clients::ConnectedClientId;
 
 pub(crate) fn create_input_message(
     recipient: &ConnectedClientId,

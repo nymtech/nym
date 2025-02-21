@@ -1,0 +1,37 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use std::fmt;
+
+use nym_sdk::mixnet::{AnonymousSenderTag, Recipient};
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ConnectedClientId {
+    NymAddress(Box<Recipient>),
+    SenderTag(AnonymousSenderTag),
+}
+
+impl ConnectedClientId {
+    pub(crate) fn into_nym_address(self) -> Option<Recipient> {
+        match self {
+            ConnectedClientId::NymAddress(nym_address) => Some(*nym_address),
+            ConnectedClientId::SenderTag(_) => None,
+        }
+    }
+
+    pub(crate) fn into_sender_tag(self) -> Option<AnonymousSenderTag> {
+        match self {
+            ConnectedClientId::NymAddress(_) => None,
+            ConnectedClientId::SenderTag(tag) => Some(tag),
+        }
+    }
+}
+
+impl fmt::Display for ConnectedClientId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConnectedClientId::NymAddress(nym_address) => write!(f, "{nym_address}"),
+            ConnectedClientId::SenderTag(tag) => write!(f, "{tag}"),
+        }
+    }
+}

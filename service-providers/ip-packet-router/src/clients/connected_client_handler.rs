@@ -1,5 +1,5 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use std::time::Duration;
 
@@ -15,9 +15,10 @@ use tokio::{
 };
 
 use crate::{
+    clients::ConnectedClientId,
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
-    messages::{ConnectedClientId, SupportedClientVersion},
+    messages::SupportedClientVersion,
     util::create_message::create_input_message,
 };
 

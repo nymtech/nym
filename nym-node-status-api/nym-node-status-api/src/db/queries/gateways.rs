@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use crate::{
     db::{
-        models::{GatewayDto, GatewayRecord},
+        models::{GatewayDto, GatewayInsertRecord},
         DbPool,
     },
     http::models::Gateway,
@@ -30,7 +32,7 @@ pub(crate) async fn select_gateway_identity(
 
 pub(crate) async fn insert_gateways(
     pool: &DbPool,
-    gateways: Vec<GatewayRecord>,
+    gateways: Vec<GatewayInsertRecord>,
 ) -> anyhow::Result<()> {
     let mut db = pool.acquire().await?;
     for record in gateways {
@@ -96,5 +98,23 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
             e
         })?;
     tracing::trace!("Fetched {} gateways from DB", items.len());
+    Ok(items)
+}
+
+pub(crate) async fn get_all_gateway_id_keys(pool: &DbPool) -> anyhow::Result<HashSet<String>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query!(
+        r#"
+            SELECT gateway_identity_key
+            FROM gateways
+            WHERE bonded = true
+        "#
+    )
+    .fetch_all(&mut *conn)
+    .await?
+    .into_iter()
+    .map(|record| record.gateway_identity_key)
+    .collect::<HashSet<_>>();
+
     Ok(items)
 }

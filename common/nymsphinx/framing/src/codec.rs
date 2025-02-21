@@ -130,28 +130,33 @@ impl Decoder for NymCodec {
 mod packet_encoding {
     use super::*;
     use nym_sphinx_types::{
-        crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
+        PrivateKey, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
+    fn random_pubkey() -> nym_sphinx_types::PublicKey {
+        let private_key = PrivateKey::random();
+        (&private_key).into()
+    }
+
     fn make_valid_outfox_packet(size: PacketSize) -> NymPacket {
-        let (_, node1_pk) = crypto::keygen();
+        let node1_pk = random_pubkey();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
             node1_pk,
         );
-        let (_, node2_pk) = crypto::keygen();
+        let node2_pk = random_pubkey();
         let node2 = Node::new(
             NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
             node2_pk,
         );
-        let (_, node3_pk) = crypto::keygen();
+        let node3_pk = random_pubkey();
         let node3 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node3_pk,
         );
 
-        let (_, node4_pk) = crypto::keygen();
+        let node4_pk = random_pubkey();
         let node4 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node4_pk,
@@ -170,17 +175,17 @@ mod packet_encoding {
     }
 
     fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
-        let (_, node1_pk) = crypto::keygen();
+        let node1_pk = random_pubkey();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
             node1_pk,
         );
-        let (_, node2_pk) = crypto::keygen();
+        let node2_pk = random_pubkey();
         let node2 = Node::new(
             NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
             node2_pk,
         );
-        let (_, node3_pk) = crypto::keygen();
+        let node3_pk = random_pubkey();
         let node3 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node3_pk,

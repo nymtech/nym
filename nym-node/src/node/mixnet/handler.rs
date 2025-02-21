@@ -8,7 +8,7 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_framing::processing::{
-    process_framed_packet, MixProcessingResult, ProcessedFinalHop,
+    process_framed_packet, MixProcessingResultData, ProcessedFinalHop,
 };
 use nym_sphinx_types::Delay;
 use std::net::SocketAddr;
@@ -44,7 +44,7 @@ impl ConnectionHandler {
         ConnectionHandler {
             shared: SharedData {
                 processing_config: shared.processing_config,
-                sphinx_key: shared.sphinx_key.clone(),
+                sphinx_keys: shared.sphinx_keys.clone(),
                 mixnet_forwarder: shared.mixnet_forwarder.clone(),
                 final_hop: shared.final_hop.clone(),
                 metrics: shared.metrics.clone(),
@@ -135,7 +135,8 @@ impl ConnectionHandler {
 
         nanos!("handle_received_nym_packet", {
             // 1. attempt to unwrap the packet
-            let unwrapped_packet = process_framed_packet(packet, &self.shared.sphinx_key);
+            let unwrapped_packet =
+                process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
 
             // 2. increment our favourite metrics stats
             self.shared
@@ -144,12 +145,14 @@ impl ConnectionHandler {
             // 3. forward the packet to the relevant sink (if enabled)
             match unwrapped_packet {
                 Err(err) => trace!("failed to process received mix packet: {err}"),
-                Ok(MixProcessingResult::ForwardHop(forward_packet, delay)) => {
-                    self.handle_forward_packet(forward_packet, delay);
-                }
-                Ok(MixProcessingResult::FinalHop(final_hop_data)) => {
-                    self.handle_final_hop(final_hop_data).await;
-                }
+                Ok(processed_packet) => match processed_packet.processing_data {
+                    MixProcessingResultData::ForwardHop { packet, delay } => {
+                        self.handle_forward_packet(packet, delay);
+                    }
+                    MixProcessingResultData::FinalHop { final_hop_data } => {
+                        self.handle_final_hop(final_hop_data).await;
+                    }
+                },
             }
         })
     }

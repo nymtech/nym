@@ -23,7 +23,7 @@ use crate::{
 };
 use crate::{
     config::Config,
-    constants::{DISCONNECT_TIMER_INTERVAL},
+    constants::DISCONNECT_TIMER_INTERVAL,
     error::{IpPacketRouterError, Result},
     request_filter::{self},
     tun_listener,
@@ -101,7 +101,10 @@ impl MixnetListener {
                 {
                     log::error!("Failed to update activity for client");
                 };
-                Response::StaticConnect(StaticConnectResponse::Success)
+                Response::StaticConnect {
+                    request_id,
+                    reply: StaticConnectResponse::Success,
+                }
             }
             (false, false) => {
                 log::info!("Connecting a new client");
@@ -122,25 +125,33 @@ impl MixnetListener {
                     close_tx,
                     handle,
                 );
-                Response::StaticConnect(StaticConnectResponse::Success)
+                Response::StaticConnect {
+                    request_id,
+                    reply: StaticConnectResponse::Success,
+                }
             }
             (true, false) => {
                 log::info!("Requested IP is not available");
-                Response::StaticConnect(StaticConnectResponse::Failure(
-                    StaticConnectFailureReason::RequestedIpAlreadyInUse,
-                ))
+                Response::StaticConnect {
+                    request_id,
+                    reply: StaticConnectResponse::Failure(
+                        StaticConnectFailureReason::RequestedIpAlreadyInUse,
+                    ),
+                }
             }
             (false, true) => {
                 log::info!("Nym address is already registered");
-                Response::StaticConnect(StaticConnectResponse::Failure(
-                    StaticConnectFailureReason::ClientAlreadyConnected,
-                ))
+                Response::StaticConnect {
+                    request_id,
+                    reply: StaticConnectResponse::Failure(
+                        StaticConnectFailureReason::ClientAlreadyConnected,
+                    ),
+                }
             }
         };
 
         Ok(Some(VersionedResponse {
             version,
-            request_id: Some(request_id),
             reply_to: sent_by,
             response,
         }))
@@ -166,11 +177,13 @@ impl MixnetListener {
         if self.connected_clients.is_client_connected(&reply_to) {
             return Ok(Some(VersionedResponse {
                 version,
-                request_id: Some(request_id),
                 reply_to,
-                response: Response::DynamicConnect(DynamicConnectResponse::Failure(
-                    DynamicConnectFailureReason::ClientAlreadyConnected,
-                )),
+                response: Response::DynamicConnect {
+                    request_id,
+                    reply: DynamicConnectResponse::Failure(
+                        DynamicConnectFailureReason::ClientAlreadyConnected,
+                    ),
+                },
             }));
         }
 
@@ -178,11 +191,13 @@ impl MixnetListener {
             log::info!("No available IP address");
             return Ok(Some(VersionedResponse {
                 version,
-                request_id: Some(request_id),
                 reply_to,
-                response: Response::DynamicConnect(DynamicConnectResponse::Failure(
-                    DynamicConnectFailureReason::NoAvailableIp,
-                )),
+                response: Response::DynamicConnect {
+                    request_id,
+                    reply: DynamicConnectResponse::Failure(
+                        DynamicConnectFailureReason::NoAvailableIp,
+                    ),
+                },
             }));
         };
 
@@ -204,11 +219,11 @@ impl MixnetListener {
         );
         Ok(Some(VersionedResponse {
             version,
-            request_id: Some(request_id),
             reply_to,
-            response: Response::DynamicConnect(DynamicConnectResponse::Success(
-                DynamicConnectSuccess { ips: new_ips },
-            )),
+            response: Response::DynamicConnect {
+                request_id,
+                reply: DynamicConnectResponse::Success(DynamicConnectSuccess { ips: new_ips }),
+            },
         }))
     }
 
@@ -260,14 +275,16 @@ impl MixnetListener {
                 log::info!("Denied filter check: {dst}");
                 Ok(Some(VersionedResponse {
                     version,
-                    request_id: None,
                     reply_to: connected_client.client_id.clone(),
-                    response: Response::Info(InfoResponse {
-                        reply: InfoResponseReply::ExitPolicyFilterCheckFailed {
-                            dst: dst.to_string(),
+                    response: Response::Info {
+                        request_id: 0,
+                        reply: InfoResponse {
+                            reply: InfoResponseReply::ExitPolicyFilterCheckFailed {
+                                dst: dst.to_string(),
+                            },
+                            level: InfoLevel::Warn,
                         },
-                        level: InfoLevel::Warn,
-                    }),
+                    },
                 }))
             }
         } else {

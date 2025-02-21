@@ -10,20 +10,36 @@ use super::ClientVersion;
 
 pub(crate) struct VersionedResponse {
     pub(crate) version: ClientVersion,
-    pub(crate) request_id: Option<u64>,
     pub(crate) reply_to: ConnectedClientId,
     pub(crate) response: Response,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Response {
-    StaticConnect(StaticConnectResponse),
-    DynamicConnect(DynamicConnectResponse),
-    Disconnect(DisconnectResponse),
+    StaticConnect {
+        request_id: u64,
+        reply: StaticConnectResponse,
+    },
+    DynamicConnect {
+        request_id: u64,
+        reply: DynamicConnectResponse,
+    },
+    Disconnect {
+        request_id: u64,
+        reply: DisconnectResponse,
+    },
     Data(DataResponse),
-    Pong,
-    Health(HealthResponse),
-    Info(InfoResponse),
+    Pong {
+        request_id: u64,
+    },
+    Health {
+        request_id: u64,
+        reply: HealthResponse,
+    },
+    Info {
+        request_id: u64,
+        reply: InfoResponse,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -99,13 +115,13 @@ pub(crate) struct HealthResponse {
 impl From<VersionedResponse> for v7::response::IpPacketResponse {
     fn from(response: VersionedResponse) -> Self {
         match response.response {
-            Response::StaticConnect(inner) => v7::response::IpPacketResponse {
+            Response::StaticConnect { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::StaticConnect(
                     v7::response::StaticConnectResponse {
-                        request_id: response.request_id.unwrap(),
+                        request_id,
                         reply_to: response.reply_to.into_nym_address().unwrap(),
-                        reply: match inner {
+                        reply: match reply {
                             StaticConnectResponse::Success => {
                                 v7::response::StaticConnectResponseReply::Success
                             }
@@ -116,13 +132,13 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                     },
                 ),
             },
-            Response::DynamicConnect(inner) => v7::response::IpPacketResponse {
+            Response::DynamicConnect { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::DynamicConnect(
                     v7::response::DynamicConnectResponse {
-                        request_id: response.request_id.unwrap(),
+                        request_id,
                         reply_to: response.reply_to.into_nym_address().unwrap(),
-                        reply: match inner {
+                        reply: match reply {
                             DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
                                 v7::response::DynamicConnectResponseReply::Success(
                                     v7::response::DynamicConnectSuccess { ips },
@@ -135,13 +151,13 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                     },
                 ),
             },
-            Response::Disconnect(inner) => v7::response::IpPacketResponse {
+            Response::Disconnect { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Disconnect(
                     v7::response::DisconnectResponse {
-                        request_id: response.request_id.unwrap(),
+                        request_id,
                         reply_to: response.reply_to.into_nym_address().unwrap(),
-                        reply: match inner {
+                        reply: match reply {
                             DisconnectResponse::Success => {
                                 v7::response::DisconnectResponseReply::Success
                             }
@@ -158,31 +174,31 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
                     ip_packet: inner.ip_packets,
                 }),
             },
-            Response::Pong => v7::response::IpPacketResponse {
+            Response::Pong { request_id } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Pong(v7::response::PongResponse {
-                    request_id: response.request_id.unwrap(),
+                    request_id,
                     reply_to: response.reply_to.into_nym_address().unwrap(),
                 }),
             },
-            Response::Health(inner) => v7::response::IpPacketResponse {
+            Response::Health { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Health(v7::response::HealthResponse {
-                    request_id: response.request_id.unwrap(),
+                    request_id,
                     reply_to: response.reply_to.into_nym_address().unwrap(),
                     reply: v7::response::HealthResponseReply {
-                        build_info: inner.build_info,
-                        routable: inner.routable,
+                        build_info: reply.build_info,
+                        routable: reply.routable,
                     },
                 }),
             },
-            Response::Info(inner) => v7::response::IpPacketResponse {
+            Response::Info { request_id, reply } => v7::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v7::response::IpPacketResponseData::Info(v7::response::InfoResponse {
-                    request_id: response.request_id.unwrap(),
+                    request_id,
                     reply_to: response.reply_to.into_nym_address().unwrap(),
-                    reply: inner.reply.into(),
-                    level: inner.level.into(),
+                    reply: reply.reply.into(),
+                    level: reply.level.into(),
                 }),
             },
         }
@@ -192,12 +208,12 @@ impl From<VersionedResponse> for v7::response::IpPacketResponse {
 impl From<VersionedResponse> for v8::response::IpPacketResponse {
     fn from(response: VersionedResponse) -> Self {
         match response.response {
-            Response::StaticConnect(inner) => v8::response::IpPacketResponse {
+            Response::StaticConnect { request_id, reply } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v8::response::IpPacketResponseData::StaticConnect(
                     v8::response::StaticConnectResponse {
-                        request_id: response.request_id.unwrap(),
-                        reply: match inner {
+                        request_id,
+                        reply: match reply {
                             StaticConnectResponse::Success => {
                                 v8::response::StaticConnectResponseReply::Success
                             }
@@ -208,12 +224,12 @@ impl From<VersionedResponse> for v8::response::IpPacketResponse {
                     },
                 ),
             },
-            Response::DynamicConnect(inner) => v8::response::IpPacketResponse {
+            Response::DynamicConnect { request_id, reply } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v8::response::IpPacketResponseData::DynamicConnect(
                     v8::response::DynamicConnectResponse {
-                        request_id: response.request_id.unwrap(),
-                        reply: match inner {
+                        request_id,
+                        reply: match reply {
                             DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
                                 v8::response::DynamicConnectResponseReply::Success(
                                     v8::response::DynamicConnectSuccess { ips },
@@ -226,12 +242,12 @@ impl From<VersionedResponse> for v8::response::IpPacketResponse {
                     },
                 ),
             },
-            Response::Disconnect(inner) => v8::response::IpPacketResponse {
+            Response::Disconnect { request_id, reply } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v8::response::IpPacketResponseData::Disconnect(
                     v8::response::DisconnectResponse {
-                        request_id: response.request_id.unwrap(),
-                        reply: match inner {
+                        request_id,
+                        reply: match reply {
                             DisconnectResponse::Success => {
                                 v8::response::DisconnectResponseReply::Success
                             }
@@ -248,28 +264,28 @@ impl From<VersionedResponse> for v8::response::IpPacketResponse {
                     ip_packet: inner.ip_packets,
                 }),
             },
-            Response::Pong => v8::response::IpPacketResponse {
+            Response::Pong { request_id } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v8::response::IpPacketResponseData::Pong(v8::response::PongResponse {
-                    request_id: response.request_id.unwrap(),
+                    request_id,
                 }),
             },
-            Response::Health(inner) => v8::response::IpPacketResponse {
+            Response::Health { request_id, reply } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v8::response::IpPacketResponseData::Health(v8::response::HealthResponse {
-                    request_id: response.request_id.unwrap(),
+                    request_id,
                     reply: v8::response::HealthResponseReply {
-                        build_info: inner.build_info,
-                        routable: inner.routable,
+                        build_info: reply.build_info,
+                        routable: reply.routable,
                     },
                 }),
             },
-            Response::Info(inner) => v8::response::IpPacketResponse {
+            Response::Info { request_id, reply } => v8::response::IpPacketResponse {
                 version: response.version.into_u8(),
                 data: v8::response::IpPacketResponseData::Info(v8::response::InfoResponse {
-                    request_id: response.request_id.unwrap(),
-                    reply: inner.reply.into(),
-                    level: inner.level.into(),
+                    request_id,
+                    reply: reply.reply.into(),
+                    level: reply.level.into(),
                 }),
             },
         }

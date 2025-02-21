@@ -1,6 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::panic)]
+
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 

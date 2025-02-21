@@ -5,9 +5,6 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-pub use v6::request;
-pub use v6::response;
-
 pub mod codec;
 pub mod v6;
 pub mod v7;
@@ -18,7 +15,7 @@ pub mod v8;
 // version 5: Add severity level to info response
 // version 6: Increase the available IPs
 // version 7: Add signature support (for the future)
-// version 8: anonymous sends
+// version 8: Anonymous sends
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {

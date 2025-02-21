@@ -150,9 +150,8 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
-    let sanitized_description = sanitize_description(description, node.node_id);
-    insert_scraped_node_description(pool, &node.node_kind, node.node_id, &sanitized_description)
-        .await?;
+    let sanitized_description = sanitize_description(description, *node.node_id());
+    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
 
     Ok(())
 }
@@ -190,7 +189,7 @@ pub async fn scrape_and_store_packet_stats(
 
     let timestamp = Utc::now();
     let timestamp_utc = timestamp.timestamp();
-    insert_node_packet_stats(pool, node.node_id, &node.node_kind, &stats, timestamp_utc).await?;
+    insert_node_packet_stats(pool, &node.node_kind, &stats, timestamp_utc).await?;
 
     // Update daily stats
     update_daily_stats(pool, node, timestamp, &stats).await?;

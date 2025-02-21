@@ -8,7 +8,9 @@ pub(crate) mod scraper;
 mod summary;
 pub(crate) mod testruns;
 
-pub(crate) use gateways::{get_all_gateways, insert_gateways, select_gateway_identity};
+pub(crate) use gateways::{
+    get_all_gateway_id_keys, get_all_gateways, insert_gateways, select_gateway_identity,
+};
 pub(crate) use gateways_stats::{delete_old_records, get_sessions_stats, insert_session_records};
 pub(crate) use misc::insert_summaries;
 pub(crate) use mixnodes::{get_all_mix_ids, get_all_mixnodes, get_daily_stats, insert_mixnodes};

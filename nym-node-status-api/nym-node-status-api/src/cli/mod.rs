@@ -83,9 +83,6 @@ pub(crate) struct Cli {
         env = "NYM_NODE_STATUS_API_MAX_AGENT_COUNT"
     )]
     pub(crate) max_agent_count: i64,
-
-    #[clap(long, default_value = "", env = "NYM_NODE_STATUS_API_HM_URL")]
-    pub(crate) hm_url: String,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

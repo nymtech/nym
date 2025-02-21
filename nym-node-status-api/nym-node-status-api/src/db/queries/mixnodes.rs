@@ -84,7 +84,7 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
 }
 
 /// `offset` = slides our fixed-day period further into the past by N days
-pub(crate) async fn get_daily_stats(pool: &DbPool, offset: i64) -> anyhow::Result<Vec<DailyStats>> {
+pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
     let mut conn = pool.acquire().await?;
     let items = sqlx::query_as!(
         DailyStats,
@@ -115,11 +115,8 @@ pub(crate) async fn get_daily_stats(pool: &DbPool, offset: i64) -> anyhow::Resul
             WHERE nym_node_daily_mixing_stats.node_id IS NULL
         )
         GROUP BY date_utc
-        ORDER BY date_utc DESC
-        LIMIT 30
-        OFFSET ?
+        ORDER BY date_utc ASC
         "#,
-        offset
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<DailyStats>>()

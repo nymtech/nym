@@ -233,7 +233,7 @@ impl Config {
             Uint128::zero()
         } else {
             Uint128::new(ticketbook_total_budget.amount)
-                * Decimal::from_ratio(1u32, whitelist_size as u64)
+                .mul_floor(Decimal::from_ratio(1u32, whitelist_size as u64))
         };
 
         let per_operator = Coin::new(amount.u128(), &ticketbook_total_budget.denom);

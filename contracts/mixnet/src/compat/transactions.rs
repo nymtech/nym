@@ -102,19 +102,18 @@ mod tests {
     mod increasing_pledge {
         use super::*;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::Addr;
+        use cosmwasm_std::testing::message_info;
 
         #[test]
         fn when_there_are_no_nodes() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let sender = mock_info("owner", &[test.coin(100000)]);
+            let sender = message_info(&test.make_addr("owner"), &[test.coin(100000)]);
             let err = test.execute_fn(try_increase_pledge, sender).unwrap_err();
 
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -126,8 +125,9 @@ mod tests {
         fn for_legacy_mixnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_legacy_mixnode("owner", Some(100_000_000u128.into()));
-            let sender = mock_info("owner", &[test.coin(100_000)]);
+            let node_id =
+                test.add_legacy_mixnode(&test.make_addr("owner"), Some(100_000_000u128.into()));
+            let sender = message_info(&test.make_addr("owner"), &[test.coin(100_000)]);
             test.assert_simple_execution(try_increase_pledge, sender);
 
             let after = test.mixnode_by_id(node_id).unwrap();
@@ -149,14 +149,14 @@ mod tests {
         fn for_legacy_gateway() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            test.add_legacy_gateway("owner", None);
-            let sender = mock_info("owner", &[test.coin(100000)]);
+            test.add_legacy_gateway(&test.make_addr("owner"), None);
+            let sender = message_info(&test.make_addr("owner"), &[test.coin(100000)]);
             let err = test.execute_fn(try_increase_pledge, sender).unwrap_err();
 
             // it's illegal to increase pledge for legacy gateways
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -168,8 +168,9 @@ mod tests {
         fn for_nymnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_dummy_nymnode("owner", Some(100_000_000u128.into()));
-            let sender = mock_info("owner", &[test.coin(100_000)]);
+            let node_id =
+                test.add_dummy_nymnode(&test.make_addr("owner"), Some(100_000_000u128.into()));
+            let sender = message_info(&test.make_addr("owner"), &[test.coin(100_000)]);
             test.assert_simple_execution(try_increase_pledge, sender);
 
             let after = test.nymnode_by_id(node_id).unwrap();
@@ -192,21 +193,19 @@ mod tests {
     mod decreasing_pledge {
         use super::*;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::Addr;
 
         #[test]
         fn when_there_are_no_nodes() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let sender = mock_info("owner", &[]);
+            let sender = test.make_sender("owner");
             let env = test.env();
             let decrease_by = test.coin(1000);
             let err = try_decrease_pledge(test.deps_mut(), env, sender, decrease_by).unwrap_err();
 
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -218,8 +217,9 @@ mod tests {
         fn for_legacy_mixnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_legacy_mixnode("owner", Some(120_000_000u128.into()));
-            let sender = mock_info("owner", &[]);
+            let node_id =
+                test.add_legacy_mixnode(&test.make_addr("owner"), Some(120_000_000u128.into()));
+            let sender = test.make_sender("owner");
             let env = test.env();
             let decrease_by = test.coin(1000);
             try_decrease_pledge(test.deps_mut(), env, sender, decrease_by)?;
@@ -243,8 +243,8 @@ mod tests {
         fn for_legacy_gateway() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            test.add_legacy_gateway("owner", None);
-            let sender = mock_info("owner", &[]);
+            test.add_legacy_gateway(&test.make_addr("owner"), None);
+            let sender = test.make_sender("owner");
             let env = test.env();
             let decrease_by = test.coin(1000);
             let err = try_decrease_pledge(test.deps_mut(), env, sender, decrease_by).unwrap_err();
@@ -252,7 +252,7 @@ mod tests {
             // it's illegal to decrease pledge for legacy gateways
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -264,8 +264,9 @@ mod tests {
         fn for_nymnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_dummy_nymnode("owner", Some(120_000_000u128.into()));
-            let sender = mock_info("owner", &[]);
+            let node_id =
+                test.add_dummy_nymnode(&test.make_addr("owner"), Some(120_000_000u128.into()));
+            let sender = test.make_sender("owner");
             let env = test.env();
             let decrease_by = test.coin(1000);
 
@@ -292,8 +293,8 @@ mod tests {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{Addr, Uint128};
+        use cosmwasm_std::testing::message_info;
+        use cosmwasm_std::Uint128;
         use mixnet_contract_common::{OperatingCostRange, ProfitMarginRange};
         use nym_contracts_common::Percent;
 
@@ -317,8 +318,8 @@ mod tests {
             test.update_profit_margin_range(range);
 
             // below lower
-            test.add_dummy_nymnode("owner1", None);
-            let sender = mock_info("owner1", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner1"), None);
+            let sender = message_info(&test.make_addr("owner1"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.profit_margin_percent = Percent::from_percentage_value(9)?;
@@ -330,8 +331,8 @@ mod tests {
             ));
 
             // zero
-            test.add_dummy_nymnode("owner2", None);
-            let sender = mock_info("owner2", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner2"), None);
+            let sender = message_info(&test.make_addr("owner2"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.profit_margin_percent = Percent::zero();
@@ -343,8 +344,8 @@ mod tests {
             ));
 
             // exactly at lower
-            test.add_dummy_nymnode("owner3", None);
-            let sender = mock_info("owner3", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner3"), None);
+            let sender = message_info(&test.make_addr("owner3"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.profit_margin_percent = minimum;
@@ -352,8 +353,8 @@ mod tests {
             assert!(res.is_ok());
 
             // above upper
-            test.add_dummy_nymnode("owner4", None);
-            let sender = mock_info("owner4", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner4"), None);
+            let sender = message_info(&test.make_addr("owner4"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.profit_margin_percent = Percent::from_percentage_value(81)?;
@@ -365,8 +366,8 @@ mod tests {
             ));
 
             // a hundred
-            test.add_dummy_nymnode("owner5", None);
-            let sender = mock_info("owner5", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner5"), None);
+            let sender = message_info(&test.make_addr("owner5"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.profit_margin_percent = Percent::hundred();
@@ -378,8 +379,8 @@ mod tests {
             ));
 
             // exactly at upper
-            test.add_dummy_nymnode("owner6", None);
-            let sender = mock_info("owner6", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner6"), None);
+            let sender = message_info(&test.make_addr("owner6"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.profit_margin_percent = maximum;
@@ -399,8 +400,8 @@ mod tests {
             test.update_operating_cost_range(range);
 
             // below lower
-            test.add_dummy_nymnode("owner1", None);
-            let sender = mock_info("owner1", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner1"), None);
+            let sender = message_info(&test.make_addr("owner1"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.interval_operating_cost = test.coin(999);
@@ -412,8 +413,8 @@ mod tests {
             ));
 
             // zero
-            test.add_dummy_nymnode("owner2", None);
-            let sender = mock_info("owner2", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner2"), None);
+            let sender = message_info(&test.make_addr("owner2"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.interval_operating_cost = test.coin(0);
@@ -425,8 +426,8 @@ mod tests {
             ));
 
             // exactly at lower
-            test.add_dummy_nymnode("owner3", None);
-            let sender = mock_info("owner3", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner3"), None);
+            let sender = message_info(&test.make_addr("owner3"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.interval_operating_cost = test.coin(minimum.u128());
@@ -434,8 +435,8 @@ mod tests {
             assert!(res.is_ok());
 
             // above upper
-            test.add_dummy_nymnode("owner4", None);
-            let sender = mock_info("owner4", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner4"), None);
+            let sender = message_info(&test.make_addr("owner4"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.interval_operating_cost = test.coin(100_000_001);
@@ -447,8 +448,8 @@ mod tests {
             ));
 
             // max
-            test.add_dummy_nymnode("owner5", None);
-            let sender = mock_info("owner5", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner5"), None);
+            let sender = message_info(&test.make_addr("owner5"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.interval_operating_cost = test.coin(u128::MAX);
@@ -460,8 +461,8 @@ mod tests {
             ));
 
             // exactly at upper
-            test.add_dummy_nymnode("owner6", None);
-            let sender = mock_info("owner6", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner6"), None);
+            let sender = message_info(&test.make_addr("owner6"), &[]);
             let env = test.env();
             let mut update = new_dummy_params();
             update.interval_operating_cost = test.coin(100_000_000);
@@ -475,14 +476,14 @@ mod tests {
         fn when_there_are_no_nodes() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let sender = mock_info("owner", &[]);
+            let sender = test.make_sender("owner");
             let env = test.env();
             let err = try_update_cost_params(test.deps_mut(), env, sender, new_dummy_params())
                 .unwrap_err();
 
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -494,8 +495,8 @@ mod tests {
         fn for_legacy_mixnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_legacy_mixnode("owner", None);
-            let sender = mock_info("owner", &[]);
+            let node_id = test.add_legacy_mixnode(&test.make_addr("owner"), None);
+            let sender = test.make_sender("owner");
             let env = test.env();
 
             let update = new_dummy_params();
@@ -517,9 +518,9 @@ mod tests {
         fn for_legacy_gateway() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            test.add_legacy_gateway("owner", None);
+            test.add_legacy_gateway(&test.make_addr("owner"), None);
 
-            let sender = mock_info("owner", &[]);
+            let sender = test.make_sender("owner");
             let env = test.env();
             let err = try_update_cost_params(test.deps_mut(), env, sender, new_dummy_params())
                 .unwrap_err();
@@ -527,7 +528,7 @@ mod tests {
             // it's illegal to update cost parameters for legacy gateways
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -538,8 +539,8 @@ mod tests {
         fn for_nymnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_dummy_nymnode("owner", None);
-            let sender = mock_info("owner", &[]);
+            let node_id = test.add_dummy_nymnode(&test.make_addr("owner"), None);
+            let sender = test.make_sender("owner");
             let env = test.env();
 
             let update = new_dummy_params();
@@ -562,19 +563,18 @@ mod tests {
     mod withdrawing_operator_reward {
         use super::*;
         use crate::support::tests::test_helpers::{ExtractBankMsg, TestSetup};
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::Addr;
+        use cosmwasm_std::testing::message_info;
 
         #[test]
         fn when_there_are_no_nodes() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            let sender = mock_info("owner", &[]);
+            let sender = test.make_sender("owner");
             let err = try_withdraw_operator_reward(test.deps_mut(), sender).unwrap_err();
 
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -588,15 +588,15 @@ mod tests {
             let active_params = test.active_node_params(100.0);
 
             // no rewards
-            test.add_legacy_mixnode("owner1", None);
-            let sender = mock_info("owner1", &[]);
+            test.add_legacy_mixnode(&test.make_addr("owner1"), None);
+            let sender = message_info(&test.make_addr("owner1"), &[]);
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender)?;
             let maybe_bank = res.unwrap_bank_msg();
             assert!(maybe_bank.is_none());
 
-            let node_id = test.add_legacy_mixnode("owner2", None);
-            let sender = mock_info("owner2", &[]);
+            let node_id = test.add_legacy_mixnode(&test.make_addr("owner2"), None);
+            let sender = message_info(&test.make_addr("owner2"), &[]);
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
@@ -613,15 +613,15 @@ mod tests {
         fn for_legacy_gateway() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
 
-            test.add_legacy_gateway("owner", None);
+            test.add_legacy_gateway(&test.make_addr("owner"), None);
 
-            let sender = mock_info("owner", &[]);
+            let sender = test.make_sender("owner");
             let err = try_withdraw_operator_reward(test.deps_mut(), sender).unwrap_err();
 
             // no rewards for legacy gateways...
             assert_eq!(
                 MixnetContractError::NoAssociatedNodeBond {
-                    owner: Addr::unchecked("owner"),
+                    owner: test.make_addr("owner"),
                 },
                 err
             );
@@ -634,15 +634,15 @@ mod tests {
             let active_params = test.active_node_params(100.0);
 
             // no rewards
-            test.add_dummy_nymnode("owner1", None);
-            let sender = mock_info("owner1", &[]);
+            test.add_dummy_nymnode(&test.make_addr("owner1"), None);
+            let sender = message_info(&test.make_addr("owner1"), &[]);
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender)?;
             let maybe_bank = res.unwrap_bank_msg();
             assert!(maybe_bank.is_none());
 
-            let node_id = test.add_dummy_nymnode("owner2", None);
-            let sender = mock_info("owner2", &[]);
+            let node_id = test.add_dummy_nymnode(&test.make_addr("owner2"), None);
+            let sender = message_info(&test.make_addr("owner2"), &[]);
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id]);
             test.start_epoch_transition();

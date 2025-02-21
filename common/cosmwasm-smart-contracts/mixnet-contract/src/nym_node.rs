@@ -77,6 +77,8 @@ impl<'a> PrimaryKey<'a> for Role {
 impl KeyDeserialize for Role {
     type Output = Role;
 
+    const KEY_ELEMS: u16 = 1;
+
     fn from_vec(value: Vec<u8>) -> StdResult<Self::Output> {
         let u8_key: <u8 as KeyDeserialize>::Output = <u8 as KeyDeserialize>::from_vec(value)?;
         Role::try_from(u8_key).map_err(|err| StdError::generic_err(err.to_string()))

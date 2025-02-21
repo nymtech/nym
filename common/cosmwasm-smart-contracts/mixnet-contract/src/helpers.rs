@@ -34,8 +34,10 @@ where
 {
     fn into_base_decimal(self) -> StdResult<Decimal> {
         let atomics = self.into();
-        Decimal::from_atomics(atomics, 0).map_err(|_| StdError::GenericErr {
-            msg: format!("Decimal range exceeded for {atomics} with 0 decimal places."),
+        Decimal::from_atomics(atomics, 0).map_err(|_| {
+            StdError::generic_err(format!(
+                "Decimal range exceeded for {atomics} with 0 decimal places."
+            ))
         })
     }
 }

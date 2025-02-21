@@ -168,29 +168,26 @@ pub(crate) mod tests {
         let mut deps = init_contract();
 
         let bad_address = "FOOMP".to_string();
+        let good_address = deps.api.addr_make("foo");
         assert!(query_dealing_chunk(deps.as_ref(), 0, bad_address, 0, 0).is_err());
 
-        let empty = query_dealing_chunk(deps.as_ref(), 0, "foo".to_string(), 0, 0).unwrap();
+        let empty = query_dealing_chunk(deps.as_ref(), 0, good_address.to_string(), 0, 0).unwrap();
         assert_eq!(empty.epoch_id, 0);
         assert_eq!(empty.dealing_index, 0);
         assert_eq!(empty.chunk_index, 0);
-        assert_eq!(empty.dealer, Addr::unchecked("foo"));
+        assert_eq!(empty.dealer, good_address);
         assert!(empty.chunk.is_none());
 
         // insert the dealing chunk
         let dealing = partial_dealing_fixture();
-        StoredDealing::save(
-            deps.as_mut().storage,
-            0,
-            &Addr::unchecked("foo"),
-            dealing.clone(),
-        );
+        StoredDealing::save(deps.as_mut().storage, 0, &good_address, dealing.clone());
 
-        let retrieved = query_dealing_chunk(deps.as_ref(), 0, "foo".to_string(), 0, 0).unwrap();
+        let retrieved =
+            query_dealing_chunk(deps.as_ref(), 0, good_address.to_string(), 0, 0).unwrap();
         assert_eq!(retrieved.epoch_id, 0);
         assert_eq!(retrieved.dealing_index, dealing.dealing_index);
         assert_eq!(retrieved.chunk_index, dealing.chunk_index);
-        assert_eq!(retrieved.dealer, Addr::unchecked("foo"));
+        assert_eq!(retrieved.dealer, good_address);
         assert_eq!(retrieved.chunk.unwrap(), dealing.data);
     }
 
@@ -201,10 +198,12 @@ pub(crate) mod tests {
         let bad_address = "FOOMP".to_string();
         assert!(query_dealing_status(deps.as_ref(), 0, bad_address, 0).is_err());
 
-        let empty = query_dealing_status(deps.as_ref(), 0, "foo".to_string(), 0).unwrap();
+        let empty =
+            query_dealing_status(deps.as_ref(), 0, deps.api.addr_make("foo").to_string(), 0)
+                .unwrap();
         assert_eq!(empty.epoch_id, 0);
         assert_eq!(empty.dealing_index, 0);
-        assert_eq!(empty.dealer, Addr::unchecked("foo"));
+        assert_eq!(empty.dealer, deps.api.addr_make("foo"));
         assert!(!empty.status.fully_submitted);
         assert!(!empty.status.has_metadata);
         assert!(empty.status.chunk_submission_status.is_empty());

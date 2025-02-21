@@ -24,7 +24,7 @@ impl IndexList<Delegation> for DelegationIndex<'_> {
     }
 }
 
-pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
+pub(crate) fn delegations<'a>() -> IndexedMap<PrimaryKey, Delegation, DelegationIndex<'a>> {
     let indexes = DelegationIndex {
         owner: MultiIndex::new(
             |_pk, d| d.owner.clone(),

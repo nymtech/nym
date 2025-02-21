@@ -20,6 +20,6 @@ signers to share signatures off chain.
 
 For more information on this contract, please check out the
 [README](https://github.com/CosmWasm/cw-plus/blob/main/contracts/cw3-flex-multisig/README.md).
- */
+*/
 
 pub mod contract;

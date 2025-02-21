@@ -79,7 +79,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "PendingEpochEvent": {
       "description": "A request made at some point in the current epoch that's going to get resolved once the epoch rolls over.",

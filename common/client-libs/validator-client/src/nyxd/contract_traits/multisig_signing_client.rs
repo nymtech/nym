@@ -7,10 +7,10 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
-use cosmwasm_std::{to_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{CosmosMsg, Empty};
 use cw3::Vote;
 use cw4::{MemberChangedHookMsg, MemberDiff};
-use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
+use cw_utils::Expiration;
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -24,35 +24,23 @@ pub trait MultisigSigningClient: NymContractsProvider {
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
 
-    async fn propose_release_funds(
+    async fn propose(
         &self,
         title: String,
-        blinded_serial_number: String,
-        voucher_value: Coin,
+        description: String,
+        msgs: Vec<CosmosMsg<Empty>>,
+        latest: Option<Expiration>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let ecash_contract_address = self
-            .ecash_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("coconut bandwidth contract"))?;
-
-        let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
-            funds: voucher_value.into(),
-        };
-        let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: ecash_contract_address.to_string(),
-            msg: to_binary(&release_funds_req)?,
-            funds: vec![],
-        });
-        let req = MultisigExecuteMsg::Propose {
-            title,
-            description: blinded_serial_number,
-            msgs: vec![release_funds_msg],
-            latest: None,
-        };
         self.execute_multisig_contract(
             fee,
-            req,
-            "Multisig::Propose::Execute::ReleaseFunds".to_string(),
+            MultisigExecuteMsg::Propose {
+                title,
+                description,
+                msgs,
+                latest,
+            },
+            "Multisig::Propose".to_string(),
             vec![],
         )
         .await
@@ -161,7 +149,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -171,9 +159,12 @@ mod tests {
     ) {
         match msg {
             MultisigExecuteMsg::Propose {
-                title, description, ..
+                title,
+                description,
+                msgs,
+                latest,
             } => client
-                .propose_release_funds(title, description, mock_coin(), None)
+                .propose(title, description, msgs, latest, None)
                 .ignore(),
             MultisigExecuteMsg::Vote { proposal_id, vote } => {
                 client.vote(proposal_id, vote, None).ignore()

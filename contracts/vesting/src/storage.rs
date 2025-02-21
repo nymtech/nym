@@ -8,49 +8,48 @@ use vesting_contract_common::{Account, PledgeData, VestingContractError};
 pub(crate) type BlockTimestampSecs = u64;
 
 /// Counter for the unique, monotonically increasing storage key id for the vesting account data.
-pub const KEY: Item<'_, VestingAccountStorageKey> = Item::new("key");
+pub const KEY: Item<VestingAccountStorageKey> = Item::new("key");
 
 /// Storage map containing vesting account information associated with particular owner address.
-pub const ACCOUNTS: Map<'_, Addr, Account> = Map::new("acc");
+pub const ACCOUNTS: Map<Addr, Account> = Map::new("acc");
 
 /// Storage map containing information about amount of tokens associated with particular vesting account
 /// that are currently present in the contract (and have not been withdrawn or staked in the mixnet contract)
 // note: this assumes I understood the intent behind this correctly
-const BALANCES: Map<'_, VestingAccountStorageKey, Uint128> = Map::new("blc");
+const BALANCES: Map<VestingAccountStorageKey, Uint128> = Map::new("blc");
 
 /// Storage map containing information about amount of tokens withdrawn from the contract by a particular vesting account.
-const WITHDRAWNS: Map<'_, VestingAccountStorageKey, Uint128> = Map::new("wthd");
+const WITHDRAWNS: Map<VestingAccountStorageKey, Uint128> = Map::new("wthd");
 
 /// Storage map containing information about amount of tokens pledged towards bonding mixnodes
 /// in the mixnet contract using a particular vesting account.
-const BOND_PLEDGES: Map<'_, VestingAccountStorageKey, PledgeData> = Map::new("bnd");
+const BOND_PLEDGES: Map<VestingAccountStorageKey, PledgeData> = Map::new("bnd");
 
 /// Storage map containing information about amount of tokens pledged towards bonding gateways
 /// in the mixnet contract using a particular vesting account.
-const GATEWAY_PLEDGES: Map<'_, VestingAccountStorageKey, PledgeData> = Map::new("gtw");
+const GATEWAY_PLEDGES: Map<VestingAccountStorageKey, PledgeData> = Map::new("gtw");
 
 /// Old, pre-v2 migration, storage map that used to contain information about tokens delegated
 /// towards particular mixnodes in the mixnet contract with given vesting account.
 /// It should be completely empty.
 pub const _OLD_DELEGATIONS: Map<
-    '_,
     (VestingAccountStorageKey, IdentityKey, BlockTimestampSecs),
     Uint128,
 > = Map::new("dlg");
 
 /// Storage map containing information about tokens delegated towards particular mixnodes
 /// in the mixnet contract with given vesting account.
-pub const DELEGATIONS: Map<'_, (VestingAccountStorageKey, NodeId, BlockTimestampSecs), Uint128> =
+pub const DELEGATIONS: Map<(VestingAccountStorageKey, NodeId, BlockTimestampSecs), Uint128> =
     Map::new("dlg_v2");
 
 /// Explicit contract admin that is allowed, among other things, to create new vesting accounts.
-pub const ADMIN: Item<'_, Addr> = Item::new("adm");
+pub const ADMIN: Item<Addr> = Item::new("adm");
 
 /// Address of the mixnet contract.
-pub const MIXNET_CONTRACT_ADDRESS: Item<'_, Addr> = Item::new("mix");
+pub const MIXNET_CONTRACT_ADDRESS: Item<Addr> = Item::new("mix");
 
 /// The denomination of coin used for staking.
-pub const MIX_DENOM: Item<'_, String> = Item::new("den");
+pub const MIX_DENOM: Item<String> = Item::new("den");
 
 pub fn save_delegation(
     key: (VestingAccountStorageKey, NodeId, BlockTimestampSecs),

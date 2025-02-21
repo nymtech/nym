@@ -23,7 +23,7 @@ sylvia = { workspace = true }
 cw-storage-plus = { workspace = true }
 thiserror = { workspace = true }
 cw-controllers = { workspace = true }
-cosmwasm-storage = { workspace = true }
+
 cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
@@ -40,6 +40,7 @@ anyhow = { workspace = true }
 sylvia = { workspace = true, features = ["mt"] }
 nym-crypto = { path = "../../common/crypto", features = ["rand", "asymmetric"] }
 rand_chacha = "0.3"
+cw-multi-test = { workspace = true }
 
 [features]
 schema-gen = ["nym-ecash-contract-common/schema"]

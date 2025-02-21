@@ -1,7 +1,10 @@
 [package]
 name = "nym-coconut-dkg"
 version = "0.1.0"
-edition = "2021"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,15 +21,15 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
-cosmwasm-storage = { workspace = true }
+
 cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 cw2 = { workspace = true }
 cw4 = { workspace = true }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
 cw-multi-test = { workspace = true }
 cw4-group = { path = "../multisig/cw4-group" }
 nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }

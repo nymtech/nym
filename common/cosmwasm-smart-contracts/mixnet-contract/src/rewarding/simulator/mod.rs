@@ -242,7 +242,7 @@ mod tests {
         #[allow(clippy::unwrap_used)]
         fn base_simulator(initial_pledge: u128) -> Simulator {
             let profit_margin = Percent::from_percentage_value(10).unwrap();
-            let interval_operating_cost = Coin::new(40_000_000, "unym");
+            let interval_operating_cost = Coin::new(40_000_000u64, "unym");
             let epochs_in_interval = 720u32;
             let interval_pool_emission = Percent::from_percentage_value(2).unwrap();
 
@@ -347,7 +347,7 @@ mod tests {
         fn single_delegation_at_genesis() {
             let mut simulator = base_simulator(10000_000000);
             simulator
-                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .delegate("alice", Coin::new(18000_000000u64, "unym"), 0)
                 .unwrap();
 
             let node_params = NodeRewardingParameters::new(
@@ -393,7 +393,7 @@ mod tests {
             compare_decimals(rewards1.operator, expected_operator1, None);
 
             simulator
-                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .delegate("alice", Coin::new(18000_000000u64, "unym"), 0)
                 .unwrap();
 
             let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
@@ -439,10 +439,10 @@ mod tests {
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
             simulator
-                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .delegate("alice", Coin::new(18000_000000u64, "unym"), 0)
                 .unwrap();
             simulator
-                .delegate("bob", Coin::new(4000_000000, "unym"), 0)
+                .delegate("bob", Coin::new(4000_000000u64, "unym"), 0)
                 .unwrap();
 
             // "normal", sanity check rewarding
@@ -484,10 +484,10 @@ mod tests {
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
             simulator
-                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .delegate("alice", Coin::new(18000_000000u64, "unym"), 0)
                 .unwrap();
             simulator
-                .delegate("bob", Coin::new(4000_000000, "unym"), 0)
+                .delegate("bob", Coin::new(4000_000000u64, "unym"), 0)
                 .unwrap();
 
             // "normal", sanity check rewarding
@@ -553,12 +553,12 @@ mod tests {
             for epoch in 0..720 {
                 if epoch == 0 {
                     simulator
-                        .delegate("a", Coin::new(18000_000000, "unym"), 0)
+                        .delegate("a", Coin::new(18000_000000u64, "unym"), 0)
                         .unwrap()
                 }
                 if epoch == 42 {
                     simulator
-                        .delegate("b", Coin::new(2000_000000, "unym"), 0)
+                        .delegate("b", Coin::new(2000_000000u64, "unym"), 0)
                         .unwrap()
                 }
                 if epoch == 89 {
@@ -566,7 +566,7 @@ mod tests {
                 }
                 if epoch == 123 {
                     simulator
-                        .delegate("c", Coin::new(6666_000000, "unym"), 0)
+                        .delegate("c", Coin::new(6666_000000u64, "unym"), 0)
                         .unwrap()
                 }
                 if epoch == 167 {
@@ -574,7 +574,7 @@ mod tests {
                 }
                 if epoch == 245 {
                     simulator
-                        .delegate("d", Coin::new(2050_000000, "unym"), 0)
+                        .delegate("d", Coin::new(2050_000000u64, "unym"), 0)
                         .unwrap()
                 }
                 if epoch == 264 {
@@ -597,7 +597,7 @@ mod tests {
                 }
                 if epoch == 545 {
                     simulator
-                        .delegate("e", Coin::new(5000_000000, "unym"), 0)
+                        .delegate("e", Coin::new(5000_000000u64, "unym"), 0)
                         .unwrap()
                 }
 
@@ -666,132 +666,132 @@ mod tests {
 
         let n0 = simulator
             .bond(
-                Coin::new(11_000_000_000000, "unym"),
+                Coin::new(11_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(1_000_000_000000, "unym"), n0)
+            .delegate("delegator", Coin::new(1_000_000_000000u64, "unym"), n0)
             .unwrap();
 
         let n1 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(11_000_000_000000, "unym"), n1)
+            .delegate("delegator", Coin::new(11_000_000_000000u64, "unym"), n1)
             .unwrap();
 
         let n2 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(9_000_000_000000, "unym"), n2)
+            .delegate("delegator", Coin::new(9_000_000_000000u64, "unym"), n2)
             .unwrap();
 
         let n3 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
-                    interval_operating_cost: Coin::new(500_000_000, "unym"),
+                    interval_operating_cost: Coin::new(500_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n3)
+            .delegate("delegator", Coin::new(7_000_000_000000u64, "unym"), n3)
             .unwrap();
 
         let n4 = simulator
             .bond(
-                Coin::new(1000_000000, "unym"),
+                Coin::new(1000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(7_999_000_000000, "unym"), n4)
+            .delegate("delegator", Coin::new(7_999_000_000000u64, "unym"), n4)
             .unwrap();
 
         let n5 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n5)
+            .delegate("delegator", Coin::new(7_000_000_000000u64, "unym"), n5)
             .unwrap();
 
         let n6 = simulator
             .bond(
-                Coin::new(11_000_000_000000, "unym"),
+                Coin::new(11_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(1_000_000_000000, "unym"), n6)
+            .delegate("delegator", Coin::new(1_000_000_000000u64, "unym"), n6)
             .unwrap();
 
         let n7 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(9_000_000_000000, "unym"), n7)
+            .delegate("delegator", Coin::new(9_000_000_000000u64, "unym"), n7)
             .unwrap();
 
         let n8 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
-                    interval_operating_cost: Coin::new(500_000_000, "unym"),
+                    interval_operating_cost: Coin::new(500_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n8)
+            .delegate("delegator", Coin::new(7_000_000_000000u64, "unym"), n8)
             .unwrap();
 
         let n9 = simulator
             .bond(
-                Coin::new(1_000_000_000000, "unym"),
+                Coin::new(1_000_000_000000u64, "unym"),
                 NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                    interval_operating_cost: Coin::new(40_000_000u64, "unym"),
                 },
             )
             .unwrap();
         simulator
-            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n9)
+            .delegate("delegator", Coin::new(7_000_000_000000u64, "unym"), n9)
             .unwrap();
 
         let uptime_1 = Percent::from_percentage_value(100).unwrap();

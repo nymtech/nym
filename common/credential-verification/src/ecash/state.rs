@@ -3,7 +3,7 @@
 
 use crate::ecash::error::EcashTicketError;
 use crate::Error;
-use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_gateway_storage::GatewayStorage;
@@ -72,7 +72,7 @@ impl SharedState {
         let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = msg else {
             return false;
         };
-        let Ok(ExecuteMsg::RedeemTickets { gw, .. }) = from_binary(msg) else {
+        let Ok(ExecuteMsg::RedeemTickets { gw, .. }) = from_json(msg) else {
             return false;
         };
 

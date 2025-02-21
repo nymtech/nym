@@ -3,18 +3,18 @@
 
 use crate::contract::NymEcashContract;
 use crate::helpers::Config;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
+use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{coin, Addr, Deps, Empty, Env, MemoryStorage, MessageInfo, OwnedDeps};
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
-use sylvia::types::{ExecCtx, InstantiateCtx, QueryCtx};
+use sylvia::ctx::{ExecCtx, InstantiateCtx, QueryCtx};
 
 pub fn test_rng() -> ChaCha20Rng {
     let dummy_seed = [42u8; 32];
     ChaCha20Rng::from_seed(dummy_seed)
 }
 
-const CONTRACT: NymEcashContract<'static> = NymEcashContract::new();
+const CONTRACT: NymEcashContract = NymEcashContract::new();
 
 const DENOM: &str = "unym";
 
@@ -33,18 +33,15 @@ impl TestSetupSimple {
     pub fn new() -> Self {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let owner = Addr::unchecked("owner");
-
-        let init_ctx = InstantiateCtx {
-            deps: deps.as_mut(),
-            env: env.clone(),
-            info: mock_info(owner.as_str(), &[]),
-        };
+        let owner = deps.api.addr_make("owner");
 
         let rng = test_rng();
-        let holding_account = Addr::unchecked("holding_account");
-        let multisig_contract = Addr::unchecked("multisig_contract");
-        let group_contract = Addr::unchecked("group_contract");
+        let holding_account = deps.api.addr_make("holding_account");
+        let multisig_contract = deps.api.addr_make("multisig_contract");
+        let group_contract = deps.api.addr_make("group_contract");
+
+        let init_ctx =
+            InstantiateCtx::from((deps.as_mut(), env.clone(), message_info(&owner, &[])));
 
         CONTRACT
             .instantiate(
@@ -73,23 +70,17 @@ impl TestSetupSimple {
             .get(self.deps.as_ref())
             .unwrap()
             .unwrap();
-        mock_info(admin.as_str(), &[])
+        message_info(&admin, &[])
     }
 
     pub fn execute_ctx(&mut self, sender: MessageInfo) -> ExecCtx {
-        ExecCtx {
-            env: self.env.clone(),
-            deps: self.deps.as_mut(),
-            info: sender,
-        }
+        let env = self.env.clone();
+        ExecCtx::from((self.deps.as_mut(), env, sender))
     }
 
     #[allow(dead_code)]
     pub fn query_ctx(&self) -> QueryCtx {
-        QueryCtx {
-            env: self.env.clone(),
-            deps: self.deps.as_ref(),
-        }
+        QueryCtx::from((self.deps.as_ref(), self.env.clone()))
     }
 
     pub fn contract(&self) -> NymEcashContract {

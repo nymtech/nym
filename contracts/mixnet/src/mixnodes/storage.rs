@@ -32,7 +32,7 @@ impl IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'_> {
 }
 
 pub(crate) fn unbonded_mixnodes<'a>(
-) -> IndexedMap<'a, NodeId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
+) -> IndexedMap<NodeId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
     let indexes = UnbondedMixnodeIndex {
         owner: MultiIndex::new(
             |_pk, d| d.owner.clone(),
@@ -49,11 +49,11 @@ pub(crate) fn unbonded_mixnodes<'a>(
 }
 
 pub(crate) struct MixnodeBondIndex<'a> {
-    pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,
+    pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond, ()>,
 
-    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, MixNodeBond>,
+    pub(crate) identity_key: UniqueIndex<'a, IdentityKey, MixNodeBond, ()>,
 
-    pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, MixNodeBond>,
+    pub(crate) sphinx_key: UniqueIndex<'a, SphinxKey, MixNodeBond, ()>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
@@ -67,7 +67,7 @@ impl IndexList<MixNodeBond> for MixnodeBondIndex<'_> {
 }
 
 // mixnode_bonds() is the storage access function.
-pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
+pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
         identity_key: UniqueIndex::new(

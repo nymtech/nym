@@ -49,7 +49,7 @@ k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
 base64 = "0.13"
 zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 
-cosmwasm-std = "1.3.0"
+cosmwasm-std = "2.2.1"
 cosmrs = { version = "0.21.0" }
 
 nym-node-requests = { path = "../../nym-node/nym-node-requests" }

@@ -235,7 +235,7 @@ pub(crate) fn decode_ed25519_identity_key(
 ) -> Result<[u8; 32], MixnetContractError> {
     let mut public_key = [0u8; 32];
     let used = bs58::decode(encoded)
-        .into(&mut public_key)
+        .onto(&mut public_key)
         .map_err(|err| MixnetContractError::MalformedEd25519IdentityKey(err.to_string()))?;
 
     if used != 32 {

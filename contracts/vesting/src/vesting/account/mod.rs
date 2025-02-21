@@ -198,7 +198,7 @@ impl StorableVestingAccountExt for Account {
     fn absolute_pledge_cap(&self) -> Result<Uint128, VestingContractError> {
         match self.pledge_cap() {
             PledgeCap::Absolute(cap) => Ok(cap),
-            PledgeCap::Percent(p) => Ok(p * self.get_original_vesting()?.amount.amount),
+            PledgeCap::Percent(p) => Ok(self.get_original_vesting()?.amount.amount.mul_floor(p)),
         }
     }
 

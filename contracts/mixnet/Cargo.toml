@@ -32,7 +32,7 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
-cosmwasm-storage = { workspace = true }
+
 cosmwasm-derive = { workspace = true }
 cw-controllers = { workspace = true }
 cw2 = { workspace = true }
@@ -49,6 +49,7 @@ anyhow.workspace = true
 rand_chacha = "0.3"
 rand = "0.8.5"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
 
 [features]
 default = []

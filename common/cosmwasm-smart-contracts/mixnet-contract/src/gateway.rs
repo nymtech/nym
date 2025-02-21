@@ -241,10 +241,10 @@ mod tests {
 
     #[test]
     fn gateway_bond_partial_ord() {
-        let _150foos = Coin::new(150, "foo");
-        let _140foos = Coin::new(140, "foo");
-        let _50foos = Coin::new(50, "foo");
-        let _0foos = Coin::new(0, "foo");
+        let _150foos = Coin::new(150u32, "foo");
+        let _140foos = Coin::new(140u32, "foo");
+        let _50foos = Coin::new(50u32, "foo");
+        let _0foos = Coin::new(0u32, "foo");
 
         let gate1 = GatewayBond {
             pledge_amount: _150foos.clone(),

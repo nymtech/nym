@@ -139,6 +139,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Uint128;
+    use easy_addr::addr;
 
     pub(crate) struct DummyMixnode {
         pub mix_id: NodeId,
@@ -146,31 +147,34 @@ pub(crate) mod tests {
         pub identity: IdentityKey,
     }
 
-    pub(crate) const OWNER_EXISTS: &str = "mix-owner-existing";
-    pub(crate) const OWNER_UNBONDING: &str = "mix-owner-unbonding";
-    pub(crate) const OWNER_UNBONDED: &str = "mix-owner-unbonded";
-    pub(crate) const OWNER_UNBONDED_LEFTOVER: &str = "mix-owner-unbonded-leftover";
+    pub(crate) const OWNER_EXISTS: &str = addr!("mix-owner-existing");
+    pub(crate) const OWNER_UNBONDING: &str = addr!("mix-owner-unbonding");
+    pub(crate) const OWNER_UNBONDED: &str = addr!("mix-owner-unbonded");
+    pub(crate) const OWNER_UNBONDED_LEFTOVER: &str = addr!("mix-owner-unbonded-leftover");
 
     // create a mixnode that is bonded, unbonded, in the process of unbonding and unbonded with leftover mix rewarding details
     pub(crate) fn setup_mix_combinations(
         test: &mut TestSetup,
         stake: Option<Uint128>,
     ) -> Vec<DummyMixnode> {
-        let (mix_id, keypair) = test.add_legacy_mixnode_with_keypair(OWNER_EXISTS, stake);
+        let (mix_id, keypair) =
+            test.add_legacy_mixnode_with_keypair(&Addr::unchecked(OWNER_EXISTS), stake);
         let mix_exists = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_EXISTS),
             identity: keypair.public_key().to_base58_string(),
         };
 
-        let (mix_id, keypair) = test.add_legacy_mixnode_with_keypair(OWNER_UNBONDING, stake);
+        let (mix_id, keypair) =
+            test.add_legacy_mixnode_with_keypair(&Addr::unchecked(OWNER_UNBONDING), stake);
         let mix_unbonding = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_UNBONDING),
             identity: keypair.public_key().to_base58_string(),
         };
 
-        let (mix_id, keypair) = test.add_legacy_mixnode_with_keypair(OWNER_UNBONDED, stake);
+        let (mix_id, keypair) =
+            test.add_legacy_mixnode_with_keypair(&Addr::unchecked(OWNER_UNBONDED), stake);
         let mix_unbonded = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_UNBONDED),
@@ -178,7 +182,7 @@ pub(crate) mod tests {
         };
 
         let (mix_id, keypair) =
-            test.add_legacy_mixnode_with_keypair(OWNER_UNBONDED_LEFTOVER, stake);
+            test.add_legacy_mixnode_with_keypair(&Addr::unchecked(OWNER_UNBONDED_LEFTOVER), stake);
         let mix_unbonded_leftover = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_UNBONDED_LEFTOVER),
@@ -348,8 +352,8 @@ pub(crate) mod tests {
     fn cleaning_post_unbond_storage() {
         let mut test = TestSetup::new();
 
-        let mix_id = test.add_legacy_mixnode("mix-owner", None);
-        let mix_id_leftover = test.add_legacy_mixnode("mix-owner-leftover", None);
+        let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+        let mix_id_leftover = test.add_legacy_mixnode(&test.make_addr("mix-owner-leftover"), None);
 
         // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
         let mut rewarding_details = test.mix_rewarding(mix_id_leftover);

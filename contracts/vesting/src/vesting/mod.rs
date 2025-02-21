@@ -24,7 +24,7 @@ mod tests {
     use crate::vesting::account::StorableVestingAccountExt;
     use crate::vesting::populate_vesting_periods;
     use contracts_common::signing::MessageSignature;
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::NodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
@@ -38,13 +38,16 @@ mod tests {
         let env = mock_env();
 
         let msg = ExecuteMsg::CreateAccount {
-            owner_address: "owner".to_string(),
-            staking_address: Some("staking".to_string()),
+            owner_address: deps.api.addr_make("owner").to_string(),
+            staking_address: Some(deps.api.addr_make("staking").to_string()),
             vesting_spec: None,
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
 
-        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+        let info = message_info(
+            &deps.api.addr_make("admin"),
+            &coins(1_000_000_000_000, TEST_COIN_DENOM),
+        );
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert_eq!(
             response,
@@ -58,7 +61,7 @@ mod tests {
     fn test_ownership_transfer() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("owner", &[]);
+        let info = message_info(&deps.api.addr_make("owner"), &[]);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
@@ -75,7 +78,7 @@ mod tests {
     fn test_staking_account() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("staking", &[]);
+        let info = message_info(&deps.api.addr_make("staking"), &[]);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
@@ -92,19 +95,19 @@ mod tests {
     fn test_staking_address_change() {
         let mut deps = init_contract();
         let env = mock_env();
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps, &env);
         let original_staker = account.staking_address().unwrap();
 
         // can stake on behalf without an issue
         let stake_msg = ExecuteMsg::DelegateToMixnode {
-            on_behalf_of: Some("owner".to_string()),
+            on_behalf_of: Some(deps.api.addr_make("owner").to_string()),
             mix_id: 42,
             amount: coin(500, TEST_COIN_DENOM),
         };
         let response = execute(
             deps.as_mut(),
             env.clone(),
-            mock_info(original_staker.as_ref(), &[]),
+            message_info(original_staker, &[]),
             stake_msg.clone(),
         );
         assert_eq!(
@@ -123,16 +126,18 @@ mod tests {
         let amount = coin(1000000000, "unym");
 
         // create the accounts
+        let owner = deps.api.addr_make("vesting1");
         let msg = ExecuteMsg::CreateAccount {
-            owner_address: "vesting1".to_string(),
+            owner_address: owner.to_string(),
             staking_address: None,
             vesting_spec: None,
             cap: None,
         };
+        let admin = deps.api.addr_make("admin");
         let response = execute(
             deps.as_mut(),
             env.clone(),
-            mock_info("admin", &[amount.clone()]),
+            message_info(&admin, &[amount.clone()]),
             msg,
         );
         assert_eq!(
@@ -150,7 +155,7 @@ mod tests {
         let num_vesting_periods = 8;
         let vesting_period = 3 * 30 * 86400;
 
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps, &env);
 
         assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
@@ -270,7 +275,7 @@ mod tests {
     fn test_withdraw_case() {
         let mut deps = init_contract();
         let env = mock_env();
-        let account = vesting_account_mid_fixture(&mut deps.storage, &env);
+        let account = vesting_account_mid_fixture(&mut deps, &env);
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
         let vesting_coins = account
@@ -379,7 +384,7 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_percent_fixture(&mut deps.storage, &env);
+        let account = vesting_account_percent_fixture(&mut deps, &env);
 
         assert_eq!(
             account.absolute_pledge_cap().unwrap(),
@@ -392,15 +397,18 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        // let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        // let account = vesting_account_new_fixture(&mut deps, &env);
 
         let msg = ExecuteMsg::CreateAccount {
-            owner_address: "owner".to_string(),
-            staking_address: Some("staking".to_string()),
+            owner_address: deps.api.addr_make("owner").to_string(),
+            staking_address: Some(deps.api.addr_make("staking").to_string()),
             vesting_spec: None,
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
-        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+        let info = message_info(
+            &deps.api.addr_make("admin"),
+            &coins(1_000_000_000_000, TEST_COIN_DENOM),
+        );
 
         let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
@@ -416,7 +424,7 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps, &env);
 
         let mix_node = MixNode {
             host: "mix.node.org".to_string(),
@@ -445,7 +453,7 @@ mod tests {
                 denom: TEST_COIN_DENOM.to_string(),
             },
         };
-        let info = mock_info(account.owner_address.as_str(), &[]);
+        let info = message_info(&account.owner_address, &[]);
         let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
             response,
@@ -460,7 +468,7 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let account = vesting_account_new_fixture(&mut deps, &env);
 
         let gateway = Gateway {
             host: "1.1.1.1".to_string(),
@@ -539,8 +547,8 @@ mod tests {
         );
 
         let vesting_account = Account::save_new(
-            Addr::unchecked("owner"),
-            Some(Addr::unchecked("staking")),
+            Addr::unchecked(deps.api.addr_make("owner")),
+            Some(Addr::unchecked(deps.api.addr_make("staking"))),
             Coin {
                 amount: Uint128::new(1_000_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),

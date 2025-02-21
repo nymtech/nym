@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
-    SubMsg, Uint64,
+    attr, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdResult, SubMsg, Uint64,
 };
 use cw2::set_contract_version;
 use cw4::{
@@ -166,15 +166,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Member {
             addr,
             at_height: height,
-        } => to_binary(&query_member(deps, addr, height)?),
+        } => to_json_binary(&query_member(deps, addr, height)?),
         QueryMsg::ListMembers { start_after, limit } => {
-            to_binary(&query_list_members(deps, start_after, limit)?)
+            to_json_binary(&query_list_members(deps, start_after, limit)?)
         }
         QueryMsg::TotalWeight { at_height: height } => {
-            to_binary(&query_total_weight(deps, height)?)
+            to_json_binary(&query_total_weight(deps, height)?)
         }
-        QueryMsg::Admin {} => to_binary(&ADMIN.query_admin(deps)?),
-        QueryMsg::Hooks {} => to_binary(&HOOKS.query_hooks(deps)?),
+        QueryMsg::Admin {} => to_json_binary(&ADMIN.query_admin(deps)?),
+        QueryMsg::Hooks {} => to_json_binary(&HOOKS.query_hooks(deps)?),
     }
 }
 

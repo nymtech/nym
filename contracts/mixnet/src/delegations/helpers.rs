@@ -33,11 +33,13 @@ mod tests {
         let mut test = TestSetup::new();
         let active_params = test.active_node_params(100.0);
 
-        let mix_id =
-            test.add_rewarded_set_nymnode_id("mix-owner", Some(Uint128::new(100_000_000_000)));
-        let delegator = "delegator";
+        let mix_id = test.add_rewarded_set_nymnode_id(
+            &test.make_addr("mix-owner"),
+            Some(Uint128::new(100_000_000_000)),
+        );
+        let delegator = test.make_addr("delegator");
         let og_amount = Uint128::new(200_000_000);
-        test.add_immediate_delegation(delegator, og_amount, mix_id);
+        test.add_immediate_delegation(&delegator, og_amount, mix_id);
 
         test.skip_to_next_epoch_end();
         test.force_change_mix_rewarded_set(vec![mix_id]);
@@ -46,7 +48,7 @@ mod tests {
         let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         let mix_rewarding = test.mix_rewarding(mix_id);
-        let delegation = test.delegation(mix_id, delegator, &None);
+        let delegation = test.delegation(mix_id, &delegator, &None);
 
         let expected_amount = og_amount + truncate_reward_amount(dist1.delegates + dist2.delegates);
 

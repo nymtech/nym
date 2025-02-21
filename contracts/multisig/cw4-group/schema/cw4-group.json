@@ -1,6 +1,6 @@
 {
   "contract_name": "cw4-group",
-  "contract_version": "1.0.0",
+  "contract_version": "2.0.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",

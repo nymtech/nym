@@ -34,7 +34,7 @@ impl NymNode {
     }
 
     pub(crate) fn pledge(&self) -> CosmWasmCoin {
-        CosmWasmCoin::new(100_000000, "unym")
+        CosmWasmCoin::new(100_000000u32, "unym")
     }
 
     pub(crate) fn bonding_nym_node(&self) -> nym_mixnet_contract_common::NymNode {
@@ -48,7 +48,7 @@ impl NymNode {
     pub(crate) fn cost_params(&self) -> NodeCostParams {
         NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-            interval_operating_cost: CosmWasmCoin::new(40_000000, "unym"),
+            interval_operating_cost: CosmWasmCoin::new(40_000000u32, "unym"),
         }
     }
 

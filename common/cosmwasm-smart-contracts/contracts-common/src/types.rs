@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Decimal;
 use cosmwasm_std::OverflowError;
 use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Fraction};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::fmt::{self, Display, Formatter};
@@ -17,7 +17,7 @@ pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 
 pub fn truncate_decimal(amount: Decimal) -> Uint128 {
-    amount * Uint128::new(1)
+    Uint128::new(1).mul_floor(amount)
 }
 
 #[derive(Error, Debug)]
@@ -113,11 +113,17 @@ impl Mul<Percent> for Decimal {
     }
 }
 
-impl Mul<Uint128> for Percent {
-    type Output = Uint128;
+impl Fraction<Uint128> for Percent {
+    fn numerator(&self) -> Uint128 {
+        self.0.numerator()
+    }
 
-    fn mul(self, rhs: Uint128) -> Self::Output {
-        self.0 * rhs
+    fn denominator(&self) -> Uint128 {
+        self.0.denominator()
+    }
+
+    fn inv(&self) -> Option<Self> {
+        Percent::new(self.0.inv()?).ok()
     }
 }
 

@@ -7,7 +7,8 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
@@ -328,56 +329,58 @@ pub fn query(
 ) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => {
-            to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
+            to_json_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }
-        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
-        QueryMsg::GetRewardingValidatorAddress {} => to_binary(
+        QueryMsg::GetCW2ContractVersion {} => {
+            to_json_binary(&cw2::get_contract_version(deps.storage)?)
+        }
+        QueryMsg::GetRewardingValidatorAddress {} => to_json_binary(
             &crate::mixnet_contract_settings::queries::query_rewarding_validator_address(deps)?,
         ),
-        QueryMsg::GetStateParams {} => to_binary(
+        QueryMsg::GetStateParams {} => to_json_binary(
             &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
         ),
         QueryMsg::GetState {} => {
-            to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
+            to_json_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
         }
-        QueryMsg::GetCurrentNymNodeVersion {} => to_binary(
+        QueryMsg::GetCurrentNymNodeVersion {} => to_json_binary(
             &crate::mixnet_contract_settings::queries::query_current_nym_node_version(deps)?,
         ),
-        QueryMsg::GetNymNodeVersionHistory { limit, start_after } => to_binary(
+        QueryMsg::GetNymNodeVersionHistory { limit, start_after } => to_json_binary(
             &crate::mixnet_contract_settings::queries::query_nym_node_version_history_paged(
                 deps,
                 start_after,
                 limit,
             )?,
         ),
-        QueryMsg::Admin {} => to_binary(&crate::mixnet_contract_settings::queries::query_admin(
-            deps,
-        )?),
+        QueryMsg::Admin {} => to_json_binary(
+            &crate::mixnet_contract_settings::queries::query_admin(deps)?,
+        ),
         QueryMsg::GetRewardingParams {} => {
-            to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
+            to_json_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
         }
         QueryMsg::GetEpochStatus {} => {
-            to_binary(&crate::interval::queries::query_epoch_status(deps)?)
+            to_json_binary(&crate::interval::queries::query_epoch_status(deps)?)
         }
-        QueryMsg::GetCurrentIntervalDetails {} => to_binary(
+        QueryMsg::GetCurrentIntervalDetails {} => to_json_binary(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
         ),
 
         // mixnode-related:
-        QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
+        QueryMsg::GetMixNodeBonds { start_after, limit } => to_json_binary(
             &crate::mixnodes::queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetMixNodesDetailed { start_after, limit } => to_binary(
+        QueryMsg::GetMixNodesDetailed { start_after, limit } => to_json_binary(
             &crate::mixnodes::queries::query_mixnodes_details_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_binary(
+        QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_json_binary(
             &crate::mixnodes::queries::query_unbonded_mixnodes_paged(deps, start_after, limit)?,
         ),
         QueryMsg::GetUnbondedMixNodesByOwner {
             owner,
             limit,
             start_after,
-        } => to_binary(
+        } => to_json_binary(
             &crate::mixnodes::queries::query_unbonded_mixnodes_by_owner_paged(
                 deps,
                 owner,
@@ -389,7 +392,7 @@ pub fn query(
             identity_key,
             limit,
             start_after,
-        } => to_binary(
+        } => to_json_binary(
             &crate::mixnodes::queries::query_unbonded_mixnodes_by_identity_paged(
                 deps,
                 identity_key,
@@ -397,57 +400,57 @@ pub fn query(
                 limit,
             )?,
         ),
-        QueryMsg::GetOwnedMixnode { address } => to_binary(
+        QueryMsg::GetOwnedMixnode { address } => to_json_binary(
             &crate::mixnodes::queries::query_owned_mixnode(deps, address)?,
         ),
-        QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
+        QueryMsg::GetMixnodeDetails { mix_id } => to_json_binary(
             &crate::mixnodes::queries::query_mixnode_details(deps, mix_id)?,
         ),
-        QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_binary(
+        QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_json_binary(
             &crate::mixnodes::queries::query_mixnode_rewarding_details(deps, mix_id)?,
         ),
-        QueryMsg::GetStakeSaturation { mix_id } => to_binary(
+        QueryMsg::GetStakeSaturation { mix_id } => to_json_binary(
             &crate::mixnodes::queries::query_stake_saturation(deps, mix_id)?,
         ),
-        QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
+        QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_json_binary(
             &crate::mixnodes::queries::query_unbonded_mixnode(deps, mix_id)?,
         ),
-        QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_binary(
+        QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_json_binary(
             &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
         ),
 
         // gateway-related:
-        QueryMsg::GetGateways { limit, start_after } => to_binary(
+        QueryMsg::GetGateways { limit, start_after } => to_json_binary(
             &crate::gateways::queries::query_gateways_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetGatewayBond { identity } => to_binary(
+        QueryMsg::GetGatewayBond { identity } => to_json_binary(
             &crate::gateways::queries::query_gateway_bond(deps, identity)?,
         ),
-        QueryMsg::GetOwnedGateway { address } => to_binary(
+        QueryMsg::GetOwnedGateway { address } => to_json_binary(
             &crate::gateways::queries::query_owned_gateway(deps, address)?,
         ),
-        QueryMsg::GetPreassignedGatewayIds { limit, start_after } => to_binary(
+        QueryMsg::GetPreassignedGatewayIds { limit, start_after } => to_json_binary(
             &crate::gateways::queries::query_preassigned_ids_paged(deps, start_after, limit)?,
         ),
 
         // nym-node-related:
-        QueryMsg::GetNymNodeBondsPaged { start_after, limit } => to_binary(
+        QueryMsg::GetNymNodeBondsPaged { start_after, limit } => to_json_binary(
             &crate::nodes::queries::query_nymnode_bonds_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetNymNodesDetailedPaged { limit, start_after } => to_binary(
+        QueryMsg::GetNymNodesDetailedPaged { limit, start_after } => to_json_binary(
             &crate::nodes::queries::query_nymnodes_details_paged(deps, start_after, limit)?,
         ),
-        QueryMsg::GetUnbondedNymNode { node_id } => to_binary(
+        QueryMsg::GetUnbondedNymNode { node_id } => to_json_binary(
             &crate::nodes::queries::query_unbonded_nymnode(deps, node_id)?,
         ),
-        QueryMsg::GetUnbondedNymNodesPaged { limit, start_after } => to_binary(
+        QueryMsg::GetUnbondedNymNodesPaged { limit, start_after } => to_json_binary(
             &crate::nodes::queries::query_unbonded_nymnodes_paged(deps, limit, start_after)?,
         ),
         QueryMsg::GetUnbondedNymNodesByOwnerPaged {
             owner,
             limit,
             start_after,
-        } => to_binary(
+        } => to_json_binary(
             &crate::nodes::queries::query_unbonded_nymnodes_by_owner_paged(
                 deps,
                 owner,
@@ -459,7 +462,7 @@ pub fn query(
             identity_key,
             limit,
             start_after,
-        } => to_binary(
+        } => to_json_binary(
             &crate::nodes::queries::query_unbonded_nymnodes_by_identity_paged(
                 deps,
                 identity_key,
@@ -468,25 +471,25 @@ pub fn query(
             )?,
         ),
         QueryMsg::GetOwnedNymNode { address } => {
-            to_binary(&crate::nodes::queries::query_owned_nymnode(deps, address)?)
+            to_json_binary(&crate::nodes::queries::query_owned_nymnode(deps, address)?)
         }
-        QueryMsg::GetNymNodeDetails { node_id } => to_binary(
+        QueryMsg::GetNymNodeDetails { node_id } => to_json_binary(
             &crate::nodes::queries::query_nymnode_details(deps, node_id)?,
         ),
-        QueryMsg::GetNymNodeDetailsByIdentityKey { node_identity } => to_binary(
+        QueryMsg::GetNymNodeDetailsByIdentityKey { node_identity } => to_json_binary(
             &crate::nodes::queries::query_nymnode_details_by_identity(deps, node_identity)?,
         ),
-        QueryMsg::GetNodeRewardingDetails { node_id } => to_binary(
+        QueryMsg::GetNodeRewardingDetails { node_id } => to_json_binary(
             &crate::nodes::queries::query_nymnode_rewarding_details(deps, node_id)?,
         ),
-        QueryMsg::GetNodeStakeSaturation { node_id } => to_binary(
+        QueryMsg::GetNodeStakeSaturation { node_id } => to_json_binary(
             &crate::nodes::queries::query_stake_saturation(deps, node_id)?,
         ),
         QueryMsg::GetRoleAssignment { role } => {
-            to_binary(&crate::nodes::queries::query_epoch_assignment(deps, role)?)
+            to_json_binary(&crate::nodes::queries::query_epoch_assignment(deps, role)?)
         }
         QueryMsg::GetRewardedSetMetadata {} => {
-            to_binary(&crate::nodes::queries::query_rewarded_set_metadata(deps)?)
+            to_json_binary(&crate::nodes::queries::query_rewarded_set_metadata(deps)?)
         }
 
         // delegation-related:
@@ -494,7 +497,7 @@ pub fn query(
             node_id,
             start_after,
             limit,
-        } => to_binary(&crate::delegations::queries::query_node_delegations_paged(
+        } => to_json_binary(&crate::delegations::queries::query_node_delegations_paged(
             deps,
             node_id,
             start_after,
@@ -504,7 +507,7 @@ pub fn query(
             delegator,
             start_after,
             limit,
-        } => to_binary(
+        } => to_json_binary(
             &crate::delegations::queries::query_delegator_delegations_paged(
                 deps,
                 delegator,
@@ -516,32 +519,32 @@ pub fn query(
             node_id,
             delegator,
             proxy,
-        } => to_binary(&crate::delegations::queries::query_node_delegation(
+        } => to_json_binary(&crate::delegations::queries::query_node_delegation(
             deps, node_id, delegator, proxy,
         )?),
-        QueryMsg::GetAllDelegations { start_after, limit } => to_binary(
+        QueryMsg::GetAllDelegations { start_after, limit } => to_json_binary(
             &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
         ),
 
         // rewards related
-        QueryMsg::GetPendingOperatorReward { address } => to_binary(
+        QueryMsg::GetPendingOperatorReward { address } => to_json_binary(
             &crate::rewards::queries::query_pending_operator_reward(deps, address)?,
         ),
-        QueryMsg::GetPendingNodeOperatorReward { node_id } => to_binary(
+        QueryMsg::GetPendingNodeOperatorReward { node_id } => to_json_binary(
             &crate::rewards::queries::query_pending_mixnode_operator_reward(deps, node_id)?,
         ),
         QueryMsg::GetPendingDelegatorReward {
             address,
             node_id,
             proxy,
-        } => to_binary(&crate::rewards::queries::query_pending_delegator_reward(
+        } => to_json_binary(&crate::rewards::queries::query_pending_delegator_reward(
             deps, address, node_id, proxy,
         )?),
         QueryMsg::GetEstimatedCurrentEpochOperatorReward {
             node_id,
             estimated_performance,
             estimated_work,
-        } => to_binary(
+        } => to_json_binary(
             &crate::rewards::queries::query_estimated_current_epoch_operator_reward(
                 deps,
                 node_id,
@@ -554,7 +557,7 @@ pub fn query(
             node_id,
             estimated_performance,
             estimated_work,
-        } => to_binary(
+        } => to_json_binary(
             &crate::rewards::queries::query_estimated_current_epoch_delegator_reward(
                 deps,
                 address,
@@ -566,14 +569,14 @@ pub fn query(
 
         // interval-related
         QueryMsg::GetPendingEpochEvents { limit, start_after } => {
-            to_binary(&crate::interval::queries::query_pending_epoch_events_paged(
+            to_json_binary(&crate::interval::queries::query_pending_epoch_events_paged(
                 deps,
                 env,
                 start_after,
                 limit,
             )?)
         }
-        QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_binary(
+        QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_json_binary(
             &crate::interval::queries::query_pending_interval_events_paged(
                 deps,
                 env,
@@ -581,18 +584,18 @@ pub fn query(
                 limit,
             )?,
         ),
-        QueryMsg::GetPendingEpochEvent { event_id } => to_binary(
+        QueryMsg::GetPendingEpochEvent { event_id } => to_json_binary(
             &crate::interval::queries::query_pending_epoch_event(deps, event_id)?,
         ),
-        QueryMsg::GetPendingIntervalEvent { event_id } => to_binary(
+        QueryMsg::GetPendingIntervalEvent { event_id } => to_json_binary(
             &crate::interval::queries::query_pending_interval_event(deps, event_id)?,
         ),
-        QueryMsg::GetNumberOfPendingEvents {} => to_binary(
+        QueryMsg::GetNumberOfPendingEvents {} => to_json_binary(
             &crate::interval::queries::query_number_of_pending_events(deps)?,
         ),
 
         // signing-related
-        QueryMsg::GetSigningNonce { address } => to_binary(
+        QueryMsg::GetSigningNonce { address } => to_json_binary(
             &crate::signing::queries::query_current_signing_nonce(deps, address)?,
         ),
     };
@@ -632,7 +635,7 @@ pub fn migrate(
 mod tests {
     use super::*;
     use crate::rewards::storage as rewards_storage;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
     use cosmwasm_std::{Decimal, Uint128};
     use mixnet_contract_common::reward_params::{
         IntervalRewardParams, RewardedSetParams, RewardingParams,
@@ -648,8 +651,8 @@ mod tests {
         let env = mock_env();
 
         let init_msg = InstantiateMsg {
-            rewarding_validator_address: "foomp123".to_string(),
-            vesting_contract_address: "bar456".to_string(),
+            rewarding_validator_address: deps.api.addr_make("foomp123").to_string(),
+            vesting_contract_address: deps.api.addr_make("bar456").to_string(),
             rewarding_denom: "uatom".to_string(),
             epochs_in_interval: 1234,
             epoch_duration: Duration::from_secs(4321),
@@ -680,15 +683,15 @@ mod tests {
             },
         };
 
-        let sender = mock_info("sender", &[]);
+        let sender = message_info(&deps.api.addr_make("sender"), &[]);
         let res = instantiate(deps.as_mut(), env, sender, init_msg);
         assert!(res.is_ok());
 
         #[allow(deprecated)]
         let expected_state = ContractState {
-            owner: Some(Addr::unchecked("sender")),
-            rewarding_validator_address: Addr::unchecked("foomp123"),
-            vesting_contract_address: Addr::unchecked("bar456"),
+            owner: Some(deps.api.addr_make("sender")),
+            rewarding_validator_address: deps.api.addr_make("foomp123"),
+            vesting_contract_address: deps.api.addr_make("bar456"),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

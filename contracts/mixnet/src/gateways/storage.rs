@@ -13,7 +13,7 @@ pub(crate) const PREASSIGNED_LEGACY_IDS: Map<IdentityKey, NodeId> =
     Map::new(LEGACY_GATEWAY_ID_NAMESPACE);
 
 pub(crate) struct GatewayBondIndex<'a> {
-    pub(crate) owner: UniqueIndex<'a, Addr, GatewayBond>,
+    pub(crate) owner: UniqueIndex<'a, Addr, GatewayBond, ()>,
 }
 
 // IndexList is just boilerplate code for fetching a struct's indexes
@@ -26,8 +26,7 @@ impl IndexList<GatewayBond> for GatewayBondIndex<'_> {
 }
 
 // gateways() is the storage access function.
-pub(crate) fn gateways<'a>() -> IndexedMap<'a, IdentityKeyRef<'a>, GatewayBond, GatewayBondIndex<'a>>
-{
+pub(crate) fn gateways<'a>() -> IndexedMap<IdentityKeyRef<'a>, GatewayBond, GatewayBondIndex<'a>> {
     let indexes = GatewayBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), GATEWAYS_OWNER_IDX_NAMESPACE),
     };

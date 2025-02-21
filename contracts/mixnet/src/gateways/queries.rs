@@ -85,8 +85,8 @@ pub(crate) mod tests {
     use super::*;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
-    use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::testing::mock_info;
+    use crate::support::tests::test_helpers::{sorted_addresses, TestSetup};
+    use cosmwasm_std::testing::message_info;
 
     #[test]
     fn gateways_empty_on_init() {
@@ -138,15 +138,16 @@ pub(crate) mod tests {
     fn gateway_pagination_works() {
         let stake = tests::fixtures::good_gateway_pledge();
         let mut test = TestSetup::new();
+        let owners = sorted_addresses(4);
 
         // prepare 4 gateways that are sorted by the generated identities
         // (because we query them in an ascended manner)
         let mut gateways = (0..4)
-            .map(|i| test.gateway_with_signature(format!("sender{}", i), None).0)
+            .map(|i| test.gateway_with_signature(&owners[i], None).0)
             .collect::<Vec<_>>();
         gateways.sort_by(|g1, g2| g1.identity_key.cmp(&g2.identity_key));
 
-        let info = mock_info("sender0", &stake);
+        let info = message_info(&owners[0], &stake);
         test.save_legacy_gateway(gateways[0].clone(), &info);
 
         let per_page = 2;
@@ -156,14 +157,14 @@ pub(crate) mod tests {
         assert_eq!(1, page1.nodes.len());
 
         // save another
-        let info = mock_info("sender1", &stake);
+        let info = message_info(&owners[1], &stake);
         test.save_legacy_gateway(gateways[1].clone(), &info);
 
         // page1 should have 2 results on it
         let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
-        let info = mock_info("sender2", &stake);
+        let info = message_info(&owners[2], &stake);
         test.save_legacy_gateway(gateways[2].clone(), &info);
 
         // page1 still has 2 results
@@ -182,7 +183,7 @@ pub(crate) mod tests {
         assert_eq!(1, page2.nodes.len());
 
         // save another one
-        let info = mock_info("sender3", &stake);
+        let info = message_info(&owners[3], &stake);
         test.save_legacy_gateway(gateways[3].clone(), &info);
 
         let page2 = query_gateways_paged(
@@ -200,27 +201,33 @@ pub(crate) mod tests {
     fn query_for_gateway_owner_works() {
         let mut test = TestSetup::new();
 
+        let bob = test.make_addr("bob");
+        let fred = test.make_addr("fred");
+
         // "fred" does not own a mixnode if there are no mixnodes
-        let res = query_owned_gateway(test.deps(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(test.deps(), fred.to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // gateway was added to "bob", "fred" still does not own one
-        test.add_legacy_gateway("bob", None);
+        test.add_legacy_gateway(&bob, None);
 
-        let res = query_owned_gateway(test.deps(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(test.deps(), fred.to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
-        test.add_legacy_gateway("fred", None);
+        test.add_legacy_gateway(&fred, None);
 
-        let res = query_owned_gateway(test.deps(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(test.deps(), fred.to_string()).unwrap();
         assert!(res.gateway.is_some());
 
         // but after unbonding it, he doesn't own one anymore
-        crate::gateways::transactions::try_remove_gateway(test.deps_mut(), mock_info("fred", &[]))
-            .unwrap();
+        crate::gateways::transactions::try_remove_gateway(
+            test.deps_mut(),
+            message_info(&fred, &[]),
+        )
+        .unwrap();
 
-        let res = query_owned_gateway(test.deps(), "fred".to_string()).unwrap();
+        let res = query_owned_gateway(test.deps(), fred.to_string()).unwrap();
         assert!(res.gateway.is_none());
     }
 }

@@ -3,7 +3,8 @@
 
 use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID};
 use cosmwasm_std::{
-    to_binary, Addr, Coin, CosmosMsg, Reply, StdError, StdResult, SubMsg, SubMsgResult, WasmMsg,
+    to_json_binary, Addr, Coin, CosmosMsg, Reply, StdError, StdResult, SubMsg, SubMsgResult,
+    WasmMsg,
 };
 use cw4::Cw4Contract;
 use nym_contracts_common::events::try_find_attribute;
@@ -46,7 +47,7 @@ pub(crate) fn create_batch_redemption_proposal(
     let release_funds_req = ExecuteMsg::RedeemTickets { n, gw };
     let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: ecash_bandwidth_address,
-        msg: to_binary(&release_funds_req)?,
+        msg: to_json_binary(&release_funds_req)?,
         funds: vec![],
     });
     let req = MultisigExecuteMsg::Propose {
@@ -57,7 +58,7 @@ pub(crate) fn create_batch_redemption_proposal(
     };
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: multisig_addr,
-        msg: to_binary(&req)?,
+        msg: to_json_binary(&req)?,
         funds: vec![],
     });
 
@@ -76,7 +77,7 @@ pub(crate) fn create_blacklist_proposal(
     };
     let blacklist_req_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: ecash_bandwidth_address,
-        msg: to_binary(&blacklist_req)?,
+        msg: to_json_binary(&blacklist_req)?,
         funds: vec![],
     });
     let req = MultisigExecuteMsg::Propose {
@@ -87,7 +88,7 @@ pub(crate) fn create_blacklist_proposal(
     };
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: multisig_addr,
-        msg: to_binary(&req)?,
+        msg: to_json_binary(&req)?,
         funds: vec![],
     });
 

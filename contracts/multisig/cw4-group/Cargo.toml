@@ -1,6 +1,6 @@
 [package]
 name = "cw4-group"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
 edition = "2021"
 description = "Simple cw4 implementation of group membership controlled by admin "
@@ -23,8 +23,6 @@ name = "schema"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 
@@ -44,3 +42,5 @@ schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+easy-addr = { path = "../../../common/cosmwasm-smart-contracts/easy_addr" }

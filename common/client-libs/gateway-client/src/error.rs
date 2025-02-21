@@ -43,6 +43,9 @@ pub enum GatewayClientError {
     #[error("connection failed: {address}: {source}")]
     NetworkConnectionFailed { address: String, source: WsError },
 
+    #[error("no socket address for endpoint: {address}")]
+    NoEndpointForConnection { address: String },
+
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
 

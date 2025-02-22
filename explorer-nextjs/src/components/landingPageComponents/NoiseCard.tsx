@@ -40,15 +40,6 @@ export const NoiseCard = () => {
   const todaysData = data[data.length - 1];
   const yesterdaysData = data[data.length - 2];
 
-  const filterData = (
-    data: IPacketsAndStakingData[],
-    cutoffDateStr = "2025-02-11",
-  ): IPacketsAndStakingData[] => {
-    const cutoffDate = new Date(cutoffDateStr);
-
-    return data.filter((entry) => new Date(entry.date_utc) >= cutoffDate);
-  };
-
   const noiseLast24H =
     todaysData.total_packets_sent + todaysData.total_packets_received;
   const noisePrevious24H =
@@ -90,14 +81,14 @@ export const NoiseCard = () => {
 
   const noiseLast24HFormatted = formatBigNum(noiseLast24H)?.toString() || "";
 
-  const noiseLineGraphData = filterData(data).map(
-    (item: IPacketsAndStakingData) => {
+  const noiseLineGraphData = data
+    .slice(0, -1)
+    .map((item: IPacketsAndStakingData) => {
       return {
         date_utc: item.date_utc,
         numericData: item.total_packets_sent + item.total_packets_received,
       };
-    },
-  );
+    });
 
   return (
     <ExplorerCard label="Noise generated last 24h" sx={{ height: "100%" }}>

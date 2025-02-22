@@ -44,12 +44,14 @@ export const NetworkStakeCard = () => {
 
   const lastTotalStake =
     packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
-  const data = packetsAndStakingData.map((item: IPacketsAndStakingData) => {
-    return {
-      date_utc: item.date_utc,
-      numericData: item.total_stake / 1000000,
-    };
-  });
+  const data = packetsAndStakingData
+    .slice(0, -1)
+    .map((item: IPacketsAndStakingData) => {
+      return {
+        date_utc: item.date_utc,
+        numericData: item.total_stake / 1000000,
+      };
+    });
 
   const stakeLineGraphData = {
     color: "#00CA33",

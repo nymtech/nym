@@ -19,6 +19,7 @@ use wasmtimer::tokio::sleep;
 mod accessor;
 pub mod geo_aware_provider;
 pub mod nym_api_provider;
+pub mod smart_api_provider;
 
 #[allow(deprecated)]
 pub use geo_aware_provider::GeoAwareTopologyProvider;

@@ -5,6 +5,7 @@ use nym_api_requests::models::DeclaredRoles;
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::reward_params::Performance;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
 use serde::{Deserialize, Serialize};
@@ -56,6 +57,7 @@ pub struct RoutingNode {
     pub sphinx_key: x25519::PublicKey,
 
     pub supported_roles: SupportedRoles,
+    pub performance: Performance,
 }
 
 impl RoutingNode {
@@ -109,6 +111,12 @@ impl<'a> From<&'a RoutingNode> for SphinxNode {
     }
 }
 
+impl<'a> From<&'a RoutingNode> for RoutingNode {
+    fn from(node: &'a RoutingNode) -> Self {
+        node.clone()
+    }
+}
+
 impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
     type Error = RoutingNodeError;
 
@@ -138,6 +146,7 @@ impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
+            performance: value.performance,
         })
     }
 }

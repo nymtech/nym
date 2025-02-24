@@ -35,10 +35,12 @@ Follow the steps below to install KVM on Ubuntu 22.04 LTS:
 Operators aiming to run Nym node as mixnet [Exit Gateway](../../community-counsel/exit-gateway) or with wireguard enabled should faimliarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
 
 This step is essential part of legal self defense because it may prevent your provider immediately shutting down your entire service (with all the VMs on it) when receiving first abuse report.
+
+Additionaly, before purchasing a large server, **contact the provider and ask if the offered CPU supports Virtualization Technology (VT)**, without this feature you will not be able to proceed.
 </Callout>
 
 Start with obtaining a server with Ubuntu 22.04 LTS:
-- Make sure that your server meets [minimum requirements](../../nodes#minimum-requirements) multiplied by number of `nym-node` instance you aim to run on it.
+- Make sure that your server meets [minimum requirements](../vps-setup#nym-node---dedicated-server) multiplied by number of `nym-node` instance you aim to run on it.
 - Most people rent a server from a provider and it comes with a pre-installed OS (in this guide we use Ubuntu 22.04). In case your choice is a bare-metal machine, you probably know what you are doing, there are some useful guides to install a new OS, like [this one on ostechnix.com](https://ostechnix.com/install-ubuntu-server/).
 
 Make sure thay your system actually supports hardware virtualisation:
@@ -84,7 +86,7 @@ The command output should look similar to this one:
 ```
 </AccordionTemplate>
 
-- Add your current user to the `kvm` and `libvirt` groups to enable VM creation and management using the `virsh` command-line tool or the `virt-manager` GUI:
+- In case you don't configure KVM as `root`, add your current user to the `kvm` and `libvirt` groups to enable VM creation and management using the `virsh` command-line tool or the `virt-manager` GUI:
 ```bash
 usermod -aG kvm $USER
 usermod -aG libvirt $USER

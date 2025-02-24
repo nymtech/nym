@@ -44,6 +44,7 @@ export const NetworkStakeCard = () => {
 
   const lastTotalStake =
     packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
+
   const data = packetsAndStakingData
     .slice(0, -1)
     .map((item: IPacketsAndStakingData) => {

@@ -2441,7 +2441,7 @@ dependencies = [
  "dotenvy",
  "humantime-serde",
  "isocountry",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "log",
  "maxminddb",
  "nym-bin-common",
@@ -3969,15 +3969,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -4822,7 +4813,7 @@ dependencies = [
  "futures",
  "getset",
  "humantime-serde",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "k256",
  "nym-api-requests",
  "nym-bandwidth-controller",
@@ -5322,7 +5313,7 @@ dependencies = [
  "ff",
  "getrandom 0.2.15",
  "group",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
@@ -5369,7 +5360,7 @@ dependencies = [
  "digest 0.9.0",
  "ff",
  "group",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "nym-network-defaults",
  "nym-pemstore",
  "rand 0.8.5",
@@ -6377,7 +6368,7 @@ dependencies = [
  "cosmwasm-std",
  "envy",
  "futures-util",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "moka",
  "nym-bin-common",
  "nym-contracts-common",
@@ -6991,7 +6982,7 @@ dependencies = [
  "cosmwasm-std",
  "eyre",
  "hmac",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "log",
  "nym-config",
  "nym-crypto",
@@ -7031,7 +7022,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",

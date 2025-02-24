@@ -104,6 +104,7 @@ impl TestRoute {
 
         // the unwrap here is fine as the failure can only occur due to serialization and we're not
         // using any custom implementations
+        #[allow(clippy::unwrap_used)]
         NymApiTestMessageExt::new(self.id, ROUTE_TESTING_TEST_NONCE)
             .mix_plaintexts(mix, count as u32)
             .unwrap()

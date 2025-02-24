@@ -12,6 +12,3 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 nym-sphinx = { path = "../../../common/nymsphinx" }
-
-[lints]
-workspace = true

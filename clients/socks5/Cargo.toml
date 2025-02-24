@@ -53,6 +53,3 @@ nym-validator-client = { path = "../../common/client-libs/validator-client", fea
 [features]
 default = []
 eth = []
-
-[lints]
-workspace = true

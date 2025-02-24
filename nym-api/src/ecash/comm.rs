@@ -47,6 +47,8 @@ impl CachedEpoch {
         let now = OffsetDateTime::now_utc();
 
         let validity_duration = if let Some(epoch_finish) = epoch.deadline {
+            // SAFETY: values set in our contract are valid unix timestamps
+            #[allow(clippy::unwrap_used)]
             let state_end =
                 OffsetDateTime::from_unix_timestamp(epoch_finish.seconds() as i64).unwrap();
             let until_epoch_state_end = state_end - now;
@@ -103,7 +105,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         drop(guard);
         let guard = self.update_epoch_cache().await?;
 
-        return Ok(guard.current_epoch.epoch_id);
+        Ok(guard.current_epoch.epoch_id)
     }
 
     // TODO: perhaps this should be returning a ReadGuard instead?

@@ -70,6 +70,3 @@ nym-client-websocket-requests = { path = "websocket-requests" }
 nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
-
-[lints]
-workspace = true

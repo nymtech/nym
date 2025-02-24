@@ -130,7 +130,11 @@ impl Monitor {
             .await
             .log_error("get_all_basic_nodes")?;
 
-        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info).await?;
+        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info)
+            .await
+            .map(|_| {
+                tracing::debug!("{} nym nodes written to DB!", nym_nodes.len());
+            })?;
 
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {

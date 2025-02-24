@@ -85,7 +85,6 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
     Ok(items)
 }
 
-/// `offset` = slides our fixed-day period further into the past by N days
 pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
     let mut conn = pool.acquire().await?;
     let items = sqlx::query_as!(

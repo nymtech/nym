@@ -7,6 +7,7 @@ use axum::{extract::Request, response::Response};
 use futures::future::BoxFuture;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use subtle::ConstantTimeEq;
 use tower::{Layer, Service};
 use tracing::{debug, instrument, trace};
 use zeroize::Zeroizing;
@@ -76,7 +77,7 @@ impl<S> RequireAuth<S> {
             return Err("`Authorization` header must contain non-empty `Bearer` token");
         }
 
-        if self.bearer_token.as_str() != bearer_token {
+        if bool::from(self.bearer_token.as_bytes().ct_ne(bearer_token.as_bytes())) {
             return Err("`Authorization` header does not contain the correct `Bearer` token");
         }
 

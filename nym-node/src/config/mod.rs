@@ -780,6 +780,9 @@ pub struct Debug {
     /// Specifies the time to live of the internal topology provider cache.
     #[serde(with = "humantime_serde")]
     pub topology_cache_ttl: Duration,
+
+    /// Specifies whether this node runs in testnet mode thus allowing it to route packets on local interfaces
+    pub testnet: bool,
 }
 
 impl Debug {
@@ -790,6 +793,7 @@ impl Default for Debug {
     fn default() -> Self {
         Debug {
             topology_cache_ttl: Self::DEFAULT_TOPOLOGY_CACHE_TTL,
+            testnet: false,
         }
     }
 }

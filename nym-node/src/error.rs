@@ -4,6 +4,7 @@
 use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
 use nym_ip_packet_router::error::ClientCoreError;
+use nym_validator_client::ValidatorClientError;
 use std::io;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -140,6 +141,11 @@ pub enum NymNodeError {
         #[from]
         source: ipnetwork::IpNetworkError,
     },
+
+    #[error(
+        "failed to retrieve initial network topology - can't start the node without it: {source}"
+    )]
+    InitialTopologyQueryFailure { source: ValidatorClientError },
 
     #[error(transparent)]
     GatewayFailure(#[from] nym_gateway::GatewayError),

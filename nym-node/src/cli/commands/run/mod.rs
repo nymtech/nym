@@ -4,8 +4,8 @@
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::error::NymNodeError;
 use crate::node::bonding_information::BondingInformation;
+use crate::node::mixnet::packet_forwarding::global::is_global_ip;
 use crate::node::NymNode;
-use nym_config::helpers::SPECIAL_ADDRESSES;
 use std::fs;
 use std::net::IpAddr;
 use tracing::{debug, info, trace, warn};
@@ -17,7 +17,7 @@ pub(crate) use args::Args;
 fn check_public_ips(ips: &[IpAddr], local: bool) -> Result<(), NymNodeError> {
     let mut suspicious_ip = Vec::new();
     for ip in ips {
-        if SPECIAL_ADDRESSES.contains(ip) {
+        if !is_global_ip(ip) {
             if !local {
                 return Err(NymNodeError::InvalidPublicIp { address: *ip });
             }
@@ -91,6 +91,11 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         return Err(NymNodeError::NoPublicIps);
     }
     check_public_ips(&config.host.public_ips, local)?;
+
+    let mut config = config;
+    if local {
+        config.debug.testnet = true
+    }
 
     let nym_node = NymNode::new(config)
         .await?

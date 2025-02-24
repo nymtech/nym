@@ -1,6 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::mixnet::packet_forwarding::global::is_global_ip;
+use crate::node::shared_topology::KnownNodes;
 use futures::StreamExt;
 use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender, PacketToForward,
@@ -10,15 +12,26 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
+use std::collections::HashMap;
 use std::io;
+use std::net::IpAddr;
+use time::OffsetDateTime;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
+pub(crate) mod global;
+
 pub struct PacketForwarder<C> {
+    testnet: bool,
+
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
     mixnet_client: C,
 
     metrics: NymNodeMetrics,
+    known_nodes: KnownNodes,
+
+    // TODO: periodically remove stale entries
+    recently_denied: HashMap<IpAddr, OffsetDateTime>,
 
     packet_sender: MixForwardingSender,
     packet_receiver: MixForwardingReceiver,
@@ -26,13 +39,22 @@ pub struct PacketForwarder<C> {
 }
 
 impl<C> PacketForwarder<C> {
-    pub fn new(client: C, metrics: NymNodeMetrics, shutdown: ShutdownToken) -> Self {
+    pub fn new(
+        client: C,
+        testnet: bool,
+        known_nodes: KnownNodes,
+        metrics: NymNodeMetrics,
+        shutdown: ShutdownToken,
+    ) -> Self {
         let (packet_sender, packet_receiver) = mix_forwarding_channels();
 
         PacketForwarder {
+            testnet,
             delay_queue: NonExhaustiveDelayQueue::new(),
             mixnet_client: client,
             metrics,
+            known_nodes,
+            recently_denied: Default::default(),
             packet_sender,
             packet_receiver,
             shutdown,
@@ -43,11 +65,45 @@ impl<C> PacketForwarder<C> {
         self.packet_sender.clone()
     }
 
+    fn should_route(&mut self, ip_addr: IpAddr) -> bool {
+        // only allow non-global ips on testnets
+        if self.testnet && !is_global_ip(&ip_addr) {
+            return true;
+        }
+
+        self.known_nodes.attempt_resolve(ip_addr).should_route()
+
+        // TODO:
+
+        // // if we have recently denied this ip which wasn't in the topology, keep rejecting it
+        // if let Some(denied_at) = self.recently_denied.get(&ip_addr) {
+        //     todo!()
+        // }
+        //
+        // // 1. check if this ip is in the topology
+        // // 2. if not and we haven't asked recently, ask nym-api about it -> maybe the node was recently added
+        // // but until we get the response, keep dropping packets
+        //
+        // // nym-api should cache ipaddr -> node info map since a lot of nym-nodes will be asking for that
+        //
+        // todo!()
+        // // if ip_addr.is
+    }
+
     fn forward_packet(&mut self, packet: MixPacket)
     where
         C: SendWithoutResponse,
     {
         let next_hop = packet.next_hop();
+
+        if !self.should_route(next_hop.as_ref().ip()) {
+            debug!("dropping packet as the egress address does not belong to any known node");
+            self.metrics
+                .mixnet
+                .egress_dropped_forward_packet(next_hop.into());
+            return;
+        }
+
         let packet_type = packet.packet_type();
         let packet = packet.into_packet();
 

@@ -28,7 +28,7 @@ use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgress
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::shared_topology::NymNodeTopologyProvider;
+use crate::node::shared_topology::{KnownNodes, NymNodeTopologyProvider};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
@@ -530,16 +530,14 @@ impl NymNode {
         self.x25519_noise_keys.public_key()
     }
 
-    // the reason it's here as opposed to in the gateway directly,
-    // is that other nym-node tasks will also eventually need it
-    // (such as the ones for obtaining noise keys of other nodes)
-    fn build_topology_provider(&self) -> Result<NymNodeTopologyProvider, NymNodeError> {
-        Ok(NymNodeTopologyProvider::new(
+    async fn build_topology_provider(&self) -> Result<NymNodeTopologyProvider, NymNodeError> {
+        NymNodeTopologyProvider::initialise_new(
             self.as_gateway_topology_node()?,
             self.config.debug.topology_cache_ttl,
             self.user_agent(),
             self.config.mixnet.nym_api_urls.clone(),
-        ))
+        )
+        .await
     }
 
     fn as_gateway_topology_node(&self) -> Result<nym_topology::RoutingNode, NymNodeError> {
@@ -583,13 +581,14 @@ impl NymNode {
 
     async fn start_gateway_tasks(
         &mut self,
+        topology_provider: NymNodeTopologyProvider,
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
         task_client: TaskClient,
     ) -> Result<(), NymNodeError> {
         let config = gateway_tasks_config(&self.config);
-        let topology_provider = Box::new(self.build_topology_provider()?);
+        let topology_provider = Box::new(topology_provider);
 
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
@@ -952,6 +951,7 @@ impl NymNode {
     pub(crate) fn start_mixnet_listener(
         &self,
         active_clients_store: &ActiveClientsStore,
+        known_nodes: KnownNodes,
         shutdown: ShutdownToken,
     ) -> (MixForwardingSender, ActiveConnections) {
         let processing_config = ProcessingConfig::new(&self.config);
@@ -980,6 +980,8 @@ impl NymNode {
 
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
+            self.config.debug.testnet,
+            known_nodes,
             self.metrics.clone(),
             shutdown.clone_with_suffix("mix-packet-forwarder"),
         );
@@ -1031,10 +1033,13 @@ impl NymNode {
 
         self.start_verloc_measurements();
 
+        let topology_provider = self.build_topology_provider().await?;
+
         let active_clients_store = ActiveClientsStore::new();
 
         let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
+            topology_provider.known_nodes(),
             self.shutdown_manager.clone_token("mixnet-traffic"),
         );
 
@@ -1045,6 +1050,7 @@ impl NymNode {
         );
 
         self.start_gateway_tasks(
+            topology_provider,
             metrics_sender,
             active_clients_store,
             mix_packet_sender,

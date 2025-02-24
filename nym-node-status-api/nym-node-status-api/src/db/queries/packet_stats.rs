@@ -169,7 +169,7 @@ pub(crate) async fn insert_daily_node_stats(
                     packets_sent, packets_dropped
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id, date_utc) DO UPDATE SET
-                    total_stake = nym_node_daily_mixing_stats.total_stake,
+                    total_stake = excluded.total_stake,
                     packets_received = nym_node_daily_mixing_stats.packets_received + excluded.packets_received,
                     packets_sent = nym_node_daily_mixing_stats.packets_sent + excluded.packets_sent,
                     packets_dropped = nym_node_daily_mixing_stats.packets_dropped + excluded.packets_dropped

@@ -46,18 +46,10 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
     );
   }
 
-  const timeBonded = format(
-    new Date(nodeInfo.description.build_information.build_timestamp),
-    "dd/MM/yyyy",
-  );
-
   const selfBond = formatBigNum(
     Number(nodeInfo.rewarding_details.operator) / 1_000_000,
   );
   const selfBondFormatted = `${selfBond} NYM`;
-
-  const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
-  const totalStakeFormatted = `${totalStake} NYM`;
 
   return (
     <ExplorerCard label="Basic info">
@@ -104,20 +96,14 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
             </Stack>
           }
         />
-        <ExplorerListItem row divider label="Node bonded" value={timeBonded} />
+
         <ExplorerListItem
           row
           divider
           label="Nr. of stakers"
           value={nodeInfo.rewarding_details.unique_delegations.toString()}
         />
-        <ExplorerListItem
-          row
-          divider
-          label="Self bonded"
-          value={selfBondFormatted}
-        />
-        <ExplorerListItem row label="Total stake" value={totalStakeFormatted} />
+        <ExplorerListItem row label="Self bonded" value={selfBondFormatted} />
       </Stack>
     </ExplorerCard>
   );

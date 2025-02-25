@@ -2,12 +2,12 @@ import { fetchNodeIdByIdentityKey, fetchNodeInfo } from "@/app/api";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
+import { NodeDataCard } from "@/components/nymNodePageComponents/NodeDataCard";
 // import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
 import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
-import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
+import { NodeParametersCard } from "@/components/nymNodePageComponents/NodeParametersCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
-import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
-import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
+import { NodeRoleCard } from "@/components/nymNodePageComponents/NodeRoleCard";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -15,7 +15,7 @@ import Grid from "@mui/material/Grid2";
 export default async function NymNode({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string }>; // node_id or identity_key
 }) {
   try {
     let id: string | number;
@@ -82,7 +82,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <QualityIndicatorsCard id={id} />
+            <NodeRoleCard id={id} />
           </Grid>
           <Grid
             size={{
@@ -90,7 +90,7 @@ export default async function NymNode({
               md: 6,
             }}
           >
-            <NodeRewardsCard id={id} />
+            <NodeParametersCard id={id} />
           </Grid>
           <Grid
             size={{
@@ -98,7 +98,7 @@ export default async function NymNode({
               md: 6,
             }}
           >
-            <NodeMetricsCard id={id} />
+            <NodeDataCard id={id} />
           </Grid>
           <Grid
             size={{

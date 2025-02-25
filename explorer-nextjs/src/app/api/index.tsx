@@ -64,6 +64,14 @@ export const fetchNodeInfo = async (
   return nodes?.find((node) => node.node_id === id);
 };
 
+export const fetchNodeIdByIdentityKey = async (
+  identity_key: string,
+): Promise<number> => {
+  const nodes = await fetchObservatoryNodes();
+  const node = nodes?.find((node) => node.identity_key === identity_key);
+  return node?.node_id || 0;
+};
+
 export const fetchNodeDelegations = async (
   id: number,
 ): Promise<NodeRewardDetails[]> => {

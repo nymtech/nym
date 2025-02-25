@@ -1,4 +1,4 @@
-import { fetchNodeInfo } from "@/app/api";
+import { fetchNodeIdByIdentityKey, fetchNodeInfo } from "@/app/api";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
@@ -18,7 +18,16 @@ export default async function NymNode({
   params: Promise<{ id: string }>;
 }) {
   try {
-    const id = Number((await params).id);
+    let id: string | number;
+    const paramsId = (await params).id;
+
+    // check if the params id is a node_id or identity_key
+
+    if (paramsId.length > 10) {
+      id = await fetchNodeIdByIdentityKey(paramsId);
+    } else {
+      id = Number(paramsId);
+    }
 
     const observatoryNymNode = await fetchNodeInfo(id);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
@@ -7,11 +8,11 @@ import type { RewardingDetails } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
-interface INodeRewardsCardProps {
+interface INodeParametersCardProps {
   id: number; // Node ID
 }
 
-export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
+export const NodeParametersCard = ({ id }: INodeParametersCardProps) => {
   // Fetch epoch rewards
   const {
     data: epochRewardsData,
@@ -34,10 +35,7 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
 
   if (isEpochLoading || isNodeLoading) {
     return (
-      <ExplorerCard
-        label="Node rewards (last epoch/hour)"
-        sx={{ height: "100%" }}
-      >
+      <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
         <Skeleton variant="text" height={50} />
         <Skeleton variant="text" height={50} />
@@ -48,10 +46,7 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
 
   if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
     return (
-      <ExplorerCard
-        label="Node rewards (last epoch/hour)"
-        sx={{ height: "100%" }}
-      >
+      <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load node data.
         </Typography>
@@ -59,11 +54,11 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
     );
   }
 
+  const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
+  const totalStakeFormatted = `${totalStake} NYM`;
+
   // Extract reward details
   const rewardDetails: RewardingDetails = nodeInfo.rewarding_details;
-  // Calculated data
-  const operatorRewards = Number(rewardDetails.operator) / 1_000_000;
-  const operatorRewardsFormated = `${operatorRewards.toFixed(2)} NYM`;
 
   const profitMarginPercent =
     Number(rewardDetails.cost_params.profit_margin_percent) * 100;
@@ -95,16 +90,19 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   );
 
   return (
-    <ExplorerCard
-      label="Node rewards (last epoch/hour)"
-      sx={{ height: "100%" }}
-    >
+    <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
       <ExplorerListItem
+        row
+        divider
+        label="Total stake"
+        value={totalStakeFormatted}
+      />
+      {/* <ExplorerListItem
         row
         divider
         label="Operator rew."
         value={operatorRewardsFormated}
-      />
+      /> */}
       <ExplorerListItem
         row
         divider

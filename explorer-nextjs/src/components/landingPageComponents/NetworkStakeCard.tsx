@@ -71,11 +71,11 @@ export const NetworkStakeCard = () => {
         >
           {title}
         </Typography>
-        {stakeLineGraphData && (
+        {/* {stakeLineGraphData && (
           <Box height={225}>
             <LineChart {...stakeLineGraphData} />
           </Box>
-        )}
+        )} */}
       </Stack>
     </ExplorerCard>
   );

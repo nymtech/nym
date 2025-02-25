@@ -8,7 +8,7 @@ import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
 
-interface IQualityIndicatorsCardProps {
+interface INodeRoleCardProps {
   id: number; // Node ID
 }
 
@@ -139,7 +139,7 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
   }
 }
 
-export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
+export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
   // Fetch node info
   const {
     data: nodeInfo,
@@ -169,7 +169,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
 
   if (isLoading) {
     return (
-      <ExplorerCard label="Quality indicators">
+      <ExplorerCard label="Node role & performance">
         <Skeleton variant="text" height={70} />
         <Skeleton variant="text" height={70} />
         <Skeleton variant="text" height={300} />
@@ -179,7 +179,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
 
   if (isError || !nodeInfo) {
     return (
-      <ExplorerCard label="Quality indicators">
+      <ExplorerCard label="Node role & performance">
         <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load node data.
         </Typography>
@@ -211,7 +211,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
     NodeRoles.length === 1 && nodeRoles[0] === "Mix Node";
 
   return (
-    <ExplorerCard label="Quality indicators" sx={{ height: "100%" }}>
+    <ExplorerCard label="Node role & performance" sx={{ height: "100%" }}>
       <ExplorerListItem
         row
         divider

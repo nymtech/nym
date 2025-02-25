@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
 
 import { Skeleton, Typography } from "@mui/material";
+import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
@@ -11,7 +12,7 @@ interface INodeMetricsCardProps {
   id: number; // Node ID
 }
 
-export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
+export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
   const {
     data: epochRewardsData,
     isLoading: isEpochLoading,
@@ -79,6 +80,11 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
     epochRewardsData.interval.stake_saturation_point,
   );
 
+  const softwareUpdateTime = format(
+    new Date(nodeInfo.description.build_information.build_timestamp),
+    "dd/MM/yyyy",
+  );
+
   return (
     <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
       <ExplorerListItem
@@ -99,7 +105,17 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
         label="Version"
         value={nodeInfo.description.build_information.build_version}
       />
-      <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
+      <ExplorerListItem
+        row
+        divider
+        label="Active set Prob."
+        value={activeSetProb}
+      />
+      <ExplorerListItem
+        row
+        label="Last software update"
+        value={softwareUpdateTime}
+      />
     </ExplorerCard>
   );
 };

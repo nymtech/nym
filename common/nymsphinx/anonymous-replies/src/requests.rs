@@ -139,11 +139,6 @@ impl RepliableMessage {
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
     ) -> Self {
-
-        println!("New data message message: {} bytes", data.len());
-        println!("New data message surbs: {} bytes", reply_surbs.len() * ReplySurb::serialized_len());
-        println!("New data message surbs: {} bytes", reply_surbs.iter().flat_map(|s| s.to_bytes()).collect::<Vec<u8>>().len());
-
         RepliableMessage {
             sender_tag,
             content: RepliableMessageContent::Data {
@@ -175,7 +170,7 @@ impl RepliableMessage {
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, InvalidReplyRequestError> {
-        println!("Trying to deserialize message: {} bytes", bytes.len());
+        !("Trying to deserialize message: {} bytes", bytes.len());
         if bytes.len() < SENDER_TAG_SIZE + 1 {
             return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }

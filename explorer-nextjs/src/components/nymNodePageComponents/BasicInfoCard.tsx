@@ -2,7 +2,6 @@
 
 import { Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { fetchNodeInfo } from "../../app/api";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";

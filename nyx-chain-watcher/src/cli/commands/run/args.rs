@@ -22,6 +22,15 @@ pub(crate) struct Args {
     )]
     pub watch_for_transfer_recipient_accounts: Option<Vec<AccountId>>,
 
+
+    /// (Override) Watch for transfers to these recipient accounts
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = NYX_RECORD_BEARER_VALUE
+    )]
+    pub record_bearer_token: Option<String>,
+
     /// (Override) Watch for chain messages of these types
     #[clap(
         long,

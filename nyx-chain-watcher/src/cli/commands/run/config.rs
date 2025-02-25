@@ -14,6 +14,7 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
         webhook_auth,
         ref chain_watcher_db_path,
         ref chain_history_db_path,
+        ref record_bearer_token,
         webhook_url,
     } = args;
 
@@ -52,6 +53,11 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
     if let Some(db_path) = chain_history_db_path {
         info!("Overriding chain history database url with '{db_path}'");
         builder = builder.with_chain_scraper_db_path(db_path.clone());
+    }
+
+    if let Some(token) = record_bearer_token {
+        info!("Setting bearer token for authentication");
+        builder = builder.with_record_bearer_token(token.clone());
     }
 
     if let Some(webhook_url) = webhook_url {

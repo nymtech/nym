@@ -1,3 +1,4 @@
+use tracing::error;
 pub(crate) type HttpResult<T> = Result<T, Error>;
 
 pub(crate) struct Error {
@@ -10,6 +11,13 @@ impl Error {
         Self {
             message: String::from("Internal server error"),
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+    pub(crate) fn not_found(resource: &str) -> Self {
+        error!("Resource not found: {}", resource);
+        Self {
+            message: format!("{} not found", resource),
+            status: axum::http::StatusCode::NOT_FOUND,
         }
     }
 }

@@ -49,6 +49,8 @@ pub struct ConfigBuilder {
     pub payment_watcher_config: Option<PaymentWatcherConfig>,
 
     pub logging: Option<LoggingSettings>,
+
+    pub bearer_token: Option<String>,
 }
 
 impl ConfigBuilder {
@@ -60,7 +62,13 @@ impl ConfigBuilder {
             logging: None,
             db_path: None,
             chain_scraper_db_path: None,
+            bearer_token: None,
         }
+    }
+
+    pub fn with_record_bearer_token(mut self, token: String) -> Self {
+        self.bearer_token = Some(token);
+        self
     }
 
     pub fn with_db_path(mut self, db_path: String) -> Self {
@@ -96,6 +104,7 @@ impl ConfigBuilder {
             data_dir: self.data_dir,
             db_path: self.db_path,
             chain_scraper_db_path: self.chain_scraper_db_path,
+            bearer_token: self.bearer_token,
         }
     }
 }
@@ -118,8 +127,11 @@ pub struct Config {
 
     pub payment_watcher_config: Option<PaymentWatcherConfig>,
 
+    pub bearer_token: Option<String>,
+
     #[serde(default)]
     pub logging: LoggingSettings,
+
 }
 
 impl NymConfigTemplate for Config {

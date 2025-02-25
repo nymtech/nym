@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use utoipa::ToSchema;
 
 #[derive(Clone, Deserialize, Debug, ToSchema)]
@@ -32,7 +33,7 @@ pub(crate) struct PriceHistory {
     pub(crate) btc: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, FromRow)]
 pub(crate) struct PaymentRecord {
     pub(crate) transaction_hash: String,
     pub(crate) sender_address: String,
@@ -41,3 +42,4 @@ pub(crate) struct PaymentRecord {
     pub(crate) timestamp: i64,
     pub(crate) height: i64,
 }
+

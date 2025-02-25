@@ -8,6 +8,7 @@ use crate::node_status_api::handlers::status_routes;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
 use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
+use crate::nym_nodes::handlers::topology::topology_routes;
 use crate::status;
 use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
@@ -38,7 +39,7 @@ pub(crate) struct RouterBuilder {
 impl RouterBuilder {
     /// All routes should be, if possible, added here. Exceptions are e.g.
     /// routes which are added conditionally in other places based on some `if`.
-    pub(crate) fn with_default_routes(network_monitor: bool) -> Self {
+    pub(crate) fn with_default_routes(state: &AppState, network_monitor: bool) -> Self {
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO rocket use tracing instead of env_logger
         // https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs
@@ -64,7 +65,9 @@ impl RouterBuilder {
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())
                     .nest("/ecash", ecash_routes())
-                    .nest("/unstable", unstable_routes()), // CORS layer needs to be "outside" of routes
+                    .nest("/unstable", unstable_routes())
+                    .nest("/topology", topology_routes().with_state(state.topology_cache.clone())),
+                    // CORS layer needs to be "outside" of routes
             );
 
         Self {

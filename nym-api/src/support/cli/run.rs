@@ -23,6 +23,7 @@ use crate::support::config::Config;
 use crate::support::http::state::{
     AppState, ForcedRefresh, ShutdownHandles, TASK_MANAGER_TIMEOUT_S,
 };
+use crate::support::http::topology_cache::{Epoch, TopologyCache};
 use crate::support::http::RouterBuilder;
 use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
@@ -35,6 +36,7 @@ use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
+use nym_topology::NymTopology;
 use nym_validator_client::nyxd::Coin;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -133,8 +135,6 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();
 
-    let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
-
     let nym_contract_cache_state = NymContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
@@ -190,7 +190,16 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     };
 
     ecash_state.spawn_background_cleaner();
-    let router = router.with_state(AppState {
+
+
+    let epoch = Epoch::from(nym_contract_cache_state.current_interval().await.take());
+    let topology = {
+        todo!("cannot proceed without implementing this.");
+        NymTopology::default()
+    };
+    let topology_cache = TopologyCache::new(epoch, topology);
+
+    let state = AppState {
         forced_refresh: ForcedRefresh::new(
             config.topology_cacher.debug.node_describe_allow_illegal_ips,
         ),
@@ -203,7 +212,11 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         node_info_cache,
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
-    });
+        topology_cache: Arc::new(topology_cache)
+    };
+
+    let router = RouterBuilder::with_default_routes(&state, config.network_monitor.enabled);
+    let router = router.with_state(state);
 
     // start note describe cache refresher
     // we should be doing the below, but can't due to our current startup structure

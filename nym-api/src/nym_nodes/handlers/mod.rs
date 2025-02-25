@@ -26,6 +26,7 @@ use utoipa::{IntoParams, ToSchema};
 
 pub(crate) mod legacy;
 pub(crate) mod unstable;
+pub(crate) mod topology;
 
 pub(crate) fn nym_node_routes() -> Router<AppState> {
     Router::new()

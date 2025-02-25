@@ -12,6 +12,7 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
+use crate::support::http::topology_cache::TopologyCache;
 use crate::support::storage;
 use axum::extract::FromRef;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
@@ -87,6 +88,7 @@ pub(crate) struct AppState {
     pub(crate) api_status: ApiStatusState,
     // todo: refactor it into inner: Arc<EcashStateInner>
     pub(crate) ecash_state: Arc<EcashState>,
+    pub(crate) topology_cache: Arc<TopologyCache>
 }
 
 impl FromRef<AppState> for ApiStatusState {

@@ -6,6 +6,7 @@ pub(crate) mod openapi;
 pub(crate) mod router;
 pub(crate) mod state;
 mod unstable_routes;
+pub(crate) mod topology_cache;
 
 pub(crate) use router::RouterBuilder;
 

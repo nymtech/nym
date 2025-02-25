@@ -25,11 +25,11 @@ use crate::nym_nodes::handlers::unstable::semi_skimmed::nodes_expanded;
 use crate::nym_nodes::handlers::unstable::skimmed::{
     entry_gateways_basic_active, entry_gateways_basic_all, exit_gateways_basic_active,
     exit_gateways_basic_all, mixnodes_basic_active, mixnodes_basic_all, nodes_basic_active,
-    nodes_basic_all,
+    nodes_basic_all, nodes_basic_batch,
 };
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 use serde::Deserialize;
@@ -47,6 +47,7 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
             "/skimmed",
             Router::new()
                 .route("/", get(nodes_basic_all))
+                .route("batch", post(nodes_basic_batch))
                 .route("/active", get(nodes_basic_active))
                 .nest(
                     "/mixnodes",

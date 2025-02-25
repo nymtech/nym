@@ -253,10 +253,10 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
+                routes::UNSTABLE,
                 routes::NYM_NODES_ROUTES,
                 "mixnodes",
-                "skimmed",
+                routes::SKIMMED,
             ],
             NO_PARAMS,
         )
@@ -269,10 +269,10 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
+                routes::UNSTABLE,
                 routes::NYM_NODES_ROUTES,
                 "gateways",
-                "skimmed",
+                routes::SKIMMED,
             ],
             NO_PARAMS,
         )
@@ -318,9 +318,9 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
+                routes::UNSTABLE,
                 routes::NYM_NODES_ROUTES,
-                "skimmed",
+                routes::SKIMMED,
                 "entry-gateways",
                 "all",
             ],
@@ -355,9 +355,9 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
+                routes::UNSTABLE,
                 routes::NYM_NODES_ROUTES,
-                "skimmed",
+                routes::SKIMMED,
                 "mixnodes",
                 "active",
             ],
@@ -392,13 +392,38 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
+                routes::UNSTABLE,
                 routes::NYM_NODES_ROUTES,
-                "skimmed",
+                routes::SKIMMED,
                 "mixnodes",
                 "all",
             ],
             &params,
+        )
+        .await
+    }
+
+    /// Send a Post request with a set of node ids. A successful response will contain descriptors
+    /// for all nodes associated with those node IDs available in the current full topology.
+    ///
+    /// If a provided node ID is not present there will be no descriptor for that node in the response.
+    ///
+    /// If no node IDs are provided the response will contain no descriptors.
+    #[instrument(level = "debug", skip(self))]
+    async fn retrieve_basic_nodes_batch(
+        &self,
+        node_ids: &[NodeId],
+    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::UNSTABLE,
+                routes::NYM_NODES_ROUTES,
+                routes::SKIMMED,
+                routes::BATCH,
+            ],
+            NO_PARAMS,
+            node_ids,
         )
         .await
     }
@@ -427,9 +452,9 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
+                routes::UNSTABLE,
                 routes::NYM_NODES_ROUTES,
-                "skimmed",
+                routes::SKIMMED,
             ],
             &params,
         )

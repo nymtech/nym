@@ -1,11 +1,10 @@
 "use client";
 import { fetchNoise } from "@/app/api";
-import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
+// import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
-import { LineChart } from "../lineChart";
 
 export const NetworkStakeCard = () => {
   const {
@@ -39,26 +38,26 @@ export const NetworkStakeCard = () => {
     );
   }
 
-  const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
-    packetsAndStaking;
+  // const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
+  //   packetsAndStaking;
 
   const lastTotalStake =
     packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
 
-  const data = packetsAndStakingData
-    .slice(0, -1)
-    .map((item: IPacketsAndStakingData) => {
-      return {
-        date_utc: item.date_utc,
-        numericData: item.total_stake / 1000000,
-      };
-    });
+  // const data = packetsAndStakingData
+  //   .slice(0, -1)
+  //   .map((item: IPacketsAndStakingData) => {
+  //     return {
+  //       date_utc: item.date_utc,
+  //       numericData: item.total_stake / 1000000,
+  //     };
+  //   });
 
-  const stakeLineGraphData = {
-    color: "#00CA33",
-    label: "Total stake delegated in NYM",
-    data,
-  };
+  // const stakeLineGraphData = {
+  //   color: "#00CA33",
+  //   label: "Total stake delegated in NYM",
+  //   data,
+  // };
 
   const title = `${formatBigNum(lastTotalStake)} NYM`;
 

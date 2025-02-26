@@ -281,7 +281,7 @@ impl Stream for MixnetClient {
                 } else {
                     // I *think* this happens for SURBs, but I'm not 100% sure. Nonetheless it's
                     // beneign, but let's log it here anyway as a reminder
-                    debug!("the reconstructed messages vector is empty - please let the developers know if you see this message");
+                    debug!("the reconstructed messages vector is empty");
                     cx.waker().wake_by_ref();
                     Poll::Pending
                 }

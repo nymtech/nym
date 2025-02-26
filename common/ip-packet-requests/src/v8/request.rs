@@ -48,10 +48,6 @@ pub struct StaticConnectRequest {
     // The requested internal IP addresses.
     pub ips: IpPair,
 
-    // The average delay at each mix node, in milliseconds. Currently this is not supported by the
-    // ip packet router.
-    pub reply_to_avg_mix_delays: Option<f64>,
-
     // The maximum time in milliseconds the IPR should wait when filling up a mix packet
     // with ip packets.
     pub buffer_timeout: Option<u64>,
@@ -73,10 +69,6 @@ pub struct SignedStaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub request_id: u64,
-
-    // The average delay at each mix node, in milliseconds. Currently this is not supported by the
-    // ip packet router.
-    pub reply_to_avg_mix_delays: Option<f64>,
 
     // The maximum time in milliseconds the IPR should wait when filling up a mix packet
     // with ip packets.
@@ -154,7 +146,6 @@ pub enum SentBy {
 impl IpPacketRequest {
     pub fn new_connect_request(
         ips: Option<IpPair>,
-        reply_to_avg_mix_delays: Option<f64>,
         buffer_timeout: Option<u64>,
         return_address: ReturnAddress,
     ) -> Result<(Self, u64), SignatureError> {
@@ -165,7 +156,6 @@ impl IpPacketRequest {
             let request = StaticConnectRequest {
                 request_id,
                 ips,
-                reply_to_avg_mix_delays,
                 buffer_timeout,
                 timestamp,
                 sender,
@@ -182,7 +172,6 @@ impl IpPacketRequest {
         } else {
             let request = DynamicConnectRequest {
                 request_id,
-                reply_to_avg_mix_delays,
                 buffer_timeout,
                 timestamp,
                 sender,
@@ -479,7 +468,6 @@ mod tests {
                             Ipv4Addr::from_str("10.0.0.1").unwrap(),
                             Ipv6Addr::from_str("fc00::1").unwrap(),
                         ),
-                        reply_to_avg_mix_delays: None,
                         buffer_timeout: None,
                         timestamp: datetime!(2024-01-01 12:59:59.5 UTC),
                         sender: SentBy::AnonymousSenderTag,
@@ -488,7 +476,7 @@ mod tests {
                 },
             ))),
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 140);
+        assert_eq!(connect.to_bytes().unwrap().len(), 42);
     }
 
     #[test]

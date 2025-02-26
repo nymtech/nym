@@ -66,7 +66,6 @@ impl From<StaticConnectRequestV7> for StaticConnectRequestV8 {
         Self {
             request_id: static_connect_request.request_id,
             ips: static_connect_request.ips,
-            reply_to_avg_mix_delays: static_connect_request.reply_to_avg_mix_delays,
             buffer_timeout: static_connect_request.buffer_timeout,
             timestamp: static_connect_request.timestamp,
             sender: static_connect_request.reply_to.into(),
@@ -87,7 +86,6 @@ impl From<DynamicConnectRequestV7> for DynamicConnectRequestV8 {
     fn from(dynamic_connect_request: DynamicConnectRequestV7) -> Self {
         Self {
             request_id: dynamic_connect_request.request_id,
-            reply_to_avg_mix_delays: dynamic_connect_request.reply_to_avg_mix_delays,
             buffer_timeout: dynamic_connect_request.buffer_timeout,
             timestamp: dynamic_connect_request.timestamp,
             sender: dynamic_connect_request.reply_to.into(),

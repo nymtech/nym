@@ -17,7 +17,7 @@ export const NoiseCard = () => {
 
   if (isLoading) {
     return (
-      <ExplorerCard label="Noise generated last 24h">
+      <ExplorerCard label="Mixnet traffic">
         <Stack gap={1}>
           <Skeleton variant="text" />
           <Skeleton variant="text" height={238} />
@@ -28,7 +28,7 @@ export const NoiseCard = () => {
 
   if (isError || !data) {
     return (
-      <ExplorerCard label="Noise generated last 24h">
+      <ExplorerCard label="Mixnet traffic">
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
           Failed to load data
         </Typography>
@@ -91,7 +91,7 @@ export const NoiseCard = () => {
     });
 
   return (
-    <ExplorerCard label="Noise generated last 24h" sx={{ height: "100%" }}>
+    <ExplorerCard label="Mixnet traffic" sx={{ height: "100%" }}>
       <Box display={"flex"} gap={2} flexDirection={{ xs: "column", sm: "row" }}>
         <Typography
           variant="h4"

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::addressing::Recipient;
@@ -60,14 +60,12 @@ pub struct StaticConnectRequest {
     pub timestamp: OffsetDateTime,
 
     pub sender: SentBy,
-
-    pub signed_by: ed25519::PublicKey,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedStaticConnectRequest {
     pub request: StaticConnectRequest,
-    pub signature: ed25519::Signature,
+    pub signature: Option<ed25519::Signature>,
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use
@@ -88,14 +86,12 @@ pub struct DynamicConnectRequest {
     pub timestamp: OffsetDateTime,
 
     pub sender: SentBy,
-
-    pub signed_by: ed25519::PublicKey,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDynamicConnectRequest {
     pub request: DynamicConnectRequest,
-    pub signature: ed25519::Signature,
+    pub signature: Option<ed25519::Signature>,
 }
 
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
@@ -108,14 +104,12 @@ pub struct DisconnectRequest {
     pub timestamp: OffsetDateTime,
 
     pub sender: SentBy,
-
-    pub signed_by: ed25519::PublicKey,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDisconnectRequest {
     pub request: DisconnectRequest,
-    pub signature: ed25519::Signature,
+    pub signature: Option<ed25519::Signature>,
 }
 
 // A ping request is when the client wants to check if the ip packet router is still alive.
@@ -139,6 +133,18 @@ pub struct HealthRequest {
     pub timestamp: OffsetDateTime,
 }
 
+// When constructing the request, use this return address. It has the keypair to be able to sign
+// the request if we reveal the sender.
+#[derive(Clone, Debug)]
+pub enum ReturnAddress {
+    AnonymousSenderTag,
+    NymAddress {
+        reply_to: Box<Recipient>,
+        signing_keypair: Arc<ed25519::KeyPair>,
+    },
+}
+
+// The serialized sender field in the request, that does not contain the keypair.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum SentBy {
     AnonymousSenderTag,
@@ -150,13 +156,11 @@ impl IpPacketRequest {
         ips: Option<IpPair>,
         reply_to_avg_mix_delays: Option<f64>,
         buffer_timeout: Option<u64>,
-        sender: SentBy,
-        keypair: &ed25519::KeyPair,
+        return_address: ReturnAddress,
     ) -> Result<(Self, u64), SignatureError> {
-        // WIP(JON): confirm this
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
-        let signed_by = *keypair.public_key();
+        let sender = return_address.clone().into();
         let request = if let Some(ips) = ips {
             let request = StaticConnectRequest {
                 request_id,
@@ -165,9 +169,15 @@ impl IpPacketRequest {
                 buffer_timeout,
                 timestamp,
                 sender,
-                signed_by,
             };
-            let signature = keypair.private_key().sign(request.to_bytes()?);
+            let signature = return_address
+                .signing_key()
+                .map(|keypair| {
+                    request
+                        .to_bytes()
+                        .map(|bytes| keypair.private_key().sign(bytes))
+                })
+                .transpose()?;
             ControlRequest::StaticConnect(SignedStaticConnectRequest { request, signature })
         } else {
             let request = DynamicConnectRequest {
@@ -176,34 +186,43 @@ impl IpPacketRequest {
                 buffer_timeout,
                 timestamp,
                 sender,
-                signed_by,
             };
-            let signature = keypair.private_key().sign(request.to_bytes()?);
+            let signature = return_address
+                .signing_key()
+                .map(|keypair| {
+                    request
+                        .to_bytes()
+                        .map(|bytes| keypair.private_key().sign(bytes))
+                })
+                .transpose()?;
             ControlRequest::DynamicConnect(SignedDynamicConnectRequest { request, signature })
         };
-        Ok((
-            Self {
-                version: VERSION,
-                data: IpPacketRequestData::Control(Box::new(request)),
-            },
-            request_id,
-        ))
+        let request = Self {
+            version: VERSION,
+            data: IpPacketRequestData::Control(Box::new(request)),
+        };
+        Ok((request, request_id))
     }
 
     pub fn new_disconnect_request(
-        sender: SentBy,
-        keypair: &ed25519::KeyPair,
+        return_address: ReturnAddress,
     ) -> Result<(Self, u64), SignatureError> {
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
-        let signed_by = *keypair.public_key();
+        let sender = return_address.clone().into();
         let request = DisconnectRequest {
             request_id,
             timestamp,
             sender,
-            signed_by,
         };
-        let signature = keypair.private_key().sign(request.to_bytes()?);
+        let signature = return_address
+            .signing_key()
+            .map(|keypair| {
+                request
+                    .to_bytes()
+                    .map(|bytes| keypair.private_key().sign(bytes))
+            })
+            .transpose()?;
         let request = Self {
             version: VERSION,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Disconnect(
@@ -220,9 +239,10 @@ impl IpPacketRequest {
         }
     }
 
-    pub fn new_ping(sender: SentBy) -> (Self, u64) {
+    pub fn new_ping(return_address: ReturnAddress) -> (Self, u64) {
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
+        let sender = return_address.into();
         let ping_request = PingRequest {
             request_id,
             sender,
@@ -235,9 +255,10 @@ impl IpPacketRequest {
         (request, request_id)
     }
 
-    pub fn new_health_request(sender: SentBy) -> (Self, u64) {
+    pub fn new_health_request(return_address: ReturnAddress) -> (Self, u64) {
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
+        let sender = return_address.into();
         let health_request = HealthRequest {
             request_id,
             sender,
@@ -334,12 +355,12 @@ impl SignedRequest for SignedStaticConnectRequest {
         self.request.timestamp
     }
 
-    fn identity(&self) -> &ed25519::PublicKey {
-        &self.request.signed_by
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
+        self.request.sender.identity()
     }
 
     fn signature(&self) -> Option<&ed25519::Signature> {
-        Some(&self.signature)
+        self.signature.as_ref()
     }
 }
 
@@ -364,12 +385,12 @@ impl SignedRequest for SignedDynamicConnectRequest {
         self.request.timestamp
     }
 
-    fn identity(&self) -> &ed25519::PublicKey {
-        &self.request.signed_by
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
+        self.request.sender.identity()
     }
 
     fn signature(&self) -> Option<&ed25519::Signature> {
-        Some(&self.signature)
+        self.signature.as_ref()
     }
 }
 
@@ -394,18 +415,47 @@ impl SignedRequest for SignedDisconnectRequest {
         self.request.timestamp
     }
 
-    fn identity(&self) -> &ed25519::PublicKey {
-        &self.request.signed_by
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
+        self.request.sender.identity()
     }
 
     fn signature(&self) -> Option<&ed25519::Signature> {
-        Some(&self.signature)
+        self.signature.as_ref()
+    }
+}
+
+impl SentBy {
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
+        match self {
+            SentBy::AnonymousSenderTag => None,
+            SentBy::NymAddress(recipient) => Some(recipient.identity()),
+        }
     }
 }
 
 impl From<Recipient> for SentBy {
     fn from(recipient: Recipient) -> Self {
         SentBy::NymAddress(Box::new(recipient))
+    }
+}
+
+impl ReturnAddress {
+    fn signing_key(&self) -> Option<&ed25519::KeyPair> {
+        match self {
+            ReturnAddress::AnonymousSenderTag => None,
+            ReturnAddress::NymAddress {
+                signing_keypair, ..
+            } => Some(signing_keypair.as_ref()),
+        }
+    }
+}
+
+impl From<ReturnAddress> for SentBy {
+    fn from(return_address: ReturnAddress) -> Self {
+        match return_address {
+            ReturnAddress::AnonymousSenderTag => SentBy::AnonymousSenderTag,
+            ReturnAddress::NymAddress { reply_to, .. } => SentBy::NymAddress(reply_to),
+        }
     }
 }
 
@@ -419,10 +469,6 @@ mod tests {
 
     #[test]
     fn check_size_of_request() {
-        let mut rng = rand::rngs::OsRng;
-        let keypair = ed25519::KeyPair::new(&mut rng);
-        let dummy_data_to_sign = vec![1, 2, 3, 4, 5];
-        let signature = keypair.private_key().sign(&dummy_data_to_sign);
         let connect = IpPacketRequest {
             version: 4,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::StaticConnect(
@@ -437,12 +483,8 @@ mod tests {
                         buffer_timeout: None,
                         timestamp: datetime!(2024-01-01 12:59:59.5 UTC),
                         sender: SentBy::AnonymousSenderTag,
-                        signed_by: ed25519::PublicKey::from_base58_string(
-                            "D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9",
-                        )
-                        .unwrap(),
                     },
-                    signature,
+                    signature: None,
                 },
             ))),
         };

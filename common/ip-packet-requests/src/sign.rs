@@ -28,17 +28,23 @@ pub enum SignatureError {
 }
 
 pub trait SignedRequest {
-    fn identity(&self) -> &ed25519::PublicKey;
+    fn identity(&self) -> Option<&ed25519::PublicKey>;
 
     fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError>;
 
-    // The signature is Option in v7. Once v7 is phased out we can change this to remove the
-    // Option
     fn signature(&self) -> Option<&ed25519::Signature>;
 
     fn timestamp(&self) -> OffsetDateTime;
 
     fn verify(&self) -> Result<(), SignatureError> {
+        let identity = match self.identity() {
+            Some(identity) => identity,
+            None => {
+                // If we are not revealing our identity, we don't need to verify anything
+                return Ok(());
+            }
+        };
+
         if let Some(signature) = self.signature() {
             // First check that the request is recent enough
             if OffsetDateTime::now_utc() - self.timestamp() > MAX_REQUEST_AGE {
@@ -47,7 +53,7 @@ pub trait SignedRequest {
 
             let request_as_bytes = self.request_as_bytes()?;
 
-            self.identity()
+            identity
                 .verify(request_as_bytes, signature)
                 .map_err(|error| SignatureError::VerificationFailed {
                     message: "signature verification failed".to_string(),

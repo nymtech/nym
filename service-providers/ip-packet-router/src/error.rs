@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
 use nym_id::NymIdError;
-use nym_ip_packet_requests::{sign::SignatureError, v8::conversion::ConversionError};
+use nym_ip_packet_requests::sign::SignatureError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
@@ -44,9 +44,6 @@ pub enum IpPacketRouterError {
 
     #[error("failed to deserialize tagged packet: {source}")]
     FailedToDeserializeTaggedPacket { source: bincode::Error },
-
-    #[error("failed to convert request to latest version")]
-    FailedToConvertRequestToLatestVersion { source: ConversionError },
 
     #[error("failed to parse incoming packet: {source}")]
     PacketParseFailed { source: etherparse::ReadError },

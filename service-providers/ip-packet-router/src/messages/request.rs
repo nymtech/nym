@@ -255,26 +255,31 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
             .ok_or(IpPacketRouterError::EmptyPacket)?;
 
         let (deserialized, version) = match request_version {
-            7 => IpPacketRequestV7::from_reconstructed_message(reconstructed)
-                .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source })
-                .and_then(|r| {
-                    IpPacketRequestV8::try_from(r).map_err(|source| {
-                        IpPacketRouterError::FailedToConvertRequestToLatestVersion { source }
-                    })
-                })
-                .map(|r| (r, ClientVersion::V7)),
-            8 => IpPacketRequestV8::from_reconstructed_message(reconstructed)
-                .map_err(|source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source })
-                .map(|r| (r, ClientVersion::V8)),
+            7 => {
+                let request_v7 = IpPacketRequestV7::from_reconstructed_message(reconstructed)
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )?;
+                request_v7
+                    .verify()
+                    .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
+                (IpPacketRequestV8::from(request_v7), ClientVersion::V7)
+            }
+            8 => {
+                let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )?;
+                request_v8
+                    .verify()
+                    .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
+                (request_v8, ClientVersion::V8)
+            }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");
-                Err(IpPacketRouterError::InvalidPacketVersion(request_version))
+                return Err(IpPacketRouterError::InvalidPacketVersion(request_version));
             }
-        }?;
-
-        deserialized
-            .verify()
-            .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
+        };
 
         IpPacketRequest::try_from((deserialized, reconstructed.sender_tag, version))
     }

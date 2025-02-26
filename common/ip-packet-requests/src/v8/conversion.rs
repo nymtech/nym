@@ -20,37 +20,27 @@ use crate::{
     },
 };
 
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum ConversionError {
-    #[error("signature is missing")]
-    MissingSignature,
-}
-
-impl TryFrom<IpPacketRequestV7> for IpPacketRequestV8 {
-    type Error = ConversionError;
-
-    fn try_from(request: IpPacketRequestV7) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<IpPacketRequestV7> for IpPacketRequestV8 {
+    fn from(request: IpPacketRequestV7) -> Self {
+        Self {
             version: request.version,
-            data: request.data.try_into()?,
-        })
+            data: request.data.into(),
+        }
     }
 }
 
-impl TryFrom<IpPacketRequestDataV7> for IpPacketRequestDataV8 {
-    type Error = ConversionError;
-
-    fn try_from(request: IpPacketRequestDataV7) -> Result<Self, Self::Error> {
-        Ok(match request {
-            IpPacketRequestDataV7::StaticConnect(r) => IpPacketRequestDataV8::Control(Box::new(
-                ControlRequestV8::StaticConnect(r.try_into()?),
-            )),
-            IpPacketRequestDataV7::DynamicConnect(r) => IpPacketRequestDataV8::Control(Box::new(
-                ControlRequestV8::DynamicConnect(r.try_into()?),
-            )),
-            IpPacketRequestDataV7::Disconnect(r) => IpPacketRequestDataV8::Control(Box::new(
-                ControlRequestV8::Disconnect(r.try_into()?),
-            )),
+impl From<IpPacketRequestDataV7> for IpPacketRequestDataV8 {
+    fn from(request: IpPacketRequestDataV7) -> Self {
+        match request {
+            IpPacketRequestDataV7::StaticConnect(r) => {
+                IpPacketRequestDataV8::Control(Box::new(ControlRequestV8::StaticConnect(r.into())))
+            }
+            IpPacketRequestDataV7::DynamicConnect(r) => {
+                IpPacketRequestDataV8::Control(Box::new(ControlRequestV8::DynamicConnect(r.into())))
+            }
+            IpPacketRequestDataV7::Disconnect(r) => {
+                IpPacketRequestDataV8::Control(Box::new(ControlRequestV8::Disconnect(r.into())))
+            }
             IpPacketRequestDataV7::Data(r) => IpPacketRequestDataV8::Data(r.into()),
             IpPacketRequestDataV7::Ping(r) => {
                 IpPacketRequestDataV8::Control(Box::new(ControlRequestV8::Ping(r.into())))
@@ -58,53 +48,38 @@ impl TryFrom<IpPacketRequestDataV7> for IpPacketRequestDataV8 {
             IpPacketRequestDataV7::Health(r) => {
                 IpPacketRequestDataV8::Control(Box::new(ControlRequestV8::Health(r.into())))
             }
-        })
+        }
     }
 }
 
-impl TryFrom<SignedStaticConnectRequestV7> for SignedStaticConnectRequestV8 {
-    type Error = ConversionError;
-
-    fn try_from(
-        signed_static_connect_request: SignedStaticConnectRequestV7,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            request: signed_static_connect_request.request.try_into()?,
-            signature: signed_static_connect_request
-                .signature
-                .ok_or(ConversionError::MissingSignature)?,
-        })
+impl From<SignedStaticConnectRequestV7> for SignedStaticConnectRequestV8 {
+    fn from(signed_static_connect_request: SignedStaticConnectRequestV7) -> Self {
+        Self {
+            request: signed_static_connect_request.request.into(),
+            signature: signed_static_connect_request.signature,
+        }
     }
 }
 
-impl TryFrom<StaticConnectRequestV7> for StaticConnectRequestV8 {
-    type Error = ConversionError;
-
-    fn try_from(static_connect_request: StaticConnectRequestV7) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<StaticConnectRequestV7> for StaticConnectRequestV8 {
+    fn from(static_connect_request: StaticConnectRequestV7) -> Self {
+        Self {
             request_id: static_connect_request.request_id,
             ips: static_connect_request.ips,
             reply_to_avg_mix_delays: static_connect_request.reply_to_avg_mix_delays,
             buffer_timeout: static_connect_request.buffer_timeout,
             timestamp: static_connect_request.timestamp,
             sender: static_connect_request.reply_to.into(),
-            signed_by: *static_connect_request.reply_to.identity(),
-        })
+        }
     }
 }
 
-impl TryFrom<SignedDynamicConnectRequestV7> for SignedDynamicConnectRequestV8 {
-    type Error = ConversionError;
-
-    fn try_from(
-        signed_dynamic_connect_request: SignedDynamicConnectRequestV7,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<SignedDynamicConnectRequestV7> for SignedDynamicConnectRequestV8 {
+    fn from(signed_dynamic_connect_request: SignedDynamicConnectRequestV7) -> Self {
+        Self {
             request: signed_dynamic_connect_request.request.into(),
-            signature: signed_dynamic_connect_request
-                .signature
-                .ok_or(ConversionError::MissingSignature)?,
-        })
+            signature: signed_dynamic_connect_request.signature,
+        }
     }
 }
 
@@ -116,21 +91,16 @@ impl From<DynamicConnectRequestV7> for DynamicConnectRequestV8 {
             buffer_timeout: dynamic_connect_request.buffer_timeout,
             timestamp: dynamic_connect_request.timestamp,
             sender: dynamic_connect_request.reply_to.into(),
-            signed_by: *dynamic_connect_request.reply_to.identity(),
         }
     }
 }
 
-impl TryFrom<SignedDisconnectRequestV7> for SignedDisconnectRequestV8 {
-    type Error = ConversionError;
-
-    fn try_from(signed_disconnect_request: SignedDisconnectRequestV7) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<SignedDisconnectRequestV7> for SignedDisconnectRequestV8 {
+    fn from(signed_disconnect_request: SignedDisconnectRequestV7) -> Self {
+        Self {
             request: signed_disconnect_request.request.into(),
-            signature: signed_disconnect_request
-                .signature
-                .ok_or(ConversionError::MissingSignature)?,
-        })
+            signature: signed_disconnect_request.signature,
+        }
     }
 }
 
@@ -140,7 +110,6 @@ impl From<DisconnectRequestV7> for DisconnectRequestV8 {
             request_id: disconnect_request.request_id,
             timestamp: disconnect_request.timestamp,
             sender: disconnect_request.reply_to.into(),
-            signed_by: *disconnect_request.reply_to.identity(),
         }
     }
 }

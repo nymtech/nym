@@ -283,8 +283,8 @@ pub struct SignedStaticConnectRequest {
 }
 
 impl SignedRequest for SignedStaticConnectRequest {
-    fn identity(&self) -> &identity::PublicKey {
-        self.request.reply_to.identity()
+    fn identity(&self) -> Option<&identity::PublicKey> {
+        Some(self.request.reply_to.identity())
     }
 
     fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError> {
@@ -347,8 +347,8 @@ pub struct SignedDynamicConnectRequest {
 }
 
 impl SignedRequest for SignedDynamicConnectRequest {
-    fn identity(&self) -> &identity::PublicKey {
-        self.request.reply_to.identity()
+    fn identity(&self) -> Option<&identity::PublicKey> {
+        Some(self.request.reply_to.identity())
     }
 
     fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError> {
@@ -396,8 +396,8 @@ pub struct SignedDisconnectRequest {
 }
 
 impl SignedRequest for SignedDisconnectRequest {
-    fn identity(&self) -> &identity::PublicKey {
-        self.request.reply_to.identity()
+    fn identity(&self) -> Option<&identity::PublicKey> {
+        Some(self.request.reply_to.identity())
     }
 
     fn request_as_bytes(&self) -> Result<Vec<u8>, SignatureError> {

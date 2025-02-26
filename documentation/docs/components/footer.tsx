@@ -5,7 +5,7 @@ const links = [
   ["Matrix", "https://matrix.to/#/#dev:nymtech.chat"],
   ["GitHub", "https://nymtech.net/go/github/nym"],
   ["Nym Wallet", "https://nymtech.net/download/wallet"],
-  ["Nym Explorer", "https://explorer.nymtech.net/"],
+  ["Nym Explorer", "https:///"],
   ["Nym Blog", "https://nymtech.medium.com/"],
   ["Twitter", "https://nymtech.net/go/x"],
   ["Telegram", "https://nymtech.net/go/telegram"],

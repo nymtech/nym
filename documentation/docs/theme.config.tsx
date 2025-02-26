@@ -1,7 +1,8 @@
 import React from "react";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
-import { Footer } from "./components/footer";
+// import { Footer } from "./components/footer";
 import { Matrix } from "./components/matrix-link";
+import { Explorer } from "./components/explorer-link";
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
@@ -66,9 +67,9 @@ const config: DocsThemeConfig = {
   },
   docsRepositoryBase:
     "https://github.com/nymtech/nym/tree/develop/documentation/docs/",
-  footer: {
-    text: Footer,
-  },
+  // footer: {
+  //   text: Footer,
+  // },
   darkMode: true,
   nextThemes: {
     defaultTheme: "dark",
@@ -77,8 +78,14 @@ const config: DocsThemeConfig = {
     defaultMenuCollapseLevel: 1,
     autoCollapse: true,
   },
+
   navbar: {
-    extraContent: <Matrix />,
+    extraContent: (
+      <>
+        <Matrix />
+        <Explorer />
+      </>
+    ),
   },
   toc: {
     float: false,

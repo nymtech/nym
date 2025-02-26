@@ -122,6 +122,7 @@ exceptions = [
     { allow = ["GPL-3.0"], crate = "nym-network-requester" },
     { allow = ["GPL-3.0"], crate = "nym-node" },
     { allow = ["GPL-3.0"], crate = "nym-validator-rewarder" },
+    { allow = ["GPL-3.0"], crate = "nym-ip-packet-router" },
 ]
 
 # Some crates don't have (easily) machine readable licensing information,

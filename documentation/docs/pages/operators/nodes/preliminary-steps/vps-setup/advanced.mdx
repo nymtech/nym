@@ -9,7 +9,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Advanced Server Administration
 
-This page is for experienced operators and aspiring sys-admins who seek for higher optimisation and better efficiency of their work managing Nym infrastructure.
+This page is for experienced operators and aspiring sys-admins who seek for higher optimisation and better efficiency of their work managing Nym infrastructure. The steps shared on this page cannot be simply copy-pasted, they ask you for more attention and consideration all the way from chosing server and OS to specs per VM allocation.
 
 <VarInfo />
 
@@ -317,4 +317,218 @@ KVM bridge networking is successfully set up and active!
 
 Your KVM installation is now ready to deploy and manage VMs.
 
+</Steps>
+
+### Setting Up Virtual Machines
+
+After finishing the [installation of KVM](#installing-kvm-on-a-server-with-ubuntu-2204), we can move to the virtualisation configuration.
+
+> **The steps below will guide you through a setup of one VM, therefore you will have to repeat this process for each VM**. That also means that you have to be mindful of space and memory allocation.
+
+<Steps>
+##### 1. Install OS for VMs
+
+This is the OS on which the nodes themselves will run. You can chose any GNU/Linux of your preference.  For this guide we are going to be using Ubuntu 24.04 LTS (Noble Numbat) cloud image from [cloud-images.ubuntu.com](https://cloud-images.ubuntu.com/noble/current/).
+
+- Download Ubuntu Cloud image:
+```bash
+wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+```
+- Copy the image to to `/var/lib/libvirt/images/` asigning to it a name your VM
+```bash
+cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/<VM_NAME>.img
+
+# for example:
+# cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/ubuntu-1.img
+```
+
+##### 2. Create and resize a virtual machine
+
+- Use `qemu-img` tool with a command `resize` to create a VM according your needs. You can see `qemu` [documentation page`](https://www.qemu.org/docs/master/tools/qemu-img.html) for more info on how to use it correctly.
+```bash
+qemu-img resize /var/lib/libvirt/images/<VM_NAME>.img +<SIZE_IN_GB>G
+# for example
+# qemu-img resize /var/lib/libvirt/images/ubuntu-1.img +100G
+```
+
+- Resize it from within it after `virt-install` command:
+```bash
+virt-install \
+--name <VM_NAME> \
+--ram=<SIZE_IN_MB> \
+--vcpus=<NUMBER_OF_VIRTUAL_CPUS> \
+--cpu host \
+--hvm \
+--disk bus=virtio,path=/var/lib/libvirt/images/<VM_NAME>.img \
+--network bridge=br0 \
+--graphics none \
+--console pty,target_type=serial \
+--osinfo <YOUR_CHOSEN_OS_NAME> \
+--import
+```
+
+- In our example we go with 4 GB RAM on the same machine as before:
+<br/>
+<AccordionTemplate name="Command example">
+```bash
+virt-install \
+--name ubuntu-1 \
+--ram=4096 \
+--vcpus=4 \
+--cpu host \
+--hvm \
+--disk bus=virtio,path=/var/lib/libvirt/images/ubuntu-1.img \
+--network bridge=br0 \
+--graphics none \
+--console pty,target_type=serial \
+--osinfo ubuntunoble \
+--import
+```
+</AccordionTemplate>
+
+- After loading you should see a login console
+# You can also initiate it by
+virsh console Ubuntu-2nd
+
+##### 3. Validate your setup
+
+- Make sure the `root` disk has the expected space by running:
+```bash
+df -h
+```
+
+- If not, run:
+```bash
+growpart /dev/vda 1
+resize2fs /dev/vda1
+```
+
+##### 4. Configure networking for the VM
+
+Because this guide is based on a newer Ubuntu, we use `netplan`, this may be different on different OS.
+
+- Open `/etc/netplan/01-network-config.yaml` in your favourite text editor:
+```bash
+nano /etc/netplan/01-network-config.yaml
+```
+
+- Insert this config, using your correct IP configuration, save and exit:
+```ini
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp1s0:
+      dhcp4: false
+      dhcp6: false  # Set to true if you want automatic IPv6 assignment
+      addresses:
+        - <IPv4_VM>/24  # Assign IPv4 address to the VM
+        - <IPv6_VM>/64  # Assign IPv6 address to the VM
+      routes:
+        - to: default
+          via: <IPv4_HOST_SERVER>  # IPv4 gateway (host machine)
+        - to: default
+          via: <IPv6_HOST_SERVER>  # IPv6 gateway (host machine)
+      nameservers:
+        addresses:
+          - 8.8.8.8  # Google Public IPv4 DNS
+          - 8.8.4.4  # Google Public IPv4 DNS
+          - 2001:4860:4860::8888  # Google Public IPv6 DNS
+          - 2001:4860:4860::8844  # Google Public IPv6 DNS
+
+```
+- Fix wide permisions on the config file:
+```bash
+chmod 600 /etc/netplan/01-network-config.yaml
+```
+
+- Check if the config has any errors:
+```bash
+netplan generate
+```
+
+- Apply the configuration:
+```bash
+netplan --debug  apply
+```
+
+- Verify by checking if IPv4 and IPv6 are assigned correctly and if they route:
+```bash
+ip -4 a
+ip -6 a
+```
+```bash
+ip -4 r
+ip -6 r
+```
+```bash
+# to ping through IPv6, use:
+ping6 nym.com
+```
+- You should be able to ping your new VM from a local machine:
+```bash
+ping <IPv4_VM>
+ping6 <IPv6_VM>
+```
+
+</Steps>
+
+Your VM should be working and fully routable. To be able to use it properly, we will create a direct SSH access to the VM.
+
+#### Configure VM SSH access
+
+<Steps>
+
+##### 1. Update all packages and upgrade your OS:
+```bash
+apt update; apt upgrade
+```
+
+##### 2. Generate new host SSH keys
+
+- Log in to your server using a non-root user with sudo privileges
+- Open a terminal window and run the following command to generate a new RSA host key:
+
+```bash
+ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
+```
+- You’ll be prompted to enter a passphrase. You can leave it blank if you prefer, but adding one will provide an extra layer of security.
+- The key will be generated and saved to the specified location defined with `-f <PATH>`.
+- Next, run the following command to generate a new DSA host key:
+```bash
+ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key
+```
+- You’ll be prompted to enter a passphrase. You can use the same one you used for the previous key or create a new one.
+- Run the following command to generate a new ECDSA host key:
+```bash
+ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
+```
+- You’ll be prompted to enter a passphrase. You can use the same one you used for the previous key or create a new one.
+- Finally, run the following command to generate a new ED25519 host key:
+```bash
+ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
+```
+- Now that you’ve generated all four keys, restart the SSH service on your server by running
+
+```bash
+systemctl restart ssh.service
+```
+
+##### 3. Check if the ssh serice is active(running)
+
+```bash
+systemctl status ssh.service
+```
+
+##### 4. Create file `~/.ssh/authorized_keys` and add you public key:
+```bash
+nano .ssh/authorized_keys
+```
+
+##### 5. Test by connecting via SSH
+
+- Now you should be able to connect to the VM directly from your local terminal
+```bash
+ssh root@<IPv4> -i ~/.ssh/your_ssh_key
+```
 </Steps>

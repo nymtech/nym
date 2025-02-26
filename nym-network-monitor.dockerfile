@@ -1,4 +1,4 @@
-FROM rust:latest AS builder
+FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-network-monitor

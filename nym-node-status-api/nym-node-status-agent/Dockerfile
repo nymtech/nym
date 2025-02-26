@@ -1,4 +1,4 @@
-FROM rust:latest AS builder
+FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 ARG GIT_REF=main
 
@@ -27,7 +27,7 @@ RUN cargo build --release
 # see https://github.com/nymtech/nym/blob/develop/nym-node-status-agent/src/cli.rs for details
 #-------------------------------------------------------------------
 
-FROM ubuntu:24.04
+FROM harbor.nymte.ch/dockerhub/ubuntu:24.04
 
 RUN apt-get update && apt-get install -y ca-certificates
 

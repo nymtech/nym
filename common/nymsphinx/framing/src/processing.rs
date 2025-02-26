@@ -4,8 +4,10 @@ use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressE
 use nym_sphinx_params::{PacketSize, PacketType};
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymPacketError,
-    NymProcessedPacket, OutfoxError, PrivateKey, ProcessedPacket, SphinxError,
+    NymProcessedPacket, OutfoxError, PrivateKey, ProcessedPacketData, SphinxError,
+    Version as SphinxPacketVersion,
 };
+use std::fmt::Display;
 use thiserror::Error;
 
 use crate::packet::FramedNymPacket;
@@ -13,12 +15,38 @@ use nym_metrics::nanos;
 use nym_sphinx_forwarding::packet::MixPacket;
 
 #[derive(Debug)]
-pub enum MixProcessingResult {
+pub enum MixProcessingResultData {
     /// Contains unwrapped data that should first get delayed before being sent to next hop.
-    ForwardHop(MixPacket, Option<SphinxDelay>),
+    ForwardHop {
+        packet: MixPacket,
+        delay: Option<SphinxDelay>,
+    },
 
     /// Contains all data extracted out of the final hop packet that could be forwarded to the destination.
-    FinalHop(ProcessedFinalHop),
+    FinalHop { final_hop_data: ProcessedFinalHop },
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum MixPacketVersion {
+    Outfox,
+    Sphinx(SphinxPacketVersion),
+}
+
+impl Display for MixPacketVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            MixPacketVersion::Outfox => "outfox".fmt(f),
+            MixPacketVersion::Sphinx(sphinx_version) => {
+                write!(f, "sphinx-{}", sphinx_version.value())
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MixProcessingResult {
+    pub packet_version: MixPacketVersion,
+    pub processing_data: MixProcessingResultData,
 }
 
 type ForwardAck = MixPacket;
@@ -107,37 +135,63 @@ fn perform_final_processing(
 ) -> Result<MixProcessingResult, PacketProcessingError> {
     match packet {
         NymProcessedPacket::Sphinx(packet) => {
-            match packet {
-                ProcessedPacket::ForwardHop(packet, address, delay) => {
-                    process_forward_hop(NymPacket::Sphinx(*packet), address, delay, packet_type)
-                }
+            let processing_data = match packet.data {
+                ProcessedPacketData::ForwardHop {
+                    next_hop_packet,
+                    next_hop_address,
+                    delay,
+                } => process_forward_hop(
+                    NymPacket::Sphinx(next_hop_packet),
+                    next_hop_address,
+                    delay,
+                    packet_type,
+                ),
                 // right now there's no use for the surb_id included in the header - probably it should get removed from the
                 // sphinx all together?
-                ProcessedPacket::FinalHop(destination, _, payload) => process_final_hop(
+                ProcessedPacketData::FinalHop {
+                    destination,
+                    identifier: _,
+                    payload,
+                } => process_final_hop(
                     destination,
                     payload.recover_plaintext()?,
                     packet_size,
                     packet_type,
                 ),
-            }
+            }?;
+
+            Ok(MixProcessingResult {
+                packet_version: MixPacketVersion::Sphinx(packet.version),
+                processing_data,
+            })
         }
         NymProcessedPacket::Outfox(packet) => {
             let next_address = *packet.next_address();
             let packet = packet.into_packet();
             if packet.is_final_hop() {
-                process_final_hop(
+                let processing_data = process_final_hop(
                     DestinationAddressBytes::from_bytes(next_address),
                     packet.recover_plaintext()?.to_vec(),
                     packet_size,
                     packet_type,
-                )
+                )?;
+                Ok(MixProcessingResult {
+                    packet_version: MixPacketVersion::Outfox,
+                    processing_data,
+                })
             } else {
-                let mix_packet = MixPacket::new(
+                let packet = MixPacket::new(
                     NymNodeRoutingAddress::try_from_bytes(&next_address)?,
                     NymPacket::Outfox(packet),
                     PacketType::Outfox,
                 );
-                Ok(MixProcessingResult::ForwardHop(mix_packet, None))
+                Ok(MixProcessingResult {
+                    packet_version: MixPacketVersion::Outfox,
+                    processing_data: MixProcessingResultData::ForwardHop {
+                        packet,
+                        delay: None,
+                    },
+                })
             }
         }
     }
@@ -148,14 +202,16 @@ fn process_final_hop(
     payload: Vec<u8>,
     packet_size: PacketSize,
     packet_type: PacketType,
-) -> Result<MixProcessingResult, PacketProcessingError> {
+) -> Result<MixProcessingResultData, PacketProcessingError> {
     let (forward_ack, message) = split_into_ack_and_message(payload, packet_size, packet_type)?;
 
-    Ok(MixProcessingResult::FinalHop(ProcessedFinalHop {
-        destination,
-        forward_ack,
-        message,
-    }))
+    Ok(MixProcessingResultData::FinalHop {
+        final_hop_data: ProcessedFinalHop {
+            destination,
+            forward_ack,
+            message,
+        },
+    })
 }
 
 fn split_into_ack_and_message(
@@ -211,11 +267,14 @@ fn process_forward_hop(
     forward_address: NodeAddressBytes,
     delay: SphinxDelay,
     packet_type: PacketType,
-) -> Result<MixProcessingResult, PacketProcessingError> {
+) -> Result<MixProcessingResultData, PacketProcessingError> {
     let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
-    let mix_packet = MixPacket::new(next_hop_address, packet, packet_type);
-    Ok(MixProcessingResult::ForwardHop(mix_packet, Some(delay)))
+    let packet = MixPacket::new(next_hop_address, packet, packet_type);
+    Ok(MixProcessingResultData::ForwardHop {
+        packet,
+        delay: Some(delay),
+    })
 }
 
 // TODO: what more could we realistically test here?

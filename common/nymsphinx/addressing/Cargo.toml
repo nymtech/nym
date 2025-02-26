@@ -8,7 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-nym-crypto = { path = "../../crypto", features = ["asymmetric"] } # all addresses are expressed in terms on their crypto keys
+nym-crypto = { path = "../../crypto", features = ["asymmetric", "sphinx"] } # all addresses are expressed in terms on their crypto keys
 nym-sphinx-types = { path = "../types", features = ["sphinx"] } # we need to be able to refer to some types defined inside sphinx crate
 serde = { workspace = true } # implementing serialization/deserialization for some types, like `Recipient`
 thiserror = { workspace = true }

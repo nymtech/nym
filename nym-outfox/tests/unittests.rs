@@ -9,11 +9,9 @@ mod tests {
         repeat_with(|| fastrand::u8(..)).take(n).collect()
     }
 
-    use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
-    use curve25519_dalek::scalar::Scalar;
     use nym_outfox::packet::OutfoxPacket;
     use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
-    use sphinx_packet::crypto::PublicKey;
+    use sphinx_packet::crypto::{PrivateKey, PublicKey};
     use sphinx_packet::route::Destination;
     use sphinx_packet::route::DestinationAddressBytes;
     use sphinx_packet::route::Node;
@@ -21,6 +19,12 @@ mod tests {
 
     use nym_outfox::format::*;
     use nym_outfox::lion::*;
+
+    pub fn keygen() -> (PrivateKey, PublicKey) {
+        let private_key = PrivateKey::random();
+        let public_key = PublicKey::from(&private_key);
+        (private_key, public_key)
+    }
 
     #[test]
     fn test_encode_decode() {
@@ -30,11 +34,9 @@ mod tests {
             payload_length_bytes: 1024, // 1kb
         };
 
-        let user_secret = randombytes(32);
-        let mix_secret = randombytes(32);
-        let mix_secret_scalar =
-            Scalar::from_bytes_mod_order(mix_secret.clone().try_into().unwrap());
-        let mix_public_key = (ED25519_BASEPOINT_TABLE * &mix_secret_scalar).to_montgomery();
+        let user_secret = x25519_dalek::StaticSecret::random();
+        let mix_secret = x25519_dalek::StaticSecret::random();
+        let mix_public_key = x25519_dalek::PublicKey::from(&mix_secret);
 
         let routing = [0; 32];
         let destination = [0; 32];
@@ -52,7 +54,7 @@ mod tests {
             .encode_mix_layer(
                 &mut new_buffer[..],
                 &user_secret,
-                node.pub_key.as_bytes(),
+                node.pub_key,
                 &destination,
             )
             .unwrap();
@@ -93,23 +95,23 @@ mod tests {
 
     #[test]
     fn test_packet_params_short() {
-        let (node1_pk, node1_pub) = sphinx_packet::crypto::keygen();
+        let (node1_pk, node1_pub) = keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([0u8; NODE_ADDRESS_LENGTH]),
             node1_pub,
         );
-        let (node2_pk, node2_pub) = sphinx_packet::crypto::keygen();
+        let (node2_pk, node2_pub) = keygen();
         let node2 = Node::new(
             NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
             node2_pub,
         );
-        let (node3_pk, node3_pub) = sphinx_packet::crypto::keygen();
+        let (node3_pk, node3_pub) = keygen();
         let node3 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node3_pub,
         );
 
-        let (gateway_pk, gateway_pub) = sphinx_packet::crypto::keygen();
+        let (gateway_pk, gateway_pub) = keygen();
         let gateway = Node::new(
             NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
             gateway_pub,
@@ -149,23 +151,23 @@ mod tests {
 
     #[test]
     fn test_packet_params_long() {
-        let (node1_pk, node1_pub) = sphinx_packet::crypto::keygen();
+        let (node1_pk, node1_pub) = keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([0u8; NODE_ADDRESS_LENGTH]),
             node1_pub,
         );
-        let (node2_pk, node2_pub) = sphinx_packet::crypto::keygen();
+        let (node2_pk, node2_pub) = keygen();
         let node2 = Node::new(
             NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
             node2_pub,
         );
-        let (node3_pk, node3_pub) = sphinx_packet::crypto::keygen();
+        let (node3_pk, node3_pub) = keygen();
         let node3 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node3_pub,
         );
 
-        let (gateway_pk, gateway_pub) = sphinx_packet::crypto::keygen();
+        let (gateway_pk, gateway_pub) = keygen();
         let gateway = Node::new(
             NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
             gateway_pub,

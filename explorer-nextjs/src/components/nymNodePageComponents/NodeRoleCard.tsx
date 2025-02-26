@@ -189,7 +189,7 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     );
   }
 
-  if (isError || !nodeInfo || !epochRewardsData) {
+  if (isError || !nodeInfo || !epochRewardsData || isEpochError) {
     return (
       <ExplorerCard label="Node role & performance">
         <Typography variant="h3" sx={{ color: "pine.950" }}>

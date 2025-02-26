@@ -15,7 +15,9 @@ use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
     NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
 };
-use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
+use nym_api_requests::nym_nodes::{
+    NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponse,
+};
 use nym_api_requests::pagination::PaginatedResponse;
 pub use nym_api_requests::{
     ecash::{
@@ -40,6 +42,7 @@ pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId, NymNodeDetails};
+use std::net::IpAddr;
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 use tracing::instrument;
@@ -1011,6 +1014,23 @@ pub trait NymApiClientExt: ApiClient {
                 expiration_date,
                 deposits,
             },
+        )
+        .await
+    }
+
+    async fn nodes_by_addresses(
+        &self,
+        addresses: Vec<IpAddr>,
+    ) -> Result<NodesByAddressesResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
+                routes::nym_nodes::BY_ADDRESSES,
+            ],
+            NO_PARAMS,
+            &NodesByAddressesRequestBody { addresses },
         )
         .await
     }

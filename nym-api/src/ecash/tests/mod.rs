@@ -428,27 +428,27 @@ impl FakeChainState {
                 );
                 let epoch_id = self.dkg_contract.epoch.epoch_id;
                 let Some(shares) = self.dkg_contract.verification_shares.get_mut(&epoch_id) else {
-                    unimplemented!("no shares for epoch")
+                    panic!("no shares for epoch")
                 };
                 let Some(share) = shares.get_mut(owner.as_str()) else {
-                    unimplemented!("no shares for owner")
+                    panic!("no shares for owner")
                 };
                 share.verified = true
             }
-            other => unimplemented!("unimplemented exec of {other:?}"),
+            other => panic!("unimplemented exec of {other:?}"),
         }
     }
 
     // TODO: make it return a result
     fn execute_contract_msg(&mut self, contract: &String, msg: &Binary, sender: MessageInfo) {
         if contract == &self.group_contract.address {
-            unimplemented!("group contract exec")
+            panic!("group contract exec")
         }
         if contract == &self.multisig_contract.address {
-            unimplemented!("multisig contract exec")
+            panic!("multisig contract exec")
         }
         if contract == &self.ecash_contract.address {
-            unimplemented!("bandwidth contract exec")
+            panic!("bandwidth contract exec")
         }
         if contract == self.dkg_contract.address.as_ref() {
             return self.execute_dkg_contract(sender, msg);
@@ -467,7 +467,7 @@ impl FakeChainState {
                 let sender = mock_info(sender_address.as_ref(), funds);
                 self.execute_contract_msg(contract_addr, msg, sender)
             }
-            other => unimplemented!("unimplemented wasm proposal for {other:?}"),
+            other => panic!("unimplemented wasm proposal for {other:?}"),
         }
     }
 
@@ -477,7 +477,7 @@ impl FakeChainState {
             CosmosMsg::Wasm(wasm_msg) => {
                 self.execute_wasm_msg(wasm_msg, Addr::unchecked(sender_address.as_ref()))
             }
-            other => unimplemented!("unimplemented proposal for {other:?}"),
+            other => panic!("unimplemented proposal for {other:?}"),
         };
     }
 }
@@ -907,7 +907,7 @@ impl super::client::Client for DummyClient {
         };
 
         if proposal.status != cw3::Status::Passed {
-            unimplemented!("proposal hasn't been passed")
+            panic!("proposal hasn't been passed")
         }
         proposal.status = cw3::Status::Executed;
 
@@ -954,7 +954,7 @@ impl super::client::Client for DummyClient {
         if !epoch_dealers.contains_key(self.validator_address.as_ref()) {
             epoch_dealers.insert(self.validator_address.to_string(), dealer_details);
         } else {
-            unimplemented!("already registered")
+            panic!("already registered")
         }
 
         let transaction_hash = guard._counters.next_tx_hash();

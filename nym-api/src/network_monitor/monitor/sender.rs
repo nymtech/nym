@@ -246,6 +246,8 @@ impl PacketSender {
                 trace!("Sending {} packets...", mix_packets.len());
 
                 if mix_packets.len() == 1 {
+                    // SAFETY: we just explicitly checked we have 1 message
+                    #[allow(clippy::unwrap_used)]
                     client.send_mix_packet(mix_packets.pop().unwrap()).await?;
                 } else {
                     client.batch_send_mix_packets(mix_packets).await?;

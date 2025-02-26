@@ -108,7 +108,7 @@ pub(crate) struct Args {
 async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {
     let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
 
-    let nyxd_client = nyxd::Client::new(config);
+    let nyxd_client = nyxd::Client::new(config)?;
     let connected_nyxd = config.get_nyxd_url();
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);

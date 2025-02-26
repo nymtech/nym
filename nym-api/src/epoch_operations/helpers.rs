@@ -105,8 +105,11 @@ impl EpochAdvancer {
         let standby_node_work_factor = global_rewarding_params.standby_node_work();
 
         // SANITY CHECK:
+        // SAFETY: 0 decimal places is within the range of `Decimal`
+        #[allow(clippy::unwrap_used)]
         let standby_share = Decimal::from_atomics(nodes.standby.len() as u128, 0).unwrap()
             * standby_node_work_factor;
+        #[allow(clippy::unwrap_used)]
         let active_share = Decimal::from_atomics(nodes.active_set_size() as u128, 0).unwrap()
             * active_node_work_factor;
         let total_work = standby_share + active_share;

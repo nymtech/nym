@@ -44,3 +44,6 @@ asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]
+
+[lints]
+workspace = true

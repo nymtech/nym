@@ -8,7 +8,7 @@ use futures::StreamExt;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use nym_task::TaskClient;
-use tracing::trace;
+use tracing::{error, trace};
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;
@@ -52,9 +52,9 @@ impl PacketReceiver {
     }
 
     fn process_gateway_messages(&self, messages: GatewayMessages) {
-        self.processor_sender
-            .unbounded_send(messages)
-            .expect("packet processor seems to have crashed!");
+        if self.processor_sender.unbounded_send(messages).is_err() {
+            error!("packet processor seems to have crashed!")
+        }
     }
 
     pub(crate) async fn run(&mut self, mut shutdown: TaskClient) {
@@ -66,7 +66,13 @@ impl PacketReceiver {
                 }
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state
-                update = self.clients_updater.next() => self.process_gateway_update(update.unwrap()),
+                update = self.clients_updater.next() => {
+                    if let Some(update) = update {
+                        self.process_gateway_update(update)
+                    } else {
+                        error!("UpdateHandler: Client stream ended!");
+                    }
+                },
                 Some((_gateway_id, messages)) = self.gateways_reader.next() => {
                     self.process_gateway_messages(messages)
                 }

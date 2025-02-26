@@ -4775,7 +4775,6 @@ dependencies = [
  "nym-api-requests",
  "nym-bandwidth-controller",
  "nym-bin-common",
- "nym-coconut",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
@@ -5256,30 +5255,6 @@ dependencies = [
  "nym-sphinx",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "nym-coconut"
-version = "0.5.0"
-dependencies = [
- "bls12_381",
- "bs58",
- "criterion",
- "digest 0.9.0",
- "doc-comment",
- "ff",
- "getrandom 0.2.15",
- "group",
- "itertools 0.13.0",
- "nym-dkg",
- "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror 2.0.11",
- "zeroize",
 ]
 
 [[package]]
@@ -5888,7 +5863,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "subtle 2.6.1",
+ "subtle 2.5.0",
  "tower 0.5.2",
  "tracing",
  "utoipa",
@@ -12202,7 +12177,6 @@ dependencies = [
  "getrandom 0.2.15",
  "js-sys",
  "nym-bin-common",
- "nym-coconut",
  "nym-compact-ecash",
  "nym-credentials",
  "nym-crypto",

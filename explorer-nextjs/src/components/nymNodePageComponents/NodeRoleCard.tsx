@@ -2,7 +2,11 @@
 
 import { Chip, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { fetchGatewayStatus, fetchNodeInfo } from "../../app/api";
+import {
+  fetchEpochRewards,
+  fetchGatewayStatus,
+  fetchNodeInfo,
+} from "../../app/api";
 import type { LastProbeResult, NodeDescription } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
@@ -149,6 +153,14 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
   });
+  const {
+    data: epochRewardsData,
+    isLoading: isEpochLoading,
+    isError: isEpochError,
+  } = useQuery({
+    queryKey: ["epochRewards"],
+    queryFn: fetchEpochRewards,
+  });
 
   // Extract node roles once `nodeInfo` is available
   const nodeRoles = nodeInfo
@@ -167,7 +179,7 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
   });
 
-  if (isLoading) {
+  if (isLoading || isEpochLoading) {
     return (
       <ExplorerCard label="Node role & performance">
         <Skeleton variant="text" height={70} />
@@ -177,7 +189,7 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     );
   }
 
-  if (isError || !nodeInfo) {
+  if (isError || !nodeInfo || !epochRewardsData) {
     return (
       <ExplorerCard label="Node role & performance">
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -209,6 +221,32 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
 
   const nodeIsMixNodeOnly =
     NodeRoles.length === 1 && nodeRoles[0] === "Mix Node";
+
+  // Function to calculate active set probability
+  const getActiveSetProbability = (
+    totalStake: number,
+    stakeSaturationPoint: string,
+  ): string => {
+    const saturation = Number.parseFloat(stakeSaturationPoint);
+
+    if (Number.isNaN(saturation) || saturation <= 0) {
+      throw new Error("Invalid stake saturation point provided");
+    }
+
+    const ratio = (totalStake / saturation) * 100;
+
+    if (ratio > 70) {
+      return "High";
+    }
+    if (ratio >= 40 && ratio <= 70) {
+      return "Medium";
+    }
+    return "Low";
+  };
+  const activeSetProb = getActiveSetProbability(
+    nodeInfo.total_stake,
+    epochRewardsData.interval.stake_saturation_point,
+  );
 
   return (
     <ExplorerCard label="Node role & performance" sx={{ height: "100%" }}>
@@ -244,6 +282,7 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
           value={<StarRating value={wireguardPerformanceStars} />}
         />
       )}
+      <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
     </ExplorerCard>
   );
 };

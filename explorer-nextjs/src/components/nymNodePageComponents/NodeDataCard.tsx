@@ -53,33 +53,6 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
     );
   }
 
-  // Function to calculate active set probability
-  const getActiveSetProbability = (
-    totalStake: number,
-    stakeSaturationPoint: string,
-  ): string => {
-    const saturation = Number.parseFloat(stakeSaturationPoint);
-
-    if (Number.isNaN(saturation) || saturation <= 0) {
-      throw new Error("Invalid stake saturation point provided");
-    }
-
-    const ratio = (totalStake / saturation) * 100;
-
-    if (ratio > 70) {
-      return "High";
-    }
-    if (ratio >= 40 && ratio <= 70) {
-      return "Medium";
-    }
-    return "Low";
-  };
-
-  const activeSetProb = getActiveSetProbability(
-    nodeInfo.total_stake,
-    epochRewardsData.interval.stake_saturation_point,
-  );
-
   const softwareUpdateTime = format(
     new Date(nodeInfo.description.build_information.build_timestamp),
     "dd/MM/yyyy",
@@ -104,12 +77,6 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
         divider
         label="Version"
         value={nodeInfo.description.build_information.build_version}
-      />
-      <ExplorerListItem
-        row
-        divider
-        label="Active set Prob."
-        value={activeSetProb}
       />
       <ExplorerListItem
         row

@@ -18,15 +18,15 @@ pub struct IpPacketRequest {
     pub data: IpPacketRequestData,
 }
 
-impl fmt::Display for IpPacketRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "IpPacketRequest {{ version: {}, data: {} }}",
-            self.version, self.data
-        )
-    }
-}
+//impl fmt::Display for IpPacketRequest {
+//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//        write!(
+//            f,
+//            "IpPacketRequest {{ version: {}, data: {} }}",
+//            self.version, self.data
+//        )
+//    }
+//}
 
 impl IpPacketRequest {
     pub fn new_static_connect_request(

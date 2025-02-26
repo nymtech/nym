@@ -29,10 +29,7 @@ use crate::{
 // This handler is spawned as a task, and it listens to IP packets passed from the tun_listener,
 // encodes it, and then sends to mixnet.
 pub(crate) struct ConnectedClientHandler {
-    // The address of the client that this handler is connected to
-    // nym_address: Recipient,
-
-    // reply_to_tag: Option<AnonymousSenderTag>,
+    // The client that sent the packets
     sent_by: ConnectedClientId,
 
     // Channel to receive packets from the tun_listener
@@ -65,8 +62,8 @@ impl ConnectedClientHandler {
         oneshot::Sender<()>,
         tokio::task::JoinHandle<()>,
     ) {
-        log::info!("Starting connected client handler for: {}", client_id);
-        log::info!("client version: {:?}", client_version);
+        log::debug!("Starting connected client handler for: {}", client_id);
+        log::debug!("client version: {:?}", client_version);
         let (close_tx, close_rx) = oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
 
@@ -77,8 +74,6 @@ impl ConnectedClientHandler {
         let encoder = MultiIpPacketCodec::new(buffer_timeout);
 
         let connected_client_handler = ConnectedClientHandler {
-            // nym_address: reply_to,
-            // reply_to_tag,
             sent_by: client_id,
             forward_from_tun_rx,
             mixnet_client_sender,

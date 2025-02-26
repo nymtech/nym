@@ -68,8 +68,6 @@ fn print_signed_contract_msg(
     println!("{}", output.format(&sign_output));
 }
 
-// SAFETY: clippy ArgGroup ensures only a single branch is actually called
-#[allow(clippy::unreachable)]
 pub async fn execute(args: Args) -> Result<(), NymNodeError> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let identity_keypair =

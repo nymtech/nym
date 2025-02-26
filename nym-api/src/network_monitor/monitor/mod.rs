@@ -229,8 +229,6 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
                 // ideally we would blacklist all nodes regardless of the result so we would not use them anymore
                 // however, currently we have huge imbalance of gateways to mixnodes so we might accidentally
                 // discard working gateway because it was paired with broken mixnode
-                // SAFETY: the results is subset of candidates so the entry must exist
-                #[allow(clippy::unwrap_used)]
                 if *results.get(&candidate.id()).unwrap() {
                     // if the path is fully working, blacklist those nodes so we wouldn't construct
                     // any other path through any of those nodes

@@ -109,7 +109,6 @@ impl NodeUptimes {
 
         // the unwraps in Uptime::from_ratio are fine because it's impossible for us to have more "up" results
         // than total test runs as we just bounded them
-        #[allow(clippy::unwrap_used)]
         NodeUptimes {
             most_recent: most_recent.try_into().unwrap(),
             last_hour: Uptime::from_uptime_sum(last_hour_sum, last_hour_test_runs).unwrap(),

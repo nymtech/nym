@@ -27,16 +27,12 @@ where
     // after performing diffie-hellman we don't care about the private component anymore
     let dh_result = ephemeral_keypair.private_key().diffie_hellman(remote_key);
 
-    // SAFETY: while this is a relatively weak assumption, it's unlikely that any stream cipher has `C::key_size()`
-    // larger than 255 * chunk_size of the digest (so for example keys larger than 8160 bytes if sh256 is used)
-    #[allow(clippy::expect_used)]
+    // there is no reason for this to fail as our okm is expected to be only C::KeySize bytes
     let okm = hkdf::extract_then_expand::<D>(None, &dh_result, None, C::key_size())
         .expect("somehow too long okm was provided");
 
-    // SAFETY: the generated okm has exactly `C::key_size()` elements,
-    // so this call is safe
-    #[allow(clippy::unwrap_used)]
-    let derived_shared_key = Key::<C>::from_exact_iter(okm).unwrap();
+    let derived_shared_key =
+        Key::<C>::from_exact_iter(okm).expect("okm was expanded to incorrect length!");
 
     (ephemeral_keypair, derived_shared_key)
 }
@@ -52,14 +48,9 @@ where
 {
     let dh_result = local_key.diffie_hellman(remote_key);
 
-    // SAFETY: while this is a relatively weak assumption, it's unlikely that any stream cipher has `C::key_size()`
-    // larger than 255 * chunk_size of the digest (so for example keys larger than 8160 bytes if sh256 is used)
-    #[allow(clippy::expect_used)]
+    // there is no reason for this to fail as our okm is expected to be only C::KeySize bytes
     let okm = hkdf::extract_then_expand::<D>(None, &dh_result, None, C::key_size())
         .expect("somehow too long okm was provided");
 
-    // SAFETY: the generated okm has exactly `C::key_size()` elements,
-    // so this call is safe
-    #[allow(clippy::unwrap_used)]
-    Key::<C>::from_exact_iter(okm).unwrap()
+    Key::<C>::from_exact_iter(okm).expect("okm was expanded to incorrect length!")
 }

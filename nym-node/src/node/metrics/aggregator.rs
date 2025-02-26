@@ -45,9 +45,6 @@ impl MetricsAggregator {
         self.event_sender.clone()
     }
 
-    // we must panic here to terminate as soon as possible, because the underlying code
-    // has to be resolved as it implies some serious logic bugs
-    #[allow(clippy::panic)]
     pub fn register_handler<H>(&mut self, handler: H, update_interval: impl Into<Option<Duration>>)
     where
         H: MetricsHandler,

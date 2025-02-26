@@ -16,11 +16,8 @@ pub fn compute_keyed_hmac<D>(key: &[u8], data: &[u8]) -> HmacOutput<D>
 where
     D: Digest + BlockSizeUser,
 {
-    // SAFETY: hmac is fine with keys of any size; if they're smaller than the block size of the underlying
-    // digest, they're padded with 0. if they're larger they're hashed and padded
-    // the reason for `Result` return type is due to the trait definition
-    #[allow(clippy::unwrap_used)]
-    let mut hmac = SimpleHmac::<D>::new_from_slice(key).unwrap();
+    let mut hmac = SimpleHmac::<D>::new_from_slice(key)
+        .expect("HMAC was instantiated with a key of an invalid size!");
     hmac.update(data);
     hmac.finalize()
 }
@@ -30,11 +27,8 @@ pub fn recompute_keyed_hmac_and_verify_tag<D>(key: &[u8], data: &[u8], tag: &[u8
 where
     D: Digest + BlockSizeUser,
 {
-    // SAFETY: hmac is fine with keys of any size; if they're smaller than the block size of the underlying
-    // digest, they're padded with 0. if they're larger they're hashed and padded
-    // the reason for `Result` return type is due to the trait definition
-    #[allow(clippy::unwrap_used)]
-    let mut hmac = SimpleHmac::<D>::new_from_slice(key).unwrap();
+    let mut hmac = SimpleHmac::<D>::new_from_slice(key)
+        .expect("HMAC was instantiated with a key of an invalid size!");
     hmac.update(data);
 
     let tag_arr = Output::<D>::from_slice(tag);

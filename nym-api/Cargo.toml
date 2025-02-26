@@ -141,6 +141,3 @@ cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
 sha2 = "0.9"
-
-[lints]
-workspace = true

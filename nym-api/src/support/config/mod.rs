@@ -268,8 +268,6 @@ pub struct Base {
 
 impl Base {
     pub fn new_default<S: Into<String>>(id: S) -> Self {
-        // SAFETY: the provided hardcoded value is well-formed
-        #[allow(clippy::expect_used)]
         let default_validator: Url = DEFAULT_LOCAL_VALIDATOR
             .parse()
             .expect("default local validator is malformed!");

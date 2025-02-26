@@ -437,13 +437,3 @@ opt-level = 'z'
 [profile.release.package.mix-fetch-wasm]
 # lto = true
 opt-level = 'z'
-
-[workspace.lints.clippy]
-unwrap_used = "deny"
-expect_used = "deny"
-todo = "deny"
-dbg_macro = "deny"
-exit = "deny"
-panic = "deny"
-unimplemented = "deny"
-unreachable = "deny"

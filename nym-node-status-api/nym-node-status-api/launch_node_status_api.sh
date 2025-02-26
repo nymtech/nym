@@ -3,7 +3,7 @@
 set -e
 
 user_rust_log_preference=$RUST_LOG
-export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
+export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
 export NYM_API_CLIENT_TIMEOUT=60
 export EXPLORER_CLIENT_TIMEOUT=60
 export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120

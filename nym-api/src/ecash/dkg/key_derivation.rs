@@ -177,8 +177,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // SAFETY:
         // since this share appears as 'verified' on the chain, it means the consensus of dealers confirmed its validity
         // and thus they must have been able to parse it, so the unwrap/expect here is fine
-        // (unless quorum of validators is malicious, but at that point we have bigger problems...)
-        #[allow(clippy::expect_used)]
         Ok(Some(
             VerificationKeyAuth::try_from_bs58(&share.share)
                 .expect("failed to deserialize VERIFIED key"),
@@ -417,7 +415,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
             // SAFETY: combining shares can only fail if we have different number shares and indices
             // however, we returned an explicit error if decryption of any share failed and thus we know those values must match
-            #[allow(clippy::unwrap_used)]
             let secret = combine_shares(shares, &all_dealers).unwrap();
             if derived_x.is_none() {
                 derived_x = Some(secret)
@@ -429,7 +426,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // SAFETY:
         // we know we had a non-empty map of dealings and thus, at the very least, we must have derived a single secret
         // (i.e. the x-element)
-        #[allow(clippy::unwrap_used)]
         let sk = SecretKeyAuth::create_from_raw(derived_x.unwrap(), derived_secrets);
         let derived_vk = sk.verification_key();
 

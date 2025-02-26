@@ -8,8 +8,7 @@ use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
 use nym_task::{TaskClient, TaskManager};
 use std::time::Duration;
-use time::macros::time;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::{OffsetDateTime, PrimitiveDateTime, Time};
 use tokio::time::{interval_at, Instant};
 use tracing::error;
 use tracing::{info, trace, warn};
@@ -76,20 +75,18 @@ impl HistoricalUptimeUpdater {
         // nodes update for different days
 
         // the unwrap is fine as 23:00:00 is a valid time
-        let update_time = time!(23:00:00);
+        let update_time = Time::from_hms(23, 0, 0).unwrap();
         let now = OffsetDateTime::now_utc();
         // is the current time within 0:00 - 22:59:59 or 23:00 - 23:59:59 ?
         let update_date = if now.hour() < 23 {
             now.date()
         } else {
             // the unwrap is fine as (**PRESUMABLY**) we're not running this code in the year 9999
-            #[allow(clippy::unwrap_used)]
             now.date().next_day().unwrap()
         };
         let update_datetime = PrimitiveDateTime::new(update_date, update_time).assume_utc();
         // the unwrap here is fine as we're certain `update_datetime` is in the future and thus the
         // resultant Duration is positive
-        #[allow(clippy::unwrap_used)]
         let time_left: Duration = (update_datetime - now).try_into().unwrap();
 
         info!(

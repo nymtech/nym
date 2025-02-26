@@ -125,8 +125,6 @@ impl TryFrom<i64> for Uptime {
 
 impl From<Uptime> for Performance {
     fn from(uptime: Uptime) -> Self {
-        // SAFETY: uptime has a valid range to be transformed into a `Performance`
-        #[allow(clippy::unwrap_used)]
         Performance::from_percentage_value(uptime.0 as u64).unwrap()
     }
 }
@@ -483,9 +481,6 @@ pub enum NymApiStorageError {
     // this one would never be returned to users since it's only possible on startup
     #[error("failed to perform startup SQL migration - {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
-
-    #[error("{value} is not a valid unix timestamp")]
-    InvalidTimestampProvided { value: i64 },
 }
 
 impl From<sqlx::Error> for NymApiStorageError {

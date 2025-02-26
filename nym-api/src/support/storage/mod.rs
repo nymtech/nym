@@ -225,9 +225,9 @@ impl NymApiStorage {
             .get_monitor_runs_count(day_ago, now.unix_timestamp())
             .await?;
 
-        let Some(mixnode_identity) = self.manager.get_mixnode_identity_key(mix_id).await? else {
-            return Err(NymApiStorageError::DatabaseInconsistency { reason: format!("The node {mix_id} doesn't have an identity even though we have status information on it!") });
-        };
+        let mixnode_identity = self.manager.get_mixnode_identity_key(mix_id).await?.expect(
+            "The node doesn't have an identity even though we have status information on it!",
+        );
 
         Ok(MixnodeStatusReport::construct_from_last_day_reports(
             now,
@@ -262,9 +262,13 @@ impl NymApiStorage {
             .get_monitor_runs_count(day_ago, now.unix_timestamp())
             .await?;
 
-        let Some(gateway_identity) = self.manager.get_gateway_identity_key(node_id).await? else {
-            return Err(NymApiStorageError::DatabaseInconsistency { reason: format!("The node {node_id} doesn't have an identity even though we have status information on it!") });
-        };
+        let gateway_identity = self
+            .manager
+            .get_gateway_identity_key(node_id)
+            .await?
+            .expect(
+                "The node doesn't have an identity even though we have status information on it!",
+            );
 
         Ok(GatewayStatusReport::construct_from_last_day_reports(
             now,
@@ -286,9 +290,10 @@ impl NymApiStorage {
             return Err(NymApiStorageError::MixnodeUptimeHistoryNotFound { mix_id });
         }
 
-        let Some(mixnode_identity) = self.manager.get_mixnode_identity_key(mix_id).await? else {
-            return Err(NymApiStorageError::DatabaseInconsistency { reason: format!("The node {mix_id} doesn't have an identity even though we uptime history for it!") });
-        };
+        let mixnode_identity =
+            self.manager.get_mixnode_identity_key(mix_id).await?.expect(
+                "The node doesn't have an identity even though we have uptime history for it!",
+            );
 
         Ok(MixnodeUptimeHistory::new(mix_id, mixnode_identity, history))
     }
@@ -531,10 +536,6 @@ impl NymApiStorage {
         start: i64,
         end: i64,
     ) -> Result<Vec<MixnodeStatusReport>, NymApiStorageError> {
-        let Ok(end_timestamp) = OffsetDateTime::from_unix_timestamp(end) else {
-            return Err(NymApiStorageError::InvalidTimestampProvided { value: end });
-        };
-
         if (end - start) as u64 != ONE_DAY.as_secs() {
             warn!("Our current interval length breaks the 24h length assumption")
         }
@@ -552,7 +553,7 @@ impl NymApiStorage {
             .into_iter()
             .map(|statuses| {
                 MixnodeStatusReport::construct_from_last_day_reports(
-                    end_timestamp,
+                    OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.mix_id,
                     statuses.identity,
                     statuses.statuses,
@@ -578,10 +579,6 @@ impl NymApiStorage {
         start: i64,
         end: i64,
     ) -> Result<Vec<GatewayStatusReport>, NymApiStorageError> {
-        let Ok(end_timestamp) = OffsetDateTime::from_unix_timestamp(end) else {
-            return Err(NymApiStorageError::InvalidTimestampProvided { value: end });
-        };
-
         if (end - start) as u64 != ONE_DAY.as_secs() {
             warn!("Our current interval length breaks the 24h length assumption")
         }
@@ -599,7 +596,7 @@ impl NymApiStorage {
             .into_iter()
             .map(|statuses| {
                 GatewayStatusReport::construct_from_last_day_reports(
-                    end_timestamp,
+                    OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.node_id,
                     statuses.identity,
                     statuses.statuses,

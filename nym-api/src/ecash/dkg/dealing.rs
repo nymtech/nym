@@ -204,9 +204,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                 chunk_dealing(*dealing_index, dealing.to_bytes(), Self::DEALING_CHUNK_SIZE);
             for chunk_index in needs_resubmission {
                 // this is a hard failure, panic level, actually.
-                // because we have already committed to dealings of particular size,
+                // because we have already committed to dealings of particular size
                 // yet we don't have relevant chunks after chunking
-                #[allow(clippy::expect_used)]
                 let chunk = chunks
                     .remove(chunk_index)
                     .expect("chunking specification has changed mid-exchange!");

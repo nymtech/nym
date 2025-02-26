@@ -4,7 +4,7 @@
 use crate::ecash::error::EcashError;
 use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
@@ -99,13 +99,12 @@ pub enum ClientInner {
 }
 
 impl Client {
-    pub(crate) fn new(config: &Config) -> anyhow::Result<Self> {
+    pub(crate) fn new(config: &Config) -> Self {
         let details = NymNetworkDetails::new_from_env();
         let nyxd_url = config.get_nyxd_url();
 
-        let client_config = nyxd::Config::try_from_nym_network_details(&details).context(
-            "failed to construct valid validator client config with the provided network",
-        )?;
+        let client_config = nyxd::Config::try_from_nym_network_details(&details)
+            .expect("failed to construct valid validator client config with the provided network");
 
         let inner = if let Some(mnemonic) = config.get_mnemonic() {
             ClientInner::Signing(
@@ -114,18 +113,18 @@ impl Client {
                     nyxd_url.as_str(),
                     mnemonic.clone(),
                 )
-                .context("Failed to connect to nyxd!")?,
+                .expect("Failed to connect to nyxd!"),
             )
         } else {
             ClientInner::Query(
                 QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
-                    .context("Failed to connect to nyxd!")?,
+                    .expect("Failed to connect to nyxd!"),
             )
         };
 
-        Ok(Client {
+        Client {
             inner: Arc::new(RwLock::new(inner)),
-        })
+        }
     }
 
     pub(crate) async fn read(&self) -> RwLockReadGuard<'_, ClientInner> {

@@ -13,9 +13,6 @@ struct StorageBorrowedSerdeWrapper<'a, T>(&'a T);
 #[derive(Serialize, Deserialize)]
 struct StorageSerdeWrapper<T>(T);
 
-// SAFETY: we're not using custom serialiser for AnnotatedCoinIndexSignature
-// and we're within bound limits
-#[allow(clippy::unwrap_used)]
 pub(crate) fn serialise_coin_index_signatures(sigs: &[AnnotatedCoinIndexSignature]) -> Vec<u8> {
     storage_serialiser()
         .serialize(&StorageBorrowedSerdeWrapper(&sigs))
@@ -31,9 +28,6 @@ pub(crate) fn deserialise_coin_index_signatures(
     Ok(de.0)
 }
 
-// SAFETY: we're not using custom serialiser for AnnotatedExpirationDateSignature
-// and we're within bound limits
-#[allow(clippy::unwrap_used)]
 pub(crate) fn serialise_expiration_date_signatures(
     sigs: &[AnnotatedExpirationDateSignature],
 ) -> Vec<u8> {

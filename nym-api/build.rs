@@ -1,9 +1,6 @@
 use sqlx::{Connection, FromRow, SqliteConnection};
 use std::env;
 
-// it's fine if compilation fails
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::expect_used)]
 #[tokio::main]
 async fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();

@@ -47,8 +47,5 @@ impl LegacyAnnotation for GatewayBondAnnotated {
 pub(crate) fn refreshed_at(
     iter: impl IntoIterator<Item = OffsetDateTime>,
 ) -> OffsetDateTimeJsonSchemaWrapper {
-    iter.into_iter()
-        .min()
-        .unwrap_or(OffsetDateTime::UNIX_EPOCH)
-        .into()
+    iter.into_iter().min().unwrap().into()
 }

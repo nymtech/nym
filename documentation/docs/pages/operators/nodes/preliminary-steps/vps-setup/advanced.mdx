@@ -9,7 +9,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Advanced Server Administration
 
-This page is for experienced operators and aspiring sys-admins who seek for higher optimisation and better efficiency of their work managing Nym infrastructure. The steps shared on this page cannot be simply copy-pasted, they ask you for more attention and consideration all the way from chosing server and OS to specs per VM allocation.
+This page is for experienced operators and aspiring sys-admins who seek for higher optimisation and better efficiency of their work managing Nym infrastructure. The steps shared on this page cannot be simply copy-pasted, they ask you for more attention and consideration all the way from choosing server and OS to specs per VM allocation.
 
 <VarInfo />
 
@@ -25,14 +25,14 @@ This guide is based on Ubuntu 22.04, in case you prefer another OS, you may have
 
 ### Installing KVM on a Server with Ubuntu 22.04
 
-**KVM** stands for **Kernel-based Virtual Machine**. It is a virtualization technology for Linux that allows a user to run multiple virtual machines (VMs) on a single physical machine. KVM turns the Linux kernel into a hypervisor, enabling it to manage multiple virtualized systems.
+**KVM** stands for **Kernel-based Virtual Machine**. It is a virtualization technology for Linux that allows a user to run multiple virtual machines (VMs) on a single physical machine. KVM turns the Linux kernel into a hypervisor, enabling it to manage multiple virtualised systems.
 
 Follow the steps below to install KVM on Ubuntu 22.04 LTS:
 
-#### Prerequsities
+#### Prerequisites
 
 <Callout type="warning">
-Operators aiming to run Nym node as mixnet [Exit Gateway](../../community-counsel/exit-gateway) or with wireguard enabled should faimliarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
+Operators aiming to run Nym node as mixnet [Exit Gateway](../../community-counsel/exit-gateway) or with wireguard enabled should familiarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
 
 This step is essential part of legal self defense because it may prevent your provider immediately shutting down your entire service (with all the VMs on it) when receiving first abuse report.
 
@@ -386,10 +386,11 @@ virt-install \
 ```
 </AccordionTemplate>
 
-- After loading you should see a login console
-# You can also initiate it by
-virsh console Ubuntu-2nd
-
+- After loading you should see a login console, you can also initiate it by:
+```bash
+virsh console <VM_NAME>
+virsh console ubuntu-1
+```
 ##### 3. Validate your setup
 
 - Make sure the `root` disk has the expected space by running:
@@ -435,9 +436,8 @@ network:
           - 8.8.4.4  # Google Public IPv4 DNS
           - 2001:4860:4860::8888  # Google Public IPv6 DNS
           - 2001:4860:4860::8844  # Google Public IPv6 DNS
-
 ```
-- Fix wide permisions on the config file:
+- Fix wide permissions on the config file:
 ```bash
 chmod 600 /etc/netplan/01-network-config.yaml
 ```
@@ -479,51 +479,50 @@ Your VM should be working and fully routable. To be able to use it properly, we 
 
 <Steps>
 
-##### 1. Update all packages and upgrade your OS:
+##### 1. Log in to your VM, update and upgrade your OS:
+- Log in to your server using a non-root user with `sudo` privileges
 ```bash
 apt update; apt upgrade
 ```
 
 ##### 2. Generate new host SSH keys
 
-- Log in to your server using a non-root user with sudo privileges
-- Open a terminal window and run the following command to generate a new RSA host key:
+Since we chosen to setup the VM with a cloud init, we will have to generate a few keys on the VM. All of them will be saved to this location: `/etc/ssh/<KEY>`
 
+- Generate a new RSA host key:
 ```bash
 ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
 ```
-- You’ll be prompted to enter a passphrase. You can leave it blank if you prefer, but adding one will provide an extra layer of security.
-- The key will be generated and saved to the specified location defined with `-f <PATH>`.
-- Next, run the following command to generate a new DSA host key:
+- Generate a new DSA host key:
 ```bash
 ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key
 ```
-- You’ll be prompted to enter a passphrase. You can use the same one you used for the previous key or create a new one.
-- Run the following command to generate a new ECDSA host key:
+- Generate a new ECDSA host key:
 ```bash
 ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
 ```
-- You’ll be prompted to enter a passphrase. You can use the same one you used for the previous key or create a new one.
-- Finally, run the following command to generate a new ED25519 host key:
+- Finally, generate a new ED25519 host key:
 ```bash
 ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
 ```
-- Now that you’ve generated all four keys, restart the SSH service on your server by running
-
+##### 3. Restart the SSH service on the server
+- Run:
 ```bash
 systemctl restart ssh.service
 ```
 
-##### 3. Check if the ssh serice is active(running)
-
+##### 4. Check if the SSH serice is active
+- Run:
 ```bash
 systemctl status ssh.service
 ```
 
-##### 4. Create file `~/.ssh/authorized_keys` and add you public key:
+##### 5. Create file `~/.ssh/authorized_keys` and add you public key:
+- Open with your favourite text editor:
 ```bash
 nano .ssh/authorized_keys
 ```
+- Paste your SSH public key, save and exit
 
 ##### 5. Test by connecting via SSH
 

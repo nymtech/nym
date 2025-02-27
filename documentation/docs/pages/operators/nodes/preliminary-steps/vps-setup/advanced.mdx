@@ -15,7 +15,7 @@ This page is for experienced operators and aspiring sys-admins who seek for high
 
 ## Virtualising a Dedicated Server
 
-Some operators or squads of operators orchestrate multiple Nym nodes. Among other benefits (which are out of scope of this page), these operators can decide to acquire one larger dedicated (or bare-metal) server with enough specs (CPU, RAM, storage, bandwidth and port speed) to meet [minimum requirements](../../nodes#minimum-requirements) for multiple nodes run in parallel.
+Some operators or squads of operators orchestrate multiple Nym nodes. Among other benefits (which are out of scope of this page), these operators can decide to acquire one larger dedicated (or bare-metal) server with enough specs (CPU, RAM, storage, bandwidth and port speed) to meet [minimum requirements](../../../nodes#minimum-requirements) for multiple nodes run in parallel.
 
 This guide explains how to prepare your server in order to be able to host multiple nodes running on separated VMs.
 
@@ -27,16 +27,16 @@ This guide is based on Ubuntu 22.04, in case you prefer another OS, you may have
 
 **KVM** stands for **Kernel-based Virtual Machine**. It is a virtualization technology for Linux that allows a user to run multiple virtual machines (VMs) on a single physical machine. KVM turns the Linux kernel into a hypervisor, enabling it to manage multiple virtualised systems.
 
-Follow the steps below to install KVM on Ubuntu 22.04 LTS:
+Follow the steps below to install KVM on Ubuntu 22.04 LTS.
 
 #### Prerequisites
 
 <Callout type="warning">
-Operators aiming to run Nym node as mixnet [Exit Gateway](../../community-counsel/exit-gateway) or with wireguard enabled should familiarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../community-counsel) and follow up with [legal suggestions](../../community-counsel/legal). Particularly important is to [introduce yourself](../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
+Operators aiming to run Nym node as mixnet [Exit Gateway](../../../community-counsel/exit-gateway) or with wireguard enabled should familiarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../../community-counsel) and follow up with [legal suggestions](../../../community-counsel/legal). Particularly important is to [introduce yourself](../../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
 
 This step is essential part of legal self defense because it may prevent your provider immediately shutting down your entire service (with all the VMs on it) when receiving first abuse report.
 
-Additionaly, before purchasing a large server, **contact the provider and ask if the offered CPU supports Virtualization Technology (VT)**, without this feature you will not be able to proceed.
+Additionally, before purchasing a large server, **contact the provider and ask if the offered CPU supports Virtualization Technology (VT)**, without this feature you will not be able to proceed.
 </Callout>
 
 Start with obtaining a server with Ubuntu 22.04 LTS:
@@ -46,12 +46,12 @@ Start with obtaining a server with Ubuntu 22.04 LTS:
 Make sure thay your system actually supports hardware virtualisation:
 - Check out the methods documented in [this guide by ostechnix.com](https://ostechnix.com/how-to-find-if-a-cpu-supports-virtualization-technology-vt/).
 
-Oder enough IPv4 and IPv6 (static and public) addresses to have one of each for each planned VM plus one extra for the main machine.
+Order enough IPv4 and IPv6 (static and public) addresses to have one of each for each planned VM plus one extra for the main machine.
 
 
 When you have your OS installed, validated CPU virtualisation support and obtained IP addresses, you can start configuring your VMs, following the steps below.
 
-> Note that the commands below require root permission. You can either go through the setup as `root` or use `sudo` prefix with the commands used in the guide.
+> Note that the commands below require root permission. You can either go through the setup as `root` or use `sudo` prefix with the commands used in the guide. You can switch to `root` shell by entering one of these commands `sudo su` or `sudo -i`.
 <Steps>
 
 ##### 1. Install KVM
@@ -82,7 +82,34 @@ systemctl status libvirtd
 <AccordionTemplate name="Console output">
 The command output should look similar to this one:
 ```
+root@nym-exit:~# systemctl status libvirtd
+● libvirtd.service - Virtualization daemon
+     Loaded: loaded (/lib/systemd/system/libvirtd.service; enabled; vendor preset: enabled)
+     Active: active (running) since Thu 2025-02-27 14:25:28 MSK; 2min 1s ago
+TriggeredBy: ● libvirtd-ro.socket
+             ● libvirtd.socket
+             ● libvirtd-admin.socket
+       Docs: man:libvirtd(8)
+             https://libvirt.org
+   Main PID: 6232 (libvirtd)
+      Tasks: 21 (limit: 32768)
+     Memory: 11.8M
+        CPU: 852ms
+     CGroup: /system.slice/libvirtd.service
+             ├─6232 /usr/sbin/libvirtd
+             ├─6460 /usr/sbin/dnsmasq --conf-file=/var/lib/libvirt/dnsmasq/default.conf --leasefile-ro --dhcp-script=/usr/lib/libvirt/libvirt_leaseshelper
+             └─6461 /usr/sbin/dnsmasq --conf-file=/var/lib/libvirt/dnsmasq/default.conf --leasefile-ro --dhcp-script=/usr/lib/libvirt/libvirt_leaseshelper
 
+Feb 27 14:25:28 nym-exit.example.com systemd[1]: Started Virtualization daemon.
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: started, version 2.90 cachesize 150
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset no-nftset auth cryptohash DNSSEC loop-detect inotify dump>
+Feb 27 14:25:30 nym-exit.example.com dnsmasq-dhcp[6460]: DHCP, IP range 192.168.122.2 -- 192.168.122.254, lease time 1h
+Feb 27 14:25:30 nym-exit.example.com dnsmasq-dhcp[6460]: DHCP, sockets bound exclusively to interface virbr0
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: reading /etc/resolv.conf
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: using nameserver 127.0.0.53#53
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: read /etc/hosts - 8 names
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: read /var/lib/libvirt/dnsmasq/default.addnhosts - 0 names
+Feb 27 14:25:30 nym-exit.example.com dnsmasq-dhcp[6460]: read /var/lib/libvirt/dnsmasq/default.hostsfile
 ```
 </AccordionTemplate>
 
@@ -107,7 +134,39 @@ ip a
 <AccordionTemplate name="Console output">
 The command output should look similar to this one:
 ```
-
+root@nym-exit:~# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+    inet 31.222.238.222/24 brd 31.222.238.255 scope global eno49
+       valid_lft forever preferred_lft forever
+    inet6 fe80::3a63:bbff:fe2e:9d20/64 scope link
+       valid_lft forever preferred_lft forever
+4: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+5: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+6: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+7: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+8: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    link/ether 52:54:00:ac:d3:ba brd ff:ff:ff:ff:ff:ff
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+       valid_lft forever preferred_lft forever
 ```
 </AccordionTemplate>
 
@@ -122,7 +181,7 @@ Before configuring a public bridge, **disable Netfilter** on bridges for better 
 
 - Create a file located at `/etc/sysctl.d/bridge.conf`:
 ```bash
-nano create a file named /etc/sysctl.d/bridge.conf:
+nano /etc/sysctl.d/bridge.conf
 
 # in case of using custom editor, replace nano in the syntax
 ```
@@ -136,7 +195,7 @@ net.bridge.bridge-nf-call-arptables=0
 
 - Create a file `/etc/udev/rules.d/99-bridge.rules`:
 ```bash
-nano /etc/udev/rules.d/99-bridge.rules:
+nano /etc/udev/rules.d/99-bridge.rules
 ```
 
 - Paste this line, save and exit:
@@ -155,10 +214,32 @@ ip link
 <AccordionTemplate name="Console output">
 The command output should look similar to this one:
 ```
-
+root@nym-exit:~# ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+4: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+5: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+6: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+7: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+8: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether 52:54:00:ac:d3:ba brd ff:ff:ff:ff:ff:ff
 ```
 
-The `virbr0` interface is KVM’s default network. Note your physical interface’s MAC address (e.g., `enp6s18`).
+The `virbr0` interface is KVM’s default network. Note your physical interface’s MAC address (e.g., `eno49`). It's the only interface that is currently `UP` and running (`LOWER_UP` state). Other interfaces are `DOWN` and not in use.
 </AccordionTemplate>
 
 - Remove the default KVM network:
@@ -182,7 +263,27 @@ ip link
 <AccordionTemplate name="Console output">
 The command output should look similar to this one:
 ```
-
+root@nym-exit:~# ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+4: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+5: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+6: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+7: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
 ```
 KVM network is gone.
 </AccordionTemplate>
@@ -190,16 +291,20 @@ KVM network is gone.
 
 ##### 3. Setup KVM public bridge for new VMs
 
-To create a KVM network bridge on Ubuntu, edit `/etc/netplan/00-installer-config.yaml` and add the bridge details.
+To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` either called `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
 
 - Before you edit the file, make a backup to stay on the save side:
 ```bash
-cp --backup /etc/netplan/00-installer-config.yaml /etc/netplan/
+cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
+# or
+cp /etc/netplan/00-installer.yaml /etc/netplan/00-installer.yaml.bak
 ```
 
-- Open `00-installer-config.yaml` config in a text editor:
+- Open `00-installer-config.yaml` or `00-installer.yaml.`config in a text editor:
 ```bash
-nano 00-installer-config.yaml
+nano /etc/netplan/00-installer.yaml
+# or
+nano /etc/netplan/00-installer-config.yaml
 ```
 
 - Edit the block below and paste it to the config file, save and exit:
@@ -210,11 +315,12 @@ nano 00-installer-config.yaml
 
 # <INTERFACE> is your own one, you can get with command ip link show
 # <HOST> is your server main IPv4 address
-# <ROUTER> value can be found by running: ip route | grep default
+# <GATEWAY> value can be found by running: ip route | grep default
 
 
 # This is the network config written by 'subiquity'
 network:
+  version: 2
   ethernets:
     <INTERFACE>:
       dhcp4: false
@@ -227,14 +333,16 @@ network:
       addresses: [<HOST>/24]
       routes:
         - to: default
-          via: <ROUTER>
+          via: <GATEWAY>
       mtu: 1500
       nameservers:
-        addresses: [8.8.8.8, 8.8.4.4]
+        addresses:
+          - 8.8.8.8
+          - 1.1.1.1
+          - 77.88.8.8
       parameters:
-        stp: false  # Disable STP unless multiple bridges exist
-        forward-delay: 15 # Can be shortened, 15 sec is a common default
-  version: 2
+        stp: false            # Disable STP unless multiple bridges exist
+        forward-delay: 15     # Can be shortened, 15 sec is a common default
 ```
 
 <Callout type="warning">
@@ -258,9 +366,46 @@ netplan try
 netplan --debug  apply
 ```
 
+- In case of proubems try some of these steps:
+<AccordionTemplate name="Netplan configuration troubleshooting">
+- Validate YAML configuration, given that YAML is syntax sensitive:
+```bash
+apt install yamllint -y
+
+yamllint /etc/netplan/00-installer.yaml
+# or
+yamllint /etc/netplan/00-installer-config.yaml
+
+
+```
+- Apply correct permissions:
+```bash
+chmod 600 /etc/netplan/00-installer.yaml
+chown root:root /etc/netplan/00-installer.yaml
+```
+
+- Manually bring up the bridge:
+```bash
+ip link add name br0 type bridge
+ip link set br0 up
+ip a show br0
+```
+
+- ensure `systemd-networkd` is enabled:
+```bash
+systemctl restart systemd-networkd
+systemctl status systemd-networkd
+# if inactive, enable it:
+systemctl enable --now systemd-networkd
+```
+</AccordionTemplate>
+
 - If things went wrong, you can always revert from the backed up file:
 ```bash
-cp /etc/netplan/00-installer-config.yaml.backup /etc/netplan/00-installer-config.yaml
+cp /etc/netplan/00-installer-config.yaml.bak /etc/netplan/00-installer-config.yaml
+# or
+cp /etc/netplan/00-installer.yaml.bak /etc/netplan/00-installer.yaml
+# and
 netplan apply
 ```
 
@@ -276,7 +421,37 @@ ip a
 <AccordionTemplate name="Console output">
 The command output should look similar to this one:
 ```
-
+root@nym-exit:~# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+4: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+5: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq master br0 state UP group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+6: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+7: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+8: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 46:50:aa:c0:49:a5 brd ff:ff:ff:ff:ff:ff
+    inet 31.222.238.222/24 brd 31.222.238.255 scope global br0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::4450:aaff:fec0:49a5/64 scope link
+       valid_lft forever preferred_lft forever
 ```
 The bridged interface `br0` now has the IP `<HOST>`, and `<INTERFACE>` shows `master br0`, indicating it is part of the bridge.
 </AccordionTemplate>
@@ -312,6 +487,14 @@ virsh net-autostart host-bridge
 ```bash
 virsh net-list --all
 ```
+<AccordionTemplate name="Console output">
+```bash
+root@nym-exit:~# virsh net-list --all
+ Name          State    Autostart   Persistent
+------------------------------------------------
+ host-bridge   active   yes         yes
+```
+</AccordionTemplate>
 
 KVM bridge networking is successfully set up and active!
 
@@ -343,6 +526,18 @@ cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/<VM_NAME>.img
 ```
 
 ##### 2. Create and resize a virtual machine
+
+- Get `guestfs-tools` to be able to customize your login credentials:
+```bash
+apt install guestfs-tools
+```
+
+- Define login credentials:
+```bash
+virt-customize -a /var/lib/libvirt/images/<VM_NAME>.img --root-password password:<PASSWORD>
+# for example
+virt-customize -a /var/lib/libvirt/images/ubuntu-1.img --root-password password:makesuretosaveyourpasswordslocallytoapasswordmanager
+```
 
 - Use `qemu-img` tool with a command `resize` to create a VM according your needs. You can see `qemu` [documentation page`](https://www.qemu.org/docs/master/tools/qemu-img.html) for more info on how to use it correctly.
 ```bash
@@ -389,8 +584,12 @@ virt-install \
 - After loading you should see a login console, you can also initiate it by:
 ```bash
 virsh console <VM_NAME>
-virsh console ubuntu-1
+# for example
+# virsh console ubuntu-1
 ```
+
+- Log in to your new VM using your credentials.
+
 ##### 3. Validate your setup
 
 - Make sure the `root` disk has the expected space by running:
@@ -406,7 +605,7 @@ resize2fs /dev/vda1
 
 ##### 4. Configure networking for the VM
 
-Because this guide is based on a newer Ubuntu, we use `netplan`, this may be different on different OS.
+As this guide is based on a newer Ubuntu, we use `netplan`, this may be different on different OS.
 
 - Open `/etc/netplan/01-network-config.yaml` in your favourite text editor:
 ```bash
@@ -419,7 +618,7 @@ network:
   version: 2
   renderer: networkd
   ethernets:
-    enp1s0:
+    <INTERFACE>:
       dhcp4: false
       dhcp6: false  # Set to true if you want automatic IPv6 assignment
       addresses:
@@ -427,15 +626,15 @@ network:
         - <IPv6_VM>/64  # Assign IPv6 address to the VM
       routes:
         - to: default
-          via: <IPv4_HOST_SERVER>  # IPv4 gateway (host machine)
+          via: <IPv4_GATEWAY_HOST_SERVER>  # IPv4 gateway (host machine)
         - to: default
-          via: <IPv6_HOST_SERVER>  # IPv6 gateway (host machine)
+          via: <IPv6_GATEWAY_HOST_SERVER>  # IPv6 gateway (host machine)
       nameservers:
         addresses:
-          - 8.8.8.8  # Google Public IPv4 DNS
-          - 8.8.4.4  # Google Public IPv4 DNS
-          - 2001:4860:4860::8888  # Google Public IPv6 DNS
-          - 2001:4860:4860::8844  # Google Public IPv6 DNS
+          - 1.1.1.1  # Cloudflare IPv4 DNS
+          - 8.8.8.8  # Google IPv4 DNS
+          - 2606:4700:4700::1111  # Cloudflare IPv6 DNS
+          - 2001:4860:4860::8888  # Google IPv6 DNS
 ```
 - Fix wide permissions on the config file:
 ```bash
@@ -487,7 +686,7 @@ apt update; apt upgrade
 
 ##### 2. Generate new host SSH keys
 
-Since we chosen to setup the VM with a cloud init, we will have to generate a few keys on the VM. All of them will be saved to this location: `/etc/ssh/<KEY>`
+Since we used a `cloud-init` image without an SSH server, we need to generate SSH host keys for client authentication and server identity verification. All of them will be saved to this location: `/etc/ssh/<KEY>`.
 
 - Generate a new RSA host key:
 ```bash
@@ -520,9 +719,16 @@ systemctl status ssh.service
 ##### 5. Create file `~/.ssh/authorized_keys` and add you public key:
 - Open with your favourite text editor:
 ```bash
-nano .ssh/authorized_keys
+nano /home//.ssh/authorized_keys
 ```
 - Paste your SSH public key, save and exit
+
+- Setup a correct ownership and permissions:
+```bash
+chmod 600 authorized_keys
+chmod 700 ~/.ssh
+chown : /home//.ssh
+```
 
 ##### 5. Test by connecting via SSH
 

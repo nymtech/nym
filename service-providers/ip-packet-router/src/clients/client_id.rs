@@ -42,16 +42,3 @@ impl From<AnonymousSenderTag> for ConnectedClientId {
         ConnectedClientId::AnonymousSenderTag(tag)
     }
 }
-
-//impl TryFrom<(SentBy, Option<AnonymousSenderTag>)> for ConnectedClientId {
-//    type Error = IpPacketRouterError;
-//
-//    fn try_from((sent_by, sender_tag): (SentBy, Option<AnonymousSenderTag>)) -> Result<Self> {
-//        match sent_by {
-//            SentBy::NymAddress(nym_address) => Ok(ConnectedClientId::NymAddress(nym_address)),
-//            SentBy::AnonymousSenderTag => sender_tag
-//                .map(ConnectedClientId::AnonymousSenderTag)
-//                .ok_or(IpPacketRouterError::InvalidReplyTo),
-//        }
-//    }
-//}

@@ -1,8 +1,8 @@
 {
   "id": 2,
-  "title": "How to find the best nodes to stake your $NYM?",
+  "title": "How to Get and Stake NYM Tokens",
   "label": "Onboarding",
-  "description": "Follow this simple guide to learn more about staking!",
+  "description": "This guide is a step-by-step walk-through of the complete journey of acquiring NYM tokens and staking them to Nym Nodes to earn rewards - all in a few simple steps.",
   "attributes": {
     "blogAuthors": ["Nym"],
     "date": "Mon Jan 05 2025 10:26:09 GMT+0000 (Greenwich Mean Time)",
@@ -14,15 +14,7 @@
     "content": [
       {
         "type": "paragraph",
-        "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
-      },
-      {
-        "type": "paragraph",
-        "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
-      },
-      {
-        "type": "paragraph",
-        "text": "This is where decentralized VPNs (dVPNs) come in. dVPNs are even more effective at protecting you from hackers because they are decentralized and do not rely on a single server to protect your data. This makes them more secure and harder for hackers to attack."
+        "text": "The Nym network consists of Nym nodes that protect internet privacy by obfuscating traffic patterns to defend against AI surveillance. When you stake NYM tokens on a mix node: \n\n - You help increase that node's reputation in the network\n\n - The node becomes more likely to be selected for mixing and routing traffic\n\n - You earn a share of the rewards when the node performs its privacy-preserving work"
       }
     ],
     "image": "https://nymtech.net/api/uploads/presentation-poster?w=3840&q=75"
@@ -30,127 +22,98 @@
   "sections": [
     {
       "id": "section-1",
-      "heading": "Section 1",
+      "heading": "Prerequisites",
       "text": [
         {
           "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
-        },
-        {
-          "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+          "text": "A browser that supports Keplr wallet (like Firefox or Chrome) and Keplr mobile wallet app installed on your phone or browser."
         }
       ]
     },
     {
       "id": "section-2",
-      "heading": "Section 2",
+      "heading": "Acquiring native NYM tokens",
       "text": [
         {
           "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+          "text": "There are three ways to get NYM tokens:"
         },
         {
           "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+          "text": "1) Participate in the Nym community and earn rewards by completing simple tasks like translations, helping in channels and other good things that the community needs!"
+        },
+
+        {
+          "type": "paragraph",
+          "text": "2) Buy NYMs on an exchange (if you want to stake, make sure they are ‘native’ NYM tokens on the Nyx chain, not on Ethereum! Bitfinex and Kraken offer native NYM currently)."
+        },
+        {
+          "type": "paragraph",
+          "text": "3) Swap on a DEX (decentralized exchange). If you already have other crypto tokens and are able to use decentralized exchanges, you'll find both NYM native and ERC-20 pools on major DEXs."
+        },
+        {
+          "type": "paragraph",
+          "text": "- [Join Nym community here to start earning NYM tokens.](https://nym.com/community)"
         }
       ]
     },
     {
       "id": "section-3",
-      "heading": "Section 3",
+      "heading": "Setting up Keplr wallet",
       "text": [
         {
           "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+          "text": "1) Download and install the [Keplr](https://www.keplr.app/get) mobile app."
         },
         {
           "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+          "text": "2) Create a new wallet or import your existing one using your seed phrase"
+        },
+        {
+          "type": "paragraph",
+          "text": "3) Add the ‘Nyx’ chain, by opening the buil-in browser in your Keplr and visiting [chains.keplr.app](https://chains.keplr.app/) to add the Nyx chain."
         }
       ]
     },
     {
       "id": "section-4",
-      "heading": "Section 4",
+      "heading": "Connect and login with Keplr to the explorer",
       "text": [
         {
           "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+          "text": "1) Connect your Keplr wallet to the explorer if you use the extension wallet."
         },
         {
           "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+          "text": "2) If you used a mobile wallet, you can use the built in browser of Keplr to connet by navigating from there to [nym.com/explorer](htts://nym.com/explorer) and logging in."
         }
       ]
     },
     {
       "id": "section-5",
-      "heading": "Section 5",
+      "heading": "Browse nodes and stake!",
       "text": [
         {
           "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+          "text": "1) Browse Nym nodes in the explorer and look for: \n\n - Nodes with high routing scores (close to 100%) \n\n - Check for lower operating costs/margins for better rewards \n\n - Ensure the node isn't over-saturated (below 100%)"
         },
         {
           "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+          "text": "2) Click the 'Stake' button next to your chosen node"
+        },
+        {
+          "type": "paragraph",
+          "text": "3) Enter the amount you wish to stake and confirm the transaction in your Keplr wallet"
         }
       ]
     },
     {
       "id": "section-6",
-      "heading": "Section 6",
+      "heading": "And some important things to keep in mind",
       "text": [
         {
           "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
-        },
-        {
-          "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
-        }
-      ]
-    },
-    {
-      "id": "section-7",
-      "heading": "Section 7",
-      "text": [
-        {
-          "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
-        },
-        {
-          "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
-        }
-      ]
-    },
-    {
-      "id": "section-8",
-      "heading": "Section 8",
-      "text": [
-        {
-          "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
-        },
-        {
-          "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
-        }
-      ]
-    },
-    {
-      "id": "section-9",
-      "heading": "Section 9",
-      "text": [
-        {
-          "type": "paragraph",
-          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
-        },
-        {
-          "type": "paragraph",
-          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+          "text": "- New delegations and un-delegations take effect in the next epoch, so you maximum have to wait 1 hour  \n\n - Staking rewards auto-compound, so any rewards automatically get added to your existing stake without having to do any extra steps  \n\n - Always keep some NYM tokens un-staked for transaction fees  \n\n - Always keep your mnemonic (24 word access code) in a safe place and never share it with anyone!"
         }
       ]
     }

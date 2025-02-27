@@ -5955,7 +5955,6 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "tap",
  "thiserror 2.0.11",
  "time",
  "tokio",
@@ -6289,7 +6288,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "1.0.0-rc.8"
+version = "1.0.2"
 dependencies = [
  "ammonia",
  "anyhow",

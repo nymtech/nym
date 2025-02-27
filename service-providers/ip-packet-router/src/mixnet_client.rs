@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvider};
 use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
 use nym_task::TaskClient;

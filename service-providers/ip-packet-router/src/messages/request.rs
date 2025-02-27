@@ -4,6 +4,7 @@
 use core::fmt;
 
 use nym_ip_packet_requests::{
+    v6::request::IpPacketRequest as IpPacketRequestV6,
     v7::request::IpPacketRequest as IpPacketRequestV7,
     v8::request::{
         ControlRequest as ControlRequestV8, DataRequest as DataRequestV8,
@@ -255,6 +256,14 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
             .ok_or(IpPacketRouterError::EmptyPacket)?;
 
         let (deserialized, version) = match request_version {
+            6 => {
+                let request_v6 = IpPacketRequestV6::from_reconstructed_message(reconstructed)
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )?;
+                let request_v7 = IpPacketRequestV7::from(request_v6);
+                (IpPacketRequestV8::from(request_v7), ClientVersion::V6)
+            }
             7 => {
                 let request_v7 = IpPacketRequestV7::from_reconstructed_message(reconstructed)
                     .map_err(

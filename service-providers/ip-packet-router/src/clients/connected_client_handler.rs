@@ -5,7 +5,8 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use nym_ip_packet_requests::{
-    codec::MultiIpPacketCodec, v7::response::IpPacketResponse as IpPacketResponseV7,
+    codec::MultiIpPacketCodec, v6::response::IpPacketResponse as IpPacketResponseV6,
+    v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
 use nym_sdk::mixnet::MixnetMessageSender;
@@ -94,6 +95,7 @@ impl ConnectedClientHandler {
 
     async fn create_ip_packet(&self, packets: Bytes) -> Result<Vec<u8>> {
         match self.client_version {
+            ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
             ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
             ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
         }

@@ -82,8 +82,8 @@ const config: DocsThemeConfig = {
   navbar: {
     extraContent: (
       <>
-        <Matrix />
         <Explorer />
+        <Matrix />
       </>
     ),
   },

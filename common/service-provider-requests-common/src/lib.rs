@@ -7,9 +7,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ProtocolError {
-    #[error("invalid version: {0}")]
-    InvalidVersion(u8),
-
     #[error("invalid service provider type: {0}")]
     InvalidServiceProviderType(u8),
 }

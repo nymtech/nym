@@ -48,7 +48,7 @@ export default async function Account({
           <Grid size={12}>
             <SectionHeading title="Onboarding" />
           </Grid>
-          <BlogArticlesCards ids={[4]} />
+          <BlogArticlesCards ids={[1]} />
         </Grid>
       </ContentLayout>
     );

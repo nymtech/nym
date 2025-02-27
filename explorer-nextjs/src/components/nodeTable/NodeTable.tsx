@@ -231,7 +231,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "stakeSaturation",
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
-        Header: <ColumnHeading>Stake saturation</ColumnHeading>,
+        Header: <ColumnHeading>Saturation</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
             {row.original.stakeSaturation}%

@@ -1,4 +1,4 @@
-import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
+// import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
@@ -44,12 +44,12 @@ export default async function Account({
             Start [setting up your node](https://nym.com/docs) today!
           </Markdown>
         </Typography>
-        <Grid container columnSpacing={5} rowSpacing={5}>
+        {/* <Grid container columnSpacing={5} rowSpacing={5}>
           <Grid size={12}>
             <SectionHeading title="Onboarding" />
           </Grid>
           <BlogArticlesCards ids={[1]} />
-        </Grid>
+        </Grid> */}
       </ContentLayout>
     );
   } catch (error) {

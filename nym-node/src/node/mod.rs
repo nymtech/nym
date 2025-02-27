@@ -28,7 +28,9 @@ use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgress
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::shared_topology::{KnownNodes, NymNodeTopologyProvider};
+use crate::node::shared_network::{
+    CachedNetwork, CachedTopologyProvider, NetworkRefresher, RoutingFilter,
+};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
@@ -67,7 +69,7 @@ pub mod helpers;
 pub(crate) mod http;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
-mod shared_topology;
+mod shared_network;
 
 pub struct GatewayTasksData {
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
@@ -530,12 +532,13 @@ impl NymNode {
         self.x25519_noise_keys.public_key()
     }
 
-    async fn build_topology_provider(&self) -> Result<NymNodeTopologyProvider, NymNodeError> {
-        NymNodeTopologyProvider::initialise_new(
-            self.as_gateway_topology_node()?,
-            self.config.debug.topology_cache_ttl,
+    async fn build_network_refresher(&self) -> Result<NetworkRefresher, NymNodeError> {
+        NetworkRefresher::initialise_new(
             self.user_agent(),
             self.config.mixnet.nym_api_urls.clone(),
+            self.config.debug.topology_cache_ttl,
+            self.config.debug.routing_nodes_check_interval,
+            self.shutdown_manager.clone_token("network-refresher"),
         )
         .await
     }
@@ -581,14 +584,19 @@ impl NymNode {
 
     async fn start_gateway_tasks(
         &mut self,
-        topology_provider: NymNodeTopologyProvider,
+        cached_network: CachedNetwork,
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
         task_client: TaskClient,
     ) -> Result<(), NymNodeError> {
         let config = gateway_tasks_config(&self.config);
-        let topology_provider = Box::new(topology_provider);
+
+        let topology_provider = Box::new(CachedTopologyProvider::new(
+            self.as_gateway_topology_node()?,
+            cached_network,
+            self.config.gateway_tasks.debug.minimum_mix_performance,
+        ));
 
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
@@ -951,7 +959,7 @@ impl NymNode {
     pub(crate) fn start_mixnet_listener(
         &self,
         active_clients_store: &ActiveClientsStore,
-        known_nodes: KnownNodes,
+        routing_filter: RoutingFilter,
         shutdown: ShutdownToken,
     ) -> (MixForwardingSender, ActiveConnections) {
         let processing_config = ProcessingConfig::new(&self.config);
@@ -981,7 +989,7 @@ impl NymNode {
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
             self.config.debug.testnet,
-            known_nodes,
+            routing_filter,
             self.metrics.clone(),
             shutdown.clone_with_suffix("mix-packet-forwarder"),
         );
@@ -1030,16 +1038,14 @@ impl NymNode {
         });
 
         self.try_refresh_remote_nym_api_cache().await;
-
         self.start_verloc_measurements();
 
-        let topology_provider = self.build_topology_provider().await?;
-
+        let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
 
         let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
-            topology_provider.known_nodes(),
+            network_refresher.routing_filter(),
             self.shutdown_manager.clone_token("mixnet-traffic"),
         );
 
@@ -1050,13 +1056,15 @@ impl NymNode {
         );
 
         self.start_gateway_tasks(
-            topology_provider,
+            network_refresher.cached_network(),
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
             self.shutdown_manager.subscribe_legacy("gateway-tasks"),
         )
         .await?;
+
+        network_refresher.start();
 
         self.shutdown_manager.close();
         self.shutdown_manager.wait_for_shutdown_signal().await;

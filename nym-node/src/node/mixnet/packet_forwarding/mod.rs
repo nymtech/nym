@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::mixnet::packet_forwarding::global::is_global_ip;
-use crate::node::shared_topology::KnownNodes;
+use crate::node::shared_network::RoutingFilter;
 use futures::StreamExt;
 use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender, PacketToForward,
@@ -12,10 +12,8 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
-use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
-use time::OffsetDateTime;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
@@ -28,10 +26,7 @@ pub struct PacketForwarder<C> {
     mixnet_client: C,
 
     metrics: NymNodeMetrics,
-    known_nodes: KnownNodes,
-
-    // TODO: periodically remove stale entries
-    recently_denied: HashMap<IpAddr, OffsetDateTime>,
+    routing_filter: RoutingFilter,
 
     packet_sender: MixForwardingSender,
     packet_receiver: MixForwardingReceiver,
@@ -42,7 +37,7 @@ impl<C> PacketForwarder<C> {
     pub fn new(
         client: C,
         testnet: bool,
-        known_nodes: KnownNodes,
+        routing_filter: RoutingFilter,
         metrics: NymNodeMetrics,
         shutdown: ShutdownToken,
     ) -> Self {
@@ -53,8 +48,7 @@ impl<C> PacketForwarder<C> {
             delay_queue: NonExhaustiveDelayQueue::new(),
             mixnet_client: client,
             metrics,
-            known_nodes,
-            recently_denied: Default::default(),
+            routing_filter,
             packet_sender,
             packet_receiver,
             shutdown,
@@ -71,23 +65,7 @@ impl<C> PacketForwarder<C> {
             return true;
         }
 
-        self.known_nodes.attempt_resolve(ip_addr).should_route()
-
-        // TODO:
-
-        // // if we have recently denied this ip which wasn't in the topology, keep rejecting it
-        // if let Some(denied_at) = self.recently_denied.get(&ip_addr) {
-        //     todo!()
-        // }
-        //
-        // // 1. check if this ip is in the topology
-        // // 2. if not and we haven't asked recently, ask nym-api about it -> maybe the node was recently added
-        // // but until we get the response, keep dropping packets
-        //
-        // // nym-api should cache ipaddr -> node info map since a lot of nym-nodes will be asking for that
-        //
-        // todo!()
-        // // if ip_addr.is
+        self.routing_filter.attempt_resolve(ip_addr).should_route()
     }
 
     fn forward_packet(&mut self, packet: MixPacket)

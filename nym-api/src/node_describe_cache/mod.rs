@@ -16,7 +16,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use nym_topology::node::{RoutingNode, RoutingNodeError};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::Duration;
 use thiserror::Error;

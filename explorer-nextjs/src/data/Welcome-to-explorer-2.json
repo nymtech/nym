@@ -15,7 +15,7 @@
       {
         "type": "paragraph",
         "text": "The Explorer is your window into the Nym Network. Here you can get real-time information on the network status, performance and geographical coverage, and learn more about the independent operators that run this global infrastructure."
-      },
+      }
     ]
   },
   "sections": [
@@ -33,15 +33,15 @@
         },
         {
           "type": "paragraph",
-          "text": "If you use the NymVPN app, you can come here to browse the available servers to learn more about, before choosing which ones you want to use." 
+          "text": "If you use the NymVPN app, you can come here to browse the available servers to learn more about, before choosing which ones you want to use."
         },
         {
           "type": "paragraph",
-          "text": "For most people, this will be a simple matter of finding a server in the right location for what they are trying to do and looking at its performance and reliability." 
+          "text": "For most people, this will be a simple matter of finding a server in the right location for what they are trying to do and looking at its performance and reliability."
         },
         {
           "type": "paragraph",
-          "text": "Some people might want to go a little deeper to understand the history, trustworthiness and ethos of a specific operator. The Nym Network ensures a base-line of reliability and performance. But beyond that we have operators that are in it for the profit, others that run on a non-profit basis and donate their rewards." 
+          "text": "Some people might want to go a little deeper to understand the history, trustworthiness and ethos of a specific operator. The Nym Network ensures a base-line of reliability and performance. But beyond that we have operators that are in it for the profit, others that run on a non-profit basis and donate their rewards."
         },
         {
           "type": "paragraph",
@@ -49,17 +49,18 @@
         },
         {
           "type": "paragraph",
-          "text": "Nym network is run by independent server operators all over the world. Operators can use the explorer to keep track of their rewards and to quickly check the status of their servers without having to log into their VPS provider." 
+          "text": "Nym network is run by independent server operators all over the world. Operators can use the explorer to keep track of their rewards and to quickly check the status of their servers without having to log into their VPS provider."
         },
         {
           "type": "paragraph",
-          "text": "**NYM token holders wanting to stake**" 
+          "text": "**NYM token holders wanting to stake**"
         },
         {
           "type": "paragraph",
-          "text": "Anyone holding $NYM can help secure the network by staking their tokens to Nym nodes they want to support. Stakers receive proportionate rewards based on: the performance, profit margin and overall stake saturation of the chosen node." 
-        },
+          "text": "Anyone holding $NYM can help secure the network by staking their tokens to Nym nodes they want to support. Stakers receive proportionate rewards based on: the performance, profit margin and overall stake saturation of the chosen node."
+        }
       ]
+    },
     {
       "id": "section-2",
       "heading": "Key features",
@@ -71,6 +72,8 @@
         {
           "type": "paragraph",
           "text": "Let's continue exploring together! If there is a feature that you’d like to see in a future release, or in case you found a bug: do let us know in our community channels so we can improve and tailor the explorer to your needs."
-        },
-              ]
+        }
+      ]
+    }
+  ]
 }

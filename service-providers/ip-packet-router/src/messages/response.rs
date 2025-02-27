@@ -3,60 +3,50 @@
 
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_ip_packet_requests::{
-    v6::{
-        self,
-        response::{
-            DisconnectFailureReason as DisconnectFailureReasonV6,
-            DisconnectResponse as DisconnectResponseV6,
-            DisconnectResponseReply as DisconnectResponseReplyV6,
-            DynamicConnectFailureReason as DynamicConnectFailureReasonV6,
-            DynamicConnectResponse as DynamicConnectResponseV6,
-            DynamicConnectResponseReply as DynamicConnectResponseReplyV6,
-            DynamicConnectSuccess as DynamicConnectSuccessV6, HealthResponse as HealthResponseV6,
-            HealthResponseReply as HealthResponseReplyV6, InfoLevel as InfoLevelV6,
-            InfoResponse as InfoResponseV6, IpPacketResponse as IpPacketResponseV6,
-            IpPacketResponseData as IpPacketResponseDataV6, PongResponse as PongResponseV6,
-            StaticConnectFailureReason as StaticConnectFailureReasonV6,
-            StaticConnectResponse as StaticConnectResponseV6,
-            StaticConnectResponseReply as StaticConnectResponseReplyV6,
-        },
+    v6::response::{
+        DisconnectFailureReason as DisconnectFailureReasonV6,
+        DisconnectResponse as DisconnectResponseV6,
+        DisconnectResponseReply as DisconnectResponseReplyV6,
+        DynamicConnectFailureReason as DynamicConnectFailureReasonV6,
+        DynamicConnectResponse as DynamicConnectResponseV6,
+        DynamicConnectResponseReply as DynamicConnectResponseReplyV6,
+        DynamicConnectSuccess as DynamicConnectSuccessV6, HealthResponse as HealthResponseV6,
+        HealthResponseReply as HealthResponseReplyV6, InfoLevel as InfoLevelV6,
+        InfoResponse as InfoResponseV6, InfoResponseReply as InfoResponseReplyV6,
+        IpPacketResponse as IpPacketResponseV6, IpPacketResponseData as IpPacketResponseDataV6,
+        PongResponse as PongResponseV6, StaticConnectFailureReason as StaticConnectFailureReasonV6,
+        StaticConnectResponse as StaticConnectResponseV6,
+        StaticConnectResponseReply as StaticConnectResponseReplyV6,
     },
-    v7::{
-        self,
-        response::{
-            DisconnectFailureReason as DisconnectFailureReasonV7,
-            DisconnectResponse as DisconnectResponseV7,
-            DisconnectResponseReply as DisconnectResponseReplyV7,
-            DynamicConnectFailureReason as DynamicConnectFailureReasonV7,
-            DynamicConnectResponse as DynamicConnectResponseV7,
-            DynamicConnectResponseReply as DynamicConnectResponseReplyV7,
-            DynamicConnectSuccess as DynamicConnectSuccessV7, HealthResponse as HealthResponseV7,
-            HealthResponseReply as HealthResponseReplyV7, InfoLevel as InfoLevelV7,
-            InfoResponse as InfoResponseV7, IpPacketResponse as IpPacketResponseV7,
-            IpPacketResponseData as IpPacketResponseDataV7, PongResponse as PongResponseV7,
-            StaticConnectFailureReason as StaticConnectFailureReasonV7,
-            StaticConnectResponse as StaticConnectResponseV7,
-            StaticConnectResponseReply as StaticConnectResponseReplyV7,
-        },
+    v7::response::{
+        DisconnectFailureReason as DisconnectFailureReasonV7,
+        DisconnectResponse as DisconnectResponseV7,
+        DisconnectResponseReply as DisconnectResponseReplyV7,
+        DynamicConnectFailureReason as DynamicConnectFailureReasonV7,
+        DynamicConnectResponse as DynamicConnectResponseV7,
+        DynamicConnectResponseReply as DynamicConnectResponseReplyV7,
+        DynamicConnectSuccess as DynamicConnectSuccessV7, HealthResponse as HealthResponseV7,
+        HealthResponseReply as HealthResponseReplyV7, InfoLevel as InfoLevelV7,
+        InfoResponse as InfoResponseV7, InfoResponseReply as InfoResponseReplyV7,
+        IpPacketResponse as IpPacketResponseV7, IpPacketResponseData as IpPacketResponseDataV7,
+        PongResponse as PongResponseV7, StaticConnectFailureReason as StaticConnectFailureReasonV7,
+        StaticConnectResponse as StaticConnectResponseV7,
+        StaticConnectResponseReply as StaticConnectResponseReplyV7,
     },
-    v8::{
-        self,
-        response::{
-            ControlResponse as ControlResponseV8,
-            DisconnectFailureReason as DisconnectFailureReasonV8,
-            DisconnectResponse as DisconnectResponseV8,
-            DisconnectResponseReply as DisconnectResponseReplyV8,
-            DynamicConnectFailureReason as DynamicConnectFailureReasonV8,
-            DynamicConnectResponse as DynamicConnectResponseV8,
-            DynamicConnectResponseReply as DynamicConnectResponseReplyV8,
-            DynamicConnectSuccess as DynamicConnectSuccessV8, HealthResponse as HealthResponseV8,
-            HealthResponseReply as HealthResponseReplyV8, InfoLevel as InfoLevelV8,
-            InfoResponse as InfoResponseV8, IpPacketResponse as IpPacketResponseV8,
-            IpPacketResponseData as IpPacketResponseDataV8, PongResponse as PongResponseV8,
-            StaticConnectFailureReason as StaticConnectFailureReasonV8,
-            StaticConnectResponse as StaticConnectResponseV8,
-            StaticConnectResponseReply as StaticConnectResponseReplyV8,
-        },
+    v8::response::{
+        ControlResponse as ControlResponseV8, DisconnectFailureReason as DisconnectFailureReasonV8,
+        DisconnectResponse as DisconnectResponseV8,
+        DisconnectResponseReply as DisconnectResponseReplyV8,
+        DynamicConnectFailureReason as DynamicConnectFailureReasonV8,
+        DynamicConnectResponse as DynamicConnectResponseV8,
+        DynamicConnectResponseReply as DynamicConnectResponseReplyV8,
+        DynamicConnectSuccess as DynamicConnectSuccessV8, HealthResponse as HealthResponseV8,
+        HealthResponseReply as HealthResponseReplyV8, InfoLevel as InfoLevelV8,
+        InfoResponse as InfoResponseV8, InfoResponseReply as InfoResponseReplyV8,
+        IpPacketResponse as IpPacketResponseV8, IpPacketResponseData as IpPacketResponseDataV8,
+        PongResponse as PongResponseV8, StaticConnectFailureReason as StaticConnectFailureReasonV8,
+        StaticConnectResponse as StaticConnectResponseV8,
+        StaticConnectResponseReply as StaticConnectResponseReplyV8,
     },
     IpPair,
 };
@@ -363,7 +353,7 @@ impl From<VersionedResponse> for IpPacketResponseV8 {
         match response.response {
             Response::StaticConnect { request_id, reply } => IpPacketResponseV8 {
                 version: response.version.into_u8(),
-                data: IpPacketResponseDataV8::Control(ControlResponseV8::StaticConnect(
+                data: IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::StaticConnect(
                     StaticConnectResponseV8 {
                         request_id,
                         reply: match reply {
@@ -373,11 +363,11 @@ impl From<VersionedResponse> for IpPacketResponseV8 {
                             }
                         },
                     },
-                )),
+                ))),
             },
             Response::DynamicConnect { request_id, reply } => IpPacketResponseV8 {
                 version: response.version.into_u8(),
-                data: IpPacketResponseDataV8::Control(ControlResponseV8::DynamicConnect(
+                data: IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::DynamicConnect(
                     DynamicConnectResponseV8 {
                         request_id,
                         reply: match reply {
@@ -391,11 +381,11 @@ impl From<VersionedResponse> for IpPacketResponseV8 {
                             }
                         },
                     },
-                )),
+                ))),
             },
             Response::Disconnect { request_id, reply } => IpPacketResponseV8 {
                 version: response.version.into_u8(),
-                data: IpPacketResponseDataV8::Control(ControlResponseV8::Disconnect(
+                data: IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::Disconnect(
                     DisconnectResponseV8 {
                         request_id,
                         reply: match reply {
@@ -405,33 +395,35 @@ impl From<VersionedResponse> for IpPacketResponseV8 {
                             }
                         },
                     },
-                )),
+                ))),
             },
             Response::Pong { request_id } => IpPacketResponseV8 {
                 version: response.version.into_u8(),
-                data: IpPacketResponseDataV8::Control(ControlResponseV8::Pong(PongResponseV8 {
-                    request_id,
-                })),
+                data: IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::Pong(
+                    PongResponseV8 { request_id },
+                ))),
             },
             Response::Health { request_id, reply } => IpPacketResponseV8 {
                 version: response.version.into_u8(),
-                data: IpPacketResponseDataV8::Control(ControlResponseV8::Health(
-                    HealthResponseV8 {
+                data: IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::Health(
+                    Box::new(HealthResponseV8 {
                         request_id,
                         reply: HealthResponseReplyV8 {
                             build_info: reply.build_info,
                             routable: reply.routable,
                         },
-                    },
-                )),
+                    }),
+                ))),
             },
             Response::Info { request_id, reply } => IpPacketResponseV8 {
                 version: response.version.into_u8(),
-                data: IpPacketResponseDataV8::Control(ControlResponseV8::Info(InfoResponseV8 {
-                    request_id,
-                    reply: reply.reply.into(),
-                    level: reply.level.into(),
-                })),
+                data: IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::Info(
+                    InfoResponseV8 {
+                        request_id,
+                        reply: reply.reply.into(),
+                        level: reply.level.into(),
+                    },
+                ))),
             },
         }
     }

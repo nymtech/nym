@@ -15,12 +15,10 @@ use super::{
     HealthRequest, IpPacketRequest, PingRequest, StaticConnectRequest,
 };
 
-impl TryFrom<IpPacketRequestV7> for IpPacketRequest {
-    type Error = IpPacketRouterError;
-
-    fn try_from(request: IpPacketRequestV7) -> Result<Self, Self::Error> {
+impl From<IpPacketRequestV7> for IpPacketRequest {
+    fn from(request: IpPacketRequestV7) -> Result<Self, Self::Error> {
         let version = ClientVersion::V7;
-        Ok(match request.data {
+        match request.data {
             IpPacketRequestDataV7::Data(inner) => Self::Data((inner, version).into()),
             IpPacketRequestDataV7::StaticConnect(inner) => Self::Control(
                 ControlRequest::StaticConnect((inner.request, version).into()),
@@ -37,7 +35,7 @@ impl TryFrom<IpPacketRequestV7> for IpPacketRequest {
             IpPacketRequestDataV7::Health(inner) => {
                 Self::Control(ControlRequest::Health((inner, version).into()))
             }
-        })
+        }
     }
 }
 

@@ -8,19 +8,15 @@ use nym_ip_packet_requests::v6::request::{
     PingRequest as PingRequestV6, StaticConnectRequest as StaticConnectRequestV6,
 };
 
-use crate::error::IpPacketRouterError;
-
 use super::{
     ClientVersion, ControlRequest, DataRequest, DisconnectRequest, DynamicConnectRequest,
     HealthRequest, IpPacketRequest, PingRequest, StaticConnectRequest,
 };
 
-impl TryFrom<IpPacketRequestV6> for IpPacketRequest {
-    type Error = IpPacketRouterError;
-
-    fn try_from(request: IpPacketRequestV6) -> Result<Self, Self::Error> {
+impl From<IpPacketRequestV6> for IpPacketRequest {
+    fn from(request: IpPacketRequestV6) -> Self {
         let version = ClientVersion::V6;
-        Ok(match request.data {
+        match request.data {
             IpPacketRequestDataV6::Data(inner) => Self::Data((inner, version).into()),
             IpPacketRequestDataV6::StaticConnect(inner) => {
                 Self::Control(ControlRequest::StaticConnect((inner, version).into()))
@@ -37,7 +33,7 @@ impl TryFrom<IpPacketRequestV6> for IpPacketRequest {
             IpPacketRequestDataV6::Health(inner) => {
                 Self::Control(ControlRequest::Health((inner, version).into()))
             }
-        })
+        }
     }
 }
 

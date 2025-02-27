@@ -104,9 +104,11 @@ export default async function BlogPage({
                   <Box key={section.heading} id={section.id}>
                     <SectionHeading title={section.heading} />
                     {section.text.map(({ text }) => (
-                      <Typography key={text} variant="body2" sx={{ mt: 3 }}>
-                        <Markdown>{text}</Markdown>
-                      </Typography>
+                      <Box key={text} sx={{ mt: 3 }}>
+                        <Typography variant="body2" component="span">
+                          <Markdown>{text}</Markdown>
+                        </Typography>
+                      </Box>
                     ))}
                   </Box>
                 ))}

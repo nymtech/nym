@@ -63,15 +63,43 @@
     },
     {
       "id": "section-2",
-      "heading": "Key features",
+      "heading": "Current features",
       "text": [
         {
           "type": "parapraph",
-          "text": "Our team is already preparing with features for the next release: like enabling visitor comments on node pages, adding advanced filters for node and gateway search, role based filtering for easy overview and the much awaited dark mode - just to list a few."
+          "text": "Explorer 2.0 was designed with simplicity in mind. It’s Lightweight web-app that provides easy access on mobile and desktop that uses all new APIs providing live network and NYM token economic metrics. "
         },
         {
           "type": "paragraph",
-          "text": "Let's continue exploring together! If there is a feature that you’d like to see in a future release, or in case you found a bug: do let us know in our community channels so we can improve and tailor the explorer to your needs."
+          "text": "The new design also has a 4-star scale to display an all-in-one quality of service score that is built routing, setup & probe scores, enabling easier overview for both VPN user and stakers."
+        },
+        {
+          "type": "paragraph",
+          "text": "The new design allows anyone to track their favorite nodes using the “Fav button” that creates a local only cache about the nodes they want to keep an eye on. While the refreshed staking interface providing easy overview of accumulated rewards and one-click reward redemption from multiple nodes."
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "heading": "Upcoming features",
+      "text": [
+        {
+          "type": "parapraph",
+          "text": "Our team is already preparing with features for the next release: like enabling visitor comments on node pages, adding advanced filters for node and gateway search, role based filtering and the much awaited dark mode - just to list a few."
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "heading": "Let’s continue exploring together!",
+      "text": [
+        {
+          "type": "parapraph",
+          "text": "If there’s a feature that you’d like to see in a future release or in case you found a bug: let us know in our community channels so we can improve the explorer experience together!"
+        },
+        {
+          "type": "parapraph",
+          "text": "- [X](https://x.com/nymproject) \n\n - [Telegram](https://t.me/nymchan) \n\n - [Matrix](https://matrix.to/#/%23nym-community:nymtech.chat) \n\n - [Discord](https://nym.com/blog/discord.gg/nym) "
         }
       ]
     }

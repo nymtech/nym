@@ -17,7 +17,7 @@ export const RewardsCard = () => {
 
   if (isLoading) {
     return (
-      <ExplorerCard label="NYM Delegations">
+      <ExplorerCard label="Number of delegations">
         <Skeleton variant="text" height={90} />
       </ExplorerCard>
     );
@@ -25,7 +25,7 @@ export const RewardsCard = () => {
 
   if (isError || !observatoryNodes) {
     return (
-      <ExplorerCard label="NYM Delegations">
+      <ExplorerCard label="Number of delegations">
         <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load node data.
         </Typography>
@@ -41,7 +41,7 @@ export const RewardsCard = () => {
   const allStakers = getActiveStakersNumber(observatoryNodes);
 
   return (
-    <ExplorerCard label="NYM Delegations">
+    <ExplorerCard label="Number of delegations">
       <Typography variant="h3" sx={{ color: "pine.950" }}>
         {allStakers}
       </Typography>

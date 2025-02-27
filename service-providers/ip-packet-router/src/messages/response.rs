@@ -194,80 +194,95 @@ pub(crate) struct HealthResponse {
     pub(crate) routable: Option<bool>,
 }
 
+impl From<StaticConnectResponse> for StaticConnectResponseReplyV6 {
+    fn from(response: StaticConnectResponse) -> Self {
+        match response {
+            StaticConnectResponse::Success => StaticConnectResponseReplyV6::Success,
+            StaticConnectResponse::Failure(err) => {
+                StaticConnectResponseReplyV6::Failure(err.into())
+            }
+        }
+    }
+}
+
+impl From<DynamicConnectResponse> for DynamicConnectResponseReplyV6 {
+    fn from(response: DynamicConnectResponse) -> Self {
+        match response {
+            DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
+                DynamicConnectResponseReplyV6::Success(DynamicConnectSuccessV6 { ips })
+            }
+            DynamicConnectResponse::Failure(err) => {
+                DynamicConnectResponseReplyV6::Failure(err.into())
+            }
+        }
+    }
+}
+
+impl From<DisconnectResponse> for DisconnectResponseReplyV6 {
+    fn from(response: DisconnectResponse) -> Self {
+        match response {
+            DisconnectResponse::Success => DisconnectResponseReplyV6::Success,
+            DisconnectResponse::Failure(err) => DisconnectResponseReplyV6::Failure(err.into()),
+        }
+    }
+}
+
+impl From<HealthResponse> for HealthResponseReplyV6 {
+    fn from(response: HealthResponse) -> Self {
+        HealthResponseReplyV6 {
+            build_info: response.build_info,
+            routable: response.routable,
+        }
+    }
+}
+
 impl TryFrom<VersionedResponse> for IpPacketResponseV6 {
     type Error = IpPacketRouterError;
 
     fn try_from(response: VersionedResponse) -> std::result::Result<Self, Self::Error> {
-        Ok(match response.response {
-            Response::StaticConnect { request_id, reply } => IpPacketResponseV6 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV6::StaticConnect(StaticConnectResponseV6 {
+        let reply_to = response.reply_to.into_nym_address()?;
+        let data = match response.response {
+            Response::StaticConnect { request_id, reply } => {
+                IpPacketResponseDataV6::StaticConnect(StaticConnectResponseV6 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: match reply {
-                        StaticConnectResponse::Success => StaticConnectResponseReplyV6::Success,
-                        StaticConnectResponse::Failure(err) => {
-                            StaticConnectResponseReplyV6::Failure(err.into())
-                        }
-                    },
-                }),
-            },
-            Response::DynamicConnect { request_id, reply } => IpPacketResponseV6 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV6::DynamicConnect(DynamicConnectResponseV6 {
+                    reply_to,
+                    reply: reply.into(),
+                })
+            }
+            Response::DynamicConnect { request_id, reply } => {
+                IpPacketResponseDataV6::DynamicConnect(DynamicConnectResponseV6 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: match reply {
-                        DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
-                            DynamicConnectResponseReplyV6::Success(DynamicConnectSuccessV6 { ips })
-                        }
-                        DynamicConnectResponse::Failure(err) => {
-                            DynamicConnectResponseReplyV6::Failure(err.into())
-                        }
-                    },
-                }),
-            },
-            Response::Disconnect { request_id, reply } => IpPacketResponseV6 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV6::Disconnect(DisconnectResponseV6 {
+                    reply_to,
+                    reply: reply.into(),
+                })
+            }
+            Response::Disconnect { request_id, reply } => {
+                IpPacketResponseDataV6::Disconnect(DisconnectResponseV6 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: match reply {
-                        DisconnectResponse::Success => DisconnectResponseReplyV6::Success,
-                        DisconnectResponse::Failure(err) => {
-                            DisconnectResponseReplyV6::Failure(err.into())
-                        }
-                    },
-                }),
-            },
-            Response::Pong { request_id } => IpPacketResponseV6 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV6::Pong(PongResponseV6 {
+                    reply_to,
+                    reply: reply.into(),
+                })
+            }
+            Response::Pong { request_id } => IpPacketResponseDataV6::Pong(PongResponseV6 {
+                request_id,
+                reply_to,
+            }),
+            Response::Health { request_id, reply } => {
+                IpPacketResponseDataV6::Health(HealthResponseV6 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                }),
-            },
-            Response::Health { request_id, reply } => IpPacketResponseV6 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV6::Health(HealthResponseV6 {
-                    request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: HealthResponseReplyV6 {
-                        build_info: reply.build_info,
-                        routable: reply.routable,
-                    },
-                }),
-            },
-            Response::Info { request_id, reply } => IpPacketResponseV6 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV6::Info(InfoResponseV6 {
-                    request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: reply.reply.into(),
-                    level: reply.level.into(),
-                }),
-            },
-        })
+                    reply_to,
+                    reply: (*reply).into(),
+                })
+            }
+            Response::Info { request_id, reply } => IpPacketResponseDataV6::Info(InfoResponseV6 {
+                request_id,
+                reply_to,
+                reply: reply.reply.into(),
+                level: reply.level.into(),
+            }),
+        };
+        let version = response.version.into_u8();
+        Ok(IpPacketResponseV6 { version, data })
     }
 }
 

@@ -8,15 +8,13 @@ use nym_ip_packet_requests::v7::request::{
     PingRequest as PingRequestV7, StaticConnectRequest as StaticConnectRequestV7,
 };
 
-use crate::error::IpPacketRouterError;
-
 use super::{
     ClientVersion, ControlRequest, DataRequest, DisconnectRequest, DynamicConnectRequest,
     HealthRequest, IpPacketRequest, PingRequest, StaticConnectRequest,
 };
 
 impl From<IpPacketRequestV7> for IpPacketRequest {
-    fn from(request: IpPacketRequestV7) -> Result<Self, Self::Error> {
+    fn from(request: IpPacketRequestV7) -> Self {
         let version = ClientVersion::V7;
         match request.data {
             IpPacketRequestDataV7::Data(inner) => Self::Data((inner, version).into()),

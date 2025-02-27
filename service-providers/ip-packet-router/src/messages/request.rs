@@ -92,7 +92,7 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                     .map_err(
                         |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
                     )?;
-                IpPacketRequest::try_from(request_v6)
+                Ok(IpPacketRequest::from(request_v6))
             }
             7 => {
                 let request_v7 = IpPacketRequestV7::from_reconstructed_message(reconstructed)
@@ -102,7 +102,7 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                 request_v7
                     .verify()
                     .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
-                IpPacketRequest::try_from(request_v7)
+                Ok(IpPacketRequest::from(request_v7))
             }
             8 => {
                 let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)

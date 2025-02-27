@@ -3,8 +3,6 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::sign::SignatureError;
-
 use super::VERSION;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -75,7 +73,7 @@ pub struct HealthRequest {
 }
 
 impl IpPacketRequest {
-    pub fn new_connect_request(buffer_timeout: Option<u64>) -> Result<(Self, u64), SignatureError> {
+    pub fn new_connect_request(buffer_timeout: Option<u64>) -> (Self, u64) {
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let connect = ConnectRequest {
@@ -87,10 +85,10 @@ impl IpPacketRequest {
             version: VERSION,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Connect(connect))),
         };
-        Ok((request, request_id))
+        (request, request_id)
     }
 
-    pub fn new_disconnect_request() -> Result<(Self, u64), SignatureError> {
+    pub fn new_disconnect_request() -> (Self, u64) {
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let disconnect = DisconnectRequest {
@@ -101,7 +99,7 @@ impl IpPacketRequest {
             version: VERSION,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Disconnect(disconnect))),
         };
-        Ok((request, request_id))
+        (request, request_id)
     }
 
     pub fn new_data_request(ip_packets: bytes::Bytes) -> Self {
@@ -201,26 +199,16 @@ impl fmt::Display for ControlRequest {
 }
 
 impl ConnectRequest {
-    pub fn to_bytes(&self) -> Result<Vec<u8>, SignatureError> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
-        crate::make_bincode_serializer()
-            .serialize(self)
-            .map_err(|error| SignatureError::RequestSerializationError {
-                message: "failed to serialize request to binary".to_string(),
-                error,
-            })
+        crate::make_bincode_serializer().serialize(self)
     }
 }
 
 impl DisconnectRequest {
-    pub fn to_bytes(&self) -> Result<Vec<u8>, SignatureError> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
-        crate::make_bincode_serializer()
-            .serialize(self)
-            .map_err(|error| SignatureError::RequestSerializationError {
-                message: "failed to serialize request to binary".to_string(),
-                error,
-            })
+        crate::make_bincode_serializer().serialize(self)
     }
 }
 

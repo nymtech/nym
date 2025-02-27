@@ -101,6 +101,12 @@ pub enum IpPacketRouterError {
 
     #[error("invalid reply-to address in the response")]
     InvalidReplyTo,
+
+    #[error("missing sender tag in the request")]
+    MissingSenderTag,
+
+    #[error("unsupported response: {0}")]
+    UnsupportedResponse(String),
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

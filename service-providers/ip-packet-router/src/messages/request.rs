@@ -109,10 +109,10 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                     .map_err(
                         |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
                     )?;
-                request_v8
-                    .verify()
-                    .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
-                IpPacketRequest::try_from((request_v8, reconstructed.sender_tag))
+                let sender_tag = reconstructed
+                    .sender_tag
+                    .ok_or(IpPacketRouterError::MissingSenderTag)?;
+                Ok(IpPacketRequest::from((request_v8, sender_tag)))
             }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");

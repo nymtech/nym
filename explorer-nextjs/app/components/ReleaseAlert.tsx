@@ -6,10 +6,7 @@ export const ReleaseAlert = () => (
     <Box>
       <Typography>
         "You are now viewing the legacy Nym mixnet explorer. Check out Explorer 2.0 here link
-        <Link
-            href="https://nym.com/explorer"
-            style={{ textDecoration: 'none' }}
-        />
+        
       </Typography>
     </Box>
   </Alert>

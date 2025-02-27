@@ -17,7 +17,7 @@ export default async function StakingPage() {
         <Grid size={12}>
           <SectionHeading title="Onboarding" />
         </Grid>
-        <BlogArticlesCards ids={[2]} />
+        <BlogArticlesCards ids={[1]} />
       </Grid>
     </ContentLayout>
   );

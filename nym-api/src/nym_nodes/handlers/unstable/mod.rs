@@ -163,7 +163,7 @@ async fn nodes_by_addresses(
 
     let mut existence = HashMap::new();
     for address in body.addresses {
-        existence.insert(address, describe_cache.address_exists(address));
+        existence.insert(address, describe_cache.node_with_address(address));
     }
 
     Ok(Json(NodesByAddressesResponse { existence }))

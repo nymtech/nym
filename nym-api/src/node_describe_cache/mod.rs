@@ -85,13 +85,13 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
 #[derive(Debug, Clone)]
 pub struct DescribedNodes {
     nodes: HashMap<NodeId, NymNodeDescription>,
-    addresses_cache: HashSet<IpAddr>,
+    addresses_cache: HashMap<IpAddr, NodeId>,
 }
 
 impl DescribedNodes {
     pub fn force_update(&mut self, node: NymNodeDescription) {
         for ip in &node.description.host_information.ip_address {
-            self.addresses_cache.insert(*ip);
+            self.addresses_cache.insert(*ip, node.node_id);
         }
         self.nodes.insert(node.node_id, node);
     }
@@ -135,8 +135,8 @@ impl DescribedNodes {
             .filter(|n| n.description.declared_role.can_operate_exit_gateway())
     }
 
-    pub fn address_exists(&self, address: IpAddr) -> bool {
-        self.addresses_cache.contains(&address)
+    pub fn node_with_address(&self, address: IpAddr) -> Option<NodeId> {
+        self.addresses_cache.get(&address).copied()
     }
 }
 
@@ -405,10 +405,10 @@ impl CacheItemProvider for NodeDescriptionProvider {
         .collect::<HashMap<_, _>>()
         .await;
 
-        let mut addresses_cache = HashSet::new();
+        let mut addresses_cache = HashMap::new();
         for node in nodes.values() {
             for ip in &node.description.host_information.ip_address {
-                addresses_cache.insert(*ip);
+                addresses_cache.insert(*ip, node.node_id);
             }
         }
 

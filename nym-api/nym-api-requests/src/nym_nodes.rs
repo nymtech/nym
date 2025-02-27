@@ -222,6 +222,6 @@ pub struct NodesByAddressesRequestBody {
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 pub struct NodesByAddressesResponse {
-    #[schema(value_type = HashMap<String, bool>)]
-    pub existence: HashMap<IpAddr, bool>,
+    #[schema(value_type = HashMap<String, Option<u32>>)]
+    pub existence: HashMap<IpAddr, Option<NodeId>>,
 }

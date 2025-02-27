@@ -278,7 +278,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         if (!nodeId || !address) {
           return;
         }
-        console.log("Unstaking node", nodeId);
         setIsLoading(true);
         await nymClient?.undelegate(
           {

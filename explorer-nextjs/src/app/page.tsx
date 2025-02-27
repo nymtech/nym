@@ -60,7 +60,7 @@ export default async function Home() {
         <Grid size={12}>
           <SectionHeading title="Onboarding" />
         </Grid>
-        <BlogArticlesCards ids={[1]} />
+        <BlogArticlesCards ids={[1, 2]} />
       </Grid>
     </ContentLayout>
   );

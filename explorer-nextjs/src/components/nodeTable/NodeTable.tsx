@@ -163,6 +163,33 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
     () => [
       {
+        id: "Favorite",
+        enableColumnFilter: false,
+        header: "Favorite",
+        accessorKey: "Favorite",
+        size: 50,
+
+        Header: (
+          <Stack direction="row" alignItems="center">
+            <ColumnHeading>Fav</ColumnHeading>
+          </Stack>
+        ),
+        sortingFn: (a, b) => {
+          const aIsFavorite = favorites.includes(a.original.owner);
+          const bIsFavorite = favorites.includes(b.original.owner);
+
+          if (aIsFavorite && !bIsFavorite) {
+            return -1;
+          }
+          if (!aIsFavorite && bIsFavorite) {
+            return 1;
+          }
+          return 0;
+        },
+        Cell: ({ row }) => <Favorite address={row.original.owner} />,
+      },
+
+      {
         id: "name",
         header: "",
         Header: <ColumnHeading>Name</ColumnHeading>,
@@ -213,7 +240,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "location",
         header: "Location",
         accessorKey: "countryName",
-        size: 160,
+        size: 140,
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.countryCode && row.original.countryName ? (
@@ -231,6 +258,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "stakeSaturation",
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
+        size: 120,
+
         Header: <ColumnHeading>Saturation</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
@@ -272,32 +301,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ),
         enableSorting: false,
       },
-      {
-        id: "Favorite",
-        enableColumnFilter: false,
-        header: "Favorite",
-        accessorKey: "Favorite",
-        size: 50,
-
-        Header: (
-          <Stack direction="row" alignItems="center">
-            <ColumnHeading>Fav</ColumnHeading>
-          </Stack>
-        ),
-        sortingFn: (a, b) => {
-          const aIsFavorite = favorites.includes(a.original.owner);
-          const bIsFavorite = favorites.includes(b.original.owner);
-
-          if (aIsFavorite && !bIsFavorite) {
-            return -1;
-          }
-          if (!aIsFavorite && bIsFavorite) {
-            return 1;
-          }
-          return 0;
-        },
-        Cell: ({ row }) => <Favorite address={row.original.owner} />,
-      },
     ],
     [isWalletConnected, handleOnSelectStake, favorites],
   );
@@ -324,7 +327,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     initialState: {
-      columnPinning: isMobile ? {} : { right: ["Action", "Favorite"] }, // No pinning on mobile
+      columnPinning: isMobile ? {} : { right: ["Action"] }, // No pinning on mobile
     },
     muiColumnActionsButtonProps: {
       sx: {
@@ -343,6 +346,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     muiTableHeadCellProps: {
       sx: {
         alignItems: "center",
+        paddingRight: 0,
       },
     },
 
@@ -351,6 +355,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         border: "none",
         whiteSpace: "unset", // Allow text wrapping in body cells
         wordBreak: "break-word", // Ensure long text breaks correctly
+        paddingRight: 0,
       },
     },
     muiTableBodyRowProps: ({ row }) => ({

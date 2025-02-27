@@ -1,5 +1,6 @@
 use std::fmt;
 
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -7,7 +8,7 @@ use super::VERSION;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct IpPacketRequest {
-    pub version: u8,
+    pub protocol: Protocol,
     pub data: IpPacketRequestData,
 }
 
@@ -74,6 +75,10 @@ pub struct HealthRequest {
 
 impl IpPacketRequest {
     pub fn new_connect_request(buffer_timeout: Option<u64>) -> (Self, u64) {
+        let protocol = Protocol {
+            version: VERSION,
+            service_provider_type: ServiceProviderType::IpPacketRouter,
+        };
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let connect = ConnectRequest {
@@ -82,13 +87,17 @@ impl IpPacketRequest {
             timestamp,
         };
         let request = Self {
-            version: VERSION,
+            protocol,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Connect(connect))),
         };
         (request, request_id)
     }
 
     pub fn new_disconnect_request() -> (Self, u64) {
+        let protocol = Protocol {
+            version: VERSION,
+            service_provider_type: ServiceProviderType::IpPacketRouter,
+        };
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let disconnect = DisconnectRequest {
@@ -96,7 +105,7 @@ impl IpPacketRequest {
             timestamp,
         };
         let request = Self {
-            version: VERSION,
+            protocol,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Disconnect(disconnect))),
         };
         (request, request_id)
@@ -104,12 +113,19 @@ impl IpPacketRequest {
 
     pub fn new_data_request(ip_packets: bytes::Bytes) -> Self {
         Self {
-            version: VERSION,
+            protocol: Protocol {
+                version: VERSION,
+                service_provider_type: ServiceProviderType::IpPacketRouter,
+            },
             data: IpPacketRequestData::Data(DataRequest { ip_packets }),
         }
     }
 
     pub fn new_ping() -> (Self, u64) {
+        let protocol = Protocol {
+            version: VERSION,
+            service_provider_type: ServiceProviderType::IpPacketRouter,
+        };
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let ping_request = PingRequest {
@@ -117,13 +133,17 @@ impl IpPacketRequest {
             timestamp,
         };
         let request = Self {
-            version: VERSION,
+            protocol,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Ping(ping_request))),
         };
         (request, request_id)
     }
 
     pub fn new_health_request() -> (Self, u64) {
+        let protocol = Protocol {
+            version: VERSION,
+            service_provider_type: ServiceProviderType::IpPacketRouter,
+        };
         let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let health_request = HealthRequest {
@@ -131,7 +151,7 @@ impl IpPacketRequest {
             timestamp,
         };
         let request = Self {
-            version: VERSION,
+            protocol,
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Health(health_request))),
         };
         (request, request_id)
@@ -162,7 +182,7 @@ impl fmt::Display for IpPacketRequest {
         write!(
             f,
             "IpPacketRequest {{ version: {}, data: {} }}",
-            self.version, self.data
+            self.protocol.version, self.data
         )
     }
 }
@@ -221,31 +241,40 @@ mod tests {
     #[test]
     fn check_size_of_request() {
         let connect = IpPacketRequest {
-            version: 4,
+            protocol: Protocol {
+                version: 4,
+                service_provider_type: ServiceProviderType::IpPacketRouter,
+            },
             data: IpPacketRequestData::Control(Box::new(ControlRequest::Connect(ConnectRequest {
                 request_id: 123,
                 buffer_timeout: None,
                 timestamp: datetime!(2024-01-01 12:59:59.5 UTC),
             }))),
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 42);
+        assert_eq!(connect.to_bytes().unwrap().len(), 21);
     }
 
     #[test]
     fn check_size_of_data() {
         let data = IpPacketRequest {
-            version: 4,
+            protocol: Protocol {
+                version: 4,
+                service_provider_type: ServiceProviderType::IpPacketRouter,
+            },
             data: IpPacketRequestData::Data(DataRequest {
                 ip_packets: bytes::Bytes::from(vec![1u8; 32]),
             }),
         };
-        assert_eq!(data.to_bytes().unwrap().len(), 35);
+        assert_eq!(data.to_bytes().unwrap().len(), 36);
     }
 
     #[test]
     fn serialize_and_deserialize_data_request() {
         let data = IpPacketRequest {
-            version: 4,
+            protocol: Protocol {
+                version: 4,
+                service_provider_type: ServiceProviderType::IpPacketRouter,
+            },
             data: IpPacketRequestData::Data(DataRequest {
                 ip_packets: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
             }),
@@ -260,7 +289,11 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(deserialized.version, 4);
+        assert_eq!(deserialized.protocol.version, 4);
+        assert_eq!(
+            deserialized.protocol.service_provider_type,
+            ServiceProviderType::IpPacketRouter
+        );
         assert_eq!(
             deserialized.data,
             IpPacketRequestData::Data(DataRequest {

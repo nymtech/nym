@@ -5913,6 +5913,7 @@ dependencies = [
  "bytes",
  "nym-bin-common",
  "nym-crypto",
+ "nym-service-provider-requests-common",
  "nym-sphinx",
  "rand 0.8.5",
  "serde",
@@ -5944,6 +5945,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",
+ "nym-service-provider-requests-common",
  "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
@@ -6517,7 +6519,9 @@ dependencies = [
 name = "nym-service-provider-requests-common"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "serde",
+ "thiserror 2.0.11",
 ]
 
 [[package]]

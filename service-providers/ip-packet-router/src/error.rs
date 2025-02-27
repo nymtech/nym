@@ -7,6 +7,7 @@ pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
 use nym_id::NymIdError;
 use nym_ip_packet_requests::sign::SignatureError;
+use nym_service_provider_requests_common::{ProtocolError, ServiceProviderType};
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
@@ -96,9 +97,6 @@ pub enum IpPacketRouterError {
     #[error("failed to verify request: {source}")]
     FailedToVerifyRequest { source: SignatureError },
 
-    #[error("client is connected with an invalid version: {version}")]
-    InvalidConnectedClientVersion { version: u8 },
-
     #[error("invalid reply-to address in the response")]
     InvalidReplyTo,
 
@@ -107,6 +105,12 @@ pub enum IpPacketRouterError {
 
     #[error("unsupported response: {0}")]
     UnsupportedResponse(String),
+
+    #[error("invalid service provider type: {0}")]
+    InvalidServiceProviderType(ServiceProviderType),
+
+    #[error("failed to deserialize protocol: {source}")]
+    FailedToDeserializeProtocol { source: ProtocolError },
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

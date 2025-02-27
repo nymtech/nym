@@ -40,7 +40,7 @@ pub enum ControlResponse {
     Pong(PongResponse),
 
     // Response for a health request
-    Health(HealthResponse),
+    Health(Box<HealthResponse>),
 
     // Info response. This can be anything from informative messages to errors
     Info(InfoResponse),

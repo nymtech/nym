@@ -240,6 +240,7 @@ impl TryFrom<VersionedResponse> for IpPacketResponseV6 {
     type Error = IpPacketRouterError;
 
     fn try_from(response: VersionedResponse) -> std::result::Result<Self, Self::Error> {
+        let version = response.version.into_u8();
         let reply_to = response.reply_to.into_nym_address()?;
         let data = match response.response {
             Response::StaticConnect { request_id, reply } => {
@@ -281,8 +282,49 @@ impl TryFrom<VersionedResponse> for IpPacketResponseV6 {
                 level: reply.level.into(),
             }),
         };
-        let version = response.version.into_u8();
         Ok(IpPacketResponseV6 { version, data })
+    }
+}
+
+impl From<StaticConnectResponse> for StaticConnectResponseReplyV7 {
+    fn from(response: StaticConnectResponse) -> Self {
+        match response {
+            StaticConnectResponse::Success => StaticConnectResponseReplyV7::Success,
+            StaticConnectResponse::Failure(err) => {
+                StaticConnectResponseReplyV7::Failure(err.into())
+            }
+        }
+    }
+}
+
+impl From<DynamicConnectResponse> for DynamicConnectResponseReplyV7 {
+    fn from(response: DynamicConnectResponse) -> Self {
+        match response {
+            DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
+                DynamicConnectResponseReplyV7::Success(DynamicConnectSuccessV7 { ips })
+            }
+            DynamicConnectResponse::Failure(err) => {
+                DynamicConnectResponseReplyV7::Failure(err.into())
+            }
+        }
+    }
+}
+
+impl From<DisconnectResponse> for DisconnectResponseReplyV7 {
+    fn from(response: DisconnectResponse) -> Self {
+        match response {
+            DisconnectResponse::Success => DisconnectResponseReplyV7::Success,
+            DisconnectResponse::Failure(err) => DisconnectResponseReplyV7::Failure(err.into()),
+        }
+    }
+}
+
+impl From<HealthResponse> for HealthResponseReplyV7 {
+    fn from(response: HealthResponse) -> Self {
+        HealthResponseReplyV7 {
+            build_info: response.build_info,
+            routable: response.routable,
+        }
     }
 }
 
@@ -290,76 +332,52 @@ impl TryFrom<VersionedResponse> for IpPacketResponseV7 {
     type Error = IpPacketRouterError;
 
     fn try_from(response: VersionedResponse) -> std::result::Result<Self, Self::Error> {
-        Ok(match response.response {
-            Response::StaticConnect { request_id, reply } => IpPacketResponseV7 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV7::StaticConnect(StaticConnectResponseV7 {
+        let version = response.version.into_u8();
+        let reply_to = response.reply_to.into_nym_address()?;
+        let data = match response.response {
+            Response::StaticConnect { request_id, reply } => {
+                IpPacketResponseDataV7::StaticConnect(StaticConnectResponseV7 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: match reply {
-                        StaticConnectResponse::Success => StaticConnectResponseReplyV7::Success,
-                        StaticConnectResponse::Failure(err) => {
-                            StaticConnectResponseReplyV7::Failure(err.into())
-                        }
-                    },
-                }),
-            },
-            Response::DynamicConnect { request_id, reply } => IpPacketResponseV7 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV7::DynamicConnect(DynamicConnectResponseV7 {
+                    reply_to,
+                    reply: reply.into(),
+                })
+            }
+            Response::DynamicConnect { request_id, reply } => {
+                IpPacketResponseDataV7::DynamicConnect(DynamicConnectResponseV7 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: match reply {
-                        DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
-                            DynamicConnectResponseReplyV7::Success(DynamicConnectSuccessV7 { ips })
-                        }
-                        DynamicConnectResponse::Failure(err) => {
-                            DynamicConnectResponseReplyV7::Failure(err.into())
-                        }
-                    },
-                }),
-            },
-            Response::Disconnect { request_id, reply } => IpPacketResponseV7 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV7::Disconnect(DisconnectResponseV7 {
+                    reply_to,
+                    reply: reply.into(),
+                })
+            }
+            Response::Disconnect { request_id, reply } => {
+                IpPacketResponseDataV7::Disconnect(DisconnectResponseV7 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: match reply {
-                        DisconnectResponse::Success => DisconnectResponseReplyV7::Success,
-                        DisconnectResponse::Failure(err) => {
-                            DisconnectResponseReplyV7::Failure(err.into())
-                        }
-                    },
-                }),
-            },
-            Response::Pong { request_id } => IpPacketResponseV7 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV7::Pong(PongResponseV7 {
+                    reply_to,
+                    reply: reply.into(),
+                })
+            }
+            Response::Pong { request_id } => IpPacketResponseDataV7::Pong(PongResponseV7 {
+                request_id,
+                reply_to,
+            }),
+            Response::Health { request_id, reply } => {
+                IpPacketResponseDataV7::Health(HealthResponseV7 {
                     request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                }),
-            },
-            Response::Health { request_id, reply } => IpPacketResponseV7 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV7::Health(HealthResponseV7 {
-                    request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
+                    reply_to,
                     reply: HealthResponseReplyV7 {
                         build_info: reply.build_info,
                         routable: reply.routable,
                     },
-                }),
-            },
-            Response::Info { request_id, reply } => IpPacketResponseV7 {
-                version: response.version.into_u8(),
-                data: IpPacketResponseDataV7::Info(InfoResponseV7 {
-                    request_id,
-                    reply_to: response.reply_to.into_nym_address()?,
-                    reply: reply.reply.into(),
-                    level: reply.level.into(),
-                }),
-            },
-        })
+                })
+            }
+            Response::Info { request_id, reply } => IpPacketResponseDataV7::Info(InfoResponseV7 {
+                request_id,
+                reply_to,
+                reply: reply.reply.into(),
+                level: reply.level.into(),
+            }),
+        };
+        Ok(IpPacketResponseV7 { version, data })
     }
 }
 

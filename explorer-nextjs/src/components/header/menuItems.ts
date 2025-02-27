@@ -8,7 +8,7 @@ const MENU_DATA: MenuItem[] = [
   {
     id: 1,
     title: "Explorer",
-    url: "/explorer",
+    url: "/table",
   },
   {
     id: 2,

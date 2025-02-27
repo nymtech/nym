@@ -54,7 +54,11 @@ a {
 }
 
 .reactMarkDownLink a {
-  color: #00ca33;
+  color: #000000;
   display: inline;
   font-weight: 700;
+}
+
+.reactMarkDownList ul {
+  margin-left: 20px;
 }

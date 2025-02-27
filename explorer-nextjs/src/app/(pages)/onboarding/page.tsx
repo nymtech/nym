@@ -8,7 +8,7 @@ export default function OnboardingPage() {
     <ContentLayout>
       <SectionHeading title="Onboarding page" />
       <Grid container spacing={4}>
-        <BlogArticlesCards ids={[1]} />
+        <BlogArticlesCards ids={[1, 2]} />
       </Grid>
     </ContentLayout>
   );

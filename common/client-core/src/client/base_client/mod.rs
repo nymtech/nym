@@ -458,30 +458,12 @@ where
         // we need to:
         // - perform handshake (reg or auth)
         // - check for key upgrade
-        // - maybe perform another upgrade handshake
         // - check for bandwidth
         // - start background tasks
-        let auth_res = gateway_client
+        let _auth_res = gateway_client
             .perform_initial_authentication()
             .await
             .map_err(gateway_failure)?;
-
-        if auth_res.requires_key_upgrade {
-            // drop the shared_key arc because we don't need it and we can't hold it for the purposes of upgrade
-            drop(auth_res);
-
-            let updated_key = gateway_client
-                .upgrade_key_authenticated()
-                .await
-                .map_err(gateway_failure)?;
-
-            details_store
-                .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
-                .await.map_err(|err| {
-                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
-                ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
-            })?
-        }
 
         gateway_client
             .claim_initial_bandwidth()

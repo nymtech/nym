@@ -51,7 +51,6 @@ pub fn client_handshake<'a, S, R>(
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
     expects_credential_usage: bool,
-    derive_aes256_gcm_siv_key: bool,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
 ) -> GatewayHandshake<'a>
 where
@@ -66,8 +65,7 @@ where
         #[cfg(not(target_arch = "wasm32"))]
         shutdown,
     )
-    .with_credential_usage(expects_credential_usage)
-    .with_aes256_gcm_siv_key(derive_aes256_gcm_siv_key);
+    .with_credential_usage(expects_credential_usage);
 
     GatewayHandshake {
         handshake_future: Box::pin(state.perform_client_handshake()),

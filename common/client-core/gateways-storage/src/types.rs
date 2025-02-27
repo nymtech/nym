@@ -168,11 +168,11 @@ pub struct RegisteredGateway {
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
-    pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
-    pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
+    pub derived_aes256_gcm_siv_key: Vec<u8>,
     pub gateway_owner_address: Option<String>,
     pub gateway_listener: String,
 }
+const unused: usize = 42;
 
 impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
     type Error = BadGateway;
@@ -186,35 +186,12 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 }
             })?;
 
-        let shared_key =
-            match (
-                &value.derived_aes256_gcm_siv_key,
-                &value.derived_aes128_ctr_blake3_hmac_keys_bs58,
-            ) {
-                (None, None) => {
-                    return Err(BadGateway::MissingSharedKey {
-                        gateway_id: value.gateway_id_bs58.clone(),
-                    })
-                }
-                (Some(aes256gcm_siv), _) => {
-                    let current_key =
-                        SharedSymmetricKey::try_from_bytes(aes256gcm_siv).map_err(|source| {
-                            BadGateway::MalformedSharedKeys {
-                                gateway_id: value.gateway_id_bs58.clone(),
-                                source,
-                            }
-                        })?;
-                    SharedGatewayKey::Current(current_key)
-                }
-                (None, Some(aes128ctr_hmac)) => {
-                    let legacy_key = LegacySharedKeys::try_from_base58_string(aes128ctr_hmac)
-                        .map_err(|source| BadGateway::MalformedSharedKeys {
-                            gateway_id: value.gateway_id_bs58.clone(),
-                            source,
-                        })?;
-                    SharedGatewayKey::Legacy(legacy_key)
-                }
-            };
+        let current_key = SharedSymmetricKey::try_from_bytes(&value.derived_aes256_gcm_siv_key)
+            .map_err(|source| BadGateway::MalformedSharedKeys {
+                gateway_id: value.gateway_id_bs58.clone(),
+                source,
+            })?;
+        let shared_key = SharedGatewayKey(current_key);
 
         let gateway_owner_address = value
             .gateway_owner_address
@@ -249,16 +226,9 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
 
 impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
     fn from(value: &'a RemoteGatewayDetails) -> Self {
-        let (derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) =
-            match value.shared_key.deref() {
-                SharedGatewayKey::Current(key) => (None, Some(key.to_bytes())),
-                SharedGatewayKey::Legacy(key) => (Some(key.to_base58_string()), None),
-            };
-
         RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
-            derived_aes128_ctr_blake3_hmac_keys_bs58,
-            derived_aes256_gcm_siv_key,
+            derived_aes256_gcm_siv_key: value.shared_key.0.to_bytes(),
             gateway_owner_address: value.gateway_owner_address.as_ref().map(|o| o.to_string()),
             gateway_listener: value.gateway_listener.to_string(),
         }

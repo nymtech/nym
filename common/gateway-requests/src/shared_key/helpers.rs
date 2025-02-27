@@ -10,17 +10,9 @@ use rand::thread_rng;
 pub trait SymmetricKey {
     fn random_nonce_or_iv(&self) -> Vec<u8>;
 
-    fn encrypt(
-        &self,
-        plaintext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError>;
+    fn encrypt(&self, plaintext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError>;
 
-    fn decrypt(
-        &self,
-        ciphertext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError>;
+    fn decrypt(&self, ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError>;
 }
 
 impl SymmetricKey for SharedGatewayKey {
@@ -28,19 +20,11 @@ impl SymmetricKey for SharedGatewayKey {
         self.random_nonce_or_iv()
     }
 
-    fn encrypt(
-        &self,
-        plaintext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+    fn encrypt(&self, plaintext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError> {
         self.encrypt(plaintext, nonce)
     }
 
-    fn decrypt(
-        &self,
-        ciphertext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+    fn decrypt(&self, ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError> {
         self.decrypt(ciphertext, nonce)
     }
 }
@@ -52,20 +36,12 @@ impl SymmetricKey for SharedSymmetricKey {
         random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec()
     }
 
-    fn encrypt(
-        &self,
-        plaintext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+    fn encrypt(&self, plaintext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError> {
         let nonce = SharedGatewayKey::validate_aead_nonce(nonce)?;
         self.encrypt(plaintext, &nonce)
     }
 
-    fn decrypt(
-        &self,
-        ciphertext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+    fn decrypt(&self, ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError> {
         let nonce = SharedGatewayKey::validate_aead_nonce(nonce)?;
         self.decrypt(ciphertext, &nonce)
     }
@@ -78,20 +54,12 @@ impl SymmetricKey for LegacySharedKeys {
         random_iv::<LegacyGatewayEncryptionAlgorithm, _>(&mut rng).to_vec()
     }
 
-    fn encrypt(
-        &self,
-        plaintext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+    fn encrypt(&self, plaintext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError> {
         let iv = SharedGatewayKey::validate_cipher_iv(nonce)?;
         Ok(self.encrypt_and_tag(plaintext, iv))
     }
 
-    fn decrypt(
-        &self,
-        ciphertext: &[u8],
-        nonce: Option<&[u8]>,
-    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+    fn decrypt(&self, ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, SharedKeyUsageError> {
         let iv = SharedGatewayKey::validate_cipher_iv(nonce)?;
         self.decrypt_tagged(ciphertext, iv)
     }

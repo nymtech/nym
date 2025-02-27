@@ -158,19 +158,6 @@ impl GatewaysDetailsStore for ClientStorage {
         self.store_registered_gateway(&raw_registration).await
     }
 
-    async fn upgrade_stored_remote_gateway_key(
-        &self,
-        gateway_id: PublicKey,
-        updated_key: &SharedSymmetricKey,
-    ) -> Result<(), Self::StorageError> {
-        self.update_remote_gateway_key(
-            &gateway_id.to_base58_string(),
-            None,
-            Some(updated_key.as_bytes()),
-        )
-        .await
-    }
-
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
         self.remove_registered_gateway(gateway_id).await
     }

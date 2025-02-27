@@ -4,7 +4,7 @@
 use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
-    GatewayRequestsError, SharedGatewayKey, SymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION,
+    GatewayRequestsError, SharedGatewayKey, SymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION,AES_GCM_SIV_PROTOCOL_VERSION
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
@@ -18,14 +18,7 @@ pub mod authenticate;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub enum ClientRequest {
-    UpgradeKey {
-        hkdf_salt: Vec<u8>,
-        derived_key_digest: Vec<u8>,
-    },
-    ForgetMe {
-        client: bool,
-        stats: bool,
-    },
+    ForgetMe { client: bool, stats: bool },
 }
 
 impl ClientRequest {
@@ -41,7 +34,7 @@ impl ClientRequest {
         // SAFETY: the trait has been derived correctly with no weird variants
         let plaintext = serde_json::to_vec(self).unwrap();
         let nonce = key.random_nonce_or_iv();
-        let ciphertext = key.encrypt(&plaintext, Some(&nonce))?;
+        let ciphertext = key.encrypt(&plaintext, &nonce)?;
         Ok(ClientControlRequest::EncryptedRequest { ciphertext, nonce })
     }
 
@@ -50,7 +43,7 @@ impl ClientRequest {
         nonce: &[u8],
         key: &S,
     ) -> Result<Self, GatewayRequestsError> {
-        let plaintext = key.decrypt(ciphertext, Some(nonce))?;
+        let plaintext = key.decrypt(ciphertext, nonce)?;
         serde_json::from_slice(&plaintext)
             .map_err(|source| GatewayRequestsError::MalformedRequest { source })
     }
@@ -141,7 +134,7 @@ impl ClientControlRequest {
         let serialized_credential = cred.to_bytes();
 
         let nonce = shared_key.random_nonce_or_iv();
-        let enc_credential = shared_key.encrypt(&serialized_credential, Some(&nonce))?;
+        let enc_credential = shared_key.encrypt(&serialized_credential, &nonce)?;
 
         Ok(ClientControlRequest::EcashCredential {
             enc_credential,
@@ -154,7 +147,7 @@ impl ClientControlRequest {
         shared_key: &SharedGatewayKey,
         iv: Vec<u8>,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
-        let credential_bytes = shared_key.decrypt(&enc_credential, Some(&iv))?;
+        let credential_bytes = shared_key.decrypt(&enc_credential, &iv)?;
         CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }

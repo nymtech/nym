@@ -349,35 +349,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         Ok(SensitiveServerResponse::ForgetMeAck {}.encrypt(&self.client.shared_keys)?)
     }
 
-    async fn handle_key_upgrade(
-        &mut self,
-        hkdf_salt: Vec<u8>,
-        client_key_digest: Vec<u8>,
-    ) -> Result<ServerResponse, RequestHandlingError> {
-        if !self.client.shared_keys.is_legacy() {
-            return Ok(ServerResponse::new_error(
-                "the connection is already using an aes256-gcm-siv key",
-            ));
-        }
-        let legacy_key = self.client.shared_keys.unwrap_legacy();
-        let Some(upgraded_key) = legacy_key.upgrade_verify(&hkdf_salt, &client_key_digest) else {
-            return Ok(ServerResponse::new_error(
-                "failed to derive matching aes256-gcm-siv key",
-            ));
-        };
-
-        let updated_key = upgraded_key.into();
-        self.inner
-            .shared_state
-            .storage
-            .insert_shared_keys(self.client.address, &updated_key)
-            .await?;
-
-        // swap the in-memory key
-        self.client.shared_keys = updated_key;
-        Ok(SensitiveServerResponse::KeyUpgradeAck {}.encrypt(&self.client.shared_keys)?)
-    }
-
     async fn handle_encrypted_text_request(
         &mut self,
         ciphertext: Vec<u8>,
@@ -388,10 +359,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         };
 
         match req {
-            ClientRequest::UpgradeKey {
-                hkdf_salt,
-                derived_key_digest,
-            } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
             ClientRequest::ForgetMe { client, stats } => self.handle_forget_me(client, stats).await,
             _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }

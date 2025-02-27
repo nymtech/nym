@@ -21,20 +21,13 @@ pub trait HandshakeMessage {
 pub struct Initialisation {
     pub identity: ed25519::PublicKey,
     pub ephemeral_dh: x25519::PublicKey,
-    pub initiator_salt: Option<Vec<u8>>,
-}
-
-impl Initialisation {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn is_legacy(&self) -> bool {
-        self.initiator_salt.is_none()
-    }
+    pub initiator_salt: Vec<u8>,
 }
 
 #[derive(Debug)]
 pub struct MaterialExchange {
     pub signature_ciphertext: Vec<u8>,
-    pub nonce: Option<Vec<u8>>,
+    pub nonce: Vec<u8>,
 }
 
 impl MaterialExchange {
@@ -72,17 +65,12 @@ impl HandshakeMessage for Initialisation {
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
     fn into_bytes(self) -> Vec<u8> {
-        let bytes = self
-            .identity
+        self.identity
             .to_bytes()
             .into_iter()
-            .chain(self.ephemeral_dh.to_bytes());
-
-        if let Some(salt) = self.initiator_salt {
-            bytes.chain(salt).collect()
-        } else {
-            bytes.collect()
-        }
+            .chain(self.ephemeral_dh.to_bytes())
+            .chain(self.initiator_salt)
+            .collect()
     }
 
     // this will need to be adjusted when REMOTE_ID_PUBKEY is removed
@@ -90,9 +78,8 @@ impl HandshakeMessage for Initialisation {
     where
         Self: Sized,
     {
-        let legacy_len = ed25519::PUBLIC_KEY_LENGTH + x25519::PUBLIC_KEY_SIZE;
-        let current_len = legacy_len + KDF_SALT_LENGTH;
-        if bytes.len() != legacy_len && bytes.len() != current_len {
+        let current_len = ed25519::PUBLIC_KEY_LENGTH + x25519::PUBLIC_KEY_SIZE + KDF_SALT_LENGTH;
+        if bytes.len() != current_len {
             return Err(HandshakeError::MalformedRequest);
         }
 
@@ -101,14 +88,13 @@ impl HandshakeMessage for Initialisation {
 
         // this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
         // which is impossible
-        let ephemeral_dh =
-            x25519::PublicKey::from_bytes(&bytes[ed25519::PUBLIC_KEY_LENGTH..legacy_len]).unwrap();
+        let ephemeral_dh = x25519::PublicKey::from_bytes(
+            &bytes
+                [ed25519::PUBLIC_KEY_LENGTH..ed25519::PUBLIC_KEY_LENGTH + x25519::PUBLIC_KEY_SIZE],
+        )
+        .unwrap();
 
-        let initiator_salt = if bytes.len() == legacy_len {
-            None
-        } else {
-            Some(bytes[legacy_len..].to_vec())
-        };
+        let initiator_salt = bytes[ed25519::PUBLIC_KEY_LENGTH + x25519::PUBLIC_KEY_SIZE..].to_vec();
 
         Ok(Initialisation {
             identity,
@@ -121,43 +107,29 @@ impl HandshakeMessage for Initialisation {
 impl HandshakeMessage for MaterialExchange {
     // AES(k, SIG(PRIV_GATE, G^y || G^x))
     fn into_bytes(self) -> Vec<u8> {
-        if let Some(nonce) = self.nonce {
-            self.signature_ciphertext
-                .iter()
-                .cloned()
-                .chain(nonce)
-                .collect()
-        } else {
-            self.signature_ciphertext.to_vec()
-        }
+        self.signature_ciphertext
+            .iter()
+            .cloned()
+            .chain(self.nonce)
+            .collect()
     }
 
     fn try_from_bytes(bytes: &[u8]) -> Result<Self, HandshakeError>
     where
         Self: Sized,
     {
-        // we expect to receive either:
-        // LEGACY: ed25519 signature ciphertext (64 bytes)
         // CURRENT: ed25519 signature ciphertext (+ tag) + AES256-GCM-SIV nonce (76 bytes)
-        let legacy_len = ed25519::SIGNATURE_LENGTH;
-        let current_len = legacy_len
+        let current_len = ed25519::SIGNATURE_LENGTH
             + tag_size::<GatewayEncryptionAlgorithm>()
             + nonce_size::<GatewayEncryptionAlgorithm>();
 
-        if bytes.len() != legacy_len && bytes.len() != current_len {
+        if bytes.len() != current_len {
             return Err(HandshakeError::MalformedResponse);
         }
 
-        let (signature_ciphertext, nonce) = if bytes.len() == current_len {
-            let ciphertext_len =
-                ed25519::SIGNATURE_LENGTH + tag_size::<GatewayEncryptionAlgorithm>();
-            (
-                bytes[..ciphertext_len].to_vec(),
-                Some(bytes[ciphertext_len..].to_vec()),
-            )
-        } else {
-            (bytes.to_vec(), None)
-        };
+        let ciphertext_len = ed25519::SIGNATURE_LENGTH + tag_size::<GatewayEncryptionAlgorithm>();
+        let signature_ciphertext = bytes[..ciphertext_len].to_vec();
+        let nonce = bytes[ciphertext_len..].to_vec();
 
         Ok(MaterialExchange {
             signature_ciphertext,

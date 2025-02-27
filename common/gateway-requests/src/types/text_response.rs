@@ -27,7 +27,7 @@ impl SensitiveServerResponse {
         // SAFETY: the trait has been derived correctly with no weird variants
         let plaintext = serde_json::to_vec(self).unwrap();
         let nonce = key.random_nonce_or_iv();
-        let ciphertext = key.encrypt(&plaintext, Some(&nonce))?;
+        let ciphertext = key.encrypt(&plaintext, &nonce)?;
         Ok(ServerResponse::EncryptedResponse { ciphertext, nonce })
     }
 
@@ -36,7 +36,7 @@ impl SensitiveServerResponse {
         nonce: &[u8],
         key: &S,
     ) -> Result<Self, GatewayRequestsError> {
-        let plaintext = key.decrypt(ciphertext, Some(nonce))?;
+        let plaintext = key.decrypt(ciphertext, nonce)?;
         serde_json::from_slice(&plaintext)
             .map_err(|source| GatewayRequestsError::MalformedRequest { source })
     }

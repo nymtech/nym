@@ -80,29 +80,12 @@ pub mod v1_1_33 {
     }
 
     fn gateway_details_from_raw(
-        gateway_id: String,
-        gateway_owner: String,
-        gateway_listener: String,
+        _gateway_id: String,
+        _gateway_owner: String,
+        _gateway_listener: String,
         gateway_shared_key: LegacySharedKeys,
     ) -> Result<GatewayDetails, ClientCoreError> {
-        Ok(GatewayDetails::Remote(RemoteGatewayDetails {
-            gateway_id: gateway_id
-                .parse()
-                .map_err(|err| ClientCoreError::UpgradeFailure {
-                    message: format!("the stored gateway id was malformed: {err}"),
-                })?,
-            shared_key: Arc::new(gateway_shared_key.into()),
-            gateway_owner_address: Some(gateway_owner.parse().map_err(|err| {
-                ClientCoreError::UpgradeFailure {
-                    message: format!("the stored gateway owner address was malformed: {err}"),
-                }
-            })?),
-            gateway_listener: gateway_listener.parse().map_err(|err| {
-                ClientCoreError::UpgradeFailure {
-                    message: format!("the stored gateway listener address was malformed: {err}"),
-                }
-            })?,
-        }))
+        todo!();
     }
 
     // helper to extract shared key and gateway details into the new GatewayRegistration

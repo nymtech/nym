@@ -96,29 +96,6 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         Ok(())
     }
 
-    async fn upgrade_stored_remote_gateway_key(
-        &self,
-        gateway_id: PublicKey,
-        updated_key: &SharedSymmetricKey,
-    ) -> Result<(), Self::StorageError> {
-        let mut guard = self.inner.write().await;
-
-        #[allow(clippy::unwrap_used)]
-        if let Some(target) = guard.gateways.get_mut(&gateway_id.to_string()) {
-            let GatewayDetails::Remote(details) = &mut target.details else {
-                return Ok(());
-            };
-            assert_eq!(Arc::strong_count(&details.shared_key), 1);
-
-            // eh. that's nasty, but it's only ever used for ephemeral clients so should be fine for now...
-            details.shared_key = Arc::new(SharedGatewayKey::Current(
-                SharedSymmetricKey::try_from_bytes(updated_key.as_bytes()).unwrap(),
-            ))
-        }
-
-        Ok(())
-    }
-
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
         let mut guard = self.inner.write().await;
         if let Some(active) = guard.active_gateway.as_ref() {

@@ -171,8 +171,7 @@ impl GatewayStorage {
             .insert_shared_keys(
                 client_id,
                 client_address_bs58,
-                shared_keys.aes128_ctr_hmac_bs58().as_deref(),
-                shared_keys.aes256_gcm_siv().as_deref(),
+                shared_keys.to_bytes().as_ref(),
             )
             .await?;
         Ok(client_id)

@@ -62,12 +62,6 @@ pub trait GatewaysDetailsStore {
         details: &GatewayRegistration,
     ) -> Result<(), Self::StorageError>;
 
-    async fn upgrade_stored_remote_gateway_key(
-        &self,
-        gateway_id: identity::PublicKey,
-        updated_key: &SharedSymmetricKey,
-    ) -> Result<(), Self::StorageError>;
-
     /// Remove given gateway details from the underlying store.
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError>;
 }

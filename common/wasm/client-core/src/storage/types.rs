@@ -18,10 +18,8 @@ pub struct WasmRawRegisteredGateway {
     #[zeroize(skip)]
     pub registration_timestamp: OffsetDateTime,
 
-    pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
-
     #[serde(default)]
-    pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
+    pub derived_aes256_gcm_siv_key: Vec<u8>,
 
     pub gateway_owner_address: Option<String>,
 
@@ -35,8 +33,6 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
         // offload some parsing to an existing impl
         let raw_remote = RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id_bs58,
-            derived_aes128_ctr_blake3_hmac_keys_bs58: value
-                .derived_aes128_ctr_blake3_hmac_keys_bs58,
             derived_aes256_gcm_siv_key: value.derived_aes256_gcm_siv_key,
             gateway_owner_address: value.gateway_owner_address,
             gateway_listener: value.gateway_listener,
@@ -56,16 +52,11 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             panic!("somehow obtained custom gateway registration in wasm!")
         };
 
-        let (derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) =
-            match remote_details.shared_key.deref() {
-                SharedGatewayKey::Current(key) => (None, Some(key.to_bytes())),
-                SharedGatewayKey::Legacy(key) => (Some(key.to_base58_string()), None),
-            };
+        let derived_aes256_gcm_siv_key = remote_details.shared_key.deref().0.to_vec();
 
         WasmRawRegisteredGateway {
             gateway_id_bs58: remote_details.gateway_id.to_string(),
             registration_timestamp: value.registration_timestamp,
-            derived_aes128_ctr_blake3_hmac_keys_bs58,
             derived_aes256_gcm_siv_key,
             gateway_listener: remote_details.gateway_listener.to_string(),
             gateway_owner_address: remote_details

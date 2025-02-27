@@ -17,16 +17,13 @@ use super::{
     DynamicConnectRequest, HealthRequest, IpPacketRequest, PingRequest, StaticConnectRequest,
 };
 
-impl TryFrom<(IpPacketRequestV8, Option<AnonymousSenderTag>, ClientVersion)> for IpPacketRequest {
+impl TryFrom<(IpPacketRequestV8, Option<AnonymousSenderTag>)> for IpPacketRequest {
     type Error = IpPacketRouterError;
 
     fn try_from(
-        (request, sender_tag, version): (
-            IpPacketRequestV8,
-            Option<AnonymousSenderTag>,
-            ClientVersion,
-        ),
+        (request, sender_tag): (IpPacketRequestV8, Option<AnonymousSenderTag>),
     ) -> Result<Self, Self::Error> {
+        let version = ClientVersion::V8;
         Ok(match request.data {
             IpPacketRequestDataV8::Data(inner) => Self::Data((inner, version).into()),
             IpPacketRequestDataV8::Control(inner) => {

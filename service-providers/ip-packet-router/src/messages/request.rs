@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod v6;
+mod v7;
 mod v8;
 
 use nym_ip_packet_requests::{
@@ -84,14 +86,13 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
             .first()
             .ok_or(IpPacketRouterError::EmptyPacket)?;
 
-        let (deserialized, version) = match request_version {
+        match request_version {
             6 => {
                 let request_v6 = IpPacketRequestV6::from_reconstructed_message(reconstructed)
                     .map_err(
                         |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
                     )?;
-                let request_v7 = IpPacketRequestV7::from(request_v6);
-                (IpPacketRequestV8::from(request_v7), ClientVersion::V6)
+                IpPacketRequest::try_from(request_v6)
             }
             7 => {
                 let request_v7 = IpPacketRequestV7::from_reconstructed_message(reconstructed)
@@ -101,7 +102,7 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                 request_v7
                     .verify()
                     .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
-                (IpPacketRequestV8::from(request_v7), ClientVersion::V7)
+                IpPacketRequest::try_from(request_v7)
             }
             8 => {
                 let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
@@ -111,15 +112,13 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                 request_v8
                     .verify()
                     .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
-                (request_v8, ClientVersion::V8)
+                IpPacketRequest::try_from((request_v8, reconstructed.sender_tag))
             }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");
-                return Err(IpPacketRouterError::InvalidPacketVersion(request_version));
+                Err(IpPacketRouterError::InvalidPacketVersion(request_version))
             }
-        };
-
-        IpPacketRequest::try_from((deserialized, reconstructed.sender_tag, version))
+        }
     }
 }
 

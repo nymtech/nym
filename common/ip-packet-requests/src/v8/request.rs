@@ -260,6 +260,13 @@ impl IpPacketRequest {
         (request, request_id)
     }
 
+    pub fn id(&self) -> Option<u64> {
+        match self.data {
+            IpPacketRequestData::Control(ref c) => Some(c.id()),
+            IpPacketRequestData::Data(_) => None,
+        }
+    }
+
     pub fn verify(&self) -> Result<(), SignatureError> {
         match &self.data {
             IpPacketRequestData::Control(c) => c.verify(),
@@ -300,6 +307,16 @@ impl fmt::Display for IpPacketRequestData {
 }
 
 impl ControlRequest {
+    fn id(&self) -> u64 {
+        match self {
+            ControlRequest::StaticConnect(request) => request.request.request_id,
+            ControlRequest::DynamicConnect(request) => request.request.request_id,
+            ControlRequest::Disconnect(request) => request.request.request_id,
+            ControlRequest::Ping(request) => request.request_id,
+            ControlRequest::Health(request) => request.request_id,
+        }
+    }
+
     fn verify(&self) -> Result<(), SignatureError> {
         match self {
             ControlRequest::StaticConnect(request) => request.verify(),

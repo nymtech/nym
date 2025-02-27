@@ -95,9 +95,13 @@ export default async function BlogPage({
                 />
                 <Box>
                   {blogArticle.overview.content.map(({ text }) => (
-                    <Typography key={text} variant="body2" sx={{ mt: 3 }}>
-                      {text}
-                    </Typography>
+                    <Box key={text} sx={{ mt: 3 }}>
+                      <Typography variant="body2" component="span">
+                        <Markdown className="reactMarkDownLink reactMarkDownList">
+                          {text}
+                        </Markdown>
+                      </Typography>
+                    </Box>
                   ))}
                 </Box>
                 {blogArticle.sections.map((section) => (

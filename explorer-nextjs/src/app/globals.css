@@ -62,3 +62,7 @@ a {
 .reactMarkDownList ul {
   margin-left: 20px;
 }
+
+.reactMarkDownList ol {
+  margin-left: 20px;
+}

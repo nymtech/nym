@@ -5,12 +5,9 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
-use crate::registration::handshake::{SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
+use crate::registration::handshake::{WsItem, KDF_SALT_LENGTH};
 use crate::shared_key::SharedKeySize;
-use crate::{
-    types, LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
-};
+use crate::{types, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
@@ -52,7 +49,7 @@ pub(crate) struct State<'a, S, R> {
     ephemeral_keypair: x25519::KeyPair,
 
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_keys: Option<SharedGatewayKey>,
+    derived_shared_keys: Option<SharedSymmetricKey>,
 
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
@@ -154,7 +151,7 @@ impl<'a, S, R> State<'a, S, R> {
         let shared_key = SharedSymmetricKey::try_from_bytes(&okm)
             .expect("okm was expanded to incorrect length!");
 
-        self.derived_shared_keys = Some(SharedGatewayKey(shared_key))
+        self.derived_shared_keys = Some(shared_key)
     }
 
     // produces AES(k, SIG(ID_PRIV, G^x || G^y),
@@ -173,7 +170,7 @@ impl<'a, S, R> State<'a, S, R> {
         let signature = self.identity.private_key().sign(plaintext);
 
         let mut rng = thread_rng();
-        let nonce = random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec();
+        let nonce = random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng);
 
         // SAFETY: this function is only called after the local key has already been derived
         let signature_ciphertext = self
@@ -200,7 +197,7 @@ impl<'a, S, R> State<'a, S, R> {
             .expect("shared key was not derived!");
 
         // first decrypt received data
-        let decrypted_signature = derived_shared_key.decrypt_naive(
+        let decrypted_signature = derived_shared_key.decrypt(
             &remote_response.signature_ciphertext,
             &remote_response.nonce,
         )?;
@@ -355,7 +352,7 @@ impl<'a, S, R> State<'a, S, R> {
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedGatewayKey {
+    pub(crate) fn finalize_handshake(self) -> SharedSymmetricKey {
         self.derived_shared_keys.unwrap()
     }
 

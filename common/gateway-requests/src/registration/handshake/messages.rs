@@ -4,7 +4,7 @@
 use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::KDF_SALT_LENGTH;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_crypto::symmetric::aead::{nonce_size, tag_size};
+use nym_crypto::symmetric::aead::{nonce_size, tag_size, Nonce};
 use nym_sphinx::params::GatewayEncryptionAlgorithm;
 
 // it is vital nobody changes the serialisation implementation unless you have an EXTREMELY good reason,
@@ -27,7 +27,7 @@ pub struct Initialisation {
 #[derive(Debug)]
 pub struct MaterialExchange {
     pub signature_ciphertext: Vec<u8>,
-    pub nonce: Vec<u8>,
+    pub nonce: Nonce<GatewayEncryptionAlgorithm>,
 }
 
 impl MaterialExchange {
@@ -129,7 +129,9 @@ impl HandshakeMessage for MaterialExchange {
 
         let ciphertext_len = ed25519::SIGNATURE_LENGTH + tag_size::<GatewayEncryptionAlgorithm>();
         let signature_ciphertext = bytes[..ciphertext_len].to_vec();
-        let nonce = bytes[ciphertext_len..].to_vec();
+
+        // SAFETY: we know the bytes have correct length
+        let nonce = Nonce::<GatewayEncryptionAlgorithm>::clone_from_slice(&bytes[ciphertext_len..]);
 
         Ok(MaterialExchange {
             signature_ciphertext,

@@ -3,7 +3,7 @@
 
 use crate::{
     BinaryRequest, BinaryRequestKind, BinaryResponse, BinaryResponseKind, GatewayRequestsError,
-    SharedGatewayKey,
+    SharedSymmetricKey,
 };
 use std::iter::once;
 
@@ -36,7 +36,7 @@ impl<'a> BinaryData<'a> {
     // attempts to perform basic parsing on bytes received from the wire
     pub fn from_raw(
         raw: &'a [u8],
-        available_key: &SharedGatewayKey,
+        available_key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
         if raw.len() < 2 {
             return Err(GatewayRequestsError::TooShortRequest);
@@ -68,7 +68,7 @@ impl<'a> BinaryData<'a> {
     pub fn make_encrypted_blob(
         kind: u8,
         plaintext: &[u8],
-        key: &SharedGatewayKey,
+        key: &SharedSymmetricKey,
     ) -> Result<Vec<u8>, GatewayRequestsError> {
         let nonce = key.random_nonce();
 
@@ -85,17 +85,16 @@ impl<'a> BinaryData<'a> {
     // attempts to parse previously recovered bytes into a [`BinaryRequest`]
     pub fn into_request(
         self,
-        key: &SharedGatewayKey,
+        key: &SharedSymmetricKey,
     ) -> Result<BinaryRequest, GatewayRequestsError> {
         let kind = BinaryRequestKind::from_repr(self.kind)
             .ok_or(GatewayRequestsError::UnknownRequestKind { kind: self.kind })?;
 
         let plaintext = if self.encrypted {
-            let Some(nonce) = self.maybe_nonce else {
-                todo!()
-            };
+            let raw_nonce = self.maybe_nonce.unwrap_or(&[]);
+            let nonce = SharedSymmetricKey::validate_aead_nonce(raw_nonce)?;
 
-            &*key.decrypt(self.data, nonce)?
+            &*key.decrypt(self.data, &nonce)?
         } else {
             self.data
         };
@@ -106,18 +105,16 @@ impl<'a> BinaryData<'a> {
     // attempts to parse previously recovered bytes into a [`BinaryResponse`]
     pub fn into_response(
         self,
-        key: &SharedGatewayKey,
+        key: &SharedSymmetricKey,
     ) -> Result<BinaryResponse, GatewayRequestsError> {
         let kind = BinaryResponseKind::from_repr(self.kind)
             .ok_or(GatewayRequestsError::UnknownResponseKind { kind: self.kind })?;
 
         let plaintext = if self.encrypted {
-            let Some(nonce) = self.maybe_nonce else {
-                let unused = "aa";
-                todo!()
-            };
+            let raw_nonce = self.maybe_nonce.unwrap_or(&[]);
+            let nonce = SharedSymmetricKey::validate_aead_nonce(raw_nonce)?;
 
-            &*key.decrypt(self.data, nonce)?
+            &*key.decrypt(self.data, &nonce)?
         } else {
             self.data
         };

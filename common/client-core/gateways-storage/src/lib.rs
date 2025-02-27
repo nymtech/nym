@@ -6,7 +6,6 @@
 
 use async_trait::async_trait;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_requests::SharedSymmetricKey;
 use std::error::Error;
 
 pub mod backend;

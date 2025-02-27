@@ -118,9 +118,16 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
 
         match &details.details {
             GatewayDetails::Remote(remote_details) => {
-                let raw_details = remote_details.into();
                 self.manager
-                    .set_remote_gateway_details(&raw_details)
+                    .set_remote_gateway_details(
+                        remote_details.gateway_id.to_base58_string(),
+                        remote_details.shared_key.as_bytes(),
+                        remote_details
+                            .gateway_owner_address
+                            .as_ref()
+                            .map(|o| o.to_string()),
+                        remote_details.gateway_listener.to_string(),
+                    )
                     .await?;
             }
             GatewayDetails::Custom(custom_details) => {

@@ -3,7 +3,7 @@
 
 use crate::error::GatewayStorageError;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
-use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use sqlx::FromRow;
 use time::OffsetDateTime;
 
@@ -22,13 +22,12 @@ pub struct PersistedSharedKeys {
     pub last_used_authentication: Option<OffsetDateTime>,
 }
 
-impl TryFrom<PersistedSharedKeys> for SharedGatewayKey {
+impl TryFrom<PersistedSharedKeys> for SharedSymmetricKey {
     type Error = GatewayStorageError;
 
     fn try_from(value: PersistedSharedKeys) -> Result<Self, Self::Error> {
-        let current_key = SharedSymmetricKey::try_from_bytes(&value.derived_aes256_gcm_siv_key)
-            .map_err(|source| GatewayStorageError::DataCorruption(source.to_string()))?;
-        Ok(SharedGatewayKey(current_key))
+        SharedSymmetricKey::try_from_bytes(&value.derived_aes256_gcm_siv_key)
+            .map_err(|source| GatewayStorageError::DataCorruption(source.to_string()))
     }
 }
 

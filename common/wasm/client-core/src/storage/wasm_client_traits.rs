@@ -10,7 +10,6 @@ use std::error::Error;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 use wasm_storage::traits::BaseWasmStorage;
-use zeroize::Zeroize;
 
 // v1 tables
 pub(crate) mod v1 {

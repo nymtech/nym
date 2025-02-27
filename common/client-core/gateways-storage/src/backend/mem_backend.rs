@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ActiveGateway, GatewayRegistration};
-use crate::{BadGateway, GatewayDetails, GatewaysDetailsStore};
+use crate::{BadGateway, GatewaysDetailsStore};
 use async_trait::async_trait;
-use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_gateway_requests::{SharedGatewayKey, SharedSymmetricKey};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;

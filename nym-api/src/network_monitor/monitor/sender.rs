@@ -17,7 +17,7 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::client::GatewayConfig;
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{
-    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedGatewayKey,
+    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedSymmetricKey,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use pin_project::pin_project;
@@ -94,7 +94,7 @@ struct FreshGatewayClientData {
     gateway_response_timeout: Duration,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
-    gateways_key_cache: DashMap<ed25519::PublicKey, Arc<SharedGatewayKey>>,
+    gateways_key_cache: DashMap<ed25519::PublicKey, Arc<SharedSymmetricKey>>,
 }
 
 impl FreshGatewayClientData {
@@ -267,7 +267,7 @@ impl PacketSender {
         connection_timeout: Duration,
         bandwidth_claim_timeout: Duration,
         client: &mut GatewayClientHandle,
-    ) -> Option<Arc<SharedGatewayKey>> {
+    ) -> Option<Arc<SharedSymmetricKey>> {
         let gateway_identity = client.gateway_identity();
 
         // 1. attempt to authenticate

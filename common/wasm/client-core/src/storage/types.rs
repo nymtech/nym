@@ -4,9 +4,7 @@
 use nym_client_core::client::base_client::storage::gateways_storage::{
     BadGateway, GatewayDetails, GatewayRegistration, RawRemoteGatewayDetails, RemoteGatewayDetails,
 };
-use nym_gateway_client::SharedGatewayKey;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
 use time::OffsetDateTime;
 use zeroize::Zeroize;
 
@@ -52,7 +50,7 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             panic!("somehow obtained custom gateway registration in wasm!")
         };
 
-        let derived_aes256_gcm_siv_key = remote_details.shared_key.deref().0.to_vec();
+        let derived_aes256_gcm_siv_key = remote_details.shared_key.to_bytes().to_vec();
 
         WasmRawRegisteredGateway {
             gateway_id_bs58: remote_details.gateway_id.to_string(),

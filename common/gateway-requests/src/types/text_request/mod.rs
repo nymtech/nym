@@ -4,7 +4,7 @@
 use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
-    GatewayRequestsError, SharedGatewayKey, SymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION,AES_GCM_SIV_PROTOCOL_VERSION
+    GatewayRequestsError, SharedSymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION,AES_GCM_SIV_PROTOCOL_VERSION
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
@@ -22,9 +22,9 @@ pub enum ClientRequest {
 }
 
 impl ClientRequest {
-    pub fn encrypt<S: SymmetricKey>(
+    pub fn encrypt(
         &self,
-        key: &S,
+        key: &SharedSymmetricKey,
     ) -> Result<ClientControlRequest, GatewayRequestsError> {
         // we're using json representation for few reasons:
         // - ease of re-implementation in other languages (compared to for example bincode)
@@ -33,17 +33,21 @@ impl ClientRequest {
 
         // SAFETY: the trait has been derived correctly with no weird variants
         let plaintext = serde_json::to_vec(self).unwrap();
-        let nonce = key.random_nonce_or_iv();
+        let nonce = key.random_nonce();
         let ciphertext = key.encrypt(&plaintext, &nonce)?;
-        Ok(ClientControlRequest::EncryptedRequest { ciphertext, nonce })
+        Ok(ClientControlRequest::EncryptedRequest {
+            ciphertext,
+            nonce: nonce.to_vec(),
+        })
     }
 
-    pub fn decrypt<S: SymmetricKey>(
+    pub fn decrypt(
         ciphertext: &[u8],
         nonce: &[u8],
-        key: &S,
+        key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
-        let plaintext = key.decrypt(ciphertext, nonce)?;
+        let nonce = SharedSymmetricKey::validate_aead_nonce(nonce)?;
+        let plaintext = key.decrypt(ciphertext, &nonce)?;
         serde_json::from_slice(&plaintext)
             .map_err(|source| GatewayRequestsError::MalformedRequest { source })
     }
@@ -64,7 +68,8 @@ pub enum ClientControlRequest {
 
     EcashCredential {
         enc_credential: Vec<u8>,
-        iv: Vec<u8>,
+        #[serde(alias = "iv")]
+        nonce: Vec<u8>,
     },
     ClaimFreeTestnetBandwidth,
     EncryptedRequest {
@@ -95,10 +100,11 @@ pub enum ClientControlRequest {
 
 impl ClientControlRequest {
     pub fn new_authenticate_v2(
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
         identity_keys: &ed25519::KeyPair,
     ) -> Result<Self, GatewayRequestsError> {
         // if we're using v2 authentication, we must announce at least that protocol version
+        // (which also implicitly implies usage of AES256-GCM-SIV
         let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
 
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
@@ -128,26 +134,27 @@ impl ClientControlRequest {
 
     pub fn new_enc_ecash_credential(
         credential: CredentialSpendingData,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
         let cred = CredentialSpendingRequest::new(credential);
         let serialized_credential = cred.to_bytes();
 
-        let nonce = shared_key.random_nonce_or_iv();
+        let nonce = shared_key.random_nonce();
         let enc_credential = shared_key.encrypt(&serialized_credential, &nonce)?;
 
         Ok(ClientControlRequest::EcashCredential {
             enc_credential,
-            iv: nonce,
+            nonce: nonce.to_vec(),
         })
     }
 
     pub fn try_from_enc_ecash_credential(
         enc_credential: Vec<u8>,
-        shared_key: &SharedGatewayKey,
-        iv: Vec<u8>,
+        shared_key: &SharedSymmetricKey,
+        nonce: Vec<u8>,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
-        let credential_bytes = shared_key.decrypt(&enc_credential, &iv)?;
+        let nonce = SharedSymmetricKey::validate_aead_nonce(&nonce)?;
+        let credential_bytes = shared_key.decrypt(&enc_credential, &nonce)?;
         CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }

@@ -16,15 +16,17 @@ use futures::{
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
+use nym_crypto::symmetric::aead::Nonce;
 use nym_gateway_requests::authenticate::AuthenticateRequest;
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    AuthenticationFailure, BinaryResponse, GatewayProtocolVersionExt, SharedGatewayKey,
-    CURRENT_PROTOCOL_VERSION,
+    AuthenticationFailure, BinaryResponse, GatewayProtocolVersionExt, SharedSymmetricKey,
+    CURRENT_PROTOCOL_VERSION,SharedKeyUsageError
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_node_metrics::events::MetricsEvent;
+use nym_sphinx::params::GatewayEncryptionAlgorithm;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use rand::CryptoRng;
@@ -47,6 +49,9 @@ pub(crate) enum InitialAuthenticationError {
 
     #[error("attempted to overwrite client session with a stale authentication")]
     StaleSessionOverwrite,
+
+    #[error(transparent)]
+    KeyUsageFailure(#[from] SharedKeyUsageError),
 
     #[error("Internal gateway storage error")]
     StorageError(#[from] GatewayStorageError),
@@ -173,7 +178,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+    ) -> Result<SharedSymmetricKey, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -255,7 +260,7 @@ impl<R, S> FreshHandler<R, S> {
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
     pub(crate) async fn push_packets_to_client(
         &mut self,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
         packets: Vec<Vec<u8>>,
     ) -> Result<(), WsError>
     where
@@ -313,7 +318,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
     ) -> Result<(), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -371,16 +376,17 @@ impl<R, S> FreshHandler<R, S> {
         &self,
         client_protocol: u8,
     ) -> Result<u8, InitialAuthenticationError> {
+        let incompatible_err = InitialAuthenticationError::IncompatibleProtocol {
+            client: client_protocol,
+            current: CURRENT_PROTOCOL_VERSION,
+        };
+
         debug!("client protocol: {client_protocol}, ours: {CURRENT_PROTOCOL_VERSION}");
 
-        // gateway will reject any requests from clients that do not support auth v2
-        if !client_protocol.supports_authenticate_v2() {
-            let err = InitialAuthenticationError::IncompatibleProtocol {
-                client: client_protocol,
-                current: CURRENT_PROTOCOL_VERSION,
-            };
-            error!("{err}");
-            return Err(err);
+        // gateway will reject any requests from clients that do not support auth v2 or aes256gcm
+        if !client_protocol.supports_authenticate_v2() || !client_protocol.supports_aes256_gcm_siv() {
+            error!("{incompatible_err}");
+            return Err(incompatible_err);
         }
 
         // we can't handle clients with higher protocol than ours
@@ -389,12 +395,8 @@ impl<R, S> FreshHandler<R, S> {
             debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
             Ok(CURRENT_PROTOCOL_VERSION)
         } else {
-            let err = InitialAuthenticationError::IncompatibleProtocol {
-                client: client_protocol,
-                current: CURRENT_PROTOCOL_VERSION,
-            };
-            error!("{err}");
-            Err(err)
+            error!("{incompatible_err}");
+            Err(incompatible_err)
         }
     }
 
@@ -582,7 +584,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn register_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        client_shared_keys: &SharedGatewayKey,
+        client_shared_keys: &SharedSymmetricKey,
     ) -> Result<i64, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,

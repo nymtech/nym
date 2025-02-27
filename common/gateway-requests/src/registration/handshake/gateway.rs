@@ -5,7 +5,7 @@ use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::SharedGatewayKey;
+use crate::registration::handshake::SharedSymmetricKey;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::{Sink, Stream};
 use tungstenite::Message as WsMessage;
@@ -50,7 +50,7 @@ impl<S, R> State<'_, S, R> {
     pub(crate) async fn perform_gateway_handshake(
         mut self,
         raw_init_message: Vec<u8>,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+    ) -> Result<SharedSymmetricKey, HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
     {

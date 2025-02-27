@@ -394,7 +394,6 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -403,7 +402,6 @@ where
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         let managed_keys = initialisation_result.client_keys;
         let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
@@ -483,7 +481,6 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -492,7 +489,6 @@ where
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         // if we have setup custom gateway sender and persisted details agree with it, return it
         if let Some(mut custom_gateway_transceiver) = custom_gateway_transceiver {
@@ -515,7 +511,6 @@ where
             config,
             initialisation_result,
             bandwidth_controller,
-            details_store,
             packet_router,
             stats_reporter,
             #[cfg(unix)]
@@ -726,8 +721,7 @@ where
         )
         .await?;
 
-        let (reply_storage_backend, credential_store, details_store) =
-            self.client_store.into_runtime_stores();
+        let (reply_storage_backend, credential_store, _) = self.client_store.into_runtime_stores();
 
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -808,7 +802,6 @@ where
             &self.config,
             init_res,
             bandwidth_controller,
-            &details_store,
             gateway_packet_router,
             stats_reporter.clone(),
             #[cfg(unix)]

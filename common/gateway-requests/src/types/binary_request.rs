@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::helpers::BinaryData;
-use crate::{GatewayRequestsError, SharedGatewayKey};
+use crate::{GatewayRequestsError, SharedSymmetricKey};
 use nym_sphinx::forwarding::packet::MixPacket;
 use strum::FromRepr;
 use tungstenite::Message;
@@ -46,14 +46,14 @@ impl BinaryRequest {
 
     pub fn try_from_encrypted_tagged_bytes(
         bytes: Vec<u8>,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
         BinaryData::from_raw(&bytes, shared_key)?.into_request(shared_key)
     }
 
     pub fn into_encrypted_tagged_bytes(
         self,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
     ) -> Result<Vec<u8>, GatewayRequestsError> {
         let kind = self.kind();
 
@@ -66,7 +66,7 @@ impl BinaryRequest {
 
     pub fn into_ws_message(
         self,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
     ) -> Result<Message, GatewayRequestsError> {
         // all variants are currently encrypted
         let blob = match self {

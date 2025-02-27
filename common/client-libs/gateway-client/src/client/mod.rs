@@ -21,8 +21,9 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    SensitiveServerResponse, ServerResponse, SharedGatewayKey, SharedSymmetricKey,
+    SensitiveServerResponse, ServerResponse, SharedSymmetricKey,
     CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    AES_GCM_SIV_PROTOCOL_VERSION
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -47,7 +48,6 @@ use std::os::raw::c_int as RawFd;
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
-use zeroize::Zeroizing;
 
 pub mod config;
 
@@ -82,7 +82,7 @@ impl GatewayConfig {
 #[must_use]
 #[derive(Debug)]
 pub struct AuthenticationResponse {
-    pub initial_shared_key: Arc<SharedGatewayKey>,
+    pub initial_shared_key: Arc<SharedSymmetricKey>,
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
@@ -94,7 +94,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<Arc<SharedGatewayKey>>,
+    shared_key: Option<Arc<SharedSymmetricKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
     bandwidth_controller: Option<BandwidthController<C, St>>,
@@ -118,7 +118,7 @@ impl<C, St> GatewayClient<C, St> {
         gateway_config: GatewayConfig,
         local_identity: Arc<identity::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
-        shared_key: Option<Arc<SharedGatewayKey>>,
+        shared_key: Option<Arc<SharedSymmetricKey>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
@@ -148,7 +148,7 @@ impl<C, St> GatewayClient<C, St> {
         self.gateway_identity
     }
 
-    pub fn shared_key(&self) -> Option<Arc<SharedGatewayKey>> {
+    pub fn shared_key(&self) -> Option<Arc<SharedSymmetricKey>> {
         self.shared_key.clone()
     }
 
@@ -270,7 +270,7 @@ impl<C, St> GatewayClient<C, St> {
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         if let Some(shared_key) = self.shared_key() {
-            let encrypted = message.encrypt(&*shared_key)?;
+            let encrypted = message.encrypt(&shared_key)?;
             Box::pin(self.send_websocket_message(encrypted)).await?;
             Ok(())
         } else {

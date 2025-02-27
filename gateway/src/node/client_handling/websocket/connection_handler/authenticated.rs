@@ -392,9 +392,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
             ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
                 self.handle_encrypted_text_request(ciphertext, nonce).await
             }
-            ClientControlRequest::EcashCredential { enc_credential, iv } => {
-                self.handle_ecash_bandwidth(enc_credential, iv).await
-            }
+            ClientControlRequest::EcashCredential {
+                enc_credential,
+                nonce,
+            } => self.handle_ecash_bandwidth(enc_credential, nonce).await,
             ClientControlRequest::Authenticate { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
                     additional_context: "authentication v1 is no longer supported".into(),

@@ -3,7 +3,7 @@
 
 use crate::registration::handshake::messages::{Finalization, GatewayMaterialExchange};
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::SharedGatewayKey;
+use crate::registration::handshake::SharedSymmetricKey;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::{Sink, Stream};
 use rand::{CryptoRng, RngCore};
@@ -49,7 +49,7 @@ impl<S, R> State<'_, S, R> {
 
     pub(crate) async fn perform_client_handshake(
         mut self,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+    ) -> Result<SharedSymmetricKey, HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
         R: CryptoRng + RngCore,

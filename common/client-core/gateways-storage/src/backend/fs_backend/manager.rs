@@ -156,41 +156,23 @@ impl StorageManager {
 
     pub(crate) async fn set_remote_gateway_details(
         &self,
-        remote: &RawRemoteGatewayDetails,
+        gateway_id_bs58: String,
+        derived_aes256_gcm_siv_key: &[u8],
+        gateway_owner_address: Option<String>,
+        gateway_listener: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, gateway_owner_address, gateway_listener)
                 VALUES (?, ?, ?, ?)
             "#,
-            remote.gateway_id_bs58,
-            remote.derived_aes256_gcm_siv_key,
-            remote.gateway_owner_address,
-            remote.gateway_listener,
+            gateway_id_bs58,
+            derived_aes256_gcm_siv_key,
+            gateway_owner_address,
+            gateway_listener,
         )
             .execute(&self.connection_pool)
             .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn update_remote_gateway_key(
-        &self,
-        gateway_id_bs58: &str,
-        derived_aes256_gcm_siv_key: &[u8],
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                UPDATE remote_gateway_details
-                SET
-                    derived_aes256_gcm_siv_key = ?
-                WHERE gateway_id_bs58 = ?
-            "#,
-            derived_aes256_gcm_siv_key,
-            gateway_id_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
         Ok(())
     }
 

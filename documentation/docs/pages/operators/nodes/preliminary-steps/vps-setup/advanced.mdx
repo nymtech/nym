@@ -536,7 +536,7 @@ apt install guestfs-tools
 ```bash
 virt-customize -a /var/lib/libvirt/images/<VM_NAME>.img --root-password password:<PASSWORD>
 # for example
-virt-customize -a /var/lib/libvirt/images/ubuntu-1.img --root-password password:makesuretosaveyourpasswordslocallytoapasswordmanager
+# virt-customize -a /var/lib/libvirt/images/ubuntu-1.img --root-password password:makesuretosaveyourpasswordslocallytoapasswordmanager
 ```
 
 - Use `qemu-img` tool with a command `resize` to create a VM according your needs. You can see `qemu` [documentation page`](https://www.qemu.org/docs/master/tools/qemu-img.html) for more info on how to use it correctly.
@@ -679,7 +679,7 @@ Your VM should be working and fully routable. To be able to use it properly, we 
 <Steps>
 
 ##### 1. Log in to your VM, update and upgrade your OS:
-- Log in to your server using a non-root user with `sudo` privileges
+- Log in to your server using as `root` or as a non-root user with `sudo` privileges
 ```bash
 apt update; apt upgrade
 ```
@@ -717,17 +717,22 @@ systemctl status ssh.service
 ```
 
 ##### 5. Create file `~/.ssh/authorized_keys` and add you public key:
+- Create `.ssh` directory:
+```bash
+mkdir ~/.ssh
+```
+
 - Open with your favourite text editor:
 ```bash
-nano /home//.ssh/authorized_keys
+nano ~/.ssh/authorized_keys
 ```
 - Paste your SSH public key, save and exit
 
-- Setup a correct ownership and permissions:
+- In case of non-root, setup a correct ownership and permissions:
 ```bash
-chmod 600 authorized_keys
+chmod 600 ~/.ssh/authorized_keys
 chmod 700 ~/.ssh
-chown : /home//.ssh
+chown : ~/.ssh
 ```
 
 ##### 5. Test by connecting via SSH

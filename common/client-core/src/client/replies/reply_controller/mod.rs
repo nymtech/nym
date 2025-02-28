@@ -142,7 +142,7 @@ where
     }
 
     fn should_request_more_surbs(&self, target: &AnonymousSenderTag) -> bool {
-        info!("checking if we should request more surbs from {:?}", target);
+        trace!("checking if we should request more surbs from {:?}", target);
 
         let pending_queue_size = self
             .pending_replies
@@ -213,7 +213,7 @@ where
             .full_reply_storage
             .surbs_storage_ref()
             .available_surbs(&recipient_tag);
-        log::info!("Handing send reply. SURBs available: {current_surbs}");
+        info!("handling send reply. SURBs available in storage: {current_surbs}");
 
         if !self
             .full_reply_storage
@@ -288,7 +288,7 @@ where
         target: AnonymousSenderTag,
         amount: u32,
     ) -> Result<(), PreparationError> {
-        info!("requesting additional reply surbs for {:?}", target);
+        info!("requesting {amount} additional reply surbs for {target}");
         let reply_surb = self
             .full_reply_storage
             .surbs_storage_ref()
@@ -710,7 +710,7 @@ where
     // it should take into consideration the average latency, sending rate and queue size.
     // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
-        info!("requesting surbs for queues clearing");
+        info!("requesting surbs for queue clearing");
 
         let pending_queue_size = self
             .pending_replies
@@ -740,11 +740,6 @@ where
             .min_surb_threshold();
         let min_surbs_threshold_buffer =
             self.config.reply_surbs.minimum_reply_surb_threshold_buffer;
-
-        if total_queue == 0 && available_surbs >= min_surbs_threshold + min_surbs_threshold_buffer {
-            info!("the pending queues for {:?} are already empty", target);
-            return;
-        }
 
         let request_size = min(
             self.config.reply_surbs.maximum_reply_surb_request_size,

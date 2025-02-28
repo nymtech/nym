@@ -180,14 +180,21 @@ where
         // simple as that - there's absolutely nothing to retransmit and we have enough surbs in storage
         // for the minimum threshold buffer.
         if total_queue == 0 && available_surbs >= min_surbs_threshold + min_surbs_threshold_buffer {
+            info!(
+                "no pending data or retransmissions and enough surbs in storage for {:?}",
+                target
+            );
             return false;
         }
 
-        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        info!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         // Check if we have enough surbs to handle the total queue and maintain minimum thresholds
         let total_required_surbs = total_queue + min_surbs_threshold + min_surbs_threshold_buffer;
         let total_available_surbs = pending_surbs + available_surbs;
+
+        info!("total required surbs: {total_required_surbs}, total available surbs: {total_available_surbs}");
+        info!("max surbs threshold: {max_surbs_threshold}");
 
         // We should request more surbs if:
         // 1. We haven't hit the maximum surb threshold, and

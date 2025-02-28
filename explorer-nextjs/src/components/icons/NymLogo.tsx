@@ -1,8 +1,9 @@
 import Image from "next/image";
+import { icons } from "@/utils/getIconByName";
 
 const NymLogo = () => {
   return (
-    <Image src="/icons/nym-logo.svg" alt="Nym Logo" width={90} height={25} />
+    <Image src={icons.nymLogo} alt="Nym Logo" width={90} height={25} />
   );
 };
 export default NymLogo;

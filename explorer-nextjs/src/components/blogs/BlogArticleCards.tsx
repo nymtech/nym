@@ -3,6 +3,7 @@ import path from "node:path";
 import Grid from "@mui/material/Grid2";
 import ExplorerHeroCard from "../cards/ExplorerHeroCard";
 import type { BlogArticleWithLink } from "./types";
+import { icons, IconName } from "@/utils/getIconByName";
 
 // TODO: Articles should be sorted by date
 
@@ -73,7 +74,7 @@ const BlogArticlesCards = async ({
             label={blogArticle.label}
             title={blogArticle.title}
             description={blogArticle.description}
-            icon={blogArticle.icon}
+            icon={icons[blogArticle.icon as IconName]?.src}
             link={blogArticle.link || ""}
             sx={{ height: "100%" }}
           />

@@ -1,6 +1,6 @@
 import Image from "next/image";
-import * as React from "react";
+import { icons } from "@/utils/getIconByName";
 
 export const Elips = () => (
-  <Image src="/icons/elips.svg" alt="Elips" width={20} height={20} />
+  <Image src={icons.elips} alt="Elips" width={20} height={20} />
 );

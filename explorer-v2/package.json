@@ -1,6 +1,6 @@
 {
-  "name": "@nymproject/explorer-nextjs",
-  "version": "0.1.0",
+  "name": "@nymproject/explorer-v2",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -26,6 +26,7 @@
     "@nivo/line": "^0.88.0",
     "@nymproject/contract-clients": "^1.4.1",
     "@nymproject/react": "1.0.0",
+    "@nymproject/types": "1.0.0",
     "@tanstack/react-query": "^5.64.2",
     "@tanstack/react-query-devtools": "^5.64.2",
     "@tanstack/react-query-next-experimental": "^5.66.0",

@@ -1,0 +1,22 @@
+{
+  "langSelectorLabel": "Idioma",
+  "trademarkText": "WireGuard is a registered trademark of Jason A. Donenfeld",
+  "rightsText": "© 2023 Nym Technologies S.A.  all rights reserved",
+  "linksLeft": [
+    { "name": "Sobre nosotros", "link": "https://nymtech.net/" },
+    { "name": "Supporte", "link": "support" },
+    { "name": "Contacto", "link": "contact" }
+  ],
+  "linksRight": [
+    { "name": "Imprint", "link": "imprint" },
+    { "name": "Política de Privacidad", "link": "privacy" },
+    { "name": "Terminos & condiciones", "link": "terms" }
+  ],
+  "socialLinks": [
+    { "name": "Telegram", "link": "https:nymtech.net/go/telegram" },
+    { "name": "X", "link": "https:nymtech.net/go/x" },
+    { "name": "Discord", "link": "https:nymtech.net/go/discord" },
+    { "name": "GitHub", "link": "https://nymtech.net/go/github" },
+    { "name": "YouTube", "link": "https://nymtech.net/youtuvbe" }
+  ]
+}

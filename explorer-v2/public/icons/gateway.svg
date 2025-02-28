@@ -1,0 +1,79 @@
+<svg
+  width="84"
+  height="84"
+  viewBox="0 0 84 84"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <rect
+    width="7"
+    height="56"
+    transform="matrix(-2.36041e-07 1 1 7.28523e-08 28 77)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <rect
+    width="7"
+    height="56"
+    transform="matrix(1 0 -1.63189e-07 -1 0 56)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <path
+    d="M63 0L63 21L84 21L84 28L63 28C59.134 28 56 24.866 56 21L56 0H63Z"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <rect
+    width="7"
+    height="42"
+    transform="matrix(1 0 -1.63189e-07 -1 28 42)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <rect
+    width="7"
+    height="35"
+    transform="matrix(-2.36041e-07 1 1 7.28523e-08 49 49)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <path
+    d="M28 84L28 77L7 77L7 56L-1.89145e-06 56L-2.80939e-06 77C-2.97838e-06 80.866 3.134 84 7 84L28 84Z"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <path
+    d="M56 56L56 49L35 49L35 28L28 28L28 49C28 52.866 31.134 56 35 56L56 56Z"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+</svg>

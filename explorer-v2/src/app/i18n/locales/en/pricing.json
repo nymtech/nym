@@ -1,0 +1,162 @@
+{
+  "hero": {
+    "title": "NymVPN pricing",
+    "subtitle": "Discover our VPN plans offering transparent and flexible pricing for your online security",
+    "prices": [
+      {
+        "Betatag": "Beta",
+        "title": "1-month plan",
+        "price": "€11.99 ",
+        "priceExtension": "/Month",
+        "subPrice": "€11.99 for 1 month",
+        "notPrice": "",
+        "cta": {
+          "text": "Select plan",
+          "href": "https://nymtech.net/about/mixnet"
+        },
+        "popular": "",
+        "plan": "monthly_plan"
+      },
+      {
+        "Betatag": "Beta",
+        "title": "2-year plan",
+        "price": "€6.99 ",
+        "priceExtension": "/Month",
+        "subPrice": "€167.76 for 2 years",
+        "notPrice": "€287.76",
+        "cta": {
+          "text": "Select plan",
+          "href": "https://nymtech.net/about/mixnet"
+        },
+        "popular": "POPULAR",
+        "plan": "biannual_plan"
+      },
+      {
+        "Betatag": "Beta",
+        "title": "1-year plan",
+        "price": "€7.99 ",
+        "priceExtension": "/Month",
+        "subPrice": "€95.88 for 1 year",
+        "notPrice": "€143.88",
+
+        "cta": {
+          "text": "Select plan",
+          "href": "https://nymtech.net/about/mixnet"
+        },
+        "popular": "",
+        "plan": "annual_plan"
+      }
+    ]
+  },
+  "featuresSection": {
+    "title": "Why choose NymVPN",
+    "featuresGrid": [
+      {
+        "category": "Technology",
+        "title": "5-hop novel Nym mixnet",
+        "text": "Elevated privacy with advanced onion encryption, data splitting, mixing, and concealment in cover traffic.",
+        "cta": {
+          "text": "Learn more",
+          "href": "https://nymtech.net/about/mixnet"
+        },
+        "iconName": "mixnet",
+        "isMedium": true
+      },
+      {
+        "category": "Technology",
+        "title": "2-hop secure WireGuard decentralized VPN",
+        "text": "Swift two-hop decentralized mode with onion encryption but no cover traffic.",
+        "iconName": "wireguard",
+        "isMedium": true
+      },
+      {
+        "category": "Benefits",
+        "title": "Unlinkable online activity",
+        "text": "Inability to correlate IPs with network requests, by design. No backdoor or covert access to traffic and private data.",
+        "iconName": "unlinkable"
+      },
+      {
+        "category": "In-app features",
+        "title": "Advanced privacy in one app",
+        "text": "Unmatched privacy within a single application thanks to the unique blend of mixnet and decentralized VPN.",
+        "iconName": "oneApp"
+      },
+      {
+        "category": "In-app features",
+        "categoryStatus": "Coming soon",
+        "title": "Privacy-enhancing payments",
+        "text": "Zero-knowledge payment method, ensuring privacy and concealing user identity for transactions.",
+        "iconName": "payment"
+      }
+    ],
+    "featuresCta": {
+      "title": "Discover all NymVPN features",
+      "href": "features"
+    }
+  },
+  "faqsSection": {
+    "title": "NymVPN pricing frequently asked questions",
+    "description": "Do you have questions about our pricing? Find quick answers here.",
+    "faqsCategories": [
+      {
+        "category": "Pricing",
+        "faqs": [
+          {
+            "title": "Is there a NymVPN free trial?",
+            "description": "At the moment NymVPN does not offer a free trial, but we offer a 30-day money-back guarantee."
+          },
+          {
+            "title": "What payment methods can I use to buy NymVPN?",
+            "description": "You can purchase our VPN with various paying methods, including debit/credit cards and cryptocurrencies like NYM or Bitcoin."
+          },
+          {
+            "title": "Does NymVPN offer a money-back guarantee?",
+            "description": "Yes, we offer a hassle-free 30-day money-back guarantee."
+          },
+          {
+            "title": "Does NymVPN offer a special pricing for businesses or organizations?",
+            "description": "If you represent a business or an organization, contact our Sales team at [contact@nymtech.net](mailto:contact@nymtech.net) to find out how NymVPN can help you."
+          }
+        ]
+      },
+      {
+        "category": "General",
+        "faqs": [
+          {
+            "title": "What is NymVPN?",
+            "description": "NymVPN is a privacy-focused network-protection product that combines Nym's secure mixnet technology with a decentralized WireGuard VPN for comprehensive online privacy across all use cases."
+          },
+          {
+            "title": "What makes NymVPN different from traditional VPNs?",
+            "description": "NymVPN distinguishes itself with its distinctive blend of a mixnet and a decentralized VPN. By design, and in contrast to traditional VPNs, NymVPN cannot access user data or browsing history, nor link traffic to personal information, such as email or payment details. NymVPN also distinguishes itself with a multi-hop routing by default. This combination offers unparalleled online privacy and security across all online use cases. Check our [NymVPN litepaper](https://nymvpn.com/nymVPN-litepaper.pdf) for more detailed information."
+          }
+        ]
+      },
+      {
+        "category": "Technology",
+        "faqs": [
+          {
+            "title": "What features does NymVPN offer?",
+            "description": "Find out more about all our VPN features on this page: [NymVPN features](https://nymvpn.com/features)."
+          },
+          {
+            "title": "Do I get a new IP address every time I use NymVPN?",
+            "description": "When you launch NymVPN, you get connected to a randomly select exit server, either globally or within the country you have selected. Nym cannot guarantee the attribution of a different IP address for every connection."
+          },
+          {
+            "title": "When will the updated NymVPN be available?",
+            "description": "To stay informed and get early access, we recommend [signing up to our waitlist](http://eepurl.com/iDk0h-/). Follow our [Twitter account](https://nymtech.net/go/x) for announcements and updates."
+          },
+          {
+            "title": "What is the expected duration of the beta phase?",
+            "description": "The expected duration of the beta phase for NymVPN will be announced in our official communications and updates. Stay tuned for more information on the beta timeline."
+          },
+          {
+            "title": "How can I provide feedback or report issues during the beta?",
+            "description": "You can provide feedback using your preferred format, whether it's through the in-app report feature, [email](mailto:contact@nymtech.net), [social media](https://nymtech.net/go/x), or our [Discord](https://nymtech.net/go/discord) / [Matrix](https://matrix.to/#/#NymVPN:nymtech.chat) channels. Your input is valuable to us!"
+          }
+        ]
+      }
+    ]
+  }
+}

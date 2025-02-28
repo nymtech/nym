@@ -735,7 +735,7 @@ where
             self.config.reply_surbs.minimum_reply_surb_threshold_buffer;
 
         if total_queue == 0 && available_surbs >= min_surbs_threshold + min_surbs_threshold_buffer {
-            trace!("the pending queues for {:?} are already empty", target);
+            info!("the pending queues for {:?} are already empty", target);
             return;
         }
 

@@ -12,6 +12,7 @@ jobs:
     runs-on: arc-ubuntu-22.04
     env:
       CARGO_TERM_COLOR: always
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4

@@ -36,3 +36,20 @@ pub const AUTHENTICATE_V2_PROTOCOL_VERSION: u8 = 4;
 // TODO: could using `Mac` trait here for OutputSize backfire?
 // Should hmac itself be exposed, imported and used instead?
 pub type LegacyGatewayMacSize = <GatewayIntegrityHmacAlgorithm as OutputSizeUser>::OutputSize;
+
+pub trait GatewayProtocolVersionExt {
+    fn supports_aes256_gcm_siv(&self) -> bool;
+    fn supports_authenticate_v2(&self) -> bool;
+}
+
+impl GatewayProtocolVersionExt for Option<u8> {
+    fn supports_aes256_gcm_siv(&self) -> bool {
+        let Some(protocol) = *self else { return false };
+        protocol >= AES_GCM_SIV_PROTOCOL_VERSION
+    }
+
+    fn supports_authenticate_v2(&self) -> bool {
+        let Some(protocol) = *self else { return false };
+        protocol >= AUTHENTICATE_V2_PROTOCOL_VERSION
+    }
+}

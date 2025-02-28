@@ -20,8 +20,8 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, SensitiveServerResponse, ServerResponse,
-    SharedGatewayKey, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
+    SensitiveServerResponse, ServerResponse, SharedGatewayKey, SharedSymmetricKey,
     CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -563,28 +563,10 @@ impl<C, St> GatewayClient<C, St> {
         Ok(zeroizing_updated_key)
     }
 
-    async fn authenticate(&mut self) -> Result<(), GatewayClientError> {
-        let Some(shared_key) = self.shared_key.as_ref() else {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        };
-
-        if !self.connection.is_established() {
-            return Err(GatewayClientError::ConnectionNotEstablished);
-        }
-        debug!("authenticating with gateway");
-
-        let self_address = self
-            .local_identity
-            .as_ref()
-            .public_key()
-            .derive_destination_address();
-
-        let msg = ClientControlRequest::new_authenticate(
-            self_address,
-            shared_key,
-            self.cfg.bandwidth.require_tickets,
-        )?;
-
+    async fn send_authenticate_request_and_handle_response(
+        &mut self,
+        msg: ClientControlRequest,
+    ) -> Result<(), GatewayClientError> {
         match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate {
                 protocol_version,
@@ -608,6 +590,51 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    async fn authenticate_v1(&mut self) -> Result<(), GatewayClientError> {
+        debug!("using v1 authentication");
+
+        let Some(shared_key) = self.shared_key.as_ref() else {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        };
+
+        let self_address = self
+            .local_identity
+            .public_key()
+            .derive_destination_address();
+
+        let msg = ClientControlRequest::new_authenticate(
+            self_address,
+            shared_key,
+            self.cfg.bandwidth.require_tickets,
+        )?;
+        self.send_authenticate_request_and_handle_response(msg)
+            .await
+    }
+
+    async fn authenticate_v2(&mut self) -> Result<(), GatewayClientError> {
+        debug!("using v2 authentication");
+        let Some(shared_key) = self.shared_key.as_ref() else {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        };
+
+        let msg = ClientControlRequest::new_authenticate_v2(shared_key, &self.local_identity)?;
+        self.send_authenticate_request_and_handle_response(msg)
+            .await
+    }
+
+    async fn authenticate(&mut self, use_v2: bool) -> Result<(), GatewayClientError> {
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+        debug!("authenticating with gateway");
+
+        if use_v2 {
+            self.authenticate_v2().await
+        } else {
+            self.authenticate_v1().await
+        }
+    }
+
     /// Helper method to either call register or authenticate based on self.shared_key value
     #[instrument(skip_all,
         fields(
@@ -623,18 +650,24 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // 1. check gateway's protocol version
-        let supports_aes_gcm_siv = match self.get_gateway_protocol().await {
-            Ok(protocol) => protocol >= AES_GCM_SIV_PROTOCOL_VERSION,
+        let gw_protocol = match self.get_gateway_protocol().await {
+            Ok(protocol) => Some(protocol),
             Err(_) => {
                 // if we failed to send the request, it means the gateway is running the old binary,
                 // so it has reset our connection - we have to reconnect
                 self.establish_connection().await?;
-                false
+                None
             }
         };
 
+        let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
+        let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
+
         if !supports_aes_gcm_siv {
             warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
+        }
+        if !supports_auth_v2 {
+            warn!("this gateway is on an old version that doesn't support authentication v2")
         }
 
         if self.authenticated {
@@ -650,7 +683,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate().await?;
+            self.authenticate(supports_auth_v2).await?;
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
@@ -983,7 +1016,8 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
-        self.authenticate().await?;
+        self.authenticate(self.negotiated_protocol.supports_authenticate_v2())
+            .await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

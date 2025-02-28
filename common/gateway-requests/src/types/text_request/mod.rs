@@ -5,9 +5,11 @@ use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
     GatewayRequestsError, SharedGatewayKey, SymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+    AUTHENTICATE_V2_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
+    INITIAL_PROTOCOL_VERSION,
 };
 use nym_credentials_interface::CredentialSpendingData;
+use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -127,6 +129,18 @@ impl ClientControlRequest {
             enc_address: bs58::encode(&ciphertext).into_string(),
             iv: bs58::encode(&nonce).into_string(),
         })
+    }
+
+    pub fn new_authenticate_v2(
+        shared_key: &SharedGatewayKey,
+        identity_keys: &ed25519::KeyPair,
+    ) -> Result<Self, GatewayRequestsError> {
+        // if we're using v2 authentication, we must announce at least that protocol version
+        let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
+
+        Ok(ClientControlRequest::AuthenticateV2(Box::new(
+            AuthenticateRequest::new(protocol_version, shared_key, identity_keys)?,
+        )))
     }
 
     pub fn name(&self) -> String {

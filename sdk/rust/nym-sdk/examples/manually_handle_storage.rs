@@ -1,5 +1,3 @@
-use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_gateway_requests::SharedSymmetricKey;
 use nym_sdk::mixnet::{
     self, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage,
     GatewayRegistration, GatewaysDetailsStore, KeyStore, MixnetClientStorage, MixnetMessageSender,

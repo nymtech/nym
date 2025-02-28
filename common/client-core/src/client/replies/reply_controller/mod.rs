@@ -194,6 +194,13 @@ where
         data: Vec<u8>,
         lane: TransmissionLane,
     ) {
+        // WIP(JON)
+        let current_surbs = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .available_surbs(&recipient_tag);
+        log::info!("Handing send reply. SURBs available: {current_surbs}");
+
         if !self
             .full_reply_storage
             .surbs_storage_ref()

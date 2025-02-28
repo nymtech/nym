@@ -1,3 +1,4 @@
+# this will only work with VPN, otherwise remove the harbor part
 FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 COPY ./ /usr/src/nym

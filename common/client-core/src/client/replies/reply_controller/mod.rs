@@ -185,9 +185,14 @@ where
 
         debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
-        (pending_surbs + available_surbs) < max_surbs_threshold
-            && (pending_surbs + available_surbs)
-                < (total_queue + min_surbs_threshold + min_surbs_threshold_buffer)
+        // Check if we have enough surbs to handle the total queue and maintain minimum thresholds
+        let total_required_surbs = total_queue + min_surbs_threshold + min_surbs_threshold_buffer;
+        let total_available_surbs = pending_surbs + available_surbs;
+
+        // We should request more surbs if:
+        // 1. We haven't hit the maximum surb threshold, and
+        // 2. We don't have enough surbs to handle the queue plus minimum thresholds
+        total_available_surbs < max_surbs_threshold && total_available_surbs < total_required_surbs
     }
 
     async fn handle_send_reply(

@@ -175,6 +175,7 @@ where
             .full_reply_storage
             .surbs_storage_ref()
             .min_surb_threshold();
+        let min_surbs_threshold_buffer = 50;
         let max_surbs_threshold = self
             .full_reply_storage
             .surbs_storage_ref()
@@ -183,7 +184,8 @@ where
         debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         (pending_surbs + available_surbs) < max_surbs_threshold
-            && (pending_surbs + available_surbs) < (total_queue + min_surbs_threshold)
+            && (pending_surbs + available_surbs)
+                < (total_queue + min_surbs_threshold + min_surbs_threshold_buffer)
     }
 
     async fn handle_send_reply(

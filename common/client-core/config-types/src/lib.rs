@@ -45,6 +45,7 @@ const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f64 = 0.70;
 // clients/client-core/src/client/replies/reply_storage/surb_storage.rs
 const DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 200;
+const DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER: usize = 100;
 
 // define how much to request at once
 // clients/client-core/src/client/replies/reply_controller.rs
@@ -621,6 +622,11 @@ pub struct ReplySurbs {
     /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
     pub maximum_reply_surb_storage_threshold: usize,
 
+    /// Defines the soft threshold for when the client should proactively request additional reply surbs.
+    /// If there are fewer surbs than this number, not counting the minimum threshold buffer, then the
+    /// client will not request additional surbs.
+    pub minimum_reply_surb_threshold_buffer: usize,
+
     /// Defines the minimum number of reply surbs the client would request.
     pub minimum_reply_surb_request_size: u32,
 
@@ -660,6 +666,7 @@ impl Default for ReplySurbs {
         ReplySurbs {
             minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            minimum_reply_surb_threshold_buffer: DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER,
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,

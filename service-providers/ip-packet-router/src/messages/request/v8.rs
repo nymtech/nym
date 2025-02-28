@@ -2,34 +2,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_ip_packet_requests::v8::request::{
-    ControlRequest as ControlRequestV8, DataRequest as DataRequestV8,
-    DisconnectRequest as DisconnectRequestV8, DynamicConnectRequest as DynamicConnectRequestV8,
+    ConnectRequest as ConnectRequestV8, ControlRequest as ControlRequestV8,
+    DataRequest as DataRequestV8, DisconnectRequest as DisconnectRequestV8,
     HealthRequest as HealthRequestV8, IpPacketRequest as IpPacketRequestV8,
     IpPacketRequestData as IpPacketRequestDataV8, PingRequest as PingRequestV8,
-    StaticConnectRequest as StaticConnectRequestV8,
 };
 use nym_sdk::mixnet::AnonymousSenderTag;
 
-use crate::error::IpPacketRouterError;
-
 use super::{
-    ClientVersion, ConnectedClientId, ControlRequest, DataRequest, DisconnectRequest,
-    DynamicConnectRequest, HealthRequest, IpPacketRequest, PingRequest, StaticConnectRequest,
+    ClientVersion, ControlRequest, DataRequest, DisconnectRequest, DynamicConnectRequest,
+    HealthRequest, IpPacketRequest, PingRequest,
 };
 
-impl TryFrom<(IpPacketRequestV8, Option<AnonymousSenderTag>)> for IpPacketRequest {
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag): (IpPacketRequestV8, Option<AnonymousSenderTag>),
-    ) -> Result<Self, Self::Error> {
+impl From<(IpPacketRequestV8, AnonymousSenderTag)> for IpPacketRequest {
+    fn from((request, sender_tag): (IpPacketRequestV8, AnonymousSenderTag)) -> Self {
         let version = ClientVersion::V8;
-        Ok(match request.data {
+        match request.data {
             IpPacketRequestDataV8::Data(inner) => Self::Data((inner, version).into()),
             IpPacketRequestDataV8::Control(inner) => {
-                Self::Control((*inner, sender_tag, version).try_into()?)
+                Self::Control((*inner, sender_tag, version).into())
             }
-        })
+        }
     }
 }
 
@@ -42,139 +35,72 @@ impl From<(DataRequestV8, ClientVersion)> for DataRequest {
     }
 }
 
-impl TryFrom<(ControlRequestV8, Option<AnonymousSenderTag>, ClientVersion)> for ControlRequest {
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag, version): (
-            ControlRequestV8,
-            Option<AnonymousSenderTag>,
-            ClientVersion,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(match request {
-            ControlRequestV8::StaticConnect(inner) => {
-                ControlRequest::StaticConnect((inner.request, sender_tag, version).try_into()?)
-            }
-            ControlRequestV8::DynamicConnect(inner) => {
-                ControlRequest::DynamicConnect((inner.request, sender_tag, version).try_into()?)
+impl From<(ControlRequestV8, AnonymousSenderTag, ClientVersion)> for ControlRequest {
+    fn from(
+        (request, sender_tag, version): (ControlRequestV8, AnonymousSenderTag, ClientVersion),
+    ) -> Self {
+        match request {
+            ControlRequestV8::Connect(inner) => {
+                ControlRequest::DynamicConnect((inner, sender_tag, version).into())
             }
             ControlRequestV8::Disconnect(inner) => {
-                ControlRequest::Disconnect((inner.request, sender_tag, version).try_into()?)
+                ControlRequest::Disconnect((inner, sender_tag, version).into())
             }
             ControlRequestV8::Ping(inner) => {
-                ControlRequest::Ping((inner, sender_tag, version).try_into()?)
+                ControlRequest::Ping((inner, sender_tag, version).into())
             }
             ControlRequestV8::Health(inner) => {
-                ControlRequest::Health((inner, sender_tag, version).try_into()?)
+                ControlRequest::Health((inner, sender_tag, version).into())
             }
-        })
+        }
     }
 }
 
-impl
-    TryFrom<(
-        StaticConnectRequestV8,
-        Option<AnonymousSenderTag>,
-        ClientVersion,
-    )> for StaticConnectRequest
-{
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag, version): (
-            StaticConnectRequestV8,
-            Option<AnonymousSenderTag>,
-            ClientVersion,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<(ConnectRequestV8, AnonymousSenderTag, ClientVersion)> for DynamicConnectRequest {
+    fn from(
+        (request, sender_tag, version): (ConnectRequestV8, AnonymousSenderTag, ClientVersion),
+    ) -> Self {
+        Self {
             version,
             request_id: request.request_id,
-            sent_by: ConnectedClientId::try_from((request.sender, sender_tag))?,
-            ips: request.ips,
+            sent_by: sender_tag.into(),
             buffer_timeout: request.buffer_timeout,
-        })
+        }
     }
 }
 
-impl
-    TryFrom<(
-        DynamicConnectRequestV8,
-        Option<AnonymousSenderTag>,
-        ClientVersion,
-    )> for DynamicConnectRequest
-{
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag, version): (
-            DynamicConnectRequestV8,
-            Option<AnonymousSenderTag>,
-            ClientVersion,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<(DisconnectRequestV8, AnonymousSenderTag, ClientVersion)> for DisconnectRequest {
+    fn from(
+        (request, sender_tag, version): (DisconnectRequestV8, AnonymousSenderTag, ClientVersion),
+    ) -> Self {
+        Self {
             version,
             request_id: request.request_id,
-            sent_by: ConnectedClientId::try_from((request.sender, sender_tag))?,
-            buffer_timeout: request.buffer_timeout,
-        })
+            sent_by: sender_tag.into(),
+        }
     }
 }
 
-impl
-    TryFrom<(
-        DisconnectRequestV8,
-        Option<AnonymousSenderTag>,
-        ClientVersion,
-    )> for DisconnectRequest
-{
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag, version): (
-            DisconnectRequestV8,
-            Option<AnonymousSenderTag>,
-            ClientVersion,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<(PingRequestV8, AnonymousSenderTag, ClientVersion)> for PingRequest {
+    fn from(
+        (request, sender_tag, version): (PingRequestV8, AnonymousSenderTag, ClientVersion),
+    ) -> Self {
+        Self {
             version,
             request_id: request.request_id,
-            sent_by: ConnectedClientId::try_from((request.sender, sender_tag))?,
-        })
+            sent_by: sender_tag.into(),
+        }
     }
 }
 
-impl TryFrom<(PingRequestV8, Option<AnonymousSenderTag>, ClientVersion)> for PingRequest {
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag, version): (PingRequestV8, Option<AnonymousSenderTag>, ClientVersion),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<(HealthRequestV8, AnonymousSenderTag, ClientVersion)> for HealthRequest {
+    fn from(
+        (request, sender_tag, version): (HealthRequestV8, AnonymousSenderTag, ClientVersion),
+    ) -> Self {
+        Self {
             version,
             request_id: request.request_id,
-            sent_by: ConnectedClientId::try_from((request.sender, sender_tag))?,
-        })
-    }
-}
-
-impl TryFrom<(HealthRequestV8, Option<AnonymousSenderTag>, ClientVersion)> for HealthRequest {
-    type Error = IpPacketRouterError;
-
-    fn try_from(
-        (request, sender_tag, version): (
-            HealthRequestV8,
-            Option<AnonymousSenderTag>,
-            ClientVersion,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            version,
-            request_id: request.request_id,
-            sent_by: ConnectedClientId::try_from((request.sender, sender_tag))?,
-        })
+            sent_by: sender_tag.into(),
+        }
     }
 }

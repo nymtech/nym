@@ -131,7 +131,7 @@ impl VersionedResponse {
         match self.version {
             ClientVersion::V6 => IpPacketResponseV6::try_from(self)?.to_bytes(),
             ClientVersion::V7 => IpPacketResponseV7::try_from(self)?.to_bytes(),
-            ClientVersion::V8 => IpPacketResponseV8::from(self).to_bytes(),
+            ClientVersion::V8 => IpPacketResponseV8::try_from(self)?.to_bytes(),
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
     }

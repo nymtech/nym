@@ -24,11 +24,8 @@ pub struct DataResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ControlResponse {
-    // Response for a static connect request
-    StaticConnect(StaticConnectResponse),
-
-    // Response for a dynamic connect request
-    DynamicConnect(DynamicConnectResponse),
+    // Response for a connect request
+    Connect(ConnectResponse),
 
     // Response for a disconnect initiqated by the client
     Disconnect(DisconnectResponse),
@@ -47,51 +44,24 @@ pub enum ControlResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StaticConnectResponse {
+pub struct ConnectResponse {
     pub request_id: u64,
-    pub reply: StaticConnectResponseReply,
+    pub reply: ConnectResponseReply,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum StaticConnectResponseReply {
-    Success,
-    Failure(StaticConnectFailureReason),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
-pub enum StaticConnectFailureReason {
-    #[error("requested ip address is already in use")]
-    RequestedIpAlreadyInUse,
-
-    #[error("client is already connected")]
-    ClientAlreadyConnected,
-
-    #[error("request timestamp is out of date")]
-    OutOfDateTimestamp,
-
-    #[error("{0}")]
-    Other(String),
+pub enum ConnectResponseReply {
+    Success(ConnectSuccess),
+    Failure(ConnectFailureReason),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DynamicConnectResponse {
-    pub request_id: u64,
-    pub reply: DynamicConnectResponseReply,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum DynamicConnectResponseReply {
-    Success(DynamicConnectSuccess),
-    Failure(DynamicConnectFailureReason),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DynamicConnectSuccess {
+pub struct ConnectSuccess {
     pub ips: IpPair,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
-pub enum DynamicConnectFailureReason {
+pub enum ConnectFailureReason {
     #[error("client is already connected")]
     ClientAlreadyConnected,
 
@@ -229,8 +199,7 @@ impl IpPacketResponseData {
 impl ControlResponse {
     fn id(&self) -> Option<u64> {
         match self {
-            ControlResponse::StaticConnect(response) => Some(response.request_id),
-            ControlResponse::DynamicConnect(response) => Some(response.request_id),
+            ControlResponse::Connect(response) => Some(response.request_id),
             ControlResponse::Disconnect(response) => Some(response.request_id),
             ControlResponse::UnrequestedDisconnect(_) => None,
             ControlResponse::Pong(response) => Some(response.request_id),
@@ -240,20 +209,11 @@ impl ControlResponse {
     }
 }
 
-impl StaticConnectResponseReply {
+impl ConnectResponseReply {
     pub fn is_success(&self) -> bool {
         match self {
-            StaticConnectResponseReply::Success => true,
-            StaticConnectResponseReply::Failure(_) => false,
-        }
-    }
-}
-
-impl DynamicConnectResponseReply {
-    pub fn is_success(&self) -> bool {
-        match self {
-            DynamicConnectResponseReply::Success(_) => true,
-            DynamicConnectResponseReply::Failure(_) => false,
+            ConnectResponseReply::Success(_) => true,
+            ConnectResponseReply::Failure(_) => false,
         }
     }
 }

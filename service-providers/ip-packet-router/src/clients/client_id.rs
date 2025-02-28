@@ -3,7 +3,6 @@
 
 use std::fmt;
 
-use nym_ip_packet_requests::v8::request::SentBy;
 use nym_sdk::mixnet::{AnonymousSenderTag, Recipient};
 
 use crate::error::{IpPacketRouterError, Result};
@@ -41,18 +40,5 @@ impl From<Recipient> for ConnectedClientId {
 impl From<AnonymousSenderTag> for ConnectedClientId {
     fn from(tag: AnonymousSenderTag) -> Self {
         ConnectedClientId::AnonymousSenderTag(tag)
-    }
-}
-
-impl TryFrom<(SentBy, Option<AnonymousSenderTag>)> for ConnectedClientId {
-    type Error = IpPacketRouterError;
-
-    fn try_from((sent_by, sender_tag): (SentBy, Option<AnonymousSenderTag>)) -> Result<Self> {
-        match sent_by {
-            SentBy::NymAddress(nym_address) => Ok(ConnectedClientId::NymAddress(nym_address)),
-            SentBy::AnonymousSenderTag => sender_tag
-                .map(ConnectedClientId::AnonymousSenderTag)
-                .ok_or(IpPacketRouterError::InvalidReplyTo),
-        }
     }
 }

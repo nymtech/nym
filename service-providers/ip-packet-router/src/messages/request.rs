@@ -11,6 +11,7 @@ use nym_ip_packet_requests::{
     v8::request::IpPacketRequest as IpPacketRequestV8, IpPair,
 };
 use nym_sdk::mixnet::ReconstructedMessage;
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use std::fmt;
 
 use crate::{clients::ConnectedClientId, error::IpPacketRouterError};
@@ -83,9 +84,23 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
     fn try_from(reconstructed: &ReconstructedMessage) -> Result<Self, Self::Error> {
         let request_version = *reconstructed
             .message
-            .first()
+            .first_chunk::<2>()
             .ok_or(IpPacketRouterError::EmptyPacket)?;
 
+        // With version v8 and onwards, the type of the service provider is included in the
+        // header.
+        if request_version[0] >= 8 {
+            let protocol = Protocol::try_from(&request_version)
+                .map_err(|source| IpPacketRouterError::FailedToDeserializeProtocol { source })?;
+
+            if protocol.service_provider_type != ServiceProviderType::IpPacketRouter {
+                return Err(IpPacketRouterError::InvalidServiceProviderType(
+                    protocol.service_provider_type,
+                ));
+            }
+        }
+
+        let request_version = request_version[0];
         match request_version {
             6 => {
                 let request_v6 = IpPacketRequestV6::from_reconstructed_message(reconstructed)
@@ -109,10 +124,10 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                     .map_err(
                         |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
                     )?;
-                request_v8
-                    .verify()
-                    .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
-                IpPacketRequest::try_from((request_v8, reconstructed.sender_tag))
+                let sender_tag = reconstructed
+                    .sender_tag
+                    .ok_or(IpPacketRouterError::MissingSenderTag)?;
+                Ok(IpPacketRequest::from((request_v8, sender_tag)))
             }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");

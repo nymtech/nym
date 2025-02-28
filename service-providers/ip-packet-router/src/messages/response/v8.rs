@@ -2,46 +2,44 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_ip_packet_requests::v8::response::{
+    ConnectFailureReason as ConnectFailureReasonV8, ConnectResponse as ConnectResponseV8,
+    ConnectResponseReply as ConnectResponseReplyV8, ConnectSuccess as ConnectSuccessV8,
     ControlResponse as ControlResponseV8, DisconnectFailureReason as DisconnectFailureReasonV8,
     DisconnectResponse as DisconnectResponseV8,
-    DisconnectResponseReply as DisconnectResponseReplyV8,
-    DynamicConnectFailureReason as DynamicConnectFailureReasonV8,
-    DynamicConnectResponse as DynamicConnectResponseV8,
-    DynamicConnectResponseReply as DynamicConnectResponseReplyV8,
-    DynamicConnectSuccess as DynamicConnectSuccessV8, HealthResponse as HealthResponseV8,
+    DisconnectResponseReply as DisconnectResponseReplyV8, HealthResponse as HealthResponseV8,
     HealthResponseReply as HealthResponseReplyV8, InfoLevel as InfoLevelV8,
     InfoResponse as InfoResponseV8, InfoResponseReply as InfoResponseReplyV8,
     IpPacketResponse as IpPacketResponseV8, IpPacketResponseData as IpPacketResponseDataV8,
-    PongResponse as PongResponseV8, StaticConnectFailureReason as StaticConnectFailureReasonV8,
-    StaticConnectResponse as StaticConnectResponseV8,
-    StaticConnectResponseReply as StaticConnectResponseReplyV8,
+    PongResponse as PongResponseV8,
 };
+
+use crate::error::IpPacketRouterError;
 
 use super::{
     DisconnectFailureReason, DisconnectResponse, DynamicConnectFailureReason,
     DynamicConnectResponse, DynamicConnectSuccess, HealthResponse, InfoLevel, InfoResponseReply,
-    Response, StaticConnectFailureReason, StaticConnectResponse, VersionedResponse,
+    Response, VersionedResponse,
 };
 
-impl From<VersionedResponse> for IpPacketResponseV8 {
-    fn from(response: VersionedResponse) -> Self {
+impl TryFrom<VersionedResponse> for IpPacketResponseV8 {
+    type Error = IpPacketRouterError;
+
+    fn try_from(response: VersionedResponse) -> Result<Self, Self::Error> {
         let version = response.version.into_u8();
         let data =
             match response.response {
-                Response::StaticConnect { request_id, reply } => IpPacketResponseDataV8::Control(
-                    Box::new(ControlResponseV8::StaticConnect(StaticConnectResponseV8 {
+                Response::StaticConnect { .. } => {
+                    return Err(IpPacketRouterError::UnsupportedResponse(format!(
+                        "Static connect response is not supported in version {}",
+                        version
+                    )))
+                }
+                Response::DynamicConnect { request_id, reply } => IpPacketResponseDataV8::Control(
+                    Box::new(ControlResponseV8::Connect(ConnectResponseV8 {
                         request_id,
                         reply: reply.into(),
                     })),
                 ),
-                Response::DynamicConnect { request_id, reply } => {
-                    IpPacketResponseDataV8::Control(Box::new(ControlResponseV8::DynamicConnect(
-                        DynamicConnectResponseV8 {
-                            request_id,
-                            reply: reply.into(),
-                        },
-                    )))
-                }
                 Response::Disconnect { request_id, reply } => IpPacketResponseDataV8::Control(
                     Box::new(ControlResponseV8::Disconnect(DisconnectResponseV8 {
                         request_id,
@@ -66,61 +64,29 @@ impl From<VersionedResponse> for IpPacketResponseV8 {
                 )),
             };
 
-        IpPacketResponseV8 { version, data }
+        Ok(IpPacketResponseV8 { version, data })
     }
 }
 
-impl From<StaticConnectResponse> for StaticConnectResponseReplyV8 {
-    fn from(reply: StaticConnectResponse) -> Self {
-        match reply {
-            StaticConnectResponse::Success => StaticConnectResponseReplyV8::Success,
-            StaticConnectResponse::Failure(err) => {
-                StaticConnectResponseReplyV8::Failure(err.into())
-            }
-        }
-    }
-}
-
-impl From<StaticConnectFailureReason> for StaticConnectFailureReasonV8 {
-    fn from(reason: StaticConnectFailureReason) -> Self {
-        match reason {
-            StaticConnectFailureReason::RequestedIpAlreadyInUse => {
-                StaticConnectFailureReasonV8::RequestedIpAlreadyInUse
-            }
-            StaticConnectFailureReason::ClientAlreadyConnected => {
-                StaticConnectFailureReasonV8::ClientAlreadyConnected
-            }
-            StaticConnectFailureReason::OutOfDateTimestamp => {
-                StaticConnectFailureReasonV8::OutOfDateTimestamp
-            }
-            StaticConnectFailureReason::Other(err) => StaticConnectFailureReasonV8::Other(err),
-        }
-    }
-}
-
-impl From<DynamicConnectResponse> for DynamicConnectResponseReplyV8 {
+impl From<DynamicConnectResponse> for ConnectResponseReplyV8 {
     fn from(reply: DynamicConnectResponse) -> Self {
         match reply {
             DynamicConnectResponse::Success(DynamicConnectSuccess { ips }) => {
-                DynamicConnectResponseReplyV8::Success(DynamicConnectSuccessV8 { ips })
+                ConnectResponseReplyV8::Success(ConnectSuccessV8 { ips })
             }
-            DynamicConnectResponse::Failure(err) => {
-                DynamicConnectResponseReplyV8::Failure(err.into())
-            }
+            DynamicConnectResponse::Failure(err) => ConnectResponseReplyV8::Failure(err.into()),
         }
     }
 }
 
-impl From<DynamicConnectFailureReason> for DynamicConnectFailureReasonV8 {
+impl From<DynamicConnectFailureReason> for ConnectFailureReasonV8 {
     fn from(reason: DynamicConnectFailureReason) -> Self {
         match reason {
             DynamicConnectFailureReason::ClientAlreadyConnected => {
-                DynamicConnectFailureReasonV8::ClientAlreadyConnected
+                ConnectFailureReasonV8::ClientAlreadyConnected
             }
-            DynamicConnectFailureReason::NoAvailableIp => {
-                DynamicConnectFailureReasonV8::NoAvailableIp
-            }
-            DynamicConnectFailureReason::Other(err) => DynamicConnectFailureReasonV8::Other(err),
+            DynamicConnectFailureReason::NoAvailableIp => ConnectFailureReasonV8::NoAvailableIp,
+            DynamicConnectFailureReason::Other(err) => ConnectFailureReasonV8::Other(err),
         }
     }
 }

@@ -5,13 +5,19 @@
 //!
 #![warn(missing_docs)]
 
-use crate::{EpochRewardedSet, NymTopology, Role, RoutingNode, TopologyProvider};
+use crate::{EpochRewardedSet, NymTopology, RoutingNode, TopologyProvider};
 
 use async_trait::async_trait;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
+use tracing::{debug, warn};
 
-use std::{cmp::min, collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    cmp::min,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub struct Config {
@@ -59,6 +65,8 @@ impl Config {
     }
 }
 
+/// Topology Provider build around a cached piecewise provider that uses the Nym API to
+/// fetch changes and node details.
 #[derive(Clone)]
 pub struct NymTopologyProvider<M: PiecewiseTopologyProvider> {
     inner: Arc<Mutex<NymTopologyProviderInner<M>>>,
@@ -81,18 +89,18 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProvider<M> {
     /// Bypass the caching for the topology and force a check for the latest updates next time the
     /// topology is requested.
     pub async fn force_refresh(&self) {
-		let mut guard = self.inner.lock().await;
-		guard.cached_at = OffsetDateTime::UNIX_EPOCH;
-	}
+        let mut guard = self.inner.lock().await;
+        guard.cached_at = OffsetDateTime::UNIX_EPOCH;
+    }
 
     /// Remove all stored topology state. The next time the topology is requested this will force a
     /// pull of all topology information.
     ///
     /// WARNING: This may be slow / require non-trivial bandwidth.
     pub async fn force_clear(&self) {
-		let mut guard = self.inner.lock().await;
-		guard.cached = None;
-	}
+        let mut guard = self.inner.lock().await;
+        guard.cached = None;
+    }
 }
 
 #[async_trait]
@@ -104,9 +112,9 @@ impl<M: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProvider<M> {
             return Some(cached);
         }
 
-		// not cached, or cache expired. try update.
+        // not cached, or cache expired. try update.
         guard.update_cache().await;
-		guard.get_current_compatible_topology().await
+        guard.get_current_compatible_topology().await
     }
 }
 
@@ -144,37 +152,73 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProviderInner<M> {
     }
 
     async fn update_cache(&mut self) {
-		todo!("pull layer assignments and then batch");
-        // let updated_cache = self.get_new_topology().await?;
+        if let Some(ref mut cached_topology) = self.cached {
+            // get layer assignment map
+            let response = self.topology_manager.get_layer_assignments().await;
+            if response.is_none() {
+                warn!("pulled layer assignments and got no response");
+                self.cached_at = OffsetDateTime::now_utc();
+                return;
+            }
 
-        // self.cached_at = OffsetDateTime::now_utc();
-        // self.cached = Some(updated_cache.clone());
+            let layer_assignments = response.unwrap();
 
-        // Some(updated_cache)
+            // Check if we already know about the epoch
+            if cached_topology.rewarded_set.epoch_id == layer_assignments.epoch_id {
+                debug!("pulled layer assignments, epoch already known");
+                self.cached_at = OffsetDateTime::now_utc();
+                return;
+            }
+
+            // get the set of node IDs
+            let newly_assigned_node_ids = layer_assignments.assignment.all_ids();
+            let new_id_set = HashSet::<u32>::from_iter(newly_assigned_node_ids);
+            let known_id_set = HashSet::<u32>::from_iter(cached_topology.all_node_ids().copied());
+            let unknown_node_ids: Vec<_> = new_id_set.difference(&known_id_set).copied().collect();
+
+            // Pull node descriptors for unknown IDs
+            let response = self
+                .topology_manager
+                .get_descriptor_batch(&unknown_node_ids[..])
+                .await;
+
+            // Add the new nodes to our cached topology
+            if let Some(new_descriptors) = response {
+                cached_topology.add_routing_nodes(new_descriptors.values());
+            }
+        } else {
+            self.cached = self.topology_manager.get_full_topology().await;
+        }
+
+        self.cached_at = OffsetDateTime::now_utc();
     }
 
-	/// Gets the current topology state using `Self::cached_topology` and then applies any filters
-	/// defined in the provided Config.
+    /// Gets the current topology state using `Self::cached_topology` and then applies any filters
+    /// defined in the provided Config.
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
-		let full_topology = self.cached_topology()?;
+        let full_topology = self.cached_topology()?;
 
         let mut topology = NymTopology::new_empty(full_topology.rewarded_set().clone());
 
         if self.config.use_extended_topology {
-			topology.add_additional_nodes(full_topology.all_nodes().filter(|n| {
+            topology.add_additional_nodes(full_topology.all_nodes().filter(|n| {
                 n.performance.round_to_integer() >= self.config.min_node_performance()
             }));
 
-			return Some(full_topology);
-		}
+            return Some(full_topology);
+        }
 
-		topology.add_additional_nodes(full_topology.mixnodes().filter(|m| {
-			m.performance.round_to_integer() >= self.config.min_mixnode_performance
-		}));
-		topology.add_additional_nodes(full_topology.gateways().filter(|m| {
-			m.performance.round_to_integer() >= self.config.min_gateway_performance
-		}));
-		
+        topology.add_additional_nodes(
+            full_topology.mixnodes().filter(|m| {
+                m.performance.round_to_integer() >= self.config.min_mixnode_performance
+            }),
+        );
+        topology.add_additional_nodes(
+            full_topology.gateways().filter(|m| {
+                m.performance.round_to_integer() >= self.config.min_gateway_performance
+            }),
+        );
+
         Some(topology)
     }
 }
@@ -186,9 +230,7 @@ impl<P: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProviderInner
     }
 }
 
-///
-///
-/// This is intentionally private, such that we can modify it at any time in the future.
+/// Trait allowing construction and upkeep of a
 #[async_trait]
 pub trait PiecewiseTopologyProvider: Send {
     async fn get_full_topology(&mut self) -> Option<NymTopology>;
@@ -198,11 +240,17 @@ pub trait PiecewiseTopologyProvider: Send {
     async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet>;
 }
 
-
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::net::SocketAddr;
 
+    use nym_mixnet_contract_common::Percent;
+    use nym_crypto::asymmetric::identity::PublicKey as IdentityPubkey;
+    use nym_crypto::asymmetric::encryption::PublicKey as SphinxPubkey;
+    use super::*;
+    use crate::SupportedRoles;
+
+    #[derive(Clone)]
     struct PassthroughPiecewiseTopologyProvider {
         topo: NymTopology,
     }
@@ -215,28 +263,78 @@ mod test {
 
         async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<HashMap<u32, RoutingNode>> {
             let mut nodes = HashMap::new();
-			ids.iter().for_each(|id| {
-				if let Some(node) = self.topo.node_details.get(id) {
-					nodes.insert(*id, node.clone());
-				}
-			});
+            ids.iter().for_each(|id| {
+                if let Some(node) = self.topo.node_details.get(id) {
+                    nodes.insert(*id, node.clone());
+                }
+            });
 
-			Some(nodes)
+            Some(nodes)
         }
 
         async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet> {
-            return Some(self.topo.rewarded_set.clone().into())
+            return Some(self.topo.rewarded_set.clone().into());
         }
     }
 
     #[tokio::test]
     async fn test_topology_provider() -> Result<(), Box<dyn std::error::Error>> {
-        let topo_mgr = PassthroughPiecewiseTopologyProvider {
+        let mut topo_mgr = PassthroughPiecewiseTopologyProvider {
             topo: NymTopology::default(),
         };
 
-        let topo_provider = NymTopologyProviderInner::new(Config::default(), topo_mgr, None);
+        let mut topo_provider =
+            NymTopologyProviderInner::new(Config::default(), topo_mgr.clone(), None);
+
+        // No initial topology was provided, No update has run yet, None should be returned
+        assert_eq!(topo_provider.cached_topology(), None);
+
+        // force an update of the cached topology
+        topo_provider.update_cache();
+
+        let topo = topo_provider.cached_topology();
+        assert!(topo.is_some());
+        
+        // create a change in the manager to make sure it is propogated to the provider cache on update
+        topo_mgr.topo.rewarded_set.epoch_id += 1;
+        topo_mgr.topo.rewarded_set.entry_gateways = HashSet::from([123]);
+        assert_eq!(topo_mgr.topo.node_details.insert(123, fake_node(123)), None);
+        topo_provider.topology_manager = topo_mgr.clone();
+
+        // force an update of the cached topology
+        topo_provider.update_cache();
+
+        let topo = topo_provider.cached_topology();
+        assert!(topo.is_some());
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_topology_provider_by_trait() -> Result<(), Box<dyn std::error::Error>> {
+        let mut topo_mgr = PassthroughPiecewiseTopologyProvider {
+            topo: NymTopology::default(),
+        };
+
+        let mut topo_provider =
+            NymTopologyProviderInner::new(Config::default(), topo_mgr.clone(), None);
+
+        Ok(())
+    }
+
+    fn fake_node(node_id: u32) -> RoutingNode {
+        RoutingNode {
+            node_id,
+            mix_host: "127.0.0.1:2345".parse().unwrap(),
+            entry: None,
+            identity_key: IdentityPubkey::from_bytes(&[0u8; 32][..]).unwrap(),
+            sphinx_key: SphinxPubkey::from_bytes(&[0u8; 32][..]).unwrap(),
+            supported_roles: SupportedRoles {
+                mixnode: true,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
+            performance: Percent::hundred(),
+        }
     }
 }

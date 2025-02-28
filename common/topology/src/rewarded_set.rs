@@ -6,7 +6,7 @@ use nym_mixnet_contract_common::{EpochId, EpochRewardedSet, NodeId, RewardedSet}
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct CachedEpochRewardedSet {
     pub epoch_id: EpochId,
 

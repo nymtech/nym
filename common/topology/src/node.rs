@@ -20,7 +20,7 @@ pub enum RoutingNodeError {
     NoIpAddressesProvided { node_id: NodeId, identity: String },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct EntryDetails {
     // to allow client to choose ipv6 preference, if available
     pub ip_addresses: Vec<IpAddr>,
@@ -29,7 +29,7 @@ pub struct EntryDetails {
     pub clients_wss_port: Option<u16>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct SupportedRoles {
     pub mixnode: bool,
     pub mixnet_entry: bool,
@@ -46,7 +46,7 @@ impl From<DeclaredRoles> for SupportedRoles {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RoutingNode {
     pub node_id: NodeId,
 

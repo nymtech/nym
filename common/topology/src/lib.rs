@@ -182,7 +182,7 @@ impl NymRouteProvider {
 }
 
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct NymTopology {
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
     // so we use the same 'master' rewarded set information for that
@@ -556,6 +556,10 @@ impl NymTopology {
     pub fn all_nodes(&self) -> impl Iterator<Item = &RoutingNode> {
         self.node_details
             .values()
+    }
+
+    pub fn all_node_ids(&self) -> impl Iterator<Item = &NodeId> {
+        self.node_details.keys()
     }
 
     pub fn gateways(&self) -> impl Iterator<Item = &RoutingNode> {

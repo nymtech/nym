@@ -142,7 +142,7 @@ where
     }
 
     fn should_request_more_surbs(&self, target: &AnonymousSenderTag) -> bool {
-        trace!("checking if we should request more surbs from {:?}", target);
+        info!("checking if we should request more surbs from {:?}", target);
 
         let pending_queue_size = self
             .pending_replies
@@ -281,6 +281,7 @@ where
         target: AnonymousSenderTag,
         amount: u32,
     ) -> Result<(), PreparationError> {
+        info!("requesting additional reply surbs for {:?}", target);
         let reply_surb = self
             .full_reply_storage
             .surbs_storage_ref()
@@ -702,7 +703,7 @@ where
     // it should take into consideration the average latency, sending rate and queue size.
     // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
-        trace!("requesting surbs for queues clearing");
+        info!("requesting surbs for queues clearing");
 
         let pending_queue_size = self
             .pending_replies

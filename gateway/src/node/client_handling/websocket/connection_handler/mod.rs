@@ -8,10 +8,10 @@ use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 use tracing::{debug, instrument, trace, warn};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -40,12 +40,13 @@ impl<S> SocketStream<S> {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
 pub(crate) struct ClientDetails {
-    #[zeroize(skip)]
     pub(crate) address: DestinationAddressBytes,
     pub(crate) id: i64,
     pub(crate) shared_keys: SharedGatewayKey,
+    // note, this does **NOT ALWAYS** indicate timestamp of when client connected
+    // it is (for v2 auth) timestamp the client **signed** when it created the request
+    pub(crate) session_request_timestamp: OffsetDateTime,
 }
 
 impl ClientDetails {
@@ -53,11 +54,13 @@ impl ClientDetails {
         id: i64,
         address: DestinationAddressBytes,
         shared_keys: SharedGatewayKey,
+        session_request_timestamp: OffsetDateTime,
     ) -> Self {
         ClientDetails {
             address,
             id,
             shared_keys,
+            session_request_timestamp,
         }
     }
 }

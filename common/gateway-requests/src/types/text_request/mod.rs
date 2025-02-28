@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::CredentialSpendingRequest;
+use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
     GatewayRequestsError, SharedGatewayKey, SymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
     CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
@@ -11,6 +12,8 @@ use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tungstenite::Message;
+
+pub mod authenticate;
 
 // wrapper for all encrypted requests for ease of use
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -68,6 +71,9 @@ pub enum ClientControlRequest {
         enc_address: String,
         iv: String,
     },
+
+    AuthenticateV2(Box<AuthenticateRequest>),
+
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest {
         #[serde(default)]
@@ -126,6 +132,7 @@ impl ClientControlRequest {
     pub fn name(&self) -> String {
         match self {
             ClientControlRequest::Authenticate { .. } => "Authenticate".to_string(),
+            ClientControlRequest::AuthenticateV2(..) => "AuthenticateV2".to_string(),
             ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
                 "RegisterHandshakeInitRequest".to_string()
             }

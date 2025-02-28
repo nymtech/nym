@@ -3,6 +3,7 @@
 
 use crate::SharedKeyUsageError;
 use nym_credentials_interface::CompactEcashError;
+use nym_crypto::asymmetric::ed25519::SignatureError;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddressError;
 use nym_sphinx::forwarding::packet::MixPacketFormattingError;
 use nym_sphinx::params::packet_sizes::PacketSize;
@@ -92,7 +93,31 @@ pub enum GatewayRequestsError {
     #[error("the provided [v1] credential has invalid number of parameters - {0}")]
     InvalidNumberOfEmbededParameters(u32),
 
+    #[error("failed to authenticate the client: {0}")]
+    Authentication(#[from] AuthenticationFailure),
+
     // variant to catch legacy errors
     #[error("{0}")]
     Other(String),
+}
+
+#[derive(Debug, Error)]
+pub enum AuthenticationFailure {
+    #[error(transparent)]
+    KeyUsageFailure(#[from] SharedKeyUsageError),
+
+    #[error("failed to verify provided address ciphertext")]
+    MalformedCiphertext,
+
+    #[error("failed to verify request signature")]
+    InvalidSignature(#[from] SignatureError),
+
+    #[error("provided request timestamp is in the future")]
+    RequestTimestampInFuture,
+
+    #[error("the client is not registered")]
+    NotRegistered,
+
+    #[error("the provided request is too stale to process")]
+    StaleRequest,
 }

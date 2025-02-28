@@ -1,4 +1,5 @@
-FROM rust:latest AS builder
+# this will only work with VPN, otherwise remove the harbor part
+FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-node-status-api
@@ -26,7 +27,7 @@ RUN cargo build --release
 # see https://github.com/nymtech/nym/blob/develop/nym-node-status-api/src/cli.rs for details
 #-------------------------------------------------------------------
 
-FROM ubuntu:24.04
+FROM harbor.nymte.ch/dockerhub/ubuntu:24.04
 
 RUN apt-get update && apt-get install -y ca-certificates
 

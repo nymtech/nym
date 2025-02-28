@@ -24,7 +24,7 @@ pub mod smart_api_provider;
 #[allow(deprecated)]
 pub use geo_aware_provider::GeoAwareTopologyProvider;
 pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
-pub use nym_topology::provider_trait::TopologyProvider;
+pub use nym_topology::providers::TopologyProvider;
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

@@ -3,7 +3,7 @@ use log::{debug, error};
 use nym_explorer_client::{ExplorerClient, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
-    provider_trait::{async_trait, TopologyProvider},
+    providers::{async_trait, TopologyProvider},
     NymTopology,
 };
 use nym_validator_client::client::NodeId;

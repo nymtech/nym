@@ -17,6 +17,9 @@ rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true, features = ["macros", "sync"] }
+
 
 # 'serde' feature
 serde_json = { workspace = true, optional = true }
@@ -35,7 +38,9 @@ nym-sphinx-types = { path = "../nymsphinx/types", features = [
     "outfox",
 ] }
 nym-sphinx-routing = { path = "../nymsphinx/routing" }
-
+nym-client-core-config-types = { path = "../client-core/config-types", features = [
+    "disk-persistence",
+] }
 
 # I'm not sure how to feel about pulling in this dependency here...
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
@@ -45,8 +50,8 @@ nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 wasm-utils = { path = "../wasm/utils", default-features = false, optional = true }
 
 [features]
-default = ["provider-trait"]
-provider-trait = ["async-trait"]
+default = ["providers"]
+providers = ["async-trait"]
 wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
 persistence = ["serde_json"]
 outfox = []

@@ -25,13 +25,15 @@ pub mod error;
 pub mod node;
 pub mod rewarded_set;
 
-#[cfg(feature = "provider-trait")]
-pub mod provider_trait;
+
 #[cfg(feature = "wasm-serde-types")]
 pub mod wasm_helpers;
 
-#[cfg(feature = "provider-trait")]
-pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
+
+#[cfg(feature = "providers")]
+pub mod providers;
+#[cfg(feature = "providers")]
+pub use providers::TopologyProvider;
 
 #[deprecated]
 #[derive(Debug, Clone)]

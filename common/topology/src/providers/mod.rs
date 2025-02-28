@@ -4,7 +4,9 @@
 use crate::NymTopology;
 pub use async_trait::async_trait;
 
-// hehe, wasm
+pub mod piecewise;
+pub mod nyxd;
+
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 pub trait TopologyProvider: Send {

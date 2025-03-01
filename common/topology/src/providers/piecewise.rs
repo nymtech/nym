@@ -290,10 +290,12 @@ mod test {
         assert_eq!(topo_provider.cached_topology(), None);
 
         // force an update of the cached topology
-        topo_provider.update_cache();
+        topo_provider.update_cache().await;
 
         let topo = topo_provider.cached_topology();
         assert!(topo.is_some());
+        let topo = topo.unwrap();
+        assert!(topo.is_empty());
         
         // create a change in the manager to make sure it is propogated to the provider cache on update
         topo_mgr.topo.rewarded_set.epoch_id += 1;
@@ -302,21 +304,29 @@ mod test {
         topo_provider.topology_manager = topo_mgr.clone();
 
         // force an update of the cached topology
-        topo_provider.update_cache();
+        topo_provider.update_cache().await;
 
         let topo = topo_provider.cached_topology();
         assert!(topo.is_some());
+        let topo1 = topo.unwrap();
+        assert!(!topo1.is_empty());
+        assert!(topo1.node_details.contains_key(&123));
+
+        // try forcing an update even though the epoch has not changed. Should result in no change
+        topo_provider.update_cache().await;
+        let topo2 = topo_provider.cached_topology().unwrap();
+        assert_eq!(topo1, topo2);
 
         Ok(())
     }
 
     #[tokio::test]
     async fn test_topology_provider_by_trait() -> Result<(), Box<dyn std::error::Error>> {
-        let mut topo_mgr = PassthroughPiecewiseTopologyProvider {
+        let topo_mgr = PassthroughPiecewiseTopologyProvider {
             topo: NymTopology::default(),
         };
 
-        let mut topo_provider =
+        let _topo_provider =
             NymTopologyProviderInner::new(Config::default(), topo_mgr.clone(), None);
 
         Ok(())

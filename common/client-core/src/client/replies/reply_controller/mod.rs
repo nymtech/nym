@@ -170,36 +170,31 @@ where
             .full_reply_storage
             .surbs_storage_ref()
             .min_surb_threshold();
-        let min_surbs_threshold_buffer =
-            self.config.reply_surbs.minimum_reply_surb_threshold_buffer;
         let max_surbs_threshold = self
             .full_reply_storage
             .surbs_storage_ref()
             .max_surb_threshold();
+        let min_surbs_threshold_buffer =
+            self.config.reply_surbs.minimum_reply_surb_threshold_buffer;
 
-        // simple as that - there's absolutely nothing to retransmit and we have enough surbs in storage
-        // for the minimum threshold buffer.
-        if total_queue == 0 && available_surbs >= min_surbs_threshold + min_surbs_threshold_buffer {
-            info!(
-                "no pending data or retransmissions and enough surbs in storage for {:?}",
-                target
-            );
-            return false;
-        }
-
-        info!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        // The number of surbs we want to have available at all times, in addition to the amount
+        // needed to clear the queue. This is to ensure that we don't run out of surbs while
+        // waiting for the next batch to arrive.
+        let target_surbs_available = min_surbs_threshold + min_surbs_threshold_buffer;
 
         // Check if we have enough surbs to handle the total queue and maintain minimum thresholds
-        let total_required_surbs = total_queue + min_surbs_threshold + min_surbs_threshold_buffer;
+        let total_required_surbs = total_queue + target_surbs_available;
         let total_available_surbs = pending_surbs + available_surbs;
 
-        info!("total required surbs: {total_required_surbs}, total available surbs: {total_available_surbs}");
-        info!("max surbs threshold: {max_surbs_threshold}");
+        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         // We should request more surbs if:
         // 1. We haven't hit the maximum surb threshold, and
         // 2. We don't have enough surbs to handle the queue plus minimum thresholds
-        total_available_surbs < max_surbs_threshold && total_available_surbs < total_required_surbs
+        let is_below_max_threshold = total_available_surbs < max_surbs_threshold;
+        let is_below_required_surbs = total_available_surbs < total_required_surbs;
+
+        is_below_max_threshold && is_below_required_surbs
     }
 
     async fn handle_send_reply(
@@ -710,7 +705,7 @@ where
     // it should take into consideration the average latency, sending rate and queue size.
     // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
-        info!("requesting surbs for queue clearing");
+        trace!("requesting surbs for queue clearing");
 
         let pending_queue_size = self
             .pending_replies
@@ -724,22 +719,13 @@ where
             .map(|pending_queue| pending_queue.len())
             .unwrap_or_default();
 
+        let min_surbs_buffer = self.config.reply_surbs.minimum_reply_surb_threshold_buffer as u32;
+
         let total_queue = (pending_queue_size + retransmission_queue) as u32;
 
-        // To proactively request additional surbs, we need to have a buffer of surbs in our storage.
-        let total_queue_with_buffer =
-            total_queue + self.config.reply_surbs.minimum_reply_surb_threshold_buffer as u32;
-
-        let available_surbs = self
-            .full_reply_storage
-            .surbs_storage_ref()
-            .available_surbs(&target);
-        let min_surbs_threshold = self
-            .full_reply_storage
-            .surbs_storage_ref()
-            .min_surb_threshold();
-        let min_surbs_threshold_buffer =
-            self.config.reply_surbs.minimum_reply_surb_threshold_buffer;
+        // To proactively request additional surbs, we aim to have a buffer of extra surbs in our
+        // storage.
+        let total_queue_with_buffer = total_queue + min_surbs_buffer;
 
         let request_size = min(
             self.config.reply_surbs.maximum_reply_surb_request_size,

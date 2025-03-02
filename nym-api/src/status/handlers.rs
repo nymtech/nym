@@ -7,9 +7,13 @@ use crate::support::http::state::AppState;
 use axum::extract::State;
 use axum::Json;
 use axum::Router;
-use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
+use nym_api_requests::models::{
+    ApiHealthResponse, ApiStatus, ChainStatus, SignerInformationResponse,
+};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
+use std::time::Duration;
+use time::OffsetDateTime;
 
 pub(crate) fn api_status_routes() -> Router<AppState> {
     Router::new()
@@ -29,9 +33,34 @@ pub(crate) fn api_status_routes() -> Router<AppState> {
         (status = 200, body = ApiHealthResponse)
     )
 )]
-async fn health(State(state): State<ApiStatusState>) -> Json<ApiHealthResponse> {
-    let uptime = state.startup_time.elapsed();
-    let health = ApiHealthResponse::new_healthy(uptime);
+async fn health(State(state): State<AppState>) -> Json<ApiHealthResponse> {
+    const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
+
+    let uptime = state.api_status.startup_time.elapsed();
+    let chain_status = match state
+        .chain_status_cache
+        .get_or_refresh(&state.nyxd_client)
+        .await
+    {
+        Ok(res) => {
+            let now = OffsetDateTime::now_utc();
+            let block_time: OffsetDateTime = res.latest_block.block.header.time.into();
+            let diff = now - block_time;
+            if diff > CHAIN_STALL_THRESHOLD {
+                ChainStatus::Stalled {
+                    approximate_amount: diff.unsigned_abs(),
+                }
+            } else {
+                ChainStatus::Synced
+            }
+        }
+        Err(_) => ChainStatus::Unknown,
+    };
+    let health = ApiHealthResponse {
+        status: ApiStatus::Up,
+        chain_status,
+        uptime: uptime.as_secs(),
+    };
     Json(health)
 }
 

@@ -1226,7 +1226,7 @@ pub enum ApiStatus {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-#[serde(rename_all = "snake_Case")]
+#[serde(rename_all = "snake_case")]
 pub enum ChainStatus {
     Synced,
     Unknown,

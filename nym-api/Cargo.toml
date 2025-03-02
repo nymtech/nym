@@ -46,6 +46,7 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url = { workspace = true }
 
+tendermint = { workspace = true }
 ts-rs = { workspace = true, optional = true }
 
 anyhow = { workspace = true }

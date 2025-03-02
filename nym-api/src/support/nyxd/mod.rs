@@ -44,7 +44,7 @@ use nym_validator_client::nyxd::{
         PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
-    CosmWasmClient, Fee,
+    BlockResponse, CosmWasmClient, Fee, TendermintRpcClient,
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
@@ -56,6 +56,7 @@ use nym_validator_client::{
 use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;
+use tendermint::abci::response::Info;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 #[macro_export]
@@ -130,6 +131,14 @@ impl Client {
 
     pub(crate) async fn read(&self) -> RwLockReadGuard<'_, ClientInner> {
         self.inner.read().await
+    }
+
+    pub(crate) async fn abci_info(&self) -> Result<Info, NyxdError> {
+        Ok(nyxd_query!(self, abci_info().await?))
+    }
+
+    pub(crate) async fn block_info(&self, height: u32) -> Result<BlockResponse, NyxdError> {
+        Ok(nyxd_query!(self, block(height).await?))
     }
 
     pub(crate) async fn client_address(&self) -> Option<AccountId> {

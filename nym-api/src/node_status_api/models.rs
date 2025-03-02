@@ -14,6 +14,7 @@ use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use nym_serde_helpers::date::DATE_FORMAT;
+use nym_validator_client::nyxd::error::NyxdError;
 use reqwest::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -448,6 +449,15 @@ impl From<RedemptionError> for AxumErrorResponse {
         Self {
             message: RequestError::new(value.to_string()),
             status: StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+impl From<NyxdError> for AxumErrorResponse {
+    fn from(value: NyxdError) -> Self {
+        Self {
+            message: RequestError::new(value.to_string()),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

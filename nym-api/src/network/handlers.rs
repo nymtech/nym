@@ -1,9 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network::models::{ContractInformation, NetworkDetails};
+use crate::network::models::{ChainStatusResponse, ContractInformation, NetworkDetails};
+use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use axum::{extract, Router};
+use axum::extract::State;
+use axum::{extract, Json, Router};
 use nym_contracts_common::ContractBuildInformation;
 use std::collections::HashMap;
 use tower_http::compression::CompressionLayer;
@@ -12,6 +14,7 @@ use utoipa::ToSchema;
 pub(crate) fn nym_network_routes() -> Router<AppState> {
     Router::new()
         .route("/details", axum::routing::get(network_details))
+        .route("/chain-status", axum::routing::get(chain_status))
         .route("/nym-contracts", axum::routing::get(nym_contracts))
         .route(
             "/nym-contracts-detailed",
@@ -32,6 +35,28 @@ async fn network_details(
     extract::State(state): extract::State<AppState>,
 ) -> axum::Json<NetworkDetails> {
     state.network_details().to_owned().into()
+}
+
+#[utoipa::path(
+    tag = "network",
+    get,
+    path = "/v1/network/chain-status",
+    responses(
+        (status = 200, body = ChainStatusResponse)
+    )
+)]
+async fn chain_status(State(state): State<AppState>) -> AxumResult<Json<ChainStatusResponse>> {
+    let chain_status = state
+        .chain_status_cache
+        .get_or_refresh(&state.nyxd_client)
+        .await?;
+
+    let connected_nyxd = state.network_details.connected_nyxd;
+
+    Ok(Json(ChainStatusResponse {
+        connected_nyxd,
+        status: chain_status,
+    }))
 }
 
 // it's used for schema generation so dead_code is fine

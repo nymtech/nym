@@ -22,8 +22,8 @@ use crate::{
             IpPacketRequest, PingRequest, StaticConnectRequest,
         },
         response::{
-            DynamicConnectFailureReason, DynamicConnectSuccess, HealthResponse, InfoLevel,
-            InfoResponse, InfoResponseReply, Response, StaticConnectFailureReason,
+            DisconnectResponse, DynamicConnectFailureReason, DynamicConnectSuccess, HealthResponse,
+            InfoLevel, InfoResponse, InfoResponseReply, Response, StaticConnectFailureReason,
             StaticConnectResponse, VersionedResponse,
         },
         ClientVersion,
@@ -293,9 +293,46 @@ impl MixnetListener {
         }))
     }
 
-    fn on_disconnect_request(&self, _disconnect_request: DisconnectRequest) -> PacketHandleResult {
-        log::info!("Received disconnect request: not implemented, dropping");
-        Ok(None)
+    async fn on_disconnect_request(
+        &mut self,
+        disconnect_request: DisconnectRequest,
+    ) -> PacketHandleResult {
+        log::info!(
+            "Received disconnect request from {}",
+            disconnect_request.sent_by
+        );
+
+        let version = disconnect_request.version;
+        let request_id = disconnect_request.request_id;
+        let client_id = disconnect_request.sent_by;
+
+        // Check if the client is connected
+        if !self.connected_clients.is_client_connected(&client_id) {
+            log::info!("Client {} is not connected, cannot disconnect", client_id);
+            return Ok(Some(VersionedResponse {
+                version,
+                reply_to: client_id,
+                response: Response::Disconnect {
+                    request_id,
+                    reply: DisconnectResponse::Failure(
+                        crate::messages::response::DisconnectFailureReason::ClientNotConnected,
+                    ),
+                },
+            }));
+        }
+
+        // Disconnect the client
+        log::info!("Disconnecting client {}", client_id);
+        self.connected_clients.disconnect_client(&client_id);
+
+        Ok(Some(VersionedResponse {
+            version,
+            reply_to: client_id,
+            response: Response::Disconnect {
+                request_id,
+                reply: DisconnectResponse::Success,
+            },
+        }))
     }
 
     async fn on_ping_request(&self, ping_request: PingRequest) -> PacketHandleResult {
@@ -326,7 +363,7 @@ impl MixnetListener {
         match control_request {
             ControlRequest::StaticConnect(r) => self.on_static_connect_request(r).await,
             ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r).await,
-            ControlRequest::Disconnect(r) => self.on_disconnect_request(r),
+            ControlRequest::Disconnect(r) => self.on_disconnect_request(r).await,
             ControlRequest::Ping(r) => self.on_ping_request(r).await,
             ControlRequest::Health(r) => self.on_health_request(r).await,
         }

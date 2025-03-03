@@ -59,6 +59,24 @@ impl ConnectedClients {
             .any(|client| client.client_id == *client_id)
     }
 
+    pub(crate) fn disconnect_client(&mut self, client_id: &ConnectedClientId) {
+        if let Some(ips) = self.lookup_ip_from_client_id(client_id) {
+            log::info!("Disconnect client that requested to do so: {ips}");
+            self.disconnect_client_handle(ips);
+        }
+    }
+
+    fn disconnect_client_handle(&mut self, ips: IpPair) {
+        self.clients_ipv4_mapping.remove(&ips.ipv4);
+        self.clients_ipv6_mapping.remove(&ips.ipv6);
+        self.tun_listener_connected_client_tx
+            .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ips)))
+            .inspect_err(|err| {
+                log::error!("Failed to send disconnect event: {err}");
+            })
+            .ok();
+    }
+
     pub(crate) fn lookup_ip_from_client_id(&self, client_id: &ConnectedClientId) -> Option<IpPair> {
         self.clients_ipv4_mapping
             .iter()
@@ -164,14 +182,7 @@ impl ConnectedClients {
     ) {
         for (ips, _) in &stopped_clients {
             log::info!("Disconnect stopped client: {ips}");
-            self.clients_ipv4_mapping.remove(&ips.ipv4);
-            self.clients_ipv6_mapping.remove(&ips.ipv6);
-            self.tun_listener_connected_client_tx
-                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)))
-                .inspect_err(|err| {
-                    log::error!("Failed to send disconnect event: {err}");
-                })
-                .ok();
+            self.disconnect_client_handle(*ips);
         }
     }
 
@@ -181,14 +192,7 @@ impl ConnectedClients {
     ) {
         for (ips, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ips}");
-            self.clients_ipv4_mapping.remove(&ips.ipv4);
-            self.clients_ipv6_mapping.remove(&ips.ipv6);
-            self.tun_listener_connected_client_tx
-                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)))
-                .inspect_err(|err| {
-                    log::error!("Failed to send disconnect event: {err}");
-                })
-                .ok();
+            self.disconnect_client_handle(*ips);
         }
     }
 

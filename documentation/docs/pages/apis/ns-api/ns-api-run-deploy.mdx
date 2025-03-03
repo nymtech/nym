@@ -62,7 +62,7 @@ echo "RUST_LOG=${RUST_LOG}"
 echo "BECH32_PREFIX=${BECH32_PREFIX}"
 echo "NETWORK_NAME=${NETWORK_NAME}"
 
-cargo run --package nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
+<PATH/TO/>nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
 ```
 
 ### Functionality Without Gateway Probe
@@ -161,12 +161,166 @@ Data will be restricted to information that doesn't involve Probe results; `rout
 ```
 </AccordionTemplate>
 
+If you have already run the API before, make sure to add the following to your script `--database-url "sqlite://node-status-api.sqlite?mode=rwc` so it will continue using the same DB.
+
 ### Functionality with Gateway Probe
-TODO: if you do want to run with GWP
+If you want to enable Gateway node probes and have the NS API store that data, you need to periodically run the `nym-node-status-agent`, authenticated with your `nym-node-status-api` instance. Authentication is to make sure that only the `-agent` you are operating (or others you trust) are submitting data to your API instance.
+
+#### Compile Gateway Probe
+The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary which currently is in the NymVPN repo. `git checkout` to the most recent [release](https://github.com/nymtech/nym-vpn-client/releases), and compile the probe by following the [readme instructions](https://github.com/nymtech/nym-vpn-client/tree/develop/nym-vpn-core/crates/nym-gateway-probe). You will point the `-agent` at this binary when doing Probe testruns.
+
+#### Generate Keypair
+```shell
+<PATH/TO/>nym-node-status-agent generate-keypair --path <PATH/TO/KEY/FILE/TO/GENERATE>/<KEY_NAME>
+# e.g.
+# nym-node-status-agent generate-keypair --path ~/.ssh/ns-agent-key
+```
+
+You will then want to export the generated `public-key` so its accessible to the `nym-node-status-api` however you are setting your environmental variables, as `NODE_STATUS_API_AGENT_KEY_LIST`:
+
+```bash
+export NODE_STATUS_API_AGENT_KEY_LIST=<YOUR_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
+```
+
+#### Run the Node Status Agent
+```shell
+<PATH/TO/>nym-node-status-agent run-probe --server-address http://127.0.0.1 --server-port 8000 --ns-api-auth-key "<NS_AGENT_PRIVATE_KEY>" --probe-path <PATH/TO/> nym-gateway-probe
+```
+
+You will see a lot of output like so:
 
 <AccordionTemplate name="Output">
-    TODO
+```shell
+listen_port=48586
+public_key=3f95caf771b8a63b9bdae6c186f7aba2eae93483f1c82c0243b5e00c85b4ec26
+preshared_key=0000000000000000000000000000000000000000000000000000000000000000
+protocol_version=1
+endpoint=185.186.78.251:51822
+last_handshake_time_sec=0
+last_handshake_time_nsec=0
+tx_bytes=0
+rx_bytes=0
+persistent_keepalive_interval=0
+allowed_ip=0.0.0.0/0
+2025/03/03 18:58:28 Pinging nymtech.net seq=0
+2025/03/03 18:58:29 Ping latency: 44.503483ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=1
+2025/03/03 18:58:29 Ping latency: 42.852414ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=2
+2025/03/03 18:58:29 Ping latency: 43.627256ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=3
+2025/03/03 18:58:29 Ping latency: 43.638839ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=4
+2025/03/03 18:58:29 Ping latency: 43.345357ms
+2025/03/03 18:58:29 Pinging 1.1.1.1 seq=0
+2025/03/03 18:58:29 Ping latency: 46.327233ms
+2025/03/03 18:58:34 Pinging 1.1.1.1 seq=1
+2025/03/03 18:58:34 Ping latency: 46.273726ms
+2025/03/03 18:58:39 Pinging 1.1.1.1 seq=2
+2025/03/03 18:58:39 Ping latency: 46.542774ms
+2025/03/03 18:58:44 Pinging 1.1.1.1 seq=3
+2025/03/03 18:58:44 Ping latency: 45.663545ms
+2025/03/03 18:58:49 Pinging 1.1.1.1 seq=4
+2025/03/03 18:58:49 Ping latency: 43.803063ms
+2025/03/03 18:58:56 Downloaded file content length: 1.00 MB
+2025/03/03 18:58:56 Download duration: 1.308072386s
+2025/03/03 18:58:56 private_key=1083749e43f4f8fb008f3f7deef9107ef86a68969670ddbb9f07bf85f94fb564
+listen_port=39129
+public_key=3f95caf771b8a63b9bdae6c186f7aba2eae93483f1c82c0243b5e00c85b4ec26
+preshared_key=0000000000000000000000000000000000000000000000000000000000000000
+protocol_version=1
+endpoint=185.186.78.251:51822
+last_handshake_time_sec=0
+last_handshake_time_nsec=0
+tx_bytes=0
+rx_bytes=0
+persistent_keepalive_interval=0
+allowed_ip=::/0
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=0
+2025/03/03 18:58:56 Ping latency: 42.839528ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=1
+2025/03/03 18:58:56 Ping latency: 54.844651ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=2
+2025/03/03 18:58:56 Ping latency: 51.23104ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=3
+2025/03/03 18:58:56 Ping latency: 43.320409ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=4
+2025/03/03 18:58:56 Ping latency: 63.517358ms
+2025/03/03 18:58:56 Pinging 2001:4860:4860::8888 seq=0
+2025/03/03 18:58:56 Ping latency: 54.682534ms
+2025/03/03 18:59:01 Pinging 2001:4860:4860::8888 seq=1
+2025/03/03 18:59:01 Ping latency: 55.56235ms
+2025/03/03 18:59:06 Pinging 2001:4860:4860::8888 seq=2
+2025/03/03 18:59:06 Ping latency: 55.970418ms
+2025/03/03 18:59:11 Pinging 2001:4860:4860::8888 seq=3
+2025/03/03 18:59:14 Failed to send ping: i/o timeout
+2025/03/03 18:59:19 Pinging 2001:4860:4860::8888 seq=4
+2025/03/03 18:59:22 Failed to send ping: i/o timeout
+2025/03/03 18:59:27 Pinging 2606:4700:4700::1111 seq=0
+2025/03/03 18:59:27 Ping latency: 45.072616ms
+2025/03/03 18:59:32 Pinging 2606:4700:4700::1111 seq=1
+2025/03/03 18:59:32 Ping latency: 44.357306ms
+2025/03/03 18:59:37 Pinging 2606:4700:4700::1111 seq=2
+2025/03/03 18:59:37 Ping latency: 44.013562ms
+2025/03/03 18:59:42 Pinging 2606:4700:4700::1111 seq=3
+2025/03/03 18:59:42 Ping latency: 46.94342ms
+2025/03/03 18:59:47 Pinging 2606:4700:4700::1111 seq=4
+2025/03/03 18:59:48 Ping latency: 43.372288ms
+2025/03/03 18:59:53 Pinging 2620:fe::fe seq=0
+2025/03/03 18:59:53 Ping latency: 42.164952ms
+2025/03/03 18:59:58 Pinging 2620:fe::fe seq=1
+2025/03/03 18:59:58 Ping latency: 42.295812ms
+2025/03/03 19:00:03 Pinging 2620:fe::fe seq=2
+2025/03/03 19:00:03 Ping latency: 43.117534ms
+2025/03/03 19:00:08 Pinging 2620:fe::fe seq=3
+2025/03/03 19:00:08 Ping latency: 44.26068ms
+2025/03/03 19:00:13 Pinging 2620:fe::fe seq=4
+2025/03/03 19:00:13 Ping latency: 45.29956ms
+2025/03/03 19:00:21 Downloaded file content length: 10.00 MB
+2025/03/03 19:00:21 Download duration: 3.39529252s
+```
 </AccordionTemplate>
+
+Whilst you can run the `-agent` directly, it might be easier to run multiple instances in parallel with a script like so:
+
+```bash
+#!/bin/bash
+
+set -eu
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
+
+probe_git_ref="nym-vpn-core-v1.4.0" # check for the most recent release
+monorepo_root=<PATH/TO/NYM/>
+
+set -a
+source "${monorepo_root}/envs/${ENVIRONMENT}.env"
+set +a
+
+export RUST_LOG="info"
+export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
+export NODE_STATUS_AGENT_SERVER_PORT="8000"
+export NODE_STATUS_AGENT_AUTH_KEY=<NS_AGENT_PRIVATE_KEY>
+export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1"
+
+workers=${1:-1}
+echo "Running $workers workers in parallel"
+
+function swarm() {
+  local workers=$1
+
+  for ((i = 1; i <= workers; i++)); do
+    ${monorepo_root}/target/release/nym-node-status-agent run-probe --probe-path ~/<PATH/TO>/nym-vpn-client/nym-vpn-core/target/debug/nym-gateway-probe &
+  done
+
+  wait
+
+  echo "All agents completed"
+}
+
+swarm $workers
+```
+
+And run specifying the number of workers with `./<SCRIPT_NAME>.sh <NUMBER_OF_WORKERS>`.
 
 ### Ports
 By default the API listens on `8000`, so you will need to configure this post to be reachable on your remote server. You can modify this with the `--http_port` flag.

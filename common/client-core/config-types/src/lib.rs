@@ -622,9 +622,8 @@ pub struct ReplySurbs {
     /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
     pub maximum_reply_surb_storage_threshold: usize,
 
-    /// Defines the soft threshold for when the client should proactively request additional reply surbs.
-    /// If there are fewer surbs than this number, not counting the minimum threshold buffer, then the
-    /// client will not request additional surbs.
+    /// Defines the soft threshold ontop of the minimum reply surb storage threshold for when the client
+    /// should proactively request additional reply surbs.
     pub minimum_reply_surb_threshold_buffer: usize,
 
     /// Defines the minimum number of reply surbs the client would request.

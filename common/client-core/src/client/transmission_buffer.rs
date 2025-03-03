@@ -82,6 +82,7 @@ impl<T> TransmissionBuffer<T> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(unused)]
     pub(crate) fn total_size_in_bytes(&self) -> usize
     where
         T: SizedData,

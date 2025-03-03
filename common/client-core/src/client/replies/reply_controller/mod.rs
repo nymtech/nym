@@ -290,7 +290,7 @@ where
         target: AnonymousSenderTag,
         amount: u32,
     ) -> Result<(), PreparationError> {
-        info!("requesting {amount} additional reply surbs for {target}");
+        debug!("requesting {amount} additional reply surbs for {target}");
         let reply_surb = self
             .full_reply_storage
             .surbs_storage_ref()

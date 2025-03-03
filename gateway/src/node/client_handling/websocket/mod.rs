@@ -8,4 +8,4 @@ pub(crate) mod connection_handler;
 pub(crate) mod listener;
 pub(crate) mod message_receiver;
 
-pub(crate) use common_state::CommonHandlerState;
+pub(crate) use common_state::{CommonHandlerState, Config};

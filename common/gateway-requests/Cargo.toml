@@ -20,11 +20,14 @@ serde_json = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
+time = { workspace = true }
+subtle = { workspace = true }
 zeroize = { workspace = true }
 
 nym-crypto = { path = "../crypto", features = ["aead", "hashing"] }
 nym-pemstore = { path = "../pemstore" }
 nym-sphinx = { path = "../nymsphinx" }
+nym-serde-helpers = { path = "../serde-helpers", features = ["base64"] }
 nym-task = { path = "../task" }
 
 nym-credentials = { path = "../credentials" }

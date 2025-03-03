@@ -63,6 +63,7 @@ impl MixingStats {
             .or_default()
             .forward_packets
             .received += 1;
+
         *self.ingress.received_versions.entry(version).or_default() += 1;
     }
 
@@ -213,7 +214,7 @@ impl Display for PacketKind {
             PacketKind::Unknown => "unknown".fmt(f),
             PacketKind::Outfox => "outfox".fmt(f),
             PacketKind::Sphinx(sphinx_version) => {
-                write!(f, "sphinx-{sphinx_version}")
+                write!(f, "sphinx_{sphinx_version}")
             }
         }
     }

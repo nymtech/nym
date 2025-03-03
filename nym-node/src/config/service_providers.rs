@@ -150,9 +150,10 @@ pub struct IpPacketRouterDebug {
 
 impl Default for IpPacketRouterDebug {
     fn default() -> Self {
-        let client_debug =  ClientDebugConfig {
+        let client_debug = ClientDebugConfig {
             reply_surbs: ReplySurbs {
-                minimum_reply_surb_threshold_buffer: DEFAULT_IPR_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER,
+                minimum_reply_surb_threshold_buffer:
+                    DEFAULT_IPR_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER,
                 ..Default::default()
             },
             ..Default::default()

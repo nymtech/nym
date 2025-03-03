@@ -189,7 +189,8 @@ where
         let total_required_surbs = total_queue + target_surbs_after_clearing_queue;
         let total_available_surbs = pending_surbs + available_surbs;
 
-        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        // WIP(JON)
+        info!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         // We should request more surbs if:
         // 1. We haven't hit the maximum surb threshold, and

@@ -19,11 +19,23 @@ use std::{
     time::Duration,
 };
 
+/// Topology filtering and caching configuration
 #[derive(Debug)]
 pub struct Config {
+    /// Specifies a minimum performance of a mixnode that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
     pub min_mixnode_performance: u8,
+
+    /// Specifies a minimum performance of a gateway that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
     pub min_gateway_performance: u8,
+
+    /// Specifies whether this client should attempt to retrieve all available network nodes
+    /// as opposed to just active mixnodes/gateways.
     pub use_extended_topology: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the target egress node
+    /// when constructing the final hop packets.
     pub ignore_egress_epoch_role: bool,
 
     /// Minimum duration during which querying the topology will NOT attempt to re-fetch data, and
@@ -87,14 +99,16 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProvider<M> {
     }
 
     /// Bypass the caching for the topology and force a check for the latest updates next time the
-    /// topology is requested.
+    /// topology is requested. This fn requires async to get lock in case other threads have access
+    /// to the cached topology state.
     pub async fn force_refresh(&self) {
         let mut guard = self.inner.lock().await;
         guard.cached_at = OffsetDateTime::UNIX_EPOCH;
     }
 
     /// Remove all stored topology state. The next time the topology is requested this will force a
-    /// pull of all topology information.
+    /// pull of all topology information. This fn requires async to get lock in case other threads
+    /// have access to the cached topology state.
     ///
     /// WARNING: This may be slow / require non-trivial bandwidth.
     pub async fn force_clear(&self) {
@@ -186,6 +200,16 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProviderInner<M> {
             if let Some(new_descriptors) = response {
                 cached_topology.add_routing_nodes(new_descriptors.values());
             }
+
+            // double check that we have the expected nodes
+            let known_id_set = HashSet::<u32>::from_iter(cached_topology.all_node_ids().copied());
+            let unknown_node_ids: Vec<_> = new_id_set.difference(&known_id_set).collect();
+            if !unknown_node_ids.is_empty() {
+                warn!(
+                    "still missing descriptors for nodes in the assigned set: {:?}",
+                    unknown_node_ids
+                );
+            }
         } else {
             self.cached = self.topology_manager.get_full_topology().await;
         }
@@ -233,10 +257,16 @@ impl<P: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProviderInner
 /// Trait allowing construction and upkeep of a
 #[async_trait]
 pub trait PiecewiseTopologyProvider: Send {
+    /// Pull a copy of the full topology.
+    ///
+    /// This is intended to be used sparingly as repeated usage could result in fetching duplicate
+    /// information more often than necessary.
     async fn get_full_topology(&mut self) -> Option<NymTopology>;
 
+    /// Fetch a node descriptors for the set of provided IDs if available.
     async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<HashMap<u32, RoutingNode>>;
 
+    /// Fetch the latest mapping of node IDs to Nym Network layer.
     async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet>;
 }
 
@@ -315,17 +345,81 @@ mod test {
         let topo2 = topo_provider.cached_topology().unwrap();
         assert_eq!(topo1, topo2);
 
+        // Add a node without a descriptor to make sure warning is printed.
+        topo_mgr.topo.rewarded_set.epoch_id += 1;
+        topo_mgr.topo.rewarded_set.entry_gateways = HashSet::from([123, 456]);
+        topo_provider.topology_manager = topo_mgr.clone();
+
+        // try forcing an update even though the epoch has not changed. Should result in no change
+        topo_provider.update_cache().await;
+        let _ = topo_provider.cached_topology().unwrap();
+
         Ok(())
     }
 
     #[tokio::test]
     async fn test_topology_provider_by_trait() -> Result<(), Box<dyn std::error::Error>> {
-        let topo_mgr = PassthroughPiecewiseTopologyProvider {
+        let mut topo_mgr = PassthroughPiecewiseTopologyProvider {
             topo: NymTopology::default(),
         };
 
-        let _topo_provider =
-            NymTopologyProviderInner::new(Config::default(), topo_mgr.clone(), None);
+        let mut topo_provider = NymTopologyProvider::new(topo_mgr.clone(), Config::default(), None);
+
+        // No initial topology was provided, the NymTopologyProvider should do an update from the
+        // manager to build its cache. This should be our empty topology initialized in the manage
+        // above
+        let maybe_topo = topo_provider.get_new_topology().await;
+        assert!(maybe_topo.is_some());
+        let topo1 = maybe_topo.unwrap();
+        assert!(topo1.is_empty());
+
+        // Try pulling again, should give response from cache because we are under ttl
+        let maybe_topo = topo_provider.get_new_topology().await;
+        assert!(maybe_topo.is_some());
+        let topo2 = maybe_topo.unwrap();
+        assert_eq!(topo1, topo2);
+
+        // create a change in the manager
+        topo_mgr.topo.rewarded_set.epoch_id += 1;
+        topo_mgr.topo.rewarded_set.entry_gateways = HashSet::from([123]);
+        assert_eq!(topo_mgr.topo.node_details.insert(123, fake_node(123)), None);
+        {
+            let mut guard = topo_provider.inner.lock().await;
+            guard.topology_manager = topo_mgr.clone();
+            drop(guard)
+        }
+
+        // The NymTopologyProvider should still serve from cache because we haven't crossed ttl
+        // despite updates being available in the manager
+        let maybe_topo = topo_provider.get_new_topology().await;
+        assert!(maybe_topo.is_some());
+        let topo3 = maybe_topo.unwrap();
+        assert_eq!(topo2, topo3);
+
+        // force ttl timeout should allow refresh that includes latest changes from manager
+        topo_provider.force_refresh().await;
+        let maybe_topo = topo_provider.get_new_topology().await;
+        assert!(maybe_topo.is_some());
+        let topo4 = maybe_topo.unwrap();
+        assert_ne!(topo3, topo4);
+        assert!(topo4.node_details.contains_key(&123));
+
+        // create another change in the manager
+        topo_mgr.topo.rewarded_set.epoch_id += 1;
+        topo_mgr.topo.rewarded_set.entry_gateways = HashSet::from([123, 456]);
+        assert_eq!(topo_mgr.topo.node_details.insert(456, fake_node(456)), None);
+        {
+            let mut guard = topo_provider.inner.lock().await;
+            guard.topology_manager = topo_mgr.clone();
+            drop(guard)
+        }
+
+        // force clear cache should also pull latest full topology
+        topo_provider.force_clear().await;
+        let maybe_topo = topo_provider.get_new_topology().await;
+        assert!(maybe_topo.is_some());
+        let topo5 = maybe_topo.unwrap();
+        assert!(topo5.node_details.contains_key(&456));
 
         Ok(())
     }

@@ -8,10 +8,8 @@ use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng};
 use std::borrow::Borrow;
-use std::collections::hash_map::Values;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
-use std::iter::Filter;
 use std::net::IpAddr;
 use tracing::{debug, trace, warn};
 

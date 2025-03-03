@@ -59,7 +59,6 @@
     "react-dom": "^18.2.0",
     "react-error-boundary": "^3.1.4",
     "react-google-charts": "^3.0.15",
-    "react-identicons": "^1.2.5",
     "react-router-dom": "6",
     "react-simple-maps": "^2.3.0",
     "react-tooltip": "^4.2.21",

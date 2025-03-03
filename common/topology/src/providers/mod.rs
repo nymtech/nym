@@ -4,7 +4,7 @@
 use crate::NymTopology;
 pub use async_trait::async_trait;
 
-pub mod nyxd;
+/// Cached Topology Provider built using efficient piecewise requests.
 pub mod piecewise;
 
 #[cfg(not(target_arch = "wasm32"))]

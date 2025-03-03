@@ -20,6 +20,7 @@ export default async function BlogPage({
 
   try {
     const blogArticle: BlogArticle = await import(`@/data/${slug}.json`);
+
     const breadcrumbItems = [
       {
         label: "Onboarding",
@@ -69,11 +70,14 @@ export default async function BlogPage({
                           <Typography key={author} variant="subtitle3">
                             {author}
                           </Typography>
-                        ),
+                        )
                       )}
                     </Box>
                     <time dateTime={blogArticle?.attributes?.date.toString()}>
-                      {format(blogArticle?.attributes?.date, "MMMM dd, yyyy")}
+                      {format(
+                        new Date(blogArticle?.attributes?.date),
+                        "MMMM dd, yyyy"
+                      )}
                     </time>
                   </Typography>
                   <Typography variant="subtitle3">

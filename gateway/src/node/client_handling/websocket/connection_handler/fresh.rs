@@ -1,11 +1,13 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::client_handling::active_clients::RemoteClientData;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
+use crate::node::client_handling::websocket::connection_handler::helpers::KeyWithAuthTimestamp;
 use crate::node::client_handling::websocket::connection_handler::INITIAL_MESSAGE_TIMEOUT;
 use crate::node::client_handling::websocket::{
     connection_handler::{AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream},
-    message_receiver::{IsActive, IsActiveRequestSender},
+    message_receiver::IsActive,
 };
 use futures::{
     channel::{mpsc, oneshot},
@@ -13,14 +15,16 @@ use futures::{
 };
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
+use nym_gateway_requests::authenticate::AuthenticateRequest;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    BinaryResponse, SharedGatewayKey, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+    AuthenticationFailure, BinaryResponse, SharedGatewayKey, CURRENT_PROTOCOL_VERSION,
+    INITIAL_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_node_metrics::events::MetricsEvent;
@@ -30,6 +34,7 @@ use rand::CryptoRng;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
+use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
@@ -37,6 +42,12 @@ use tracing::*;
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
+    #[error(transparent)]
+    AuthenticationFailure(#[from] AuthenticationFailure),
+
+    #[error("attempted to overwrite client session with a stale authentication")]
+    StaleSessionOverwrite,
+
     #[error("Internal gateway storage error")]
     StorageError(#[from] GatewayStorageError),
 
@@ -290,15 +301,15 @@ impl<R, S> FreshHandler<R, S> {
     // of doing full parse of the init_data elsewhere
     fn extract_remote_identity_from_register_init(
         init_data: &[u8],
-    ) -> Result<identity::PublicKey, InitialAuthenticationError> {
-        if init_data.len() < identity::PUBLIC_KEY_LENGTH {
+    ) -> Result<ed25519::PublicKey, InitialAuthenticationError> {
+        if init_data.len() < ed25519::PUBLIC_KEY_LENGTH {
             Err(InitialAuthenticationError::HandshakeError(
                 HandshakeError::MalformedRequest,
             ))
         } else {
-            identity::PublicKey::from_bytes(&init_data[..identity::PUBLIC_KEY_LENGTH]).map_err(
-                |_| InitialAuthenticationError::HandshakeError(HandshakeError::MalformedRequest),
-            )
+            ed25519::PublicKey::from_bytes(&init_data[..ed25519::PUBLIC_KEY_LENGTH]).map_err(|_| {
+                InitialAuthenticationError::HandshakeError(HandshakeError::MalformedRequest)
+            })
         }
     }
 
@@ -351,6 +362,21 @@ impl<R, S> FreshHandler<R, S> {
         Ok(())
     }
 
+    async fn retrieve_shared_key(
+        &self,
+        client: DestinationAddressBytes,
+    ) -> Result<Option<KeyWithAuthTimestamp>, InitialAuthenticationError> {
+        let shared_keys = self.shared_state.storage.get_shared_keys(client).await?;
+
+        let Some(stored_shared_keys) = shared_keys else {
+            return Ok(None);
+        };
+
+        let keys = KeyWithAuthTimestamp::try_from_stored(stored_shared_keys, client)?;
+
+        Ok(Some(keys))
+    }
+
     /// Checks whether the stored shared keys match the received data, i.e. whether the upon decryption
     /// the provided encrypted address matches the expected unencrypted address.
     ///
@@ -361,31 +387,18 @@ impl<R, S> FreshHandler<R, S> {
     /// * `client_address`: address of the client.
     /// * `encrypted_address`: encrypted address of the client, presumably encrypted using the shared keys.
     /// * `iv`: nonce/iv created for this particular encryption.
-    async fn verify_stored_shared_key(
+    async fn auth_v1_verify_stored_shared_key(
         &self,
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
         nonce: &[u8],
-    ) -> Result<Option<SharedGatewayKey>, InitialAuthenticationError> {
-        let shared_keys = self
-            .shared_state
-            .storage
-            .get_shared_keys(client_address)
-            .await?;
-
-        let Some(stored_shared_keys) = shared_keys else {
+    ) -> Result<Option<KeyWithAuthTimestamp>, InitialAuthenticationError> {
+        let Some(keys) = self.retrieve_shared_key(client_address).await? else {
             return Ok(None);
         };
 
-        let keys = SharedGatewayKey::try_from(stored_shared_keys).map_err(|source| {
-            InitialAuthenticationError::MalformedStoredSharedKey {
-                client_id: client_address.as_base58_string(),
-                source,
-            }
-        })?;
-
         // LEGACY ISSUE: we're not verifying HMAC key
-        if encrypted_address.verify(&client_address, &keys, nonce) {
+        if encrypted_address.verify(&client_address, &keys.key, nonce) {
             Ok(Some(keys))
         } else {
             Ok(None)
@@ -428,49 +441,19 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
-    /// Using the received challenge data, i.e. client's address as well the ciphertext of it plus
-    /// a fresh IV, attempts to authenticate the client by checking whether the ciphertext matches
-    /// the expected value if encrypted with the shared key.
-    ///
-    /// Finally, upon completion, all previously stored messages are pushed back to the client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client wishing to authenticate.
-    /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
-    /// * `iv`: fresh nonce/IV received with the request.
-    async fn authenticate_client(
-        &mut self,
-        client_address: DestinationAddressBytes,
-        encrypted_address: EncryptedAddressBytes,
-        nonce: &[u8],
-    ) -> Result<Option<SharedGatewayKey>, InitialAuthenticationError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin,
-    {
-        debug!(
-            "Processing authenticate client request for: {}",
-            client_address.as_base58_string()
-        );
-
-        let shared_keys = self
-            .verify_stored_shared_key(client_address, encrypted_address, nonce)
-            .await?;
-
-        if let Some(shared_keys) = shared_keys {
-            self.push_stored_messages_to_client(client_address, &shared_keys)
-                .await?;
-            Ok(Some(shared_keys))
-        } else {
-            Ok(None)
-        }
-    }
-
     async fn handle_duplicate_client(
         &mut self,
         address: DestinationAddressBytes,
-        mut is_active_request_tx: IsActiveRequestSender,
+        remote_client_data: RemoteClientData,
+        new_session_start: OffsetDateTime,
     ) -> Result<(), InitialAuthenticationError> {
+        let mut is_active_request_tx = remote_client_data.channels.is_active_request_sender;
+
+        // new session must **always** be explicitly more recent
+        if new_session_start <= remote_client_data.session_request_timestamp {
+            return Err(InitialAuthenticationError::StaleSessionOverwrite);
+        }
+
         // Ask the other connection to ping if they are still active.
         // Use a oneshot channel to return the result to us
         let (ping_result_sender, ping_result_receiver) = oneshot::channel();
@@ -519,6 +502,32 @@ impl<R, S> FreshHandler<R, S> {
         Ok(())
     }
 
+    #[allow(dead_code)]
+    async fn get_registered_client_id(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<i64, InitialAuthenticationError> {
+        self.shared_state
+            .storage
+            .get_mixnet_client_id(client_address)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_registered_available_bandwidth(
+        &self,
+        client_id: i64,
+    ) -> Result<AvailableBandwidth, InitialAuthenticationError> {
+        let available_bandwidth: AvailableBandwidth = self
+            .shared_state
+            .storage
+            .get_available_bandwidth(client_id)
+            .await?
+            .map(From::from)
+            .unwrap_or_default();
+        Ok(available_bandwidth)
+    }
+
     /// Tries to handle the received authentication request by checking correctness of the received data.
     ///
     /// # Arguments
@@ -531,7 +540,7 @@ impl<R, S> FreshHandler<R, S> {
             address = %address,
         )
     )]
-    async fn handle_authenticate(
+    async fn handle_legacy_authenticate(
         &mut self,
         client_protocol_version: Option<u8>,
         address: String,
@@ -541,7 +550,7 @@ impl<R, S> FreshHandler<R, S> {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        debug!("handling client registration");
+        debug!("handling client authentication (v1)");
 
         let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
         // populate the negotiated protocol for future uses
@@ -554,38 +563,38 @@ impl<R, S> FreshHandler<R, S> {
             .into_vec()
             .map_err(InitialAuthenticationError::MalformedIV)?;
 
-        // Check for duplicate clients
-        if let Some(client_tx) = self
-            .shared_state
-            .active_clients_store
-            .get_remote_client(address)
-        {
-            warn!("Detected duplicate connection for client: {address}");
-            self.handle_duplicate_client(address, client_tx.is_active_request_sender)
-                .await?;
-        }
-
+        // validate the shared key
         let Some(shared_keys) = self
-            .authenticate_client(address, encrypted_address, &nonce)
+            .auth_v1_verify_stored_shared_key(address, encrypted_address, &nonce)
             .await?
         else {
             // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
             return Ok(InitialAuthResult::new_failed(Some(negotiated_protocol)));
         };
 
-        let client_id = self
+        // in v1 we don't have explicit data so we have to use current timestamp
+        // (which does nothing but just allows us to use the same codepath)
+        let session_request_start = OffsetDateTime::now_utc();
+
+        // Check for duplicate clients
+        if let Some(remote_client_data) = self
             .shared_state
-            .storage
-            .get_mixnet_client_id(address)
+            .active_clients_store
+            .get_remote_client(address)
+        {
+            warn!("Detected duplicate connection for client: {address}");
+            self.handle_duplicate_client(address, remote_client_data, session_request_start)
+                .await?;
+        }
+
+        let client_id = shared_keys.client_id;
+
+        // if applicable, push stored messages
+        self.push_stored_messages_to_client(address, &shared_keys.key)
             .await?;
 
-        let available_bandwidth: AvailableBandwidth = self
-            .shared_state
-            .storage
-            .get_available_bandwidth(client_id)
-            .await?
-            .map(From::from)
-            .unwrap_or_default();
+        // check the bandwidth
+        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
 
         let bandwidth_remaining = if available_bandwidth.expired() {
             self.shared_state.storage.reset_bandwidth(client_id).await?;
@@ -595,7 +604,98 @@ impl<R, S> FreshHandler<R, S> {
         };
 
         Ok(InitialAuthResult::new(
-            Some(ClientDetails::new(client_id, address, shared_keys)),
+            Some(ClientDetails::new(
+                client_id,
+                address,
+                shared_keys.key,
+                session_request_start,
+            )),
+            ServerResponse::Authenticate {
+                protocol_version: Some(negotiated_protocol),
+                status: true,
+                bandwidth_remaining,
+            },
+        ))
+    }
+
+    async fn handle_authenticate_v2(
+        &mut self,
+        request: Box<AuthenticateRequest>,
+    ) -> Result<InitialAuthResult, InitialAuthenticationError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        debug!("handling client authentication (v2)");
+
+        let negotiated_protocol =
+            self.negotiate_client_protocol(Some(request.content.protocol_version))?;
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(negotiated_protocol);
+
+        let address = request.content.client_identity.derive_destination_address();
+
+        // do cheap checks first
+        // is the provided timestamp relatively recent (and not in the future?)
+        request.verify_timestamp(self.shared_state.cfg.max_auth_request_age)?;
+
+        // does the message signature verify?
+        request.verify_signature()?;
+
+        // retrieve the actually stored key and check if the ciphertext matches
+        let Some(shared_key) = self.retrieve_shared_key(address).await? else {
+            return Err(AuthenticationFailure::NotRegistered)?;
+        };
+        request.verify_ciphertext(&shared_key.key)?;
+
+        let session_request_start = request.content.request_timestamp();
+
+        // if the client has already authenticated in the past, make sure this authentication timestamp
+        // is different and greater than the old one (in case it was replayed)
+        if let Some(prior_usage) = shared_key.last_used_authentication {
+            request.ensure_timestamp_not_reused(prior_usage)?;
+        }
+
+        // check for duplicate clients
+        if let Some(client_data) = self
+            .shared_state
+            .active_clients_store
+            .get_remote_client(address)
+        {
+            warn!("Detected duplicate connection for client: {address}");
+            self.handle_duplicate_client(address, client_data, session_request_start)
+                .await?;
+        }
+
+        let client_id = shared_key.client_id;
+
+        // update the auth timestamp for future uses
+        self.shared_state
+            .storage
+            .update_last_used_authentication_timestamp(client_id, session_request_start)
+            .await?;
+
+        // push any old stored messages to the client
+        // (this will be removed soon)
+        self.push_stored_messages_to_client(address, &shared_key.key)
+            .await?;
+
+        // finally check and retrieve client's bandwidth
+        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
+
+        let bandwidth_remaining = if available_bandwidth.expired() {
+            self.shared_state.storage.reset_bandwidth(client_id).await?;
+            0
+        } else {
+            available_bandwidth.bytes
+        };
+
+        Ok(InitialAuthResult::new(
+            Some(ClientDetails::new(
+                client_id,
+                address,
+                shared_key.key,
+                session_request_start,
+            )),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
                 status: true,
@@ -688,7 +788,12 @@ impl<R, S> FreshHandler<R, S> {
 
         debug!(client_id = %client_id, "managed to finalize client registration");
 
-        let client_details = ClientDetails::new(client_id, remote_address, shared_keys);
+        let client_details = ClientDetails::new(
+            client_id,
+            remote_address,
+            shared_keys,
+            OffsetDateTime::now_utc(),
+        );
 
         Ok(InitialAuthResult::new(
             Some(client_details),
@@ -734,9 +839,10 @@ impl<R, S> FreshHandler<R, S> {
                 enc_address,
                 iv,
             } => {
-                self.handle_authenticate(protocol_version, address, enc_address, iv)
+                self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
             ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
                 data,
@@ -827,6 +933,7 @@ impl<R, S> FreshHandler<R, S> {
                     registration_details.address,
                     mix_sender,
                     is_active_request_sender,
+                    registration_details.session_request_timestamp,
                 );
 
                 return AuthenticatedHandler::upgrade(

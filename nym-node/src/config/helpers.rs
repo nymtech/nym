@@ -59,6 +59,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                     .zk_nym_tickets
                     .maximum_time_between_redemption,
             },
+            maximum_auth_request_age: config.gateway_tasks.debug.maximum_auth_request_age,
         },
     )
 }

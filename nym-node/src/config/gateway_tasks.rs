@@ -47,6 +47,9 @@ pub struct Debug {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 
+    /// Defines the maximum age of a signed authentication request before it's deemed too stale to process.
+    pub maximum_auth_request_age: Duration,
+
     pub stale_messages: StaleMessageDebug,
 
     pub client_bandwidth: ClientBandwidthDebug,
@@ -55,13 +58,15 @@ pub struct Debug {
 }
 
 impl Debug {
-    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+    pub const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+    pub const DEFAULT_MAXIMUM_AUTH_REQUEST_AGE: Duration = Duration::from_secs(30);
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            maximum_auth_request_age: Self::DEFAULT_MAXIMUM_AUTH_REQUEST_AGE,
             stale_messages: Default::default(),
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),

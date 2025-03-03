@@ -6,11 +6,20 @@ use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tracing::warn;
+
+#[derive(Clone)]
+pub(crate) struct RemoteClientData {
+    // note, this does **NOT** indicate timestamp of when client connected
+    // it is (for v2 auth) timestamp the client **signed** when it created the request
+    pub(crate) session_request_timestamp: OffsetDateTime,
+    pub(crate) channels: ClientIncomingChannels,
+}
 
 enum ActiveClient {
     /// Handle to a remote client connected via a network socket.
-    Remote(ClientIncomingChannels),
+    Remote(RemoteClientData),
 
     /// Handle to a locally (inside the same process) running client.
     Embedded(LocalEmbeddedClientHandle),
@@ -19,14 +28,14 @@ enum ActiveClient {
 impl ActiveClient {
     fn get_sender_ref(&self) -> &MixMessageSender {
         match self {
-            ActiveClient::Remote(remote) => &remote.mix_message_sender,
+            ActiveClient::Remote(remote) => &remote.channels.mix_message_sender,
             ActiveClient::Embedded(embedded) => &embedded.mix_message_sender,
         }
     }
 
     fn get_sender(&self) -> MixMessageSender {
         match self {
-            ActiveClient::Remote(remote) => remote.mix_message_sender.clone(),
+            ActiveClient::Remote(remote) => remote.channels.mix_message_sender.clone(),
             ActiveClient::Embedded(embedded) => embedded.mix_message_sender.clone(),
         }
     }
@@ -78,18 +87,18 @@ impl ActiveClientsStore {
     pub(crate) fn get_remote_client(
         &self,
         address: DestinationAddressBytes,
-    ) -> Option<ClientIncomingChannels> {
+    ) -> Option<RemoteClientData> {
         let entry = self.inner.get(&address)?;
         let handle = entry.value();
 
-        let ActiveClient::Remote(channels) = handle else {
+        let ActiveClient::Remote(remote) = handle else {
             warn!("attempted to get a remote handle to a embedded network requester");
             return None;
         };
 
         // if the entry is stale, remove it from the map
-        if !channels.mix_message_sender.is_closed() {
-            Some(channels.clone())
+        if !remote.channels.mix_message_sender.is_closed() {
+            Some(remote.clone())
         } else {
             // drop the reference to the map to prevent deadlocks
             drop(entry);
@@ -137,10 +146,14 @@ impl ActiveClientsStore {
         client: DestinationAddressBytes,
         handle: MixMessageSender,
         is_active_request_sender: IsActiveRequestSender,
+        session_request_timestamp: OffsetDateTime,
     ) {
-        let entry = ActiveClient::Remote(ClientIncomingChannels {
-            mix_message_sender: handle,
-            is_active_request_sender,
+        let entry = ActiveClient::Remote(RemoteClientData {
+            session_request_timestamp,
+            channels: ClientIncomingChannels {
+                mix_message_sender: handle,
+                is_active_request_sender,
+            },
         });
         if self.inner.insert(client, entry).is_some() {
             panic!("inserted a duplicate remote client")

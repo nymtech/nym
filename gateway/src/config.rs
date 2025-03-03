@@ -98,6 +98,9 @@ pub struct Debug {
     pub stale_messages_max_age: Duration,
 
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
+
+    /// Defines the maximum age of a signed authentication request before it's deemed too stale to process.
+    pub maximum_auth_request_age: Duration,
 }
 
 #[derive(Debug, Clone)]

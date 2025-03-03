@@ -1,0 +1,135 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="15"
+  height="15"
+  viewBox="0 0 15 15"
+  fill="none"
+>
+  <g clip-path="url(#clip0_8428_65000)">
+    <rect
+      y="3"
+      width="3"
+      height="3"
+      transform="rotate(-90 0 3)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      y="15"
+      width="3"
+      height="3"
+      transform="rotate(-90 0 15)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="12"
+      y="3"
+      width="3"
+      height="3"
+      transform="rotate(-90 12 3)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="9"
+      y="12"
+      width="3"
+      height="3"
+      transform="rotate(-90 9 12)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="12"
+      y="15"
+      width="3"
+      height="3"
+      transform="rotate(-90 12 15)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="3"
+      y="6"
+      width="3"
+      height="3"
+      transform="rotate(-90 3 6)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="3"
+      y="12"
+      width="3"
+      height="3"
+      transform="rotate(-90 3 12)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="9"
+      y="6"
+      width="3"
+      height="3"
+      transform="rotate(-90 9 6)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="6"
+      y="9"
+      width="3"
+      height="3"
+      transform="rotate(-90 6 9)"
+      fill="#242B2D"
+      style="
+        fill: #242b2d;
+        fill: color(display-p3 0.1412 0.1686 0.1765);
+        fill-opacity: 1;
+      "
+    />
+  </g>
+  <defs>
+    <clipPath id="clip0_8428_65000">
+      <rect
+        width="15"
+        height="15"
+        fill="white"
+        style="fill: white; fill-opacity: 1"
+      />
+    </clipPath>
+  </defs>
+</svg>

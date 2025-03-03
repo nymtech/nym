@@ -1,0 +1,107 @@
+{
+  "id": 1,
+  "title": "Welcome to the Nym Network Explorer",
+  "label": "Onboarding",
+  "description": "Welcome to the Nym Network Explorer",
+  "attributes": {
+    "blogAuthors": ["Nym"],
+    "date": "Mon Jan 20 2025 10:26:09 GMT+0000 (Greenwich Mean Time)",
+    "readingTime": 5
+  },
+  "icon": "/icons/explorer-card.svg",
+  "image": "/images/Network.webp",
+  "overview": {
+    "content": [
+      {
+        "type": "paragraph",
+        "text": "The Explorer is your window into the Nym Network. Here you can get real-time information on the network status, performance and geographical coverage, and learn more about the independent operators that run this global infrastructure."
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "section-1",
+      "heading": "Who is the explorer for?",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "The Nym Explorer is designed for everyday use, serving three key users of the network:"
+        },
+        {
+          "type": "paragraph",
+          "text": "**People using the NymVPN**"
+        },
+        {
+          "type": "paragraph",
+          "text": "If you use the NymVPN app, you can come here to browse the available servers to learn more about, before choosing which ones you want to use."
+        },
+        {
+          "type": "paragraph",
+          "text": "For most people, this will be a simple matter of finding a server in the right location for what they are trying to do and looking at its performance and reliability."
+        },
+        {
+          "type": "paragraph",
+          "text": "Some people might want to go a little deeper to understand the history, trustworthiness and ethos of a specific operator. The Nym Network ensures a base-line of reliability and performance. But beyond that we have operators that are in it for the profit, others that run on a non-profit basis and donate their rewards."
+        },
+        {
+          "type": "paragraph",
+          "text": "**Operators running Nym nodes**"
+        },
+        {
+          "type": "paragraph",
+          "text": "Nym network is run by independent server operators all over the world. Operators can use the explorer to keep track of their rewards and to quickly check the status of their servers without having to log into their VPS provider."
+        },
+        {
+          "type": "paragraph",
+          "text": "**NYM token holders wanting to stake**"
+        },
+        {
+          "type": "paragraph",
+          "text": "Anyone holding $NYM can help secure the network by staking their tokens to Nym nodes they want to support. Stakers receive proportionate rewards based on: the performance, profit margin and overall stake saturation of the chosen node."
+        }
+      ]
+    },
+    {
+      "id": "section-2",
+      "heading": "Current features",
+      "text": [
+        {
+          "type": "parapraph",
+          "text": "Explorer 2.0 was designed with simplicity in mind. It’s Lightweight web-app that provides easy access on mobile and desktop that uses all new APIs providing live network and NYM token economic metrics. "
+        },
+        {
+          "type": "paragraph",
+          "text": "The new design also has a 4-star scale to display an all-in-one quality of service score that is built routing, setup & probe scores, enabling easier overview for both VPN user and stakers."
+        },
+        {
+          "type": "paragraph",
+          "text": "The new design allows anyone to track their favorite nodes using the “Fav button” that creates a local only cache about the nodes they want to keep an eye on. While the refreshed staking interface providing easy overview of accumulated rewards and one-click reward redemption from multiple nodes."
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "heading": "Upcoming features",
+      "text": [
+        {
+          "type": "parapraph",
+          "text": "Our team is already preparing with features for the next release: like enabling visitor comments on node pages, adding advanced filters for node and gateway search, role based filtering and the much awaited dark mode - just to list a few."
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "heading": "Let’s continue exploring together!",
+      "text": [
+        {
+          "type": "parapraph",
+          "text": "If there’s a feature that you’d like to see in a future release or in case you found a bug: let us know in our community channels so we can improve the explorer experience together!"
+        },
+        {
+          "type": "parapraph",
+          "text": "- [X](https://x.com/nymproject) \n\n - [Telegram](https://t.me/nymchan) \n\n - [Matrix](https://matrix.to/#/%23nym-community:nymtech.chat) \n\n - [Discord](https://nym.com/blog/discord.gg/nym)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,361 @@
+{
+  "links": ["website", "apps"],
+  "website": {
+    "title": "NymVPN website privacy statement",
+    "subtitle": "",
+    "content": [
+      {
+        "title": "",
+        "newlines": ["Version 1.1, last updated on February 19, 2024"]
+      },
+      {
+        "title": "",
+        "newlines": [
+          "Thank you for visiting our website nymvpn.com and for your interest in our company.",
+          "Nym Technologies SA, a Swiss Company established under the laws of Switzerland, and registered with the Chamber of Commerce and Industry of Switzerland with number CHE-367.426.629 operates a website hosted at the URL https://nymvpn.com/.",
+          "In this privacy statement (the “Statement”) we will explain how our organization uses your personal data that we collect when you use our website. Our data protection practice is in accordance with the legal regulations of the Swiss Federal Act on Data Protection and its ordinances (“FADP”). This Statement serves to fulfill the information obligations arising from the FADP. These can be found, for example, in article 19 ff. FADP."
+        ]
+      },
+      {
+        "title": "TABLE OF CONTENT",
+        "newlines": [
+          "The followings topics will be discussed in this Statement:",
+          "I. Collecting personal data",
+          "II. How we get your personal data",
+          "III. Purposes of data processing",
+          "IV. The personal data controller",
+          "V. With whom we share your personal data",
+          "VI. Newsletter",
+          "VII. How we store your personal data",
+          "VIII. Your data protection rights",
+          "IX. What are cookies?",
+          "X. How do we use cookies?",
+          "XI. Stripe",
+          "XII. Changes to our Website privacy statement",
+          "XIII. How to contact us",
+          "XIV. Contact the appropriate legal authority",
+          "VX. Governing law"
+        ]
+      },
+      {
+        "title": "I. COLLECTING PERSONAL DATA",
+        "newlines": [
+          "We collect the following personal data:",
+          "- Information about the browser type and version used;",
+          "- The operating system of the retrieval device;",
+          "- Date and time of access;",
+          "- Website and resources (image, files, other page content) accessed on our website;",
+          "- Referrer URLs;",
+          "- Information about the features you use, the frequency of usage, and the duration of your sessions;",
+          "- Inferred location, this is a rough approximation of your location which may be tens of kilometers off;",
+          "- Screen size;",
+          "- Device model; and",
+          "- On-site behavior (page viewed, time spent etc.).",
+          "Additionally, when you fill in forms to request additional information, join our newsletters or to sign-up to become a customer, we process the data provided by you in those forms."
+        ]
+      },
+      {
+        "title": "II. HOW WE GET YOUR PERSONAL DATA",
+        "newlines": [
+          "As a side-effect of how web browsers work, you directly provide us with the personal data we collect. We collect personal data and process personal data when you, among others:",
+          "- Register online or place an order for any of our products or services;",
+          "- Use or view our website; and",
+          "- Subscribe to our waitlist or newsletter."
+        ]
+      },
+      {
+        "title": "III. PURPOSES OF DATA PROCESSING",
+        "newlines": [
+          "We have among others the following reasons (purposes) for processing personal data:",
+          "- In order to operate the website;",
+          "- To iteratively improve the website;",
+          "- To address bugs;",
+          "- To improve our commercial offerings;",
+          "- To better localize our website; and",
+          "- To keep you updated about Nym and its products (through our newsletter).",
+          "These purposes can all be considered legitimate interests of Nym."
+        ]
+      },
+      {
+        "title": "IV. THE PERSONAL DATA CONTROLLER",
+        "newlines": [
+          "We are the controller of personal data with regard to the website."
+        ]
+      },
+      {
+        "title": "V. WITH WHOM WE SHARE YOUR PERSONAL DATA",
+        "newlines": [
+          "With third parties:",
+          "We provide personal data only to parties who help us optimize our services, execute the agreement with you or to parties with whom we are legally obliged to share the data.",
+          "We may share your personal data with Stripe, our payment processor, in case you enter into a contract with us on our website.",
+          "Additionally, we make use of data processors with whom we have entered into data processing agreements. One notable example is Mailchimp, which does process data in the USA. These data processors remain our responsibility and are therefore not third parties, even though they may appear as such to you.",
+          "Cross-border data transfer:",
+          "Nym is based in Switzerland, which means that a third country relationship exists in relation to the European Union (the “EU”) and the European Economic Area (the “EEA”). The EU/EEA has deemed the Swiss data protection regulations to be adequate and vice versa. As part of the provision of services, personal data is transferred to the EU/EEA for further processing and vice versa. This means that your data will only be processed on the basis of special guarantees and that the third country in the EEA has an adequate level of data protection. For some of the third-party service providers, we may transfer your data to one of their databases outside Switzerland or the EEA, potentially including countries which may not have an adequate level of protection for your personal data. In such event, we enter into agreements with such third parties ensuring an adequate level of protection for your personal data.",
+          "Sharing with authorities:",
+          "It is possible that we will need to disclose your personal data when required by law or if we believe that disclosure is necessary to investigate, prevent, or take action regarding suspected or actual illegal activities or to assist government enforcement agencies, investigate and defend ourselves against any third-party claims or allegations, protect the security or integrity of our website or exercise or protect the rights and safety of our users, personnel, or others. We attempt to notify you about legal demands for your personal data when appropriate in our judgment and technically feasible, unless prohibited by law or court order or when the request is an emergency. We may dispute such demands when we believe, in our discretion, that the requests are overbroad, vague or lack proper authority, but we do not promise to challenge every demand."
+        ]
+      },
+      {
+        "title": "VI. NEWSLETTER",
+        "newlines": [
+          "You can subscribe to our newsletter via our website. We receive for this:",
+          "- Your email address.",
+          "When you sign up for the newsletter, you consent to the processing of your personal data for the purpose of sending the newsletter. We use a marketing platform for this purpose. In every newsletter you receive from us, we offer the opportunity to unsubscribe. The data in our marketing platform are processed in the USA.",
+          "Your personal data shared with the Nym Newsletter provider Mailchimp will be stored on servers located in the United States of America, the United Kingdom as well as in the EU. Mailchimp will process your data in the USA and has submitted to the EU-USA Privacy Shield, for its processing in the United Kingdom the Commission adequacy decision on the United Kingdom applies. We have also concluded standard data protection clauses with Mailchimp. Contact details you provide for sending newsletters are deleted [one year; TBC] after the last newsletter has been sent."
+        ]
+      },
+      {
+        "title": "VII. HOW WE STORE YOUR PERSONAL DATA",
+        "newlines": [
+          "We take the protection of your data seriously and take appropriate measures to prevent misuse, loss, unauthorized access, unwanted disclosure and unauthorized modification, but no method of transmission over the internet, or method of electronic storage is 100% secure.",
+          "We may retain de-personalized (anonymous) information after the deletion of your personal data."
+        ]
+      },
+      {
+        "title": "VIII. YOUR DATA PROTECTION RIGHTS",
+        "newlines": [
+          "We would like to make sure you are fully aware of all your data protection rights. If we hold personal data about you under the FADP, you have rights including:",
+          "- The right to be informed – You have the right to be informed of the collection and processing of your personal data.",
+          "- The right of access - You have the right to request us for copies of your personal data. We may charge you a small fee for this service.",
+          "- The right to rectification - You have the right to request that we correct any information that you believe is inaccurate. You also have the right to request us to complete information you believe is incomplete.",
+          "- The right to erasure - You have the right to request that we erase your personal data, under certain circumstances.",
+          "- The right to restrict processing - You have the right to request us to restrict the processing of your personal information in certain circumstances.",
+          "- The right to object to processing - You have the right to object to the processing of your personal data, under certain circumstances.",
+          "We shall in general respond to your request within 30 days. We may ask you to verify your identity before executing your request. If your request is difficult to process, we may need more time to comply with your request and may delay the execution of your request."
+        ]
+      },
+      {
+        "title": "IX. WHAT ARE COOKIES?",
+        "newlines": [
+          "We integrate and use cookies on various pages to enable certain functions of our website and to integrate external web services. The so-called 'cookies' are small text files that your browser can store on your access device. These text files contain a characteristic string that uniquely identifies the browser when you return to our website. This way, the information you previously provided can be retrieved. The process of saving a cookie file is also referred to as 'setting a cookie'."
+        ]
+      },
+      {
+        "title": "X. HOW DO WE USE COOKIES?",
+        "newlines": [
+          "We use cookies for the following purpose:",
+          "- Integrations with payment providers such as Stripe."
+        ]
+      },
+      {
+        "title": "XI. STRIPE",
+        "newlines": [
+          "We use Stripe for payment processing and refunds and to integrate with their services we use cookies. When using our payment processor Stripe, your bank/the payment provider will process your personal data as controllers of such processing. You can read more about the payment providers on their websites."
+        ]
+      },
+      {
+        "title": "XII. CHANGES TO OUR WEBSITE PRIVACY STATEMENT",
+        "newlines": [
+          "We keep this Statement under regular review and reserve the right to amend this Statement without prior notification. If we change this Statement, we will inform you on our website and via our newsletter."
+        ]
+      },
+      {
+        "title": "XIII. HOW TO CONTACT US",
+        "newlines": [
+          "If you have any questions about our Statement, the personal data we hold of you, or you would like to exercise one of your data protection rights, please do not hesitate to contact us through:",
+          "a. Our contact page available on our website: https://nymvpn.com/en/contact",
+          "b. Our email address: legal@nymtech.net; or",
+          "Our address: Nym Technologies SA, place Numa-Droz 2, 2000 Neuchâtel, Switzerland."
+        ]
+      },
+      {
+        "title": "XIV. CONTACT THE APPROPRIATE LEGAL AUTHORITY",
+        "newlines": [
+          "Should you wish to report a complaint or if you feel that we have not addressed your concern in a satisfactory manner, you may contact the supervisory authority. The supervisory authority for data protection in Switzerland is the Federal Data Protection and Information Commissioner (“FDPIC”). For further information, please consult the contact form of the FDPIC:",
+          "https://www.edoeb.admin.ch/edoeb/de/home/deredoeb/kontakt.html."
+        ]
+      },
+      {
+        "title": "XV. GOVERNING LAW",
+        "newlines": [
+          "This Statement and any questions relating thereto shall be governed by the laws of Switzerland."
+        ]
+      }
+    ]
+  },
+  "apps": {
+    "title": "NymVPN apps privacy statement",
+    "subtitle": "",
+    "content": [
+      {
+        "title": "",
+        "newlines": ["Version 1.1, last updated on March 25, 2024"]
+      },
+      {
+        "newlines": [
+          "Thank you for visiting NymVPN and for your interest in our company.",
+          "Nym Technologies SA, a Swiss Company established under the laws of Switzerland, and registered with the Chamber of Commerce and Industry of Switzerland with number CHE-367.426.629 provides a Virtual Private Network (VPN) service named NymVPN.",
+          "In this privacy statement (the “NymVPN Statement”) we will explain, in accordance with the legal regulations of the Swiss Federal Act on Data Protection and its ordinances (“FADP”) how we process your personal data. This Statement serves to fulfill the information obligations arising from the FADP. These can be found, for example, in article 19 ff. FADP."
+        ]
+      },
+      {
+        "title": "TABLE OF CONTENT",
+        "newlines": [
+          "The followings topics will be discussed in this VPN Statement:",
+          "I. General remark",
+          "II. Notice regarding lawful interception",
+          "III. How we get your personal data",
+          "IV. Collecting personal data when you have enabled telemetry",
+          "V. Collecting personal data in general",
+          "VI. Purposes of data processing",
+          "VII. The personal data controller",
+          "VIII. Payment providers",
+          "IX. With whom we share your personal data",
+          "X. How long we store your personal data",
+          "XI. Your data protection rights",
+          "XII. Changes to our NymVPN Statement",
+          "XIII. How to contact us",
+          "XIV. Contact the appropriate authority",
+          "XV. Governing law"
+        ]
+      },
+      {
+        "title": "I. GENERAL REMARK",
+        "newlines": [
+          "Your internet activity while using NymVPN services is not monitored, recorded, logged, stored, or passed to any third party, unless doing so is required by applicable law, e.g. in case of a lawful intercept request, required for providing the NymVPN services, required for billing and debt collection purposes or you have granted consent to this (by enabling telemetry)."
+        ]
+      },
+      {
+        "title": "II. NOTICE REGARDING LAWFUL INTERCEPTION",
+        "newlines": [
+          "It should be noted that while we operate from Switzerland, a VPN is based on an ingress point (the device on which you run NymVPN) and one or more egress points, the exit node(s) that our service works with. In network terms, the exit node will also appear to be the location from which your network traffic originates, as seen by any internet services you access through NymVPN. This means that at any exit node, the local laws regarding lawful interception apply and your traffic will no longer be protected by NymVPN. For the sake of completeness, we note that our technology is designed in such a way that we will be unable to provide meaningful data in response to a lawful interception request."
+        ]
+      },
+      {
+        "title": "III. HOW WE GET YOUR PERSONAL DATA",
+        "newlines": [
+          "We collect personal data and process personal data when you use NymVPN."
+        ]
+      },
+      {
+        "title": "IV. COLLECTING PERSONAL DATA WHEN YOU HAVE ENABLED TELEMETRY",
+        "newlines": [
+          "We collect the following data when you use NymVPN and have enabled our telemetry tool:",
+          "- Usage analysis: Our telemetry tool, when enabled, gathers data on how you interact with our app to continuously improve your experience. This includes, but is not limited to, information about the features you use, the frequency of usage, and the duration of your sessions. Our telemetry tool may collect information such as your IP address and operating system. This information is used to analyze user behavior and improve our services;",
+          "- Communication regarding feedback (voluntary): Our telemetry tool may record and store communications, such as emails, email addresses, messages, feedback exchanged, for purposes such as quality assurance, customer service, and record-keeping.",
+          "More specifically:",
+          "a. Timestamps of connections to:",
+          "   - calculate peak times of service demand in order to plan the network capacity;",
+          "   - manage the number of concurrent active connections and handle abuse; and",
+          "   - troubleshoot our service.",
+          "b. Amount of data transmitted to:",
+          "   - plan for new network capacity and server improvements.",
+          "c. Service Data from NymVPN users, such as specific errors to:",
+          "   - make sure our VPN users do their job properly and without errors. This data pertains to interactions taken in NymVPN and can in principle not be used to uncover what you’re using the VPN service for.",
+          "d. Connection events, such as the attempt to connect, disconnection, connection error, etc. to:",
+          "   - operate and provide VPN service with high quality.",
+          "e. Application events, such as auto-connection, uninstall event, etc. to:",
+          "   - plan product development and analytics.",
+          "f. Application information, such as name, version and source of the application, enabled/disabled features at the time of the event, network type, public internet service provider’s information, current VPN connection status, and related information (protocol and technology in use, current server, etc.), user preferences (e.g., notifications enabled/disabled, language, preferred connection settings).",
+          "g. Account information: active/inactive subscriptions of products of Nym Technologies SA, current and past active/inactive plans, and trial information.",
+          "h. Device information, such as the model of your device, operating system version, and similar non-identifying information. We may use this information to monitor, develop, and analyze the use of NymVPN services.",
+          "i. Crash reports generated and sent by the user.",
+          "j. App version or internal identifiers."
+        ]
+      },
+      {
+        "title": "V. COLLECTING PERSONAL DATA IN GENERAL",
+        "newlines": [
+          "Regardless of whether or not you have enabled telemetry for the abovementioned purposes, we may still use telemetry strictly for the purpose of providing you with a more stable and reliable service:",
+          "- Bug and issue report and monitoring: Our telemetry tool may collect data to help us identify and address bugs, errors, and other technical issues within the App. ",
+          "Issues and support tickets raised by you with us will be processed by us, any personal data you include in those may be processed as well.",
+          "We do not process data regarding your use of NymVPN if you have not enabled telemetry since our use of time-bound access credentials that consist of so-called zero-knowledge proofs makes it impossible for us to correlate usage with you as a person."
+        ]
+      },
+      {
+        "title": "VI. PURPOSES OF DATA PROCESSING",
+        "newlines": [
+          "We have one reason (purpose) for processing your personal data:",
+          "- to operate NymVPN, including measuring its quality and security, providing support, and getting paid for that.",
+          "The basis for this is the performance of a contract with you. Additionally, when you consent to the collection of telemetry data, an additional purpose comes into play, which is improving NymVPN and our business around it. The basis for that would be your consent."
+        ]
+      },
+      {
+        "title": "VII. THE PERSONAL DATA CONTROLLER",
+        "newlines": [
+          "We are the controller of personal data with regard to the NymVPN service."
+        ]
+      },
+      {
+        "title": "VIII. PAYMENT PROVIDERS",
+        "newlines": [
+          "We rely on our payment providers to handle your product purchases. It should be noted here that you buy time-bound access credentials that provide access to NymVPN, but not accounts. The account you may have with your bank or credit card provider and your actual usage of NymVPN is not shared with any payment providers. In principle we use the following payment methods:",
+          "- Stripe (desktop apps);",
+          "- Apple in-app purchases (via the debit card on-file or via Apple Pay) and similar mechanism for Google (for mobile apps).",
+          "Additionally, we offer BTCPay Server, a self-hosted, open-source cryptocurrency payment processor (desktop apps), which therefore is not an external payment provider.",
+          "We collect, among others, the following data when you enter a contract with us:",
+          "- Name and email address;",
+          "- Debit card number;",
+          "- Contact information; and",
+          "- Geographic information (from Stripe, Apple and Google customers).",
+          "We strongly advise you to consult the website of the relevant payment provider for more information on their privacy practices."
+        ]
+      },
+      {
+        "title": "IX. WITH WHOM WE SHARE YOUR PERSONAL DATA",
+        "newlines": [
+          "With third parties:",
+          "We provide personal data only to parties who help us optimize our services, execute the agreement with you or to parties with whom we are legally obliged to share the data. This includes operators of exit nodes, which have a contractual obligation towards us to respect the confidentiality of your NymVPN traffic.",
+          "We may share your personal data with our payment processors as stated in paragraph ‎‎VII above.",
+          "Additionally, we make use of data processors with whom we have entered into data processing agreements. These data processors remain our responsibility and are therefore not third parties, even though they may appear as such to you.",
+          "Cross-border data transfer:",
+          "Nym is based in Switzerland, which means that a third country relationship exists in relation to the European Union (the “EU”) and the European Economic Area (the “EEA”). The EU/EEA has deemed the Swiss data protection regulations to be adequate and vice versa. As part of the provision of services, personal data is transferred to the EU/EEA for further processing and vice versa. This means that your data will only be processed on the basis of special guarantees and that the third country in the EEA has an adequate level of data protection. For some of the third-party service providers, we may transfer your data to one of their databases outside Switzerland or the EEA, potentially including countries which may not have an adequate level of protection for your personal data. In such event, we enter into agreements with such third parties ensuring an adequate level of protection for your personal data.",
+          "However, as noted earlier, in cases where the use of the NymVPN involves exit nodes outside the EEA this may result in processing of your data in a third country. This is inherent to the service and meets the derogation of article 17 sub b FADP.",
+          "Sharing with authorities:",
+          "It is possible that we will need to disclose your personal data when required by law or if we believe that disclosure is necessary to investigate, prevent, or take action regarding suspected or actual illegal activities or to assist government enforcement agencies, investigate and defend ourselves against any third-party claims or allegations, protect the security or integrity of NymVPN or exercise or protect the rights and safety of our users, personnel or others. We attempt to notify you about legal demands for your personal data when appropriate in our judgment and technically feasible, unless prohibited by law or court order or when the request is an emergency. We may dispute such demands when we believe, in our discretion, that the requests are overbroad, vague or lack proper authority, but we do not promise to challenge every demand."
+        ]
+      },
+      {
+        "title": "X. HOW LONG WE STORE YOUR PERSONAL DATA",
+        "newlines": [
+          "The following three retention policies apply:",
+          "First of all, by nature of the service, when you use NymVPN the communications through NymVPN will pass through operators of exit nodes. We have contractually obliged these operators to respect the confidentiality of your communications. However, the nature of the NymVPN technology is such that we do not have the level of control over such operators that they can be considered processors that we can demand to be audited or to support us when you do an access request. As such they are third parties with a confidentiality obligation.",
+          "Pursuant to the Swiss law the accounting books and records, and the accounting vouchers together with the annual report and the audit report will be retained for ten years. The retention period begins on expiry of the respective financial year.",
+          "Stripe will generally keep personal data received from us for at least five years from the end of the business relationship with us or the date of the last transaction, whichever is later.",
+          "When you enable Sentry, our telemetry tool, we retain some usage metrics for approximately 90 days to perform (historical) analyses. This data will be pseudonymized.",
+          "Once the retention period expires, the personal data will be either deleted or anonymized."
+        ]
+      },
+      {
+        "title": "XI. YOUR DATA PROTECTION RIGHTS",
+        "newlines": [
+          "We would like to make sure you are fully aware of all your data protection rights. If we hold personal data about you under the FADP, you have rights including:",
+          "- The right to be informed – You have the right to be informed of the collection and processing of your personal data.",
+          "- The right of access - You have the right to request us for copies of your personal data. We may charge you a small fee for this service.",
+          "- The right to rectification - You have the right to request that we correct any information that you believe is inaccurate. You also have the right to request us to complete information you believe is incomplete.",
+          "- The right to erasure - You have the right to request that we erase your personal data, under certain circumstances.",
+          "- The right to restrict processing - You have the right to request us to restrict the processing of your personal information in certain circumstances.",
+          "- The right to object to processing - You have the right to object to the processing of your personal data, under certain circumstances.",
+          "We shall in general respond to your request within 30 days. We may ask you to verify your identity before executing your request. If your request is difficult to process, we may need more time to comply with your request and may delay the execution of your request."
+        ]
+      },
+      {
+        "title": "XII. CHANGES TO OUR VPN STATEMENT",
+        "newlines": [
+          "We keep our VPN Statement under regular review and reserve the right to amend this VPN Statement without prior notification. If we change this VPN Statement, we will inform you on our website and via our newsletter."
+        ]
+      },
+      {
+        "title": "XIII. HOW TO CONTACT US",
+        "newlines": [
+          "If you have any questions about our VPN Statement, the personal data we hold of you, or you would like to exercise one of your data protection rights, please do not hesitate to contact us through:",
+          "a. Our contact page available on our website: https://nymvpn.com/en/contact",
+          "b. Our email address: legal@nymtech.net; or",
+          "c. Our address: Nym Technologies SA, place Numa-Droz 2, 2000 Neuchâtel, Switzerland."
+        ]
+      },
+      {
+        "title": "XIV. CONTACT THE APPROPRIATE AUTHORITY",
+        "newlines": [
+          "Should you wish to report a complaint or if you feel that we have not addressed your concern in a satisfactory manner, you may contact the supervisory authority. The supervisory authority for data protection in Switzerland is the Federal Data Protection and Information Commissioner (“FDPIC”). For further information, please consult the contact form of the FDPIC: https://www.edoeb.admin.ch/edoeb/de/home/deredoeb/kontakt.html."
+        ]
+      },
+      {
+        "title": "XV. GOVERNING LAW",
+        "newlines": [
+          "This NymVPN Statement is governed by the laws of the Federal Republic of Switzerland."
+        ]
+      }
+    ]
+  }
+}

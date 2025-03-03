@@ -1,0 +1,30 @@
+{
+  "title": "Contact",
+  "description": "Get in touch with the Nym Connect team",
+  "contactOptions": [
+    {
+      "title": "General",
+      "description": "Send us message",
+      "link": {
+        "name": "contact@nymtech.net",
+        "href": "mailto:contact@nymtech.net"
+      }
+    },
+    {
+      "title": "Press",
+      "description": "Press and public affairs inquiries",
+      "link": {
+        "name": "contact@nymtech.net",
+        "href": "mailto:contact@nymtech.net"
+      }
+    },
+    {
+      "title": "General",
+      "description": "Chat directly with the team, developer relations and community managers on the Nym Telegram and Discord groups",
+      "link": {
+        "name": "Community page",
+        "href": "https://nymtech.net/community"
+      }
+    }
+  ]
+}

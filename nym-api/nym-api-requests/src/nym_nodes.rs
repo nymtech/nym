@@ -10,6 +10,7 @@ use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{Interval, NodeId};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
@@ -211,4 +212,16 @@ pub struct FullFatNode {
 
     // kinda temporary for now to make as few changes as possible for now
     pub self_described: Option<NymNodeData>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+pub struct NodesByAddressesRequestBody {
+    #[schema(value_type = Vec<String>)]
+    pub addresses: Vec<IpAddr>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+pub struct NodesByAddressesResponse {
+    #[schema(value_type = HashMap<String, Option<u32>>)]
+    pub existence: HashMap<IpAddr, Option<NodeId>>,
 }

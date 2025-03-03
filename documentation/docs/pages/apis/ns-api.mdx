@@ -32,7 +32,7 @@ Coming soon.
 ### Prerequisites
 - Rust
 - SQLite
-- Get an `ipinfo` key following instructions [here](https://github.com/ipinfo/rust?tab=readme-ov-file#getting-started). Set it as an env var called `API_TOKEN`.
+- Get an `ipinfo` key following instructions [here](https://github.com/ipinfo/rust?tab=readme-ov-file#getting-started).
 
 ### Compilation
 ```shell
@@ -40,7 +40,7 @@ cargo build --release --package nym-node-status-api --package nym-node-status-ag
 ```
 
 ## Run
-Since the Node Status API depends on both flags and environmental variables, it might be easier to run the binary via a script like the one below - this this script essentially just `source`s the defined `.env` file after exporting certain binary-specific variables, and then runs the binary. This script is assumes it is being run from `nym/node-status-api`: modify as appropriate for your own setup. If you prefer to instead have the `.env` files outside of the monorepo, you can find them in the codebase [here](https://github.com/nymtech/nym/tree/master/envs).
+Since the Node Status API depends on both flags and environmental variables, it might be easier to run the binary via a script like the one below - this this script essentially just `source`-s the defined `.env` file after exporting certain binary-specific variables, and then runs the binary. You can find the `.env` files [here](https://github.com/nymtech/nym/tree/master/envs).
 
 ```bash
 #!/bin/bash
@@ -48,22 +48,19 @@ Since the Node Status API depends on both flags and environmental variables, it 
 set -e
 
 user_rust_log_preference=$RUST_LOG
-export ENVIRONMENT=${ENVIRONMENT:-"mainnet"} # change to whatever env you wish to run for, e.g. "sandbox"
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"} # see nym/envs/ for all possible environments
 export NYM_API_CLIENT_TIMEOUT=60
 export EXPLORER_CLIENT_TIMEOUT=60
 export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
 export IPINFO_API_TOKEN=<YOUR_IPINFO_API_KEY>
 
-script_dir=$(dirname $(realpath "$0"))
-monorepo_root=$(realpath "${script_dir}/..") # e.g. if you wish to run this from nym/nym-node-status-api/
-
+monorepo_root=<PATH/TO/NYM/>
 set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
 echo ${monorepo_root}/envs/${ENVIRONMENT}.env
 set +a
-export RUST_LOG=${user_rust_log_preference:-debug} # debug is useful to check everything is working, but quite verbose
+export RUST_LOG=${user_rust_log_preference:-debug} # debug is useful to check everything is working initially, but quite verbose
 
-# To test everything is properly set: comment out or delete once your setup is stable
 echo "Verifying environment variables were properly sourced:"
 echo "RUST_LOG=${RUST_LOG}"
 echo "BECH32_PREFIX=${BECH32_PREFIX}"
@@ -78,7 +75,7 @@ Without the Gateway Probe functionality, you will see a lot of logging like this
 2025-02-28T17:10:48.340293Z DEBUG ThreadId(07) data_monitor:location_cached: nym-node-status-api/nym-node-status-api/src/monitor/mod.rs:305: No geodata could be retrieved for 2171
 ```
 
-Furthermore, data is restricted to information that doesn't involve Probe results, such as `routing` and `config` scores:
+Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`:
 ```shell
 {
       "gateway_identity_key": "27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h",

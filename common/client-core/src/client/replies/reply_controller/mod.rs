@@ -272,7 +272,7 @@ where
             // Ideally we should have enough surbs above the minimum threshold to handle sending
             // new replies without having to first request more surbs. That's why I'd like to log
             // these cases as they might indicate a problem with the surb management.
-            info!(
+            debug!(
                 "buffering {no_fragments} fragments for {recipient_tag}",
                 no_fragments = fragments.len()
             );

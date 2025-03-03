@@ -19,9 +19,9 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::helpers::try_load_current_config;
-use crate::support::config::Config;
+use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::{
-    AppState, ForcedRefresh, ShutdownHandles, TASK_MANAGER_TIMEOUT_S,
+    AppState, ChainStatusCache, ForcedRefresh, ShutdownHandles, TASK_MANAGER_TIMEOUT_S,
 };
 use crate::support::http::RouterBuilder;
 use crate::support::nyxd;
@@ -191,6 +191,8 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
     ecash_state.spawn_background_cleaner();
     let router = router.with_state(AppState {
+        nyxd_client: nyxd_client.clone(),
+        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
         forced_refresh: ForcedRefresh::new(
             config.topology_cacher.debug.node_describe_allow_illegal_ips,
         ),

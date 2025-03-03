@@ -14,6 +14,7 @@
     "nym-wallet",
     "explorer",
     "explorer-nextjs",
+    "explorer-nextjs-legacy",
     "types",
     "clients/validator"
   ],

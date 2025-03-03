@@ -75,7 +75,10 @@ Without the Gateway Probe functionality, you will see a lot of logging like this
 2025-02-28T17:10:48.340293Z DEBUG ThreadId(07) data_monitor:location_cached: nym-node-status-api/nym-node-status-api/src/monitor/mod.rs:305: No geodata could be retrieved for 2171
 ```
 
-Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`:
+Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`, as you can see in this snipped output of the `gateways/skinny` endpoint:
+
+TODO is the missing location data also correct? Or is this a problem with my NSAPI?
+
 ```shell
 {
       "gateway_identity_key": "27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h",

@@ -12,6 +12,7 @@
     "sdk/typescript/packages/validator-client",
     "ts-packages/*",
     "nym-wallet",
+    "explorer_v1_legacy",
     "explorer-nextjs",
     "explorer-nextjs-legacy",
     "types",

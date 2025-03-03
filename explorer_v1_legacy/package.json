@@ -46,6 +46,7 @@
     "@nymproject/react": "^1.0.0",
     "@nymproject/types": "^1.0.0",
     "@tauri-apps/api": "^1.5.1",
+    "@storybook/react": "^6.5.16",
     "big.js": "^6.2.1",
     "bs58": "^5.0.0",
     "buffer": "^6.0.3",

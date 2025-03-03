@@ -128,6 +128,7 @@ impl AuthenticateRequestContent {
 impl AuthenticateRequestContent {
     pub fn plaintext(&self) -> Vec<u8> {
         iter::once(self.protocol_version)
+            .chain(self.client_identity.to_bytes())
             .chain(self.address_ciphertext.iter().copied())
             .chain(self.nonce.iter().copied())
             .chain(self.request_unix_timestamp.to_be_bytes())

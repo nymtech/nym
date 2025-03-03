@@ -296,9 +296,14 @@ impl Monitor {
             Some(location) => return location,
             None => {
                 for ip in node.description.host_information.ip_address.iter() {
-                    if let Ok(location) = self.ipinfo.locate_ip(ip.to_string()).await {
-                        self.geocache.insert(node_id, location.clone()).await;
-                        return location;
+                    match self.ipinfo.locate_ip(ip.to_string()).await {
+                        Ok(location) => {
+                            self.geocache.insert(node_id, location.clone()).await;
+                            return location;
+                        }
+                        Err(err) => {
+                            tracing::warn!("Couldn't locate IP {} due to: {}", ip, err)
+                        }
                     }
                 }
                 // if no data could be retrieved

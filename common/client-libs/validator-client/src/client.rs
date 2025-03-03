@@ -498,6 +498,11 @@ impl NymApiClient {
         Ok(nodes)
     }
 
+    /// retrieve basic information for all bonded nodes on the network
+    pub async fn retrieve_basic_nodes_batch(&self, node_ids: Vec<u32>) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        Ok(self.nym_api.retrieve_basic_nodes_batch(&node_ids).await?.nodes)
+    }
+
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {
         Ok(self.nym_api.health().await?)
     }

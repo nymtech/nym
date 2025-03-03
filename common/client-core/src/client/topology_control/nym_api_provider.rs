@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 use log::{debug, error, warn};
-use nym_topology::{TopologyProvider, NymTopology};
+use nym_topology::{NymTopology, TopologyProvider};
 use nym_validator_client::UserAgent;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;

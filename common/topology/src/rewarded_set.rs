@@ -119,4 +119,22 @@ impl CachedEpochRewardedSet {
         mixnodes.extend(&self.layer3);
         mixnodes
     }
+
+    pub fn all_ids(&self) -> HashSet<NodeId> {
+        let mut mixnodes = HashSet::with_capacity(
+            self.entry_gateways.len()
+                + self.exit_gateways.len()
+                + self.layer1.len()
+                + self.layer2.len()
+                + self.layer3.len()
+                + self.standby.len(),
+        );
+        mixnodes.extend(&self.entry_gateways);
+        mixnodes.extend(&self.exit_gateways);
+        mixnodes.extend(&self.layer1);
+        mixnodes.extend(&self.layer2);
+        mixnodes.extend(&self.layer3);
+        mixnodes.extend(&self.standby);
+        mixnodes
+    }
 }

@@ -4,8 +4,8 @@
 use crate::NymTopology;
 pub use async_trait::async_trait;
 
-pub mod piecewise;
 pub mod nyxd;
+pub mod piecewise;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]

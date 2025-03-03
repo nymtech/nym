@@ -110,10 +110,6 @@ impl RewardedSet {
         }
         None
     }
-
-    pub fn all_ids(&self) -> Vec<NodeId> {
-        Vec::new()
-    }
 }
 
 #[cw_serde]

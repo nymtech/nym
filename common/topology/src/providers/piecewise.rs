@@ -162,7 +162,6 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProviderInner<M> {
             }
 
             let layer_assignments = response.unwrap();
-
             // Check if we already know about the epoch
             if cached_topology.rewarded_set.epoch_id == layer_assignments.epoch_id {
                 debug!("pulled layer assignments, epoch already known");
@@ -170,9 +169,10 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProviderInner<M> {
                 return;
             }
 
+            cached_topology.rewarded_set = layer_assignments.into();
+
             // get the set of node IDs
-            let newly_assigned_node_ids = layer_assignments.assignment.all_ids();
-            let new_id_set = HashSet::<u32>::from_iter(newly_assigned_node_ids);
+            let new_id_set = cached_topology.rewarded_set.all_ids();
             let known_id_set = HashSet::<u32>::from_iter(cached_topology.all_node_ids().copied());
             let unknown_node_ids: Vec<_> = new_id_set.difference(&known_id_set).copied().collect();
 
@@ -242,13 +242,11 @@ pub trait PiecewiseTopologyProvider: Send {
 
 #[cfg(test)]
 mod test {
-    use std::net::SocketAddr;
-
-    use nym_mixnet_contract_common::Percent;
-    use nym_crypto::asymmetric::identity::PublicKey as IdentityPubkey;
-    use nym_crypto::asymmetric::encryption::PublicKey as SphinxPubkey;
     use super::*;
     use crate::SupportedRoles;
+    use nym_crypto::asymmetric::encryption::PublicKey as SphinxPubkey;
+    use nym_crypto::asymmetric::identity::PublicKey as IdentityPubkey;
+    use nym_mixnet_contract_common::Percent;
 
     #[derive(Clone)]
     struct PassthroughPiecewiseTopologyProvider {
@@ -296,7 +294,7 @@ mod test {
         assert!(topo.is_some());
         let topo = topo.unwrap();
         assert!(topo.is_empty());
-        
+
         // create a change in the manager to make sure it is propogated to the provider cache on update
         topo_mgr.topo.rewarded_set.epoch_id += 1;
         topo_mgr.topo.rewarded_set.entry_gateways = HashSet::from([123]);

@@ -14,7 +14,8 @@ pub mod error;
 pub mod init;
 
 pub use nym_topology::{
-    providers::HardcodedTopologyProvider, NymRouteProvider, NymTopology, NymTopologyError, TopologyProvider,
+    providers::HardcodedTopologyProvider, NymRouteProvider, NymTopology, NymTopologyError,
+    TopologyProvider,
 };
 
 #[cfg(target_arch = "wasm32")]

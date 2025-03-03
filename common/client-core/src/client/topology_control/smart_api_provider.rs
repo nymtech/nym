@@ -9,7 +9,7 @@
 use async_trait::async_trait;
 use log::{debug, error, warn};
 use nym_topology::{
-    providers::piecewise::{Config, PiecewiseTopologyProvider, NymTopologyProvider},
+    providers::piecewise::{Config, NymTopologyProvider, PiecewiseTopologyProvider},
     EpochRewardedSet, NymTopology, RoutingNode,
 };
 use nym_validator_client::UserAgent;
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 /// fetch changes and node details.
 #[derive(Clone)]
 pub struct NymApiTopologyProvider {
-	inner: NymTopologyProvider<NymApiPiecewiseProvider>,	
+    inner: NymTopologyProvider<NymApiPiecewiseProvider>,
 }
 
 impl NymApiTopologyProvider {
@@ -36,16 +36,14 @@ impl NymApiTopologyProvider {
         let manager = NymApiPiecewiseProvider::new(nym_api_urls, Some(user_agent));
         let inner = NymTopologyProvider::new(manager, config, initial_topology);
 
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 }
 
 impl AsRef<NymTopologyProvider<NymApiPiecewiseProvider>> for NymApiTopologyProvider {
-	fn as_ref(&self) -> &NymTopologyProvider<NymApiPiecewiseProvider> {
-		&self.inner
-	}
+    fn as_ref(&self) -> &NymTopologyProvider<NymApiPiecewiseProvider> {
+        &self.inner
+    }
 }
 
 #[derive(Clone)]

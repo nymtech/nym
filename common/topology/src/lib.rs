@@ -25,10 +25,8 @@ pub mod error;
 pub mod node;
 pub mod rewarded_set;
 
-
 #[cfg(feature = "wasm-serde-types")]
 pub mod wasm_helpers;
-
 
 #[cfg(feature = "providers")]
 pub mod providers;
@@ -181,7 +179,6 @@ impl NymRouteProvider {
     }
 }
 
-
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct NymTopology {
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
@@ -193,7 +190,6 @@ pub struct NymTopology {
 
     node_details: HashMap<NodeId, RoutingNode>,
 }
-
 
 impl NymTopology {
     pub fn new_empty(rewarded_set: impl Into<CachedEpochRewardedSet>) -> Self {
@@ -554,8 +550,7 @@ impl NymTopology {
     }
 
     pub fn all_nodes(&self) -> impl Iterator<Item = &RoutingNode> {
-        self.node_details
-            .values()
+        self.node_details.values()
     }
 
     pub fn all_node_ids(&self) -> impl Iterator<Item = &NodeId> {
@@ -563,11 +558,9 @@ impl NymTopology {
     }
 
     pub fn gateways(&self) -> impl Iterator<Item = &RoutingNode> {
-        self.node_details
-            .values()
-            .filter(|n| 
-                self.rewarded_set.entry_gateways.contains(&n.node_id)
+        self.node_details.values().filter(|n| {
+            self.rewarded_set.entry_gateways.contains(&n.node_id)
                 || self.rewarded_set.exit_gateways.contains(&n.node_id)
-            )
+        })
     }
 }

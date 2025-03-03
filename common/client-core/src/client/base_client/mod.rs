@@ -54,7 +54,7 @@ use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
-use nym_topology::providers::{TopologyProvider, HardcodedTopologyProvider};
+use nym_topology::providers::{HardcodedTopologyProvider, TopologyProvider};
 use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::rngs::OsRng;
 use std::fmt::Debug;

@@ -14,7 +14,8 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
-use crate::support::http::state::{AppState, ForcedRefresh};
+use crate::support::http::state::{AppState, ChainStatusCache, ForcedRefresh};
+use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use axum::Router;
@@ -46,7 +47,7 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
-use nym_config::defaults::NymNetworkDetails;
+use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::TicketType;
@@ -70,6 +71,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tempfile::{tempdir, TempDir};
 use time::Date;
 use tokio::sync::RwLock;
@@ -1264,8 +1266,14 @@ struct TestFixture {
 }
 
 impl TestFixture {
-    fn build_app_state(storage: NymApiStorage, ecash_state: EcashState) -> AppState {
+    fn build_app_state(
+        storage: NymApiStorage,
+        ecash_state: EcashState,
+        nyxd_client: Client,
+    ) -> AppState {
         AppState {
+            nyxd_client,
+            chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
             forced_refresh: ForcedRefresh::new(true),
             nym_contract_cache: NymContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
@@ -1337,12 +1345,22 @@ impl TestFixture {
             TaskClient::dummy(),
         );
 
+        // ideally this would have been generic, but that's way too much work
+        // since then `AppState` would have had to be made generic
+        // also, this is such a disgusting workaround to make it 'work'. yuck
+        let mut dummy = NymNetworkDetails::new_empty();
+        dummy.endpoints = vec![ValidatorDetails::new(
+            "http://127.0.0.1:26657",
+            Some("http://why-do-we-even-need-api-url-set-here.wtf"),
+            None,
+        )];
+        dummy.export_to_env();
+        let another_fake_nyxd_client = Client::new(&config).unwrap();
+
         TestFixture {
-            axum: TestServer::new(
-                Router::new()
-                    .nest("/v1/ecash", ecash_routes())
-                    .with_state(Self::build_app_state(storage.clone(), ecash_state)),
-            )
+            axum: TestServer::new(Router::new().nest("/v1/ecash", ecash_routes()).with_state(
+                Self::build_app_state(storage.clone(), ecash_state, another_fake_nyxd_client),
+            ))
             .unwrap(),
             storage,
             chain_state,

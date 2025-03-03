@@ -78,6 +78,8 @@ type AxumJoinHandle = JoinHandle<std::io::Result<()>>;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
+    // ideally this would have been made generic to make tests easier,
+    // however, it'd be a way bigger change (I tried)
     pub(crate) nyxd_client: Client,
     pub(crate) chain_status_cache: ChainStatusCache,
 

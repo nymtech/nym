@@ -45,7 +45,7 @@ const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f64 = 0.70;
 // clients/client-core/src/client/replies/reply_storage/surb_storage.rs
 const DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 200;
-const DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER: usize = 10;
+const DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER: usize = 0;
 
 // define how much to request at once
 // clients/client-core/src/client/replies/reply_controller.rs

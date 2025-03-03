@@ -57,6 +57,7 @@ impl<T> TransmissionBuffer<T> {
         self.buffer.remove(lane)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn lanes(&self) -> Vec<TransmissionLane> {
         self.buffer.keys().cloned().collect()
     }

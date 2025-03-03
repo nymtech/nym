@@ -339,6 +339,11 @@ pub struct ReplySurbsWasmOverride {
     #[tsify(optional)]
     pub maximum_reply_surb_storage_threshold: Option<usize>,
 
+    /// Defines the soft threshold ontop of the minimum reply surb storage threshold for when the client
+    /// should proactively request additional reply surbs.
+    #[tsify(optional)]
+    pub minimum_reply_surb_threshold_buffer: Option<usize>,
+
     /// Defines the minimum number of reply surbs the client would request.
     #[tsify(optional)]
     pub minimum_reply_surb_request_size: Option<u32>,
@@ -386,6 +391,9 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
             maximum_reply_surb_storage_threshold: value
                 .maximum_reply_surb_storage_threshold
                 .unwrap_or(def.maximum_reply_surb_storage_threshold),
+            minimum_reply_surb_threshold_buffer: value
+                .minimum_reply_surb_threshold_buffer
+                .unwrap_or(def.minimum_reply_surb_threshold_buffer),
             minimum_reply_surb_request_size: value
                 .minimum_reply_surb_request_size
                 .unwrap_or(def.minimum_reply_surb_request_size),

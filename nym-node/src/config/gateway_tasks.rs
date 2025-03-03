@@ -63,7 +63,7 @@ pub struct Debug {
 
 impl Debug {
     pub const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
-    pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 60;
+    pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_AGE: Duration = Duration::from_secs(30);
 }
 

@@ -16,7 +16,7 @@ The Node Status API is made up of 3 components:
 The API stores its data in a local SQLite database. It periodically gets most of its data from a [NymAPI](./nym-api) instance, and for instances also running with the Gateway Probe, uses the stored topology to conduct performance probe tests.
 
 ## Gateway Probe
-**Two of these components - the `-client` and `-agent`, are only necessary if you plan to run the Gateway Probe**, which performs periodic uptime and config checks of individual `nym-nodes` running as Gateways, and stores the results ([see here for an example of the output](https://harbourmaster.nymtech.net/) locally. It is entirely possible to run just the `-api` without Gateway Probe results if you just wish to present the rest of the data, which mostly comprises of the Mixnet topology. See [Run](#run) section below for examples of the different types of data each mode gives you.
+You can run the `nym-node-status-api` alone, but if you want to run probes for `nym-node`s running as Gateways, you have to also run the `nym-node-status-agent` (which consumes the `nym-node-status-client` lib). The probe will run a set of tests per Gateway node, and return the sort of results seen [here](https://harbourmaster.nymtech.net/gateway/23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb).
 
 ## UI
 Currently we are not shipping a UI component for the Node Status API. The [Harbourmaster](https://harbourmaster.nymtech.net/) frontend consumes this API, amongst other things, but this is an internal repo we use to experiment with new APIs and data on, so it is not public yet.
@@ -66,25 +66,20 @@ echo "RUST_LOG=${RUST_LOG}"
 echo "BECH32_PREFIX=${BECH32_PREFIX}"
 echo "NETWORK_NAME=${NETWORK_NAME}"
 
-cargo run --package nym-node-status-api -- --ipinfo-api-token IPINFO_API_TOKEN
+cargo run --package nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
 ```
 
 ### Functionality Without Gateway Probe
-Without the Gateway Probe functionality, you will see a lot of logging like this:
-```shell
-2025-02-28T17:10:48.340293Z DEBUG ThreadId(07) data_monitor:location_cached: nym-node-status-api/nym-node-status-api/src/monitor/mod.rs:305: No geodata could be retrieved for 2171
-```
-
-Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`, as you can see in this snipped output of the `gateways/skinny` endpoint:
-
-TODO is the missing location data also correct? Or is this a problem with my NSAPI?
+Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`, as you can see in this snipped output of the `gateways` endpoint:
 
 ```shell
 {
-      "gateway_identity_key": "27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h",
+      "gateway_identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+      "bonded": true,
+      "performance": 99,
       "self_described": {
         "authenticator": {
-          "address": "Fs5yJ31ZXJWBb99x6tWUJX4sRJXrbdgqwXxdeta56rnB.5jkHtFMNGucYX3WnX4v44BDHzkjPH2BS2K9MA6LNtb3a@27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h"
+          "address": "6Gdtw13Fa46AvkqkHELZZCMKWASDodoJeK9APRNpjjdj.7ji8DDkpjA2AdgwK7wbZm8yi4xZGogGJeypBQt4hAw3P@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb"
         },
         "auxiliary_details": {
           "accepted_operator_terms_and_conditions": true,
@@ -92,17 +87,17 @@ TODO is the missing location data also correct? Or is this a problem with my NSA
             "mix_port": null,
             "verloc_port": null
           },
-          "location": "SG"
+          "location": null
         },
         "build_information": {
           "binary_name": "nym-node",
-          "build_timestamp": "2025-02-04T09:35:42.399220545Z",
-          "build_version": "1.4.0",
+          "build_timestamp": "2025-02-13T11:49:34.670488195Z",
+          "build_version": "1.5.0",
           "cargo_profile": "release",
           "cargo_triple": "x86_64-unknown-linux-gnu",
           "commit_branch": "HEAD",
-          "commit_sha": "4c2bf3642e8eec0d55c7753e14429d73ac2d0e99",
-          "commit_timestamp": "2025-02-04T10:29:48.000000000+01:00",
+          "commit_sha": "a3e19b4563843055b305ea9a397eb1ad84b5c378",
+          "commit_timestamp": "2025-02-10T18:14:47.000000000+01:00",
           "rustc_channel": "stable",
           "rustc_version": "1.84.1"
         },
@@ -113,57 +108,63 @@ TODO is the missing location data also correct? Or is this a problem with my NSA
           "mixnode": false
         },
         "host_information": {
-          "hostname": "sg-node2.spectredao.net",
+          "hostname": "bwng1.bwnym.xyz",
           "ip_address": [
-            "172.86.82.47"
+            "95.164.2.86"
           ],
           "keys": {
-            "ed25519": "27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h",
-            "x25519": "HKgjSeSMtLFN2bcFwkJbdDTbbKku7TRgu9LbZxxZSuvb",
+            "ed25519": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+            "x25519": "H6pFjqtdSVxkxEQ3wFnuSoobDAUqHx1bYMVJzPZdRByn",
             "x25519_noise": null
           }
         },
         "ip_packet_router": {
-          "address": "75qJ9t3zgeKAw8m7k5EmS4wmzd3MzC1tWfPFwBRxzxcc.6ccjHAJuHUSpoS2rHP5wMKNEJmJbFCCbPdXNh9zrcaaX@27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h"
+          "address": "7ms2D2uYiTuhX6MKeVL5rz5usgehEoxAAovwYm9nJyBF.3siMjk3wTU7ykaXLNi9c7LpX8yonYKPCA4BQoMwhsfTV@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb"
         },
-        "last_polled": "2025-02-28 16:07:58.590825791 +00:00:00",
+        "last_polled": "2025-03-03 09:48:03.635274187 +00:00:00",
         "mixnet_websockets": {
           "ws_port": 9000,
           "wss_port": 9001
         },
         "network_requester": {
-          "address": "56FDRhroAWTzqyHGB72pEhAENzCGR7EHoDurE9QmEHaF.4Gv2fBLuGCf3Lnk8KhoTaPvahuHXDaNj1dBvD9tB1Fyf@27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h",
+          "address": "HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
           "uses_exit_policy": true
         },
         "wireguard": {
           "port": 51822,
-          "public_key": "BX1oS6xmCjebu4UQNkRw6vHzDhUhNbujKAvDTdodfyFN"
+          "public_key": "6o8x9GitFjcrkjrJnivWaQCPnxXykQPYLneNr2FEB8Vq"
         }
       },
       "explorer_pretty_bond": {
-        "identity_key": "27SuZ1RGVukQRr9zp8J1hf4w8iocPHmLWYLDdoJ5o27h",
+        "identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
         "location": {
-          "latitude": 0.0,
-          "longitude": 0.0,
-          "two_letter_iso_country_code": ""
+          "latitude": 52.5083,
+          "longitude": 5.475,
+          "two_letter_iso_country_code": "NL"
         },
-        "owner": "n1xqcd4z76h9tgjmwgnss77762lm5vzk4646ey4h",
+        "owner": "n1cp5gq0apat6c7qmenqp5zjprn2vwvc7jl29j8r",
         "pledge_amount": {
           "amount": "100000000",
           "denom": "unym"
         }
       },
+      "description": {
+        "moniker": "bwn_g1",
+        "website": "https://bwnym.xyz",
+        "security_contact": "bwnym@proton.me",
+        "details": "This gateway is part of the NYM project, which is dedicated to create outstanding privacy software that is legally compliant without sacrificing integrity or having any backdoors."
+      },
       "last_probe_result": null,
+      "last_probe_log": null,
       "last_testrun_utc": null,
-      "last_updated_utc": "2025-02-28T17:11:26+00:00",
+      "last_updated_utc": "2025-03-03T10:45:48+00:00",
       "routing_score": 0.0,
-      "config_score": 0,
-      "performance": 78
+      "config_score": 0
     },
 ```
 
 ### Functionality with Gateway Probe
-TODO: if you do want to run with GWP, modify as such: ...
+TODO: if you do want to run with GWP
 
 ### Ports
 By default the API listens on `8000`, so you will need to configure this post to be reachable on your remote server. You can modify this with the `--http_port` flag.

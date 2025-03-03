@@ -1,0 +1,67 @@
+{
+  "title": "Early access to NymVPN",
+  "description": "Try out NymVPN!",
+  "closed": "Sorry, testing is currently closed",
+  "card": {
+    "cta": "Get a key to use Nym VPN",
+    "title": "Use this key information in the NymVPN client",
+    "table": {
+      "addr": "IP address",
+      "privateKey": "Private Key",
+      "publicKey": "Public Key"
+    },
+    "cli": "Use this command to run the CLI:",
+    "cliOptions": "Optionally, specify the entry and exit gateways below to change the CLI command above:"
+  },
+  "vpnFreeTesting": {
+    "hero": {
+      "title": {
+        "firstLine": "NymVPN beta: Access now"
+      },
+      "getCredential": {
+        "title": "Get a NymVPN credential",
+        "description": "Enter the redeem code you received by email or direct message to generate your credential.",
+        "inputLabel": "Redeem code",
+        "ctaText": "Redeem",
+        "prompt": "Need a code? Sign up for the beta tests on our [homepage](/{{lng}})."
+      },
+      "imageAlt": "NymVPN beta access now",
+      "finalSteps": [
+        {
+          "title": "Save your NymVPN credential",
+          "description": "Download, copy, or scan this credential into the NymVPN app. Be aware that credentials expire after a limited period once redeemed."
+        },
+        {
+          "title": "Add the credential ",
+          "description": "Enter your credential into the app, connect, and start testing."
+        }
+      ],
+      "finalStepsAlert": " To use your credentials, please ensure you have downloaded and installed the application first. If you haven't yet, you can do it [here](https://nymvpn.com/download)."
+    },
+    "redeemFreePass": {
+      "errors": {
+        "invalidCode": "The code you provided is invalid",
+        "alreadyRedeemed": "The code you provided has already been redeemed",
+        "unknown": "Oh no, something went wrong!"
+      }
+    },
+
+    "firstSection": {
+      "title": "Refining NymVPN with your feedback",
+      "content": [
+        "During the alpha testing phase, NymVPN aims to gather essential feedback from our users regarding our core functionalities, user experience, privacy, and security.",
+        "Your input is invaluable to the NymVPN team, assisting us in making the service more user-friendly and robust for all users.",
+        "Please remember that NymVPN is currently in its experimental stage!"
+      ]
+    },
+    "secondSection": {
+      "title": "How Nym will use your feedback",
+      "content": [
+        "***To gather insights on performance and stability***, ensuring that NymVPN operates smoothly across various devices and network conditions",
+        "***To detect and resolve issues***, enhancing the app's privacy and security for all users",
+        "***To improve ease of use***, making NymVPN more intuitive and accessible",
+        "***To prioritize upcoming features***, understanding what our users find the most beneficial"
+      ]
+    }
+  }
+}

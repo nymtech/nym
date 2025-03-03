@@ -1,0 +1,137 @@
+{
+  "title": "Features",
+  "subtitle": "Dive into the magic that makes NymVPN stand out in the digital crowd",
+  "categories": [
+    {
+      "title": "Technology",
+      "features": [
+        {
+          "title": "5-hop novel mixnet",
+          "text": "Split and encrypt your data into smaller packets, which are mixed, rebuilt and decrypted on the receiving side; Further protect your data and metadata with cover traffic and time delays.",
+          "cta": {
+            "text": "Learn more",
+            "href": "https://nymtech.net/about/mixnet"
+          },
+          "iconName": "mixnet",
+          "isMedium": true
+        },
+        {
+          "title": "2-hop secure WireGuard decentralized VPN",
+          "text": "Go speedy with a two-hop onion encryption and no cover traffic.",
+          "iconName": "wireguard",
+          "isMedium": true
+        },
+        {
+          "title": "Robust cryptographic primitives",
+          "text": "Protect your data with with AES128, ChaChaPoly and BLAKE2.",
+          "iconName": "cryptographicPrimitives"
+        },
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Zero-knowledge proof access",
+          "text": "Access the network without revealing sensitive information, enhancing your privacy and security.",
+          "cta": {
+            "text": "Learn more",
+            "href": "https://nymtech.net/about/zk-nyms"
+          },
+          "iconName": "zero"
+        },
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Key rotation / forward secrecy / replay protection",
+          "text": "Keep your data confidential with sophisticated, cutting-edge cryptographic techniques.",
+          "iconName": "key"
+        },
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Censorship resistance",
+          "text": "Bypass internet censorship with innovative traffic obfuscation.",
+          "cta": {
+            "text": "Learn more",
+            "href": "https://blog.nymtech.net/nym-censorship-resistance-update-d2f5e08e66d1"
+          },
+          "iconName": "censorship",
+          "isMedium": true
+        },
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Post-quantum cryptography",
+          "text": "Quantum-encrypt your data for long-term secrecy.",
+          "iconName": "quantum",
+          "isMedium": true
+        }
+      ]
+    },
+    {
+      "title": "In-app features",
+      "features": [
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Killswitch and autoconnect",
+          "text": "Automatically connect, or suspend traffic as needed for uninterrupted protection.",
+          "iconName": "killswitch"
+        },
+        {
+          "title": "Advanced privacy in one app",
+          "text": "Benefit from unmatched privacy and seamless speeds, all within a single application.",
+          "iconName": "oneApp",
+          "isLarge": true
+        },
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Privacy-enhancing payments",
+          "text": "Conceal your identity when buying the subscription, thanks to zero-knowledge credentials.",
+          "iconName": "payment",
+          "isLarge": true
+        },
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Split tunnelling",
+          "text": "Pick where to route your traffic, for each of your needs: the mixnet for superior privacy and the decentralized VPN for performance.",
+          "iconName": "split"
+        }
+      ]
+    },
+    {
+      "title": "Benefits",
+      "features": [
+        {
+          "categoryStatus": "Coming soon",
+          "title": "Unlinkable online activity",
+          "text": "Prevent the correlation of your IPs with network requests, ensuring a robust safeguard against unauthorized access to your traffic and private data.",
+          "iconName": "unlinkable"
+        },
+        {
+          "title": "Decentralized and incentivized network",
+          "text": "Connect via a failsafe, independent and community-governed network structure.",
+          "cta": {
+            "text": "Learn more",
+            "href": "https://nymtech.net/build/nodes"
+          },
+          "iconName": "decentralized"
+        },
+        {
+          "title": "Swiss headquartered",
+          "text": "Benefit from Swiss jurisdiction and data regulations, for maximum protection.",
+          "iconName": "swiss"
+        },
+        {
+          "title": "Open source",
+          "text": "Enjoy products developed in a transparent and collaborative manner, open to public contributions and scrutiny.",
+          "cta": { "text": "Learn more", "href": "https://nymtech.net/docs" },
+          "iconName": "openSource"
+        },
+        {
+          "title": "World-class privacy and cryptography expert team",
+          "text": "Benefit from the support of an elite team with PhDs, peer-reviewed work, and strong academic credentials (e.g., INRIA, KU Leuven, MIT, UCL).",
+          "cta": {
+            "text": "Learn more",
+            "href": "https://nymtech.net/about/team"
+          },
+          "iconName": "team",
+          "isLarge": true
+        }
+      ]
+    }
+  ]
+}

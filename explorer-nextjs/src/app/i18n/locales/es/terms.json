@@ -1,0 +1,28 @@
+{
+  "title": "Terms & Conditions",
+  "subtitle": "By using our website, you consent to this privacy policy. We take the protection of your privacy seriously. In the following, we show you how we use your personal data, use cookies, safeguard the security of your data and much more",
+  "content": [
+    {
+      "title": "Principle",
+      "text": "We take the protection of your privacy seriously. The following privacy policy details which of your personal data we process if you visit our website, use our online services, or if we provide any services to you generally. We gather and process your personal data carefully and exclusively for the purposes described in this privacy policy and only to the extent necessary in order to provide you our services. We store your personal data exclusively to the extent and for the duration necessary to provide such services, or as required by law. In close cooperation with our hosting providers, we make every effort to ensure that databases are protected from unauthorized access, loss, misuse and falsification. This privacy policy is based, in particular, on the EU’s General Data Protection Regulation (GDPR). Although the GDPR is a regulation of the European Union, it is of significant relevance in Switzerland. The Swiss Federal Act on Data Protection (FADP) is heavily influenced by EU law, and companies outside the European Union and the European Economic Area must comply with the GDPR under certain circumstances."
+    },
+    {
+      "title": "Data protection officer",
+      "text": "Legal department is responsible for ensuring compliance with the applicable provisions on data protection. If you have concerns regarding data protection, you may send them to us at the following address:",
+      "newlines": [
+        "NYM Technologies SA",
+        "Legal department",
+        "Place Numa-Droz 2, 2000 Neuchâtel, Switzerland",
+        "legal@nymtech.net"
+      ]
+    },
+    {
+      "title": "Collection and processing of personal data",
+      "text": "We process the personal data that we receive within the scope of our business activity, i.e. technologies and applications development specifically in the scope decentralised and open source infrastructures for privacyenabling technologies."
+    },
+    {
+      "title": "Purposes of data processing",
+      "text": "We use the personal data that we collect for the purpose of developing and promoting decentralised and open source privacy-enabling technologies. In addition, we also process personal data from you and other persons, to the extent permitted and deemed appropriate by us, in which we (and sometimes third parties) have a relevant legitimate interest for the following purposes: - providing information about offers, services, websites and other platforms where we have an online presence; - communicating with third parties and processing their queries (e.g. applications, media queries); - examining and optimizing needs analysis procedures for the purpose of directly addressing customers, as well as collecting personal data from publicly accessible sources for the purpose of customer acquisition; - advertising and providing information about our services and offers if you have not refused permission for the use of your data for this purpose (you may refuse permission at any time and we will place you on a list to block the sending of further advertising); - market surveys, opinion research, media monitoring; and/or - safeguarding our operations, in particular our IT, our website and other platforms. If you have given us your consent to process your personal data for specific purposes (e.g., by registering to receive newsletters or by submitting other requests via online forms on our website), we process your personal data within the scope of, and based on, this consent, unless another legal basis or other legitimate grounds exist. Consent that has been given can be revoked at any time but has no effect on any data processing that has already been carried out."
+    }
+  ]
+}

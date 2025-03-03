@@ -103,7 +103,7 @@ impl TunListener {
                     .update(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)));
             }
         } else {
-            log::info!(
+            log::debug!(
                 "dropping packet from network: no registered client for destination: {dst_addr}"
             );
         }

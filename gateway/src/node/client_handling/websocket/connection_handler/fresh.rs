@@ -3,6 +3,7 @@
 
 use crate::node::client_handling::active_clients::RemoteClientData;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
+use crate::node::client_handling::websocket::connection_handler::helpers::KeyWithAuthTimestamp;
 use crate::node::client_handling::websocket::connection_handler::INITIAL_MESSAGE_TIMEOUT;
 use crate::node::client_handling::websocket::{
     connection_handler::{AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream},
@@ -364,19 +365,14 @@ impl<R, S> FreshHandler<R, S> {
     async fn retrieve_shared_key(
         &self,
         client: DestinationAddressBytes,
-    ) -> Result<Option<SharedGatewayKey>, InitialAuthenticationError> {
+    ) -> Result<Option<KeyWithAuthTimestamp>, InitialAuthenticationError> {
         let shared_keys = self.shared_state.storage.get_shared_keys(client).await?;
 
         let Some(stored_shared_keys) = shared_keys else {
             return Ok(None);
         };
 
-        let keys = SharedGatewayKey::try_from(stored_shared_keys).map_err(|source| {
-            InitialAuthenticationError::MalformedStoredSharedKey {
-                client_id: client.as_base58_string(),
-                source,
-            }
-        })?;
+        let keys = KeyWithAuthTimestamp::try_from_stored(stored_shared_keys, client)?;
 
         Ok(Some(keys))
     }
@@ -396,13 +392,13 @@ impl<R, S> FreshHandler<R, S> {
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
         nonce: &[u8],
-    ) -> Result<Option<SharedGatewayKey>, InitialAuthenticationError> {
+    ) -> Result<Option<KeyWithAuthTimestamp>, InitialAuthenticationError> {
         let Some(keys) = self.retrieve_shared_key(client_address).await? else {
             return Ok(None);
         };
 
         // LEGACY ISSUE: we're not verifying HMAC key
-        if encrypted_address.verify(&client_address, &keys, nonce) {
+        if encrypted_address.verify(&client_address, &keys.key, nonce) {
             Ok(Some(keys))
         } else {
             Ok(None)
@@ -506,6 +502,7 @@ impl<R, S> FreshHandler<R, S> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn get_registered_client_id(
         &self,
         client_address: DestinationAddressBytes,
@@ -590,12 +587,13 @@ impl<R, S> FreshHandler<R, S> {
                 .await?;
         }
 
+        let client_id = shared_keys.client_id;
+
         // if applicable, push stored messages
-        self.push_stored_messages_to_client(address, &shared_keys)
+        self.push_stored_messages_to_client(address, &shared_keys.key)
             .await?;
 
         // check the bandwidth
-        let client_id = self.get_registered_client_id(address).await?;
         let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
 
         let bandwidth_remaining = if available_bandwidth.expired() {
@@ -609,7 +607,7 @@ impl<R, S> FreshHandler<R, S> {
             Some(ClientDetails::new(
                 client_id,
                 address,
-                shared_keys,
+                shared_keys.key,
                 session_request_start,
             )),
             ServerResponse::Authenticate {
@@ -647,9 +645,15 @@ impl<R, S> FreshHandler<R, S> {
         let Some(shared_key) = self.retrieve_shared_key(address).await? else {
             return Err(AuthenticationFailure::NotRegistered)?;
         };
-        request.verify_ciphertext(&shared_key)?;
+        request.verify_ciphertext(&shared_key.key)?;
 
         let session_request_start = request.content.request_timestamp();
+
+        // if the client has already authenticated in the past, make sure this authentication timestamp
+        // is different and greater than the old one (in case it was replayed)
+        if let Some(prior_usage) = shared_key.last_used_authentication {
+            request.ensure_timestamp_not_reused(prior_usage)?;
+        }
 
         // check for duplicate clients
         if let Some(client_data) = self
@@ -662,13 +666,20 @@ impl<R, S> FreshHandler<R, S> {
                 .await?;
         }
 
+        let client_id = shared_key.client_id;
+
+        // update the auth timestamp for future uses
+        self.shared_state
+            .storage
+            .update_last_used_authentication_timestamp(client_id, session_request_start)
+            .await?;
+
         // push any old stored messages to the client
         // (this will be removed soon)
-        self.push_stored_messages_to_client(address, &shared_key)
+        self.push_stored_messages_to_client(address, &shared_key.key)
             .await?;
 
         // finally check and retrieve client's bandwidth
-        let client_id = self.get_registered_client_id(address).await?;
         let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
 
         let bandwidth_remaining = if available_bandwidth.expired() {
@@ -682,7 +693,7 @@ impl<R, S> FreshHandler<R, S> {
             Some(ClientDetails::new(
                 client_id,
                 address,
-                shared_key,
+                shared_key.key,
                 session_request_start,
             )),
             ServerResponse::Authenticate {

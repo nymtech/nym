@@ -49,6 +49,16 @@ impl AuthenticateRequest {
         Ok(())
     }
 
+    pub fn ensure_timestamp_not_reused(
+        &self,
+        previous: OffsetDateTime,
+    ) -> Result<(), AuthenticationFailure> {
+        if self.content.request_timestamp() <= previous {
+            return Err(AuthenticationFailure::RequestReuse);
+        }
+        Ok(())
+    }
+
     pub fn verify_ciphertext(
         &self,
         shared_key: &SharedGatewayKey,

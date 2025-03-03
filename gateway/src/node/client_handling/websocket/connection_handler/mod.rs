@@ -18,6 +18,7 @@ pub(crate) use self::fresh::FreshHandler;
 
 pub(crate) mod authenticated;
 mod fresh;
+pub(crate) mod helpers;
 
 const WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const INITIAL_MESSAGE_TIMEOUT: Duration = Duration::from_millis(10_000);

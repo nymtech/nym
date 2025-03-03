@@ -120,4 +120,7 @@ pub enum AuthenticationFailure {
 
     #[error("the provided request is too stale to process")]
     StaleRequest,
+
+    #[error("the provided request timestamp is smaller or equal to a one previously used")]
+    RequestReuse,
 }

@@ -76,25 +76,7 @@ mod tests {
                 protocol_version,
                 data,
             } => {
-                assert_eq!(protocol_version, Some(42));
-                assert_eq!(data, handshake_data)
-            }
-            _ => unreachable!("this branch shouldn't have been reached!"),
-        }
-
-        let handshake_payload_without_protocol = RegistrationHandshake::HandshakePayload {
-            protocol_version: None,
-            data: handshake_data.clone(),
-        };
-        let serialized = serde_json::to_string(&handshake_payload_without_protocol).unwrap();
-        let deserialized = ClientControlRequest::try_from(serialized).unwrap();
-
-        match deserialized {
-            ClientControlRequest::RegisterHandshakeInitRequest {
-                protocol_version,
-                data,
-            } => {
-                assert!(protocol_version.is_none());
+                assert_eq!(protocol_version, 42);
                 assert_eq!(data, handshake_data)
             }
             _ => unreachable!("this branch shouldn't have been reached!"),

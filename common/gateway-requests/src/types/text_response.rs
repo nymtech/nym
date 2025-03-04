@@ -47,14 +47,12 @@ impl SensitiveServerResponse {
 #[non_exhaustive]
 pub enum ServerResponse {
     Authenticate {
-        #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: u8,
         status: bool,
         bandwidth_remaining: i64,
     },
     Register {
-        #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: u8,
         status: bool,
     },
     EncryptedResponse {

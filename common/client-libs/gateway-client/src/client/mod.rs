@@ -410,32 +410,28 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    fn check_gateway_protocol(
-        &self,
-        gateway_protocol: Option<u8>,
-    ) -> Result<(), GatewayClientError> {
+    fn check_gateway_protocol(&self, gateway_protocol: u8) -> Result<(), GatewayClientError> {
         debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
 
-        // right now there are no failure cases here, but this might change in the future
-        match gateway_protocol {
-            None => {
-                warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in +1.2.0 we will have to return a hard error here
-                Ok(())
-            }
-            Some(v) if v > CURRENT_PROTOCOL_VERSION => {
-                let err = GatewayClientError::IncompatibleProtocol {
-                    gateway: Some(v),
-                    current: CURRENT_PROTOCOL_VERSION,
-                };
-                error!("{err}");
-                Err(err)
-            }
+        // client should reject any gateways that do not indicate they support auth v2
+        if !gateway_protocol.supports_authenticate_v2() {
+            return Err(GatewayClientError::IncompatibleProtocol {
+                gateway: gateway_protocol,
+                current: CURRENT_PROTOCOL_VERSION,
+            });
+        }
 
-            Some(_) => {
-                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
-                Ok(())
-            }
+        // we can't handle gateways with higher protocol than ours
+        if gateway_protocol <= CURRENT_PROTOCOL_VERSION {
+            debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
+            Ok(())
+        } else {
+            let err = GatewayClientError::IncompatibleProtocol {
+                gateway: gateway_protocol,
+                current: CURRENT_PROTOCOL_VERSION,
+            };
+            error!("{err}");
+            Err(err)
         }
     }
 
@@ -492,7 +488,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = gateway_protocol;
+        self.negotiated_protocol = Some(gateway_protocol);
 
         Ok(())
     }
@@ -577,7 +573,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.authenticated = status;
                 self.bandwidth.update_and_maybe_log(bandwidth_remaining);
 
-                self.negotiated_protocol = protocol_version;
+                self.negotiated_protocol = Some(protocol_version);
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
 
                 self.task_client.send_status_msg(Box::new(
@@ -588,27 +584,6 @@ impl<C, St> GatewayClient<C, St> {
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }
-    }
-
-    async fn authenticate_v1(&mut self) -> Result<(), GatewayClientError> {
-        debug!("using v1 authentication");
-
-        let Some(shared_key) = self.shared_key.as_ref() else {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        };
-
-        let self_address = self
-            .local_identity
-            .public_key()
-            .derive_destination_address();
-
-        let msg = ClientControlRequest::new_authenticate(
-            self_address,
-            shared_key,
-            self.cfg.bandwidth.require_tickets,
-        )?;
-        self.send_authenticate_request_and_handle_response(msg)
-            .await
     }
 
     async fn authenticate_v2(&mut self) -> Result<(), GatewayClientError> {
@@ -622,17 +597,13 @@ impl<C, St> GatewayClient<C, St> {
             .await
     }
 
-    async fn authenticate(&mut self, use_v2: bool) -> Result<(), GatewayClientError> {
+    async fn authenticate(&mut self) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         debug!("authenticating with gateway");
 
-        if use_v2 {
-            self.authenticate_v2().await
-        } else {
-            self.authenticate_v1().await
-        }
+        self.authenticate_v2().await
     }
 
     /// Helper method to either call register or authenticate based on self.shared_key value
@@ -650,15 +621,9 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // 1. check gateway's protocol version
-        let gw_protocol = match self.get_gateway_protocol().await {
-            Ok(protocol) => Some(protocol),
-            Err(_) => {
-                // if we failed to send the request, it means the gateway is running the old binary,
-                // so it has reset our connection - we have to reconnect
-                self.establish_connection().await?;
-                None
-            }
-        };
+        // if we failed to get this request resolved, it means the gateway is on an old version
+        // that definitely does not support auth v2, so we bail
+        let gw_protocol = self.get_gateway_protocol().await?;
 
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
@@ -667,7 +632,13 @@ impl<C, St> GatewayClient<C, St> {
             warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
         }
         if !supports_auth_v2 {
-            warn!("this gateway is on an old version that doesn't support authentication v2")
+            warn!("this gateway is on an old version that doesn't support authentication v2");
+
+            // we can't continue
+            return Err(GatewayClientError::IncompatibleProtocol {
+                gateway: gw_protocol,
+                current: CURRENT_PROTOCOL_VERSION,
+            });
         }
 
         if self.authenticated {
@@ -683,7 +654,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(supports_auth_v2).await?;
+            self.authenticate().await?;
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
@@ -1016,8 +987,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
-        self.authenticate(self.negotiated_protocol.supports_authenticate_v2())
-            .await?;
+        self.authenticate().await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

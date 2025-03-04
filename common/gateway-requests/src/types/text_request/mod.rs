@@ -4,13 +4,10 @@
 use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
-    GatewayRequestsError, SharedGatewayKey, SymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    AUTHENTICATE_V2_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
-    INITIAL_PROTOCOL_VERSION,
+    GatewayRequestsError, SharedGatewayKey, SymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
-use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tungstenite::Message;
@@ -64,32 +61,14 @@ impl ClientRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum ClientControlRequest {
-    // TODO: should this also contain a MAC considering that at this point we already
-    // have the shared key derived?
-    Authenticate {
-        #[serde(default)]
-        protocol_version: Option<u8>,
-        address: String,
-        enc_address: String,
-        iv: String,
-    },
-
     AuthenticateV2(Box<AuthenticateRequest>),
 
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest {
-        #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: u8,
         data: Vec<u8>,
     },
-    BandwidthCredential {
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
-    },
-    BandwidthCredentialV2 {
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
-    },
+
     EcashCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
@@ -101,36 +80,27 @@ pub enum ClientControlRequest {
     },
     SupportedProtocol {},
     // if you're adding new variants here, consider putting them inside `ClientRequest` instead
+
+    // NO LONGER SUPPORTED:
+    Authenticate {
+        #[serde(default)]
+        protocol_version: Option<u8>,
+        address: String,
+        enc_address: String,
+        iv: String,
+    },
+
+    BandwidthCredential {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
+    BandwidthCredentialV2 {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
 }
 
 impl ClientControlRequest {
-    pub fn new_authenticate(
-        address: DestinationAddressBytes,
-        shared_key: &SharedGatewayKey,
-        uses_credentials: bool,
-    ) -> Result<Self, GatewayRequestsError> {
-        // if we're encrypting with non-legacy key, the remote must support AES256-GCM-SIV
-        let protocol_version = if !shared_key.is_legacy() {
-            Some(AES_GCM_SIV_PROTOCOL_VERSION)
-        } else if uses_credentials {
-            Some(CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION)
-        } else {
-            // if we're not going to be using credentials, advertise lower protocol version to allow connection
-            // to wider range of gateways
-            Some(INITIAL_PROTOCOL_VERSION)
-        };
-
-        let nonce = shared_key.random_nonce_or_iv();
-        let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
-
-        Ok(ClientControlRequest::Authenticate {
-            protocol_version,
-            address: address.as_base58_string(),
-            enc_address: bs58::encode(&ciphertext).into_string(),
-            iv: bs58::encode(&nonce).into_string(),
-        })
-    }
-
     pub fn new_authenticate_v2(
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,

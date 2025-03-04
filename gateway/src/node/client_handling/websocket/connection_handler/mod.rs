@@ -78,17 +78,6 @@ impl InitialAuthResult {
             server_response,
         }
     }
-
-    fn new_failed(protocol_version: Option<u8>) -> Self {
-        InitialAuthResult {
-            client_details: None,
-            server_response: ServerResponse::Authenticate {
-                protocol_version,
-                status: false,
-                bandwidth_remaining: 0,
-            },
-        }
-    }
 }
 
 // imo there's no point in including the peer address in anything higher than debug

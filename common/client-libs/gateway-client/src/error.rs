@@ -114,7 +114,7 @@ pub enum GatewayClientError {
     MixnetMsgSenderFailedToSend,
 
     #[error("Attempted to negotiate connection with gateway using incompatible protocol version. Ours is {current} and the gateway reports {gateway:?}")]
-    IncompatibleProtocol { gateway: Option<u8>, current: u8 },
+    IncompatibleProtocol { gateway: u8, current: u8 },
 
     #[error(
         "The packet router hasn't been set - are you sure you started up the client correctly?"

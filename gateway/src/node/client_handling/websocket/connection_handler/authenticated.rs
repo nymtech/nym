@@ -428,6 +428,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
             ClientControlRequest::EcashCredential { enc_credential, iv } => {
                 self.handle_ecash_bandwidth(enc_credential, iv).await
             }
+            ClientControlRequest::Authenticate { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "authentication v1 is no longer supported".into(),
+                })
+            }
             ClientControlRequest::BandwidthCredential { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
                     additional_context: "coconut credential are not longer supported".into(),
@@ -446,7 +451,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             ClientControlRequest::SupportedProtocol { .. } => {
                 Ok(self.inner.handle_supported_protocol_request())
             }
-            other @ ClientControlRequest::Authenticate { .. } => {
+            other @ ClientControlRequest::AuthenticateV2 { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
                     additional_context: format!(
                         "received illegal message of type {} in an authenticated client",

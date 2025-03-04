@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Nym Wireguard Exit Policy Manager
-# Version: 1.1.0
+# Version: 1.0.0
 #
 # This script manages iptables rules for Nym Wireguard exit policies
 # Features:

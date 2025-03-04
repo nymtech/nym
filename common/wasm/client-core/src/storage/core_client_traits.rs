@@ -15,8 +15,6 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
-use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_gateway_client::SharedSymmetricKey;
 use wasm_utils::console_log;
 
 // temporary until other variants are properly implemented (probably it should get changed into `ClientStorage`
@@ -156,19 +154,6 @@ impl GatewaysDetailsStore for ClientStorage {
     ) -> Result<(), Self::StorageError> {
         let raw_registration = details.into();
         self.store_registered_gateway(&raw_registration).await
-    }
-
-    async fn upgrade_stored_remote_gateway_key(
-        &self,
-        gateway_id: PublicKey,
-        updated_key: &SharedSymmetricKey,
-    ) -> Result<(), Self::StorageError> {
-        self.update_remote_gateway_key(
-            &gateway_id.to_base58_string(),
-            None,
-            Some(updated_key.as_bytes()),
-        )
-        .await
     }
 
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {

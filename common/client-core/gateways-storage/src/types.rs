@@ -4,10 +4,9 @@
 use crate::BadGateway;
 use cosmrs::AccountId;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -65,7 +64,7 @@ impl From<GatewayDetails> for GatewayRegistration {
 impl GatewayDetails {
     pub fn new_remote(
         gateway_id: identity::PublicKey,
-        shared_key: Arc<SharedGatewayKey>,
+        shared_key: Arc<SharedSymmetricKey>,
         gateway_owner_address: Option<AccountId>,
         gateway_listener: Url,
     ) -> Self {
@@ -88,7 +87,7 @@ impl GatewayDetails {
         }
     }
 
-    pub fn shared_key(&self) -> Option<&SharedGatewayKey> {
+    pub fn shared_key(&self) -> Option<&SharedSymmetricKey> {
         match self {
             GatewayDetails::Remote(details) => Some(&details.shared_key),
             GatewayDetails::Custom(_) => None,
@@ -168,8 +167,7 @@ pub struct RegisteredGateway {
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
-    pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
-    pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
+    pub derived_aes256_gcm_siv_key: Vec<u8>,
     pub gateway_owner_address: Option<String>,
     pub gateway_listener: String,
 }
@@ -186,35 +184,11 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 }
             })?;
 
-        let shared_key =
-            match (
-                &value.derived_aes256_gcm_siv_key,
-                &value.derived_aes128_ctr_blake3_hmac_keys_bs58,
-            ) {
-                (None, None) => {
-                    return Err(BadGateway::MissingSharedKey {
-                        gateway_id: value.gateway_id_bs58.clone(),
-                    })
-                }
-                (Some(aes256gcm_siv), _) => {
-                    let current_key =
-                        SharedSymmetricKey::try_from_bytes(aes256gcm_siv).map_err(|source| {
-                            BadGateway::MalformedSharedKeys {
-                                gateway_id: value.gateway_id_bs58.clone(),
-                                source,
-                            }
-                        })?;
-                    SharedGatewayKey::Current(current_key)
-                }
-                (None, Some(aes128ctr_hmac)) => {
-                    let legacy_key = LegacySharedKeys::try_from_base58_string(aes128ctr_hmac)
-                        .map_err(|source| BadGateway::MalformedSharedKeys {
-                            gateway_id: value.gateway_id_bs58.clone(),
-                            source,
-                        })?;
-                    SharedGatewayKey::Legacy(legacy_key)
-                }
-            };
+        let shared_key = SharedSymmetricKey::try_from_bytes(&value.derived_aes256_gcm_siv_key)
+            .map_err(|source| BadGateway::MalformedSharedKeys {
+                gateway_id: value.gateway_id_bs58.clone(),
+                source,
+            })?;
 
         let gateway_owner_address = value
             .gateway_owner_address
@@ -247,29 +221,11 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
     }
 }
 
-impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
-    fn from(value: &'a RemoteGatewayDetails) -> Self {
-        let (derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) =
-            match value.shared_key.deref() {
-                SharedGatewayKey::Current(key) => (None, Some(key.to_bytes())),
-                SharedGatewayKey::Legacy(key) => (Some(key.to_base58_string()), None),
-            };
-
-        RawRemoteGatewayDetails {
-            gateway_id_bs58: value.gateway_id.to_base58_string(),
-            derived_aes128_ctr_blake3_hmac_keys_bs58,
-            derived_aes256_gcm_siv_key,
-            gateway_owner_address: value.gateway_owner_address.as_ref().map(|o| o.to_string()),
-            gateway_listener: value.gateway_listener.to_string(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct RemoteGatewayDetails {
     pub gateway_id: identity::PublicKey,
 
-    pub shared_key: Arc<SharedGatewayKey>,
+    pub shared_key: Arc<SharedSymmetricKey>,
 
     pub gateway_owner_address: Option<AccountId>,
 

@@ -5,7 +5,7 @@ use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::SharedGatewayKey;
+use crate::registration::handshake::SharedSymmetricKey;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::{Sink, Stream};
 use tungstenite::Message as WsMessage;
@@ -18,18 +18,14 @@ impl<S, R> State<'_, S, R> {
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
     {
-        // 1. receive remote ed25519 pubkey alongside ephemeral x25519 pubkey and maybe a flag indicating non-legacy client
-        // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_NON_LEGACY
+        // 1. receive remote ed25519 pubkey alongside ephemeral x25519 pubkey and initiator salt
+        // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || INITIATOR_SALT
         let init_message = Initialisation::try_from_bytes(&raw_init_message)?;
         self.update_remote_identity(init_message.identity);
-        self.set_aes256_gcm_siv_key_derivation(!init_message.is_legacy());
 
         // 2. derive shared keys locally
         // hkdf::<blake3>::(g^xy)
-        self.derive_shared_key(
-            &init_message.ephemeral_dh,
-            init_message.initiator_salt.as_deref(),
-        );
+        self.derive_shared_key(&init_message.ephemeral_dh, &init_message.initiator_salt);
 
         // 3. send ephemeral x25519 pubkey alongside the encrypted signature
         // g^y || AES(k, sig(gate_priv, (g^y || g^x))
@@ -54,7 +50,7 @@ impl<S, R> State<'_, S, R> {
     pub(crate) async fn perform_gateway_handshake(
         mut self,
         raw_init_message: Vec<u8>,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+    ) -> Result<SharedSymmetricKey, HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
     {

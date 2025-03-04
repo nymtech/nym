@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
-use nym_gateway_requests::shared_key::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
@@ -44,7 +44,7 @@ impl<S> SocketStream<S> {
 pub(crate) struct ClientDetails {
     pub(crate) address: DestinationAddressBytes,
     pub(crate) id: i64,
-    pub(crate) shared_keys: SharedGatewayKey,
+    pub(crate) shared_keys: SharedSymmetricKey,
     // note, this does **NOT ALWAYS** indicate timestamp of when client connected
     // it is (for v2 auth) timestamp the client **signed** when it created the request
     pub(crate) session_request_timestamp: OffsetDateTime,
@@ -54,7 +54,7 @@ impl ClientDetails {
     pub(crate) fn new(
         id: i64,
         address: DestinationAddressBytes,
-        shared_keys: SharedGatewayKey,
+        shared_keys: SharedSymmetricKey,
         session_request_timestamp: OffsetDateTime,
     ) -> Self {
         ClientDetails {

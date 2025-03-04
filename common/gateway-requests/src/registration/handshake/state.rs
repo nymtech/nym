@@ -5,12 +5,9 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
-use crate::registration::handshake::{SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
+use crate::registration::handshake::{WsItem, KDF_SALT_LENGTH};
 use crate::shared_key::SharedKeySize;
-use crate::{
-    types, LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
-};
+use crate::{types, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
@@ -52,7 +49,7 @@ pub(crate) struct State<'a, S, R> {
     ephemeral_keypair: x25519::KeyPair,
 
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_keys: Option<SharedGatewayKey>,
+    derived_shared_keys: Option<SharedSymmetricKey>,
 
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
@@ -61,9 +58,6 @@ pub(crate) struct State<'a, S, R> {
     // this field is really out of place here, however, we need to propagate this information somehow
     // in order to establish correct protocol for backwards compatibility reasons
     expects_credential_usage: bool,
-
-    /// Specifies whether the end product should be an AES128Ctr + blake3 HMAC keys (legacy) or AES256-GCM-SIV (current)
-    derive_aes256_gcm_siv_key: bool,
 
     // channel to receive shutdown signal
     #[cfg(not(target_arch = "wasm32"))]
@@ -91,7 +85,6 @@ impl<'a, S, R> State<'a, S, R> {
             derived_shared_keys: None,
             // later on this should become the default
             expects_credential_usage: false,
-            derive_aes256_gcm_siv_key: false,
             #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
@@ -102,38 +95,24 @@ impl<'a, S, R> State<'a, S, R> {
         self
     }
 
-    pub(crate) fn with_aes256_gcm_siv_key(mut self, derive_aes256_gcm_siv_key: bool) -> Self {
-        self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
-        self
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn set_aes256_gcm_siv_key_derivation(&mut self, derive_aes256_gcm_siv_key: bool) {
-        self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn local_ephemeral_key(&self) -> &encryption::PublicKey {
         self.ephemeral_keypair.public_key()
     }
 
-    pub(crate) fn maybe_generate_initiator_salt(&mut self) -> Option<Vec<u8>>
+    pub(crate) fn generate_initiator_salt(&mut self) -> Vec<u8>
     where
         R: CryptoRng + RngCore,
     {
-        if self.derive_aes256_gcm_siv_key {
-            let mut salt = vec![0u8; KDF_SALT_LENGTH];
-            self.rng.fill_bytes(&mut salt);
-            Some(salt)
-        } else {
-            None
-        }
+        let mut salt = vec![0u8; KDF_SALT_LENGTH];
+        self.rng.fill_bytes(&mut salt);
+        salt
     }
 
     // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_SALT
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
-    pub(crate) fn init_message(&self, initiator_salt: Option<Vec<u8>>) -> Initialisation {
+    pub(crate) fn init_message(&self, initiator_salt: Vec<u8>) -> Initialisation {
         Initialisation {
             identity: *self.identity.public_key(),
             ephemeral_dh: *self.ephemeral_keypair.public_key(),
@@ -151,37 +130,27 @@ impl<'a, S, R> State<'a, S, R> {
     pub(crate) fn derive_shared_key(
         &mut self,
         remote_ephemeral_key: &encryption::PublicKey,
-        initiator_salt: Option<&[u8]>,
+        initiator_salt: &[u8],
     ) {
         let dh_result = self
             .ephemeral_keypair
             .private_key()
             .diffie_hellman(remote_ephemeral_key);
 
-        let key_size = if self.derive_aes256_gcm_siv_key {
-            SharedKeySize::to_usize()
-        } else {
-            LegacySharedKeySize::to_usize()
-        };
+        let key_size = SharedKeySize::to_usize();
 
         // there is no reason for this to fail as our okm is expected to be only 16 bytes
         let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
-            initiator_salt,
+            Some(initiator_salt),
             &dh_result,
             None,
             key_size,
         )
         .expect("somehow too long okm was provided");
 
-        let shared_key = if self.derive_aes256_gcm_siv_key {
-            let current_key = SharedSymmetricKey::try_from_bytes(&okm)
-                .expect("okm was expanded to incorrect length!");
-            SharedGatewayKey::Current(current_key)
-        } else {
-            let legacy_key = LegacySharedKeys::try_from_bytes(&okm)
-                .expect("okm was expanded to incorrect length!");
-            SharedGatewayKey::Legacy(legacy_key)
-        };
+        let shared_key = SharedSymmetricKey::try_from_bytes(&okm)
+            .expect("okm was expanded to incorrect length!");
+
         self.derived_shared_keys = Some(shared_key)
     }
 
@@ -200,19 +169,15 @@ impl<'a, S, R> State<'a, S, R> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
-        let nonce = if self.derive_aes256_gcm_siv_key {
-            let mut rng = thread_rng();
-            Some(random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec())
-        } else {
-            None
-        };
+        let mut rng = thread_rng();
+        let nonce = random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng);
 
         // SAFETY: this function is only called after the local key has already been derived
         let signature_ciphertext = self
             .derived_shared_keys
             .as_ref()
             .expect("shared key was not derived!")
-            .encrypt_naive(&signature.to_bytes(), nonce.as_deref())?;
+            .encrypt(&signature.to_bytes(), &nonce)?;
 
         Ok(MaterialExchange {
             signature_ciphertext,
@@ -231,15 +196,10 @@ impl<'a, S, R> State<'a, S, R> {
             .as_ref()
             .expect("shared key was not derived!");
 
-        // if the [client] init message contained non-legacy flag, the associated nonce MUST be present
-        if self.derive_aes256_gcm_siv_key && remote_response.nonce.is_none() {
-            return Err(HandshakeError::MissingNonceForCurrentKey);
-        }
-
         // first decrypt received data
-        let decrypted_signature = derived_shared_key.decrypt_naive(
+        let decrypted_signature = derived_shared_key.decrypt(
             &remote_response.signature_ciphertext,
-            remote_response.nonce.as_deref(),
+            &remote_response.nonce,
         )?;
 
         // now verify signature itself
@@ -367,13 +327,7 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     fn request_protocol_version(&self) -> u8 {
-        if self.derive_aes256_gcm_siv_key {
-            AES_GCM_SIV_PROTOCOL_VERSION
-        } else if self.expects_credential_usage {
-            CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION
-        } else {
-            INITIAL_PROTOCOL_VERSION
-        }
+        AES_GCM_SIV_PROTOCOL_VERSION
     }
 
     pub(crate) async fn send_handshake_data<M>(
@@ -398,7 +352,7 @@ impl<'a, S, R> State<'a, S, R> {
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedGatewayKey {
+    pub(crate) fn finalize_handshake(self) -> SharedSymmetricKey {
         self.derived_shared_keys.unwrap()
     }
 

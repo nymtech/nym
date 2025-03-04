@@ -44,23 +44,12 @@ pub type GatewaySharedKeyHkdfAlgorithm = blake3::Hasher;
 /// Hashing algorithm used when computing digest of a reply SURB encryption key.
 pub type ReplySurbKeyDigestAlgorithm = blake3::Hasher;
 
-/// Hashing algorithm used when computing integrity (H)Mac for message exchanged between client and gateway.
-// TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\legacy_shared_key
-// needs updating!
-pub type GatewayIntegrityHmacAlgorithm = blake3::Hasher;
-
 /// Encryption algorithm used for encrypting acknowledgement messages.
 // TODO: if updated:
 // - PacketSize::ACK_PACKET_SIZE needs to be manually updated (if nonce/iv size differs);
 // this requirement will eventually go away once const generics are stabilised (and generic_array and co. start using them)
 // - the pem type defined in nym\common\nymsphinx\acknowledgements\src\key needs updating!
 pub type AckEncryptionAlgorithm = Aes128Ctr;
-
-/// Legacy encryption algorithm used for end-to-end encryption of messages exchanged between clients
-/// and their gateways.
-// TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\legacy_shared_key
-// needs updating!
-pub type LegacyGatewayEncryptionAlgorithm = Aes128Ctr;
 
 /// Encryption algorithm used for end-to-end encryption of messages exchanged between clients
 /// and their gateways.

@@ -8,7 +8,6 @@ use crate::{
 use async_trait::async_trait;
 use manager::StorageManager;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_requests::SharedSymmetricKey;
 use std::path::Path;
 
 pub mod error;
@@ -119,9 +118,16 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
 
         match &details.details {
             GatewayDetails::Remote(remote_details) => {
-                let raw_details = remote_details.into();
                 self.manager
-                    .set_remote_gateway_details(&raw_details)
+                    .set_remote_gateway_details(
+                        remote_details.gateway_id.to_base58_string(),
+                        remote_details.shared_key.as_bytes(),
+                        remote_details
+                            .gateway_owner_address
+                            .as_ref()
+                            .map(|o| o.to_string()),
+                        remote_details.gateway_listener.to_string(),
+                    )
                     .await?;
             }
             GatewayDetails::Custom(custom_details) => {
@@ -131,21 +137,6 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
                     .await?;
             }
         }
-        Ok(())
-    }
-
-    async fn upgrade_stored_remote_gateway_key(
-        &self,
-        gateway_id: ed25519::PublicKey,
-        updated_key: &SharedSymmetricKey,
-    ) -> Result<(), Self::StorageError> {
-        self.manager
-            .update_remote_gateway_key(
-                &gateway_id.to_base58_string(),
-                None,
-                Some(updated_key.as_bytes()),
-            )
-            .await?;
         Ok(())
     }
 

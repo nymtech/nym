@@ -20,9 +20,8 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    SensitiveServerResponse, ServerResponse, SharedGatewayKey, SharedSymmetricKey,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt, ServerResponse,
+    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -47,7 +46,6 @@ use std::os::raw::c_int as RawFd;
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
-use zeroize::Zeroizing;
 
 pub mod config;
 
@@ -82,8 +80,7 @@ impl GatewayConfig {
 #[must_use]
 #[derive(Debug)]
 pub struct AuthenticationResponse {
-    pub initial_shared_key: Arc<SharedGatewayKey>,
-    pub requires_key_upgrade: bool,
+    pub initial_shared_key: Arc<SharedSymmetricKey>,
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
@@ -95,7 +92,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<Arc<SharedGatewayKey>>,
+    shared_key: Option<Arc<SharedSymmetricKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
     bandwidth_controller: Option<BandwidthController<C, St>>,
@@ -119,7 +116,7 @@ impl<C, St> GatewayClient<C, St> {
         gateway_config: GatewayConfig,
         local_identity: Arc<identity::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
-        shared_key: Option<Arc<SharedGatewayKey>>,
+        shared_key: Option<Arc<SharedSymmetricKey>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
@@ -149,7 +146,7 @@ impl<C, St> GatewayClient<C, St> {
         self.gateway_identity
     }
 
-    pub fn shared_key(&self) -> Option<Arc<SharedGatewayKey>> {
+    pub fn shared_key(&self) -> Option<Arc<SharedSymmetricKey>> {
         self.shared_key.clone()
     }
 
@@ -271,7 +268,7 @@ impl<C, St> GatewayClient<C, St> {
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         if let Some(shared_key) = self.shared_key() {
-            let encrypted = message.encrypt(&*shared_key)?;
+            let encrypted = message.encrypt(&shared_key)?;
             Box::pin(self.send_websocket_message(encrypted)).await?;
             Ok(())
         } else {
@@ -413,8 +410,10 @@ impl<C, St> GatewayClient<C, St> {
     fn check_gateway_protocol(&self, gateway_protocol: u8) -> Result<(), GatewayClientError> {
         debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
 
-        // client should reject any gateways that do not indicate they support auth v2
-        if !gateway_protocol.supports_authenticate_v2() {
+        // client should reject any gateways that do not indicate they support auth v2 or aes256gcm-siv
+        if !gateway_protocol.supports_authenticate_v2()
+            || !gateway_protocol.supports_aes256_gcm_siv()
+        {
             return Err(GatewayClientError::IncompatibleProtocol {
                 gateway: gateway_protocol,
                 current: CURRENT_PROTOCOL_VERSION,
@@ -435,20 +434,12 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn register(
-        &mut self,
-        derive_aes256_gcm_siv_key: bool,
-    ) -> Result<(), GatewayClientError> {
+    async fn register(&mut self) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
         debug_assert!(self.connection.is_available());
-        log::debug!(
-            "registering with gateway. using legacy key derivation: {}",
-            !derive_aes256_gcm_siv_key
-        );
-
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
         let mut rng = OsRng;
@@ -460,7 +451,6 @@ impl<C, St> GatewayClient<C, St> {
                 self.local_identity.as_ref(),
                 self.gateway_identity,
                 self.cfg.bandwidth.require_tickets,
-                derive_aes256_gcm_siv_key,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.task_client.clone(),
             )
@@ -491,72 +481,6 @@ impl<C, St> GatewayClient<C, St> {
         self.negotiated_protocol = Some(gateway_protocol);
 
         Ok(())
-    }
-
-    pub async fn upgrade_key_authenticated(
-        &mut self,
-    ) -> Result<Zeroizing<SharedSymmetricKey>, GatewayClientError> {
-        info!("*** STARTING AES128CTR-HMAC KEY UPGRADE INTO AES256GCM-SIV***");
-
-        if !self.connection.is_established() {
-            return Err(GatewayClientError::ConnectionNotEstablished);
-        }
-
-        if !self.authenticated {
-            return Err(GatewayClientError::NotAuthenticated);
-        }
-
-        let Some(shared_key) = self.shared_key.as_ref() else {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        };
-
-        if !shared_key.is_legacy() {
-            return Err(GatewayClientError::KeyAlreadyUpgraded);
-        }
-
-        // make sure we have the only reference, so we could safely swap it
-        if Arc::strong_count(shared_key) != 1 {
-            return Err(GatewayClientError::KeyAlreadyInUse);
-        }
-
-        assert!(shared_key.is_legacy());
-        let legacy_key = shared_key.unwrap_legacy();
-        let (updated_key, hkdf_salt) = legacy_key.upgrade();
-        let derived_key_digest = updated_key.digest();
-
-        let upgrade_request = ClientRequest::UpgradeKey {
-            hkdf_salt,
-            derived_key_digest,
-        }
-        .encrypt(legacy_key)?;
-
-        info!("sending upgrade request and awaiting the acknowledgement back");
-        let (ciphertext, nonce) = match self.send_websocket_message(upgrade_request).await? {
-            ServerResponse::EncryptedResponse { ciphertext, nonce } => (ciphertext, nonce),
-            ServerResponse::Error { message } => {
-                return Err(GatewayClientError::GatewayError(message))
-            }
-            other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
-        };
-
-        // attempt to decrypt it using NEW key
-        let Ok(response) = SensitiveServerResponse::decrypt(&ciphertext, &nonce, &updated_key)
-        else {
-            return Err(GatewayClientError::FatalKeyUpgradeFailure);
-        };
-
-        match response {
-            SensitiveServerResponse::KeyUpgradeAck { .. } => {
-                info!("received key upgrade acknowledgement")
-            }
-            _ => return Err(GatewayClientError::FatalKeyUpgradeFailure),
-        }
-
-        // perform in memory swap and make a copy for updating storage
-        let zeroizing_updated_key = updated_key.zeroizing_clone();
-        self.shared_key = Some(Arc::new(updated_key.into()));
-
-        Ok(zeroizing_updated_key)
     }
 
     async fn send_authenticate_request_and_handle_response(
@@ -622,18 +546,20 @@ impl<C, St> GatewayClient<C, St> {
 
         // 1. check gateway's protocol version
         // if we failed to get this request resolved, it means the gateway is on an old version
-        // that definitely does not support auth v2, so we bail
+        // that definitely does not support auth v2 or aes256gcm, so we bail
         let gw_protocol = self.get_gateway_protocol().await?;
 
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
 
         if !supports_aes_gcm_siv {
-            warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
+            error!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
         }
-        if !supports_auth_v2 {
-            warn!("this gateway is on an old version that doesn't support authentication v2");
+        if !supports_aes_gcm_siv {
+            error!("this gateway is on an old version that doesn't support authentication v2");
+        }
 
+        if !supports_auth_v2 || !supports_aes_gcm_siv {
             // we can't continue
             return Err(GatewayClientError::IncompatibleProtocol {
                 gateway: gw_protocol,
@@ -646,7 +572,6 @@ impl<C, St> GatewayClient<C, St> {
             return if let Some(shared_key) = &self.shared_key {
                 Ok(AuthenticationResponse {
                     initial_shared_key: Arc::clone(shared_key),
-                    requires_key_upgrade: shared_key.is_legacy() && supports_aes_gcm_siv,
                 })
             } else {
                 Err(GatewayClientError::AuthenticationFailureWithPreexistingSharedKey)
@@ -660,17 +585,14 @@ impl<C, St> GatewayClient<C, St> {
                 // if we are authenticated it means we MUST have an associated shared_key
                 let shared_key = self.shared_key.as_ref().unwrap();
 
-                let requires_key_upgrade = shared_key.is_legacy() && supports_aes_gcm_siv;
-
                 Ok(AuthenticationResponse {
                     initial_shared_key: Arc::clone(shared_key),
-                    requires_key_upgrade,
                 })
             } else {
                 Err(GatewayClientError::AuthenticationFailure)
             }
         } else {
-            self.register(supports_aes_gcm_siv).await?;
+            self.register().await?;
 
             // if registration didn't return an error, we MUST have an associated shared key
             let shared_key = self.shared_key.as_ref().unwrap();
@@ -679,7 +601,6 @@ impl<C, St> GatewayClient<C, St> {
             // so no upgrades are required
             Ok(AuthenticationResponse {
                 initial_shared_key: Arc::clone(shared_key),
-                requires_key_upgrade: false,
             })
         }
     }

@@ -8,7 +8,6 @@ use nym_sphinx::addressing::nodes::NymNodeRoutingAddressError;
 use nym_sphinx::forwarding::packet::MixPacketFormattingError;
 use nym_sphinx::params::packet_sizes::PacketSize;
 use serde::{Deserialize, Serialize};
-use std::string::FromUtf8Error;
 use thiserror::Error;
 
 // specific errors (that should not be nested!!) for clients to match on
@@ -51,9 +50,6 @@ pub enum GatewayRequestsError {
     #[error("the request is too short")]
     TooShortRequest,
 
-    #[error("provided MAC is invalid")]
-    InvalidMac,
-
     #[error("address field was incorrectly encoded: {source}")]
     IncorrectlyEncodedAddress {
         #[from]
@@ -69,29 +65,14 @@ pub enum GatewayRequestsError {
     ]
     RequestOfInvalidSize(usize),
 
-    #[error("received sphinx packet was malformed")]
-    MalformedSphinxPacket,
-
     #[error("failed to serialise created sphinx packet: {0}")]
     SphinxSerialisationFailure(#[from] MixPacketFormattingError),
 
     #[error("the received encrypted data was malformed")]
     MalformedEncryption,
 
-    #[error("provided packet mode is invalid")]
-    InvalidPacketMode,
-
     #[error("failed to deserialize provided credential: {0}")]
     EcashCredentialDeserializationFailure(#[from] CompactEcashError),
-
-    #[error("failed to deserialize provided credential: EOF")]
-    CredentialDeserializationFailureEOF,
-
-    #[error("failed to deserialize provided credential: malformed string: {0}")]
-    CredentialDeserializationFailureMalformedString(#[from] FromUtf8Error),
-
-    #[error("the provided [v1] credential has invalid number of parameters - {0}")]
-    InvalidNumberOfEmbededParameters(u32),
 
     #[error("failed to authenticate the client: {0}")]
     Authentication(#[from] AuthenticationFailure),

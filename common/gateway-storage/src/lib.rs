@@ -8,7 +8,7 @@ use models::{
     VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::shared_key::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
 use sqlx::{
@@ -152,7 +152,7 @@ impl GatewayStorage {
     pub async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
     ) -> Result<i64, GatewayStorageError> {
         let client_address_bs58 = client_address.as_base58_string();
         let client_id = match self
@@ -171,8 +171,7 @@ impl GatewayStorage {
             .insert_shared_keys(
                 client_id,
                 client_address_bs58,
-                shared_keys.aes128_ctr_hmac_bs58().as_deref(),
-                shared_keys.aes256_gcm_siv().as_deref(),
+                shared_keys.to_bytes().as_ref(),
             )
             .await?;
         Ok(client_id)

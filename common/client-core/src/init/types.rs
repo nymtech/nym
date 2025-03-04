@@ -11,7 +11,7 @@ use nym_client_core_gateways_storage::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
-use nym_gateway_requests::shared_key::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;
@@ -96,7 +96,7 @@ impl SelectedGateway {
 /// - shared keys derived between ourselves and the node
 /// - an authenticated handle of an ephemeral handle created for the purposes of registration
 pub struct RegistrationResult {
-    pub shared_keys: Arc<SharedGatewayKey>,
+    pub shared_keys: Arc<SharedSymmetricKey>,
     pub authenticated_ephemeral_client: InitGatewayClient,
 }
 

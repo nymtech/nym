@@ -3,7 +3,7 @@
 
 use self::error::HandshakeError;
 use crate::registration::handshake::state::State;
-use crate::SharedGatewayKey;
+use crate::SharedSymmetricKey;
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::identity;
@@ -34,11 +34,11 @@ pub const KDF_SALT_LENGTH: usize = 16;
 // we do not need to worry about that.
 
 pub struct GatewayHandshake<'a> {
-    handshake_future: BoxFuture<'a, Result<SharedGatewayKey, HandshakeError>>,
+    handshake_future: BoxFuture<'a, Result<SharedSymmetricKey, HandshakeError>>,
 }
 
 impl Future for GatewayHandshake<'_> {
-    type Output = Result<SharedGatewayKey, HandshakeError>;
+    type Output = Result<SharedSymmetricKey, HandshakeError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.handshake_future).poll(cx)
@@ -51,7 +51,6 @@ pub fn client_handshake<'a, S, R>(
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
     expects_credential_usage: bool,
-    derive_aes256_gcm_siv_key: bool,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
 ) -> GatewayHandshake<'a>
 where
@@ -66,8 +65,7 @@ where
         #[cfg(not(target_arch = "wasm32"))]
         shutdown,
     )
-    .with_credential_usage(expects_credential_usage)
-    .with_aes256_gcm_siv_key(derive_aes256_gcm_siv_key);
+    .with_credential_usage(expects_credential_usage);
 
     GatewayHandshake {
         handshake_future: Box::pin(state.perform_client_handshake()),

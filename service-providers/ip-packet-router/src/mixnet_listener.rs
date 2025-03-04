@@ -242,13 +242,14 @@ impl MixnetListener {
             .map(Duration::from_millis)
             .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
-        if self.connected_clients.is_client_connected(&reply_to) {
+        if let Some(ips) = self.connected_clients.lookup_ip_from_client_id(&reply_to) {
+            log::debug!("Reconnecting to the previous session");
             return Ok(Some(VersionedResponse {
                 version,
                 reply_to,
                 response: Response::DynamicConnect {
                     request_id,
-                    reply: DynamicConnectFailureReason::ClientAlreadyConnected.into(),
+                    reply: DynamicConnectSuccess { ips }.into(),
                 },
             }));
         }

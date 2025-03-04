@@ -105,26 +105,24 @@ impl<C, St: Storage> BandwidthController<C, St> {
     async fn get_aggregate_verification_key(
         &self,
         epoch_id: EpochId,
-        apis: &mut ApiClientsWrapper,
+        ecash_apis: &mut ApiClientsWrapper<'_, C>,
     ) -> Result<VerificationKeyAuth, BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let ecash_apis = apis.get_or_init(epoch_id, &self.client).await?;
         get_aggregate_verification_key(&self.storage, epoch_id, ecash_apis).await
     }
 
     async fn get_coin_index_signatures(
         &self,
         epoch_id: EpochId,
-        apis: &mut ApiClientsWrapper,
+        ecash_apis: &mut ApiClientsWrapper<'_, C>,
     ) -> Result<Vec<AnnotatedCoinIndexSignature>, BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let ecash_apis = apis.get_or_init(epoch_id, &self.client).await?;
         get_coin_index_signatures(&self.storage, epoch_id, ecash_apis).await
     }
 
@@ -132,13 +130,12 @@ impl<C, St: Storage> BandwidthController<C, St> {
         &self,
         epoch_id: EpochId,
         expiration_date: Date,
-        apis: &mut ApiClientsWrapper,
+        ecash_apis: &mut ApiClientsWrapper<'_, C>,
     ) -> Result<Vec<AnnotatedExpirationDateSignature>, BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let ecash_apis = apis.get_or_init(epoch_id, &self.client).await?;
         get_expiration_date_signatures(&self.storage, epoch_id, expiration_date, ecash_apis).await
     }
 
@@ -154,7 +151,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     {
         let epoch_id = retrieved_ticketbook.ticketbook.epoch_id();
         let expiration_date = retrieved_ticketbook.ticketbook.expiration_date();
-        let mut api_clients = Default::default();
+        let mut api_clients = ApiClientsWrapper::new(&self.client, epoch_id);
 
         let verification_key = self
             .get_aggregate_verification_key(epoch_id, &mut api_clients)

@@ -4,13 +4,11 @@
 use super::NymVpnApiClientError;
 use crate::error::ZkNymError;
 use crate::vpn_api_client::types::{
-    AttributesResponse, BandwidthVoucherRequest, BandwidthVoucherResponse,
-    MasterVerificationKeyResponse, PartialVerificationKeysResponse,
+    AttributesResponse, MasterVerificationKeyResponse, PartialVerificationKeysResponse,
 };
 use async_trait::async_trait;
-use nym_coconut::BlindSignRequest;
 pub use nym_http_api_client::Client;
-use nym_http_api_client::{parse_response, PathSegments, NO_PARAMS};
+use nym_http_api_client::{parse_response, ApiClient, PathSegments, NO_PARAMS};
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 
@@ -76,11 +74,6 @@ pub trait NymVpnApiClient {
         ])
         .await
     }
-
-    async fn get_bandwidth_voucher_blinded_shares(
-        &self,
-        blind_sign_request: BlindSignRequest,
-    ) -> Result<BandwidthVoucherResponse, NymVpnApiClientError>;
 }
 
 #[async_trait(?Send)]
@@ -105,32 +98,6 @@ impl NymVpnApiClient for VpnApiClient {
 
         #[cfg(not(target_arch = "wasm32"))]
         let res = req.await?;
-
-        parse_response(res, false).await
-    }
-
-    async fn get_bandwidth_voucher_blinded_shares(
-        &self,
-        blind_sign_request: BlindSignRequest,
-    ) -> Result<BandwidthVoucherResponse, NymVpnApiClientError> {
-        let req = self.inner.create_post_request(
-            &["/api", "/v1", "/bandwidth-voucher", "/obtain"],
-            NO_PARAMS,
-            &BandwidthVoucherRequest { blind_sign_request },
-        );
-
-        let fut = req.bearer_auth(&self.bearer_token).send();
-
-        // the only reason for that target lock is so that I could call this method from an ephemeral test
-        // running in non-wasm mode (since I wanted to use tokio)
-
-        #[cfg(target_arch = "wasm32")]
-        let res = wasmtimer::tokio::timeout(std::time::Duration::from_secs(5), fut)
-            .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??;
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let res = fut.await?;
 
         parse_response(res, false).await
     }

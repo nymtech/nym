@@ -54,6 +54,20 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      # To avoid running out of disk space, skip generating debug symbols
+      - name: Set debug to false (unix)
+        if: contains(matrix.os, 'ubuntu') || contains(matrix.os, 'mac')
+        run: |
+          sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
+          git diff
+
+      - name: Set debug to false (win)
+        if: contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          (Get-Content Cargo.toml) -replace '\[profile.dev\]', "`$&`ndebug = false" | Set-Content Cargo.toml
+          git diff
+
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:

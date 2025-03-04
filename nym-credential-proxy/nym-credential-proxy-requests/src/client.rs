@@ -6,7 +6,9 @@ use crate::api::v1::ticketbook::models::{
     TicketbookWalletSharesResponse,
 };
 use async_trait::async_trait;
-use nym_http_api_client::{parse_response, HttpClientError, Params, PathSegments, NO_PARAMS};
+use nym_http_api_client::{
+    parse_response, ApiClient, HttpClientError, Params, PathSegments, NO_PARAMS,
+};
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -143,30 +145,4 @@ impl NymVpnApiClient for VpnApiClient {
 
         parse_response(res, false).await
     }
-
-    // async fn get_bandwidth_voucher_blinded_shares(
-    //     &self,
-    //     blind_sign_request: BlindSignRequest,
-    // ) -> Result<BandwidthVoucherResponse, VpnApiClientError> {
-    //     let req = self.inner.create_post_request(
-    //         &["/api", "/v1", "/bandwidth-voucher", "/obtain"],
-    //         NO_PARAMS,
-    //         &BandwidthVoucherRequest { blind_sign_request },
-    //     );
-    //
-    //     let fut = req.bearer_auth(&self.bearer_token).send();
-    //
-    //     // the only reason for that target lock is so that I could call this method from an ephemeral test
-    //     // running in non-wasm mode (since I wanted to use tokio)
-    //
-    //     #[cfg(target_arch = "wasm32")]
-    //     let res = wasmtimer::tokio::timeout(std::time::Duration::from_secs(5), fut)
-    //         .await
-    //         .map_err(|_timeout| HttpClientError::RequestTimeout)??;
-    //
-    //     #[cfg(not(target_arch = "wasm32"))]
-    //     let res = fut.await?;
-    //
-    //     parse_response(res, false).await
-    // }
 }

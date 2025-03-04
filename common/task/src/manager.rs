@@ -299,6 +299,8 @@ impl Clone for TaskClient {
             None
         };
 
+        log::debug!("Cloned task client: {name:?}");
+
         TaskClient {
             name,
             shutdown: AtomicBool::new(self.shutdown.load(Ordering::Relaxed)),
@@ -344,6 +346,7 @@ impl TaskClient {
             format!("unknown-{suffix}")
         };
 
+        log::debug!("Forked task client: {child_name}");
         child.name = Some(child_name);
         child
     }
@@ -377,6 +380,7 @@ impl TaskClient {
         } else {
             format!("unknown-{suffix}")
         };
+        log::debug!("Renamed task client: {name}");
         self.named(name)
     }
 

@@ -58,8 +58,8 @@ impl<T> TransmissionBuffer<T> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn num_lanes(&self) -> usize {
-        self.buffer.keys().count()
+    pub(crate) fn lanes(&self) -> Vec<TransmissionLane> {
+        self.buffer.keys().cloned().collect()
     }
 
     pub(crate) fn lane_length(&self, lane: &TransmissionLane) -> Option<usize> {
@@ -83,6 +83,7 @@ impl<T> TransmissionBuffer<T> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(unused)]
     pub(crate) fn total_size_in_bytes(&self) -> usize
     where
         T: SizedData,

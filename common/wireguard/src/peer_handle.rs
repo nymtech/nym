@@ -43,7 +43,7 @@ impl PeerHandle {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let mut task_client = task_client.fork(format!("peer-{public_key}"));
+        let mut task_client = task_client.fork(format!("peer_{public_key}"));
         task_client.disarm();
         PeerHandle {
             public_key,

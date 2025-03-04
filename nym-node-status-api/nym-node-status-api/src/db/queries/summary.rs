@@ -6,15 +6,12 @@ use tracing::error;
 use crate::{
     db::{
         models::{
-            gateway::{
-                GatewaySummary, GatewaySummaryBlacklisted, GatewaySummaryBonded,
-                GatewaySummaryHistorical,
-            },
-            mixnode::{
-                MixnodeSummary, MixnodeSummaryBlacklisted, MixnodeSummaryBonded,
-                MixnodeSummaryHistorical,
-            },
-            NetworkSummary, SummaryDto, SummaryHistoryDto,
+            gateway::{GatewaySummary, GatewaySummaryBonded, GatewaySummaryHistorical},
+            mixnode::{MixingNodesSummary, MixnodeSummary, MixnodeSummaryHistorical},
+            NetworkSummary, SummaryDto, SummaryHistoryDto, ASSIGNED_ENTRY_COUNT,
+            ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
+            GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
+            NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
         },
         DbPool,
     },
@@ -76,16 +73,6 @@ pub(crate) async fn get_summary(pool: &DbPool) -> HttpResult<NetworkSummary> {
 }
 
 async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> {
-    const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
-    const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
-    const MIXNODES_BONDED_INACTIVE: &str = "mixnodes.bonded.inactive";
-    const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
-    const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
-    const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-    const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
-    const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
-    const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
-
     // convert database rows into a map by key
     let mut map = HashMap::new();
     for item in items {
@@ -94,15 +81,15 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
 
     // check we have all the keys we are expecting, and build up a map of errors for missing one
     let keys = [
+        NYMNODE_COUNT,
+        ASSIGNED_MIXING_COUNT,
+        MIXNODES_LEGACY_COUNT,
+        NYMNODES_DESCRIBED_COUNT,
         GATEWAYS_BONDED_COUNT,
-        GATEWAYS_HISTORICAL_COUNT,
-        GATEWAYS_BLACKLISTED_COUNT,
-        MIXNODES_BLACKLISTED_COUNT,
-        MIXNODES_BONDED_ACTIVE,
-        MIXNODES_BONDED_COUNT,
-        MIXNODES_BONDED_INACTIVE,
-        MIXNODES_BONDED_RESERVE,
+        ASSIGNED_ENTRY_COUNT,
+        ASSIGNED_EXIT_COUNT,
         MIXNODES_HISTORICAL_COUNT,
+        GATEWAYS_HISTORICAL_COUNT,
     ];
 
     let mut errors: Vec<&str> = vec![];
@@ -119,22 +106,17 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
     }
 
     // strip the options and use default values (anything missing is trapped above)
-    let mixnodes_bonded_count: SummaryDto =
-        map.get(MIXNODES_BONDED_COUNT).cloned().unwrap_or_default();
-    let mixnodes_bonded_active: SummaryDto =
-        map.get(MIXNODES_BONDED_ACTIVE).cloned().unwrap_or_default();
-    let mixnodes_bonded_inactive: SummaryDto = map
-        .get(MIXNODES_BONDED_INACTIVE)
+    let total_nodes: SummaryDto = map.get(NYMNODE_COUNT).cloned().unwrap_or_default();
+    let assigned_mixing_count: SummaryDto =
+        map.get(ASSIGNED_MIXING_COUNT).cloned().unwrap_or_default();
+    let assigned_entry: SummaryDto = map.get(ASSIGNED_ENTRY_COUNT).cloned().unwrap_or_default();
+    let assigned_exit: SummaryDto = map.get(ASSIGNED_EXIT_COUNT).cloned().unwrap_or_default();
+    let self_described: SummaryDto = map
+        .get(NYMNODES_DESCRIBED_COUNT)
         .cloned()
         .unwrap_or_default();
-    let mixnodes_bonded_reserve: SummaryDto = map
-        .get(MIXNODES_BONDED_RESERVE)
-        .cloned()
-        .unwrap_or_default();
-    let mixnodes_blacklisted_count: SummaryDto = map
-        .get(MIXNODES_BLACKLISTED_COUNT)
-        .cloned()
-        .unwrap_or_default();
+    let legacy_mixnodes_count: SummaryDto =
+        map.get(MIXNODES_LEGACY_COUNT).cloned().unwrap_or_default();
     let gateways_bonded_count: SummaryDto =
         map.get(GATEWAYS_BONDED_COUNT).cloned().unwrap_or_default();
     let mixnodes_historical_count: SummaryDto = map
@@ -145,23 +127,15 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         .get(GATEWAYS_HISTORICAL_COUNT)
         .cloned()
         .unwrap_or_default();
-    let gateways_blacklisted_count: SummaryDto = map
-        .get(GATEWAYS_BLACKLISTED_COUNT)
-        .cloned()
-        .unwrap_or_default();
 
     Ok(NetworkSummary {
+        total_nodes: to_count_i32(&total_nodes),
         mixnodes: MixnodeSummary {
-            bonded: MixnodeSummaryBonded {
-                count: to_count_i32(&mixnodes_bonded_count),
-                active: to_count_i32(&mixnodes_bonded_active),
-                reserve: to_count_i32(&mixnodes_bonded_reserve),
-                inactive: to_count_i32(&mixnodes_bonded_inactive),
-                last_updated_utc: to_timestamp(&mixnodes_bonded_count),
-            },
-            blacklisted: MixnodeSummaryBlacklisted {
-                count: to_count_i32(&mixnodes_blacklisted_count),
-                last_updated_utc: to_timestamp(&mixnodes_blacklisted_count),
+            bonded: MixingNodesSummary {
+                count: to_count_i32(&assigned_mixing_count),
+                self_described: to_count_i32(&self_described),
+                legacy: to_count_i32(&legacy_mixnodes_count),
+                last_updated_utc: to_timestamp(&assigned_mixing_count),
             },
             historical: MixnodeSummaryHistorical {
                 count: to_count_i32(&mixnodes_historical_count),
@@ -171,11 +145,9 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         gateways: GatewaySummary {
             bonded: GatewaySummaryBonded {
                 count: to_count_i32(&gateways_bonded_count),
+                entry: to_count_i32(&assigned_entry),
+                exit: to_count_i32(&assigned_exit),
                 last_updated_utc: to_timestamp(&gateways_bonded_count),
-            },
-            blacklisted: GatewaySummaryBlacklisted {
-                count: to_count_i32(&gateways_blacklisted_count),
-                last_updated_utc: to_timestamp(&gateways_blacklisted_count),
             },
             historical: GatewaySummaryHistorical {
                 count: to_count_i32(&gateways_historical_count),

@@ -29,6 +29,7 @@ use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
+use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
 use nym_topology::provider_trait::TopologyProvider;
@@ -64,6 +65,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
 
     storage: S,
     forget_me: ForgetMe,
+    derivation_material: Option<DerivationMaterial>,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -101,6 +103,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             #[cfg(unix)]
             connection_fd_callback: None,
             forget_me: Default::default(),
+            derivation_material: None,
         })
     }
 }
@@ -133,6 +136,7 @@ where
             gateway_endpoint_config_path: None,
             storage,
             forget_me: Default::default(),
+            derivation_material: None,
         }
     }
 
@@ -154,7 +158,14 @@ where
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
             forget_me: self.forget_me,
+            derivation_material: self.derivation_material,
         }
+    }
+
+    #[must_use]
+    pub fn with_derivation_material(mut self, derivation_material: DerivationMaterial) -> Self {
+        self.derivation_material = Some(derivation_material);
+        self
     }
 
     /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
@@ -312,6 +323,7 @@ where
             client.connection_fd_callback = self.connection_fd_callback;
         }
         client.forget_me = self.forget_me;
+        client.derivation_material = self.derivation_material;
         Ok(client)
     }
 }
@@ -366,6 +378,9 @@ where
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
     forget_me: ForgetMe,
+
+    /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
+    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -403,6 +418,8 @@ where
             None
         };
 
+        let forget_me = config.debug_config.forget_me;
+
         Ok(DisconnectedMixnetClient {
             config,
             socks5_config,
@@ -417,7 +434,8 @@ where
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
-            forget_me: Default::default(),
+            forget_me,
+            derivation_material: None,
         })
     }
 
@@ -641,7 +659,8 @@ where
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
-                .with_forget_me(&self.forget_me);
+                .with_forget_me(&self.forget_me)
+                .with_derivation_material(self.derivation_material);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

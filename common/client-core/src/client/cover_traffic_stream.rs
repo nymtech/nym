@@ -13,6 +13,7 @@ use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
+use nym_task::TaskClient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -64,6 +65,8 @@ where
     packet_type: PacketType,
 
     stats_tx: ClientStatsSender,
+
+    task_client: TaskClient,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -110,6 +113,7 @@ impl LoopCoverTrafficStream<OsRng> {
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         let rng = OsRng;
 
@@ -128,6 +132,7 @@ impl LoopCoverTrafficStream<OsRng> {
             secondary_packet_size: traffic_config.secondary_packet_size,
             packet_type: traffic_config.packet_type,
             stats_tx,
+            task_client,
         }
     }
 
@@ -175,7 +180,7 @@ impl LoopCoverTrafficStream<OsRng> {
             }
         };
 
-        let cover_message = generate_loop_cover_packet(
+        let cover_message = match generate_loop_cover_packet(
             &mut self.rng,
             topology_ref,
             &self.ack_key,
@@ -184,8 +189,15 @@ impl LoopCoverTrafficStream<OsRng> {
             self.cover_traffic.loop_cover_traffic_average_delay,
             cover_traffic_packet_size,
             self.packet_type,
-        )
-        .expect("Somehow failed to generate a loop cover message with a valid topology");
+        ) {
+            Ok(cover_message) => cover_message,
+            Err(err) => {
+                warn!(
+                    "Somehow failed to generate a loop cover message with a valid topology: {err}"
+                );
+                return;
+            }
+        };
 
         if let Err(err) = self.mix_tx.try_send(vec![cover_message]) {
             match err {
@@ -217,7 +229,7 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
+    pub fn start(mut self) {
         if self.cover_traffic.disable_loop_cover_traffic_stream {
             // we should have never got here in the first place - the task should have never been created to begin with
             // so panic and review the code that lead to this branch
@@ -230,6 +242,8 @@ impl LoopCoverTrafficStream<OsRng> {
             self.cover_traffic.loop_cover_traffic_average_delay,
         );
         self.set_next_delay(sampled);
+
+        let mut shutdown = self.task_client.fork("select");
 
         spawn_future(async move {
             debug!("Started LoopCoverTrafficStream with graceful shutdown support");

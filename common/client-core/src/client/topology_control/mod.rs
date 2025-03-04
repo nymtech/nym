@@ -6,6 +6,7 @@ pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
 use log::*;
 use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_task::TaskClient;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
 
@@ -43,6 +44,8 @@ pub struct TopologyRefresher {
 
     refresh_rate: Duration,
     consecutive_failure_count: usize,
+
+    task_client: TaskClient,
 }
 
 impl TopologyRefresher {
@@ -50,12 +53,14 @@ impl TopologyRefresher {
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        task_client: TaskClient,
     ) -> Self {
         TopologyRefresher {
             topology_provider,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
             consecutive_failure_count: 0,
+            task_client,
         }
     }
 
@@ -142,7 +147,7 @@ impl TopologyRefresher {
         }
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
+    pub fn start(mut self) {
         spawn_future(async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 
@@ -155,17 +160,17 @@ impl TopologyRefresher {
             let mut interval =
                 gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
 
-            while !shutdown.is_shutdown() {
+            while !self.task_client.is_shutdown() {
                 tokio::select! {
                     _ = interval.next() => {
                         self.try_refresh().await;
                     },
-                    _ = shutdown.recv() => {
+                    _ = self.task_client.recv() => {
                         log::trace!("TopologyRefresher: Received shutdown");
                     },
                 }
             }
-            shutdown.recv_timeout().await;
+            self.task_client.recv_timeout().await;
             log::debug!("TopologyRefresher: Exiting");
         })
     }

@@ -13,15 +13,18 @@
 
 use crate::ClientBuilder;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, LazyLock},
+};
 
-use hickory_resolver::lookup_ip::LookupIp;
 use hickory_resolver::{
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
     error::ResolveError,
     lookup_ip::LookupIpIntoIter,
     TokioAsyncResolver,
 };
+use hickory_resolver::{error::ResolveErrorKind, lookup_ip::LookupIp};
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tracing::warn;
@@ -38,6 +41,14 @@ struct SocketAddrs {
     iter: LookupIpIntoIter,
 }
 
+// n.b. static items do not call [`Drop`] on program termination, so this won't be deallocated.
+// this is fine, as the OS can deallocate the terminated program faster than we can free memory
+// but tools like valgrind might report "memory leaks" as it isn't obvious this is intentional.
+static SHARED_RESOLVER: LazyLock<HickoryDnsResolver> = LazyLock::new(|| {
+    tracing::debug!("Initializing shared DNS resolver");
+    HickoryDnsResolver::default()
+});
+
 #[derive(Debug, thiserror::Error)]
 #[error("hickory-dns resolver error: {hickory_error}")]
 /// Error occurring while resolving a hostname into an IP address.
@@ -47,29 +58,62 @@ pub struct HickoryDnsError {
 }
 
 /// Wrapper around an `AsyncResolver`, which implements the `Resolve` trait.
+///
+/// Typical use involves instantiating using the `Default` implementation and then resolving using
+/// methods or trait implementations.
+///
+/// The default initialization uses a shared underlying `AsyncResolver`. If a thread local resolver
+/// is required use `thread_resolver()` to build a resolver with an independently instantiated
+/// internal `AsyncResolver`.
 #[derive(Debug, Default, Clone)]
 pub struct HickoryDnsResolver {
-    /// Since we might not have been called in the context of a
-    /// Tokio Runtime in initialization, so we must delay the actual
-    /// construction of the resolver.
+    // Since we might not have been called in the context of a
+    // Tokio Runtime in initialization, so we must delay the actual
+    // construction of the resolver.
     state: Arc<OnceCell<TokioAsyncResolver>>,
     fallback: Arc<OnceCell<TokioAsyncResolver>>,
+    dont_use_shared: bool,
 }
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let resolver = self.state.clone();
         let fallback = self.fallback.clone();
+        let independent = self.dont_use_shared;
         Box::pin(async move {
-            let resolver = resolver.get_or_try_init(new_resolver)?;
+            let resolver = resolver.get_or_try_init(|| {
+                // using a closure here is slightly gross, but this makes sure that if the
+                // lazy-init returns an error it can be handled by the client
+                if independent {
+                    new_resolver()
+                } else {
+                    Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
+                }
+            })?;
 
             // try the primary DNS resolver that we set up (DoH or DoT or whatever)
             let lookup = match resolver.lookup_ip(name.as_str()).await {
                 Ok(res) => res,
                 Err(e) => {
                     // on failure use the fall back system configured DNS resolver
-                    warn!("primary DNS failed w/ error {e}: using system fallback");
-                    let resolver = fallback.get_or_try_init(new_resolver_system)?;
+                    match e.kind() {
+                        ResolveErrorKind::NoRecordsFound { .. } => {}
+                        _ => {
+                            warn!("primary DNS failed w/ error {e}: using system fallback");
+                        }
+                    }
+                    let resolver = fallback.get_or_try_init(|| {
+                        // using a closure here is slightly gross, but this makes sure that if the
+                        // lazy-init returns an error it can be handled by the client
+                        if independent {
+                            new_resolver_system()
+                        } else {
+                            Ok(SHARED_RESOLVER
+                                .fallback
+                                .get_or_try_init(new_resolver_system)?
+                                .clone())
+                        }
+                    })?;
                     resolver.lookup_ip(name.as_str()).await?
                 }
             };
@@ -93,20 +137,54 @@ impl Iterator for SocketAddrs {
 impl HickoryDnsResolver {
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
     pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, HickoryDnsError> {
-        let resolver = self.state.get_or_try_init(new_resolver)?;
+        let resolver = self.state.get_or_try_init(|| self.new_resolver())?;
 
         // try the primary DNS resolver that we set up (DoH or DoT or whatever)
         let lookup = match resolver.lookup_ip(name).await {
             Ok(res) => res,
             Err(e) => {
                 // on failure use the fall back system configured DNS resolver
-                warn!("primary DNS failed w/ error {e}: using system fallback");
-                let resolver = self.fallback.get_or_try_init(new_resolver_system)?;
+                match e.kind() {
+                    ResolveErrorKind::NoRecordsFound { .. } => {}
+                    _ => {
+                        warn!("primary DNS failed w/ error {e}: using system fallback");
+                    }
+                }
+                let resolver = self
+                    .fallback
+                    .get_or_try_init(|| self.new_resolver_system())?;
                 resolver.lookup_ip(name).await?
             }
         };
 
         Ok(lookup)
+    }
+
+    /// Create a (lazy-initialized) resolver that is not shared across threads.
+    pub fn thread_resolver() -> Self {
+        Self {
+            dont_use_shared: true,
+            ..Default::default()
+        }
+    }
+
+    fn new_resolver(&self) -> Result<TokioAsyncResolver, HickoryDnsError> {
+        if self.dont_use_shared {
+            new_resolver()
+        } else {
+            Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
+        }
+    }
+
+    fn new_resolver_system(&self) -> Result<TokioAsyncResolver, HickoryDnsError> {
+        if self.dont_use_shared {
+            new_resolver_system()
+        } else {
+            Ok(SHARED_RESOLVER
+                .fallback
+                .get_or_try_init(new_resolver_system)?
+                .clone())
+        }
     }
 }
 

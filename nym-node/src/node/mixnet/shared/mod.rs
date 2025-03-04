@@ -7,9 +7,12 @@ use crate::node::mixnet::SharedFinalHopData;
 use nym_crypto::asymmetric::x25519;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
+use nym_node_metrics::mixnet::PacketKind;
 use nym_node_metrics::NymNodeMetrics;
 use nym_sphinx_forwarding::packet::MixPacket;
-use nym_sphinx_framing::processing::{MixProcessingResult, PacketProcessingError};
+use nym_sphinx_framing::processing::{
+    MixPacketVersion, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
+};
 use nym_sphinx_types::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use std::io;
@@ -45,8 +48,7 @@ impl ProcessingConfig {
 // explicitly do NOT derive clone as we want to manually apply relevant suffixes to the task clients
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
-    // TODO: this type is not `Zeroize` : (
-    pub(super) sphinx_key: Arc<nym_sphinx_types::PrivateKey>,
+    pub(super) sphinx_keys: Arc<x25519::KeyPair>,
 
     // used for FORWARD mix packets and FINAL ack packets
     pub(super) mixnet_forwarder: MixForwardingSender,
@@ -58,10 +60,17 @@ pub(crate) struct SharedData {
     pub(super) shutdown: ShutdownToken,
 }
 
+fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
+    match processed {
+        MixPacketVersion::Outfox => PacketKind::Outfox,
+        MixPacketVersion::Sphinx(sphinx_version) => PacketKind::Sphinx(sphinx_version.value()),
+    }
+}
+
 impl SharedData {
     pub(crate) fn new(
         processing_config: ProcessingConfig,
-        x25519_key: &x25519::PrivateKey,
+        x25519_keys: Arc<x25519::KeyPair>,
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
         metrics: NymNodeMetrics,
@@ -69,7 +78,7 @@ impl SharedData {
     ) -> Self {
         SharedData {
             processing_config,
-            sphinx_key: Arc::new(x25519_key.into()),
+            sphinx_keys: x25519_keys,
             mixnet_forwarder,
             final_hop,
             metrics,
@@ -99,10 +108,18 @@ impl SharedData {
         processing_result: &Result<MixProcessingResult, PacketProcessingError>,
         source: IpAddr,
     ) {
-        match processing_result {
-            Err(_) => self.metrics.mixnet.ingress_malformed_packet(source),
-            Ok(MixProcessingResult::ForwardHop(_, delay)) => {
-                self.metrics.mixnet.ingress_received_forward_packet(source);
+        let Ok(processing_result) = processing_result else {
+            self.metrics.mixnet.ingress_malformed_packet(source);
+            return;
+        };
+
+        let packet_version = convert_to_metrics_version(processing_result.packet_version);
+
+        match processing_result.processing_data {
+            MixProcessingResultData::ForwardHop { delay, .. } => {
+                self.metrics
+                    .mixnet
+                    .ingress_received_forward_packet(source, packet_version);
 
                 // check if the delay wasn't excessive
                 if let Some(delay) = delay {
@@ -111,10 +128,10 @@ impl SharedData {
                     }
                 }
             }
-            Ok(MixProcessingResult::FinalHop(_)) => {
+            MixProcessingResultData::FinalHop { .. } => {
                 self.metrics
                     .mixnet
-                    .ingress_received_final_hop_packet(source);
+                    .ingress_received_final_hop_packet(source, packet_version);
             }
         }
     }

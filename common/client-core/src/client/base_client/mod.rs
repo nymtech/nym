@@ -40,6 +40,7 @@ use nym_client_core_config_types::ForgetMe;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::hkdf::DerivationMaterial;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
@@ -192,6 +193,8 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<C, S> BaseClientBuilder<C, S>
@@ -216,7 +219,17 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
+            derivation_material: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_derivation_material(
+        mut self,
+        derivation_material: Option<DerivationMaterial>,
+    ) -> Self {
+        self.derivation_material = derivation_material;
+        self
     }
 
     #[must_use]
@@ -297,7 +310,7 @@ where
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
         stats_tx: ClientStatsSender,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -310,9 +323,10 @@ where
             debug_config.traffic,
             debug_config.cover_traffic,
             stats_tx,
+            task_client,
         );
 
-        stream.start_with_shutdown(shutdown);
+        stream.start();
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -327,7 +341,7 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        shutdown: TaskClient,
+        task_client: TaskClient,
         packet_type: PacketType,
         stats_tx: ClientStatsSender,
     ) {
@@ -345,8 +359,9 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
+            task_client,
         )
-        .start_with_shutdown(shutdown, packet_type);
+        .start(packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -369,8 +384,9 @@ where
                 reply_key_storage,
                 reply_controller_sender,
                 metrics_reporter,
+                shutdown,
             );
-        controller.start_with_shutdown(shutdown)
+        controller.start()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -559,15 +575,22 @@ where
         topology_accessor: TopologyAccessor,
         local_gateway: NodeIdentity,
         wait_for_gateway: bool,
-        mut shutdown: TaskClient,
+        mut task_client: TaskClient,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
             TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
+
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The background topology refesher is not going to be started");
+            task_client.disarm();
+        }
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
             topology_accessor,
             topology_provider,
+            task_client,
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
@@ -608,15 +631,11 @@ where
             }
         }
 
-        if topology_config.disable_refreshing {
-            // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The topology refesher is not going to be started");
-            shutdown.disarm();
-        } else {
+        if !topology_config.disable_refreshing {
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
             info!("Starting topology refresher...");
-            topology_refresher.start_with_shutdown(shutdown);
+            topology_refresher.start();
         }
 
         Ok(())
@@ -627,17 +646,17 @@ where
         user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
-        StatisticsControl::create_and_start_with_shutdown(
+        StatisticsControl::create_and_start(
             config.debug.stats_reporting,
             user_agent
                 .map(|u| u.application)
                 .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
-            shutdown.with_suffix("controller"),
+            task_client,
         )
     }
 
@@ -647,8 +666,8 @@ where
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
         let (mix_traffic_controller, mix_tx, client_tx) =
-            MixTrafficController::new(gateway_transceiver);
-        mix_traffic_controller.start_with_shutdown(shutdown);
+            MixTrafficController::new(gateway_transceiver, shutdown);
+        mix_traffic_controller.start();
         (mix_tx, client_tx)
     }
 
@@ -684,6 +703,7 @@ where
         setup_method: GatewaySetup,
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
+        derivation_material: Option<DerivationMaterial>,
     ) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
@@ -693,7 +713,12 @@ where
         if key_store.load_keys().await.is_err() {
             info!("could not find valid client keys - a new set will be generated");
             let mut rng = OsRng;
-            let keys = ClientKeys::generate_new(&mut rng);
+            let keys = if let Some(derivation_material) = derivation_material {
+                ClientKeys::from_master_key(&mut rng, &derivation_material)
+                    .map_err(|_| ClientCoreError::HkdfDerivationError {})?
+            } else {
+                ClientKeys::generate_new(&mut rng)
+            };
             store_client_keys(keys, key_store).await?;
         }
 
@@ -715,6 +740,7 @@ where
             self.setup_method,
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
+            self.derivation_material,
         )
         .await?;
 

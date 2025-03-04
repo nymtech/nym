@@ -109,7 +109,6 @@ pub(crate) async fn try_queue_testrun(
     })
 }
 
-// TODO dz do we need these?
 pub fn now_utc() -> DateTime<chrono::Utc> {
     SystemTime::now().into()
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO price_history\n                (timestamp, chf, usd, eur, gbp, btc)\n                VALUES\n                ($1, $2, $3, $4, $5, $6)\n            ON CONFLICT(timestamp) DO UPDATE SET\n            chf=excluded.chf,\n            usd=excluded.usd,\n            eur=excluded.eur,\n            gbp=excluded.gbp,\n            btc=excluded.btc;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "140df23f816ff5d7501128682ce378d582b7da78c45bc0de934f92c1abe14bda"
+}

@@ -49,7 +49,7 @@ impl SocketClient {
         client_output: ClientOutput,
         client_state: ClientState,
         self_address: &Recipient,
-        shutdown: nym_task::TaskClient,
+        task_client: nym_task::TaskClient,
         packet_type: PacketType,
     ) {
         info!("Starting websocket listener...");
@@ -77,10 +77,15 @@ impl SocketClient {
             shared_lane_queue_lengths,
             reply_controller_sender,
             Some(packet_type),
+            task_client.fork("websocket_handler"),
         );
 
-        websocket::Listener::new(config.socket.host, config.socket.listening_port)
-            .start(websocket_handler, shutdown);
+        websocket::Listener::new(
+            config.socket.host,
+            config.socket.listening_port,
+            task_client.with_suffix("websocket_listener"),
+        )
+        .start(websocket_handler);
     }
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)

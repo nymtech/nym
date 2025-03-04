@@ -3,7 +3,7 @@
 
 [package]
 name = "nyx-chain-watcher"
-version = "0.1.9"
+version = "0.1.11"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -35,7 +35,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }
 thiserror = { workspace = true }
-time = { version = "0.3.37" }
+time = { workspace = true }
 tokio = { workspace = true, features = ["process", "rt-multi-thread"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }

@@ -4,6 +4,96 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.4-dorina] (2025-03-04)
+
+- fixed sphinx version metrics registration ([#5546])
+- Feature/chain status api ([#5539])
+- Add SURBs soft threshold ([#5535])
+- Simplify IPR v8 ([#5532])
+- Shared instance for DNS AsyncResolver ([#5523])
+- merge #5512 again after reverting due to incorrect rebase ([#5520])
+- cherry-pick 17d3ff2d775f61aee381d90a304ed416c08f33fc onto dorina ([#5519])
+- cherry-pick 6e5d0dac1b75413c5f09122b0d953f8ec6ef48df onto dorina ([#5518])
+- chore: workspace global panic preventing lints ([#5512])
+- bugfix: dont query for ecash apis unless necessary when spending ticketbooks ([#5508])
+- bugfix: bound check when recovering a reply SURB ([#5502])
+- chore: removed all old coconut code ([#5500])
+- IPR request types v8 ([#5498])
+- Support static routes for HTTP requests ([#5487])
+- build(deps): bump the patch-updates group across 1 directory with 3 updates ([#5482])
+- added missing import to doctest ([#5480])
+- adjusted TestSetup::new_complex to ensure bonded node's existence ([#5478])
+- Trigger contracts CI on main workspace Cargo changes ([#5477])
+- build(deps): bump http from 1.1.0 to 1.2.0 ([#5472])
+- build(deps): bump utoipa-swagger-ui from 8.0.3 to 8.1.0 ([#5471])
+- build(deps): bump colored from 2.1.0 to 2.2.0 ([#5470])
+- build(deps): bump celes from 2.4.0 to 2.5.0 ([#5469])
+- build(deps): bump the patch-updates group with 2 updates ([#5467])
+- build(deps): bump elliptic from 6.5.4 to 6.6.1 in /docker/typescript_client/upload_contract ([#5463])
+- Run cargo autoinherit ([#5460])
+- Fix clippy::precedence ([#5457])
+- Provide Interval context with node descriptor endpoints ([#5456])
+- fix: update fx average rate calcs to ignore 0 values ([#5454])
+- Feature/add gbp currency ([#5453])
+- Add helper to extract a list of sqlite files with journal files wal/shm ([#5452])
+- Add a middleware layer to the nym api allowing for data compression ([#5451])
+- Condense core API functionalities and enable gzip decompression for reqwest payloads ([#5450])
+- build(deps): bump uniffi_build from 0.25.3 to 0.29.0 ([#5448])
+- Upgrade tower to 0.5.2 ([#5446])
+- build(deps): bump hickory-proto from 0.24.2 to 0.24.3 ([#5444])
+- Seedable clients ([#5440])
+- build(deps): bump the patch-updates group across 1 directory with 10 updates ([#5439])
+- Remove all recv_with_delay and add shutdown condition to loops in client-core ([#5435])
+- Disable the test for checking the remaining bandwidth in nym-node-status-api ([#5425])
+- Dz nym node stats ([#5418])
+- build(deps): bump hyper from 1.4.1 to 1.6.0 ([#5416])
+- build(deps): bump publicsuffix from 2.2.3 to 2.3.0 ([#5367])
+- Nymnode entrypoint docker ([#5300])
+
+[#5546]: https://github.com/nymtech/nym/pull/5546
+[#5539]: https://github.com/nymtech/nym/pull/5539
+[#5535]: https://github.com/nymtech/nym/pull/5535
+[#5532]: https://github.com/nymtech/nym/pull/5532
+[#5523]: https://github.com/nymtech/nym/pull/5523
+[#5520]: https://github.com/nymtech/nym/pull/5520
+[#5519]: https://github.com/nymtech/nym/pull/5519
+[#5518]: https://github.com/nymtech/nym/pull/5518
+[#5512]: https://github.com/nymtech/nym/pull/5512
+[#5508]: https://github.com/nymtech/nym/pull/5508
+[#5502]: https://github.com/nymtech/nym/pull/5502
+[#5500]: https://github.com/nymtech/nym/pull/5500
+[#5498]: https://github.com/nymtech/nym/pull/5498
+[#5487]: https://github.com/nymtech/nym/pull/5487
+[#5482]: https://github.com/nymtech/nym/pull/5482
+[#5480]: https://github.com/nymtech/nym/pull/5480
+[#5478]: https://github.com/nymtech/nym/pull/5478
+[#5477]: https://github.com/nymtech/nym/pull/5477
+[#5472]: https://github.com/nymtech/nym/pull/5472
+[#5471]: https://github.com/nymtech/nym/pull/5471
+[#5470]: https://github.com/nymtech/nym/pull/5470
+[#5469]: https://github.com/nymtech/nym/pull/5469
+[#5467]: https://github.com/nymtech/nym/pull/5467
+[#5463]: https://github.com/nymtech/nym/pull/5463
+[#5460]: https://github.com/nymtech/nym/pull/5460
+[#5457]: https://github.com/nymtech/nym/pull/5457
+[#5456]: https://github.com/nymtech/nym/pull/5456
+[#5454]: https://github.com/nymtech/nym/pull/5454
+[#5453]: https://github.com/nymtech/nym/pull/5453
+[#5452]: https://github.com/nymtech/nym/pull/5452
+[#5451]: https://github.com/nymtech/nym/pull/5451
+[#5450]: https://github.com/nymtech/nym/pull/5450
+[#5448]: https://github.com/nymtech/nym/pull/5448
+[#5446]: https://github.com/nymtech/nym/pull/5446
+[#5444]: https://github.com/nymtech/nym/pull/5444
+[#5440]: https://github.com/nymtech/nym/pull/5440
+[#5439]: https://github.com/nymtech/nym/pull/5439
+[#5435]: https://github.com/nymtech/nym/pull/5435
+[#5425]: https://github.com/nymtech/nym/pull/5425
+[#5418]: https://github.com/nymtech/nym/pull/5418
+[#5416]: https://github.com/nymtech/nym/pull/5416
+[#5367]: https://github.com/nymtech/nym/pull/5367
+[#5300]: https://github.com/nymtech/nym/pull/5300
+
 ## [2025.3-ruta] (2025-02-10)
 
 - Push down forget me to client configs ([#5431])

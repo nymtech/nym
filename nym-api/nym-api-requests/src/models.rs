@@ -1215,6 +1215,7 @@ impl From<Wireguard> for WireguardDetails {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct ApiHealthResponse {
     pub status: ApiStatus,
+    pub chain_status: ChainStatus,
     pub uptime: u64,
 }
 
@@ -1224,10 +1225,25 @@ pub enum ApiStatus {
     Up,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ChainStatus {
+    Synced,
+    Unknown,
+    Stalled {
+        #[serde(
+            serialize_with = "humantime_serde::serialize",
+            deserialize_with = "humantime_serde::deserialize"
+        )]
+        approximate_amount: Duration,
+    },
+}
+
 impl ApiHealthResponse {
     pub fn new_healthy(uptime: Duration) -> Self {
         ApiHealthResponse {
             status: ApiStatus::Up,
+            chain_status: ChainStatus::Synced,
             uptime: uptime.as_secs(),
         }
     }

@@ -70,7 +70,7 @@ pub struct NetworkConfig {
 
 impl Default for Base {
     fn default() -> Self {
-        let networks = WalletNetwork::iter().map(Into::into).collect();
+        let networks = WalletNetwork::iter().collect();
         Base {
             networks: SupportedNetworks::new(networks),
         }

@@ -222,6 +222,9 @@ pub enum ClientCoreError {
         "fresh registration with gateway {gateway_id} somehow requires an additional key upgrade!"
     )]
     UnexpectedKeyUpgrade { gateway_id: String },
+
+    #[error("failed to derive keys from master key")]
+    HkdfDerivationError {},
 }
 
 /// Set of messages that the client can send to listeners via the task manager

@@ -24,6 +24,7 @@ ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
 rand = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+sha2 = { workspace = true, optional = true }
 subtle-encoding = { workspace = true, features = ["bech32-preview"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true, optional = true, features = ["zeroize_derive"] }
@@ -36,11 +37,13 @@ nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 rand_chacha = { workspace = true }
 
 [features]
-default = ["sphinx"]
+default = []
 aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
-hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array"]
+hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]
-outfox = ["nym-sphinx-types/outfox"]
+
+[lints]
+workspace = true

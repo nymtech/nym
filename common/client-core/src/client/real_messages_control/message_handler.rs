@@ -19,6 +19,7 @@ use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
+use nym_task::TaskClient;
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
@@ -149,12 +150,14 @@ pub(crate) struct MessageHandler<R> {
     topology_access: TopologyAccessor,
     reply_key_storage: SentReplyKeys,
     tag_storage: UsedSenderTags,
+    task_client: TaskClient,
 }
 
 impl<R> MessageHandler<R>
 where
     R: CryptoRng + Rng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
         rng: R,
@@ -163,6 +166,7 @@ where
         topology_access: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
         tag_storage: UsedSenderTags,
+        task_client: TaskClient,
     ) -> Self
     where
         R: Copy,
@@ -183,6 +187,7 @@ where
             topology_access,
             reply_key_storage,
             tag_storage,
+            task_client,
         }
     }
 
@@ -609,15 +614,25 @@ where
     }
 
     pub(crate) fn update_ack_delay(&self, id: FragmentIdentifier, new_delay: Delay) {
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::UpdatePendingAck(id, new_delay))
-            .expect("action control task has died")
+        {
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send update action to the controller: {err}");
+            }
+        }
     }
 
     pub(crate) fn insert_pending_acks(&self, pending_acks: Vec<PendingAcknowledgement>) {
-        self.action_sender
+        if let Err(err) = self
+            .action_sender
             .unbounded_send(Action::new_insert(pending_acks))
-            .expect("action control task has died")
+        {
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to send insert action to the controller: {err}");
+            }
+        }
     }
 
     // tells real message sender (with the poisson timer) to send this to the mix network
@@ -631,9 +646,9 @@ where
             .send((messages, transmission_lane))
             .await
         {
-            error!(
-                "Failed to forward messages to the real message sender (OutQueueControl): {err}"
-            );
+            if !self.task_client.is_shutdown_poll() {
+                error!("Failed to forward messages to the real message sender: {err}");
+            }
         }
     }
 }

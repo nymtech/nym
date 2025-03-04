@@ -15,6 +15,27 @@ pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerR
     (tx.into(), rx)
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ReplyControllerSenderError {
+    #[error("failed to send retransmission data to reply controller")]
+    SendRetransmissionData(#[source] mpsc::TrySendError<ReplyControllerMessage>),
+
+    #[error("failed to send reply to reply controller")]
+    SendReply(#[source] mpsc::TrySendError<ReplyControllerMessage>),
+
+    #[error("failed to send additional surbs to reply controller")]
+    AdditionalSurbs(#[source] mpsc::TrySendError<ReplyControllerMessage>),
+
+    #[error("failed to send additional surbs request to reply controller")]
+    AdditionalSurbsRequest(#[source] mpsc::TrySendError<ReplyControllerMessage>),
+
+    #[error("failed to request lane queue length from reply controller")]
+    LaneQueueLength(#[source] mpsc::TrySendError<ReplyControllerMessage>),
+
+    #[error("response channel was dropped before we could receive the response")]
+    ResponseChannelDropped(#[source] oneshot::Canceled),
+}
+
 #[derive(Debug, Clone)]
 pub struct ReplyControllerSender(mpsc::UnboundedSender<ReplyControllerMessage>);
 
@@ -30,14 +51,14 @@ impl ReplyControllerSender {
         recipient: AnonymousSenderTag,
         timed_out_ack: Weak<PendingAcknowledgement>,
         extra_surb_request: bool,
-    ) {
+    ) -> Result<(), ReplyControllerSenderError> {
         self.0
             .unbounded_send(ReplyControllerMessage::RetransmitReply {
                 recipient,
                 timed_out_ack,
                 extra_surb_request,
             })
-            .expect("ReplyControllerReceiver has died!")
+            .map_err(ReplyControllerSenderError::SendRetransmissionData)
     }
 
     pub(crate) fn send_reply(
@@ -45,14 +66,14 @@ impl ReplyControllerSender {
         recipient: AnonymousSenderTag,
         message: Vec<u8>,
         lane: TransmissionLane,
-    ) {
+    ) -> Result<(), ReplyControllerSenderError> {
         self.0
             .unbounded_send(ReplyControllerMessage::SendReply {
                 recipient,
                 message,
                 lane,
             })
-            .expect("ReplyControllerReceiver has died!")
+            .map_err(ReplyControllerSenderError::SendReply)
     }
 
     pub(crate) fn send_additional_surbs(
@@ -60,42 +81,47 @@ impl ReplyControllerSender {
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
         from_surb_request: bool,
-    ) {
+    ) -> Result<(), ReplyControllerSenderError> {
         self.0
             .unbounded_send(ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
                 from_surb_request,
             })
-            .expect("ReplyControllerReceiver has died!")
+            .map_err(ReplyControllerSenderError::AdditionalSurbs)
     }
 
-    pub(crate) fn send_additional_surbs_request(&self, recipient: Recipient, amount: u32) {
+    pub(crate) fn send_additional_surbs_request(
+        &self,
+        recipient: Recipient,
+        amount: u32,
+    ) -> Result<(), ReplyControllerSenderError> {
         self.0
             .unbounded_send(ReplyControllerMessage::AdditionalSurbsRequest {
                 recipient: Box::new(recipient),
                 amount,
             })
-            .expect("ReplyControllerReceiver has died!")
+            .map_err(ReplyControllerSenderError::AdditionalSurbsRequest)
     }
 
-    pub async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> usize {
+    pub async fn get_lane_queue_length(
+        &self,
+        connection_id: ConnectionId,
+    ) -> Result<usize, ReplyControllerSenderError> {
         let (response_tx, response_rx) = oneshot::channel();
-        self.0
+        if let Err(err) = self
+            .0
             .unbounded_send(ReplyControllerMessage::LaneQueueLength {
                 connection_id,
                 response_channel: response_tx,
             })
-            .expect("ReplyControllerReceiver has died!");
-
-        match response_rx.await {
-            Ok(length) => length,
-            Err(_) => {
-                error!("The reply controller has dropped our response channel!");
-                // TODO: should we panic here instead? this message implies something weird and unrecoverable has happened
-                0
-            }
+        {
+            return Err(ReplyControllerSenderError::LaneQueueLength(err));
         }
+
+        response_rx
+            .await
+            .map_err(ReplyControllerSenderError::ResponseChannelDropped)
     }
 }
 
@@ -110,7 +136,10 @@ impl ReplyQueueLengths {
         }
     }
 
-    pub async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> usize {
+    pub async fn get_lane_queue_length(
+        &self,
+        connection_id: ConnectionId,
+    ) -> Result<usize, ReplyControllerSenderError> {
         self.reply_controller_sender
             .get_lane_queue_length(connection_id)
             .await
@@ -120,7 +149,7 @@ impl ReplyQueueLengths {
 pub(crate) type ReplyControllerReceiver = mpsc::UnboundedReceiver<ReplyControllerMessage>;
 
 #[derive(Debug)]
-pub(crate) enum ReplyControllerMessage {
+pub enum ReplyControllerMessage {
     RetransmitReply {
         recipient: AnonymousSenderTag,
         timed_out_ack: Weak<PendingAcknowledgement>,

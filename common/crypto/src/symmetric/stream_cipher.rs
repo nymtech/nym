@@ -60,20 +60,15 @@ where
     Iv::<C>::default()
 }
 
-pub fn iv_from_slice<C>(b: &[u8]) -> &IV<C>
+pub fn try_iv_from_slice<C>(b: &[u8]) -> Option<&IV<C>>
 where
     C: IvSizeUser,
 {
     if b.len() != C::iv_size() {
-        // `from_slice` would have caused a panic about this issue anyway.
-        // Now we at least have slightly more information
-        panic!(
-            "Tried to convert {} bytes to IV. Expected {}",
-            b.len(),
-            C::iv_size()
-        )
+        None
+    } else {
+        Some(IV::<C>::from_slice(b))
     }
-    IV::<C>::from_slice(b)
 }
 
 // TODO: there's really no way to use more parts of the keystream if it was required at some point.

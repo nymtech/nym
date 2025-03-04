@@ -24,6 +24,7 @@ use nym_sphinx::{
     Delay as SphinxDelay,
 };
 use nym_statistics_common::clients::ClientStatsSender;
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
@@ -66,7 +67,7 @@ pub(crate) enum PacketDestination {
 
 /// Structure representing a data `Fragment` that is on-route to the specified `Recipient`
 #[derive(Debug)]
-pub(crate) struct PendingAcknowledgement {
+pub struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
     destination: PacketDestination,
@@ -216,6 +217,7 @@ where
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
+        task_client: TaskClient,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -225,6 +227,7 @@ where
             action_config,
             retransmission_tx,
             connectors.ack_action_receiver,
+            task_client.fork("action_controller"),
         );
 
         // will listen for any acks coming from the network
@@ -233,6 +236,7 @@ where
             connectors.ack_receiver,
             connectors.ack_action_sender.clone(),
             stats_tx,
+            task_client.fork("acknowledgement_listener"),
         );
 
         // will listen for any new messages from the client
@@ -240,6 +244,7 @@ where
             connectors.input_receiver,
             message_handler.clone(),
             reply_controller_sender.clone(),
+            task_client.fork("input_message_listener"),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -249,12 +254,16 @@ where
             message_handler,
             retransmission_rx,
             reply_controller_sender,
+            task_client.fork("retransmission_request_listener"),
         );
 
         // will listen for events indicating the packet was sent through the network so that
         // the retransmission timer should be started.
-        let sent_notification_listener =
-            SentNotificationListener::new(connectors.sent_notifier, connectors.ack_action_sender);
+        let sent_notification_listener = SentNotificationListener::new(
+            connectors.sent_notifier,
+            connectors.ack_action_sender,
+            task_client.with_suffix("sent_notification_listener"),
+        );
 
         AcknowledgementController {
             acknowledgement_listener,
@@ -265,53 +274,35 @@ where
         }
     }
 
-    pub(super) fn start_with_shutdown(
-        self,
-        shutdown: nym_task::TaskClient,
-        packet_type: PacketType,
-    ) {
+    pub(super) fn start(self, packet_type: PacketType) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;
         let mut retransmission_request_listener = self.retransmission_request_listener;
         let mut sent_notification_listener = self.sent_notification_listener;
         let mut action_controller = self.action_controller;
 
-        let shutdown_handle = shutdown.fork("acknowledgement_listener");
         spawn_future(async move {
-            acknowledgement_listener
-                .run_with_shutdown(shutdown_handle)
-                .await;
+            acknowledgement_listener.run().await;
             debug!("The acknowledgement listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.fork("input_message_listener");
         spawn_future(async move {
-            input_message_listener
-                .run_with_shutdown(shutdown_handle)
-                .await;
+            input_message_listener.run().await;
             debug!("The input listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.fork("retransmission_request_listener");
         spawn_future(async move {
-            retransmission_request_listener
-                .run_with_shutdown(shutdown_handle, packet_type)
-                .await;
+            retransmission_request_listener.run(packet_type).await;
             debug!("The retransmission request listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.fork("sent_notification_listener");
         spawn_future(async move {
-            sent_notification_listener
-                .run_with_shutdown(shutdown_handle)
-                .await;
+            sent_notification_listener.run().await;
             debug!("The sent notification listener has finished execution!");
         });
 
         spawn_future(async move {
-            action_controller
-                .run_with_shutdown(shutdown.with_suffix("action_controller"))
-                .await;
+            action_controller.run().await;
             debug!("The controller has finished execution!");
         });
     }

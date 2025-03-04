@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "1.0.0-rc.7"
+version = "1.0.2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -13,7 +13,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-ammonia = "4"
+ammonia = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
 chrono = { workspace = true }
@@ -22,6 +22,7 @@ cosmwasm-std = { workspace = true }
 envy = { workspace = true }
 futures-util = { workspace = true }
 moka = { workspace = true, features = ["future"] }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
@@ -50,10 +51,6 @@ tracing-log = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-# TODO dz `cargo update async-trait`
-# for automatic schema detection, which was merged, but not released yet
-# https://github.com/ProbablyClem/utoipauto/pull/38
-# utoipauto = { git = "https://github.com/ProbablyClem/utoipauto", rev = "eb04cba" }
 utoipauto = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }

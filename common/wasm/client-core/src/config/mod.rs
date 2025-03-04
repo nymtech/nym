@@ -462,6 +462,10 @@ pub struct ReplySurbsWasm {
     /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
     pub maximum_reply_surb_storage_threshold: usize,
 
+    /// Defines the soft threshold ontop of the minimum reply surb storage threshold for when the client
+    /// should proactively request additional reply surbs.
+    pub minimum_reply_surb_threshold_buffer: usize,
+
     /// Defines the minimum number of reply surbs the client would request.
     pub minimum_reply_surb_request_size: u32,
 
@@ -503,6 +507,7 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
         ConfigReplySurbs {
             minimum_reply_surb_storage_threshold: reply_surbs.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: reply_surbs.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_threshold_buffer: reply_surbs.minimum_reply_surb_threshold_buffer,
             minimum_reply_surb_request_size: reply_surbs.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: reply_surbs.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: reply_surbs
@@ -529,6 +534,7 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
         ReplySurbsWasm {
             minimum_reply_surb_storage_threshold: reply_surbs.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: reply_surbs.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_threshold_buffer: reply_surbs.minimum_reply_surb_threshold_buffer,
             minimum_reply_surb_request_size: reply_surbs.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: reply_surbs.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: reply_surbs

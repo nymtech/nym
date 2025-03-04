@@ -43,6 +43,15 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
 
         // # MIXNET
         // ## INGRESS
+        for version_entry in self.metrics.mixnet.ingress.packet_versions() {
+            self.prometheus_wrapper.set(
+                MixnetIngressPacketVersion {
+                    kind: *version_entry.key(),
+                },
+                *version_entry.value(),
+            )
+        }
+
         self.prometheus_wrapper.set(
             MixnetIngressForwardPacketsReceived,
             self.metrics.mixnet.ingress.forward_hop_packets_received() as i64,
@@ -217,6 +226,8 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
 impl MetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
     type Events = GlobalPrometheusData;
 
+    // SAFETY: `PrometheusNodeMetricsRegistryUpdater` doesn't have any associated events
+    #[allow(clippy::panic)]
     async fn handle_event(&mut self, _event: Self::Events) {
         panic!("this should have never been called! MetricsHandler has been incorrectly called on PrometheusNodeMetricsRegistryUpdater")
     }

@@ -5,13 +5,13 @@ pub mod helpers;
 use anyhow::Result;
 use helpers::{scrape_and_store_description, scrape_and_store_packet_stats};
 use sqlx::SqlitePool;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, instrument, warn};
 
 use crate::db::models::ScraperNodeInfo;
-use crate::db::queries::fetch_active_nodes;
+use crate::db::queries::get_mixing_nodes_for_scraping;
 
-const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4); // 4 hours
-const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1 hour
+const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4);
+const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_CONCURRENT_TASKS: usize = 5;
 
@@ -45,8 +45,9 @@ impl Scraper {
         tokio::spawn(async move {
             loop {
                 if let Err(e) = Self::run_description_scraper(&pool, queue.clone()).await {
-                    error!("Description scraper failed: {}", e);
+                    error!(name: "description_scraper", "Description scraper failed: {}", e);
                 }
+                debug!(name: "description_scraper", "Sleeping for {}s", DESCRIPTION_SCRAPE_INTERVAL.as_secs());
                 tokio::time::sleep(DESCRIPTION_SCRAPE_INTERVAL).await;
             }
         });
@@ -56,21 +57,24 @@ impl Scraper {
         let pool = self.pool.clone();
         let queue = self.packet_queue.clone();
         tracing::info!("Starting packet scraper");
+
         tokio::spawn(async move {
             loop {
                 if let Err(e) = Self::run_packet_scraper(&pool, queue.clone()).await {
-                    error!("Packet scraper failed: {}", e);
+                    error!(name: "packet_scraper", "Packet scraper failed: {}", e);
                 }
+                debug!(name: "packet_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
                 tokio::time::sleep(PACKET_SCRAPE_INTERVAL).await;
             }
         });
     }
 
+    #[instrument(level = "info", name = "description_scraper", skip_all)]
     async fn run_description_scraper(
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
-        let nodes = fetch_active_nodes(pool).await?;
+        let nodes = get_mixing_nodes_for_scraping(pool).await?;
         if let Ok(mut queue_lock) = queue.lock() {
             queue_lock.extend(nodes);
         } else {
@@ -82,12 +86,13 @@ impl Scraper {
         Ok(())
     }
 
+    #[instrument(level = "info", name = "packet_scraper", skip_all)]
     async fn run_packet_scraper(
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
-        let nodes = fetch_active_nodes(pool).await?;
-        tracing::info!("Found {} active nodes", nodes.len());
+        let nodes = get_mixing_nodes_for_scraping(pool).await?;
+        tracing::info!("Querying {} mixing nodes", nodes.len());
         if let Ok(mut queue_lock) = queue.lock() {
             queue_lock.extend(nodes);
         } else {
@@ -125,7 +130,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match Self::scrape_and_store_description(&pool, &node).await {
+                    match scrape_and_store_description(&pool, &node).await {
                         Ok(_) => debug!(
                             "✅ Description task #{} for node {} complete",
                             task_id, node.node_id
@@ -170,7 +175,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match Self::scrape_and_store_packet_stats(&pool, &node).await {
+                    match scrape_and_store_packet_stats(&pool, &node).await {
                         Ok(_) => debug!(
                             "✅ Packet stats task #{} for node {} complete",
                             task_id, node.node_id
@@ -187,16 +192,5 @@ impl Scraper {
             }
         }
         Ok(())
-    }
-
-    async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeInfo) -> Result<()> {
-        scrape_and_store_description(pool, node).await
-    }
-
-    async fn scrape_and_store_packet_stats(
-        pool: &SqlitePool,
-        node: &ScraperNodeInfo,
-    ) -> Result<()> {
-        scrape_and_store_packet_stats(pool, node).await
     }
 }

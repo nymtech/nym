@@ -28,7 +28,6 @@ use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 use std::time::SystemTime;
-use tendermint_rpc::endpoint::block::Response as BlockResponse;
 use tendermint_rpc::endpoint::*;
 use tendermint_rpc::{Error as TendermintRpcError, Order};
 use url::Url;
@@ -63,6 +62,7 @@ pub use cw3;
 pub use cw4;
 pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+pub use tendermint_rpc::endpoint::block::Response as BlockResponse;
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     query::Query,

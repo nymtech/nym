@@ -139,6 +139,7 @@ impl EpochAdvancer {
         let mut layer2 = Vec::new();
         let mut layer3 = Vec::new();
 
+        #[allow(clippy::panic)]
         for (i, mix) in mixnodes_vec.iter().enumerate() {
             match i % 3 {
                 0 => layer1.push(*mix),
@@ -207,6 +208,7 @@ impl EpochAdvancer {
         let mut with_performance = Vec::new();
 
         // SAFETY: the cache MUST HAVE been initialised before now
+        #[allow(clippy::unwrap_used)]
         let described_cache = self.described_cache.get().await.unwrap();
 
         let Some(status_cache) = self.status_cache.node_annotations().await else {

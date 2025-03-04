@@ -167,7 +167,7 @@ impl PacketSender {
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             message_sender,
-            task_client.fork("packet-router"),
+            task_client.fork("packet_router"),
         );
 
         let shared_keys = fresh_gateway_client_data
@@ -184,7 +184,10 @@ impl PacketSender {
             shared_keys,
             gateway_packet_router,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            nym_statistics_common::clients::ClientStatsSender::new(None),
+            nym_statistics_common::clients::ClientStatsSender::new(
+                None,
+                task_client.fork("client_stats_sender"),
+            ),
             #[cfg(unix)]
             None,
             task_client,
@@ -243,6 +246,8 @@ impl PacketSender {
                 trace!("Sending {} packets...", mix_packets.len());
 
                 if mix_packets.len() == 1 {
+                    // SAFETY: we just explicitly checked we have 1 message
+                    #[allow(clippy::unwrap_used)]
                     client.send_mix_packet(mix_packets.pop().unwrap()).await?;
                 } else {
                     client.batch_send_mix_packets(mix_packets).await?;

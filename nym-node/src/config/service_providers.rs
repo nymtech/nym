@@ -3,11 +3,16 @@
 
 use crate::config::authenticator::Authenticator;
 use crate::config::persistence::ServiceProvidersPaths;
-use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
+use nym_client_core_config_types::{DebugConfig as ClientDebugConfig, ReplySurbs};
 use nym_config::defaults::mainnet;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
+
+// Default reply surb storage threshold.
+// It is set higher than the default since the traffic is mostly a stream of data,
+// and not a bursty request/response pattern.
+pub const DEFAULT_IPR_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER: usize = 50;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -145,10 +150,18 @@ pub struct IpPacketRouterDebug {
 
 impl Default for IpPacketRouterDebug {
     fn default() -> Self {
+        let client_debug = ClientDebugConfig {
+            reply_surbs: ReplySurbs {
+                minimum_reply_surb_threshold_buffer:
+                    DEFAULT_IPR_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         IpPacketRouterDebug {
             enabled: true,
             disable_poisson_rate: true,
-            client_debug: Default::default(),
+            client_debug,
         }
     }
 }

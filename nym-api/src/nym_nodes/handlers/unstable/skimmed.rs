@@ -240,7 +240,7 @@ async fn nodes_basic(
     state: State<AppState>,
     Query(_query_params): Query<NodesParams>,
     active_only: bool,
-) -> SkimmedNodes {
+) -> AxumResult<CachedNodesResponse<SkimmedNode>> {
     // unfortunately we have to build the response semi-manually here as we need to add two sources of legacy nodes
 
     // 1. grab all relevant described nym-nodes
@@ -282,10 +282,10 @@ async fn nodes_basic(
         legacy_gateways.timestamp(),
     ]);
 
-    Ok(Json(CachedNodesResponse {
+    Ok(CachedNodesResponse {
         refreshed_at,
         nodes,
-    }))
+    })
 }
 
 #[allow(dead_code)] // not dead, used in OpenAPI docs
@@ -327,7 +327,12 @@ pub(super) async fn nodes_basic_all(
         };
     }
 
-    nodes_basic(state, Query(query_params.into()), false).await
+    let nodes = nodes_basic(state, Query(query_params.into()), false).await?;
+    // We are never using pagination (always one page) anyways so just build it here.
+    Ok(Json(PaginatedCachedNodesResponse::new_full(
+        nodes.refreshed_at,
+        nodes.nodes,
+    )))
 }
 
 /// Post request handler taking a json array of NodeId (u32) values and returning descriptors for
@@ -351,8 +356,18 @@ pub(super) async fn nodes_basic_all(
 pub(super) async fn nodes_basic_batch(
     state: State<AppState>,
     Query(query_params): Query<NodesParamsWithRole>,
+    Json(ids): Json<Vec<u32>>,
 ) -> SkimmedNodes {
-    nodes_basic(state, Query(query_params.into()), false).await
+    let nodes = nodes_basic(state, Query(query_params.into()), false).await?;
+    let requested_nodes = nodes
+        .nodes
+        .into_iter()
+        .filter(|node| ids.contains(&node.node_id))
+        .collect();
+    Ok(Json(CachedNodesResponse {
+        nodes: requested_nodes,
+        refreshed_at: nodes.refreshed_at,
+    }))
 }
 
 /// Return Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
@@ -385,7 +400,12 @@ pub(super) async fn nodes_basic_active(
         };
     }
 
-    nodes_basic(state, Query(query_params.into()), true).await
+    let nodes = nodes_basic(state, Query(query_params.into()), true).await?;
+    // We are never using pagination (always one page) anyways so just build it here.
+    Ok(Json(PaginatedCachedNodesResponse::new_full(
+        nodes.refreshed_at,
+        nodes.nodes,
+    )))
 }
 
 async fn mixnodes_basic(

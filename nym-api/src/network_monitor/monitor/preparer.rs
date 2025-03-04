@@ -10,7 +10,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
 use nym_api_requests::models::{NodeAnnotation, NymNodeDescription};
-use nym_contracts_common::NaiveFloat;
+use nym_contracts_common::{NaiveFloat, Percent};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
 use nym_node_tester_utils::node::{NodeType, TestableNode};
@@ -231,6 +231,8 @@ impl PacketPreparer {
                     mixnet_entry: false,
                     mixnet_exit: false,
                 },
+                // We have no information about performance in legacy node formats
+                performance: Percent::hundred(),
             })
         }
 
@@ -263,6 +265,8 @@ impl PacketPreparer {
                     mixnet_entry: true,
                     mixnet_exit: false,
                 },
+                // We have no information about performance in legacy node formats
+                performance: Percent::hundred(),
             })
         }
 

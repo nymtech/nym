@@ -12,12 +12,7 @@ use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tracing::{debug, warn};
 
-use std::{
-    cmp::min,
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{cmp::min, collections::HashSet, sync::Arc, time::Duration};
 
 /// Topology filtering and caching configuration
 #[derive(Debug)]
@@ -198,7 +193,7 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProviderInner<M> {
 
             // Add the new nodes to our cached topology
             if let Some(new_descriptors) = response {
-                cached_topology.add_routing_nodes(new_descriptors.values());
+                cached_topology.add_routing_nodes(new_descriptors);
             }
 
             // double check that we have the expected nodes
@@ -264,7 +259,7 @@ pub trait PiecewiseTopologyProvider: Send {
     async fn get_full_topology(&mut self) -> Option<NymTopology>;
 
     /// Fetch a node descriptors for the set of provided IDs if available.
-    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<HashMap<u32, RoutingNode>>;
+    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>>;
 
     /// Fetch the latest mapping of node IDs to Nym Network layer.
     async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet>;
@@ -289,11 +284,11 @@ mod test {
             Some(self.topo.clone())
         }
 
-        async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<HashMap<u32, RoutingNode>> {
-            let mut nodes = HashMap::new();
+        async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>> {
+            let mut nodes = Vec::new();
             ids.iter().for_each(|id| {
                 if let Some(node) = self.topo.node_details.get(id) {
-                    nodes.insert(*id, node.clone());
+                    nodes.push(node.clone());
                 }
             });
 

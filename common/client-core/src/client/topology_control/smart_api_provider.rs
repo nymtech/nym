@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//!
+//! Caching, piecewise API Topology Provider
 //!
 
 #![warn(missing_docs)]
@@ -15,8 +15,6 @@ use nym_topology::{
 use nym_validator_client::UserAgent;
 use rand::{prelude::SliceRandom, thread_rng};
 use url::Url;
-
-use std::collections::HashMap;
 
 /// Topology Provider build around a cached piecewise provider that uses the Nym API to
 /// fetch changes and node details.
@@ -113,8 +111,28 @@ impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
         Some(topology)
     }
 
-    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<HashMap<u32, RoutingNode>> {
-        todo!("blocking on node batch endpoint")
+    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>> {
+        // Does this need to return a hashmap of RoutingNodes? that is moderately inconvenient
+        // especially when the nodes themselves contain their node_id unless we expect to directly
+        // use the result of this fn for lookups where we would otherwise for example, have to
+        // iterate over a whole vec to find a specific node_id.
+        let descriptor_vec = self
+            .validator_client
+            .retrieve_basic_nodes_batch(ids)
+            .await
+            .inspect_err(|err| {
+                self.use_next_nym_api();
+                error!("failed to get current rewarded set: {err}");
+            })
+            .ok()?;
+
+        let mut out = Vec::new();
+        for node in descriptor_vec {
+            if let Ok(routing_node) = RoutingNode::try_from(&node) {
+                let _ = out.push(routing_node);
+            }
+        }
+        Some(out)
     }
 
     async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet> {

@@ -498,9 +498,19 @@ impl NymApiClient {
         Ok(nodes)
     }
 
-    /// retrieve basic information for all bonded nodes on the network
-    pub async fn retrieve_basic_nodes_batch(&self, node_ids: Vec<u32>) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
-        Ok(self.nym_api.retrieve_basic_nodes_batch(&node_ids).await?.nodes)
+    /// Batch request for node descriptors in the current topology.
+    ///
+    /// Given the set of node IDs included in the request body, provide the descriptor for each
+    /// associated node in if it is available in the current topology.
+    pub async fn retrieve_basic_nodes_batch(
+        &self,
+        node_ids: &[u32],
+    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .retrieve_basic_nodes_batch(node_ids)
+            .await?
+            .nodes)
     }
 
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {

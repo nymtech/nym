@@ -72,6 +72,7 @@ nym-metrics = { path = "../common/nym-metrics" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-topology = { path = "../common/topology" }
 nym-http-api-client = { path = "../common/http-api-client" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["naive_float", "utoipa"] }
 
 # http server
 # useful for `#[axum_macros::debug_handler]`

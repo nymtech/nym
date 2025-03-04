@@ -1,6 +1,6 @@
 [package]
 name = "nym-go-ffi"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license.workspace = true
 
@@ -14,6 +14,7 @@ uniffi = { workspace = true, features = ["cli"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
 nym-sdk = { path = "../../rust/nym-sdk/" }
 nym-bin-common = { path = "../../../common/bin-common" }
+nym-crypto = { path = "../../../common/crypto" }
 nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 nym-ffi-shared = { path = "../shared" }
 # Async runtime

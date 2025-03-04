@@ -1,7 +1,6 @@
-import Document from "@/public/icons/document.svg";
-import Download from "@/public/icons/download.svg";
+import { icons } from "@/utils/getIconByName";
 
 export const NavigationIcons = {
-  article: Document,
-  download: Download,
+  article: icons.document,
+  download: icons.download,
 };

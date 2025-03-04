@@ -1,8 +1,7 @@
 "use client";
 // Types
 
-import Arrow from "../../../public/icons/arrow.svg";
-
+import { icons } from "@/utils/getIconByName";
 // MUI Components
 import { Box, Button, Input } from "@mui/material";
 import Image from "next/image";
@@ -57,7 +56,7 @@ export const NewsletterSignUp = () => {
           },
         }}
       >
-        <Image src={Arrow} alt={"arrow icon"} width={15} height={15} />
+        <Image src={icons.arrow} alt={"arrow icon"} width={15} height={15} />
       </Button>
     </Box>
   );

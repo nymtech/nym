@@ -401,7 +401,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_new_proxy_server(uniffiStatus)
 		})
-		if checksum != 40789 {
+		if checksum != 35729 {
 			// If this happens try cleaning and rebuilding your project
 			panic("bindings: uniffi_nym_go_ffi_checksum_func_new_proxy_server: UniFFI API checksum mismatch")
 		}
@@ -1003,9 +1003,9 @@ func NewProxyClientDefault(serverAddress string, env *string) error {
 	return _uniffiErr
 }
 
-func NewProxyServer(upstreamAddress string, configDir string, env *string) error {
+func NewProxyServer(upstreamAddress string, configDir string, env *string, gateway *string) error {
 	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_nym_go_ffi_fn_func_new_proxy_server(FfiConverterStringINSTANCE.Lower(upstreamAddress), FfiConverterStringINSTANCE.Lower(configDir), FfiConverterOptionalStringINSTANCE.Lower(env), _uniffiStatus)
+		C.uniffi_nym_go_ffi_fn_func_new_proxy_server(FfiConverterStringINSTANCE.Lower(upstreamAddress), FfiConverterStringINSTANCE.Lower(configDir), FfiConverterOptionalStringINSTANCE.Lower(env), FfiConverterOptionalStringINSTANCE.Lower(gateway), _uniffiStatus)
 		return false
 	})
 	return _uniffiErr

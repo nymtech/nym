@@ -82,10 +82,6 @@ impl NymEchoServer {
         })
     }
 
-    pub fn ready_signal(&self) -> broadcast::Receiver<()> {
-        self.ready_tx.subscribe()
-    }
-
     pub async fn run(&mut self) -> Result<()> {
         let cancel_token = self.cancel_token.clone();
 
@@ -195,6 +191,10 @@ impl NymEchoServer {
 
     pub fn metrics(&self) -> Arc<Metrics> {
         self.metrics.clone()
+    }
+
+    pub fn ready_signal(&self) -> broadcast::Receiver<()> {
+        self.ready_tx.subscribe()
     }
 }
 

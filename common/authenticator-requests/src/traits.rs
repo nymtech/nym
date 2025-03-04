@@ -8,8 +8,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 
 use crate::{
-    v1, v2, v3,
-    v4::{self, registration::IpPair},
+    v1, v2, v3, v4,
+    v5::{self, registration::IpPair},
     Error,
 };
 
@@ -19,6 +19,7 @@ pub enum AuthenticatorVersion {
     V2,
     V3,
     V4,
+    V5,
     UNKNOWN,
 }
 
@@ -34,6 +35,8 @@ impl From<Protocol> for AuthenticatorVersion {
             AuthenticatorVersion::V3
         } else if value.version == v4::VERSION {
             AuthenticatorVersion::V4
+        } else if value.version == v5::VERSION {
+            AuthenticatorVersion::V5
         } else {
             AuthenticatorVersion::UNKNOWN
         }
@@ -63,6 +66,12 @@ impl InitMessage for v3::registration::InitMessage {
 }
 
 impl InitMessage for v4::registration::InitMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+}
+
+impl InitMessage for v5::registration::InitMessage {
     fn pub_key(&self) -> PeerPublicKey {
         self.pub_key
     }
@@ -139,6 +148,24 @@ impl FinalMessage for v4::registration::FinalMessage {
     }
 
     fn private_ips(&self) -> IpPair {
+        self.gateway_client.private_ips.into()
+    }
+
+    fn credential(&self) -> Option<CredentialSpendingData> {
+        self.credential.clone()
+    }
+}
+
+impl FinalMessage for v5::registration::FinalMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.gateway_client.pub_key
+    }
+
+    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+        self.gateway_client.verify(private_key, nonce)
+    }
+
+    fn private_ips(&self) -> IpPair {
         self.gateway_client.private_ips
     }
 
@@ -182,29 +209,39 @@ impl TopUpMessage for v4::topup::TopUpMessage {
     }
 }
 
+impl TopUpMessage for v5::topup::TopUpMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+
+    fn credential(&self) -> CredentialSpendingData {
+        self.credential.clone()
+    }
+}
+
 pub enum AuthenticatorRequest {
     Initial {
         msg: Box<dyn InitMessage + Send + Sync + 'static>,
         protocol: Protocol,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
         request_id: u64,
     },
     Final {
         msg: Box<dyn FinalMessage + Send + Sync + 'static>,
         protocol: Protocol,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
         request_id: u64,
     },
     QueryBandwidth {
         msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
         protocol: Protocol,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
         request_id: u64,
     },
     TopUpBandwidth {
         msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
         protocol: Protocol,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
         request_id: u64,
     },
 }
@@ -218,7 +255,7 @@ impl From<v1::request::AuthenticatorRequest> for AuthenticatorRequest {
                     version: value.version,
                     service_provider_type: ServiceProviderType::Authenticator,
                 },
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v1::request::AuthenticatorRequestData::Final(gateway_client) => Self::Final {
@@ -227,7 +264,7 @@ impl From<v1::request::AuthenticatorRequest> for AuthenticatorRequest {
                     version: value.version,
                     service_provider_type: ServiceProviderType::Authenticator,
                 },
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v1::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
@@ -237,7 +274,7 @@ impl From<v1::request::AuthenticatorRequest> for AuthenticatorRequest {
                         version: value.version,
                         service_provider_type: ServiceProviderType::Authenticator,
                     },
-                    reply_to: value.reply_to,
+                    reply_to: Some(value.reply_to),
                     request_id: value.request_id,
                 }
             }
@@ -251,20 +288,20 @@ impl From<v2::request::AuthenticatorRequest> for AuthenticatorRequest {
             v2::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
                 msg: Box::new(init_message),
                 protocol: value.protocol,
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v2::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
                 msg: final_message,
                 protocol: value.protocol,
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v2::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
                 Self::QueryBandwidth {
                     msg: Box::new(peer_public_key),
                     protocol: value.protocol,
-                    reply_to: value.reply_to,
+                    reply_to: Some(value.reply_to),
                     request_id: value.request_id,
                 }
             }
@@ -278,20 +315,20 @@ impl From<v3::request::AuthenticatorRequest> for AuthenticatorRequest {
             v3::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
                 msg: Box::new(init_message),
                 protocol: value.protocol,
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v3::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
                 msg: final_message,
                 protocol: value.protocol,
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v3::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
                 Self::QueryBandwidth {
                     msg: Box::new(peer_public_key),
                     protocol: value.protocol,
-                    reply_to: value.reply_to,
+                    reply_to: Some(value.reply_to),
                     request_id: value.request_id,
                 }
             }
@@ -299,7 +336,7 @@ impl From<v3::request::AuthenticatorRequest> for AuthenticatorRequest {
                 Self::TopUpBandwidth {
                     msg: top_up_message,
                     protocol: value.protocol,
-                    reply_to: value.reply_to,
+                    reply_to: Some(value.reply_to),
                     request_id: value.request_id,
                 }
             }
@@ -313,20 +350,20 @@ impl From<v4::request::AuthenticatorRequest> for AuthenticatorRequest {
             v4::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
                 msg: Box::new(init_message),
                 protocol: value.protocol,
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v4::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
                 msg: final_message,
                 protocol: value.protocol,
-                reply_to: value.reply_to,
+                reply_to: Some(value.reply_to),
                 request_id: value.request_id,
             },
             v4::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
                 Self::QueryBandwidth {
                     msg: Box::new(peer_public_key),
                     protocol: value.protocol,
-                    reply_to: value.reply_to,
+                    reply_to: Some(value.reply_to),
                     request_id: value.request_id,
                 }
             }
@@ -334,7 +371,42 @@ impl From<v4::request::AuthenticatorRequest> for AuthenticatorRequest {
                 Self::TopUpBandwidth {
                     msg: top_up_message,
                     protocol: value.protocol,
-                    reply_to: value.reply_to,
+                    reply_to: Some(value.reply_to),
+                    request_id: value.request_id,
+                }
+            }
+        }
+    }
+}
+
+impl From<v5::request::AuthenticatorRequest> for AuthenticatorRequest {
+    fn from(value: v5::request::AuthenticatorRequest) -> Self {
+        match value.data {
+            v5::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
+                msg: Box::new(init_message),
+                protocol: value.protocol,
+                reply_to: None,
+                request_id: value.request_id,
+            },
+            v5::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
+                msg: final_message,
+                protocol: value.protocol,
+                reply_to: None,
+                request_id: value.request_id,
+            },
+            v5::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
+                Self::QueryBandwidth {
+                    msg: Box::new(peer_public_key),
+                    protocol: value.protocol,
+                    reply_to: None,
+                    request_id: value.request_id,
+                }
+            }
+            v5::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
+                Self::TopUpBandwidth {
+                    msg: top_up_message,
+                    protocol: value.protocol,
+                    reply_to: None,
                     request_id: value.request_id,
                 }
             }

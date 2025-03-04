@@ -3,9 +3,7 @@
 
 use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
-use crate::{
-    GatewayRequestsError, SharedSymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION,AES_GCM_SIV_PROTOCOL_VERSION
-};
+use crate::{GatewayRequestsError, SharedSymmetricKey, AUTHENTICATE_V2_PROTOCOL_VERSION};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};

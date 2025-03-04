@@ -20,10 +20,8 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    SensitiveServerResponse, ServerResponse, SharedSymmetricKey,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
-    AES_GCM_SIV_PROTOCOL_VERSION
+    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt, ServerResponse,
+    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -412,10 +410,10 @@ impl<C, St> GatewayClient<C, St> {
     fn check_gateway_protocol(&self, gateway_protocol: u8) -> Result<(), GatewayClientError> {
         debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
 
-        todo!();
-
-        // client should reject any gateways that do not indicate they support auth v2
-        if !gateway_protocol.supports_authenticate_v2() {
+        // client should reject any gateways that do not indicate they support auth v2 or aes256gcm-siv
+        if !gateway_protocol.supports_authenticate_v2()
+            || !gateway_protocol.supports_aes256_gcm_siv()
+        {
             return Err(GatewayClientError::IncompatibleProtocol {
                 gateway: gateway_protocol,
                 current: CURRENT_PROTOCOL_VERSION,
@@ -480,7 +478,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = gateway_protocol;
+        self.negotiated_protocol = Some(gateway_protocol);
 
         Ok(())
     }
@@ -499,7 +497,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.authenticated = status;
                 self.bandwidth.update_and_maybe_log(bandwidth_remaining);
 
-                self.negotiated_protocol = protocol_version;
+                self.negotiated_protocol = Some(protocol_version);
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
 
                 self.task_client.send_status_msg(Box::new(

@@ -16,17 +16,15 @@ use futures::{
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
-use nym_crypto::symmetric::aead::Nonce;
 use nym_gateway_requests::authenticate::AuthenticateRequest;
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    AuthenticationFailure, BinaryResponse, GatewayProtocolVersionExt, SharedSymmetricKey,
-    CURRENT_PROTOCOL_VERSION,SharedKeyUsageError
+    AuthenticationFailure, BinaryResponse, GatewayProtocolVersionExt, SharedKeyUsageError,
+    SharedSymmetricKey, CURRENT_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_node_metrics::events::MetricsEvent;
-use nym_sphinx::params::GatewayEncryptionAlgorithm;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use rand::CryptoRng;
@@ -384,7 +382,8 @@ impl<R, S> FreshHandler<R, S> {
         debug!("client protocol: {client_protocol}, ours: {CURRENT_PROTOCOL_VERSION}");
 
         // gateway will reject any requests from clients that do not support auth v2 or aes256gcm
-        if !client_protocol.supports_authenticate_v2() || !client_protocol.supports_aes256_gcm_siv() {
+        if !client_protocol.supports_authenticate_v2() || !client_protocol.supports_aes256_gcm_siv()
+        {
             error!("{incompatible_err}");
             return Err(incompatible_err);
         }

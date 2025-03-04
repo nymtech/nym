@@ -123,7 +123,10 @@ impl NymProxyServer {
                 message = message_stream.next() => {
                     if let Some(new_message) = message {
                         let message: ProxiedMessage = match bincode::deserialize(&new_message.message) {
-                            Ok(msg) => msg,
+                            Ok(msg) => {
+                                debug!("received: {}", msg);
+                                msg
+                            },
                             Err(e) => {
                                 error!("Failed to deserialize ProxiedMessage: {}", e);
                                 continue;

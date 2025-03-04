@@ -19,7 +19,7 @@ struct Args {
 
     /// Env file
     #[clap(short, long)]
-    env: String,
+    env: Option<String>,
 
     /// Listen port
     #[clap(short, long, default_value = "8080")]

@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use tokio::task;
 use tokio_stream::StreamExt;
@@ -41,16 +42,17 @@ pub struct NymEchoServer {
     listen_addr: String,
     metrics: Arc<Metrics>,
     cancel_token: CancellationToken,
-    client_shutdown_tx: tokio::sync::mpsc::Sender<()>, // This is the shutdown signal for the TcpProxyServer instance
-    shutdown_tx: tokio::sync::mpsc::Sender<()>, // These are the shutdown signals for the EchoServer
+    client_shutdown_tx: tokio::sync::mpsc::Sender<()>, // Shutdown signal for the TcpProxyServer instance
+    shutdown_tx: tokio::sync::mpsc::Sender<()>,        // Shutdown signals for the EchoServer
     shutdown_rx: tokio::sync::mpsc::Receiver<()>,
+    ready_tx: broadcast::Sender<()>, // Signal for upstream code if consuming the crate showing readiness
 }
 
 impl NymEchoServer {
     pub async fn new(
         gateway: Option<ed25519::PublicKey>,
         config_path: Option<&str>,
-        env: String, // TODO make Option
+        env: Option<String>,
         listen_port: &str,
     ) -> Result<Self> {
         let home_dir = dirs::home_dir().expect("Unable to get home directory");
@@ -59,13 +61,14 @@ impl NymEchoServer {
         let listen_addr = format!("127.0.0.1:{}", listen_port);
 
         let client = Arc::new(Mutex::new(
-            tcp_proxy::NymProxyServer::new(&listen_addr, &config_path, Some(env.clone()), gateway)
-                .await?,
+            tcp_proxy::NymProxyServer::new(&listen_addr, &config_path, env, gateway).await?,
         ));
 
         let client_shutdown_tx = client.lock().await.disconnect_signal();
 
         let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
+
+        let (ready_tx, _) = broadcast::channel(1);
 
         Ok(NymEchoServer {
             client,
@@ -75,7 +78,12 @@ impl NymEchoServer {
             client_shutdown_tx,
             shutdown_tx,
             shutdown_rx,
+            ready_tx,
         })
+    }
+
+    pub fn ready_signal(&self) -> broadcast::Receiver<()> {
+        self.ready_tx.subscribe()
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -98,6 +106,9 @@ impl NymEchoServer {
 
         let mut shutdown_rx =
             std::mem::replace(&mut self.shutdown_rx, tokio::sync::mpsc::channel(1).1);
+
+        info!("Ready to accept incoming traffic");
+        let _ = self.ready_tx.send(());
 
         loop {
             tokio::select! {
@@ -203,7 +214,7 @@ mod tests {
         let mut echo_server = NymEchoServer::new(
             None,
             Some(config_dir.path().to_str().unwrap()),
-            "../../envs/mainnet.env".to_string(),
+            None, // Mainnet by default
             "9000",
         )
         .await
@@ -212,10 +223,34 @@ mod tests {
         // Getter for shutdown signal
         let shutdown_tx = echo_server.disconnect_signal();
 
+        // Getter for ready signal
+        let mut ready_rx = echo_server.ready_signal();
+
+        // Start the echo serv
         let server_handle = tokio::spawn(async move { echo_server.run().await.unwrap() });
 
-        // Let it start up
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        // Wait until you can match on ready signal - you will see "Ready to accept incoming traffic" in echo server logs when running it as CLI
+        loop {
+            match ready_rx.try_recv() {
+                Ok(()) => {
+                    println!("Server is ready!");
+                    break;
+                }
+                Err(broadcast::error::TryRecvError::Empty) => {
+                    // Channel is still empty, wait a bit and try again
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+                Err(broadcast::error::TryRecvError::Closed) => {
+                    return Err(anyhow::anyhow!(
+                        "Ready channel closed before server was ready"
+                    ));
+                }
+                Err(broadcast::error::TryRecvError::Lagged(_)) => {
+                    // Broadcast channel was set before we checked but handle it anyway; server is ready
+                    break;
+                }
+            }
+        }
 
         // Kill server
         shutdown_tx.send(()).await?;
@@ -232,7 +267,7 @@ mod tests {
         let mut echo_server = NymEchoServer::new(
             None,
             Some(config_dir.path().to_str().unwrap()),
-            "../../envs/mainnet.env".to_string(),
+            None,
             "9000",
         )
         .await
@@ -240,12 +275,36 @@ mod tests {
 
         let echo_addr = echo_server.nym_address().await;
 
-        tokio::task::spawn(async move {
+        let shutdown_tx = echo_server.disconnect_signal();
+        let mut ready_rx = echo_server.ready_signal();
+
+        let server_handle = tokio::task::spawn(async move {
             echo_server.run().await.unwrap();
         });
 
+        loop {
+            match ready_rx.try_recv() {
+                Ok(()) => {
+                    println!("Server is ready!");
+                    break;
+                }
+                Err(broadcast::error::TryRecvError::Empty) => {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+                Err(broadcast::error::TryRecvError::Closed) => {
+                    return Err(anyhow::anyhow!(
+                        "Ready channel closed before server was ready"
+                    ));
+                }
+                Err(broadcast::error::TryRecvError::Lagged(_)) => {
+                    break;
+                }
+            }
+        }
+
         let session_id = uuid::Uuid::new_v4();
         let message_id = 0;
+        // TODO make utils importable from TcpProxy dir
         let outgoing = ProxiedMessage::new(
             Payload::Data("test".as_bytes().to_vec()),
             session_id,
@@ -273,13 +332,9 @@ mod tests {
         sending_task_handle.await.unwrap();
         receiving_task_handle.await.unwrap();
 
+        shutdown_tx.send(()).await?;
+        server_handle.await?;
+
         Ok(())
     }
-
-    // #[tokio::test]
-    // async fn creates_a_valid_nym_addr_with_specified_gw() {
-    //     todo!()
-    //     // check valid
-    //     // parse end
-    // }
 }

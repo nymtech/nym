@@ -17,6 +17,7 @@ use time::Date;
 use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 
+#[allow(deprecated)]
 pub(crate) fn issued_routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -76,6 +77,7 @@ async fn issued_ticketbooks_for(
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
+#[deprecated]
 async fn issued_ticketbooks_challenge(
     State(state): State<Arc<EcashState>>,
     Json(challenge): Json<IssuedTicketbooksChallengeRequest>,

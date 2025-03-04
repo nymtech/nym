@@ -17,7 +17,7 @@ struct Args {
     #[clap(short, long)]
     config_path: Option<String>,
 
-    /// Env file
+    /// Optional env file - defaults to Mainnet if None
     #[clap(short, long)]
     env: Option<String>,
 

@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        models::{MixingNodeKind, ScraperNodeInfo},
+        models::{ScrapeNodeKind, ScraperNodeInfo},
         queries, DbPool,
     },
     mixnet_scraper::helpers::NodeDescriptionResponse,
@@ -8,16 +8,36 @@ use crate::{
 use anyhow::Result;
 use chrono::Utc;
 
-pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperNodeInfo>> {
+pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperNodeInfo>> {
     let mut nodes_to_scrape = Vec::new();
 
+    let mixnode_ids = queries::get_all_mix_ids(pool).await?;
+    let gateway_keys = queries::get_all_gateway_id_keys(pool).await?;
+
+    let mut entry_exit_nodes = 0;
     queries::get_nym_nodes(pool)
         .await?
         .into_iter()
         .for_each(|node| {
+            // due to polyfilling, Nym nodes table might contain legacy mixnodes
+            // as well. Mark them as such here.
+            let node_kind = if mixnode_ids.contains(&node.node_id.into()) {
+                ScrapeNodeKind::LegacyMixnode {
+                    mix_id: node.node_id.into(),
+                }
+            } else if gateway_keys.contains(&node.ed25519_identity_pubkey.to_base58_string()) {
+                entry_exit_nodes += 1;
+                ScrapeNodeKind::EntryExitNymNode {
+                    node_id: node.node_id.into(),
+                    identity_key: node.ed25519_identity_pubkey.to_base58_string(),
+                }
+            } else {
+                ScrapeNodeKind::MixingNymNode {
+                    node_id: node.node_id.into(),
+                }
+            };
             nodes_to_scrape.push(ScraperNodeInfo {
-                node_id: node.node_id.into(),
-                node_kind: MixingNodeKind::NymNode,
+                node_kind,
                 hosts: node
                     .ip_addresses
                     .into_iter()
@@ -27,7 +47,8 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
             })
         });
 
-    tracing::debug!("Fetched {} 🌟 nym nodes", nodes_to_scrape.len());
+    tracing::debug!("Fetched {} 🌟 total nym nodes", nodes_to_scrape.len());
+    tracing::debug!("Fetched {} 🚪 entry/exit nodes", entry_exit_nodes);
 
     let mut conn = pool.acquire().await?;
     let mixnodes = sqlx::query!(
@@ -41,7 +62,7 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
     .await?;
     drop(conn);
 
-    tracing::debug!("Fetched {} 🦖 mixnodes", nodes_to_scrape.len());
+    tracing::debug!("Fetched {} 🦖 mixnodes", mixnodes.len());
 
     let mut duplicates = 0;
     let mut legacy_not_in_nym_node_list = 0;
@@ -49,25 +70,21 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
     for mixnode in mixnodes {
         if nodes_to_scrape
             .iter()
-            .all(|node| node.node_id != mixnode.node_id)
+            .all(|node| node.node_id() != &mixnode.node_id)
         {
+            // in case polyfilling on Nym API gets removed, this part ensures
+            // mixnodes are added to the final list of nodes to scrape
+            nodes_to_scrape.push(ScraperNodeInfo {
+                node_kind: ScrapeNodeKind::LegacyMixnode {
+                    mix_id: mixnode.node_id,
+                },
+                hosts: vec![mixnode.host],
+                http_api_port: mixnode.http_api_port,
+            });
+
             legacy_not_in_nym_node_list += 1;
         } else {
             duplicates += 1;
-        }
-
-        // technically, mixnodes shouldn't be in nym_nodes table, but it's
-        // possible due to polyfilling on Nym API
-        if nodes_to_scrape
-            .iter()
-            .all(|node| node.node_id != mixnode.node_id)
-        {
-            nodes_to_scrape.push(ScraperNodeInfo {
-                node_id: mixnode.node_id,
-                node_kind: MixingNodeKind::LegacyMixnode,
-                hosts: vec![mixnode.host],
-                http_api_port: mixnode.http_api_port,
-            })
         }
     }
     tracing::debug!(
@@ -85,25 +102,45 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
     Ok(nodes_to_scrape)
 }
 
-// TODO: add stuff for gateways
-
 pub(crate) async fn insert_scraped_node_description(
     pool: &DbPool,
-    node_kind: &MixingNodeKind,
-    node_id: i64,
+    node_kind: &ScrapeNodeKind,
     description: &NodeDescriptionResponse,
 ) -> Result<()> {
     let timestamp = Utc::now().timestamp();
     let mut conn = pool.acquire().await?;
 
     match node_kind {
-        MixingNodeKind::LegacyMixnode => {
+        ScrapeNodeKind::LegacyMixnode { mix_id } => {
             sqlx::query!(
                 r#"
                 INSERT INTO mixnode_description (
                     mix_id, moniker, website, security_contact, details, last_updated_utc
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT (mix_id) DO UPDATE SET
+                    moniker = excluded.moniker,
+                    website = excluded.website,
+                    security_contact = excluded.security_contact,
+                    details = excluded.details,
+                    last_updated_utc = excluded.last_updated_utc
+                "#,
+                mix_id,
+                description.moniker,
+                description.website,
+                description.security_contact,
+                description.details,
+                timestamp,
+            )
+            .execute(&mut *conn)
+            .await?;
+        }
+        ScrapeNodeKind::MixingNymNode { node_id } => {
+            sqlx::query!(
+                r#"
+                INSERT INTO nym_node_descriptions (
+                    node_id, moniker, website, security_contact, details, last_updated_utc
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
                     moniker = excluded.moniker,
                     website = excluded.website,
                     security_contact = excluded.security_contact,
@@ -120,20 +157,25 @@ pub(crate) async fn insert_scraped_node_description(
             .execute(&mut *conn)
             .await?;
         }
-        MixingNodeKind::NymNode => {
+        ScrapeNodeKind::EntryExitNymNode { identity_key, .. } => {
             sqlx::query!(
                 r#"
-                INSERT INTO nym_node_descriptions (
-                    node_id, moniker, website, security_contact, details, last_updated_utc
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (node_id) DO UPDATE SET
-                    moniker = excluded.moniker,
-                    website = excluded.website,
-                    security_contact = excluded.security_contact,
-                    details = excluded.details,
-                    last_updated_utc = excluded.last_updated_utc
-                "#,
-                node_id,
+            INSERT INTO gateway_description (
+                gateway_identity_key,
+                moniker,
+                website,
+                security_contact,
+                details,
+                last_updated_utc
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (gateway_identity_key) DO UPDATE SET
+                moniker = excluded.moniker,
+                website = excluded.website,
+                security_contact = excluded.security_contact,
+                details = excluded.details,
+                last_updated_utc = excluded.last_updated_utc
+            "#,
+                identity_key,
                 description.moniker,
                 description.website,
                 description.security_contact,

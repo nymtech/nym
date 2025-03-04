@@ -1,27 +1,26 @@
 use crate::db::{
-    models::{MixingNodeKind, NodeStats, ScraperNodeInfo},
+    models::{NodeStats, ScrapeNodeKind, ScraperNodeInfo},
     DbPool,
 };
 use anyhow::Result;
 
 pub(crate) async fn insert_node_packet_stats(
     pool: &DbPool,
-    node_id: i64,
-    node_kind: &MixingNodeKind,
+    node_kind: &ScrapeNodeKind,
     stats: &NodeStats,
     timestamp_utc: i64,
 ) -> Result<()> {
     let mut conn = pool.acquire().await?;
 
     match node_kind {
-        MixingNodeKind::LegacyMixnode => {
+        ScrapeNodeKind::LegacyMixnode { mix_id } => {
             sqlx::query!(
                 r#"
                 INSERT INTO mixnode_packet_stats_raw (
                     mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped
                 ) VALUES (?, ?, ?, ?, ?)
                 "#,
-                node_id,
+                mix_id,
                 timestamp_utc,
                 stats.packets_received,
                 stats.packets_sent,
@@ -30,7 +29,8 @@ pub(crate) async fn insert_node_packet_stats(
             .execute(&mut *conn)
             .await?;
         }
-        MixingNodeKind::NymNode => {
+        ScrapeNodeKind::MixingNymNode { node_id }
+        | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             sqlx::query!(
                 r#"
                 INSERT INTO nym_nodes_packet_stats_raw (
@@ -60,7 +60,7 @@ pub(crate) async fn get_raw_node_stats(
     let packets = match node.node_kind {
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
-        MixingNodeKind::LegacyMixnode => {
+        ScrapeNodeKind::LegacyMixnode { mix_id } => {
             sqlx::query_as!(
                 NodeStats,
                 r#"
@@ -73,12 +73,13 @@ pub(crate) async fn get_raw_node_stats(
                 ORDER BY timestamp_utc DESC
                 LIMIT 1 OFFSET 1
                 "#,
-                node.node_id
+                mix_id
             )
             .fetch_optional(&mut *conn)
             .await?
         }
-        MixingNodeKind::NymNode => {
+        ScrapeNodeKind::MixingNymNode { node_id }
+        | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             sqlx::query_as!(
                 NodeStats,
                 r#"
@@ -91,7 +92,7 @@ pub(crate) async fn get_raw_node_stats(
                 ORDER BY timestamp_utc DESC
                 LIMIT 1 OFFSET 1
                 "#,
-                node.node_id
+                node_id
             )
             .fetch_optional(&mut *conn)
             .await?
@@ -110,7 +111,7 @@ pub(crate) async fn insert_daily_node_stats(
     let mut conn = pool.acquire().await?;
 
     match node.node_kind {
-        MixingNodeKind::LegacyMixnode => {
+        ScrapeNodeKind::LegacyMixnode { mix_id } => {
             let total_stake = sqlx::query_scalar!(
                 r#"
                     SELECT
@@ -118,7 +119,7 @@ pub(crate) async fn insert_daily_node_stats(
                     FROM mixnodes
                     WHERE mix_id = ?
                    "#,
-                node.node_id
+                mix_id
             )
             .fetch_one(&mut *conn)
             .await?;
@@ -136,7 +137,7 @@ pub(crate) async fn insert_daily_node_stats(
                     packets_sent = mixnode_daily_stats.packets_sent + excluded.packets_sent,
                     packets_dropped = mixnode_daily_stats.packets_dropped + excluded.packets_dropped
                 "#,
-                node.node_id,
+                mix_id,
                 date_utc,
                 total_stake,
                 packets.packets_received,
@@ -146,7 +147,8 @@ pub(crate) async fn insert_daily_node_stats(
             .execute(&mut *conn)
             .await?;
         }
-        MixingNodeKind::NymNode => {
+        ScrapeNodeKind::MixingNymNode { node_id }
+        | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             let total_stake = sqlx::query_scalar!(
                 r#"
                 SELECT
@@ -154,7 +156,7 @@ pub(crate) async fn insert_daily_node_stats(
                 FROM nym_nodes
                 WHERE node_id = ?
                 "#,
-                node.node_id
+                node_id
             )
             .fetch_one(&mut *conn)
             .await?;
@@ -167,12 +169,12 @@ pub(crate) async fn insert_daily_node_stats(
                     packets_sent, packets_dropped
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id, date_utc) DO UPDATE SET
-                    total_stake = nym_node_daily_mixing_stats.total_stake + excluded.total_stake,
+                    total_stake = excluded.total_stake,
                     packets_received = nym_node_daily_mixing_stats.packets_received + excluded.packets_received,
                     packets_sent = nym_node_daily_mixing_stats.packets_sent + excluded.packets_sent,
                     packets_dropped = nym_node_daily_mixing_stats.packets_dropped + excluded.packets_dropped
                 "#,
-                node.node_id,
+                node_id,
                 date_utc,
                 total_stake,
                 packets.packets_received,

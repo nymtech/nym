@@ -43,6 +43,7 @@ pub mod nym_nodes {
     pub const NYM_NODES_BONDED: &str = "bonded";
     pub const NYM_NODES_REWARDED_SET: &str = "rewarded-set";
     pub const NYM_NODES_REFRESH_DESCRIBED: &str = "refresh-described";
+    pub const BY_ADDRESSES: &str = "by-addresses";
 }
 
 pub const STATUS_ROUTES: &str = "status";

@@ -63,7 +63,6 @@ impl MixingStats {
             .or_default()
             .forward_packets
             .received += 1;
-
         *self.ingress.received_versions.entry(version).or_default() += 1;
     }
 

@@ -50,6 +50,13 @@ pub struct Debug {
     /// The maximum number of client connections the gateway will keep open at once.
     pub maximum_open_connections: usize,
 
+    /// Specifies the minimum performance of mixnodes in the network that are to be used in internal topologies
+    /// of the services providers
+    pub minimum_mix_performance: u8,
+
+    /// Defines the maximum age of a signed authentication request before it's deemed too stale to process.
+    pub maximum_auth_request_age: Duration,
+
     pub stale_messages: StaleMessageDebug,
 
     pub client_bandwidth: ClientBandwidthDebug,
@@ -58,7 +65,9 @@ pub struct Debug {
 }
 
 impl Debug {
-    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+    pub const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+    pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
+    pub const DEFAULT_MAXIMUM_AUTH_REQUEST_AGE: Duration = Duration::from_secs(30);
     const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
 }
 
@@ -67,6 +76,8 @@ impl Default for Debug {
         Debug {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
             maximum_open_connections: Self::DEFAULT_MAXIMUM_OPEN_CONNECTIONS,
+            maximum_auth_request_age: Self::DEFAULT_MAXIMUM_AUTH_REQUEST_AGE,
+            minimum_mix_performance: Self::DEFAULT_MINIMUM_MIX_PERFORMANCE,
             stale_messages: Default::default(),
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),

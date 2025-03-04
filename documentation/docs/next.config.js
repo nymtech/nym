@@ -100,7 +100,7 @@ const config = {
       },
       {
         source: "/docs/nodes/overview.html ",
-        destination: "/docs/network/architecture/mixnet/nodes",
+        destination: "/docs/network/architecture/mixnet#nym-nodes",
         permanent: true,
         basePath: false,
       },
@@ -132,21 +132,19 @@ const config = {
       },
       {
         source: "/docs/nyx/smart-contracts.html",
-        destination: "/docs/network/architecture/nyx/smart-contracts",
+        destination: "/docs/network/architecture/nyx#smart-contracts",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/mixnet-contract.html",
-        destination:
-          "/docs/network/architecture/nyx/smart-contracts/mixnet-contract",
+        destination: "/docs/network/architecture/nyx#mixnet-contract",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/vesting-contract.html",
-        destination:
-          "/docs/network/architecture/nyx/smart-contracts/vesting-contract",
+        destination: "/docs/network/architecture/nyx#vesting-contract",
         permanent: true,
         basePath: false,
       },
@@ -500,13 +498,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/testing/node-api-check.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/node-api-check",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/testing/prometheus-grafana.html",
         destination:
           "/docs/operators/nodes/performance-and-testing/prometheus-grafana",
@@ -631,7 +622,7 @@ const config = {
       },
       {
         source: "/docs/network/architecture/nyx/smart-contracts/ecash",
-        destination: "/docs/network/architecture/nyx/smart-contracts/zknym",
+        destination: "/docs/network/architecture/nyx#zk-nym-contract",
         permanent: true,
         basePath: false,
       },
@@ -662,13 +653,6 @@ const config = {
       {
         source: "/docs/operators/nodes/configuration",
         destination: "/docs/operators/nodes/nym-node/configuration",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/node-api-check",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/node-api-check",
         permanent: true,
         basePath: false,
       },
@@ -1083,6 +1067,51 @@ const config = {
     unoptimized: true,
   },
   transpilePackages: ["@nymproject/contract-clients"],
+  async headers() {
+    const isDev = process.env.NODE_ENV === "development";
+    const csp = isDev
+      ? `
+        default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
+        font-src 'self' data: blob: *;
+        style-src 'self' 'unsafe-inline' data: blob: *;
+        img-src 'self' data: blob: *;
+        object-src 'self' data: blob: *;
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'self';
+        upgrade-insecure-requests;
+        connect-src 'self' data: blob: *;
+        frame-src 'self' data: blob: *;
+        worker-src 'self' blob: *;
+      `
+      : `
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live *.nymtech.net *.nymvpn.com *.vercel.app *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        font-src 'self' data:;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+        upgrade-insecure-requests;
+        connect-src 'self' https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
+        worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
+      `;
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: csp.replace(/\s{2,}/g, " ").trim(),
+          }
+        ]
+      }
+    ]
+  }
 };
 
 module.exports = config;

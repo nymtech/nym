@@ -156,15 +156,3 @@ pub struct UnblindableShare {
     pub issuer_key_bs58: String,
     pub blinded_share_bs58: String,
 }
-
-#[wasm_bindgen]
-impl UnblindableShare {
-    #[wasm_bindgen(constructor)]
-    pub fn new(issuer_index: u64, issuer_key_bs58: String, blinded_share_bs58: String) -> Self {
-        UnblindableShare {
-            issuer_index,
-            issuer_key_bs58,
-            blinded_share_bs58,
-        }
-    }
-}

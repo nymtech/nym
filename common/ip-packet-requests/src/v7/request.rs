@@ -51,6 +51,7 @@ impl IpPacketRequest {
         )
     }
 
+    #[allow(deprecated)]
     pub fn new_dynamic_connect_request(
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
@@ -285,6 +286,9 @@ pub struct DynamicConnectRequest {
 
     // The number of mix node hops that responses should take, in addition to the entry and exit
     // node. Zero means only client -> entry -> exit -> client.
+    #[deprecated(
+        note = "clients can no longer control number of hops to use. this field is scheduled for removal in V8"
+    )]
     pub reply_to_hops: Option<u8>,
 
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the

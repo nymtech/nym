@@ -26,10 +26,11 @@ use nym_mixnet_contract_common::{
     reward_params::{Performance, RewardingParams},
     rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse},
     ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
-    Delegation, EpochEventId, EpochStatus, GatewayBond, GatewayBondResponse,
-    GatewayOwnershipResponse, IdentityKey, IdentityKeyRef, IntervalEventId, MixNodeBond,
-    MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
-    NodeId, NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails,
+    CurrentNymNodeVersionResponse, Delegation, EpochEventId, EpochRewardedSet, EpochStatus,
+    GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, HistoricalNymNodeVersionEntry,
+    IdentityKey, IdentityKeyRef, IntervalEventId, MixNodeBond, MixNodeDetails,
+    MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NodeId,
+    NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails, NymNodeVersionHistoryResponse,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
     PagedMixnodeBondsResponse, PagedNodeDelegationsResponse, PendingEpochEvent,
     PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
@@ -68,6 +69,22 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnet_contract_state_params(&self) -> Result<ContractStateParams, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetStateParams {})
+            .await
+    }
+
+    async fn get_nym_node_version_history_paged(
+        &self,
+        start_after: Option<u32>,
+        limit: Option<u32>,
+    ) -> Result<NymNodeVersionHistoryResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetNymNodeVersionHistory { limit, start_after })
+            .await
+    }
+
+    async fn get_current_nym_node_version(
+        &self,
+    ) -> Result<CurrentNymNodeVersionResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetCurrentNymNodeVersion {})
             .await
     }
 
@@ -638,6 +655,12 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
     ) -> Result<Vec<PendingIntervalEvent>, NyxdError> {
         collect_paged!(self, get_pending_interval_events_paged, events)
     }
+
+    async fn get_full_nym_node_version_history(
+        &self,
+    ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError> {
+        collect_paged!(self, get_nym_node_version_history_paged, history)
+    }
 }
 
 #[async_trait]
@@ -647,7 +670,7 @@ impl<T> PagedMixnetQueryClient for T where T: MixnetQueryClient {}
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait MixnetQueryClientExt: MixnetQueryClient {
-    async fn get_rewarded_set(&self) -> Result<RewardedSet, NyxdError> {
+    async fn get_rewarded_set(&self) -> Result<EpochRewardedSet, NyxdError> {
         let error_response = |message| Err(NyxdError::extension_query_failure("mixnet", message));
 
         let metadata = self.get_rewarded_set_metadata().await?;
@@ -688,13 +711,16 @@ pub trait MixnetQueryClientExt: MixnetQueryClient {
             return error_response("the nodes assigned for 'standby' returned unexpected epoch_id");
         }
 
-        Ok(RewardedSet {
-            entry_gateways: entry.nodes,
-            exit_gateways: exit.nodes,
-            layer1: layer1.nodes,
-            layer2: layer2.nodes,
-            layer3: layer3.nodes,
-            standby: standby.nodes,
+        Ok(EpochRewardedSet {
+            epoch_id: expected_epoch_id,
+            assignment: RewardedSet {
+                entry_gateways: entry.nodes,
+                exit_gateways: exit.nodes,
+                layer1: layer1.nodes,
+                layer2: layer2.nodes,
+                layer3: layer3.nodes,
+                standby: standby.nodes,
+            },
         })
     }
 }
@@ -724,6 +750,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_mixnet_contract_common::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -924,6 +951,10 @@ mod tests {
             MixnetQueryMsg::GetRewardedSetMetadata {} => {
                 client.get_rewarded_set_metadata().ignore()
             }
+            QueryMsg::GetCurrentNymNodeVersion {} => client.get_current_nym_node_version().ignore(),
+            QueryMsg::GetNymNodeVersionHistory { limit, start_after } => client
+                .get_nym_node_version_history_paged(start_after, limit)
+                .ignore(),
         }
     }
 }

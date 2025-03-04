@@ -28,7 +28,7 @@ pub(crate) fn routes() -> Router<AppState> {
     ),
     path = "/v2/mixnodes",
     responses(
-        (status = 200, body = PagedMixnode)
+        (status = 200, body = PagedResult<Mixnode>)
     )
 )]
 #[instrument(level = tracing::Level::DEBUG, skip_all, fields(page=pagination.page, size=pagination.size))]
@@ -77,15 +77,36 @@ async fn get_mixnodes(
     }
 }
 
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct MixStatsQueryParams {
+    offset: Option<i64>,
+}
+
 #[utoipa::path(
     tag = "Mixnodes",
     get,
     path = "/v2/mixnodes/stats",
+    params(
+        MixStatsQueryParams
+    ),
     responses(
         (status = 200, body = Vec<DailyStats>)
     )
 )]
-async fn get_stats(State(state): State<AppState>) -> HttpResult<Json<Vec<DailyStats>>> {
-    let stats = state.cache().get_mixnode_stats(state.db_pool()).await;
-    Ok(Json(stats))
+#[instrument(level = "debug", skip(state))]
+async fn get_stats(
+    Query(MixStatsQueryParams { offset }): Query<MixStatsQueryParams>,
+    State(state): State<AppState>,
+) -> HttpResult<Json<Vec<DailyStats>>> {
+    let offset: usize = offset
+        .unwrap_or(0)
+        .try_into()
+        .map_err(|_| HttpError::invalid_input("Offset must be non-negative"))?;
+    let last_30_days = state
+        .cache()
+        .get_mixnode_stats(state.db_pool(), offset)
+        .await;
+
+    Ok(Json(last_30_days))
 }

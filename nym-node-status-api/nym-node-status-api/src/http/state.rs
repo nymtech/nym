@@ -20,7 +20,7 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
-    pub(crate) fn new(
+    pub(crate) async fn new(
         db_pool: DbPool,
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
@@ -28,7 +28,7 @@ impl AppState {
     ) -> Self {
         Self {
             db_pool,
-            cache: HttpCache::new(cache_ttl),
+            cache: HttpCache::new(cache_ttl).await,
             agent_key_list,
             agent_max_count,
         }
@@ -57,6 +57,8 @@ static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
 static SESSION_STATS_LIST_KEY: &str = "session-stats";
 
+const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
+
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
@@ -67,7 +69,7 @@ pub(crate) struct HttpCache {
 }
 
 impl HttpCache {
-    pub fn new(ttl_seconds: u64) -> Self {
+    pub async fn new(ttl_seconds: u64) -> Self {
         HttpCache {
             gateways: Cache::builder()
                 .max_capacity(2)
@@ -114,12 +116,13 @@ impl HttpCache {
     pub async fn get_gateway_list(&self, db: &DbPool) -> Vec<Gateway> {
         match self.gateways.get(GATEWAYS_LIST_KEY).await {
             Some(guard) => {
+                tracing::trace!("Fetching from cache...");
                 let read_lock = guard.read().await;
                 read_lock.clone()
             }
             None => {
                 // the key is missing so populate it
-                tracing::warn!("No gateways in cache, refreshing cache from DB...");
+                tracing::trace!("No gateways in cache, refreshing cache from DB...");
 
                 let gateways = crate::db::queries::get_all_gateways(db)
                     .await
@@ -157,11 +160,12 @@ impl HttpCache {
     pub async fn get_mixnodes_list(&self, db: &DbPool) -> Vec<Mixnode> {
         match self.mixnodes.get(MIXNODES_LIST_KEY).await {
             Some(guard) => {
+                tracing::trace!("Fetching from cache...");
                 let read_lock = guard.read().await;
                 read_lock.clone()
             }
             None => {
-                tracing::warn!("No mixnodes in cache, refreshing cache from DB...");
+                tracing::trace!("No mixnodes in cache, refreshing cache from DB...");
 
                 let mixnodes = crate::db::queries::get_all_mixnodes(db)
                     .await
@@ -196,20 +200,27 @@ impl HttpCache {
             .await
     }
 
-    pub async fn get_mixnode_stats(&self, db: &DbPool) -> Vec<DailyStats> {
-        match self.mixstats.get(MIXSTATS_LIST_KEY).await {
+    pub async fn get_mixnode_stats(&self, db: &DbPool, offset: usize) -> Vec<DailyStats> {
+        let mut stats = match self.mixstats.get(MIXSTATS_LIST_KEY).await {
             Some(guard) => {
                 let read_lock = guard.read().await;
                 read_lock.to_vec()
             }
             None => {
-                let mixnode_stats = crate::db::queries::get_daily_stats(db)
+                let new_node_stats = crate::db::queries::get_daily_stats(db)
                     .await
-                    .unwrap_or_default();
-                self.upsert_mixnode_stats(mixnode_stats.clone()).await;
-                mixnode_stats
+                    .unwrap_or_default()
+                    .into_iter()
+                    .rev()
+                    .collect::<Vec<_>>();
+                // cache result without offset
+                self.upsert_mixnode_stats(new_node_stats.clone()).await;
+                new_node_stats
             }
-        }
+        };
+
+        stats.truncate(MIXNODE_STATS_HISTORY_DAYS + offset);
+        stats.into_iter().skip(offset).rev().collect()
     }
 
     pub async fn get_summary_history(&self, db: &DbPool) -> Vec<SummaryHistory> {

@@ -7,6 +7,7 @@ use crate::support::config::persistence::{
 use crate::support::config::r#override::OverrideConfig;
 use crate::support::config::template::CONFIG_TEMPLATE;
 use anyhow::bail;
+use nym_compact_ecash::constants;
 use nym_config::defaults::mainnet::read_parsed_var_if_not_default;
 use nym_config::defaults::var_names::{CONFIGURED, NYXD};
 use nym_config::serde_helpers::de_maybe_stringified;
@@ -32,19 +33,16 @@ mod upgrade_helpers;
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
-pub const DEFAULT_DKG_CONTRACT_POLLING_RATE: Duration = Duration::from_secs(30);
-
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 200;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
-const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 // Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
 // bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
-// This timeout value should be big enough to accommodate an initial bandwidth acquirement
-const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_secs(2 * 60);
+const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
+const DEFAULT_GATEWAY_BANDWIDTH_CLAIM_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 
 const DEFAULT_TEST_ROUTES: usize = 3;
 const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
@@ -57,9 +55,6 @@ const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(
 
 pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from_secs(4500);
 pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
-
-// keep them for 2 extra days beyond the specified expiration date
-pub(crate) const DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS: u32 = 2;
 
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
@@ -174,6 +169,9 @@ impl Config {
         }
         if let Some(http_bind_address) = args.bind_address {
             self.base.bind_address = http_bind_address
+        }
+        if args.allow_illegal_ips {
+            self.topology_cacher.debug.node_describe_allow_illegal_ips = true
         }
 
         self
@@ -323,11 +321,6 @@ pub struct NetworkMonitorDebug {
     #[serde(with = "humantime_serde")]
     pub run_interval: Duration,
 
-    /// Specifies interval at which we should be sending ping packets to all active gateways
-    /// in order to keep the websocket connections alive.
-    #[serde(with = "humantime_serde")]
-    pub gateway_ping_interval: Duration,
-
     /// Specifies maximum rate (in packets per second) of test packets being sent to gateway
     pub gateway_sending_rate: usize,
 
@@ -342,6 +335,10 @@ pub struct NetworkMonitorDebug {
     /// Maximum allowed time for the gateway connection to get established.
     #[serde(with = "humantime_serde")]
     pub gateway_connection_timeout: Duration,
+
+    /// Maximum allowed time for the gateway bandwidth claim to get resolved
+    #[serde(with = "humantime_serde")]
+    pub gateway_bandwidth_claim_timeout: Duration,
 
     /// Specifies the duration the monitor is going to wait after sending all measurement
     /// packets before declaring nodes unreachable.
@@ -370,11 +367,11 @@ impl Default for NetworkMonitorDebug {
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             disabled_credentials_mode: true,
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
-            gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
             max_concurrent_gateway_clients: DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS,
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
+            gateway_bandwidth_claim_timeout: DEFAULT_GATEWAY_BANDWIDTH_CLAIM_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
@@ -559,15 +556,40 @@ pub struct EcashSignerDebug {
     #[serde(with = "humantime_serde")]
     pub dkg_contract_polling_rate: Duration,
 
+    /// Specifies interval at which the stale ecash data is removed from the storage.
+    #[serde(with = "humantime_serde")]
+    pub stale_data_cleaner_interval: Duration,
+
     /// Specifies how long should the issued ticketbooks be kept (beyond the specified expiration date)
     pub issued_ticketbooks_retention_period_days: u32,
+
+    /// Specifies how long should the full ticket data of verified gateway tickets be kept (beyond the spending date)
+    pub verified_tickets_retention_period_days: u32,
+}
+
+impl EcashSignerDebug {
+    pub const DEFAULT_DKG_CONTRACT_POLLING_RATE: Duration = Duration::from_secs(30);
+
+    // it still operates at "day" cutoffs
+    pub const DEFAULT_STALE_DATA_CLEANER_INTERVAL: Duration = Duration::from_secs(2 * 60 * 60);
+
+    // keep them for 2 extra days beyond the specified expiration date
+    pub(crate) const DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS: u32 = 2;
+
+    // keep the tickets for maximum theoretical validity (+1 day)
+    pub(crate) const DEFAULT_VERIFIED_TICKETS_RETENTION_PERIOD_DAYS: u32 =
+        constants::CRED_VALIDITY_PERIOD_DAYS + 1;
 }
 
 impl Default for EcashSignerDebug {
     fn default() -> Self {
         EcashSignerDebug {
-            dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
-            issued_ticketbooks_retention_period_days: DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS,
+            dkg_contract_polling_rate: Self::DEFAULT_DKG_CONTRACT_POLLING_RATE,
+            stale_data_cleaner_interval: Self::DEFAULT_STALE_DATA_CLEANER_INTERVAL,
+            issued_ticketbooks_retention_period_days:
+                Self::DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS,
+            verified_tickets_retention_period_days:
+                Self::DEFAULT_VERIFIED_TICKETS_RETENTION_PERIOD_DAYS,
         }
     }
 }

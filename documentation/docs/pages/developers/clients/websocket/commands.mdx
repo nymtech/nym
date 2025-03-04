@@ -25,7 +25,7 @@ Options:
   -V, --version                            Print version
 ```
 
-### `init`
+## `init`
 ```sh
 Initialise a Nym client. Do this first!
 
@@ -54,7 +54,7 @@ Options:
           Print help
 ```
 
-### `run`
+## `run`
 ```sh
 Run the Nym client with provided configuration client optionally overriding set parameters
 
@@ -77,9 +77,9 @@ Options:
           Print help
 ```
 
-### `import-credential`
+## `import-credential`
 
-### `list-gateways`
+## `list-gateways`
 ```sh
 List all registered with gateways
 
@@ -91,7 +91,7 @@ Options:
   -h, --help             Print help
 ```
 
-### `switch-gateway`
+## `switch-gateway`
 ```sh
 Change the currently active gateway. Note that you must have already registered with the new gateway!
 
@@ -103,7 +103,7 @@ Options:
   -h, --help                     Print help
 ```
 
-### `build-info`
+## `build-info`
 ```sh
 Show build information of this binary
 
@@ -117,18 +117,18 @@ Example output:
 ```sh
 
 Binary Name:        nym-client
-Build Timestamp:    2024-10-29T09:48:31.988049207Z
-Build Version:      1.1.42
-Commit SHA:         299552881810511273af13eb135297a4cf7a38de
-Commit Date:        2024-10-29T10:48:07.000000000+01:00
-Commit Branch:      max/new-docs-framework
-rustc Version:      1.80.0
-rustc Channel:      stable
+Build Timestamp:    2024-12-18T17:33:13.184930493Z
+Build Version:      1.1.45
+Commit SHA:         b628a5f8148f74c646915292c8b6dc0a46202a27
+Commit Date:        2024-12-13T11:49:27.000000000+01:00
+Commit Branch:      master
+rustc Version:      1.84.0-nightly
+rustc Channel:      nightly
 cargo Profile:      release
 
 ```
 
-### `completions`
+## `completions`
 ```sh
 Generate shell completions
 
@@ -141,7 +141,7 @@ Options:
   -h, --help  Print help
 ```
 
-### `generate-fig-spec`
+## `generate-fig-spec`
 ```sh
 Generate Fig specification
 
@@ -219,6 +219,16 @@ const completion: Fig.Spec = {
               "true",
               "false",
             ],
+          },
+        },
+        {
+          name: "--stats-reporting-address",
+          description: "Sets the address to report statistics",
+          hidden: true,
+          isRepeatable: true,
+          args: {
+            name: "stats_reporting_address",
+            isOptional: true,
           },
         },
         {
@@ -352,6 +362,16 @@ const completion: Fig.Spec = {
               "true",
               "false",
             ],
+          },
+        },
+        {
+          name: "--stats-reporting-address",
+          description: "Sets the address to report statistics",
+          hidden: true,
+          isRepeatable: true,
+          args: {
+            name: "stats_reporting_address",
+            isOptional: true,
           },
         },
         {

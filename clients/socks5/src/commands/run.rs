@@ -2,14 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::try_load_current_config;
-use crate::config::Config;
-use crate::{
-    commands::{override_config, OverrideConfig},
-    error::Socks5ClientError,
-};
+use crate::commands::{override_config, OverrideConfig};
 use clap::Args;
-use log::*;
-use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
@@ -71,6 +65,7 @@ impl From<Run> for OverrideConfig {
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
             outfox: run_config.outfox,
             stats_reporting_address: run_config.common_args.stats_reporting_address,
+            forget_me: run_config.common_args.forget_me.into(),
         }
     }
 }
@@ -82,37 +77,11 @@ fn validate_country_group(s: &str) -> Result<CountryGroup, String> {
     }
 }
 
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = &cfg.core.base.client.version;
-    if binary_version == config_version {
-        true
-    } else {
-        warn!(
-            "The socks5-client binary has different version than what is specified in config file! {binary_version} and {config_version}",
-        );
-        if is_minor_version_compatible(binary_version, config_version) {
-            info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
-        } else {
-            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
-        }
-    }
-}
-
 pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     eprintln!("Starting client {}...", args.common_args.id);
 
     let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return Err(Box::new(Socks5ClientError::FailedLocalVersionCheck));
-    }
 
     let storage =
         OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug)

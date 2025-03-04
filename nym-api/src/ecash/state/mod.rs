@@ -8,11 +8,9 @@ use crate::ecash::error::{EcashError, RedemptionError, Result};
 use crate::ecash::helpers::{IssuedCoinIndicesSignatures, IssuedExpirationDateSignatures};
 use crate::ecash::keys::KeyPair;
 use crate::ecash::state::auxiliary::AuxiliaryEcashState;
+use crate::ecash::state::cleaner::EcashBackgroundStateCleaner;
 use crate::ecash::state::global::GlobalEcachState;
-use crate::ecash::state::helpers::{
-    ensure_sane_expiration_date, prepare_partial_bloomfilter_builder, query_all_threshold_apis,
-    try_rebuild_bloomfilter,
-};
+use crate::ecash::state::helpers::{ensure_sane_expiration_date, query_all_threshold_apis};
 use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
 use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
@@ -33,31 +31,30 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
 use nym_compact_ecash::{
-    constants, scheme::expiration_date_signatures::sign_expiration_date, BlindedSignature, Bytable,
+    scheme::expiration_date_signatures::sign_expiration_date, BlindedSignature, Bytable,
     SecretKeyAuth, VerificationKeyAuth,
 };
-use nym_config::defaults::BloomfilterParameters;
 use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{aggregate_verification_keys, CredentialSpendingData};
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
-use nym_ecash_double_spending::DoubleSpendingFilter;
-use nym_ecash_time::{cred_exp_date, ecash_today_date};
+use nym_ecash_time::{ecash_default_expiration_date, ecash_today_date};
+use nym_task::TaskClient;
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
 use std::ops::Deref;
-use time::ext::NumericalDuration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
 pub(crate) mod auxiliary;
-pub(crate) mod bloom;
+mod cleaner;
 pub(crate) mod global;
 mod helpers;
 pub(crate) mod local;
@@ -84,9 +81,23 @@ impl EcashStateConfig {
     }
 }
 
+#[derive(Default)]
+pub(crate) enum BackgroundCleanerState {
+    WaitingStartup(EcashBackgroundStateCleaner),
+    Running {
+        _handle: JoinHandle<()>,
+    },
+
+    // an ephemeral state so that we could swap between the other two
+    #[default]
+    Invalid,
+}
+
 pub struct EcashState {
     // additional global config parameters
     pub(crate) config: EcashStateConfig,
+
+    pub(crate) background_cleaner_state: BackgroundCleanerState,
 
     // state global to the system, like aggregated keys, addresses, etc.
     pub(crate) global: GlobalEcachState,
@@ -99,7 +110,8 @@ pub struct EcashState {
 }
 
 impl EcashState {
-    pub(crate) async fn new<C, D>(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new<C, D>(
         global_config: &Config,
         contract_address: AccountId,
         client: C,
@@ -107,24 +119,38 @@ impl EcashState {
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
-    ) -> Result<Self>
+        task_client: TaskClient,
+    ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
         D: APICommunicationChannel + Send + Sync + 'static,
     {
-        let double_spending_filter = try_rebuild_bloomfilter(&storage).await?;
-
-        Ok(Self {
+        Self {
             config: EcashStateConfig::new(global_config),
+            background_cleaner_state: BackgroundCleanerState::WaitingStartup(
+                EcashBackgroundStateCleaner::new(global_config, storage.clone(), task_client),
+            ),
             global: GlobalEcachState::new(contract_address),
             local: LocalEcashState::new(
                 key_pair,
                 identity_keypair,
-                double_spending_filter,
                 !global_config.ecash_signer.enabled,
             ),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
-        })
+        }
+    }
+
+    pub(crate) fn spawn_background_cleaner(&mut self) {
+        match std::mem::take(&mut self.background_cleaner_state) {
+            BackgroundCleanerState::WaitingStartup(cleaner) => {
+                self.background_cleaner_state = BackgroundCleanerState::Running {
+                    _handle: cleaner.start(),
+                }
+            }
+            // whilst we normally don't want to panic, this one would only occur at startup,
+            // if some logical invariants got broken (which have to be fixed in code anyway)
+            _ => panic!("attempted to spawn background cleaner more than once"),
+        }
     }
 
     /// Ensures that this nym-api is one of ecash signers for the current epoch
@@ -766,12 +792,6 @@ impl EcashState {
                 // remove the in-memory merkle tree
                 map.remove(&date);
             }
-
-            // remove data from the storage
-            self.aux
-                .storage
-                .remove_old_issued_ticketbooks(cutoff)
-                .await?;
         }
 
         Ok(())
@@ -805,6 +825,12 @@ impl EcashState {
     ) -> Result<IssuedTicketbooksChallengeResponseBody> {
         if challenge.expiration_date < self.config.ticketbook_retention_cutoff() {
             return Err(EcashError::ExpirationDateTooEarly);
+        }
+
+        if challenge.expiration_date > ecash_default_expiration_date() {
+            // we wouldn't have issued any credentials for that expiration date so no point
+            // in attempting to construct an ultimately empty response
+            return Err(EcashError::ExpirationDateTooLate);
         }
 
         let merkle_proof = self
@@ -863,18 +889,17 @@ impl EcashState {
         })
     }
 
+    /// Returns a boolean to indicate whether the ticket has actually been inserted
     pub async fn store_verified_ticket(
         &self,
         ticket_data: &CredentialSpendingData,
         gateway_addr: &AccountId,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.aux
             .storage
             .store_verified_ticket(ticket_data, gateway_addr)
             .await
             .map_err(Into::into)
-
-        // TODO UNIMPLEMENTED: we should probably also be removing old tickets here
     }
 
     pub async fn get_ticket_provider(
@@ -890,7 +915,7 @@ impl EcashState {
 
     pub async fn get_redeemable_tickets(
         &self,
-        provider_info: TicketProvider,
+        provider_info: &TicketProvider,
     ) -> Result<Vec<SerialNumberWrapper>> {
         let since = provider_info
             .last_batch_verification
@@ -903,6 +928,14 @@ impl EcashState {
             .map_err(Into::into)
     }
 
+    pub async fn update_last_batch_verification(&self, provider: &TicketProvider) -> Result<()> {
+        Ok(self
+            .aux
+            .storage
+            .update_last_batch_verification(provider.id, OffsetDateTime::now_utc())
+            .await?)
+    }
+
     pub async fn get_ticket_data_by_serial_number(
         &self,
         serial_number: &[u8],
@@ -912,151 +945,5 @@ impl EcashState {
             .get_credential_data(serial_number)
             .await
             .map_err(Into::into)
-    }
-
-    pub async fn check_bloomfilter(&self, serial_number: &Vec<u8>) -> bool {
-        self.local
-            .double_spending_filter
-            .read()
-            .await
-            .check(serial_number)
-    }
-
-    async fn update_archived_partial_bloomfilter(
-        &self,
-        date: Date,
-        params_id: i64,
-        params: BloomfilterParameters,
-        sn: &Vec<u8>,
-    ) -> Result<(), EcashError> {
-        let mut filter = match self
-            .aux
-            .storage
-            .try_load_partial_bloomfilter_bitmap(date, params_id)
-            .await?
-        {
-            Some(bitmap) => DoubleSpendingFilter::from_bytes(params, &bitmap),
-            None => {
-                warn!("no existing partial bloomfilter for {date}");
-                DoubleSpendingFilter::new_empty(params)
-            }
-        };
-        filter.set(sn);
-        let updated_bitmap = filter.dump_bitmap();
-        self.aux
-            .storage
-            .update_archived_partial_bloomfilter(date, &updated_bitmap)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Attempt to insert the provided serial number into the bloomfilter.
-    /// Furthermore, attempt to rotate the filter if we have advanced into a next day.
-    pub async fn update_bloomfilter(
-        &self,
-        serial_number: &Vec<u8>,
-        spending_date: Date,
-        today: Date,
-    ) -> Result<bool, EcashError> {
-        let mut guard = self.local.double_spending_filter.write().await;
-
-        let filter_date = guard.built_on();
-        let yesterday = today.previous_day().unwrap();
-
-        let params_id = guard.params_id();
-        let params = guard.params();
-
-        // if the filter is up-to-date, we just insert the entry and call it a day
-        if filter_date == today {
-            if spending_date == today {
-                return Ok(guard.insert_both(serial_number));
-            }
-            // sanity check because this should NEVER happen,
-            // but when it inevitably does, we don't want to crash
-            if spending_date != yesterday {
-                error!("attempted to insert a ticket with spending date of {spending_date} while it's {today} today!!");
-            }
-
-            // this shouldn't be happening too often, so it's fine to interact with the storage
-            warn!("updating archived partial bloomfilter for {spending_date}. those logs have to be closely controlled to make sure they're not too frequent");
-            self.update_archived_partial_bloomfilter(
-                spending_date,
-                params_id,
-                params,
-                serial_number,
-            )
-            .await?;
-
-            return Ok(guard.insert_global_only(serial_number));
-        }
-
-        info!("we need to advance our bloomfilter");
-        let previous_bitmap = guard.export_today_bitmap();
-
-        // archive the BF for today's date
-        self.aux
-            .storage
-            .insert_partial_bloomfilter(filter_date, params_id, &previous_bitmap)
-            .await?;
-
-        let new_global_filter = if filter_date == yesterday {
-            // normal case when we update filter daily
-            let two_days_ago = yesterday.previous_day().unwrap();
-            let mut filter_builder = prepare_partial_bloomfilter_builder(
-                &self.aux.storage,
-                params,
-                params_id,
-                two_days_ago,
-                constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 2,
-            )
-            .await?;
-            // add the bitmap from 'old today', i.e. yesterday
-            // (we have it on hand so no point in retrieving it from storage)
-            filter_builder.add_bytes(&previous_bitmap);
-            filter_builder.build()
-        } else {
-            // initial deployment case when we don't even get tickets daily
-            prepare_partial_bloomfilter_builder(
-                &self.aux.storage,
-                params,
-                params_id,
-                yesterday,
-                constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1,
-            )
-            .await?
-            .build()
-        };
-
-        guard.advance_day(today, new_global_filter);
-
-        // drop guard so other tasks could read the filter already whilst we clean-up the storage
-        let res = if spending_date == today {
-            Ok(guard.insert_both(serial_number))
-        } else {
-            Ok(guard.insert_global_only(serial_number))
-        };
-        drop(guard);
-
-        let cutoff = cred_exp_date().ecash_date();
-
-        // sanity check:
-        assert_eq!(
-            cutoff,
-            today + (constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1).days()
-        );
-
-        // remove the data we no longer need to hold, i.e. partial bloomfilters beyond max credential validity
-        // and the ticket data for those
-        self.aux
-            .storage
-            .remove_old_partial_bloomfilters(cutoff)
-            .await?;
-        self.aux
-            .storage
-            .remove_expired_verified_tickets(cutoff)
-            .await?;
-
-        res
     }
 }

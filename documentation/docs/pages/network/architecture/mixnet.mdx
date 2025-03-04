@@ -1,16 +1,51 @@
+import { Callout } from 'nextra/components'
+
 # Mixnet Components
-The mixnet is made up of nodes running in several different roles:
-* **Mix Nodes** provide network security for network content _and_ metadata by performing packet-mixing on traffic travelling through the network.
-* **Gateways** act as message storage for clients which may go offline and come back online again, and (once zk-nyms are enabled) check for anonymous proof of access credentials. They represent the first and last hop Mixnet packets travel through when travelling between clients.
-* **Services** are applications that communicate with nym clients, listening and sending traffic to the mixnet. This is an umbrella term for a variety of different pieces of code, such as the Network Requester.
 
-> **Clients** are used to connect to and send messages through the Mixnet to other clients, utilising Gateways for ingress and exit. These are however on the 'user' side and not a Mixnet component per se.
+## Nym Nodes
 
-## Smoosh Status
+<Callout type="info" emoji="ℹ️">
+
+If you want to run a node, the setup and maintenance guides can be found in the [Operator Docs](../../../operators/introduction).
+
+</Callout>
+
+Although a large proportion of the Nym mixnet's functionality is implemented client-side, several key anonymity features rely on the decentralised node network that make up the Mixnet that run in different modes:
+
+* Nym Nodes running in **Mix Node** mode provide network security for network content _and_ metadata by performing packet-mixing on traffic travelling through the network: accepting incoming Sphinx packets from other Nym nodes and, using a variable delay, 'mixing' them with other packets (not forwarding on received packets according to FIFO but instead relying on a randomised delay function).
+* Nym Nodes running in **Entry Gateway** mode act as message storage for clients which may go offline and come back online again, and (once zk-nyms are enabled) check for anonymous proof of access credentials. They represent the first hop Mixnet packets travel through when travelling between clients.
+* Nym Nodes running in **Exit Gateway** mode act as message storage for clients which may go offline and come back online again, and communicate with the wider internet on behalf of Nym Clients. They represent the last hop Mixnet packets travel through when travelling between clients and/or external services. These can be thought of somewhat analogously to Tor Exit Nodes.
+* **Services** are applications that communicate with Nym Clients, listening and sending traffic to the Mixnet.
+
+See the [traffic flow](../traffic) page for detailed information on how traffic moves through the Mixnet as well as the [Loopix](https://arxiv.org/pdf/1703.00536) design paper for overview of the stratified nature of the Mixnet.
+
+## Node Smoosh Status
 The various Mixnet components were originally completely separate binaries. They are in the process of being 'smooshed' together into a single `nym-node` binary which runs in different modes for ease of use, as well as to allow for a more developed and responsive Mixnet design, where the role of a node in a given time period is decided and changed automatically based on network conditions (more on this in the future).
 
 Completed:
-* The `nym-network-requester` is now part of a `nym-node` running in as an Exit Gateway.
+* All nodes are now a `nym-node`. A node's role is defined manually at runtime by the operator.
+* The `nym-network-requester` is now part of a `nym-node` running in Exit Gateway mode.
 
 Upcoming:
 * Whether a `nym-node` is running as a Gateway or Mix Node will be set based on network conditions, and change epoch to epoch. Currently the role is set manually by the operator and does not change automatically over time. A node will be able to be running in the role of a Mix Node, an Entry Gateway, or an Exit Gateway.
+
+## Nym Clients
+
+<Callout type="info" emoji="ℹ️">
+  You can read about setting up and using various clients in the [Developer Docs](../../developers/clients).
+</Callout>
+
+A large proportion of the Nym Mixnet's functionality is implemented client-side.
+
+Clients perform the following actions on behalf of users:
+
+* Determine network topology - what nodes exist, their public encryption keys and IP, etc.
+* Register with a Gateway
+* Authenticate with a Gateway
+* Receive and decrypt messages from the Gateway
+* Create layer-encrypted [Sphinx packets](../cryptography/sphinx)
+* Send Sphinx packets with real messages
+* Send Sphinx packet [cover traffic](../concepts/cover-traffic) when no real messages are being sent
+* Retransmit [un-acknowledged packet sends](../traffic/acks)
+
+> At the moment due to the fact that Nym clients are [message-based](../../developers/concepts/messages), using the Mixnet requires another client on the 'other side' of the mixet to send packets to, unless you're using the `nymvpn` client (part of the NymVPN app) or the `socks5` client, which operates as a SOCKS4,4a, or 5 proxy and is able to utilise the client embedded within the `nym-node`'s Exit Gateway functionality (prev. this functionality was a standalone service, the Network Requester). In the future we wish to remove this point of friction and have all Nym clients construct IP packets instead, easing the integration burden and abstracting away the message-based nature of client communication.

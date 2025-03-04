@@ -70,7 +70,10 @@ impl SendingDelayController {
             lower_bound,
             multiplier_elevated_counter: 0,
             time_when_logged_about_elevated_multiplier: now
-                - Duration::from_secs(INTERVAL_BETWEEN_WARNING_ABOUT_ELEVATED_MULTIPLIER_SECS),
+                .checked_sub(Duration::from_secs(
+                    INTERVAL_BETWEEN_WARNING_ABOUT_ELEVATED_MULTIPLIER_SECS,
+                ))
+                .unwrap_or(now),
             time_when_changed: now,
             time_when_backpressure_detected: now,
         }

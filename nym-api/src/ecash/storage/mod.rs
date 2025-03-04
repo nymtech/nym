@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::{BlindedSignature, VerificationKeyAuth};
-use nym_config::defaults::BloomfilterParameters;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::TicketType;
 use nym_ecash_contract_common::deposit::DepositId;
@@ -22,7 +21,7 @@ use nym_ticketbooks_merkle::{IssuedTicketbook, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use std::collections::HashSet;
 use time::{Date, OffsetDateTime};
-use tracing::{info, warn};
+use tracing::warn;
 
 mod helpers;
 pub(crate) mod manager;
@@ -30,32 +29,6 @@ pub(crate) mod models;
 
 #[async_trait]
 pub trait EcashStorageExt {
-    async fn get_double_spending_filter_params(
-        &self,
-    ) -> Result<(i64, BloomfilterParameters), NymApiStorageError>;
-
-    async fn update_archived_partial_bloomfilter(
-        &self,
-        date: Date,
-        new_bitmap: &[u8],
-    ) -> Result<(), NymApiStorageError>;
-
-    async fn try_load_partial_bloomfilter_bitmap(
-        &self,
-        date: Date,
-        params_id: i64,
-    ) -> Result<Option<Vec<u8>>, NymApiStorageError>;
-
-    async fn insert_partial_bloomfilter(
-        &self,
-        date: Date,
-        params_id: i64,
-        bitmap: &[u8],
-    ) -> Result<(), NymApiStorageError>;
-
-    async fn remove_old_partial_bloomfilters(&self, cutoff: Date)
-        -> Result<(), NymApiStorageError>;
-
     async fn remove_expired_verified_tickets(&self, cutoff: Date)
         -> Result<(), NymApiStorageError>;
 
@@ -96,11 +69,12 @@ pub trait EcashStorageExt {
         serial_number: &[u8],
     ) -> Result<Option<CredentialSpendingData>, NymApiStorageError>;
 
+    /// Returns a boolean to indicate whether the ticket has actually been inserted
     async fn store_verified_ticket(
         &self,
         ticket_data: &CredentialSpendingData,
         gateway_addr: &AccountId,
-    ) -> Result<(), NymApiStorageError>;
+    ) -> Result<bool, NymApiStorageError>;
 
     async fn get_ticket_provider(
         &self,
@@ -112,7 +86,13 @@ pub trait EcashStorageExt {
         provider_id: i64,
         since: OffsetDateTime,
     ) -> Result<Vec<SerialNumberWrapper>, NymApiStorageError>;
+    async fn update_last_batch_verification(
+        &self,
+        provider_id: i64,
+        last_batch_verification: OffsetDateTime,
+    ) -> Result<(), NymApiStorageError>;
 
+    #[allow(dead_code)]
     async fn get_all_spent_tickets_on(
         &self,
         date: Date,
@@ -176,75 +156,6 @@ pub trait EcashStorageExt {
 
 #[async_trait]
 impl EcashStorageExt for NymApiStorage {
-    async fn get_double_spending_filter_params(
-        &self,
-    ) -> Result<(i64, BloomfilterParameters), NymApiStorageError> {
-        match self
-            .manager
-            .get_latest_double_spending_filter_params()
-            .await?
-        {
-            Some(raw) => Ok((raw.id, (&raw).try_into()?)),
-            None => {
-                let default = BloomfilterParameters::default_ecash();
-                info!("using default bloomfilter parameters: {default:?}");
-                let id = self
-                    .manager
-                    .insert_double_spending_filter_params(
-                        default.num_hashes,
-                        default.bitmap_size as u32,
-                        &default.sip_keys[0].0.to_be_bytes(),
-                        &default.sip_keys[0].1.to_be_bytes(),
-                        &default.sip_keys[1].0.to_be_bytes(),
-                        &default.sip_keys[1].1.to_be_bytes(),
-                    )
-                    .await?;
-                Ok((id, default))
-            }
-        }
-    }
-
-    async fn update_archived_partial_bloomfilter(
-        &self,
-        date: Date,
-        new_bitmap: &[u8],
-    ) -> Result<(), NymApiStorageError> {
-        Ok(self
-            .manager
-            .update_archived_partial_bloomfilter(date, new_bitmap)
-            .await?)
-    }
-
-    async fn try_load_partial_bloomfilter_bitmap(
-        &self,
-        date: Date,
-        params_id: i64,
-    ) -> Result<Option<Vec<u8>>, NymApiStorageError> {
-        Ok(self
-            .manager
-            .try_load_partial_bloomfilter_bitmap(date, params_id)
-            .await?)
-    }
-
-    async fn insert_partial_bloomfilter(
-        &self,
-        date: Date,
-        params_id: i64,
-        bitmap: &[u8],
-    ) -> Result<(), NymApiStorageError> {
-        Ok(self
-            .manager
-            .insert_partial_bloomfilter(date, params_id, bitmap)
-            .await?)
-    }
-
-    async fn remove_old_partial_bloomfilters(
-        &self,
-        cutoff: Date,
-    ) -> Result<(), NymApiStorageError> {
-        Ok(self.manager.remove_old_partial_bloomfilters(cutoff).await?)
-    }
-
     async fn remove_expired_verified_tickets(
         &self,
         cutoff: Date,
@@ -349,11 +260,12 @@ impl EcashStorageExt for NymApiStorage {
             .transpose()
     }
 
+    /// Returns a boolean to indicate whether the ticket has actually been inserted
     async fn store_verified_ticket(
         &self,
         ticket_data: &CredentialSpendingData,
         gateway_addr: &AccountId,
-    ) -> Result<(), NymApiStorageError> {
+    ) -> Result<bool, NymApiStorageError> {
         let provider_id = self
             .get_or_create_ticket_provider_with_id(gateway_addr.as_ref())
             .await?;
@@ -395,6 +307,18 @@ impl EcashStorageExt for NymApiStorage {
             .map_err(Into::into)
     }
 
+    async fn update_last_batch_verification(
+        &self,
+        provider_id: i64,
+        last_batch_verification: OffsetDateTime,
+    ) -> Result<(), NymApiStorageError> {
+        Ok(self
+            .manager
+            .update_last_batch_verification(provider_id, last_batch_verification)
+            .await?)
+    }
+
+    #[allow(dead_code)]
     async fn get_all_spent_tickets_on(
         &self,
         date: Date,

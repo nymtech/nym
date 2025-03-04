@@ -16,5 +16,5 @@ nym-sphinx-types = { path = "../types" }
 
 [features]
 default = ["sphinx"]
-sphinx = ["nym-crypto/sphinx", "nym-sphinx-types/outfox"]
-outfox = ["nym-crypto/outfox", "nym-sphinx-types/outfox"]
+sphinx = ["nym-sphinx-types/outfox"]
+outfox = ["nym-sphinx-types/outfox"]

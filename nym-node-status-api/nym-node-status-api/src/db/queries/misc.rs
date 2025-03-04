@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 /// `daily_summary`
 pub(crate) async fn insert_summaries(
     pool: &DbPool,
-    summaries: &[(&str, &usize)],
+    summaries: &[(&str, usize)],
     summary: &NetworkSummary,
     last_updated: DateTime<Utc>,
 ) -> anyhow::Result<()> {
@@ -18,7 +18,7 @@ pub(crate) async fn insert_summaries(
 
 async fn insert_summary(
     pool: &DbPool,
-    summaries: &[(&str, &usize)],
+    summaries: &[(&str, usize)],
     last_updated: DateTime<Utc>,
 ) -> anyhow::Result<()> {
     let timestamp = last_updated.timestamp();

@@ -22,6 +22,8 @@ import { ExpandableButton } from './DesktopNav'
 import { ConnectKeplrWallet } from '../Wallet/ConnectKeplrWallet'
 import { NetworkTitle } from '../NetworkTitle'
 import { originalNavOptions } from '@/app/context/nav'
+import { ReleaseAlert } from '@/app/components/ReleaseAlert'
+import {SearchToolbar} from "@/app/components/Nav/Search";
 
 export const MobileNav: FCWithChildren = ({ children }) => {
   const theme = useTheme()
@@ -70,7 +72,15 @@ export const MobileNav: FCWithChildren = ({ children }) => {
             </IconButton>
             {!isSmallMobile && <NetworkTitle />}
           </Box>
-          <ConnectKeplrWallet />
+          <Box sx={{
+            alignItems: 'center',
+            display: 'flex',
+          }}>
+            <Box mr={0.5}>
+              <SearchToolbar/>
+            </Box>
+            <ConnectKeplrWallet />
+          </Box>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -128,6 +138,7 @@ export const MobileNav: FCWithChildren = ({ children }) => {
       </Drawer>
 
       <Box sx={{ width: '100%', p: 4, mt: 7 }}>
+        <ReleaseAlert />
         {children}
         <Footer />
       </Box>

@@ -12,6 +12,12 @@ pub mod models;
 pub mod nym_nodes;
 pub mod pagination;
 
+// The response type we fetch from the network details endpoint.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NymNetworkDetailsResponse {
+    pub network: nym_config::defaults::NymNetworkDetails,
+}
+
 pub trait Deprecatable {
     fn deprecate(self) -> Deprecated<Self>
     where

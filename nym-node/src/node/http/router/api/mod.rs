@@ -1,0 +1,19 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+use crate::node::http::state::AppState;
+use axum::Router;
+use nym_node_requests::routes;
+
+pub mod v1;
+
+pub use nym_node_requests::api as api_requests;
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub v1_config: v1::Config,
+}
+
+pub(super) fn routes(config: Config) -> Router<AppState> {
+    Router::new().nest(routes::api::V1, v1::routes(config.v1_config))
+}

@@ -4,8 +4,9 @@
 use crate::node_status_api::models::{HistoricalUptime as ApiHistoricalUptime, Uptime};
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
-    ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails, NodeStatus,
-    RewardingReport, TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
+    ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails,
+    MonitorRunReport, MonitorRunScore, NodeStatus, RewardingReport, TestedGatewayStatus,
+    TestedMixnodeStatus, TestingRoute,
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
@@ -881,6 +882,78 @@ impl StorageManager {
             .execute(&self.connection_pool)
             .await?;
         Ok(res.last_insert_rowid())
+    }
+
+    pub(super) async fn insert_monitor_run_report(
+        &self,
+        monitor_run_id: i64,
+        network_reliability: f64,
+        total_packets_sent: u32,
+        total_packets_received: u32,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            INSERT INTO monitor_run_report(
+                monitor_run_id,
+                network_reliability,
+                packets_sent,
+                packets_received
+            ) VALUES (?, ?, ?, ?)
+            "#,
+            monitor_run_id,
+            network_reliability,
+            total_packets_sent,
+            total_packets_received
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(super) async fn get_monitor_run_report(
+        &self,
+        monitor_run_id: i64,
+    ) -> Result<Option<MonitorRunReport>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM monitor_run_report WHERE monitor_run_id = ?")
+            .bind(monitor_run_id)
+            .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    pub(super) async fn get_latest_monitor_run_id(&self) -> Result<Option<i64>, sqlx::Error> {
+        sqlx::query!("SELECT id from monitor_run ORDER BY id DESC limit 1")
+            .fetch_optional(&self.connection_pool)
+            .await
+            .map(|r| r.map(|r| r.id))
+    }
+
+    pub(super) async fn insert_monitor_run_scores(
+        &self,
+        scores: Vec<MonitorRunScore>,
+    ) -> Result<(), sqlx::Error> {
+        let mut query_builder = sqlx::QueryBuilder::new(
+            "INSERT INTO monitor_run_score (typ, monitor_run_id, rounded_score, nodes_count) ",
+        );
+
+        query_builder.push_values(scores, |mut b, score| {
+            b.push_bind(score.typ)
+                .push_bind(score.monitor_run_id)
+                .push_bind(score.rounded_score)
+                .push_bind(score.nodes_count);
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
+    }
+
+    pub(super) async fn get_monitor_run_scores(
+        &self,
+        monitor_run_id: i64,
+    ) -> Result<Vec<MonitorRunScore>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM monitor_run_score WHERE monitor_run_id = ?")
+            .bind(monitor_run_id)
+            .fetch_all(&self.connection_pool)
+            .await
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.

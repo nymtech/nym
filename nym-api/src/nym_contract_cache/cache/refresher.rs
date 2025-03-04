@@ -9,7 +9,7 @@ use anyhow::Result;
 use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
-use nym_mixnet_contract_common::{LegacyMixLayer, RewardedSet};
+use nym_mixnet_contract_common::{EpochRewardedSet, LegacyMixLayer};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, NymContractsProvider, VestingQueryClient,
@@ -141,9 +141,21 @@ impl NymContractCacheRefresher {
         }
 
         let rewarded_set = self.get_rewarded_set().await;
-        let layer1 = rewarded_set.layer1.iter().collect::<HashSet<_>>();
-        let layer2 = rewarded_set.layer2.iter().collect::<HashSet<_>>();
-        let layer3 = rewarded_set.layer3.iter().collect::<HashSet<_>>();
+        let layer1 = rewarded_set
+            .assignment
+            .layer1
+            .iter()
+            .collect::<HashSet<_>>();
+        let layer2 = rewarded_set
+            .assignment
+            .layer2
+            .iter()
+            .collect::<HashSet<_>>();
+        let layer3 = rewarded_set
+            .assignment
+            .layer3
+            .iter()
+            .collect::<HashSet<_>>();
 
         let layer_choices = [
             LegacyMixLayer::One,
@@ -178,6 +190,7 @@ impl NymContractCacheRefresher {
         }
 
         let config_score_params = self.nyxd_client.get_config_score_params().await?;
+        let nym_node_version_history = self.nyxd_client.get_nym_node_version_history().await?;
         let contract_info = self.get_nym_contracts_info().await?;
 
         info!(
@@ -194,6 +207,7 @@ impl NymContractCacheRefresher {
                 nym_nodes,
                 rewarded_set,
                 config_score_params,
+                nym_node_version_history,
                 rewarding_params,
                 current_interval,
                 contract_info,
@@ -207,31 +221,12 @@ impl NymContractCacheRefresher {
         Ok(())
     }
 
-    async fn get_rewarded_set(&self) -> RewardedSet {
+    async fn get_rewarded_set(&self) -> EpochRewardedSet {
         self.nyxd_client
             .get_rewarded_set_nodes()
             .await
             .unwrap_or_default()
     }
-
-    // fn collect_rewarded_and_active_set_details(
-    //     all_mixnodes: &[MixNodeDetails],
-    //     rewarded_set_nodes: RewardedSet,
-    // ) -> (Vec<MixNodeDetails>, Vec<MixNodeDetails>) {
-    //     let mut active_set = Vec::new();
-    //     let mut rewarded_set = Vec::new();
-    //
-    //     for mix in all_mixnodes {
-    //         if let Some(status) = rewarded_set_nodes.get(&mix.mix_id()) {
-    //             rewarded_set.push(mix.clone());
-    //             if status.is_active() {
-    //                 active_set.push(mix.clone())
-    //             }
-    //         }
-    //     }
-    //
-    //     (rewarded_set, active_set)
-    // }
 
     pub(crate) async fn run(&self, mut shutdown: TaskClient) {
         let mut interval = time::interval(self.caching_interval);

@@ -12,31 +12,30 @@ use crate::error::WasmClientError;
 use crate::helpers::{InputSender, WasmTopologyExt};
 use crate::response_pusher::ResponsePusher;
 use js_sys::Promise;
+use nym_bin_common::bin_info;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
+use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
 use wasm_client_core::client::{
     base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
 };
 use wasm_client_core::config::r#override::DebugWasmOverride;
 use wasm_client_core::helpers::{
-    parse_recipient, parse_sender_tag, setup_from_topology, setup_gateway_from_api,
+    add_gateway, generate_new_client_keys, parse_recipient, parse_sender_tag,
 };
-use wasm_client_core::init::types::GatewaySetup;
 use wasm_client_core::nym_task::connections::TransmissionLane;
 use wasm_client_core::nym_task::TaskManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
+use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
 use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::topology::{SerializableNymTopology, SerializableTopologyExt};
-use wasm_client_core::{
-    HardcodedTopologyProvider, IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient,
-    TopologyProvider,
-};
+use wasm_client_core::topology::{SerializableTopologyExt, WasmFriendlyNymTopology};
+use wasm_client_core::{IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient};
 use wasm_utils::error::PromisableResult;
-use wasm_utils::{check_promise_result, console_log};
+use wasm_utils::{check_promise_result, console_error, console_log};
 
 #[cfg(feature = "node-tester")]
 use crate::helpers::{NymClientTestRequest, WasmTopologyTestExt};
@@ -45,6 +44,7 @@ use crate::helpers::{NymClientTestRequest, WasmTopologyTestExt};
 use rand::{rngs::OsRng, RngCore};
 
 #[cfg(feature = "node-tester")]
+#[allow(dead_code)]
 pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
 
 #[wasm_bindgen]
@@ -70,8 +70,8 @@ pub struct NymClient {
 pub struct NymClientBuilder {
     config: ClientConfig,
     force_tls: bool,
-    custom_topology: Option<NymTopology>,
     preferred_gateway: Option<IdentityKey>,
+    latency_based_selection: Option<bool>,
 
     storage_passphrase: Option<String>,
     on_message: js_sys::Function,
@@ -89,11 +89,11 @@ impl NymClientBuilder {
         NymClientBuilder {
             config,
             force_tls,
-            custom_topology: None,
             storage_passphrase,
             on_message,
             // on_mix_fetch_message: Some(on_mix_fetch_message),
             preferred_gateway,
+            latency_based_selection: None,
         }
     }
 
@@ -103,7 +103,7 @@ impl NymClientBuilder {
     // NOTE: you most likely want to use `[NymNodeTester]` instead.
     #[cfg(feature = "node-tester")]
     pub fn new_tester(
-        topology: SerializableNymTopology,
+        topology: WasmFriendlyNymTopology,
         on_message: js_sys::Function,
         gateway: Option<IdentityKey>,
     ) -> Result<NymClientBuilder, WasmClientError> {
@@ -113,29 +113,32 @@ impl NymClientBuilder {
             }
         }
 
-        let full_config = ClientConfig::new_tester_config(NODE_TESTER_CLIENT_ID);
+        let _ = on_message;
+        // let full_config = ClientConfig::new_tester_config(NODE_TESTER_CLIENT_ID);
+        // Ok(NymClientBuilder {
+        //     config: full_config,
+        //     force_tls: false,
+        //     custom_topology: Some(topology.try_into()?),
+        //     on_message,
+        //     storage_passphrase: None,
+        //     preferred_gateway: gateway,
+        //     latency_based_selection: None,
+        // })
 
-        Ok(NymClientBuilder {
-            config: full_config,
-            force_tls: false,
-            custom_topology: Some(topology.try_into()?),
-            on_message,
-            storage_passphrase: None,
-            preferred_gateway: gateway,
-        })
+        Err(WasmClientError::DisabledTester)
     }
 
     fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
         ResponsePusher::new(client_output, on_message).start()
     }
 
-    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider + Send + Sync>> {
-        if let Some(hardcoded_topology) = self.custom_topology.take() {
-            Some(Box::new(HardcodedTopologyProvider::new(hardcoded_topology)))
-        } else {
-            None
-        }
-    }
+    // fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider + Send + Sync>> {
+    //     if let Some(hardcoded_topology) = self.custom_topology.take() {
+    //         Some(Box::new(HardcodedTopologyProvider::new(hardcoded_topology)))
+    //     } else {
+    //         None
+    //     }
+    // }
 
     fn initialise_storage(
         config: &ClientConfig,
@@ -144,47 +147,94 @@ impl NymClientBuilder {
         FullWasmClientStorage::new(&config.base, base_storage)
     }
 
-    async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
-        console_log!("Starting the wasm client");
-
-        let nym_api_endpoints = self.config.base.client.nym_api_urls.clone();
-
-        // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
+    async fn initialise_client_storage(&mut self) -> Result<ClientStorage, WasmClientError> {
         let client_store =
             ClientStorage::new_async(&self.config.base.client.id, self.storage_passphrase.take())
                 .await?;
+        if !client_store.has_identity_key().await? {
+            console_log!(
+                "no prior keys found - a new set will be generated for client {}",
+                self.config.base.client.id
+            );
+            generate_new_client_keys(&client_store).await?;
+        }
 
-        let user_chosen = self.preferred_gateway.clone();
+        Ok(client_store)
+    }
 
-        // if we provided hardcoded topology, get gateway from it, otherwise get it the 'standard' way
-        let init_res = if let Some(topology) = &self.custom_topology {
-            setup_from_topology(user_chosen, self.force_tls, topology, &client_store).await?
-        } else {
-            setup_gateway_from_api(
-                &client_store,
-                self.force_tls,
-                user_chosen,
-                &nym_api_endpoints,
-            )
-            .await?
+    async fn try_set_preferred_gateway(
+        &self,
+        client_store: &ClientStorage,
+    ) -> Result<bool, WasmClientError> {
+        let Some(preferred) = self.preferred_gateway.as_ref() else {
+            return Ok(false);
         };
+
+        if client_store
+            .has_gateway_details(&preferred.to_string())
+            .await?
+        {
+            GatewaysDetailsStore::set_active_gateway(client_store, &preferred.to_string()).await?;
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    // async fn start_client(mut self) -> Result<NymClient, WasmClientError> {
+    //     todo!()
+    // }
+
+    async fn has_active_gateway(
+        &self,
+        client_store: &ClientStorage,
+    ) -> Result<bool, WasmClientError> {
+        Ok(client_store
+            .get_active_gateway_id()
+            .await?
+            .active_gateway_id_bs58
+            .is_some())
+    }
+
+    async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
+        console_log!("Starting the wasm client");
+
+        // TODO: resolve this properly
+        self.config.base.debug.topology.ignore_egress_epoch_role = true;
+
+        // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
+        let client_store = self.initialise_client_storage().await?;
+
+        // if we don't have an active gateway (i.e. no gateways), add one
+        // otherwise, see if we set a preferred gateway and attempt to set its details as active
+        if !self.has_active_gateway(&client_store).await?
+            || !self.try_set_preferred_gateway(&client_store).await?
+        {
+            add_gateway(
+                self.preferred_gateway.clone(),
+                self.latency_based_selection,
+                self.force_tls,
+                &self.config.base.client.nym_api_urls,
+                bin_info!().into(),
+                self.config.base.debug.topology.minimum_gateway_performance,
+                self.config.base.debug.topology.ignore_ingress_epoch_role,
+                &client_store,
+            )
+            .await?;
+        }
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let storage = Self::initialise_storage(&self.config, client_store);
-        let maybe_topology_provider = self.topology_provider();
 
-        let mut base_builder = BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(
-            &self.config.base,
-            storage,
-            None,
-        );
-        if let Some(topology_provider) = maybe_topology_provider {
-            base_builder = base_builder.with_topology_provider(topology_provider);
-        }
+        let base_builder =
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
+        // if let Some(topology_provider) = maybe_topology_provider {
+        //     base_builder = base_builder.with_topology_provider(topology_provider);
+        // }
 
-        if let Ok(reuse_setup) = GatewaySetup::try_reuse_connection(init_res) {
-            base_builder = base_builder.with_gateway_setup(reuse_setup);
-        }
+        // if let Ok(reuse_setup) = GatewaySetup::try_reuse_connection(init_res) {
+        //     base_builder = base_builder.with_gateway_setup(reuse_setup);
+        // }
 
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address.to_string();
@@ -206,7 +256,12 @@ impl NymClientBuilder {
     }
 
     pub fn start_client(self) -> Promise {
-        future_to_promise(async move { self.start_client_async().await.into_promise_result() })
+        future_to_promise(async move {
+            self.start_client_async()
+                .await
+                .inspect_err(|err| console_error!("failed to start the client: {err}"))
+                .into_promise_result()
+        })
     }
 }
 
@@ -223,6 +278,9 @@ pub struct ClientOptsSimple {
 
     #[tsify(optional)]
     pub(crate) force_tls: Option<bool>,
+
+    #[tsify(optional)]
+    pub(crate) latency_based_selection: Option<bool>,
 }
 
 #[derive(Tsify, Debug, Default, Clone, Serialize, Deserialize)]
@@ -280,6 +338,7 @@ impl NymClient {
         }
         .start_client_async()
         .await
+        .inspect_err(|err| console_error!("failed to start the client: {err}"))
     }
 
     #[wasm_bindgen(constructor)]
@@ -322,6 +381,7 @@ impl NymClient {
         todo!()
     }
 
+    #[wasm_bindgen(js_name = "selfAddress")]
     pub fn self_address(&self) -> String {
         self.self_address.clone()
     }
@@ -339,7 +399,7 @@ impl NymClient {
             .mix_test_request(test_id, mixnode_identity, num_test_packets)
     }
 
-    pub fn change_hardcoded_topology(&self, topology: SerializableNymTopology) -> Promise {
+    pub fn change_hardcoded_topology(&self, topology: WasmFriendlyNymTopology) -> Promise {
         self.client_state.change_hardcoded_topology(topology)
     }
 

@@ -40,6 +40,7 @@ async fn main() {
     client.disconnect().await;
 }
 
+#[derive(Clone)]
 #[allow(unused)]
 struct MockClientStorage {
     pub key_store: MockKeyStore,
@@ -96,6 +97,7 @@ impl MixnetClientStorage for MockClientStorage {
     }
 }
 
+#[derive(Clone)]
 struct MockKeyStore;
 
 #[async_trait]
@@ -115,6 +117,7 @@ impl KeyStore for MockKeyStore {
     }
 }
 
+#[derive(Clone)]
 struct MockGatewayDetailsStore;
 
 #[async_trait]

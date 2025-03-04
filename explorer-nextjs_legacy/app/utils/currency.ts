@@ -31,6 +31,16 @@ export const currencyToString = ({ amount, dp, denom = DENOM }: { amount: string
   return `${toDisplay(printableAmount, dp)} ${printableDenom}`;
 };
 
+function addThousandsSeparator(value: string) {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+export const humanReadableCurrencyToString = ({ amount, denom }: { amount: string, denom: string }) => {
+  const str = currencyToString({ amount, denom, dp: 2 });
+  const parts = str.split('.');
+  return [addThousandsSeparator(parts[0]), parts[1]].join('.');
+}
+
 export const stakingCurrencyToString = (amount: string, denom: string = DENOM_STAKING) =>
   printableCoin({
     amount,

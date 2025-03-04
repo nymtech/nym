@@ -4,16 +4,16 @@
 use crate::config::persistence::NymNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
-use authenticator::Authenticator;
 use celes::Country;
 use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
-    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT,
-    WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6,
+    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
+    DEFAULT_VERLOC_LISTENING_PORT, WG_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
+    WG_TUN_DEVICE_IP_ADDRESS_V6,
 };
 use nym_config::defaults::{WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6};
-use nym_config::helpers::inaddr_any;
+use nym_config::helpers::{in6addr_any_init, inaddr_any};
 use nym_config::serde_helpers::de_maybe_port;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
@@ -30,18 +30,18 @@ use tracing::{debug, error};
 use url::Url;
 
 pub mod authenticator;
-pub mod entry_gateway;
-pub mod exit_gateway;
+pub mod gateway_tasks;
 pub mod helpers;
-pub mod mixnode;
+pub mod metrics;
 mod old_configs;
 pub mod persistence;
+pub mod service_providers;
 mod template;
 pub mod upgrade_helpers;
 
-pub use crate::config::entry_gateway::EntryGatewayConfig;
-pub use crate::config::exit_gateway::ExitGatewayConfig;
-pub use crate::config::mixnode::MixnodeConfig;
+pub use crate::config::gateway_tasks::GatewayTasksConfig;
+pub use crate::config::metrics::MetricsConfig;
+pub use crate::config::service_providers::ServiceProvidersConfig;
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
@@ -75,8 +75,12 @@ pub enum NodeMode {
     #[clap(alias = "entry", alias = "gateway")]
     EntryGateway,
 
+    // to not break existing behaviour, this means exit capabilities AND entry capabilities
     #[clap(alias = "exit")]
     ExitGateway,
+
+    // will start only SP needed for exit capabilities WITHOUT entry routing
+    ExitProvidersOnly,
 }
 
 impl Display for NodeMode {
@@ -85,7 +89,69 @@ impl Display for NodeMode {
             NodeMode::Mixnode => "mixnode".fmt(f),
             NodeMode::EntryGateway => "entry-gateway".fmt(f),
             NodeMode::ExitGateway => "exit-gateway".fmt(f),
+            NodeMode::ExitProvidersOnly => "exit-providers-only".fmt(f),
         }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy)]
+pub struct NodeModes {
+    /// Specifies whether this node can operate in a mixnode mode.
+    pub mixnode: bool,
+
+    /// Specifies whether this node can operate in an entry mode.
+    pub entry: bool,
+
+    /// Specifies whether this node can operate in an exit mode.
+    pub exit: bool,
+    // TODO: would it make sense to also put WG here for completion?
+}
+
+impl From<&[NodeMode]> for NodeModes {
+    fn from(modes: &[NodeMode]) -> Self {
+        let mut out = NodeModes::default();
+        for &mode in modes {
+            out.with_mode(mode);
+        }
+        out
+    }
+}
+
+impl NodeModes {
+    pub fn any_enabled(&self) -> bool {
+        self.mixnode || self.entry || self.exit
+    }
+
+    pub fn standalone_exit(&self) -> bool {
+        !self.mixnode && !self.entry && self.exit
+    }
+
+    pub fn with_mode(&mut self, mode: NodeMode) -> &mut Self {
+        match mode {
+            NodeMode::Mixnode => self.with_mixnode(),
+            NodeMode::EntryGateway => self.with_entry(),
+            NodeMode::ExitGateway => self.with_entry().with_exit(),
+            NodeMode::ExitProvidersOnly => self.with_exit(),
+        }
+    }
+
+    pub fn expects_final_hop_traffic(&self) -> bool {
+        self.entry || self.exit
+    }
+
+    pub fn with_mixnode(&mut self) -> &mut Self {
+        self.mixnode = true;
+        self
+    }
+
+    pub fn with_entry(&mut self) -> &mut Self {
+        self.entry = true;
+        self
+    }
+
+    pub fn with_exit(&mut self) -> &mut Self {
+        self.exit = true;
+        self
     }
 }
 
@@ -96,7 +162,7 @@ pub struct ConfigBuilder {
 
     pub data_dir: PathBuf,
 
-    pub mode: NodeMode,
+    pub modes: NodeModes,
 
     pub mixnet: Option<Mixnet>,
 
@@ -104,17 +170,17 @@ pub struct ConfigBuilder {
 
     pub http: Option<Http>,
 
+    pub verloc: Option<Verloc>,
+
     pub wireguard: Option<Wireguard>,
 
     pub storage_paths: Option<NymNodePaths>,
 
-    pub mixnode: Option<MixnodeConfig>,
+    pub gateway_tasks: Option<GatewayTasksConfig>,
 
-    pub entry_gateway: Option<EntryGatewayConfig>,
+    pub service_providers: Option<ServiceProvidersConfig>,
 
-    pub exit_gateway: Option<ExitGatewayConfig>,
-
-    pub authenticator: Option<Authenticator>,
+    pub metrics: Option<MetricsConfig>,
 
     pub logging: Option<LoggingSettings>,
 }
@@ -128,19 +194,19 @@ impl ConfigBuilder {
             host: None,
             http: None,
             mixnet: None,
+            verloc: None,
             wireguard: None,
-            mode: NodeMode::default(),
+            modes: NodeModes::default(),
             storage_paths: None,
-            mixnode: None,
-            entry_gateway: None,
-            exit_gateway: None,
-            authenticator: None,
+            gateway_tasks: None,
+            service_providers: None,
+            metrics: None,
             logging: None,
         }
     }
 
-    pub fn with_mode(mut self, mode: impl Into<NodeMode>) -> Self {
-        self.mode = mode.into();
+    pub fn with_modes(mut self, mode: impl Into<NodeModes>) -> Self {
+        self.modes = mode.into();
         self
     }
 
@@ -151,6 +217,11 @@ impl ConfigBuilder {
 
     pub fn with_http(mut self, section: impl Into<Option<Http>>) -> Self {
         self.http = section.into();
+        self
+    }
+
+    pub fn with_verloc(mut self, section: impl Into<Option<Verloc>>) -> Self {
+        self.verloc = section.into();
         self
     }
 
@@ -169,49 +240,48 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn with_mixnode(mut self, section: impl Into<Option<MixnodeConfig>>) -> Self {
-        self.mixnode = section.into();
+    pub fn with_metrics(mut self, section: impl Into<Option<MetricsConfig>>) -> Self {
+        self.metrics = section.into();
         self
     }
 
-    pub fn with_entry_gateway(mut self, section: impl Into<Option<EntryGatewayConfig>>) -> Self {
-        self.entry_gateway = section.into();
+    pub fn with_gateway_tasks(mut self, section: impl Into<Option<GatewayTasksConfig>>) -> Self {
+        self.gateway_tasks = section.into();
         self
     }
 
-    pub fn with_exit_gateway(mut self, section: impl Into<Option<ExitGatewayConfig>>) -> Self {
-        self.exit_gateway = section.into();
-        self
-    }
-
-    pub fn with_logging(mut self, section: impl Into<Option<LoggingSettings>>) -> Self {
-        self.logging = section.into();
+    pub fn with_service_providers(
+        mut self,
+        section: impl Into<Option<ServiceProvidersConfig>>,
+    ) -> Self {
+        self.service_providers = section.into();
         self
     }
 
     pub fn build(self) -> Config {
         Config {
             id: self.id,
-            mode: self.mode,
+            modes: self.modes,
             host: self.host.unwrap_or_default(),
             http: self.http.unwrap_or_default(),
             mixnet: self.mixnet.unwrap_or_default(),
+            verloc: self.verloc.unwrap_or_default(),
             wireguard: self
                 .wireguard
                 .unwrap_or_else(|| Wireguard::new_default(&self.data_dir)),
             storage_paths: self
                 .storage_paths
                 .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
-            mixnode: self.mixnode.unwrap_or_else(MixnodeConfig::new_default),
-            entry_gateway: self
-                .entry_gateway
-                .unwrap_or_else(|| EntryGatewayConfig::new_default(&self.data_dir)),
-            exit_gateway: self
-                .exit_gateway
-                .unwrap_or_else(|| ExitGatewayConfig::new_default(&self.data_dir)),
+            metrics: self.metrics.unwrap_or_default(),
+            gateway_tasks: self
+                .gateway_tasks
+                .unwrap_or_else(|| GatewayTasksConfig::new_default(&self.data_dir)),
+            service_providers: self
+                .service_providers
+                .unwrap_or_else(|| ServiceProvidersConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
-            authenticator: self.authenticator.unwrap_or_default(),
+            debug: Default::default(),
         }
     }
 }
@@ -226,9 +296,8 @@ pub struct Config {
     /// Human-readable ID of this particular node.
     pub id: String,
 
-    /// Current mode of this nym-node.
-    /// Expect this field to be changed in the future to allow running the node in multiple modes (i.e. mixnode + gateway)
-    pub mode: NodeMode,
+    /// Current modes of this nym-node.
+    pub modes: NodeModes,
 
     pub host: Host,
 
@@ -240,18 +309,25 @@ pub struct Config {
     #[serde(default)]
     pub http: Http,
 
+    #[serde(default)]
+    pub verloc: Verloc,
+
     pub wireguard: Wireguard,
 
-    pub mixnode: MixnodeConfig,
+    #[serde(alias = "entry_gateway")]
+    pub gateway_tasks: GatewayTasksConfig,
 
-    pub entry_gateway: EntryGatewayConfig,
+    #[serde(alias = "exit_gateway")]
+    pub service_providers: ServiceProvidersConfig,
 
-    pub exit_gateway: ExitGatewayConfig,
-
-    pub authenticator: Authenticator,
+    #[serde(default)]
+    pub metrics: MetricsConfig,
 
     #[serde(default)]
     pub logging: LoggingSettings,
+
+    #[serde(default)]
+    pub debug: Debug,
 }
 
 impl NymConfigTemplate for Config {
@@ -368,7 +444,7 @@ pub struct Host {
 #[serde(deny_unknown_fields)]
 pub struct Http {
     /// Socket address this node will use for binding its http API.
-    /// default: `0.0.0.0:8080`
+    /// default: `[::]:8080`
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
@@ -378,6 +454,7 @@ pub struct Http {
     /// An optional bearer token for accessing certain http endpoints.
     /// Currently only used for obtaining mixnode's stats.
     #[serde(default)]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub access_token: Option<String>,
 
     /// Specify whether basic system information should be exposed.
@@ -393,17 +470,27 @@ pub struct Http {
     /// This option is superseded by `expose_system_hardware`
     /// default: true
     pub expose_crypto_hardware: bool,
+
+    /// Specify the cache ttl of the node load.
+    /// default: 30s
+    #[serde(with = "humantime_serde")]
+    pub node_load_cache_ttl: Duration,
+}
+
+impl Http {
+    pub const DEFAULT_NODE_LOAD_CACHE_TTL: Duration = Duration::from_secs(30);
 }
 
 impl Default for Http {
     fn default() -> Self {
         Http {
-            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
+            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             access_token: None,
             expose_system_info: true,
             expose_system_hardware: true,
             expose_crypto_hardware: true,
+            node_load_cache_ttl: Self::DEFAULT_NODE_LOAD_CACHE_TTL,
         }
     }
 }
@@ -413,7 +500,7 @@ impl Default for Http {
 #[serde(deny_unknown_fields)]
 pub struct Mixnet {
     /// Address this node will bind to for listening for mixnet packets
-    /// default: `0.0.0.0:1789`
+    /// default: `[::]:1789`
     pub bind_address: SocketAddr,
 
     /// If applicable, custom port announced in the self-described API that other clients and nodes
@@ -437,6 +524,10 @@ pub struct Mixnet {
 #[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct MixnetDebug {
+    /// Specifies the duration of time this node is willing to delay a forward packet for.
+    #[serde(with = "humantime_serde")]
+    pub maximum_forward_packet_delay: Duration,
+
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]
@@ -459,6 +550,10 @@ pub struct MixnetDebug {
 }
 
 impl MixnetDebug {
+    // given that genuine clients are using mean delay of 50ms,
+    // the probability of them delaying for over 10s is 10^-87
+    // which for all intents and purposes will never happen
+    const DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY: Duration = Duration::from_secs(10);
     const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
     const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
     const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
@@ -468,6 +563,7 @@ impl MixnetDebug {
 impl Default for MixnetDebug {
     fn default() -> Self {
         MixnetDebug {
+            maximum_forward_packet_delay: Self::DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY,
             packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
@@ -498,11 +594,98 @@ impl Default for Mixnet {
         };
 
         Mixnet {
-            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_MIXNET_PORT),
+            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_MIXNET_PORT),
             announce_port: None,
             nym_api_urls,
             nyxd_urls,
             debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Verloc {
+    /// Socket address this node will use for binding its verloc API.
+    /// default: `[::]:1790`
+    pub bind_address: SocketAddr,
+
+    /// If applicable, custom port announced in the self-described API that other clients and nodes
+    /// will use.
+    /// Useful when the node is behind a proxy.
+    #[serde(deserialize_with = "de_maybe_port")]
+    #[serde(default)]
+    pub announce_port: Option<u16>,
+
+    #[serde(default)]
+    pub debug: VerlocDebug,
+}
+
+impl Verloc {
+    pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
+}
+
+impl Default for Verloc {
+    fn default() -> Self {
+        Verloc {
+            bind_address: SocketAddr::new(in6addr_any_init(), Self::DEFAULT_VERLOC_PORT),
+            announce_port: None,
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerlocDebug {
+    /// Specifies number of echo packets sent to each node during a measurement run.
+    pub packets_per_node: usize,
+
+    /// Specifies maximum amount of time to wait for the connection to get established.
+    #[serde(with = "humantime_serde")]
+    pub connection_timeout: Duration,
+
+    /// Specifies maximum amount of time to wait for the reply packet to arrive before abandoning the test.
+    #[serde(with = "humantime_serde")]
+    pub packet_timeout: Duration,
+
+    /// Specifies delay between subsequent test packets being sent (after receiving a reply).
+    #[serde(with = "humantime_serde")]
+    pub delay_between_packets: Duration,
+
+    /// Specifies number of nodes being tested at once.
+    pub tested_nodes_batch_size: usize,
+
+    /// Specifies delay between subsequent test runs.
+    #[serde(with = "humantime_serde")]
+    pub testing_interval: Duration,
+
+    /// Specifies delay between attempting to run the measurement again if the previous run failed
+    /// due to being unable to get the list of nodes.
+    #[serde(with = "humantime_serde")]
+    pub retry_timeout: Duration,
+}
+
+impl VerlocDebug {
+    const DEFAULT_PACKETS_PER_NODE: usize = 100;
+    const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
+    const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
+    const DEFAULT_DELAY_BETWEEN_PACKETS: Duration = Duration::from_millis(50);
+    const DEFAULT_BATCH_SIZE: usize = 50;
+    const DEFAULT_TESTING_INTERVAL: Duration = Duration::from_secs(60 * 60 * 12);
+    const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
+}
+
+impl Default for VerlocDebug {
+    fn default() -> Self {
+        VerlocDebug {
+            packets_per_node: Self::DEFAULT_PACKETS_PER_NODE,
+            connection_timeout: Self::DEFAULT_CONNECTION_TIMEOUT,
+            packet_timeout: Self::DEFAULT_PACKET_TIMEOUT,
+            delay_between_packets: Self::DEFAULT_DELAY_BETWEEN_PACKETS,
+            tested_nodes_batch_size: Self::DEFAULT_BATCH_SIZE,
+            testing_interval: Self::DEFAULT_TESTING_INTERVAL,
+            retry_timeout: Self::DEFAULT_RETRY_TIMEOUT,
         }
     }
 }
@@ -514,7 +697,7 @@ pub struct Wireguard {
     pub enabled: bool,
 
     /// Socket address this node will use for binding its wireguard interface.
-    /// default: `0.0.0.0:51822`
+    /// default: `[::]:51822`
     pub bind_address: SocketAddr,
 
     /// Private IPv4 address of the wireguard gateway.
@@ -584,7 +767,29 @@ impl From<Wireguard> for nym_authenticator::config::Authenticator {
 
 #[derive(Debug, Clone)]
 pub struct LocalWireguardOpts {
+    #[allow(dead_code)]
     pub config: Wireguard,
 
+    #[allow(dead_code)]
     pub custom_mixnet_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Debug {
+    /// Specifies the time to live of the internal topology provider cache.
+    #[serde(with = "humantime_serde")]
+    pub topology_cache_ttl: Duration,
+}
+
+impl Debug {
+    pub const DEFAULT_TOPOLOGY_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Debug {
+            topology_cache_ttl: Self::DEFAULT_TOPOLOGY_CACHE_TTL,
+        }
+    }
 }

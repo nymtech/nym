@@ -18,9 +18,17 @@ pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # Human-readable ID of this particular node.
 id = '{{ id }}'
 
-# Current mode of this nym-node.
-# Expect this field to be changed in the future to allow running the node in multiple modes (i.e. mixnode + gateway)
-mode = '{{ mode }}'
+# Current modes of this nym-node.
+
+[modes]
+# Specifies whether this node can operate in a mixnode mode.
+mixnode = {{ modes.mixnode }}
+
+# Specifies whether this node can operate in an entry mode.
+entry = {{ modes.entry }}
+
+# Specifies whether this node can operate in an exit mode.
+exit = {{ modes.exit }}
 
 [host]
 # Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
@@ -38,7 +46,7 @@ location = '{{ host.location }}'
 
 [mixnet]
 # Address this node will bind to for listening for mixnet packets
-# default: `0.0.0.0:1789`
+# default: `[::]:1789`
 bind_address = '{{ mixnet.bind_address }}'
 
 # If applicable, custom port announced in the self-described API that other clients and nodes
@@ -87,7 +95,7 @@ public_x25519_noise_key_file = '{{ storage_paths.keys.public_x25519_noise_key_fi
 
 [http]
 # Socket address this node will use for binding its http API.
-# default: `0.0.0.0:8080`
+# default: `[::]:8080`
 bind_address = '{{ http.bind_address }}'
 
 # Path to assets directory of custom landing page of this node
@@ -118,7 +126,7 @@ expose_crypto_hardware = {{ http.expose_crypto_hardware }}
 enabled = {{ wireguard.enabled }}
 
 # Socket address this node will use for binding its wireguard interface.
-# default: `0.0.0.0:51822`
+# default: `[::]:51822`
 bind_address = '{{ wireguard.bind_address }}'
 
 # Private IP address of the wireguard gateway.
@@ -149,195 +157,158 @@ private_diffie_hellman_key_file = '{{ wireguard.storage_paths.private_diffie_hel
 public_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellman_key_file }}'
 
 
-##### mixnode mode nym-node config options #####
+##### verloc config options #####
 
-[mixnode]
-
-[mixnode.verloc]
+[verloc]
 # Socket address this node will use for binding its verloc API.
-# default: `0.0.0.0:1790`
-bind_address = '{{ mixnode.verloc.bind_address }}'
+# default: `[::]:1790`
+bind_address = '{{ verloc.bind_address }}'
 
 # If applicable, custom port announced in the self-described API that other clients and nodes
 # will use.
 # Useful when the node is behind a proxy.
 # (default: 0 - disabled)
-announce_port ={{#if mixnode.verloc.announce_port }} {{ mixnode.verloc.announce_port }} {{else}} 0 {{/if}}
+announce_port ={{#if verloc.announce_port }} {{ verloc.announce_port }} {{else}} 0 {{/if}}
 
-[mixnode.storage_paths]
-# currently empty
 
-##### entry-gateway mode nym-node config options #####
+##### gateway tasks config options #####
 
-[entry_gateway]
+[gateway_tasks]
 # Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet
 # or if it also accepts non-paying clients
-enforce_zk_nyms = {{ entry_gateway.enforce_zk_nyms }}
+enforce_zk_nyms = {{ gateway_tasks.enforce_zk_nyms }}
 
 # Socket address this node will use for binding its client websocket API.
-# default: `0.0.0.0:9000`
-bind_address = '{{ entry_gateway.bind_address }}'
+# default: `[::]:9000`
+ws_bind_address = '{{ gateway_tasks.ws_bind_address }}'
 
 # Custom announced port for listening for websocket client traffic.
 # If unspecified, the value from the `bind_address` will be used instead
 # (default: 0 - unspecified)
-announce_ws_port = {{#if entry_gateway.announce_ws_port }} {{ entry_gateway.announce_ws_port }} {{else}} 0 {{/if}}
+announce_ws_port = {{#if gateway_tasks.announce_ws_port }} {{ gateway_tasks.announce_ws_port }} {{else}} 0 {{/if}}
 
 # If applicable, announced port for listening for secure websocket client traffic.
 # (default: 0 - disabled)
-announce_wss_port = {{#if entry_gateway.announce_wss_port }} {{ entry_gateway.announce_wss_port }} {{else}} 0 {{/if}}
+announce_wss_port = {{#if gateway_tasks.announce_wss_port }} {{ gateway_tasks.announce_wss_port }} {{else}} 0 {{/if}}
 
 
-[entry_gateway.storage_paths]
+[gateway_tasks.storage_paths]
 # Path to sqlite database containing all persistent data: messages for offline clients,
 # derived shared keys, available client bandwidths and wireguard peers.
-clients_storage = '{{ entry_gateway.storage_paths.clients_storage }}'
+clients_storage = '{{ gateway_tasks.storage_paths.clients_storage }}'
 
 # Path to sqlite database containing all persistent stats data.
-stats_storage = '{{ entry_gateway.storage_paths.stats_storage }}'
+stats_storage = '{{ gateway_tasks.storage_paths.stats_storage }}'
 
 # Path to file containing cosmos account mnemonic used for zk-nym redemption.
-cosmos_mnemonic = '{{ entry_gateway.storage_paths.cosmos_mnemonic }}'
+cosmos_mnemonic = '{{ gateway_tasks.storage_paths.cosmos_mnemonic }}'
 
-[entry_gateway.storage_paths.authenticator]
-# Path to file containing authenticator ed25519 identity private key.
-private_ed25519_identity_key_file = '{{ entry_gateway.storage_paths.authenticator.private_ed25519_identity_key_file }}'
+##### service providers nym-node config options #####
 
-# Path to file containing authenticator ed25519 identity public key.
-public_ed25519_identity_key_file = '{{ entry_gateway.storage_paths.authenticator.public_ed25519_identity_key_file }}'
-
-# Path to file containing authenticator x25519 diffie hellman private key.
-private_x25519_diffie_hellman_key_file = '{{ entry_gateway.storage_paths.authenticator.private_x25519_diffie_hellman_key_file }}'
-
-# Path to file containing authenticator x25519 diffie hellman public key.
-public_x25519_diffie_hellman_key_file = '{{ entry_gateway.storage_paths.authenticator.public_x25519_diffie_hellman_key_file }}'
-
-# Path to file containing key used for encrypting and decrypting the content of an
-# acknowledgement so that nobody besides the client knows which packet it refers to.
-ack_key_file = '{{ entry_gateway.storage_paths.authenticator.ack_key_file }}'
-
-# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-reply_surb_database = '{{ entry_gateway.storage_paths.authenticator.reply_surb_database }}'
-
-# Normally this is a path to the file containing information about gateways used by this client,
-# i.e. details such as their public keys, owner addresses or the network information.
-# but in this case it just has the basic information of "we're using custom gateway".
-# Due to how clients are started up, this file has to exist.
-gateway_registrations = '{{ entry_gateway.storage_paths.authenticator.gateway_registrations }}'
-
-##### exit-gateway mode nym-node config options #####
-
-[exit_gateway]
+[service_providers]
 
 # specifies whether this exit node should run in 'open-proxy' mode
 # and thus would attempt to resolve **ANY** request it receives.
-open_proxy = {{ exit_gateway.open_proxy }}
+open_proxy = {{ service_providers.open_proxy }}
 
 # Specifies the custom url for an upstream source of the exit policy used by this node.
-upstream_exit_policy_url = '{{ exit_gateway.upstream_exit_policy_url }}'
+upstream_exit_policy_url = '{{ service_providers.upstream_exit_policy_url }}'
 
-[exit_gateway.network_requester]
+[service_providers.network_requester]
 # currently empty (there are some debug options one might want to configure)
 
-[exit_gateway.ip_packet_router]
+[service_providers.ip_packet_router]
 # currently empty (there are some debug options one might want to configure)
 
-[exit_gateway.storage_paths]
+[service_providers.authenticator]
+# currently empty (there are some debug options one might want to configure)
+
+[service_providers.storage_paths]
 
 # Path to sqlite database containing all persistent data: messages for offline clients,
 # derived shared keys, available client bandwidths and wireguard peers.
-clients_storage = '{{ exit_gateway.storage_paths.clients_storage }}'
+clients_storage = '{{ service_providers.storage_paths.clients_storage }}'
 
 # Path to sqlite database containing all persistent stats data.
-stats_storage = '{{ exit_gateway.storage_paths.stats_storage }}'
+stats_storage = '{{ service_providers.storage_paths.stats_storage }}'
 
-
-[exit_gateway.storage_paths.network_requester]
+[service_providers.storage_paths.network_requester]
 # Path to file containing network requester ed25519 identity private key.
-private_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.network_requester.private_ed25519_identity_key_file }}'
+private_ed25519_identity_key_file = '{{ service_providers.storage_paths.network_requester.private_ed25519_identity_key_file }}'
 
 # Path to file containing network requester ed25519 identity public key.
-public_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.network_requester.public_ed25519_identity_key_file }}'
+public_ed25519_identity_key_file = '{{ service_providers.storage_paths.network_requester.public_ed25519_identity_key_file }}'
 
 # Path to file containing network requester x25519 diffie hellman private key.
-private_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.network_requester.private_x25519_diffie_hellman_key_file }}'
+private_x25519_diffie_hellman_key_file = '{{ service_providers.storage_paths.network_requester.private_x25519_diffie_hellman_key_file }}'
 
 # Path to file containing network requester x25519 diffie hellman public key.
-public_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.network_requester.public_x25519_diffie_hellman_key_file }}'
+public_x25519_diffie_hellman_key_file = '{{ service_providers.storage_paths.network_requester.public_x25519_diffie_hellman_key_file }}'
 
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.
-ack_key_file = '{{ exit_gateway.storage_paths.network_requester.ack_key_file }}'
+ack_key_file = '{{ service_providers.storage_paths.network_requester.ack_key_file }}'
 
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-reply_surb_database = '{{ exit_gateway.storage_paths.network_requester.reply_surb_database }}'
+reply_surb_database = '{{ service_providers.storage_paths.network_requester.reply_surb_database }}'
 
 # Normally this is a path to the file containing information about gateways used by this client,
 # i.e. details such as their public keys, owner addresses or the network information.
 # but in this case it just has the basic information of "we're using custom gateway".
 # Due to how clients are started up, this file has to exist.
-gateway_registrations = '{{ exit_gateway.storage_paths.network_requester.gateway_registrations }}'
+gateway_registrations = '{{ service_providers.storage_paths.network_requester.gateway_registrations }}'
 
-[exit_gateway.storage_paths.ip_packet_router]
+[service_providers.storage_paths.ip_packet_router]
 # Path to file containing ip packet router ed25519 identity private key.
-private_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.ip_packet_router.private_ed25519_identity_key_file }}'
+private_ed25519_identity_key_file = '{{ service_providers.storage_paths.ip_packet_router.private_ed25519_identity_key_file }}'
 
 # Path to file containing ip packet router ed25519 identity public key.
-public_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.ip_packet_router.public_ed25519_identity_key_file }}'
+public_ed25519_identity_key_file = '{{ service_providers.storage_paths.ip_packet_router.public_ed25519_identity_key_file }}'
 
 # Path to file containing ip packet router x25519 diffie hellman private key.
-private_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.ip_packet_router.private_x25519_diffie_hellman_key_file }}'
+private_x25519_diffie_hellman_key_file = '{{ service_providers.storage_paths.ip_packet_router.private_x25519_diffie_hellman_key_file }}'
 
 # Path to file containing ip packet router x25519 diffie hellman public key.
-public_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.ip_packet_router.public_x25519_diffie_hellman_key_file }}'
+public_x25519_diffie_hellman_key_file = '{{ service_providers.storage_paths.ip_packet_router.public_x25519_diffie_hellman_key_file }}'
 
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.
-ack_key_file = '{{ exit_gateway.storage_paths.ip_packet_router.ack_key_file }}'
+ack_key_file = '{{ service_providers.storage_paths.ip_packet_router.ack_key_file }}'
 
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-reply_surb_database = '{{ exit_gateway.storage_paths.ip_packet_router.reply_surb_database }}'
+reply_surb_database = '{{ service_providers.storage_paths.ip_packet_router.reply_surb_database }}'
 
 # Normally this is a path to the file containing information about gateways used by this client,
 # i.e. details such as their public keys, owner addresses or the network information.
 # but in this case it just has the basic information of "we're using custom gateway".
 # Due to how clients are started up, this file has to exist.
-gateway_registrations = '{{ exit_gateway.storage_paths.ip_packet_router.gateway_registrations }}'
+gateway_registrations = '{{ service_providers.storage_paths.ip_packet_router.gateway_registrations }}'
 
-[exit_gateway.storage_paths.authenticator]
+[service_providers.storage_paths.authenticator]
 # Path to file containing authenticator ed25519 identity private key.
-private_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.authenticator.private_ed25519_identity_key_file }}'
+private_ed25519_identity_key_file = '{{ service_providers.storage_paths.authenticator.private_ed25519_identity_key_file }}'
 
 # Path to file containing authenticator ed25519 identity public key.
-public_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.authenticator.public_ed25519_identity_key_file }}'
+public_ed25519_identity_key_file = '{{ service_providers.storage_paths.authenticator.public_ed25519_identity_key_file }}'
 
 # Path to file containing authenticator x25519 diffie hellman private key.
-private_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.authenticator.private_x25519_diffie_hellman_key_file }}'
+private_x25519_diffie_hellman_key_file = '{{ service_providers.storage_paths.authenticator.private_x25519_diffie_hellman_key_file }}'
 
 # Path to file containing authenticator x25519 diffie hellman public key.
-public_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.authenticator.public_x25519_diffie_hellman_key_file }}'
+public_x25519_diffie_hellman_key_file = '{{ service_providers.storage_paths.authenticator.public_x25519_diffie_hellman_key_file }}'
 
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.
-ack_key_file = '{{ exit_gateway.storage_paths.authenticator.ack_key_file }}'
+ack_key_file = '{{ service_providers.storage_paths.authenticator.ack_key_file }}'
 
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-reply_surb_database = '{{ exit_gateway.storage_paths.authenticator.reply_surb_database }}'
+reply_surb_database = '{{ service_providers.storage_paths.authenticator.reply_surb_database }}'
 
 # Normally this is a path to the file containing information about gateways used by this client,
 # i.e. details such as their public keys, owner addresses or the network information.
 # but in this case it just has the basic information of "we're using custom gateway".
 # Due to how clients are started up, this file has to exist.
-gateway_registrations = '{{ exit_gateway.storage_paths.authenticator.gateway_registrations }}'
+gateway_registrations = '{{ service_providers.storage_paths.authenticator.gateway_registrations }}'
 
-
-[authenticator]
-# currently empty (there are some debug options one might want to configure)
-
-##### logging configuration options #####
-
-[logging]
-
-# TODO
 
 "#;

@@ -13,11 +13,9 @@
     "ts-packages/*",
     "nym-wallet",
     "explorer-nextjs",
+    "explorer-v2",
     "types",
-    "clients/validator",
-    "sdk/typescript/packages/**",
-    "sdk/typescript/examples/**",
-    "sdk/typescript/codegen/**"
+    "clients/validator"
   ],
   "scripts": {
     "nuke": "npx rimraf **/node_modules node_modules",

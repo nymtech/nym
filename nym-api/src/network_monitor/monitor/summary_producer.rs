@@ -32,9 +32,118 @@ impl RouteResult {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(crate) struct TestReport {
-    pub(crate) network_reliability: f32,
+    pub(crate) network_reliability: f64,
+    pub(crate) total_sent: usize,
+    pub(crate) total_received: usize,
+
+    // integer score to number of nodes with that score
+    pub(crate) mixnode_results: HashMap<u8, usize>,
+    pub(crate) gateway_results: HashMap<u8, usize>,
+}
+
+impl TestReport {
+    pub(crate) fn new(
+        total_sent: usize,
+        total_received: usize,
+        raw_mixnode_results: &[NodeResult],
+        raw_gateway_results: &[NodeResult],
+    ) -> Self {
+        let network_reliability = total_received as f64 / total_sent as f64 * 100.0;
+
+        let mut mixnode_results = HashMap::new();
+        let mut gateway_results = HashMap::new();
+
+        for res in raw_mixnode_results {
+            mixnode_results
+                .entry(res.reliability)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
+        }
+
+        for res in raw_gateway_results {
+            gateway_results
+                .entry(res.reliability)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
+        }
+
+        TestReport {
+            network_reliability,
+            total_sent,
+            total_received,
+            mixnode_results,
+            gateway_results,
+        }
+    }
+
+    pub(crate) fn to_display_report(&self, route_results: &[RouteResult]) -> DisplayTestReport {
+        let mut exceptional_mixnodes = 0;
+        let mut exceptional_gateways = 0;
+
+        let mut fine_mixnodes = 0;
+        let mut fine_gateways = 0;
+
+        let mut poor_mixnodes = 0;
+        let mut poor_gateways = 0;
+
+        let mut unreliable_mixnodes = 0;
+        let mut unreliable_gateways = 0;
+
+        let mut unroutable_mixnodes = 0;
+        let mut unroutable_gateways = 0;
+
+        for (&score, &count) in &self.mixnode_results {
+            if score >= EXCEPTIONAL_THRESHOLD {
+                exceptional_mixnodes += count;
+            } else if score >= FINE_THRESHOLD {
+                fine_mixnodes += count;
+            } else if score >= POOR_THRESHOLD {
+                poor_mixnodes += count;
+            } else if score >= UNRELIABLE_THRESHOLD {
+                unreliable_mixnodes += count;
+            } else {
+                unroutable_mixnodes += count;
+            }
+        }
+
+        for (&score, &count) in &self.gateway_results {
+            if score >= EXCEPTIONAL_THRESHOLD {
+                exceptional_gateways += count;
+            } else if score >= FINE_THRESHOLD {
+                fine_gateways += count;
+            } else if score >= POOR_THRESHOLD {
+                poor_gateways += count;
+            } else if score >= UNRELIABLE_THRESHOLD {
+                unreliable_gateways += count;
+            } else {
+                unroutable_gateways += count;
+            }
+        }
+
+        DisplayTestReport {
+            network_reliability: self.network_reliability,
+            total_sent: self.total_sent,
+            total_received: self.total_received,
+            route_results: route_results.to_vec(),
+            exceptional_mixnodes,
+            exceptional_gateways,
+            fine_mixnodes,
+            fine_gateways,
+            poor_mixnodes,
+            poor_gateways,
+            unreliable_mixnodes,
+            unreliable_gateways,
+            unroutable_mixnodes,
+            unroutable_gateways,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub(crate) struct DisplayTestReport {
+    pub(crate) network_reliability: f64,
     pub(crate) total_sent: usize,
     pub(crate) total_received: usize,
 
@@ -56,79 +165,7 @@ pub(crate) struct TestReport {
     pub(crate) unroutable_gateways: usize,
 }
 
-impl TestReport {
-    fn new(
-        total_sent: usize,
-        total_received: usize,
-        mixnode_results: &[NodeResult],
-        gateway_results: &[NodeResult],
-        route_results: &[RouteResult],
-    ) -> Self {
-        let mut exceptional_mixnodes = 0;
-        let mut exceptional_gateways = 0;
-
-        let mut fine_mixnodes = 0;
-        let mut fine_gateways = 0;
-
-        let mut poor_mixnodes = 0;
-        let mut poor_gateways = 0;
-
-        let mut unreliable_mixnodes = 0;
-        let mut unreliable_gateways = 0;
-
-        let mut unroutable_mixnodes = 0;
-        let mut unroutable_gateways = 0;
-
-        for mixnode_result in mixnode_results {
-            if mixnode_result.reliability >= EXCEPTIONAL_THRESHOLD {
-                exceptional_mixnodes += 1;
-            } else if mixnode_result.reliability >= FINE_THRESHOLD {
-                fine_mixnodes += 1;
-            } else if mixnode_result.reliability >= POOR_THRESHOLD {
-                poor_mixnodes += 1;
-            } else if mixnode_result.reliability >= UNRELIABLE_THRESHOLD {
-                unreliable_mixnodes += 1;
-            } else {
-                unroutable_mixnodes += 1;
-            }
-        }
-
-        for gateway_result in gateway_results {
-            if gateway_result.reliability >= EXCEPTIONAL_THRESHOLD {
-                exceptional_gateways += 1;
-            } else if gateway_result.reliability >= FINE_THRESHOLD {
-                fine_gateways += 1;
-            } else if gateway_result.reliability >= POOR_THRESHOLD {
-                poor_gateways += 1;
-            } else if gateway_result.reliability >= UNRELIABLE_THRESHOLD {
-                unreliable_gateways += 1;
-            } else {
-                unroutable_gateways += 1;
-            }
-        }
-
-        let network_reliability = total_received as f32 / total_sent as f32 * 100.0;
-
-        TestReport {
-            network_reliability,
-            total_sent,
-            total_received,
-            route_results: route_results.to_vec(),
-            exceptional_mixnodes,
-            exceptional_gateways,
-            fine_mixnodes,
-            fine_gateways,
-            poor_mixnodes,
-            poor_gateways,
-            unreliable_mixnodes,
-            unreliable_gateways,
-            unroutable_mixnodes,
-            unroutable_gateways,
-        }
-    }
-}
-
-impl Display for TestReport {
+impl Display for DisplayTestReport {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Mix Network Test Report")?;
         writeln!(
@@ -218,7 +255,6 @@ impl TestSummary {
             total_received,
             &self.mixnode_results,
             &self.gateway_results,
-            &self.route_results,
         )
     }
 }

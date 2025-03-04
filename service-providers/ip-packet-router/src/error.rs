@@ -23,16 +23,13 @@ pub enum IpPacketRouterError {
     #[error("failed to validate the loaded config")]
     ConfigValidationFailure,
 
-    #[error("failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("failed to setup mixnet client: {source}")]
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
 
-    #[error("the entity wrapping the network requester has disconnected")]
+    #[error("the entity wrapping the ip packet router has disconnected")]
     DisconnectedParent,
 
     #[error("received packet has an invalid version: {0}")]

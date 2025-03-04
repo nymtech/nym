@@ -4,13 +4,15 @@
 use crate::error::WasmCoreError;
 use crate::storage::wasm_client_traits::{v1, v2, WasmClientStorage};
 use async_trait::async_trait;
-use js_sys::{Array, Promise};
+use js_sys::Promise;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_storage::traits::BaseWasmStorage;
-use wasm_storage::{IdbVersionChangeEvent, WasmStorage};
+use wasm_storage::{
+    Build, Database, RawDbResult, TryFromJs, TryToJs, VersionChangeEvent, WasmStorage,
+};
 use wasm_utils::error::{simple_js_error, PromisableResult};
 use zeroize::Zeroizing;
 
@@ -44,26 +46,29 @@ impl ClientStorage {
         // special care must be taken on JS side to ensure it's correctly used there.
         let passphrase = Zeroizing::new(passphrase);
 
-        let migrate_fn = Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+        let migrate_fn = Some(|evt: VersionChangeEvent, db: Database| -> RawDbResult<()> {
             // Even if the web-sys bindings expose the version as a f64, the IndexedDB API
             // works with an unsigned integer.
             // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
             let old_version = evt.old_version() as u32;
-            let db = evt.db();
 
             if old_version < 1 {
                 // migrating to version 2
 
-                db.create_object_store(v1::KEYS_STORE)?;
-                db.create_object_store(v1::CORE_STORE)?;
+                db.create_object_store(v1::KEYS_STORE).build()?;
+                db.create_object_store(v1::CORE_STORE).build()?;
 
-                db.create_object_store(v2::GATEWAY_REGISTRATIONS_ACTIVE_GATEWAY_STORE)?;
-                db.create_object_store(v2::GATEWAY_REGISTRATIONS_REGISTERED_GATEWAYS_STORE)?;
+                db.create_object_store(v2::GATEWAY_REGISTRATIONS_ACTIVE_GATEWAY_STORE)
+                    .build()?;
+                db.create_object_store(v2::GATEWAY_REGISTRATIONS_REGISTERED_GATEWAYS_STORE)
+                    .build()?;
+
+                return Ok(());
             }
 
             // version 1 -> unimplemented migration
             if old_version < 2 {
-                return Err(simple_js_error("this client is incompatible with existing storage. please initialise it again."));
+                return Err(simple_js_error("this client is incompatible with existing storage. please initialise it again.").into());
             }
 
             Ok(())
@@ -110,7 +115,7 @@ impl BaseWasmStorage for ClientStorage {
     async fn read_value<T, K>(&self, store: &str, key: K) -> Result<Option<T>, Self::StorageError>
     where
         T: DeserializeOwned,
-        K: JsCast,
+        K: TryToJs,
     {
         Ok(self.inner.read_value(store, key).await?)
     }
@@ -123,33 +128,33 @@ impl BaseWasmStorage for ClientStorage {
     ) -> Result<(), Self::StorageError>
     where
         T: Serialize,
-        K: JsCast,
+        K: TryToJs + TryFromJs,
     {
         Ok(self.inner.store_value(store, key, value).await?)
     }
 
     async fn remove_value<K>(&self, store: &str, key: K) -> Result<(), Self::StorageError>
     where
-        K: JsCast,
+        K: TryToJs,
     {
         Ok(self.inner.remove_value(store, key).await?)
     }
 
     async fn has_value<K>(&self, store: &str, key: K) -> Result<bool, Self::StorageError>
     where
-        K: JsCast,
+        K: TryToJs,
     {
         Ok(self.inner.has_value(store, key).await?)
     }
 
     async fn key_count<K>(&self, store: &str, key: K) -> Result<u32, Self::StorageError>
     where
-        K: JsCast,
+        K: TryToJs,
     {
         Ok(self.inner.key_count(store, key).await?)
     }
 
-    async fn get_all_keys(&self, store: &str) -> Result<Array, Self::StorageError> {
+    async fn get_all_keys(&self, store: &str) -> Result<Vec<JsValue>, Self::StorageError> {
         Ok(self.inner.get_all_keys(store).await?)
     }
 }

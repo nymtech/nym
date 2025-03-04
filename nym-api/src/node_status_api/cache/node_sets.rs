@@ -5,7 +5,8 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::helpers::RewardedSetStatus;
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
-use crate::nym_contract_cache::cache::CachedRewardedSet;
+use crate::nym_contract_cache::cache::data::ConfigScoreData;
+use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::DescribedNodeType::{LegacyGateway, LegacyMixnode, NymNode};
@@ -14,12 +15,10 @@ use nym_api_requests::models::{
     MixNodeBondAnnotated, NodeAnnotation, NodePerformance, NymNodeDescription, RoutingScore,
 };
 use nym_contracts_common::NaiveFloat;
-use nym_mixnet_contract_common::{ConfigScoreParams, Interval, NodeId};
+use nym_mixnet_contract_common::{Interval, NodeId, VersionScoreFormulaParams};
 use nym_mixnet_contract_common::{NymNodeDetails, RewardingParams};
-use nym_topology::NetworkAddress;
+use nym_topology::CachedEpochRewardedSet;
 use std::collections::{HashMap, HashSet};
-use std::net::ToSocketAddrs;
-use std::str::FromStr;
 use tracing::trace;
 
 pub(super) async fn get_mixnode_reliability_from_storage(
@@ -90,24 +89,37 @@ async fn get_routing_score(
     RoutingScore::new(score as f64)
 }
 
+fn versions_behind_factor_to_config_score(
+    versions_behind: u32,
+    params: VersionScoreFormulaParams,
+) -> f64 {
+    let penalty = params.penalty.naive_to_f64();
+    let scaling = params.penalty_scaling.naive_to_f64();
+
+    // version_score = penalty ^ (num_versions_behind ^ penalty_scaling)
+    penalty.powf((versions_behind as f64).powf(scaling))
+}
+
 fn calculate_config_score(
-    config_score_params: &ConfigScoreParams,
+    config_score_data: &ConfigScoreData,
     described_data: Option<&NymNodeDescription>,
 ) -> ConfigScore {
     let Some(described) = described_data else {
         return ConfigScore::unavailable();
     };
 
-    let Ok(reported_semver) = described
-        .description
-        .build_information
-        .build_version
-        .parse::<semver::Version>()
-    else {
+    let node_version = &described.description.build_information.build_version;
+    let Ok(reported_semver) = node_version.parse::<semver::Version>() else {
         return ConfigScore::bad_semver();
     };
+    let versions_behind = config_score_data
+        .config_score_params
+        .version_weights
+        .versions_behind_factor(
+            &reported_semver,
+            &config_score_data.nym_node_version_history,
+        );
 
-    let versions_behind = config_score_params.versions_behind(&reported_semver);
     let runs_nym_node = described.description.build_information.binary_name == "nym-node";
     let accepted_terms_and_conditions = described
         .description
@@ -117,17 +129,12 @@ fn calculate_config_score(
     let version_score = if !runs_nym_node || !accepted_terms_and_conditions {
         0.
     } else {
-        let penalty = config_score_params
-            .version_score_formula_params
-            .penalty
-            .naive_to_f64();
-        let scaling = config_score_params
-            .version_score_formula_params
-            .penalty_scaling
-            .naive_to_f64();
-
-        // version_score = penalty ^ (num_versions_behind ^ penalty_scaling)
-        penalty.powf((versions_behind as f64).powf(scaling))
+        versions_behind_factor_to_config_score(
+            versions_behind,
+            config_score_data
+                .config_score_params
+                .version_score_formula_params,
+        )
     };
 
     ConfigScore::new(
@@ -139,7 +146,10 @@ fn calculate_config_score(
 }
 
 // TODO: this might have to be moved to a different file if other places also rely on this functionality
-fn get_rewarded_set_status(rewarded_set: &CachedRewardedSet, node_id: NodeId) -> RewardedSetStatus {
+fn get_rewarded_set_status(
+    rewarded_set: &CachedEpochRewardedSet,
+    node_id: NodeId,
+) -> RewardedSetStatus {
     if rewarded_set.is_standby(&node_id) {
         RewardedSetStatus::Standby
     } else if rewarded_set.is_active_mixnode(&node_id) {
@@ -155,7 +165,7 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
     mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
     interval_reward_params: RewardingParams,
     current_interval: Interval,
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     blacklist: &HashSet<NodeId>,
 ) -> HashMap<NodeId, MixNodeBondAnnotated> {
     let mut annotated = HashMap::new();
@@ -194,21 +204,11 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
             .ok()
             .unwrap_or_default();
 
-        // safety: this conversion is infallible
-        let ip_addresses =
-            match NetworkAddress::from_str(&mixnode.bond_information.mix_node.host).unwrap() {
-                NetworkAddress::IpAddr(ip) => vec![ip],
-                NetworkAddress::Hostname(hostname) => {
-                    // try to resolve it
-                    (
-                        hostname.as_str(),
-                        mixnode.bond_information.mix_node.mix_port,
-                    )
-                        .to_socket_addrs()
-                        .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
-                        .unwrap_or_default()
-                }
-            };
+        let Some((ip_addresses, _)) =
+            legacy_host_to_ips_and_hostname(&mixnode.bond_information.mix_node.host)
+        else {
+            continue;
+        };
 
         let (estimated_operator_apy, estimated_delegators_apy) =
             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
@@ -254,17 +254,10 @@ pub(crate) async fn annotate_legacy_gateways_with_details(
             .ok()
             .unwrap_or_default();
 
-        // safety: this conversion is infallible
-        let ip_addresses = match NetworkAddress::from_str(&gateway_bond.bond.gateway.host).unwrap()
-        {
-            NetworkAddress::IpAddr(ip) => vec![ip],
-            NetworkAddress::Hostname(hostname) => {
-                // try to resolve it
-                (hostname.as_str(), gateway_bond.bond.gateway.mix_port)
-                    .to_socket_addrs()
-                    .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
-                    .unwrap_or_default()
-            }
+        let Some((ip_addresses, _)) =
+            legacy_host_to_ips_and_hostname(&gateway_bond.bond.gateway.host)
+        else {
+            continue;
         };
 
         annotated.insert(
@@ -285,11 +278,11 @@ pub(crate) async fn annotate_legacy_gateways_with_details(
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn produce_node_annotations(
     storage: &NymApiStorage,
-    config_score_params: &ConfigScoreParams,
+    config_score_data: &ConfigScoreData,
     legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
     legacy_gateways: &[LegacyGatewayBondWithId],
     nym_nodes: &[NymNodeDetails],
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     current_interval: Interval,
     described_nodes: &DescribedNodes,
 ) -> HashMap<NodeId, NodeAnnotation> {
@@ -301,7 +294,7 @@ pub(crate) async fn produce_node_annotations(
         let routing_score =
             get_routing_score(storage, node_id, LegacyMixnode, current_interval).await;
         let config_score =
-            calculate_config_score(config_score_params, described_nodes.get_node(&node_id));
+            calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
 
         let performance = routing_score.score * config_score.score;
         // map it from 0-1 range into 0-100
@@ -327,7 +320,7 @@ pub(crate) async fn produce_node_annotations(
         let routing_score =
             get_routing_score(storage, node_id, LegacyGateway, current_interval).await;
         let config_score =
-            calculate_config_score(config_score_params, described_nodes.get_node(&node_id));
+            calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
 
         let performance = routing_score.score * config_score.score;
         // map it from 0-1 range into 0-100
@@ -352,7 +345,7 @@ pub(crate) async fn produce_node_annotations(
         let node_id = nym_node.node_id();
         let routing_score = get_routing_score(storage, node_id, NymNode, current_interval).await;
         let config_score =
-            calculate_config_score(config_score_params, described_nodes.get_node(&node_id));
+            calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
 
         let performance = routing_score.score * config_score.score;
         // map it from 0-1 range into 0-100

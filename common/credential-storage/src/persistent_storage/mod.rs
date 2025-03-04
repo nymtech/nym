@@ -33,7 +33,10 @@ use nym_credentials::{
     IssuanceTicketBook, IssuedTicketBook,
 };
 use nym_ecash_time::{ecash_today, Date, EcashTime};
-use sqlx::ConnectOptions;
+use sqlx::{
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
+    ConnectOptions,
+};
 use std::path::Path;
 use zeroize::Zeroizing;
 
@@ -56,6 +59,9 @@ impl PersistentStorage {
         );
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();
@@ -82,6 +88,10 @@ impl PersistentStorage {
 #[async_trait]
 impl Storage for PersistentStorage {
     type StorageError = StorageError;
+
+    async fn close(&self) {
+        self.storage_manager.close().await
+    }
 
     /// remove all expired ticketbooks and expiration date signatures
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError> {

@@ -1,11 +1,13 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
+use crate::EpochId;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Uint128};
-use cosmwasm_std::{Coin, Decimal};
 use std::fmt::{Display, Formatter};
 
 // type aliases for better reasoning about available data
@@ -28,6 +30,23 @@ impl RoleAssignment {
 
     pub fn is_final_assignment(&self) -> bool {
         self.role.is_standby()
+    }
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct EpochRewardedSet {
+    pub epoch_id: EpochId,
+
+    pub assignment: RewardedSet,
+}
+
+impl From<(EpochId, RewardedSet)> for EpochRewardedSet {
+    fn from((epoch_id, assignment): (EpochId, RewardedSet)) -> Self {
+        EpochRewardedSet {
+            epoch_id,
+            assignment,
+        }
     }
 }
 
@@ -67,6 +86,29 @@ impl RewardedSet {
 
     pub fn rewarded_set_size(&self) -> usize {
         self.active_set_size() + self.standby.len()
+    }
+
+    pub fn get_role(&self, node_id: NodeId) -> Option<Role> {
+        // given each role has ~100 entries in them, doing linear lookup with vec should be fine
+        if self.entry_gateways.contains(&node_id) {
+            return Some(Role::EntryGateway);
+        }
+        if self.exit_gateways.contains(&node_id) {
+            return Some(Role::ExitGateway);
+        }
+        if self.layer1.contains(&node_id) {
+            return Some(Role::Layer1);
+        }
+        if self.layer2.contains(&node_id) {
+            return Some(Role::Layer2);
+        }
+        if self.layer3.contains(&node_id) {
+            return Some(Role::Layer3);
+        }
+        if self.standby.contains(&node_id) {
+            return Some(Role::Standby);
+        }
+        None
     }
 }
 
@@ -131,6 +173,14 @@ where
     pub fn within_range(&self, value: T) -> bool {
         value >= self.minimum && value <= self.maximum
     }
+}
+
+#[cfg(feature = "utoipa")]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(title = "Coin"))]
+pub struct CoinSchema {
+    pub denom: String,
+    pub amount: String,
 }
 
 /// The current state of the mixnet contract.
@@ -222,95 +272,13 @@ impl OperatorsParamsUpdate {
 }
 
 #[cw_serde]
-pub struct ConfigScoreParams {
-    /// Current version of the nym node that is going to be used for determining the version score of a node.
-    /// note: value stored here is pre-validated `semver::Version`
-    pub current_nym_node_semver: String,
-
-    /// Defines weights for calculating numbers of versions behind the current release.
-    pub version_weights: OutdatedVersionWeights,
-
-    /// Defines the parameters of the formula for calculating the version score
-    pub version_score_formula_params: VersionScoreFormulaParams,
-}
-
-impl ConfigScoreParams {
-    // SAFETY: the value stored in the contract is always valid
-    #[allow(clippy::unwrap_used)]
-    pub fn unchecked_nym_node_version(&self) -> semver::Version {
-        self.current_nym_node_semver.parse().unwrap()
-    }
-
-    pub fn versions_behind(&self, node_semver: &semver::Version) -> u32 {
-        let expected = self.unchecked_nym_node_version();
-
-        let major_diff = (node_semver.major as i64 - expected.major as i64).unsigned_abs() as u32;
-        let minor_diff = (node_semver.minor as i64 - expected.minor as i64).unsigned_abs() as u32;
-        let patch_diff = (node_semver.patch as i64 - expected.patch as i64).unsigned_abs() as u32;
-        let prerelease_diff = if node_semver.pre == expected.pre {
-            0
-        } else {
-            1
-        };
-
-        major_diff * self.version_weights.major
-            + minor_diff * self.version_weights.minor
-            + patch_diff * self.version_weights.patch
-            + prerelease_diff * self.version_weights.prerelease
-    }
-}
-
-/// Defines weights for calculating numbers of versions behind the current release.
-#[cw_serde]
-#[derive(Copy)]
-pub struct OutdatedVersionWeights {
-    pub major: u32,
-    pub minor: u32,
-    pub patch: u32,
-    pub prerelease: u32,
-}
-
-impl Default for OutdatedVersionWeights {
-    fn default() -> Self {
-        OutdatedVersionWeights {
-            major: 100,
-            minor: 10,
-            patch: 1,
-            prerelease: 1,
-        }
-    }
-}
-
-/// Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling)
-/// define the relevant parameters
-#[cw_serde]
-#[derive(Copy)]
-pub struct VersionScoreFormulaParams {
-    pub penalty: Decimal,
-    pub penalty_scaling: Decimal,
-}
-
-impl Default for VersionScoreFormulaParams {
-    fn default() -> Self {
-        #[allow(clippy::unwrap_used)]
-        VersionScoreFormulaParams {
-            penalty: "0.8".parse().unwrap(),
-            penalty_scaling: "2.0".parse().unwrap(),
-        }
-    }
-}
-
-#[cw_serde]
 pub struct ConfigScoreParamsUpdate {
-    pub current_nym_node_semver: Option<String>,
     pub version_weights: Option<OutdatedVersionWeights>,
     pub version_score_formula_params: Option<VersionScoreFormulaParams>,
 }
 
 impl ConfigScoreParamsUpdate {
     pub fn contains_updates(&self) -> bool {
-        self.current_nym_node_semver.is_some()
-            || self.version_weights.is_some()
-            || self.version_score_formula_params.is_some()
+        self.version_weights.is_some() || self.version_score_formula_params.is_some()
     }
 }

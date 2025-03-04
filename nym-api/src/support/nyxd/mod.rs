@@ -29,8 +29,9 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey,
-    NymNodeDetails, RewardedSet, RoleAssignment,
+    ConfigScoreParams, CurrentIntervalResponse, EpochRewardedSet, EpochStatus, ExecuteMsg,
+    GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails, RewardedSet,
+    RoleAssignment,
 };
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
@@ -232,6 +233,12 @@ impl Client {
             .map(|state| state.config_score_params)
     }
 
+    pub(crate) async fn get_nym_node_version_history(
+        &self,
+    ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError> {
+        nyxd_query!(self, get_full_nym_node_version_history().await)
+    }
+
     pub(crate) async fn get_current_interval(&self) -> Result<CurrentIntervalResponse, NyxdError> {
         nyxd_query!(self, get_current_interval_details().await)
     }
@@ -246,7 +253,7 @@ impl Client {
         nyxd_query!(self, get_rewarding_parameters().await)
     }
 
-    pub(crate) async fn get_rewarded_set_nodes(&self) -> Result<RewardedSet, NyxdError> {
+    pub(crate) async fn get_rewarded_set_nodes(&self) -> Result<EpochRewardedSet, NyxdError> {
         nyxd_query!(self, get_rewarded_set().await)
     }
 

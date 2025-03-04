@@ -1,0 +1,158 @@
+{
+  "id": 4,
+  "title": "Become a Nym Node Operator",
+  "label": "Onboarding",
+  "description": "VAnyone can operate a Nym node, this article is an overview of what you'll need to set up and run a successful Nym node.",
+  "attributes": {
+    "blogAuthors": ["Nym"],
+    "date": "Mon Jan 05 2025 10:26:09 GMT+0000 (Greenwich Mean Time)",
+    "readingTime": 5
+  },
+  "icon": "/icons/gateway.svg",
+  "image": "/images/placeholder.webp",
+  "overview": {
+    "content": [
+      {
+        "type": "paragraph",
+        "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+      },
+      {
+        "type": "paragraph",
+        "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+      },
+      {
+        "type": "paragraph",
+        "text": "This is where decentralized VPNs (dVPNs) come in. dVPNs are even more effective at protecting you from hackers because they are decentralized and do not rely on a single server to protect your data. This makes them more secure and harder for hackers to attack."
+      }
+    ],
+    "image": "https://nymtech.net/api/uploads/presentation-poster?w=3840&q=75"
+  },
+  "sections": [
+    {
+      "id": "section-1",
+      "heading": "Section 1",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-2",
+      "heading": "Section 2",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "heading": "Section 3",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "heading": "Section 4",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-5",
+      "heading": "Section 5",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-6",
+      "heading": "Section 6",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-7",
+      "heading": "Section 7",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-8",
+      "heading": "Section 8",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    },
+    {
+      "id": "section-9",
+      "heading": "Section 9",
+      "text": [
+        {
+          "type": "paragraph",
+          "text": "VPNs are a popular tool for protecting your privacy online. They encrypt your internet connection and hide your IP address, making it harder for hackers to track your online activity. But do VPNs protect you from hackers? The answer is yes, but not all cyber attacks."
+        },
+        {
+          "type": "paragraph",
+          "text": "VPNs can be powerful tools in protecting us from hackers, but they are not foolproof. They can help protect your data from being intercepted by hackers when you are using public Wi-Fi networks, but they cannot protect you from all cyber attacks. For example, they cannot protect you from phishing attacks or malware that is already on your device."
+        }
+      ]
+    }
+  ]
+}

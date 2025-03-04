@@ -26,7 +26,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
 
     NyxdScraper::new(config.scraper_config())
         .await?
-        .process_single_block(args.height)
+        .unsafe_process_single_block(args.height)
         .await?;
     Ok(())
 }

@@ -20,7 +20,7 @@ pub use nym_sphinx::addressing::clients::Recipient;
 
 pub mod config;
 
-type NativeClientBuilder<'a> = BaseClientBuilder<'a, QueryHttpRpcNyxdClient, OnDiskPersistent>;
+type NativeClientBuilder = BaseClientBuilder<QueryHttpRpcNyxdClient, OnDiskPersistent>;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -32,6 +32,10 @@ pub struct SocketClient {
 }
 
 impl SocketClient {
+    pub fn config(&self) -> Config {
+        self.config.clone()
+    }
+
     pub fn new(config: Config, custom_mixnet: Option<PathBuf>) -> Self {
         SocketClient {
             config,
@@ -45,7 +49,7 @@ impl SocketClient {
         client_output: ClientOutput,
         client_state: ClientState,
         self_address: &Recipient,
-        shutdown: nym_task::TaskClient,
+        task_client: nym_task::TaskClient,
         packet_type: PacketType,
     ) {
         info!("Starting websocket listener...");
@@ -73,10 +77,15 @@ impl SocketClient {
             shared_lane_queue_lengths,
             reply_controller_sender,
             Some(packet_type),
+            task_client.fork("websocket_handler"),
         );
 
-        websocket::Listener::new(config.socket.host, config.socket.listening_port)
-            .start(websocket_handler, shutdown);
+        websocket::Listener::new(
+            config.socket.host,
+            config.socket.listening_port,
+            task_client.with_suffix("websocket_listener"),
+        )
+        .start(websocket_handler);
     }
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
@@ -108,8 +117,9 @@ impl SocketClient {
         let storage = self.initialise_storage().await?;
         let user_agent = nym_bin_common::bin_info!().into();
 
-        let mut base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client)
-            .with_user_agent(user_agent);
+        let mut base_client =
+            BaseClientBuilder::new(self.config().base(), storage, dkg_query_client)
+                .with_user_agent(user_agent);
 
         if let Some(custom_mixnet) = &self.custom_mixnet {
             base_client = base_client.with_stored_topology(custom_mixnet)?;

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO ticketbook_issuance_reward(\n                    ticketbook_expiration_date,\n                    api_endpoint,\n                    operator_account,\n                    whitelisted,\n                    banned,\n                    amount,\n                    issued_partial_ticketbooks,\n                    share_of_issued_ticketbooks,\n                    skipped_verification,\n                    subsample_size\n                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "1d3938bc8d8d6829289ef7ff78ee836c7cff2646b6b76559543b4e4056094d58"
+}

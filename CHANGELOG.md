@@ -4,6 +4,349 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.3-ruta] (2025-02-10)
+
+- Push down forget me to client configs ([#5431])
+- Fix statistics shutdown ([#5426])
+- Make wait_for_graceful_shutdown to be pub ([#5424])
+- Upgrade to thiserror 2.0 ([#5414])
+- build(deps): bump the patch-updates group across 1 directory with 9 updates ([#5406])
+- Relocate a validator api function ([#5401])
+- Send shutdown instead of panic when reaching max fail ([#5398])
+- Change Explorer URL to new smooshed nodes ([#5396])
+- reduce log severity for checking topology validity ([#5395])
+- MixnetClient can send ClientRequests ([#5381])
+- Fix missing path triggers for CI ([#5380])
+- Uncouple storage reference for bandwidth client ([#5372])
+- build(deps): bump tokio from 1.40.0 to 1.43.0 ([#5370])
+- DNS resolver configuration for internal HTTP client lookups ([#5355])
+- Update README.md ([#5328])
+- Update README.md ([#5327])
+
+[#5431]: https://github.com/nymtech/nym/pull/5431
+[#5426]: https://github.com/nymtech/nym/pull/5426
+[#5424]: https://github.com/nymtech/nym/pull/5424
+[#5414]: https://github.com/nymtech/nym/pull/5414
+[#5406]: https://github.com/nymtech/nym/pull/5406
+[#5401]: https://github.com/nymtech/nym/pull/5401
+[#5398]: https://github.com/nymtech/nym/pull/5398
+[#5396]: https://github.com/nymtech/nym/pull/5396
+[#5395]: https://github.com/nymtech/nym/pull/5395
+[#5381]: https://github.com/nymtech/nym/pull/5381
+[#5380]: https://github.com/nymtech/nym/pull/5380
+[#5372]: https://github.com/nymtech/nym/pull/5372
+[#5370]: https://github.com/nymtech/nym/pull/5370
+[#5355]: https://github.com/nymtech/nym/pull/5355
+[#5328]: https://github.com/nymtech/nym/pull/5328
+[#5327]: https://github.com/nymtech/nym/pull/5327
+
+## [2025.2-hu] (2025-02-04)
+
+- Feature/remove double spending bloomfilter ([#5417])
+- HU - Downgrade harmless log message from info to debug ([#5405])
+- lower default ticket verification quorum to 0.7 ([#5404])
+- Downgrade harmless log message from info to debug ([#5403])
+- Redirect from mixnode page to nodes page ([#5397])
+- chore :update version of chain watcher and validator rewarder ([#5394])
+- bugfix: correctly handle ingore epoch roles flag ([#5390])
+- bugfix: terminate mixnet socket listener on shutdown ([#5389])
+- feat: make client ignore dual mode nodes by default ([#5388])
+- Handle ecash network errors differently ([#5378])
+- Remove empty ephemeral keys ([#5376])
+- fixed sql migration for adding default message timestamp ([#5374])
+- Bind to [::] on nym-node for both IP versions ([#5361])
+- exposed NymApiClient method for obtaining node performance history ([#5360])
+- Client gateway selection ([#5358])
+- chore: refresh wasm sdk ([#5353])
+- chore: update indexed_db_futures ([#5347])
+- build(deps): bump mikefarah/yq from 4.44.6 to 4.45.1 ([#5342])
+- updated cosmrs and tendermint-rpc to their most recent versions ([#5339])
+- build(deps): bump ts-rs from 10.0.0 to 10.1.0 ([#5338])
+- build(deps): bump tempfile from 3.14.0 to 3.15.0 ([#5337])
+- build(deps): bump the patch-updates group with 8 updates ([#5336])
+- feature: introduce /load endpoint for self-reported quantised NymNode load ([#5326])
+- feature: `CancellationToken`-based shutdowns ([#5325])
+- Use expect in geodata test to give error message on failure ([#5314])
+- feature: periodically remove stale gateway messages ([#5312])
+- build(deps): bump the patch-updates group across 1 directory with 35 updates ([#5310])
+- Add dependabot assignes for the root cargo ecosystem ([#5297])
+- Move tun constants to network defaults ([#5286])
+- Include IPINFO_API_TOKEN in nightly CI ([#5285])
+- Nyx Chain Watcher ([#5274])
+- bugfix: remove unnecessary arguments for nym-api swagger endpoints ([#5272])
+- feature: nym topology revamp ([#5271])
+- Add windows to CI builds ([#5269])
+- http-api-client: deduplicate code ([#5267])
+- build(deps): bump http from 1.1.0 to 1.2.0 ([#5228])
+- NS API: add mixnet scraper ([#5200])
+- build(deps): bump criterion from 0.4.0 to 0.5.1 ([#4911])
+
+[#5417]: https://github.com/nymtech/nym/pull/5417
+[#5405]: https://github.com/nymtech/nym/pull/5405
+[#5404]: https://github.com/nymtech/nym/pull/5404
+[#5403]: https://github.com/nymtech/nym/pull/5403
+[#5397]: https://github.com/nymtech/nym/pull/5397
+[#5394]: https://github.com/nymtech/nym/pull/5394
+[#5390]: https://github.com/nymtech/nym/pull/5390
+[#5389]: https://github.com/nymtech/nym/pull/5389
+[#5388]: https://github.com/nymtech/nym/pull/5388
+[#5378]: https://github.com/nymtech/nym/pull/5378
+[#5376]: https://github.com/nymtech/nym/pull/5376
+[#5374]: https://github.com/nymtech/nym/pull/5374
+[#5361]: https://github.com/nymtech/nym/pull/5361
+[#5360]: https://github.com/nymtech/nym/pull/5360
+[#5358]: https://github.com/nymtech/nym/pull/5358
+[#5353]: https://github.com/nymtech/nym/pull/5353
+[#5347]: https://github.com/nymtech/nym/pull/5347
+[#5342]: https://github.com/nymtech/nym/pull/5342
+[#5339]: https://github.com/nymtech/nym/pull/5339
+[#5338]: https://github.com/nymtech/nym/pull/5338
+[#5337]: https://github.com/nymtech/nym/pull/5337
+[#5336]: https://github.com/nymtech/nym/pull/5336
+[#5326]: https://github.com/nymtech/nym/pull/5326
+[#5325]: https://github.com/nymtech/nym/pull/5325
+[#5314]: https://github.com/nymtech/nym/pull/5314
+[#5312]: https://github.com/nymtech/nym/pull/5312
+[#5310]: https://github.com/nymtech/nym/pull/5310
+[#5297]: https://github.com/nymtech/nym/pull/5297
+[#5286]: https://github.com/nymtech/nym/pull/5286
+[#5285]: https://github.com/nymtech/nym/pull/5285
+[#5274]: https://github.com/nymtech/nym/pull/5274
+[#5272]: https://github.com/nymtech/nym/pull/5272
+[#5271]: https://github.com/nymtech/nym/pull/5271
+[#5269]: https://github.com/nymtech/nym/pull/5269
+[#5267]: https://github.com/nymtech/nym/pull/5267
+[#5228]: https://github.com/nymtech/nym/pull/5228
+[#5200]: https://github.com/nymtech/nym/pull/5200
+[#4911]: https://github.com/nymtech/nym/pull/4911
+
+## [2025.1-reeses] (2025-01-15)
+
+- Feture/legacy alert ([#5346])
+- chore: readjusted --mode behaviour to fix the regression ([#5331])
+- chore: apply 1.84 linter suggestions ([#5330])
+- bugfix: make sure refresh data key matches bond info ([#5329])
+- reduce log severity for number of packets being delayed ([#5321])
+- feat: warn users if node is run in exit mode only ([#5320])
+- Bugfix/contract version assignment ([#5318])
+- fixed client session histogram buckets ([#5316])
+- amend 250gb limit ([#5313])
+- feature: expand nym-node prometheus metrics ([#5298])
+- Cherry picked #5286 ([#5287])
+- Add close to credential storage ([#5283])
+- feature: wireguard metrics ([#5278])
+- Add PATCH support to nym-http-api-client ([#5260])
+- chore: removed legacy socks5 listener ([#5259])
+- bugfix: make sure to apply gateway score filtering when choosing initial node ([#5256])
+- Update TS bindings ([#5255])
+- Add conversion unit tests for auth msg ([#5251])
+- Add control messages to GatewayTransciver ([#5247])
+- Remove unneeded async function annotation ([#5246])
+- bugfix: make sure to update timestamp of last batch verification to prevent double redemption ([#5239])
+- Add FromStr impl for UserAgent ([#5236])
+- Extend swagger docs ([#5235])
+- TicketType derive Hash and Eq ([#5233])
+- Add fd callback to client core ([#5230])
+- Extend raw ws fd for gateway client ([#5218])
+- Shipping raw metrics to PG ([#5216])
+- Change sqlite journal mode to WAL ([#5213])
+- Derive serialize for UserAgent ([#5210])
+- Restore Location fields ([#5208])
+- better date serialization ([#5207])
+- Fix overflow ([#5204])
+- feature: hopefully final steps of the smoosh™️ ([#5201])
+- Fix overflow ([#5184])
+- NS API - Gateway stats scraping ([#5180])
+- introduced initial internal commands for nym-cli: ecash key and request generation ([#5174])
+- Move NS client to separate package under NS API ([#5171])
+- build(deps): bump micromatch from 4.0.4 to 4.0.8 in /testnet-faucet ([#4813])
+
+[#5346]: https://github.com/nymtech/nym/pull/5346
+[#5331]: https://github.com/nymtech/nym/pull/5331
+[#5330]: https://github.com/nymtech/nym/pull/5330
+[#5329]: https://github.com/nymtech/nym/pull/5329
+[#5321]: https://github.com/nymtech/nym/pull/5321
+[#5320]: https://github.com/nymtech/nym/pull/5320
+[#5318]: https://github.com/nymtech/nym/pull/5318
+[#5316]: https://github.com/nymtech/nym/pull/5316
+[#5313]: https://github.com/nymtech/nym/pull/5313
+[#5298]: https://github.com/nymtech/nym/pull/5298
+[#5287]: https://github.com/nymtech/nym/pull/5287
+[#5283]: https://github.com/nymtech/nym/pull/5283
+[#5278]: https://github.com/nymtech/nym/pull/5278
+[#5260]: https://github.com/nymtech/nym/pull/5260
+[#5259]: https://github.com/nymtech/nym/pull/5259
+[#5256]: https://github.com/nymtech/nym/pull/5256
+[#5255]: https://github.com/nymtech/nym/pull/5255
+[#5251]: https://github.com/nymtech/nym/pull/5251
+[#5247]: https://github.com/nymtech/nym/pull/5247
+[#5246]: https://github.com/nymtech/nym/pull/5246
+[#5239]: https://github.com/nymtech/nym/pull/5239
+[#5236]: https://github.com/nymtech/nym/pull/5236
+[#5235]: https://github.com/nymtech/nym/pull/5235
+[#5233]: https://github.com/nymtech/nym/pull/5233
+[#5230]: https://github.com/nymtech/nym/pull/5230
+[#5218]: https://github.com/nymtech/nym/pull/5218
+[#5216]: https://github.com/nymtech/nym/pull/5216
+[#5213]: https://github.com/nymtech/nym/pull/5213
+[#5210]: https://github.com/nymtech/nym/pull/5210
+[#5208]: https://github.com/nymtech/nym/pull/5208
+[#5207]: https://github.com/nymtech/nym/pull/5207
+[#5204]: https://github.com/nymtech/nym/pull/5204
+[#5201]: https://github.com/nymtech/nym/pull/5201
+[#5184]: https://github.com/nymtech/nym/pull/5184
+[#5180]: https://github.com/nymtech/nym/pull/5180
+[#5174]: https://github.com/nymtech/nym/pull/5174
+[#5171]: https://github.com/nymtech/nym/pull/5171
+[#4813]: https://github.com/nymtech/nym/pull/4813
+
+## [2024.14-crunch-patched] (2024-12-17)
+
+- Fixes an issue to allow previously registred clients to connect to latest nym-nodes
+- Fixes compatibility issues between nym-nodes and older clients
+
+## [2024.14-crunch] (2024-12-11)
+
+- Merge/release/2024.14-crunch ([#5242])
+- bugfix: added explicit openapi servers to account for route prefixes ([#5237])
+- Further config score adjustments ([#5225])
+- feature: remve any filtering on node semver ([#5224])
+- Backport #5218 ([#5220])
+- Derive serialize for UserAgent (#5210) ([#5217])
+- dont consider legacy nodes for rewarded set selection ([#5215])
+- introduce UNSTABLE endpoints for returning network monitor run details ([#5214])
+- Nmv2 add debug config ([#5212])
+- nym-api NMv1 adjustments ([#5209])
+- adjusted config score penalty calculation ([#5206])
+- Fix backwards compat mac generation ([#5202])
+- merge crunch into develop ([#5199])
+- Update Security disclosure email, public key and policy ([#5195])
+- Guard storage access with cache ([#5193])
+- chore: apply 1.84 linter suggestions ([#5192])
+- improvement: make internal gateway clients use the same topology cache ([#5191])
+- Bugfix/credential proxy sequencing ([#5187])
+- Add monitor_run and testing_route indexes ([#5182])
+- Add indexes to monitor run and testing route ([#5181])
+- bugfix: fixed nym-node config migrations (again) ([#5179])
+- bugfix: use default value for verloc config when deserialising missing values ([#5177])
+- Remove peers with no allowed ip from storage ([#5175])
+- Move two minor jobs to free tier github hosted runners ([#5169])
+- Add support for DELETE to nym-http-api-client ([#5166])
+- Fix env var name ([#5165])
+- Add strum::EnumIter for TicketType ([#5164])
+- Add export_to_env to NymNetworkDetails ([#5162])
+- bugfix: correctly expose ecash-related data on nym-api ([#5155])
+- fix: validator-rewarder GH job ([#5151])
+- build(deps): bump cross-spawn from 7.0.3 to 7.0.6 in /testnet-faucet ([#5150])
+- build(deps): bump mikefarah/yq from 4.44.3 to 4.44.5 ([#5149])
+- start session collection for exit gateways ([#5148])
+- add version to clientStatsReport ([#5147])
+- update serde_json_path due to compilation issue ([#5144])
+- chore: remove standalone legacy mixnode/gateway binaries ([#5135])
+- [Product Data] Set up country reporting from vpn-client ([#5134])
+- removed ci-nym-api-tests.yml which was running outdated (and broken) tests ([#5133])
+- CI: reduce jobs running on cluster ([#5132])
+- [DOCS/operators]: Release changes v2024.13-magura & Tokenomics pages v1.0 ([#5128])
+- NS Agent auth with NS API ([#5127])
+- [Product Data] Config deserialization bug fix ([#5126])
+- bugfix: don't send empty BankMsg in ecash contract ([#5121])
+- [Product data] Data consumption with ecash ticket ([#5120])
+- feat: add GH workflow for nym-validator-rewarder ([#5119])
+- feat: add Dockerfile and add env vars for clap arguments ([#5118])
+- feature: config score ([#5117])
+- [Product Data] Add stats reporting configuration in client config  ([#5115])
+- Correct IPv6 address generation ([#5113])
+- feature: rewarding for ticketbook issuance ([#5112])
+- Add granular log on nym-node ([#5111])
+- Send mixnet packet stats using task client ([#5109])
+- Expose time range ([#5108])
+- [Product Data] Client-side stats collection  ([#5107])
+- chore: ecash contract migration to remove unused 'redemption_gateway_share' ([#5104])
+- [Product Data] Better unique user count on gateways ([#5084])
+- feat: add nym node GH workflow ([#5080])
+- IPv6 support for wireguard ([#5059])
+- Node Status API ([#5050])
+- Authenticator CLI client mode ([#5044])
+- Integrate nym-credential-proxy into workspace ([#5027])
+- [Product Data] Introduce data persistence on gateways ([#5022])
+- Bump the patch-updates group across 1 directory with 10 updates ([#5011])
+- build(deps): bump once_cell from 1.19.0 to 1.20.2 ([#4952])
+- Create TaskStatusEvent trait instead of piggybacking on Error ([#4919])
+- build(deps): bump lazy_static from 1.4.0 to 1.5.0 ([#4913])
+- Sync code with .env in build.rs ([#4876])
+- build(deps): bump axios from 1.6.0 to 1.7.5 in /nym-api/tests ([#4790])
+- Bump elliptic from 6.5.4 to 6.5.7 in /testnet-faucet ([#4768])
+
+[#5242]: https://github.com/nymtech/nym/pull/5242
+[#5237]: https://github.com/nymtech/nym/pull/5237
+[#5225]: https://github.com/nymtech/nym/pull/5225
+[#5224]: https://github.com/nymtech/nym/pull/5224
+[#5220]: https://github.com/nymtech/nym/pull/5220
+[#5217]: https://github.com/nymtech/nym/pull/5217
+[#5215]: https://github.com/nymtech/nym/pull/5215
+[#5214]: https://github.com/nymtech/nym/pull/5214
+[#5212]: https://github.com/nymtech/nym/pull/5212
+[#5209]: https://github.com/nymtech/nym/pull/5209
+[#5206]: https://github.com/nymtech/nym/pull/5206
+[#5202]: https://github.com/nymtech/nym/pull/5202
+[#5199]: https://github.com/nymtech/nym/pull/5199
+[#5195]: https://github.com/nymtech/nym/pull/5195
+[#5193]: https://github.com/nymtech/nym/pull/5193
+[#5192]: https://github.com/nymtech/nym/pull/5192
+[#5191]: https://github.com/nymtech/nym/pull/5191
+[#5187]: https://github.com/nymtech/nym/pull/5187
+[#5182]: https://github.com/nymtech/nym/pull/5182
+[#5181]: https://github.com/nymtech/nym/pull/5181
+[#5179]: https://github.com/nymtech/nym/pull/5179
+[#5177]: https://github.com/nymtech/nym/pull/5177
+[#5175]: https://github.com/nymtech/nym/pull/5175
+[#5169]: https://github.com/nymtech/nym/pull/5169
+[#5166]: https://github.com/nymtech/nym/pull/5166
+[#5165]: https://github.com/nymtech/nym/pull/5165
+[#5164]: https://github.com/nymtech/nym/pull/5164
+[#5162]: https://github.com/nymtech/nym/pull/5162
+[#5155]: https://github.com/nymtech/nym/pull/5155
+[#5151]: https://github.com/nymtech/nym/pull/5151
+[#5150]: https://github.com/nymtech/nym/pull/5150
+[#5149]: https://github.com/nymtech/nym/pull/5149
+[#5148]: https://github.com/nymtech/nym/pull/5148
+[#5147]: https://github.com/nymtech/nym/pull/5147
+[#5144]: https://github.com/nymtech/nym/pull/5144
+[#5135]: https://github.com/nymtech/nym/pull/5135
+[#5134]: https://github.com/nymtech/nym/pull/5134
+[#5133]: https://github.com/nymtech/nym/pull/5133
+[#5132]: https://github.com/nymtech/nym/pull/5132
+[#5128]: https://github.com/nymtech/nym/pull/5128
+[#5127]: https://github.com/nymtech/nym/pull/5127
+[#5126]: https://github.com/nymtech/nym/pull/5126
+[#5121]: https://github.com/nymtech/nym/pull/5121
+[#5120]: https://github.com/nymtech/nym/pull/5120
+[#5119]: https://github.com/nymtech/nym/pull/5119
+[#5118]: https://github.com/nymtech/nym/pull/5118
+[#5117]: https://github.com/nymtech/nym/pull/5117
+[#5115]: https://github.com/nymtech/nym/pull/5115
+[#5113]: https://github.com/nymtech/nym/pull/5113
+[#5112]: https://github.com/nymtech/nym/pull/5112
+[#5111]: https://github.com/nymtech/nym/pull/5111
+[#5109]: https://github.com/nymtech/nym/pull/5109
+[#5108]: https://github.com/nymtech/nym/pull/5108
+[#5107]: https://github.com/nymtech/nym/pull/5107
+[#5104]: https://github.com/nymtech/nym/pull/5104
+[#5084]: https://github.com/nymtech/nym/pull/5084
+[#5080]: https://github.com/nymtech/nym/pull/5080
+[#5059]: https://github.com/nymtech/nym/pull/5059
+[#5050]: https://github.com/nymtech/nym/pull/5050
+[#5044]: https://github.com/nymtech/nym/pull/5044
+[#5027]: https://github.com/nymtech/nym/pull/5027
+[#5022]: https://github.com/nymtech/nym/pull/5022
+[#5011]: https://github.com/nymtech/nym/pull/5011
+[#4952]: https://github.com/nymtech/nym/pull/4952
+[#4919]: https://github.com/nymtech/nym/pull/4919
+[#4913]: https://github.com/nymtech/nym/pull/4913
+[#4876]: https://github.com/nymtech/nym/pull/4876
+[#4790]: https://github.com/nymtech/nym/pull/4790
+[#4768]: https://github.com/nymtech/nym/pull/4768
+
 ## [2024.13-magura-drift] (2024-11-29)
 
 - Optimised syncing bandwidth information to storage

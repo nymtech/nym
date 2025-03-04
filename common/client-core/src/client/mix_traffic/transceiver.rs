@@ -5,8 +5,10 @@ use async_trait::async_trait;
 use log::{debug, error};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
+use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
@@ -14,7 +16,7 @@ use std::os::raw::c_int as RawFd;
 use thiserror::Error;
 
 #[cfg(not(target_arch = "wasm32"))]
-use futures::channel::{mpsc, oneshot};
+use futures::channel::oneshot;
 
 // we need to type erase the error type since we can't have dynamic associated types alongside dynamic dispatch
 #[derive(Debug, Error)]
@@ -26,9 +28,14 @@ fn erase_err<E: std::error::Error + Send + Sync + 'static>(err: E) -> ErasedGate
 }
 
 /// This combines combines the functionalities of being able to send and receive mix packets.
+#[async_trait]
 pub trait GatewayTransceiver: GatewaySender + GatewayReceiver {
     fn gateway_identity(&self) -> identity::PublicKey;
     fn ws_fd(&self) -> Option<RawFd>;
+    async fn send_client_request(
+        &mut self,
+        message: ClientRequest,
+    ) -> Result<(), GatewayClientError>;
 }
 
 /// This trait defines the functionality of sending `MixPacket` into the mixnet,
@@ -65,6 +72,7 @@ pub trait GatewayReceiver {
 }
 
 // to allow for dynamic dispatch
+#[async_trait]
 impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
     #[inline]
     fn gateway_identity(&self) -> identity::PublicKey {
@@ -72,6 +80,15 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
     }
     fn ws_fd(&self) -> Option<RawFd> {
         (**self).ws_fd()
+    }
+
+    async fn send_client_request(
+        &mut self,
+        message: ClientRequest,
+    ) -> Result<(), GatewayClientError> {
+        let _ = (**self).send_client_request(message.clone()).await?;
+        log::debug!("Sent client request: {:?}", message);
+        Ok(())
     }
 }
 
@@ -91,7 +108,6 @@ impl<G: GatewaySender + ?Sized + Send> GatewaySender for Box<G> {
         (**self).batch_send_mix_packets(packets).await
     }
 }
-
 impl<G: GatewayReceiver + ?Sized> GatewayReceiver for Box<G> {
     #[inline]
     fn set_packet_router(&mut self, packet_router: PacketRouter) -> Result<(), ErasedGatewayError> {
@@ -111,6 +127,7 @@ impl<C, St> RemoteGateway<C, St> {
     }
 }
 
+#[async_trait]
 impl<C, St> GatewayTransceiver for RemoteGateway<C, St>
 where
     C: DkgQueryClient + Send + Sync,
@@ -122,6 +139,13 @@ where
     }
     fn ws_fd(&self) -> Option<RawFd> {
         self.gateway_client.ws_fd()
+    }
+
+    async fn send_client_request(
+        &mut self,
+        message: ClientRequest,
+    ) -> Result<(), GatewayClientError> {
+        self.gateway_client.send_client_request(message).await
     }
 }
 
@@ -170,7 +194,7 @@ pub struct LocalGateway {
 
     // 'sender' part
     /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
-    packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+    packet_forwarder: nym_mixnet_client::forwarder::MixForwardingSender,
 
     // 'receiver' part
     packet_router_tx: Option<oneshot::Sender<PacketRouter>>,
@@ -180,7 +204,7 @@ pub struct LocalGateway {
 impl LocalGateway {
     pub fn new(
         local_identity: identity::PublicKey,
-        packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+        packet_forwarder: nym_mixnet_client::forwarder::MixForwardingSender,
         packet_router_tx: oneshot::Sender<PacketRouter>,
     ) -> Self {
         LocalGateway {
@@ -195,6 +219,7 @@ impl LocalGateway {
 mod nonwasm_sealed {
     use super::*;
 
+    #[async_trait]
     impl GatewayTransceiver for LocalGateway {
         fn gateway_identity(&self) -> identity::PublicKey {
             self.local_identity
@@ -202,14 +227,20 @@ mod nonwasm_sealed {
         fn ws_fd(&self) -> Option<RawFd> {
             None
         }
+
+        async fn send_client_request(
+            &mut self,
+            _message: ClientRequest,
+        ) -> Result<(), GatewayClientError> {
+            Ok(())
+        }
     }
 
     #[async_trait]
     impl GatewaySender for LocalGateway {
         async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
             self.packet_forwarder
-                .unbounded_send(packet)
-                .map_err(|err| err.into_send_error())
+                .forward_packet(packet)
                 .map_err(erase_err)
         }
     }
@@ -270,11 +301,19 @@ impl GatewaySender for MockGateway {
     }
 }
 
+#[async_trait]
 impl GatewayTransceiver for MockGateway {
     fn gateway_identity(&self) -> identity::PublicKey {
         self.dummy_identity
     }
     fn ws_fd(&self) -> Option<RawFd> {
         None
+    }
+
+    async fn send_client_request(
+        &mut self,
+        _message: ClientRequest,
+    ) -> Result<(), GatewayClientError> {
+        Ok(())
     }
 }

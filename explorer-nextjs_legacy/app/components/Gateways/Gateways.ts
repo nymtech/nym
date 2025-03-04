@@ -1,4 +1,4 @@
-import { GatewayResponse, GatewayBond, GatewayReportResponse } from '@/app/typeDefs/explorer-api';
+import {GatewayResponse, GatewayBond, GatewayReportResponse, LocatedGateway} from '@/app/typeDefs/explorer-api';
 import { toPercentInteger } from '@/app/utils';
 
 export type GatewayRowType = {
@@ -9,7 +9,7 @@ export type GatewayRowType = {
   host: string;
   location: string;
   version: string;
-  node_performance: number;
+//  node_performance: number;
 };
 
 export type GatewayEnrichedRowType = GatewayRowType & {
@@ -30,11 +30,11 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
       bond: gw.pledge_amount.amount || 0,
       host: gw.gateway.host || '',
       version: gw.gateway.version || '',
-      node_performance: toPercentInteger(gw.node_performance.last_24h),
+//      node_performance: toPercentInteger(gw.node_performance.last_24h),
     }));
 }
 
-export function gatewayEnrichedToGridRow(gateway: GatewayBond, report: GatewayReportResponse): GatewayEnrichedRowType {
+export function gatewayEnrichedToGridRow(gateway: LocatedGateway, report: GatewayReportResponse): GatewayEnrichedRowType {
   return {
     id: gateway.owner,
     owner: gateway.owner,
@@ -47,6 +47,6 @@ export function gatewayEnrichedToGridRow(gateway: GatewayBond, report: GatewayRe
     mixPort: gateway.gateway.mix_port || 0,
     routingScore: `${report.most_recent}%`,
     avgUptime: `${report.last_day || report.last_hour}%`,
-    node_performance: toPercentInteger(gateway.node_performance.most_recent),
+//    node_performance: toPercentInteger(gateway.node_performance.most_recent),
   };
 }

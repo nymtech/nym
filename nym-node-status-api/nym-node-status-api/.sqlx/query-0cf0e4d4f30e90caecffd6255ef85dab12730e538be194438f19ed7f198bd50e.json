@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE\n            testruns\n        SET\n            status = ?\n        WHERE\n            status = ?\n        AND\n            last_assigned_utc < ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "0cf0e4d4f30e90caecffd6255ef85dab12730e538be194438f19ed7f198bd50e"
+}

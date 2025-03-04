@@ -13,7 +13,8 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 * `nym-client` - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
 * `nym-socks5-client` - a Socks5 proxy you can run on your machine and use with existing applications.
 * `nym-explorer` - a (projected) block explorer and (existing) mixnet viewer.
-* `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
+* `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.app)) framework.
+* `nym-cli` - a tool for interacting with the network from the CLI.
 <!-- coming soon
 * `nym-network-monitor` - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
 -->
@@ -35,24 +36,20 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
 ### Building
 
 * Platform build instructions are available on Nym [Operators Guide documentation](https://nymtech.net/operators/binaries/building-nym.html).
-* Wallet build instructions are available on Nym [Technical docs](https://nymtech.net/docs/wallet/desktop-wallet.html).
+* Wallet build instructions are available [here](https://github.com/nymtech/nym/tree/master/nym-wallet#installation-prerequisites---linux--mac).
 
 ### Developing
 
-There's a [`sandbox.env`](https://github.com/nymtech/nym/envs/sandbox.env) file provided which you can rename to `.env` if you want convenient testing environment. Read more about sandbox environment in our [Operators Guide page](https://nymtech.net/operators/sandbox.html).
-
 References for developers:
 
-* [Developers Portal](https://nymtech.net/developers)
-* [Typescript SDKs](https://sdk.nymtech.net/)
-* [Technical Documentation - Nym network overview](https://nymtech.net/docs/)
-* [Release Cycle - git flow](https://nymtech.net/operators/release-cycle.html)
+* [Dev Docs](https://nym.com/docs/developers)
+* [SDKs](https://nym.com/docs/developers/rust)
+* [Network Docs](https://nym.com/docs/network)
+* [Release Cycle - git flow](https://nym.com/docs/operators/release-cycle)
 
 ### Developer chat
 
-You can chat to us in two places:
-* The #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat)
-* The various developer channels on [Discord](https://nymtech.net/go/discord)
+You can chat to us in the #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat) or on the [Nym Forum](https://forum.nymtech.net).
 
 ### Tokenomics & Rewards
 
@@ -69,4 +66,4 @@ As a general approach, licensing is as follows this pattern:
 - libraries and components are Apache 2.0 or MIT
 - documentation is Apache 2.0 or CC0-1.0
 
-Nym Node Operators and Validators Temrs and Conditions can be found [here](https://nymtech.net/terms-and-conditions/operators/v1.0.0).
+Nym Node Operators and Validators Terms and Conditions can be found [here](https://nym.com/operators-validators-terms).

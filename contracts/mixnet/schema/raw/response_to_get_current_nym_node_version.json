@@ -1,0 +1,105 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CurrentNymNodeVersionResponse",
+  "type": "object",
+  "properties": {
+    "version": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HistoricalNymNodeVersionEntry"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "HistoricalNymNodeVersion": {
+      "type": "object",
+      "required": [
+        "difference_since_genesis",
+        "introduced_at_height",
+        "semver"
+      ],
+      "properties": {
+        "difference_since_genesis": {
+          "description": "The absolute version difference as compared against the first version introduced into the contract.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TotalVersionDifference"
+            }
+          ]
+        },
+        "introduced_at_height": {
+          "description": "Block height of when this version has been added to the contract",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "semver": {
+          "description": "Version of the nym node that is going to be used for determining the version score of a node. note: value stored here is pre-validated `semver::Version`",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "HistoricalNymNodeVersionEntry": {
+      "type": "object",
+      "required": [
+        "id",
+        "version_information"
+      ],
+      "properties": {
+        "id": {
+          "description": "The unique, ordered, id of this particular entry",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "version_information": {
+          "description": "Data associated with this particular version",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HistoricalNymNodeVersion"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TotalVersionDifference": {
+      "type": "object",
+      "required": [
+        "major",
+        "minor",
+        "patch",
+        "prerelease"
+      ],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "minor": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "patch": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "prerelease": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

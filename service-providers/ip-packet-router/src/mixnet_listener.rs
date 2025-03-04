@@ -1,7 +1,3 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
-use std::{collections::HashMap, net::SocketAddr};
-
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use nym_ip_packet_requests::v7::response::{
@@ -23,8 +19,10 @@ use nym_ip_packet_requests::{
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::sync::Arc;
+use std::{collections::HashMap, net::SocketAddr};
 use tap::TapFallible;
-#[cfg(target_os = "linux")]
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 use tokio_util::codec::Decoder;
@@ -95,6 +93,7 @@ impl ConnectedClients {
             })
     }
 
+    #[allow(dead_code)]
     fn lookup_client_from_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
         self.clients_ipv4_mapping
             .iter()
@@ -111,7 +110,6 @@ impl ConnectedClients {
         &mut self,
         ips: IpPair,
         nym_address: Recipient,
-        mix_hops: Option<u8>,
         forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
         close_tx: tokio::sync::oneshot::Sender<()>,
         handle: tokio::task::JoinHandle<()>,
@@ -121,7 +119,6 @@ impl ConnectedClients {
         let client = ConnectedClient {
             nym_address,
             ipv6: ips.ipv6,
-            mix_hops,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
             _close_tx: Arc::new(CloseTx {
                 nym_address,
@@ -235,9 +232,6 @@ pub(crate) struct ConnectedClient {
 
     // The assigned IPv6 address of this client
     pub(crate) ipv6: Ipv6Addr,
-
-    // Number of mix node hops that the client has requested to use
-    pub(crate) mix_hops: Option<u8>,
 
     // Keep track of last activity so we can disconnect inactive clients
     pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
@@ -390,7 +384,13 @@ impl Response {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
+type TunDevice = crate::non_linux_dummy::DummyDevice;
+
 #[cfg(target_os = "linux")]
+type TunDevice = tokio_tun::Tun;
+
+// #[cfg(target_os = "linux")]
 pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
     pub(crate) _config: Config,
@@ -399,7 +399,7 @@ pub(crate) struct MixnetListener {
     pub(crate) request_filter: request_filter::RequestFilter,
 
     // The TUN device that we use to send and receive packets from the internet
-    pub(crate) tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
+    pub(crate) tun_writer: tokio::io::WriteHalf<TunDevice>,
 
     // The mixnet client that we use to send and receive packets from the mixnet
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
@@ -412,7 +412,7 @@ pub(crate) struct MixnetListener {
     pub(crate) connected_clients: ConnectedClients,
 }
 
-#[cfg(target_os = "linux")]
+// #[cfg(target_os = "linux")]
 impl MixnetListener {
     // Receving a static connect request from a client with an IP provided that we assign to them,
     // if it's available. If it's not available, we send a failure response.
@@ -429,7 +429,6 @@ impl MixnetListener {
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
         let reply_to = connect_request.reply_to;
-        let reply_to_hops = connect_request.reply_to_hops;
         // TODO: add to connect request
         let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
         // TODO: ignoring reply_to_avg_mix_delays for now
@@ -464,7 +463,6 @@ impl MixnetListener {
                 let (forward_from_tun_tx, close_tx, handle) =
                     connected_client_handler::ConnectedClientHandler::start(
                         reply_to,
-                        reply_to_hops,
                         buffer_timeout,
                         client_version,
                         self.mixnet_client.split_sender(),
@@ -474,7 +472,6 @@ impl MixnetListener {
                 self.connected_clients.connect(
                     requested_ips,
                     reply_to,
-                    reply_to_hops,
                     forward_from_tun_tx,
                     close_tx,
                     handle,
@@ -518,7 +515,6 @@ impl MixnetListener {
 
         let request_id = connect_request.request_id;
         let reply_to = connect_request.reply_to;
-        let reply_to_hops = connect_request.reply_to_hops;
         // TODO: add to connect request
         let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
         // TODO: ignoring reply_to_avg_mix_delays for now
@@ -559,21 +555,14 @@ impl MixnetListener {
         let (forward_from_tun_tx, close_tx, handle) =
             connected_client_handler::ConnectedClientHandler::start(
                 reply_to,
-                reply_to_hops,
                 buffer_timeout,
                 client_version,
                 self.mixnet_client.split_sender(),
             );
 
         // Register the new client in the set of connected clients
-        self.connected_clients.connect(
-            new_ips,
-            reply_to,
-            reply_to_hops,
-            forward_from_tun_tx,
-            close_tx,
-            handle,
-        );
+        self.connected_clients
+            .connect(new_ips, reply_to, forward_from_tun_tx, close_tx, handle);
         Ok(Some(Response::new_dynamic_connect_success(
             request_id,
             reply_to,
@@ -643,7 +632,7 @@ impl MixnetListener {
             }
         } else {
             // If the client is not connected, just drop the packet silently
-            log::info!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
+            log::debug!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
             Ok(None)
         }
     }
@@ -757,17 +746,7 @@ impl MixnetListener {
 
         let response_packet = response.to_bytes()?;
 
-        // We could avoid this lookup if we check this when we create the response.
-        let mix_hops = if let Some(c) = self
-            .connected_clients
-            .lookup_client_from_nym_address(recipient)
-        {
-            c.mix_hops
-        } else {
-            None
-        };
-
-        let input_message = create_input_message(*recipient, response_packet, mix_hops);
+        let input_message = create_input_message(*recipient, response_packet);
         self.mixnet_client
             .send(input_message)
             .await

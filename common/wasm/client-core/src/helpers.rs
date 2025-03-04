@@ -5,19 +5,23 @@ use crate::error::WasmCoreError;
 use crate::storage::wasm_client_traits::WasmClientStorage;
 use crate::storage::ClientStorage;
 use js_sys::Promise;
+use nym_client_core::client::base_client::storage::helpers::set_active_gateway;
+use nym_client_core::client::base_client::storage::GatewaysDetailsStore;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
-use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::error::ClientCoreError;
+use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::GatewaySelectionSpecification;
 use nym_client_core::init::{
-    self,
+    self, setup_gateway,
     types::{GatewaySetup, InitialisationResult},
 };
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_topology::{gateway, NymTopology, SerializableNymTopology};
+use nym_topology::wasm_helpers::WasmFriendlyNymTopology;
+use nym_topology::{NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::NymApiClient;
+use nym_validator_client::{NymApiClient, UserAgent};
 use rand::thread_rng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -25,6 +29,7 @@ use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::error::PromisableResult;
 
 pub use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
+use wasm_utils::console_log;
 
 // don't get too excited about the name, under the hood it's just a big fat placeholder
 // with no disk_persistence
@@ -55,7 +60,7 @@ pub fn parse_sender_tag(tag: &str) -> Result<AnonymousSenderTag, WasmCoreError> 
 
 pub async fn current_network_topology_async(
     nym_api_url: String,
-) -> Result<SerializableNymTopology, WasmCoreError> {
+) -> Result<WasmFriendlyNymTopology, WasmCoreError> {
     let url: Url = match nym_api_url.parse() {
         Ok(url) => url,
         Err(source) => {
@@ -67,12 +72,17 @@ pub async fn current_network_topology_async(
     };
 
     let api_client = NymApiClient::new(url);
+    let rewarded_set = api_client.get_current_rewarded_set().await?;
     let mixnodes = api_client
-        .get_all_basic_active_mixing_assigned_nodes(None)
+        .get_all_basic_active_mixing_assigned_nodes()
         .await?;
-    let gateways = api_client.get_all_basic_entry_assigned_nodes(None).await?;
+    let gateways = api_client.get_all_basic_entry_assigned_nodes().await?;
 
-    Ok(NymTopology::from_basic(&mixnodes, &gateways).into())
+    let mut topology = NymTopology::new_empty(rewarded_set);
+    topology.add_skimmed_nodes(&mixnodes);
+    topology.add_skimmed_nodes(&gateways);
+
+    Ok(topology.into())
 }
 
 #[wasm_bindgen(js_name = "currentNetworkTopology")]
@@ -90,7 +100,7 @@ pub async fn setup_gateway_wasm(
     client_store: &ClientStorage,
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
-    gateways: &[gateway::LegacyNode],
+    gateways: Vec<RoutingNode>,
 ) -> Result<InitialisationResult, WasmCoreError> {
     // TODO: so much optimization and extra features could be added here, but that's for the future
 
@@ -107,7 +117,7 @@ pub async fn setup_gateway_wasm(
 
         GatewaySetup::New {
             specification: selection_spec,
-            available_gateways: gateways.to_vec(),
+            available_gateways: gateways,
         }
     };
 
@@ -121,10 +131,36 @@ pub async fn setup_gateway_from_api(
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
     nym_apis: &[Url],
+    minimum_performance: u8,
+    ignore_epoch_roles: bool,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
-    let gateways = current_gateways(&mut rng, nym_apis, None).await?;
-    setup_gateway_wasm(client_store, force_tls, chosen_gateway, &gateways).await
+    let gateways = gateways_for_init(
+        &mut rng,
+        nym_apis,
+        None,
+        minimum_performance,
+        ignore_epoch_roles,
+    )
+    .await?;
+    setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
+}
+
+pub async fn current_gateways_wasm(
+    nym_apis: &[Url],
+    user_agent: Option<UserAgent>,
+    minimum_performance: u8,
+    ignore_epoch_roles: bool,
+) -> Result<Vec<RoutingNode>, ClientCoreError> {
+    let mut rng = thread_rng();
+    gateways_for_init(
+        &mut rng,
+        nym_apis,
+        user_agent,
+        minimum_performance,
+        ignore_epoch_roles,
+    )
+    .await
 }
 
 pub async fn setup_from_topology(
@@ -133,6 +169,86 @@ pub async fn setup_from_topology(
     topology: &NymTopology,
     client_store: &ClientStorage,
 ) -> Result<InitialisationResult, WasmCoreError> {
-    let gateways = topology.gateways();
+    let gateways = topology.entry_capable_nodes().cloned().collect::<Vec<_>>();
     setup_gateway_wasm(client_store, force_tls, explicit_gateway, gateways).await
+}
+
+pub async fn generate_new_client_keys(store: &ClientStorage) -> Result<(), WasmCoreError> {
+    let mut rng = thread_rng();
+    init::generate_new_client_keys(&mut rng, store).await?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn add_gateway(
+    preferred_gateway: Option<IdentityKey>,
+    latency_based_selection: Option<bool>,
+    force_tls: bool,
+    nym_apis: &[Url],
+    user_agent: UserAgent,
+    min_performance: u8,
+    ignore_epoch_roles: bool,
+    storage: &ClientStorage,
+) -> Result<(), WasmCoreError> {
+    let selection_spec = GatewaySelectionSpecification::new(
+        preferred_gateway.clone(),
+        latency_based_selection,
+        force_tls,
+    );
+
+    let preferred_gateway = preferred_gateway
+        .as_ref()
+        .map(|g| g.parse())
+        .transpose()
+        .map_err(|source| WasmCoreError::InvalidGatewayIdentity { source })?;
+
+    let registered_gateways = storage.all_gateways_identities().await.map_err(|source| {
+        ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        }
+    })?;
+
+    // if user provided gateway id (and we can't overwrite data), make sure we're not trying to register
+    // with a known gateway
+    if let Some(user_chosen) = preferred_gateway {
+        if registered_gateways.contains(&user_chosen) {
+            return Err(ClientCoreError::AlreadyRegistered {
+                gateway_id: user_chosen.to_base58_string(),
+            }
+            .into());
+        }
+    }
+
+    // Setup gateway by either registering a new one, or creating a new config from the selected
+    // one but with keys kept, or reusing the gateway configuration.
+    let available_gateways = current_gateways_wasm(
+        nym_apis,
+        Some(user_agent),
+        min_performance,
+        ignore_epoch_roles,
+    )
+    .await?;
+
+    // since we're registering with a brand new gateway,
+    // make sure the list of available gateways doesn't overlap the list of known gateways
+    let available_gateways = available_gateways
+        .into_iter()
+        .filter(|g| !registered_gateways.contains(&g.identity()))
+        .collect::<Vec<_>>();
+
+    if available_gateways.is_empty() {
+        return Err(ClientCoreError::NoNewGatewaysAvailable.into());
+    }
+
+    let gateway_setup = GatewaySetup::New {
+        specification: selection_spec,
+        available_gateways,
+    };
+
+    let init_details = setup_gateway(gateway_setup, storage, storage).await?;
+    let gateway = init_details.gateway_id().to_base58_string();
+    set_active_gateway(storage, &gateway).await?;
+
+    console_log!("finished registration with gateway {gateway}");
+    Ok(())
 }

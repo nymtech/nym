@@ -7,7 +7,7 @@ use crate::location::LocationCacheItem;
 use crate::mix_nodes::CACHE_ENTRY_TTL;
 use nym_explorer_api_requests::{Location, MixnodeStatus, PrettyDetailedMixNodeBond};
 use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
-use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::{MixNodeBond, NodeId};
 use nym_validator_client::models::MixNodeBondAnnotated;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -80,6 +80,7 @@ impl MixNodesResult {
 #[derive(Clone)]
 pub(crate) struct ThreadsafeMixNodesCache {
     mixnodes: Arc<RwLock<MixNodesResult>>,
+    legacy_mixnode_bonds: Arc<RwLock<MixNodesResult>>,
     locations: Arc<RwLock<MixnodeLocationCache>>,
 }
 
@@ -87,6 +88,7 @@ impl ThreadsafeMixNodesCache {
     pub(crate) fn new() -> Self {
         ThreadsafeMixNodesCache {
             mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
+            legacy_mixnode_bonds: Arc::new(RwLock::new(MixNodesResult::new())),
             locations: Arc::new(RwLock::new(MixnodeLocationCache::new())),
         }
     }
@@ -94,6 +96,7 @@ impl ThreadsafeMixNodesCache {
     pub(crate) fn new_with_location_cache(locations: MixnodeLocationCache) -> Self {
         ThreadsafeMixNodesCache {
             mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
+            legacy_mixnode_bonds: Arc::new(RwLock::new(MixNodesResult::new())),
             locations: Arc::new(RwLock::new(locations)),
         }
     }
@@ -103,9 +106,7 @@ impl ThreadsafeMixNodesCache {
             .read()
             .await
             .get(&mix_id)
-            .map_or(false, |cache_item| {
-                cache_item.valid_until > SystemTime::now()
-            })
+            .is_some_and(|cache_item| cache_item.valid_until > SystemTime::now())
     }
 
     pub(crate) async fn get_locations(&self) -> MixnodeLocationCache {
@@ -188,13 +189,35 @@ impl ThreadsafeMixNodesCache {
             .collect()
     }
 
+    pub(crate) async fn get_legacy_detailed_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {
+        let legacy_mixnodes = self.legacy_mixnode_bonds.read().await;
+        let location_guard = self.locations.read().await;
+
+        legacy_mixnodes
+            .all_mixnodes
+            .values()
+            .map(|bond| {
+                let location = location_guard.get(&bond.mix_id());
+                self.create_detailed_mixnode(bond.mix_id(), &legacy_mixnodes, location, bond)
+            })
+            .collect()
+    }
+
     pub(crate) async fn update_cache(
         &self,
         all_bonds: Vec<MixNodeBondAnnotated>,
         rewarded_nodes: HashSet<NodeId>,
         active_nodes: HashSet<NodeId>,
+        legacy_mixnode_bonds: Vec<MixNodeBond>,
     ) {
         let mut guard = self.mixnodes.write().await;
+        let mut guard_legacy_mixnodes = self.legacy_mixnode_bonds.write().await;
+
+        let legacy_mixnode_bond_ids: Vec<&NodeId> = legacy_mixnode_bonds
+            .iter()
+            .map(|bond| &bond.mix_id)
+            .collect();
+
         guard.all_mixnodes = all_bonds
             .into_iter()
             .map(|bond| (bond.mix_id(), bond))
@@ -202,5 +225,11 @@ impl ThreadsafeMixNodesCache {
         guard.rewarded_mixnodes = rewarded_nodes;
         guard.active_mixnodes = active_nodes;
         guard.valid_until = SystemTime::now() + CACHE_ENTRY_TTL;
+        guard_legacy_mixnodes.all_mixnodes = guard
+            .all_mixnodes
+            .clone()
+            .into_iter()
+            .filter(|(node_id, _bond)| legacy_mixnode_bond_ids.iter().any(|i| **i == *node_id))
+            .collect();
     }
 }

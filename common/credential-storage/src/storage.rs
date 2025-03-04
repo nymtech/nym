@@ -19,8 +19,10 @@ use std::error::Error;
 // `SELECT total_tickets, used_tickets FROM ecash_ticketbook WHERE expiration_date >= ?`, today_date
 // then for each calculate the diff total_tickets - used_tickets and multiply the result by the size of the ticket
 #[async_trait]
-pub trait Storage: Send + Sync {
+pub trait Storage: Clone + Send + Sync {
     type StorageError: Error;
+
+    async fn close(&self);
 
     /// remove all expired ticketbooks and expiration date signatures
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError>;

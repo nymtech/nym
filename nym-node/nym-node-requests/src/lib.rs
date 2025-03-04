@@ -35,6 +35,7 @@ pub mod routes {
             pub const NODE_DESCRIPTION: &str = "/description";
             pub const AUXILIARY: &str = "/auxiliary-details";
             pub const HEALTH: &str = "/health";
+            pub const LOAD: &str = "/load";
             pub const SWAGGER: &str = "/swagger";
 
             pub const GATEWAY: &str = "/gateway";
@@ -46,6 +47,7 @@ pub mod routes {
 
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
+            absolute_route!(load_absolute, v1_absolute(), LOAD);
             absolute_route!(roles_absolute, v1_absolute(), ROLES);
             absolute_route!(build_info_absolute, v1_absolute(), BUILD_INFO);
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);
@@ -64,12 +66,20 @@ pub mod routes {
             pub mod metrics {
                 use super::*;
 
-                pub const MIXING: &str = "/mixing";
+                pub const LEGACY_MIXING: &str = "/mixing";
+                pub const PACKETS_STATS: &str = "/packets-stats";
+                pub const WIREGUARD_STATS: &str = "/wireguard-stats";
                 pub const SESSIONS: &str = "/sessions";
                 pub const VERLOC: &str = "/verloc";
                 pub const PROMETHEUS: &str = "/prometheus";
 
-                absolute_route!(mixing_absolute, metrics_absolute(), MIXING);
+                absolute_route!(legacy_mixing_absolute, metrics_absolute(), LEGACY_MIXING);
+                absolute_route!(packets_stats_absolute, metrics_absolute(), PACKETS_STATS);
+                absolute_route!(
+                    wireguard_stats_absolute,
+                    metrics_absolute(),
+                    WIREGUARD_STATS
+                );
                 absolute_route!(sessions_absolute, metrics_absolute(), SESSIONS);
                 absolute_route!(verloc_absolute, metrics_absolute(), VERLOC);
                 absolute_route!(prometheus_absolute, metrics_absolute(), PROMETHEUS);

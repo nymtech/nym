@@ -27,6 +27,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }
 time = { workspace = true }
+tracing = { workspace = true }
 
 nym-authenticator-requests = { path = "../authenticator-requests" }
 nym-credential-verification = { path = "../credential-verification" }
@@ -35,3 +36,4 @@ nym-gateway-storage = { path = "../gateway-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
+nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }

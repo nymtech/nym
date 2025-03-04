@@ -1,0 +1,155 @@
+{
+  "hero": {
+    "title": "Privacy made simple",
+    "subtitle": "Enjoy secure browsing, streaming, and messaging with our unmatched blend of decentralized VPN, mixnet, and zero-knowledge payments.",
+    "preCta": "Sign up now for instant free beta credentials.",
+    "form": {
+      "placeholder": "Your email address",
+      "ctaText": "Submit"
+    }
+  },
+  "featuresSection": {
+    "title": "Features",
+    "featuresGrid": [
+      {
+        "category": "Technology",
+        "title": "5-hop novel Nym mixnet",
+        "text": "Elevated privacy with advanced onion encryption, data splitting, mixing, and concealment in cover traffic.",
+        "cta": {
+          "text": "Learn more",
+          "href": "https://nymtech.net/about/mixnet"
+        },
+        "iconName": "mixnet",
+        "isMedium": true
+      },
+      {
+        "category": "Technology",
+        "title": "2-hop secure WireGuard decentralized VPN",
+        "text": "Swift two-hop decentralized mode with onion encryption but no cover traffic.",
+        "iconName": "wireguard",
+        "isMedium": true
+      },
+      {
+        "category": "Benefits",
+        "title": "Unlinkable online activity",
+        "text": "Inability to correlate IPs with network requests, by design. No backdoor or covert access to traffic and private data.",
+        "iconName": "unlinkable"
+      },
+      {
+        "category": "In-app features",
+        "title": "Advanced privacy in one app",
+        "text": "Unmatched privacy within a single application thanks to the unique blend of mixnet and decentralized VPN.",
+        "iconName": "oneApp"
+      },
+      {
+        "category": "In-app features",
+        "categoryStatus": "Coming soon",
+        "title": "Privacy-enhancing payments",
+        "text": "Zero-knowledge payment method, ensuring privacy and concealing user identity for transactions.",
+        "iconName": "payment"
+      }
+    ],
+    "featuresCta": {
+      "title": "Discover NymVPN features",
+      "href": "features"
+    }
+  },
+  "fullWidthBanner": {
+    "title": "Advanced privacy. In your hands.",
+    "text": [
+      "Tailor your privacy options to suit your requirements. Opt for the fast decentralized VPN or prioritize higher privacy with the mixnet, all within a single app, while benefitting from the high redundancy of the decentralized Nym network and unlinkability of your data."
+    ]
+  },
+  "centeredBanner": {
+    "title": "Robust security for all your devices",
+    "text": [
+      "Protect against eavesdroppers and corporate / government surveillance. Prevent data leaks with our upcoming built-in kill switch, available across all your devices with just one account."
+    ]
+  },
+  "comparationTable": {
+    "title": "Digital integrity guaranteed",
+    "subtitle": "See how NymVPN compares with the alternatives",
+    "heads": ["", "NymVPN", "VPNs", "decentralized VPNs", "Tor"],
+    "rows": [
+      {
+        "title": "Independent multi-hop routing",
+        "description": "Traffic routed via at least 2 independent server hops"
+      },
+      {
+        "title": "Unlinkable online activity",
+        "description": "Impossible to correlate traffic with end users"
+      },
+      {
+        "title": "Privacy-preserving payments",
+        "description": "User identity concealment during VPN service subscription"
+      },
+      {
+        "title": "Traffic analysis resistance",
+        "description": "Packet shuffling and encryption to protect your data and metadata"
+      },
+      {
+        "title": "High quality of service",
+        "description": "Incentivization of server operators for a high quality of service"
+      },
+      {
+        "title": "Open source",
+        "description": "Software development with publicly accessible source code"
+      }
+    ]
+  },
+  "mailCollectionBanner": {
+    "title": "Join the NymVPN beta phase",
+    "text": [
+      "Sign up now and instantly receive your free access credentials. Join the community on [Discord](https://nymtech.net/go/discord) or [Matrix](https://matrix.to/#/#NymVPN:nymtech.chat)."
+    ],
+    "form": {
+      "placeholder": "Your email address",
+      "ctaText": "Submit"
+    }
+  },
+  "inNumbers": [
+    {
+      "title": "750+",
+      "subtitle": "Privacy-mixing nodes",
+      "text": "Experience unparalleled protection – hundreds of independently-run nodes randomly chosen at every epoch",
+      "icon": "privacyMixingNodes",
+      "link": "https://explorer.nymtech.net/network-components/mixnodes"
+    },
+    {
+      "title": "110+",
+      "subtitle": "Exit servers",
+      "text": "Enjoy a resilient, high-quality set of exit gateways and network requesters",
+      "icon": "exitServers",
+      "link": "https://explorer.nymtech.net/network-components/gateways"
+    },
+    {
+      "title": "30+",
+      "subtitle": "Countries",
+      "text": "Access our extensive global network spanning Africa, Americas, Asia, Europe and Oceania",
+      "icon": "countries",
+      "link": "https://explorer.nymtech.net/nodemap"
+    }
+  ],
+  "socialReviews": {
+    "title": "Don't just take our word for it",
+    "subtitle": "Featured in leading publications and trusted by privacy advocates.",
+    "reviews": [
+      {
+        "author": "Chelsea Manning",
+        "mediaName": "Activist, whistleblower, Security Consultant @ Nym",
+        "authorImg": "chelsea-manning",
+        "text": "As technology evolves, so do the challenges to our privacy. NymVPN isn't just a response to these challenges; it's a proactive privacy and censorship resistance solution designed to stay ahead of the curve in protecting user data in an increasingly tense and uncertain world."
+      },
+      {
+        "date": "11:22 AM · Nov 18, 2023",
+        "social": "twitter",
+        "author": "🏴‍☠️ Bluetouff",
+        "mediaName": "@bluetouff, blogger and activist",
+        "authorImg": "bluetouff",
+        "text": "If you want to test a decentralized #VPN, it's over here 👉👉 [https://nymvpn.com/en](https://nymvpn.com/en) 👈👈... No more nonsense about zero logs with Nord-thingies and big US VPNs subjected to the Patriot Act... Go decentralized and try a serious anonymization network by joining the beta",
+        "hashtags": "#VPN",
+        "url": "https://twitter.com/bluetouff/status/1725821717245739165"
+      }
+    ]
+  }
+}

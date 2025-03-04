@@ -93,6 +93,10 @@ pub struct CommonClientInitArgs {
     /// Sets the address to report statistics
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub stats_reporting_address: Option<Recipient>,
+
+    /// Sets the forget me flag
+    #[cfg_attr(feature = "cli", clap(long, hide = true, default_value_t = false))]
+    pub forget_me: bool,
 }
 
 pub struct InitResultsWithConfig<T> {
@@ -167,11 +171,17 @@ where
                 source,
             }
         })?;
-        hardcoded_topology.get_gateways()
+        hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls, user_agent)
-            .await?
+        crate::init::helpers::gateways_for_init(
+            &mut rng,
+            &core.client.nym_api_urls,
+            user_agent,
+            core.debug.topology.minimum_gateway_performance,
+            core.debug.topology.ignore_ingress_epoch_role,
+        )
+        .await?
     };
 
     let gateway_setup = GatewaySetup::New {

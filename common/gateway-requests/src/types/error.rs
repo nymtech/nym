@@ -59,12 +59,12 @@ pub enum GatewayRequestsError {
         source: NymNodeRoutingAddressError,
     },
 
-    #[error("received request had invalid size. (actual: {0}, but expected one of: {} (ACK), {} (REGULAR), {}, {}, {} (EXTENDED))",
-        PacketSize::AckPacket.size(),
-        PacketSize::RegularPacket.size(),
-        PacketSize::ExtendedPacket8.size(),
-        PacketSize::ExtendedPacket16.size(),
-        PacketSize::ExtendedPacket32.size())
+    #[error("received request had invalid size. (actual: {0}, but expected one of: {a} (ACK), {r} (REGULAR), {e8}, {e16}, {e32} (EXTENDED))",
+        a = PacketSize::AckPacket.size(),
+        r = PacketSize::RegularPacket.size(),
+        e8 = PacketSize::ExtendedPacket8.size(),
+        e16 = PacketSize::ExtendedPacket16.size(),
+        e32 = PacketSize::ExtendedPacket32.size())
     ]
     RequestOfInvalidSize(usize),
 

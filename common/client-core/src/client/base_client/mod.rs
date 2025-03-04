@@ -1,9 +1,9 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
-use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -24,7 +24,7 @@ use crate::client::replies::reply_storage::{
 };
 use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
-    nym_api_provider, TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
@@ -36,9 +36,11 @@ use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
+use nym_client_core_config_types::ForgetMe;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::hkdf::DerivationMaterial;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
@@ -176,8 +178,8 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
-    config: &'a Config,
+pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
+    config: Config,
     client_store: S,
     dkg_query_client: Option<C>,
 
@@ -188,18 +190,23 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
+
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    derivation_material: Option<DerivationMaterial>,
 }
 
-impl<'a, C, S> BaseClientBuilder<'a, C, S>
+impl<C, S> BaseClientBuilder<C, S>
 where
     S: MixnetClientStorage + 'static,
     C: DkgQueryClient + Send + Sync + 'static,
 {
     pub fn new(
-        base_config: &'a Config,
+        base_config: Config,
         client_store: S,
         dkg_query_client: Option<C>,
-    ) -> BaseClientBuilder<'a, C, S> {
+    ) -> BaseClientBuilder<C, S> {
         BaseClientBuilder {
             config: base_config,
             client_store,
@@ -210,7 +217,25 @@ where
             shutdown: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
+            #[cfg(unix)]
+            connection_fd_callback: None,
+            derivation_material: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_derivation_material(
+        mut self,
+        derivation_material: Option<DerivationMaterial>,
+    ) -> Self {
+        self.derivation_material = derivation_material;
+        self
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
+        self.config.debug.forget_me = *forget_me;
+        self
     }
 
     #[must_use]
@@ -261,6 +286,15 @@ where
         Ok(self)
     }
 
+    #[cfg(unix)]
+    pub fn with_connection_fd_callback(
+        mut self,
+        callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(callback);
+        self
+    }
+
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
     // because it relies on the crypto keys being already loaded
     fn mix_address(details: &InitialisationResult) -> Recipient {
@@ -276,7 +310,7 @@ where
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
         stats_tx: ClientStatsSender,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -289,9 +323,10 @@ where
             debug_config.traffic,
             debug_config.cover_traffic,
             stats_tx,
+            task_client,
         );
 
-        stream.start_with_shutdown(shutdown);
+        stream.start();
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -306,7 +341,7 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        shutdown: TaskClient,
+        task_client: TaskClient,
         packet_type: PacketType,
         stats_tx: ClientStatsSender,
     ) {
@@ -324,8 +359,9 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
+            task_client,
         )
-        .start_with_shutdown(shutdown, packet_type);
+        .start(packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -348,10 +384,12 @@ where
                 reply_key_storage,
                 reply_controller_sender,
                 metrics_reporter,
+                shutdown,
             );
-        controller.start_with_shutdown(shutdown)
+        controller.start()
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn start_gateway_client(
         config: &Config,
         initialisation_result: InitialisationResult,
@@ -359,6 +397,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -401,6 +440,8 @@ where
                     packet_router,
                     bandwidth_controller,
                     stats_reporter,
+                    #[cfg(unix)]
+                    connection_fd_callback,
                     shutdown,
                 )
             };
@@ -437,8 +478,8 @@ where
             details_store
                 .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
                 .await.map_err(|err| {
-                    error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
-                    ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
+                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
             })?
         }
 
@@ -446,6 +487,7 @@ where
             .claim_initial_bandwidth()
             .await
             .map_err(gateway_failure)?;
+
         gateway_client
             .start_listening_for_mixnet_messages()
             .map_err(gateway_failure)?;
@@ -462,6 +504,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -493,6 +536,8 @@ where
             details_store,
             packet_router,
             stats_reporter,
+            #[cfg(unix)]
+            connection_fd_callback,
             shutdown,
         )
         .await?;
@@ -509,20 +554,15 @@ where
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
             config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
-                nym_api_provider::Config {
-                    min_mixnode_performance: config_topology.minimum_mixnode_performance,
-                    min_gateway_performance: config_topology.minimum_gateway_performance,
-                },
+                config_topology,
                 nym_api_urls,
-                env!("CARGO_PKG_VERSION").to_string(),
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(
-                    nym_api_urls,
-                    env!("CARGO_PKG_VERSION").to_string(),
-                    group_by,
-                ))
+                warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");
+
+                #[allow(deprecated)]
+                Box::new(crate::client::topology_control::GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }
@@ -533,17 +573,24 @@ where
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
-        local_gateway: &NodeIdentity,
+        local_gateway: NodeIdentity,
         wait_for_gateway: bool,
-        mut shutdown: TaskClient,
+        mut task_client: TaskClient,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
             TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
+
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The background topology refesher is not going to be started");
+            task_client.disarm();
+        }
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
             topology_accessor,
             topology_provider,
+            task_client,
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
@@ -565,7 +612,7 @@ where
         };
 
         if let Err(err) = topology_refresher
-            .ensure_contains_gateway(local_gateway)
+            .ensure_contains_routable_egress(local_gateway)
             .await
         {
             if let Some(waiting_timeout) = gateway_wait_timeout {
@@ -584,15 +631,11 @@ where
             }
         }
 
-        if topology_config.disable_refreshing {
-            // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The topology refesher is not going to be started");
-            shutdown.disarm();
-        } else {
+        if !topology_config.disable_refreshing {
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
             info!("Starting topology refresher...");
-            topology_refresher.start_with_shutdown(shutdown);
+            topology_refresher.start();
         }
 
         Ok(())
@@ -603,28 +646,29 @@ where
         user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
-        StatisticsControl::create_and_start_with_shutdown(
+        StatisticsControl::create_and_start(
             config.debug.stats_reporting,
             user_agent
                 .map(|u| u.application)
                 .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
-            shutdown.with_suffix("controller"),
+            task_client,
         )
     }
 
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
-    ) -> BatchMixMessageSender {
+    ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_transceiver);
-        mix_traffic_controller.start_with_shutdown(shutdown);
-        mix_tx
+        let (mix_traffic_controller, mix_tx, client_tx) =
+            MixTrafficController::new(gateway_transceiver, shutdown);
+        mix_traffic_controller.start();
+        (mix_tx, client_tx)
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -659,6 +703,7 @@ where
         setup_method: GatewaySetup,
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
+        derivation_material: Option<DerivationMaterial>,
     ) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
@@ -668,7 +713,12 @@ where
         if key_store.load_keys().await.is_err() {
             info!("could not find valid client keys - a new set will be generated");
             let mut rng = OsRng;
-            let keys = ClientKeys::generate_new(&mut rng);
+            let keys = if let Some(derivation_material) = derivation_material {
+                ClientKeys::from_master_key(&mut rng, &derivation_material)
+                    .map_err(|_| ClientCoreError::HkdfDerivationError {})?
+            } else {
+                ClientKeys::generate_new(&mut rng)
+            };
             store_client_keys(keys, key_store).await?;
         }
 
@@ -690,6 +740,7 @@ where
             self.setup_method,
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
+            self.derivation_material,
         )
         .await?;
 
@@ -713,7 +764,8 @@ where
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
-        let shared_topology_accessor = TopologyAccessor::new();
+        let shared_topology_accessor =
+            TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = self
@@ -745,7 +797,7 @@ where
         );
 
         let stats_reporter = Self::start_statistics_control(
-            self.config,
+            &self.config,
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
@@ -771,12 +823,14 @@ where
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
-            self.config,
+            &self.config,
             init_res,
             bandwidth_controller,
             &details_store,
             gateway_packet_router,
             stats_reporter.clone(),
+            #[cfg(unix)]
+            self.connection_fd_callback,
             shutdown.fork("gateway_transceiver"),
         )
         .await?;
@@ -802,7 +856,8 @@ where
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
-        let message_sender = Self::start_mix_traffic_controller(
+
+        let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
             shutdown.fork("mix_traffic_controller"),
         );
@@ -879,6 +934,8 @@ where
             },
             stats_reporter,
             task_handle: shutdown,
+            client_request_sender,
+            forget_me: self.config.debug.forget_me,
         })
     }
 }
@@ -890,6 +947,7 @@ pub struct BaseClient {
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
-
+    pub client_request_sender: ClientRequestSender,
     pub task_handle: TaskHandle,
+    pub forget_me: ForgetMe,
 }

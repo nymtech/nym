@@ -8,25 +8,32 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::{Interval, NodeId};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct CachedNodesResponse<T> {
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum TopologyRequestStatus {
+    NoUpdates,
+    Fresh(Interval),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct CachedNodesResponse<T: ToSchema> {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: Vec<T>,
 }
 
-impl<T> From<Vec<T>> for CachedNodesResponse<T> {
+impl<T: ToSchema> From<Vec<T>> for CachedNodesResponse<T> {
     fn from(nodes: Vec<T>) -> Self {
         CachedNodesResponse::new(nodes)
     }
 }
 
-impl<T> CachedNodesResponse<T> {
+impl<T: ToSchema> CachedNodesResponse<T> {
     pub fn new(nodes: Vec<T>) -> Self {
         CachedNodesResponse {
             refreshed_at: OffsetDateTime::now_utc().into(),
@@ -37,6 +44,7 @@ impl<T> CachedNodesResponse<T> {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PaginatedCachedNodesResponse<T> {
+    pub status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
 }
@@ -56,6 +64,28 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 },
                 data: nodes,
             },
+            status: None,
+        }
+    }
+
+    pub fn fresh(mut self, interval: Option<Interval>) -> Self {
+        let iv = interval.map(TopologyRequestStatus::Fresh);
+        self.status = iv;
+        self
+    }
+
+    pub fn no_updates() -> Self {
+        PaginatedCachedNodesResponse {
+            refreshed_at: OffsetDateTime::now_utc().into(),
+            nodes: PaginatedResponse {
+                pagination: Pagination {
+                    total: 0,
+                    page: 0,
+                    size: 0,
+                },
+                data: Vec::new(),
+            },
+            status: Some(TopologyRequestStatus::NoUpdates),
         }
     }
 }
@@ -72,7 +102,7 @@ pub enum NodeRoleQueryParam {
     ExitGateway,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, Default)]
 pub enum NodeRole {
     // a properly active mixnode
     Mixnode {
@@ -88,6 +118,7 @@ pub enum NodeRole {
     // equivalent of node that's in rewarded set but not in the inactive set
     Standby,
 
+    #[default]
     Inactive,
 }
 
@@ -129,16 +160,17 @@ pub struct SkimmedNode {
 
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ed25519_identity_pubkey: ed25519::PublicKey,
 
     #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 
-    // TODO: to be deprecated in favour of well-known hardcoded port for everyone
     pub mix_port: u16,
 
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub x25519_sphinx_pubkey: x25519::PublicKey,
 
     #[serde(alias = "epoch_role")]

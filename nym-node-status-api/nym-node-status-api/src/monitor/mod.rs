@@ -1,22 +1,21 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
-    GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT, MIXNODES_BLACKLISTED_COUNT,
-    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_BONDED_INACTIVE,
-    MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
+    gateway, mixnode, GatewayInsertRecord, MixnodeRecord, NetworkSummary, ASSIGNED_ENTRY_COUNT,
+    ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT,
+    MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{Location, NodeGeoData};
+use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
-use cosmwasm_std::Decimal;
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::{NodeId, NymApiClientExt};
 use nym_validator_client::models::{
     LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription,
 };
-use nym_validator_client::nym_nodes::SkimmedNode;
+use nym_validator_client::nym_nodes::{NodeRole, SkimmedNode};
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
@@ -30,7 +29,6 @@ pub(crate) use geodata::IpInfoClient;
 
 mod geodata;
 
-// TODO dz should be configurable
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
@@ -102,155 +100,131 @@ impl Monitor {
         let api_client =
             NymApiClient::new_with_timeout(default_api_url, self.nym_api_client_timeout);
 
-        let all_nodes = api_client
+        let described_nodes = api_client
             .get_all_described_nodes()
             .await
             .log_error("get_all_described_nodes")?;
-        tracing::debug!("Fetched {} total nodes", all_nodes.len());
+        tracing::info!("🟣 described nodes: {}", described_nodes.len());
 
-        let gateways = all_nodes
+        let gateways = described_nodes
             .iter()
-            .filter(|node| node.description.declared_role.entry)
+            .filter(|node| {
+                node.description.declared_role.entry
+                    || node.description.declared_role.exit_ipr
+                    || node.description.declared_role.exit_nr
+            })
             .collect::<Vec<_>>();
-        tracing::debug!(
-            "{}/{} with declared entry gateway capability",
-            gateways.len(),
-            all_nodes.len()
-        );
-
-        let mixnodes = all_nodes
-            .iter()
-            .filter(|node| node.description.declared_role.mixnode)
-            .collect::<Vec<_>>();
-        tracing::debug!(
-            "{}/{} with declared mixnode capability",
-            mixnodes.len(),
-            all_nodes.len()
-        );
 
         let bonded_node_info = api_client
             .get_all_bonded_nym_nodes()
             .await?
             .into_iter()
-            .map(|node| (node.bond_information.node_id, node.bond_information))
+            .map(|node| (node.bond_information.node_id, node))
             // for faster reads
             .collect::<HashMap<_, _>>();
 
+        tracing::info!("🟣 bonded_nodes: {}", bonded_node_info.len());
+
+        let nym_nodes = api_client
+            .get_all_basic_nodes()
+            .await
+            .log_error("get_all_basic_nodes")?;
+
+        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info)
+            .await
+            .map(|_| {
+                tracing::debug!("{} nym nodes written to DB!", nym_nodes.len());
+            })?;
+
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {
-            if let Some(node_info) = bonded_node_info.get(&gateway.node_id) {
+            if let Some(node_details) = bonded_node_info.get(&gateway.node_id) {
+                let bond_info = &node_details.bond_information;
                 let gw_geodata = NodeGeoData {
-                    identity_key: node_info.node.identity_key.to_owned(),
-                    owner: node_info.owner.to_owned(),
-                    pledge_amount: node_info.original_pledge.to_owned(),
+                    identity_key: bond_info.node.identity_key.to_owned(),
+                    owner: bond_info.owner.to_owned(),
+                    pledge_amount: bond_info.original_pledge.to_owned(),
                     location: self.location_cached(gateway).await,
                 };
                 gateway_geodata.push(gw_geodata);
             }
         }
 
-        // contains performance data
-        let all_skimmed_nodes = api_client
-            .get_all_basic_nodes(None)
-            .await
-            .log_error("get_all_basic_nodes")?;
-
-        let gateways_blacklisted = all_skimmed_nodes
-            .iter()
-            .filter_map(|node| {
-                if node.performance.round_to_integer() <= 50 && node.supported_roles.entry {
-                    Some(node.ed25519_identity_pubkey.to_base58_string())
-                } else {
-                    None
-                }
-            })
-            .collect::<HashSet<_>>();
-
-        // Cached mixnodes don't include blacklisted nodes
-        // We need that to calculate the total locked tokens later
-        // TODO dz deprecated API, remove
-        let legacy_mixnodes = api_client
+        let mixnodes_detailed = api_client
             .nym_api
             .get_mixnodes_detailed_unfiltered()
             .await
             .log_error("get_mixnodes_detailed_unfiltered")?;
+
+        tracing::info!(
+            "🟣 mixnodes_detailed_unfiltered: {}",
+            mixnodes_detailed.len()
+        );
+
+        let mixnodes_detailed_set = mixnodes_detailed
+            .iter()
+            .map(|elem| elem.identity_key().to_owned())
+            .collect::<HashSet<_>>();
+
+        let mixnodes_legacy = nym_nodes
+            .iter()
+            .filter(|node| {
+                mixnodes_detailed_set.contains(&node.ed25519_identity_pubkey.to_base58_string())
+            })
+            .collect::<Vec<_>>();
+
         let mixnodes_described = api_client
             .nym_api
             .get_mixnodes_described()
             .await
             .log_error("get_mixnodes_described")?;
-        let mixnodes_active = api_client
+
+        tracing::info!("🟣 mixnodes_described: {}", mixnodes_described.len());
+        let mixing_assigned_nodes = api_client
             .nym_api
-            .get_basic_active_mixing_assigned_nodes(None, false, None, None)
+            .get_basic_active_mixing_assigned_nodes(false, None, None)
             .await
-            .log_error("get_active_mixnodes")?
+            .log_error("get_basic_active_mixing_assigned_nodes")?
             .nodes
             .data;
+
         let delegation_program_members =
             get_delegation_program_details(&self.network_details, &self.nyxd_addr).await?;
 
         // keep stats for later
-        let count_bonded_mixnodes = mixnodes.len();
+        let assigned_entry_count = nym_nodes
+            .iter()
+            .filter(|elem| matches!(elem.role, NodeRole::EntryGateway))
+            .count();
+        let assigned_exit_count = nym_nodes
+            .iter()
+            .filter(|elem| matches!(elem.role, NodeRole::ExitGateway))
+            .count();
         let count_bonded_gateways = gateways.len();
-        let count_bonded_mixnodes_active = mixnodes_active.len();
+        let assigned_mixing_count = mixing_assigned_nodes.len();
+        let count_legacy_mixnodes = mixnodes_legacy.len();
 
-        let gateway_records = self.prepare_gateway_data(
-            &gateways,
-            &gateways_blacklisted,
-            gateway_geodata,
-            all_skimmed_nodes,
-        )?;
+        let gateway_records = self.prepare_gateway_data(&gateways, gateway_geodata, &nym_nodes)?;
 
         let pool = self.db_pool.clone();
+        let gateways_count = gateway_records.len();
         queries::insert_gateways(&pool, gateway_records)
             .await
             .map(|_| {
-                tracing::debug!("Gateway info written to DB!");
+                tracing::debug!("{} gateway records written to DB!", gateways_count);
             })?;
 
-        let count_gateways_blacklisted = gateways
-            .iter()
-            .filter(|gw| {
-                let gw_identity = gw.ed25519_identity_key().to_base58_string();
-                gateways_blacklisted.contains(&gw_identity)
-            })
-            .count();
-
-        if count_gateways_blacklisted > 0 {
-            queries::write_blacklisted_gateways_to_db(&pool, gateways_blacklisted.iter())
-                .await
-                .map(|_| {
-                    tracing::debug!(
-                        "Gateway blacklist info written to DB! {} blacklisted by Nym API",
-                        count_gateways_blacklisted
-                    )
-                })?;
-        }
-
         let mixnode_records = self.prepare_mixnode_data(
-            &legacy_mixnodes,
+            &mixnodes_detailed,
             mixnodes_described,
             delegation_program_members,
         )?;
+        let mixnodes_count = mixnode_records.len();
         queries::insert_mixnodes(&pool, mixnode_records)
             .await
             .map(|_| {
-                tracing::debug!("Mixnode info written to DB!");
+                tracing::debug!("{} mixnode info written to DB!", mixnodes_count);
             })?;
-
-        let count_mixnodes_blacklisted = legacy_mixnodes
-            .iter()
-            .filter(|elem| elem.blacklisted)
-            .count();
-
-        let recently_unbonded_gateways =
-            queries::ensure_gateways_still_bonded(&pool, &gateways).await?;
-        let recently_unbonded_mixnodes =
-            queries::ensure_mixnodes_still_bonded(&pool, &legacy_mixnodes).await?;
-
-        let count_bonded_mixnodes_reserve = 0; // TODO: NymAPI doesn't report the reserve set size
-        let count_bonded_mixnodes_inactive =
-            count_bonded_mixnodes.saturating_sub(count_bonded_mixnodes_active);
 
         let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
 
@@ -259,30 +233,28 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            (MIXNODES_BONDED_COUNT, &count_bonded_mixnodes),
-            (MIXNODES_BONDED_ACTIVE, &count_bonded_mixnodes_active),
-            (MIXNODES_BONDED_INACTIVE, &count_bonded_mixnodes_inactive),
-            (MIXNODES_BONDED_RESERVE, &count_bonded_mixnodes_reserve),
-            (MIXNODES_BLACKLISTED_COUNT, &count_mixnodes_blacklisted),
-            (GATEWAYS_BONDED_COUNT, &count_bonded_gateways),
-            (MIXNODES_HISTORICAL_COUNT, &all_historical_mixnodes),
-            (GATEWAYS_HISTORICAL_COUNT, &all_historical_gateways),
-            (GATEWAYS_BLACKLISTED_COUNT, &count_gateways_blacklisted),
+            (NYMNODE_COUNT, nym_nodes.len()),
+            (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
+            (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
+            (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
+            (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
+            (ASSIGNED_ENTRY_COUNT, assigned_entry_count),
+            (ASSIGNED_EXIT_COUNT, assigned_exit_count),
+            // TODO dz doesn't make sense, could make sense with historical Nym
+            // Nodes if we really need this data
+            (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
+            (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
         ];
 
         let last_updated = chrono::offset::Utc::now();
         let last_updated_utc = last_updated.timestamp().to_string();
         let network_summary = NetworkSummary {
+            total_nodes: nym_nodes.len().cast_checked()?,
             mixnodes: mixnode::MixnodeSummary {
-                bonded: mixnode::MixnodeSummaryBonded {
-                    count: count_bonded_mixnodes.cast_checked()?,
-                    active: count_bonded_mixnodes_active.cast_checked()?,
-                    inactive: count_bonded_mixnodes_inactive.cast_checked()?,
-                    reserve: count_bonded_mixnodes_reserve.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
-                },
-                blacklisted: mixnode::MixnodeSummaryBlacklisted {
-                    count: count_mixnodes_blacklisted.cast_checked()?,
+                bonded: mixnode::MixingNodesSummary {
+                    count: assigned_mixing_count.cast_checked()?,
+                    self_described: described_nodes.len().cast_checked()?,
+                    legacy: count_legacy_mixnodes.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
                 historical: mixnode::MixnodeSummaryHistorical {
@@ -293,10 +265,8 @@ impl Monitor {
             gateways: gateway::GatewaySummary {
                 bonded: gateway::GatewaySummaryBonded {
                     count: count_bonded_gateways.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
-                },
-                blacklisted: gateway::GatewaySummaryBlacklisted {
-                    count: count_gateways_blacklisted.cast_checked()?,
+                    entry: assigned_entry_count.cast_checked()?,
+                    exit: assigned_exit_count.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
                 historical: gateway::GatewaySummaryHistorical {
@@ -312,14 +282,6 @@ impl Monitor {
         for (key, value) in nodes_summary.iter() {
             log_lines.push(format!("{} = {}", key, value));
         }
-        log_lines.push(format!(
-            "recently_unbonded_mixnodes = {}",
-            recently_unbonded_mixnodes
-        ));
-        log_lines.push(format!(
-            "recently_unbonded_gateways = {}",
-            recently_unbonded_gateways
-        ));
 
         tracing::info!("Directory summary: \n{}", log_lines.join("\n"));
 
@@ -348,18 +310,16 @@ impl Monitor {
 
     fn prepare_gateway_data(
         &self,
-        gateways: &[&NymNodeDescription],
-        gateways_blacklisted: &HashSet<String>,
+        described_gateways: &[&NymNodeDescription],
         gateway_geodata: Vec<NodeGeoData>,
-        skimmed_gateways: Vec<SkimmedNode>,
-    ) -> anyhow::Result<Vec<GatewayRecord>> {
+        skimmed_gateways: &[SkimmedNode],
+    ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
         let mut gateway_records = Vec::new();
 
-        for gateway in gateways {
+        for gateway in described_gateways {
             let identity_key = gateway.ed25519_identity_key().to_base58_string();
             let bonded = true;
             let last_updated_utc = chrono::offset::Utc::now().timestamp();
-            let blacklisted = gateways_blacklisted.contains(&identity_key);
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
@@ -380,10 +340,9 @@ impl Monitor {
                 .unwrap_or_default()
                 .round_to_integer();
 
-            gateway_records.push(GatewayRecord {
+            gateway_records.push(GatewayInsertRecord {
                 identity_key: identity_key.to_owned(),
                 bonded,
-                blacklisted,
                 self_described,
                 explorer_pretty_bond,
                 last_updated_utc,
@@ -407,7 +366,6 @@ impl Monitor {
             let identity_key = mixnode.identity_key();
             let bonded = true;
             let total_stake = decimal_to_i64(mixnode.mixnode_details.total_stake());
-            let blacklisted = mixnode.blacklisted;
             let node_info = mixnode.mix_node();
             let host = node_info.host.clone();
             let http_port = node_info.http_api_port;
@@ -427,7 +385,6 @@ impl Monitor {
                 total_stake,
                 host,
                 http_port,
-                blacklisted,
                 full_details,
                 self_described,
                 last_updated_utc,
@@ -452,33 +409,6 @@ impl Monitor {
             }
         }
     }
-}
-
-// TODO dz is there a common monorepo place this can be put?
-pub trait NumericalCheckedCast<T>
-where
-    T: TryFrom<Self>,
-    <T as TryFrom<Self>>::Error: std::error::Error,
-    Self: std::fmt::Display + Copy,
-{
-    fn cast_checked(self) -> anyhow::Result<T> {
-        T::try_from(self).map_err(|e| {
-            anyhow::anyhow!(
-                "Couldn't cast {} to {}: {}",
-                self,
-                std::any::type_name::<T>(),
-                e
-            )
-        })
-    }
-}
-
-impl<T, U> NumericalCheckedCast<U> for T
-where
-    U: TryFrom<T>,
-    <U as TryFrom<T>>::Error: std::error::Error,
-    T: std::fmt::Display + Copy,
-{
 }
 
 async fn calculate_stats(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
@@ -517,40 +447,4 @@ async fn get_delegation_program_details(
         .collect();
 
     Ok(mix_ids)
-}
-
-fn decimal_to_i64(decimal: Decimal) -> i64 {
-    // Convert the underlying Uint128 to a u128
-    let atomics = decimal.atomics().u128();
-    let precision = 1_000_000_000_000_000_000u128;
-
-    // Get the fractional part
-    let fractional = atomics % precision;
-
-    // Get the integer part
-    let integer = atomics / precision;
-
-    // Combine them into a float
-    let float_value = integer as f64 + (fractional as f64 / 1_000_000_000_000_000_000_f64);
-
-    // Limit to 6 decimal places
-    let rounded_value = (float_value * 1_000_000.0).round() / 1_000_000.0;
-
-    rounded_value as i64
-}
-
-trait LogError<T, E> {
-    fn log_error(self, msg: &str) -> Result<T, E>;
-}
-
-impl<T, E> LogError<T, E> for anyhow::Result<T, E>
-where
-    E: std::error::Error,
-{
-    fn log_error(self, msg: &str) -> Result<T, E> {
-        if let Err(e) = &self {
-            tracing::error!("[{msg}]:\t{e}");
-        }
-        self
-    }
 }

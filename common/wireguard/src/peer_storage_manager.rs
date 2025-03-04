@@ -4,7 +4,7 @@
 use crate::error::Error;
 use defguard_wireguard_rs::host::Peer;
 use nym_gateway_storage::models::WireguardPeer;
-use nym_gateway_storage::Storage;
+use nym_gateway_storage::GatewayStorage;
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -29,15 +29,15 @@ impl Default for PeerFlushingBehaviourConfig {
     }
 }
 
-pub struct PeerStorageManager<S> {
-    pub(crate) storage: S,
+pub struct PeerStorageManager {
+    pub(crate) storage: GatewayStorage,
     pub(crate) peer_information: Option<PeerInformation>,
     pub(crate) cfg: PeerFlushingBehaviourConfig,
     pub(crate) with_client_id: bool,
 }
 
-impl<S: Storage + Clone + 'static> PeerStorageManager<S> {
-    pub(crate) fn new(storage: S, peer: Peer, with_client_id: bool) -> Self {
+impl PeerStorageManager {
+    pub(crate) fn new(storage: GatewayStorage, peer: Peer, with_client_id: bool) -> Self {
         let peer_information = Some(PeerInformation::new(peer));
         Self {
             storage,

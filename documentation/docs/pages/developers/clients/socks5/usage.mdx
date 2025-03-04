@@ -1,0 +1,60 @@
+# Usage
+
+## Run
+You can run the initialised client by doing this:
+
+```
+./nym-socks5-client run --id docs-example
+```
+
+## Automating your socks5 client with systemd
+Create a service file for the socks5 client at `/etc/systemd/system/nym-socks5-client.service`:
+
+```ini
+[Unit]
+Description=Nym Socks5 Client
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=/home/nym/nym-socks5-client run --id <your_id>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Now enable and start your socks5 client:
+
+```
+systemctl enable nym-socks5-client.service
+systemctl start nym-socks5-client.service
+# you can always check your socks5 client has succesfully started with:
+systemctl status nym-socks5-client.service
+```
+
+## Using your Socks5 Client
+After completing the steps above, your local Socks5 Client will be listening on `localhost:1080` ready to proxy traffic to the Network Requester set as the `--provider` when initialising.
+
+When trying to connect your app, generally the proxy settings are found in `settings->advanced` or `settings->connection`.
+
+Here is an example of setting the proxy connecting in Blockstream Green:
+
+![Blockstream Green settings](/images/wallet-proxy-settings/blockstream-green.gif)
+
+Most wallets and other applications will work basically the same way: find the network proxy settings, enter the proxy url (host: **localhost**, port: **1080**).
+
+In some other applications, this might be written as **localhost:1080** if there's only one proxy entry field.
+
+## Useful Commands
+**no-banner**
+
+Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
+**build-info**
+
+A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.

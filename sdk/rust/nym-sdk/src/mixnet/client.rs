@@ -23,12 +23,13 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_client_core::config::{DebugConfig, StatsReporting};
+use nym_client_core::config::{DebugConfig, ForgetMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
+use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
 use nym_topology::provider_trait::TopologyProvider;
@@ -36,6 +37,8 @@ use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(unix)]
+use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -54,11 +57,15 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
+    forget_me: ForgetMe,
+    derivation_material: Option<DerivationMaterial>,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -93,13 +100,17 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
+            forget_me: Default::default(),
+            derivation_material: None,
         })
     }
 }
 
 impl<S> MixnetClientBuilder<S>
 where
-    S: MixnetClientStorage + 'static,
+    S: MixnetClientStorage + Clone + 'static,
     S::ReplyStore: Send + Sync,
     S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -120,8 +131,12 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
             gateway_endpoint_config_path: None,
             storage,
+            forget_me: Default::default(),
+            derivation_material: None,
         }
     }
 
@@ -138,9 +153,19 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
+            forget_me: self.forget_me,
+            derivation_material: self.derivation_material,
         }
+    }
+
+    #[must_use]
+    pub fn with_derivation_material(mut self, derivation_material: DerivationMaterial) -> Self {
+        self.derivation_material = Some(derivation_material);
+        self
     }
 
     /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
@@ -152,10 +177,28 @@ where
         self.set_storage(storage)
     }
 
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
+        self.forget_me = forget_me;
+        self
+    }
+
     /// Request a specific gateway instead of a random one.
     #[must_use]
     pub fn request_gateway(mut self, user_chosen_gateway: String) -> Self {
         self.config.user_chosen_gateway = Some(user_chosen_gateway);
+        self
+    }
+
+    #[must_use]
+    pub fn with_extended_topology(mut self, use_extended_topology: bool) -> Self {
+        self.config.debug_config.topology.use_extended_topology = use_extended_topology;
+        self
+    }
+
+    #[must_use]
+    pub fn with_ignore_epoch_roles(mut self, ignore_epoch_roles: bool) -> Self {
+        self.config.debug_config.topology.ignore_egress_epoch_role = ignore_epoch_roles;
         self
     }
 
@@ -237,6 +280,16 @@ where
         self
     }
 
+    #[cfg(unix)]
+    #[must_use]
+    pub fn with_connection_fd_callback(
+        mut self,
+        connection_fd_callback: Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(connection_fd_callback);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]
@@ -265,7 +318,12 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
-
+        #[cfg(unix)]
+        if self.connection_fd_callback.is_some() {
+            client.connection_fd_callback = self.connection_fd_callback;
+        }
+        client.forget_me = self.forget_me;
+        client.derivation_material = self.derivation_material;
         Ok(client)
     }
 }
@@ -279,7 +337,7 @@ where
 /// client.
 pub struct DisconnectedMixnetClient<S>
 where
-    S: MixnetClientStorage,
+    S: MixnetClientStorage + Clone,
 {
     /// Client configuration
     config: Config,
@@ -314,11 +372,20 @@ where
     custom_shutdown: Option<TaskClient>,
 
     user_agent: Option<UserAgent>,
+
+    /// Callback on the websocket fd as soon as the connection has been established
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
+
+    forget_me: ForgetMe,
+
+    /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
+    derivation_material: Option<DerivationMaterial>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
 where
-    S: MixnetClientStorage + 'static,
+    S: MixnetClientStorage + Clone + 'static,
     S::ReplyStore: Send + Sync,
     S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -351,6 +418,8 @@ where
             None
         };
 
+        let forget_me = config.debug_config.forget_me;
+
         Ok(DisconnectedMixnetClient {
             config,
             socks5_config,
@@ -363,6 +432,10 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
+            forget_me,
+            derivation_material: None,
         })
     }
 
@@ -433,7 +506,7 @@ where
         user_chosen_gateway: &str,
     ) -> Result<bool> {
         let storage = self.storage.gateway_details_store();
-        // Stricly speaking, `set_active_gateway` does this check internally as well, but since the
+        // Strictly speaking, `set_active_gateway` does this check internally as well, but since the
         // error is boxed away and we're using a generic storage, it's not so easy to match on it.
         // This function is at least less likely to fail on something unrelated to the existence of
         // the gateway in the set of registered gateways
@@ -456,8 +529,16 @@ where
 
         let user_agent = self.user_agent.clone();
 
+        let topology_cfg = &self.config.debug_config.topology;
         let mut rng = OsRng;
-        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints, user_agent).await?;
+        let available_gateways = gateways_for_init(
+            &mut rng,
+            &nym_api_endpoints,
+            user_agent,
+            topology_cfg.minimum_gateway_performance,
+            topology_cfg.ignore_ingress_epoch_role,
+        )
+        .await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,
@@ -557,7 +638,7 @@ where
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
-            self.storage.credential_store(),
+            self.storage.credential_store().clone(),
             client_id,
             ticketbook_type,
         )
@@ -576,8 +657,10 @@ where
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
         let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
+            BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_forget_me(&self.forget_me)
+                .with_derivation_material(self.derivation_material);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
@@ -593,6 +676,11 @@ where
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
+        }
+
+        #[cfg(unix)]
+        if let Some(connection_fd_callback) = self.connection_fd_callback {
+            base_builder = base_builder.with_connection_fd_callback(connection_fd_callback);
         }
 
         let started_client = base_builder.start_base().await?;
@@ -729,6 +817,8 @@ where
             stats_events_reporter,
             started_client.task_handle,
             None,
+            started_client.client_request_sender,
+            started_client.forget_me,
         ))
     }
 }

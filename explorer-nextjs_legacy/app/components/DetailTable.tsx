@@ -18,6 +18,7 @@ import { unymToNym } from '@/app/utils/currency'
 import { GatewayEnrichedRowType } from './Gateways/Gateways'
 import { MixnodeRowType } from './MixNodes'
 import { StakeSaturationProgressBar } from './MixNodes/Economics/StakeSaturationProgressBar'
+import {EXPLORER_FOR_ACCOUNTS} from "@/app/api/constants";
 
 export type ColumnsType = {
   field: string
@@ -57,7 +58,7 @@ function formatCellValues(val: string | number, field: string) {
         underline="none"
         color="inherit"
         target="_blank"
-        href={`https://mixnet.explorers.guru/account/${val}`}
+        href={`${EXPLORER_FOR_ACCOUNTS}/account/${val}`}
       >
         {val}
       </Link>
@@ -74,7 +75,7 @@ function formatCellValues(val: string | number, field: string) {
 export const DetailTable: FCWithChildren<{
   tableName: string
   columnsData: ColumnsType[]
-  rows: MixnodeRowType[] | GatewayEnrichedRowType[]
+  rows: MixnodeRowType[] | GatewayEnrichedRowType[] | any[]
 }> = ({ tableName, columnsData, rows }: UniversalTableProps) => {
   const theme = useTheme()
   return (

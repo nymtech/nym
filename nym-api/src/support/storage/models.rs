@@ -6,6 +6,23 @@ use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;
 use time::Date;
 
+#[derive(sqlx::FromRow, Debug, Clone, Copy)]
+pub(crate) struct MonitorRunReport {
+    #[allow(dead_code)]
+    pub(crate) monitor_run_id: i64,
+    pub(crate) network_reliability: f64,
+    pub(crate) packets_sent: i64,
+    pub(crate) packets_received: i64,
+}
+
+#[derive(sqlx::FromRow, Debug, Clone)]
+pub(crate) struct MonitorRunScore {
+    pub(crate) typ: String,
+    pub(crate) monitor_run_id: i64,
+    pub(crate) rounded_score: u8,
+    pub(crate) nodes_count: u32,
+}
+
 // Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
 pub(crate) struct NodeStatus {
     pub timestamp: Option<i64>,

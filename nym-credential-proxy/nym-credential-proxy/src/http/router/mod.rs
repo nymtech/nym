@@ -1,13 +1,13 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::http::middleware::auth::AuthLayer;
-use crate::http::middleware::logging;
 use crate::http::state::ApiState;
 use axum::response::Redirect;
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use nym_credential_proxy_requests::routes;
+use nym_http_api_common::middleware::bearer_auth::AuthLayer;
+use nym_http_api_common::middleware::logging;
 use std::sync::Arc;
 use zeroize::Zeroizing;
 

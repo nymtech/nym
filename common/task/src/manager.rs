@@ -185,6 +185,19 @@ impl TaskManager {
         }
     }
 
+    // used for compatibility with the ShutdownManager
+    pub(crate) fn task_return_error_rx(&mut self) -> ErrorReceiver {
+        self.task_return_error_rx
+            .take()
+            .expect("unable to get error channel: attempt to wait twice?")
+    }
+
+    pub(crate) fn task_drop_rx(&mut self) -> ErrorReceiver {
+        self.task_drop_rx
+            .take()
+            .expect("unable to get task drop channel: attempt to wait twice?")
+    }
+
     pub async fn wait_for_error(&mut self) -> Option<SentError> {
         let mut error_rx = self
             .task_return_error_rx
@@ -206,6 +219,13 @@ impl TaskManager {
             msg = error_rx.recv() => msg,
             msg = drop_rx => msg
         }
+    }
+
+    pub async fn wait_for_graceful_shutdown(&mut self) {
+        if let Some(notify_rx) = self.notify_rx.take() {
+            drop(notify_rx);
+        }
+        self.notify_tx.closed().await
     }
 
     pub async fn wait_for_shutdown(&mut self) {
@@ -279,6 +299,8 @@ impl Clone for TaskClient {
             None
         };
 
+        log::debug!("Cloned task client: {name:?}");
+
         TaskClient {
             name,
             shutdown: AtomicBool::new(self.shutdown.load(Ordering::Relaxed)),
@@ -295,7 +317,7 @@ impl TaskClient {
     const MAX_NAME_LENGTH: usize = 128;
     const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
 
-    const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(5);
+    const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(10);
 
     fn new(
         notify: watch::Receiver<()>,
@@ -324,6 +346,7 @@ impl TaskClient {
             format!("unknown-{suffix}")
         };
 
+        log::debug!("Forked task client: {child_name}");
         child.name = Some(child_name);
         child
     }
@@ -357,6 +380,7 @@ impl TaskClient {
         } else {
             format!("unknown-{suffix}")
         };
+        log::debug!("Renamed task client: {name}");
         self.named(name)
     }
 
@@ -455,6 +479,10 @@ impl TaskClient {
         self.mode.set_should_not_signal_on_drop();
     }
 
+    pub fn rearm(&mut self) {
+        self.mode.set_should_signal_on_drop();
+    }
+
     pub fn send_we_stopped(&mut self, err: SentError) {
         if self.mode.is_dummy() {
             return;
@@ -482,7 +510,7 @@ impl Drop for TaskClient {
         if !self.mode.should_signal_on_drop() {
             self.log(
                 Level::Trace,
-                "the task client is getting dropped but inststructed to not signal: this is expected during client shutdown",
+                "the task client is getting dropped but instructed to not signal: this is expected during client shutdown",
             );
             return;
         } else {
@@ -525,6 +553,14 @@ impl ClientOperatingMode {
             ClientOperatingMode::Listening => true,
             ClientOperatingMode::ListeningButDontReportHalt | ClientOperatingMode::Dummy => false,
         }
+    }
+
+    fn set_should_signal_on_drop(&mut self) {
+        use ClientOperatingMode::{Dummy, Listening, ListeningButDontReportHalt};
+        *self = match &self {
+            ListeningButDontReportHalt | Listening => Listening,
+            Dummy => Dummy,
+        };
     }
 
     fn set_should_not_signal_on_drop(&mut self) {

@@ -12,7 +12,7 @@ use nym_api_requests::nym_nodes::{CachedNodesResponse, SemiSkimmedNode};
     tag = "Unstable Nym Nodes",
     get,
     params(NodesParamsWithRole),
-    path = "/",
+    path = "",
     context_path = "/v1/unstable/nym-nodes/semi-skimmed",
     responses(
     // (status = 200, body = CachedNodesResponse<SemiSkimmedNode>)

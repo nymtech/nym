@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use error::StatsStorageError;
-use models::{ActiveSession, FinishedSession, StoredFinishedSession};
+use models::StoredFinishedSession;
+use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
 use nym_sphinx::DestinationAddressBytes;
-use nym_statistics_common::gateways::SessionType;
 use sessions::SessionManager;
-use sqlx::ConnectOptions;
+use sqlx::{
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
+    ConnectOptions,
+};
 use std::path::Path;
 use time::Date;
 use tracing::{debug, error};
@@ -36,6 +39,9 @@ impl PersistentStatsStorage {
         // TODO: we can inject here more stuff based on our gateway global config
         // struct. Maybe different pool size or timeout intervals?
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();
@@ -71,8 +77,8 @@ impl PersistentStatsStorage {
             .session_manager
             .insert_finished_session(
                 date,
-                session.duration.whole_milliseconds() as i64,
-                session.typ.to_string().into(),
+                session.duration.as_millis() as i64,
+                session.typ.to_string(),
             )
             .await?)
     }
@@ -116,6 +122,16 @@ impl PersistentStatsStorage {
             .await?)
     }
 
+    pub async fn delete_unique_user(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StatsStorageError> {
+        Ok(self
+            .session_manager
+            .delete_unique_user(client_address.as_base58_string())
+            .await?)
+    }
+
     pub async fn insert_active_session(
         &self,
         client_address: DestinationAddressBytes,
@@ -126,7 +142,7 @@ impl PersistentStatsStorage {
             .insert_active_session(
                 client_address.as_base58_string(),
                 session.start,
-                session.typ.to_string().into(),
+                session.typ.to_string(),
             )
             .await?)
     }
@@ -138,10 +154,7 @@ impl PersistentStatsStorage {
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .update_active_session_type(
-                client_address.as_base58_string(),
-                session_type.to_string().into(),
-            )
+            .update_active_session_type(client_address.as_base58_string(), session_type.to_string())
             .await?)
     }
 

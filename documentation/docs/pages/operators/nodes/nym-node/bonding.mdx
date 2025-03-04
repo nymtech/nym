@@ -28,11 +28,15 @@ Do not bond your node to the API if the previous steps weren't finished. Bad con
 
 Any new bonded node will provide only the bare minimum information: host, identity key and optionally custom port of its HTTP API - we highly recommend to set that one up to `8080`. Everything else will be discovered via the self-described API for maximum flexibility. This also includes the sphinx key, meaning if the API is not exposed, the node will be unable to route any traffic.
 
-**Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
+**Every operator has to make sure that their nodes [self-described endpoint works](../performance-and-testing#functionality--performance-check), otherwise the node will be un-routable and thus won't get any rewards!**
+
+<Callout type="warning" emoji="⚠️">
+**Reveal your menominc phrase only in areas out of surveillance of other people and never share it with others. Nym team will never ask you for your mnemonic phrase - in case you were asked by someone it's a scam, do *not* reply to it!**
+</Callout>
 
 ## Bond via the Desktop wallet (recommended)
 
-You can bond your `nym-node` via the Desktop wallet.
+You can bond your `nym-node` via the Desktop wallet. Nym wallet, just like any Nym binary can be downloaded, verified and made executable following [these simple steps](../../binaries/pre-built-binaries#setup-binaries).
 
 <Steps>
 
@@ -69,7 +73,7 @@ echo "$(curl -4 https://ifconfig.me)"
 - Enter the `Amount`, `Operating cost` and `Profit margin` and press `Next`
 
 <Callout type="warning" emoji="⚠️">
-If you are part of [Nym Delegation Program](https://delegations.explorenym.net) or Service Grants Program, make sure your values are within the [rules](https://forum.nymtech.net/t/nym-delegations-program-update/466) of the programs. Operators setting up larger OP or PM than defined in the rules will be excluded from the program without prior warning!
+If you are part of [Nym Delegation Program](https://delegations.explorenym.net) or Service Grants Program, make sure your values are within the [rules](https://forum.nym.com/t/nym-delegations-program-update/466) of the programs. Operators setting up larger OP or PM than defined in the rules will be excluded from the program without prior warning!
 </Callout>
 
 - You will be asked to run a `sign` command with your `nym-node` - copy and paste the long signature as the value of `--contract-msg` and sing it on your VPS:
@@ -116,18 +120,13 @@ From `nym-wallet` version `1.2.15` onward the application allows and prompts ope
 
 <Steps>
 
-###### 1. Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases)
+###### 1. Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases), verify and make executable
 
-###### 2. Verify the binary and extract it if needed
+Nym wallet, just like any Nym binary can be downloaded, verified and made executable following [these simple steps](../../binaries/pre-built-binaries#setup-binaries).
 
-- Download [`hashes.json`](https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json)
-- Open it with your text editor or print it's content with `cat hashes.json`
-- Run `sha256sum <WALLET_BINARY>` for example `sha256sum ./nym-wallet_1.2.15_amd64.AppImage`
-- If your have to extract it (like `.tar.gz`) do it
+###### 2. Open the wallet and sign in
 
-###### 3. Open the wallet and sign in
-
-###### 4. Migrate!
+###### 3. Migrate!
 
 - Go to Bonding and you will be prompted with such message:
 
@@ -149,4 +148,49 @@ Versions older than `nym-wallet v 1.2.15` will not allow bonding new nodes.
 
 ## Bond via the CLI (power users)
 
-If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
+If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](../../../developers/tools/nym-cli/usage#usage) docs.
+
+## Fund `nym-node` Client Nyx Account
+
+<Callout type="info">
+This is not relevant for operators running exclusively `mixnode` functionality. For any type of gateway functionality this is a preparation requirement for the upcoming [ticket rewarding](../../tokenomics/mixnet-rewards#roadmap).
+</ Callout>
+
+Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bonding!**
+
+This client account will be used for the process of redemption of [zk-nym tickets](../../../network/cryptography/zk-nym) collected by nodes running as `entry-gateway` and `exit-gateway` as the redemption requires gateway to create a multisig proposal on the chain for which the client (node) needs to pay transaction fee.
+
+Giving the low transaction cost on Cosmos, funding your client Nyx account with 25 NYM tokens should be more than enough. To do so, follow these steps:
+
+<Steps>
+
+###### 1. Get your `nym-node` client Nyx account mnemonic phrase
+- Make sure your screen is not exposed to other people or recording devices
+- To store sensitive credentials use audited and open source password managers, like [KeePassXC](https://keepassxc.org/)
+- To print out your node client mnemonic phrase, run:
+```sh
+cat $HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic
+```
+```sh
+# for example
+# cat $HOME/.nym/nym-nodes/default-nym-node/data/cosmos_mnemonic
+```
+- **Alternatively:** You can use `scp` command to copy the file `cosmos_mnemonic` remotely. If this is your preference, use this command:
+```sh
+scp <USER>@<HOST>:.nym/nym-nodes/<ID>/data/cosmos_mnemonic <LOCAL_TARGET_PATH>
+```
+- Copy this phrase and save it to your password manager
+
+
+###### 2. Get the address of your client Nyx account using desktop wallet
+- Open desktop wallet and choose to sign in with mnemonic
+- Use the phrase from step 1
+- Open `Receive` tab and copy Nym account address
+- We recommend operators to store this address for future funding
+
+###### 3. Fund the client Nyx account
+- Open wallet with Nym tokens and send a minimum of 25 NYM to the address copied in the previous step
+- In case you don't have any spare NYM, you can send tokens from any exchange directly to the address copied in the previous step
+</ Steps>
+
+Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain and redeem user tickets.

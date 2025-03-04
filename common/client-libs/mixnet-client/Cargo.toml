@@ -8,11 +8,17 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dashmap = { workspace = true }
 futures = { workspace = true }
-log = { workspace = true }
-tokio = { workspace = true, features = ["time", "net", "rt"] }
-tokio-util = { workspace = true, features = ["codec"] }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["time", "sync"] }
+tokio-util = { workspace = true, features = ["codec"], optional = true }
+tokio-stream = { workspace = true }
 
 # internal
 nym-sphinx = { path = "../../nymsphinx" }
-nym-task = { path = "../../task" }
+nym-task = { path = "../../task", optional = true }
+
+[features]
+default = ["client"]
+client = ["tokio-util", "nym-task", "tokio/net", "tokio/rt"]

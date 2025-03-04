@@ -5,8 +5,6 @@ use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
-use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
-use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{EpochState, NodeId, NymNodeDetails, RewardedSet};
 use rand::prelude::SliceRandom;
@@ -204,8 +202,6 @@ impl EpochAdvancer {
 
     async fn attach_performance_to_eligible_nodes(
         &self,
-        legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
-        legacy_gateways: &[LegacyGatewayBondWithId],
         nym_nodes: &[NymNodeDetails],
     ) -> Vec<NodeWithStakeAndPerformance> {
         let mut with_performance = Vec::new();
@@ -218,62 +214,6 @@ impl EpochAdvancer {
             return Vec::new();
         };
 
-        for mix in legacy_mixnodes {
-            let node_id = mix.mix_id();
-            let total_stake = mix.total_stake();
-
-            let Some(annotation) = status_cache.get(&node_id) else {
-                debug!("couldn't find annotation for legacy mixnode {node_id}");
-                continue;
-            };
-
-            if mix.bond_information.proxy.is_some() {
-                debug!("legacy mixnode {node_id} is using vested tokens");
-                continue;
-            }
-
-            let performance = annotation.detailed_performance.to_rewarding_performance();
-            debug!(
-                "legacy mixnode {}: stake: {total_stake}, performance: {performance}",
-                mix.mix_id()
-            );
-
-            with_performance.push(NodeWithStakeAndPerformance {
-                node_id: mix.mix_id(),
-                available_roles: vec![AvailableRole::Mix],
-                total_stake,
-                performance,
-            })
-        }
-        for gateway in legacy_gateways {
-            let node_id = gateway.node_id;
-            let total_stake = gateway
-                .bond
-                .pledge_amount
-                .amount
-                .into_base_decimal()
-                .unwrap_or_default();
-
-            let Some(annotation) = status_cache.get(&node_id) else {
-                debug!("couldn't find annotation for legacy gateway {node_id}");
-                continue;
-            };
-
-            let performance = annotation.detailed_performance.to_rewarding_performance();
-
-            debug!(
-                "legacy gateway {}: stake: {total_stake}, performance: {performance}",
-                gateway.node_id
-            );
-
-            with_performance.push(NodeWithStakeAndPerformance {
-                node_id: gateway.node_id,
-                available_roles: vec![AvailableRole::EntryGateway],
-                total_stake,
-                performance,
-            })
-        }
-
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
             let total_stake = nym_node.total_stake();
@@ -283,7 +223,7 @@ impl EpochAdvancer {
             };
 
             let Some(annotation) = status_cache.get(&node_id) else {
-                debug!("couldn't find annotation for nym-node gateway {node_id}");
+                debug!("couldn't find annotation for nym-node {node_id}");
                 continue;
             };
 
@@ -319,8 +259,6 @@ impl EpochAdvancer {
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
         &self,
-        legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
-        legacy_gateways: &[LegacyGatewayBondWithId],
         nym_nodes: &[NymNodeDetails],
     ) -> Result<(), RewardingError> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
@@ -333,13 +271,8 @@ impl EpochAdvancer {
                 }
 
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
-                let nodes_with_performance = self
-                    .attach_performance_to_eligible_nodes(
-                        legacy_mixnodes,
-                        legacy_gateways,
-                        nym_nodes,
-                    )
-                    .await;
+                let nodes_with_performance =
+                    self.attach_performance_to_eligible_nodes(nym_nodes).await;
 
                 if let Err(err) = self
                     ._update_rewarded_set_and_advance_epoch(nodes_with_performance)

@@ -13,8 +13,6 @@ pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
-pub const DOUBLE_SPENDING_FILTER_V1: &str = "double-spending-filter-v1";
-
 pub const ECASH_ROUTES: &str = "ecash";
 
 pub use ecash::*;
@@ -32,6 +30,19 @@ pub mod ecash {
 
     pub const EXPIRATION_DATE_PARAM: &str = "expiration_date";
     pub const EPOCH_ID_PARAM: &str = "epoch_id";
+}
+
+pub const NYM_NODES_ROUTES: &str = "nym-nodes";
+
+pub use nym_nodes::*;
+pub mod nym_nodes {
+    pub const NYM_NODES_PERFORMANCE_HISTORY: &str = "performance-history";
+    pub const NYM_NODES_PERFORMANCE: &str = "performance";
+    pub const NYM_NODES_ANNOTATION: &str = "annotation";
+    pub const NYM_NODES_DESCRIBED: &str = "described";
+    pub const NYM_NODES_BONDED: &str = "bonded";
+    pub const NYM_NODES_REWARDED_SET: &str = "rewarded-set";
+    pub const NYM_NODES_REFRESH_DESCRIBED: &str = "refresh-described";
 }
 
 pub const STATUS_ROUTES: &str = "status";
@@ -54,6 +65,8 @@ pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
 pub const SUBMIT_GATEWAY: &str = "submit-gateway-monitoring-results";
 pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
-pub const PERFORMANCE: &str = "performance";
 
 pub const SERVICE_PROVIDERS: &str = "services";
+
+pub const DETAILS: &str = "details";
+pub const NETWORK: &str = "network";

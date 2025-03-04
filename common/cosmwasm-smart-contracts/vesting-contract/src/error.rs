@@ -8,81 +8,81 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum VestingContractError {
-    #[error("VESTING ({}): {0}", line!())]
+    #[error("VESTING ({l}): {0}", l = line!())]
     Std(#[from] StdError),
 
     #[error("VESTING: {0}")]
     OverflowError(#[from] OverflowError),
 
-    #[error("VESTING ({}): Account does not exist - {0}", line!())]
+    #[error("VESTING ({l}): Account does not exist - {0}", l = line!())]
     NoAccountForAddress(String),
 
-    #[error("VESTING ({}): Only admin can perform this action, {0} is not admin", line!())]
+    #[error("VESTING ({l}): Only admin can perform this action, {0} is not admin", l = line!())]
     NotAdmin(String),
 
-    #[error("VESTING ({}): Balance not found for existing account ({0}), this is a bug", line!())]
+    #[error("VESTING ({l}): Balance not found for existing account ({0}), this is a bug", l = line!())]
     NoBalanceForAddress(String),
 
-    #[error("VESTING ({}): Insufficient balance for address {0} -> {1}", line!())]
+    #[error("VESTING ({l}): Insufficient balance for address {0} -> {1}", l = line!())]
     InsufficientBalance(String, u128),
 
-    #[error("VESTING ({}): Insufficient spendable balance for address {0} -> {1}", line!())]
+    #[error("VESTING ({l}): Insufficient spendable balance for address {0} -> {1}", l = line!())]
     InsufficientSpendable(String, u128),
 
     #[error(
-    "VESTING ({}):Only delegation owner can perform delegation actions, {0} is not the delegation owner"
-    , line!())]
+    "VESTING ({l}):Only delegation owner can perform delegation actions, {0} is not the delegation owner"
+    , l = line!())]
     NotDelegate(String),
 
-    #[error("VESTING ({}): Total vesting amount is inprobably low -> {0}, this is likely an error", line!())]
+    #[error("VESTING ({l}): Total vesting amount is inprobably low -> {0}, this is likely an error", l = line!())]
     ImprobableVestingAmount(u128),
 
-    #[error("VESTING ({}): Address {0} has already bonded a node", line!())]
+    #[error("VESTING ({l}): Address {0} has already bonded a node", l = line!())]
     AlreadyBonded(String),
 
-    #[error("VESTING ({}): Received empty funds vector", line!())]
+    #[error("VESTING ({l}): Received empty funds vector", l = line!())]
     EmptyFunds,
 
-    #[error("VESTING ({}): Received wrong denom: {0}, expected {1}", line!())]
+    #[error("VESTING ({l}): Received wrong denom: {0}, expected {1}", l = line!())]
     WrongDenom(String, String),
 
-    #[error("VESTING ({}): Received multiple denoms, expected 1", line!())]
+    #[error("VESTING ({l}): Received multiple denoms, expected 1", l = line!())]
     MultipleDenoms,
 
-    #[error("VESTING ({}): No delegations found for account {0}, mix_identity {1}", line!())]
+    #[error("VESTING ({l}): No delegations found for account {0}, mix_identity {1}", l = line!())]
     NoSuchDelegation(Addr, NodeId),
 
-    #[error("VESTING ({}): Only mixnet contract can perform this operation, got {0}", line!())]
+    #[error("VESTING ({l}): Only mixnet contract can perform this operation, got {0}", l = line!())]
     NotMixnetContract(Addr),
 
-    #[error("VESTING ({}): Calculation underflowed", line!())]
+    #[error("VESTING ({l}): Calculation underflowed", l = line!())]
     Underflow,
 
-    #[error("VESTING ({}): No bond found for account {0}", line!())]
+    #[error("VESTING ({l}): No bond found for account {0}", l = line!())]
     NoBondFound(String),
 
     #[error("VESTING: Attempted to reduce mixnode bond pledge below zero! The current pledge is {current} and we attempted to reduce it by {decrease_by}.")]
     InvalidBondPledgeReduction { current: Coin, decrease_by: Coin },
 
-    #[error("VESTING ({}): Action can only be executed by account owner -> {0}", line!())]
+    #[error("VESTING ({l}): Action can only be executed by account owner -> {0}", l = line!())]
     NotOwner(String),
 
-    #[error("VESTING ({}): Invalid address: {0}", line!())]
+    #[error("VESTING ({l}): Invalid address: {0}", l = line!())]
     InvalidAddress(String),
 
-    #[error("VESTING ({}): Account already exists: {0}", line!())]
+    #[error("VESTING ({l}): Account already exists: {0}", l = line!())]
     AccountAlreadyExists(String),
 
-    #[error("VESTING ({}): Staking account already exists: {0}", line!())]
+    #[error("VESTING ({l}): Staking account already exists: {0}", l = line!())]
     StakingAccountAlreadyExists(String),
 
-    #[error("VESTING ({}): Too few coins sent for vesting account creation, sent {sent}, need at least {need}", line!())]
+    #[error("VESTING ({l}): Too few coins sent for vesting account creation, sent {sent}, need at least {need}", l = line!())]
     MinVestingFunds { sent: u128, need: u128 },
 
-    #[error("VESTING ({}): Maximum amount of locked coins has already been pledged: {current}, cap is {cap}", line!())]
+    #[error("VESTING ({l}): Maximum amount of locked coins has already been pledged: {current}, cap is {cap}", l = line!())]
     LockedPledgeCapReached { current: Uint128, cap: Uint128 },
 
-    #[error("VESTING: ({}: Account owned by {owner} has unpopulated vesting periods!", line!())]
+    #[error("VESTING: ({l}: Account owned by {owner} has unpopulated vesting periods!", l = line!())]
     UnpopulatedVestingPeriods { owner: Addr },
 
     #[error("VESTING: Vesting account associated with {0} already exists, only addresses with not existing vesting accounts can be added as staking addresses")]

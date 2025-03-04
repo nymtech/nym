@@ -29,7 +29,7 @@ async fn main() {
         println!("Sending socks5-wrapped http request");
         // Message should be sent through the mixnet, via socks5
         // We don't expect to get anything, as there is no network requester on the other end
-        reqwest_client.get("https://nymtech.net").send().await.ok()
+        reqwest_client.get("https://nym.com").send().await.ok()
     });
 
     println!("Waiting for message");

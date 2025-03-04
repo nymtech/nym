@@ -14,9 +14,6 @@ pub enum Socks5ClientError {
     #[error("Failed to validate the loaded config")]
     ConfigValidationFailure,
 
-    #[error("Failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("Fail to bind address")]
     FailToBindAddress,
 

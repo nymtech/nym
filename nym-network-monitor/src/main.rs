@@ -2,7 +2,9 @@ use crate::http::HttpServer;
 use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
-use log::{info, warn};
+use log::{error, info, warn};
+use nym_bin_common::bin_info;
+use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
@@ -21,6 +23,7 @@ use std::{
 };
 use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
+use tokio_postgres::NoTls;
 use tokio_util::sync::CancellationToken;
 
 static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
@@ -56,7 +59,8 @@ async fn make_clients(
                 loop {
                     if Arc::strong_count(&dropped_client) == 1 {
                         if let Some(client) = Arc::into_inner(dropped_client) {
-                            client.into_inner().disconnect().await;
+                            let client_handle = client.into_inner();
+                            client_handle.disconnect().await;
                         } else {
                             warn!("Failed to drop client, client had more then one strong ref")
                         }
@@ -88,6 +92,8 @@ async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(net)
         .custom_topology_provider(topology_provider)
+        .debug_config(mixnet_debug_config(0))
+        .with_forget_me(ForgetMe::new_all())
         // .enable_credentials_mode()
         .build()?;
 
@@ -129,7 +135,10 @@ struct Args {
     generate_key_pair: bool,
 
     #[arg(long)]
-    private_key: String,
+    private_key: Option<String>,
+
+    #[arg(long, env = "DATABASE_URL")]
+    database_url: Option<String>,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -145,6 +154,26 @@ fn generate_key_pair() -> Result<()> {
     info!("Generated keypair, public key to 'network-monitor-public', and private key to 'network-monitor-private', public key should be whitelisted with the nym-api");
 
     Ok(())
+}
+
+async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
+    let api_url = std::env::var(NYM_API)?;
+
+    info!("Generating topology from {api_url}");
+    let client = nym_validator_client::client::NymApiClient::new_with_user_agent(
+        api_url.parse()?,
+        bin_info!(),
+    );
+
+    let rewarded_set = client.get_current_rewarded_set().await?;
+
+    // just get all nodes to make our lives easier because it's just one query for the whole duration of the monitor (?)
+    let nodes = client.get_all_basic_nodes().await?;
+
+    let mut topology = NymTopology::new_empty(rewarded_set);
+    topology.add_skimmed_nodes(&nodes);
+
+    Ok(topology)
 }
 
 #[tokio::main]
@@ -167,14 +196,16 @@ async fn main() -> Result<()> {
         std::process::exit(0);
     }
 
-    let pk = PrivateKey::from_base58_string(&args.private_key)?;
-    PRIVATE_KEY.set(pk).ok();
+    if let Some(private_key) = args.private_key {
+        let pk = PrivateKey::from_base58_string(&private_key)?;
+        PRIVATE_KEY.set(pk).ok();
+    }
 
     TOPOLOGY
         .set(if let Some(topology_file) = args.topology {
             NymTopology::new_from_file(topology_file)?
         } else {
-            NymTopology::new_from_env().await?
+            nym_topology_from_env().await?
         })
         .ok();
 
@@ -188,26 +219,52 @@ async fn main() -> Result<()> {
         TOPOLOGY.get().expect("Topology not set yet!").clone(),
     ));
 
+    let clients_server = clients.clone();
+
     let server_handle = tokio::spawn(async move {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
         let server = HttpServer::new(socket, server_cancel_token);
-        server.run(clients).await
+        server.run(clients_server).await
     });
 
     info!("Waiting for message (ctrl-c to exit)");
 
+    let client = if let Some(database_url) = args.database_url {
+        let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("Postgres connection error: {}", e);
+            }
+        });
+
+        Some(Arc::new(client))
+    } else {
+        None
+    };
+
     loop {
+        let client = client.as_ref().map(Arc::clone);
         match tokio::time::timeout(Duration::from_secs(600), ctrl_c()).await {
             Ok(_) => {
                 info!("Received kill signal, shutting down, submitting final batch of metrics");
-                submit_metrics().await?;
+                submit_metrics(client).await?;
                 break;
             }
             Err(_) => {
                 info!("Submitting metrics, cleaning metric buffers");
-                submit_metrics().await?;
+                submit_metrics(client).await?;
             }
         };
+    }
+
+    info!("Disconnecting all clients");
+    let mut clients_guard = clients.write().await;
+    while let Some(client) = clients_guard.pop_front() {
+        if let Some(client) = Arc::into_inner(client) {
+            let client_handle = client.into_inner();
+            client_handle.disconnect().await;
+        }
     }
 
     cancel_token.cancel();
@@ -215,4 +272,15 @@ async fn main() -> Result<()> {
     server_handle.await??;
 
     Ok(())
+}
+
+fn mixnet_debug_config(min_gateway_performance: u8) -> nym_client_core::config::DebugConfig {
+    let mut debug_config = nym_client_core::config::DebugConfig::default();
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = true;
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
+    debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    debug_config.traffic.deterministic_route_selection = true;
+    debug_config
 }

@@ -1,0 +1,72 @@
+import { MyTab } from 'components/generic-tabs.tsx';
+import { Tabs } from 'nextra/components';
+
+### VPS Hardware Specs
+
+You will need to rent a VPS to run your node on. One key reason for this is that your node **must be able to send TCP data using both IPv4 and IPv6** (as other nodes you talk to may use either protocol). Therefore you will need a server with static IPv4 and IPv6!
+
+Tor community created a very helpful table called [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), you can use that one as a guideline for your choice of ISP for your VPS.
+
+**Update:** Nym community started an ISP table called [*Where to host your nym node?*](../../community-counsel/isp-list.mdx), check it out and add your findings!
+
+<div>
+  <Tabs items={[
+    <><code>nym-node</code> - dedicated server</>,
+    <><code>nym-node</code> - VPS</>,
+    <code>validator</code>,
+    ]} defaultIndex="0">
+    <MyTab>
+#### `nym-node` - dedicated server
+If you are about to start a new Nym Node, look for a server with this specification:
+
+| **Hardware**   | **Minimum Specification**          |
+| :---           | ---:                               |
+| Type of server | Dedicated or bare metal            |
+| CPU Cores      | 4                                  |
+| Memory         | 8-16 GB RAM                        |
+| Storage        | 50 GB (preferably 80 GB)           |
+| Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
+| Bandwidth      | Unmetered if possible, or \> 40Tb  |
+| Port speed     | 1Gbps                              |
+
+    </MyTab>
+    <MyTab>
+#### `nym-node` - VPS
+If you are about to start a new Nym Node, look for a server with this specification:
+
+| **Hardware**   | **Minimum Specification**          |
+| :---           | ---:                               |
+| Type of server | VPS                                |
+| CPU Cores      | 4                                  |
+| Memory         | 8-16 GB RAM                        |
+| Storage        | 50 GB (preferably 80 GB)           |
+| Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
+| Bandwidth      | Unmetered if possible, or \> 40Tb  |
+| Port speed     | 10Gbps                             |
+    </MyTab>
+    <MyTab>
+#### Nyx validator
+
+The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run `nym-api` and a full Nyx node on the same machine for optimum performance.
+
+Bear in mind that credential signing is primarily CPU-bound, so choose the fastest CPU available to you.
+
+##### Minimum Requirements
+
+| Hardware | **Minimum Specification**                  |
+|----------|--------------------------------------------|
+| CPU      | 8-cores, 2.8GHz base clock speed or higher |
+| RAM      | 16GB DDR4+                                 |
+| Disk     | 500 GiB+ NVMe SSD                          |
+
+##### Recommended Requirements
+
+| Hardware | **Minimum Specification**                   |
+|----------|---------------------------------------------|
+| CPU      | 16-cores, 2.8GHz base clock speed or higher |
+| RAM      | 32GB DDR4+                                  |
+| Disk     | 1 TiB+ NVMe SSD                             |
+
+    </MyTab>
+  </Tabs>
+</div>

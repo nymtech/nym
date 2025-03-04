@@ -6,6 +6,7 @@ pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
 use log::*;
 use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_task::TaskClient;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
 
@@ -19,6 +20,7 @@ mod accessor;
 pub mod geo_aware_provider;
 pub mod nym_api_provider;
 
+#[allow(deprecated)]
 pub use geo_aware_provider::GeoAwareTopologyProvider;
 pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
 pub use nym_topology::provider_trait::TopologyProvider;
@@ -27,7 +29,7 @@ pub use nym_topology::provider_trait::TopologyProvider;
 const MAX_FAILURE_COUNT: usize = 10;
 
 pub struct TopologyRefresherConfig {
-    refresh_rate: Duration,
+    pub refresh_rate: Duration,
 }
 
 impl TopologyRefresherConfig {
@@ -42,6 +44,8 @@ pub struct TopologyRefresher {
 
     refresh_rate: Duration,
     consecutive_failure_count: usize,
+
+    task_client: TaskClient,
 }
 
 impl TopologyRefresher {
@@ -49,12 +53,14 @@ impl TopologyRefresher {
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        task_client: TaskClient,
     ) -> Self {
         TopologyRefresher {
             topology_provider,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
             consecutive_failure_count: 0,
+            task_client,
         }
     }
 
@@ -96,28 +102,24 @@ impl TopologyRefresher {
         self.topology_accessor.ensure_is_routable().await
     }
 
-    pub async fn ensure_contains_gateway(
+    pub async fn ensure_contains_routable_egress(
         &self,
-        gateway: &NodeIdentity,
+        egress: NodeIdentity,
     ) -> Result<(), NymTopologyError> {
         let topology = self
             .topology_accessor
-            .current_topology()
+            .current_route_provider()
             .await
             .ok_or(NymTopologyError::EmptyNetworkTopology)?;
 
-        if !topology.gateway_exists(gateway) {
-            return Err(NymTopologyError::NonExistentGatewayError {
-                identity_key: gateway.to_base58_string(),
-            });
-        }
+        let _ = topology.egress_by_identity(egress)?;
 
         Ok(())
     }
 
     pub async fn wait_for_gateway(
         &mut self,
-        gateway: &NodeIdentity,
+        gateway: NodeIdentity,
         timeout_duration: Duration,
     ) -> Result<(), NymTopologyError> {
         info!(
@@ -135,7 +137,7 @@ impl TopologyRefresher {
                     })
                 }
                 _ = self.try_refresh() => {
-                    if self.ensure_contains_gateway(gateway).await.is_ok() {
+                    if self.ensure_contains_routable_egress(gateway).await.is_ok() {
                         return Ok(())
                     }
                     info!("gateway '{gateway}' is still not online...");
@@ -145,7 +147,7 @@ impl TopologyRefresher {
         }
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
+    pub fn start(mut self) {
         spawn_future(async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 
@@ -158,17 +160,17 @@ impl TopologyRefresher {
             let mut interval =
                 gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
 
-            while !shutdown.is_shutdown() {
+            while !self.task_client.is_shutdown() {
                 tokio::select! {
                     _ = interval.next() => {
                         self.try_refresh().await;
                     },
-                    _ = shutdown.recv() => {
+                    _ = self.task_client.recv() => {
                         log::trace!("TopologyRefresher: Received shutdown");
                     },
                 }
             }
-            shutdown.recv_timeout().await;
+            self.task_client.recv_timeout().await;
             log::debug!("TopologyRefresher: Exiting");
         })
     }

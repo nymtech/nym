@@ -48,7 +48,6 @@ fn default_initial_state(
             },
 
             config_score_params: ConfigScoreParams {
-                current_nym_node_semver: msg.current_nym_node_version.clone(),
                 version_weights: msg.version_score_weights,
                 version_score_formula_params: msg.version_score_params,
             },
@@ -101,7 +100,13 @@ pub fn instantiate(
         starting_interval,
         rewarding_validator_address,
     )?;
-    mixnet_params_storage::initialise_storage(deps.branch(), state, info.sender)?;
+    mixnet_params_storage::initialise_storage(
+        deps.branch(),
+        &env,
+        state,
+        info.sender,
+        msg.current_nym_node_version,
+    )?;
     RewardingStorage::new().initialise(deps.storage, reward_params)?;
     nymnodes_storage::initialise_storage(deps.storage)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -138,6 +143,7 @@ pub fn execute(
         ExecuteMsg::UpdateCurrentNymNodeSemver { current_version } => {
             crate::mixnet_contract_settings::transactions::try_update_current_nym_node_semver(
                 deps,
+                env,
                 info,
                 current_version,
             )
@@ -334,6 +340,16 @@ pub fn query(
         QueryMsg::GetState {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
         }
+        QueryMsg::GetCurrentNymNodeVersion {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_current_nym_node_version(deps)?,
+        ),
+        QueryMsg::GetNymNodeVersionHistory { limit, start_after } => to_binary(
+            &crate::mixnet_contract_settings::queries::query_nym_node_version_history_paged(
+                deps,
+                start_after,
+                limit,
+            )?,
+        ),
         QueryMsg::Admin {} => to_binary(&crate::mixnet_contract_settings::queries::query_admin(
             deps,
         )?),
@@ -586,18 +602,18 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
-
-    if !skip_state_updates {
-        crate::queued_migrations::add_config_score_params(deps.branch(), &msg)?;
-    }
+    // let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
+    //
+    // if !skip_state_updates {
+    //
+    // }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
@@ -693,7 +709,6 @@ mod tests {
                     },
                 },
                 config_score_params: ConfigScoreParams {
-                    current_nym_node_semver: "1.1.10".to_string(),
                     version_weights: Default::default(),
                     version_score_formula_params: Default::default(),
                 },

@@ -14,6 +14,7 @@ readme.workspace = true
 sha2 = { workspace = true }
 rs_merkle = { workspace = true }
 schemars = { workspace = true }
+utoipa = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 time = { workspace = true }
 

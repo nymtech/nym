@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
+use crate::network_monitor::monitor::summary_producer::TestReport;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime as ApiHistoricalUptime,
@@ -11,11 +12,13 @@ use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, TestingRoute};
 use crate::support::storage::models::{
-    GatewayDetails, HistoricalUptime, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
+    GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
+    TestedGatewayStatus, TestedMixnodeStatus,
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::NodeResult;
+use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
 use std::path::Path;
 use std::sync::Arc;
@@ -65,6 +68,9 @@ impl NymApiStorage {
         // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
         let connect_opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .log_statements(LevelFilter::Trace)
@@ -617,21 +623,21 @@ impl NymApiStorage {
         // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
         // in the first place
         let layer1_mix_db_id = self
-            .get_mixnode_database_id(test_route.layer_one_mix().mix_id)
+            .get_mixnode_database_id(test_route.layer_one_mix().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!("could not get db id for layer1 mixnode from network monitor run {monitor_run_db_id}"),
             })?;
 
         let layer2_mix_db_id = self
-            .get_mixnode_database_id(test_route.layer_two_mix().mix_id)
+            .get_mixnode_database_id(test_route.layer_two_mix().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!("could not get db id for layer2 mixnode from network monitor run {monitor_run_db_id}"),
             })?;
 
         let layer3_mix_db_id = self
-            .get_mixnode_database_id(test_route.layer_three_mix().mix_id)
+            .get_mixnode_database_id(test_route.layer_three_mix().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!("could not get db id for layer3 mixnode from network monitor run {monitor_run_db_id}"),
@@ -730,7 +736,7 @@ impl NymApiStorage {
         mixnode_results: Vec<NodeResult>,
         gateway_results: Vec<NodeResult>,
         test_routes: Vec<TestRoute>,
-    ) -> Result<(), NymApiStorageError> {
+    ) -> Result<i64, NymApiStorageError> {
         info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());
 
         let now = OffsetDateTime::now_utc().unix_timestamp();
@@ -749,7 +755,61 @@ impl NymApiStorage {
             self.insert_test_route(monitor_run_id, test_route).await?;
         }
 
+        Ok(monitor_run_id)
+    }
+
+    pub(crate) async fn insert_monitor_run_report(
+        &self,
+        report: TestReport,
+        monitor_run_id: i64,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_monitor_run_report(
+                monitor_run_id,
+                report.network_reliability,
+                report.total_sent as u32,
+                report.total_received as u32,
+            )
+            .await?;
+
+        let mut scores = Vec::new();
+        for (score, count) in report.mixnode_results {
+            scores.push(MonitorRunScore {
+                typ: "mixnode".to_string(),
+                monitor_run_id,
+                rounded_score: score,
+                nodes_count: count as u32,
+            })
+        }
+        for (score, count) in report.gateway_results {
+            scores.push(MonitorRunScore {
+                typ: "gateway".to_string(),
+                monitor_run_id,
+                rounded_score: score,
+                nodes_count: count as u32,
+            })
+        }
+
+        self.manager.insert_monitor_run_scores(scores).await?;
+
         Ok(())
+    }
+
+    pub(crate) async fn get_monitor_run_report(
+        &self,
+        monitor_run_id: i64,
+    ) -> Result<Option<(MonitorRunReport, Vec<MonitorRunScore>)>, NymApiStorageError> {
+        let Some(report) = self.manager.get_monitor_run_report(monitor_run_id).await? else {
+            return Ok(None);
+        };
+        let scores = self.manager.get_monitor_run_scores(monitor_run_id).await?;
+        Ok(Some((report, scores)))
+    }
+
+    pub(crate) async fn get_latest_monitor_run_id(
+        &self,
+    ) -> Result<Option<i64>, NymApiStorageError> {
+        Ok(self.manager.get_latest_monitor_run_id().await?)
     }
 
     pub(crate) async fn submit_mixnode_statuses_v2(

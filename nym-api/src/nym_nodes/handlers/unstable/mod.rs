@@ -33,6 +33,7 @@ use axum::routing::get;
 use axum::Router;
 use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 use serde::Deserialize;
+use tower_http::compression::CompressionLayer;
 
 pub(crate) mod full_fat;
 mod helpers;
@@ -73,6 +74,7 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
         .nest("/full-fat", Router::new().route("/", get(nodes_detailed)))
         .route("/gateways/skimmed", get(skimmed::deprecated_gateways_basic))
         .route("/mixnodes/skimmed", get(skimmed::deprecated_mixnodes_basic))
+        .layer(CompressionLayer::new())
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -80,18 +82,31 @@ struct NodesParamsWithRole {
     #[param(inline)]
     role: Option<NodeRoleQueryParam>,
 
+    #[allow(dead_code)]
     semver_compatibility: Option<String>,
     no_legacy: Option<bool>,
     page: Option<u32>,
     per_page: Option<u32>,
+
+    // Identifier for the current epoch of the topology state. When sent by a client we can check if
+    // the client already knows about the latest topology state, allowing a `no-updates` response
+    // instead of wasting bandwidth serving an unchanged topology.
+    epoch_id: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct NodesParams {
+    #[allow(dead_code)]
     semver_compatibility: Option<String>,
     no_legacy: Option<bool>,
     page: Option<u32>,
     per_page: Option<u32>,
+
+    // Identifier for the current epoch of the topology state. When sent by a client we can check if
+    // the client already knows about the latest topology state, allowing a `no-updates` response
+    // instead of wasting bandwidth serving an unchanged topology.
+    epoch_id: Option<u32>,
 }
 
 impl From<NodesParamsWithRole> for NodesParams {
@@ -101,6 +116,7 @@ impl From<NodesParamsWithRole> for NodesParams {
             no_legacy: params.no_legacy,
             page: params.page,
             per_page: params.per_page,
+            epoch_id: params.epoch_id,
         }
     }
 }

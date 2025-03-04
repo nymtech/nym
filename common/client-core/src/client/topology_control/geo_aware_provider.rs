@@ -3,7 +3,6 @@ use log::{debug, error};
 use nym_explorer_client::{ExplorerClient, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
-    nym_topology_from_basic_info,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
@@ -14,8 +13,6 @@ use tap::TapOptional;
 use url::Url;
 
 pub use nym_country_group::CountryGroup;
-
-const MIN_NODES_PER_LAYER: usize = 1;
 
 fn create_explorer_client() -> Option<ExplorerClient> {
     let Ok(explorer_api_url) = std::env::var(EXPLORER_API) else {
@@ -63,37 +60,22 @@ fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<NodeId>>) {
 }
 
 fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
-    let mixes = topology.mixes();
-    if mixes.keys().len() < 3 {
+    if topology.ensure_minimally_routable().is_err() {
         error!("Layer is missing in topology!");
         return Err(());
-    }
-    for (layer, mixnodes) in mixes {
-        debug!("Layer {:?} has {} mixnodes", layer, mixnodes.len());
-        if mixnodes.len() < MIN_NODES_PER_LAYER {
-            error!(
-                "There are only {} mixnodes in layer {:?}",
-                mixnodes.len(),
-                layer
-            );
-            return Err(());
-        }
     }
     Ok(())
 }
 
+#[deprecated(note = "use NymApiTopologyProvider instead as explorer API will soon be removed")]
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
     filter_on: GroupBy,
-    client_version: String,
 }
 
+#[allow(deprecated)]
 impl GeoAwareTopologyProvider {
-    pub fn new(
-        mut nym_api_urls: Vec<Url>,
-        client_version: String,
-        filter_on: GroupBy,
-    ) -> GeoAwareTopologyProvider {
+    pub fn new(mut nym_api_urls: Vec<Url>, filter_on: GroupBy) -> GeoAwareTopologyProvider {
         log::info!(
             "Creating geo-aware topology provider with filter on {}",
             filter_on
@@ -105,14 +87,22 @@ impl GeoAwareTopologyProvider {
                 nym_api_urls[0].clone(),
             ),
             filter_on,
-            client_version,
         }
     }
 
     async fn get_topology(&self) -> Option<NymTopology> {
+        let rewarded_set = self
+            .validator_client
+            .get_current_rewarded_set()
+            .await
+            .inspect_err(|err| error!("failed to get current rewarded set: {err}"))
+            .ok()?;
+
+        let mut topology = NymTopology::new_empty(rewarded_set);
+
         let mixnodes = match self
             .validator_client
-            .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_active_mixing_assigned_nodes()
             .await
         {
             Err(err) => {
@@ -124,7 +114,7 @@ impl GeoAwareTopologyProvider {
 
         let gateways = match self
             .validator_client
-            .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_entry_assigned_nodes()
             .await
         {
             Err(err) => {
@@ -193,7 +183,8 @@ impl GeoAwareTopologyProvider {
             .filter(|m| filtered_mixnode_ids.contains(&m.node_id))
             .collect::<Vec<_>>();
 
-        let topology = nym_topology_from_basic_info(&mixnodes, &gateways);
+        topology.add_skimmed_nodes(&mixnodes);
+        topology.add_skimmed_nodes(&gateways);
 
         // TODO: return real error type
         check_layer_integrity(topology.clone()).ok()?;
@@ -202,6 +193,7 @@ impl GeoAwareTopologyProvider {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl TopologyProvider for GeoAwareTopologyProvider {
@@ -211,6 +203,7 @@ impl TopologyProvider for GeoAwareTopologyProvider {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
 impl TopologyProvider for GeoAwareTopologyProvider {

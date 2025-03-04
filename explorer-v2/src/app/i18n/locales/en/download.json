@@ -1,0 +1,214 @@
+{
+  "passwordProtectionModal": {
+    "title": "Password",
+    "subtitle": "Please enter the password to access the NymVPN Download page."
+  },
+  "downloadCard": {
+    "mobileSelectText": "Select platform",
+    "mobileSelectLabel": "Choose",
+    "title": "# Download NymVPN for {{selection}}",
+    "features": [
+      "Advanced privacy with the 5-hop mixnet",
+      "Everyday privacy with the 2-hop WireGuard dVPN",
+      "30+ entry and exit locations on all continents"
+    ],
+    "cta1": {
+      "id": "download_getnymvpn_button_clicked",
+      "text": "Sign up",
+      "href": "pricing"
+    },
+    "cta2": {
+      "android": {
+        "text": "View F-Droid instructions",
+        "url": "https://nymtech.net/go/github/fdroid"
+      },
+      "ios": {
+        "text": "Test via Apple TestFlight",
+        "url": "https://testflight.apple.com/join/0vmRJNrL"
+      },
+      "linux": { "text": "View install instructions" },
+      "macos": { "text": "Download" },
+      "windows": { "text": "Download" }
+    },
+    "cta3": {
+      "android": {
+        "text": "Download APK",
+        "url": "https://github.com/nymtech/nym-vpn-client/releases{{version}}"
+      }
+    },
+    "alternativeDownload": {
+      "android": "You can also [request](https://support.nymvpn.com/hc/en-us/requests/new) access to Google Play Closed testing or [learn](https://developer.android.com/studio/command-line/apksigner#usage-verify) how to verify APK.",
+      "linux": "Or directly download NymVPN binaries from our [GitHub page](https://nymtech.net/go/github/nym-vpn-client/releases{{version}})."
+    },
+    "versionText": "Latest app version: {{version}}",
+    "sha256Title": "You can verify the app with this SHA-256 fingerprint:"
+  },
+  "howToInstallInstructions": {
+    "linux": [
+      {
+        "title": [
+          "How to install",
+          "NymVPN on Ubuntu 22.04 and Debian-based distributions"
+        ],
+        "description": "Follow the instructions below. For installs on Ubuntu 24.04, check our [Help Center](https://support.nymvpn.com/hc/en-us/articles/26068327280529-Does-NymVPN-work-on-Ubuntu-24-04).",
+        "steps": [
+          {
+            "title": "1. Download the Nym repo setup from the Terminal",
+            "textToCopy": "wget https://apt.nymtech.net/pool/main/n/nym-repo-setup/nym-repo-setup_1.0.1_amd64.deb -O /tmp/nym-repo-setup_1.0.1_amd64.deb"
+          },
+          {
+            "title": "2. Install the downloaded file from the Terminal",
+            "textToCopy": "sudo dpkg -i /tmp/nym-repo-setup_1.0.1_amd64.deb"
+          },
+          {
+            "title": "3. Install NymVPN from the Terminal",
+            "textToCopy": "sudo apt install nym-vpn"
+          }
+        ]
+      },
+      {
+        "title": [
+          "How to install",
+          "NymVPN on Arch Linux (and Arch-based) distributions"
+        ],
+        "description": "Follow the instructions below",
+        "steps": [
+          {
+            "title": "1. Install the following AUR packages (prebuilt binaries)",
+            "description": "Using your favorite AUR helper/Pacman wrapper",
+            "textToCopy": "yay -S nym-vpnd-bin nym-vpn-app-bin"
+          },
+          {
+            "title": "(1.) Or if you prefer to build from sources",
+            "description": "The packages will take some time to compile",
+            "textToCopy": "yay -S nym-vpnd nym-vpn-app"
+          },
+          {
+            "title": "2. Enable and start the VPN service",
+            "description": "A systemd service is provided, the following command need to be run only once",
+            "textToCopy": "sudo systemctl enable --now nym-vpnd.service"
+          }
+        ]
+      },
+      {
+        "title": ["How to install", "NymVPN on any Linux distribution"],
+        "description": "The client app is provided as a portable AppImage and daemon is provided as a prebuilt binary wrapped as a systemd service",
+        "steps": [
+          {
+            "title": "Install",
+            "textToCopy": "curl -fsSL https://nymtech.net/go/github/nym-vpn-client/raw/main/.pkg/linux/install | bash"
+          },
+          {
+            "title": "Uninstall",
+            "textToCopy": "curl -fsSL https://nymtech.net/go/github/nym-vpn-client/raw/main/.pkg/linux/install | bash -s uninstall"
+          }
+        ]
+      }
+    ],
+    "darwin": [
+      {
+        "title": ["How to install", "NymVPN on macOS"],
+        "description": "Follow the instructions below",
+        "steps": [
+          {
+            "title": "1. Download and install NymVPN",
+            "description": "To download and install the NymVPN macOS app, click on the \"Download app\" button above. Double-click the downloaded .dmg file to mount the \"NymVPN Installer\" disk image."
+          },
+          {
+            "title": "2. Optional: Verify the SHA-256 hash",
+            "description": "You can verify the SHA-256 hash of the downloaded file."
+          },
+          {
+            "title": "3. Install the app",
+            "description": "In the \"NymVPN Installer\" disk image, drag and drop the NymVPN app in your Application folder. Then, in your Application folder, open the NymVPN app."
+          },
+          {
+            "title": "4. Grant necessary permissions",
+            "description": "Upon opening the NymVPN app, click \"Yes\" in the modal window asking you if you are sure to open it."
+          },
+          {
+            "title": "5. Install the helper tool",
+            "description": "The app opens. Click on \"Connect\". To allow NymVPN to run network connections in the background, install the mandatory NymVPN helper: Type your device or account password, and click \"Install Helper\". The System Settings will open, and a NymVPN line will be added in the \"Allow in the Background\" section."
+          },
+          {
+            "title": "6. Enter your credential and connect",
+            "description": "Click on \"Connect\". Enter your NymVPN account credentials when prompted and enjoy!"
+          }
+        ]
+      }
+    ],
+    "windows": [
+      {
+        "title": ["How to install", "NymVPN on Windows"],
+        "description": "Follow the instructions below",
+        "steps": [
+          {
+            "title": "1. Download NymVPN",
+            "description": "To download the NymVPN Windows app, click on the \"Download app\" button above."
+          },
+          {
+            "title": "2. Optional: Verify the SHA-256 hash",
+            "description": "You can verify the SHA-256 hash of the downloaded file."
+          },
+          {
+            "title": "3. Install the NymVPN application",
+            "description": "Open the downloaded NymVPN .exe file, and follow the install instructions."
+          },
+          {
+            "title": "4. Optional: Install VCRUNTIME140.dll",
+            "description": "If the install fails because \"VCRUNTIME140.dll was not found\", go to https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170 and download and install the missing DLL for your device. Then complete the NymVPN app install process."
+          }
+        ]
+      }
+    ]
+  },
+  "howUseNym": {
+    "title": "How to use our {{selection}} VPN app",
+    "description": "In 3 simple steps",
+    "enumerationCardProps": [
+      {
+        "iconName": "one",
+        "title": "Get credentials",
+        "description": "Join the NymVPN alpha and redeem your credentials."
+      },
+      {
+        "iconName": "two",
+        "title": "Download",
+        "description": "Get the NymVPN apps for your devices."
+      },
+      {
+        "iconName": "three",
+        "title": "Connect",
+        "description": "Connect to NymVPN private servers."
+      }
+    ]
+  },
+  "banner": {
+    "bannerImage": "banner1",
+    "title": ["Fast and secure VPN for {{dynamicText}}"],
+    "text": [
+      "Pick the 2-hop WireGuard dVPN mode for a faster {{dynamicText}} VPN connection or get advanced privacy with the 5-hop mixnet mode, all in one app."
+    ]
+  },
+  "faqs": {
+    "title": "VPN for {{dynamicText}} frequently asked questions",
+    "faqs": [
+      {
+        "title": "Is NymVPN compatible with all operating systems?",
+        "description": "NymVPN is compatible with the main operating systems, including Android, iOS, Linux, macOS and Windows. We will expand support to additional operating systems, browsers and devices in the near future."
+      },
+      {
+        "title": "How many devices can I use with one NymVPN subscription?",
+        "description": "NymVPN will allow simultaneous connections on multiple devices. Stay tuned!"
+      },
+      {
+        "title": "Does NymVPN offer a money-back guarantee?",
+        "description": "NymVPN will offer either 7-day or 30-day prorated money-back guarantees. Specific terms may apply based on the subscription and payment method."
+      },
+      {
+        "title": "Does NymVPN offer a free trial?",
+        "description": "NymVPN does not offer a free trial at the moment. However, we are continuously developing new offerings, so stay tuned for updates."
+      }
+    ]
+  }
+}

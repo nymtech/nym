@@ -49,6 +49,16 @@ impl BandwidthManager {
         Ok(())
     }
 
+    pub(crate) async fn remove_client(&self, client_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "DELETE FROM available_bandwidth WHERE client_id = ?",
+            client_id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
     /// Set the expiration date of the particular client to the provided date.
     pub(crate) async fn set_expiration(
         &self,

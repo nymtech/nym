@@ -11,7 +11,7 @@ pub enum ServiceProviderType {
     Authenticator = 2,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Protocol {
     pub version: u8,
     pub service_provider_type: ServiceProviderType,

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkTestingError;
-use crate::node::TestableNode;
-use crate::NodeId;
+use crate::node::{NodeType, TestableNode};
 use nym_sphinx::message::NymMessage;
-use nym_topology::{gateway, mix};
+use nym_topology::node::RoutingNode;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -26,73 +25,76 @@ pub struct TestMessage<T = Empty> {
 }
 
 impl<T> TestMessage<T> {
-    pub fn new<N: Into<TestableNode>>(node: N, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+    pub fn new(tested_node: TestableNode, msg_id: u32, total_msgs: u32, ext: T) -> Self {
         TestMessage {
-            tested_node: node.into(),
+            tested_node,
             msg_id,
             total_msgs,
             ext,
         }
     }
 
-    pub fn new_mix(node: &mix::LegacyNode, msg_id: u32, total_msgs: u32, ext: T) -> Self {
-        Self::new(node, msg_id, total_msgs, ext)
+    pub fn new_mix(node: &RoutingNode, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+        Self::new(
+            TestableNode::new_routing(node, NodeType::Mixnode),
+            msg_id,
+            total_msgs,
+            ext,
+        )
     }
 
-    // pub fn new_gateway(node: &gateway::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
-    //     Self::new(node, msg_id, total_msgs, ext)
-    // }
-
-    pub fn new_serialized<N>(
-        node: N,
-        msg_id: u32,
-        total_msgs: u32,
-        ext: T,
-    ) -> Result<Vec<u8>, NetworkTestingError>
-    where
-        N: Into<TestableNode>,
-        T: Serialize,
-    {
-        Self::new(node, msg_id, total_msgs, ext).as_bytes()
+    pub fn new_gateway(node: &RoutingNode, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+        Self::new(
+            TestableNode::new_routing(node, NodeType::Gateway),
+            msg_id,
+            total_msgs,
+            ext,
+        )
     }
 
-    pub fn new_plaintexts<N>(
-        node: &N,
+    pub fn new_plaintexts(
+        node: TestableNode,
         total_msgs: u32,
         ext: T,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
     where
-        for<'a> &'a N: Into<TestableNode>,
         T: Serialize + Clone,
     {
         let mut msgs = Vec::with_capacity(total_msgs as usize);
         for msg_id in 1..=total_msgs {
-            msgs.push(Self::new(node, msg_id, total_msgs, ext.clone()).as_bytes()?)
+            msgs.push(Self::new(node.clone(), msg_id, total_msgs, ext.clone()).as_bytes()?)
         }
         Ok(msgs)
     }
 
     pub fn mix_plaintexts(
-        node: &mix::LegacyNode,
+        node: &RoutingNode,
         total_msgs: u32,
         ext: T,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
     where
         T: Serialize + Clone,
     {
-        Self::new_plaintexts(node, total_msgs, ext)
+        Self::new_plaintexts(
+            TestableNode::new_routing(node, NodeType::Mixnode),
+            total_msgs,
+            ext,
+        )
     }
 
     pub fn legacy_gateway_plaintexts(
-        node: &gateway::LegacyNode,
-        node_id: NodeId,
+        node: &RoutingNode,
         total_msgs: u32,
         ext: T,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
     where
         T: Serialize + Clone,
     {
-        Self::new_plaintexts(&(node, node_id), total_msgs, ext)
+        Self::new_plaintexts(
+            TestableNode::new_routing(node, NodeType::Gateway),
+            total_msgs,
+            ext,
+        )
     }
 
     pub fn as_json_string(&self) -> Result<String, NetworkTestingError>

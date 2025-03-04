@@ -11,6 +11,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
@@ -23,6 +24,7 @@ where
     input_receiver: InputMessageReceiver,
     message_handler: MessageHandler<R>,
     reply_controller_sender: ReplyControllerSender,
+    task_client: TaskClient,
 }
 
 impl<R> InputMessageListener<R>
@@ -36,11 +38,13 @@ where
         input_receiver: InputMessageReceiver,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
+        task_client: TaskClient,
     ) -> Self {
         InputMessageListener {
             input_receiver,
             message_handler,
             reply_controller_sender,
+            task_client,
         }
     }
 
@@ -63,8 +67,14 @@ where
         lane: TransmissionLane,
     ) {
         // offload reply handling to the dedicated task
-        self.reply_controller_sender
+        if let Err(err) = self
+            .reply_controller_sender
             .send_reply(recipient_tag, data, lane)
+        {
+            if !self.task_client.is_shutdown_poll() {
+                error!("failed to send a reply - {err}");
+            }
+        }
     }
 
     async fn handle_plain_message(
@@ -73,11 +83,10 @@ where
         content: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane, packet_type, mix_hops)
+            .try_send_plain_message(recipient, content, lane, packet_type)
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -91,18 +100,10 @@ where
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(
-                recipient,
-                content,
-                reply_surbs,
-                lane,
-                packet_type,
-                mix_hops,
-            )
+            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type)
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -115,9 +116,8 @@ where
                 recipient,
                 data,
                 lane,
-                mix_hops,
             } => {
-                self.handle_plain_message(recipient, data, lane, PacketType::Mix, mix_hops)
+                self.handle_plain_message(recipient, data, lane, PacketType::Mix)
                     .await
             }
             InputMessage::Anonymous {
@@ -125,17 +125,9 @@ where
                 data,
                 reply_surbs,
                 lane,
-                mix_hops,
             } => {
-                self.handle_repliable_message(
-                    recipient,
-                    data,
-                    reply_surbs,
-                    lane,
-                    PacketType::Mix,
-                    mix_hops,
-                )
-                .await
+                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix)
+                    .await
             }
             InputMessage::Reply {
                 recipient_tag,
@@ -153,9 +145,8 @@ where
                     recipient,
                     data,
                     lane,
-                    mix_hops,
                 } => {
-                    self.handle_plain_message(recipient, data, lane, packet_type, mix_hops)
+                    self.handle_plain_message(recipient, data, lane, packet_type)
                         .await
                 }
                 InputMessage::Anonymous {
@@ -163,17 +154,9 @@ where
                     data,
                     reply_surbs,
                     lane,
-                    mix_hops,
                 } => {
-                    self.handle_repliable_message(
-                        recipient,
-                        data,
-                        reply_surbs,
-                        lane,
-                        packet_type,
-                        mix_hops,
-                    )
-                    .await
+                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type)
+                        .await
                 }
                 InputMessage::Reply {
                     recipient_tag,
@@ -191,10 +174,10 @@ where
         };
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        while !self.task_client.is_shutdown() {
             tokio::select! {
                 input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
@@ -205,12 +188,12 @@ where
                         break;
                     }
                 },
-                _ = shutdown.recv_with_delay() => {
+                _ = self.task_client.recv() => {
                     log::trace!("InputMessageListener: Received shutdown");
                 }
             }
         }
-        shutdown.recv_timeout().await;
+        self.task_client.recv_timeout().await;
         log::debug!("InputMessageListener: Exiting");
     }
 }

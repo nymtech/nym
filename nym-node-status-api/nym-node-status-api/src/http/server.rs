@@ -20,10 +20,9 @@ pub(crate) async fn start_http_api(
 ) -> anyhow::Result<ShutdownHandles> {
     let router_builder = RouterBuilder::with_default_routes();
 
-    let state = AppState::new(db_pool, nym_http_cache_ttl, agent_key_list, agent_max_count);
+    let state = AppState::new(db_pool, nym_http_cache_ttl, agent_key_list, agent_max_count).await;
     let router = router_builder.with_state(state);
 
-    // TODO dz do we need this to be configurable?
     let bind_addr = format!("0.0.0.0:{}", http_port);
     tracing::info!("Binding server to {bind_addr}");
     let server = router.build_server(bind_addr).await?;

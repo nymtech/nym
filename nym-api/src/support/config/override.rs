@@ -31,6 +31,8 @@ pub(crate) struct OverrideConfig {
     /// Socket address this api will use for binding its http API.
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
     pub(crate) bind_address: Option<SocketAddr>,
+
+    pub(crate) allow_illegal_ips: bool,
 }
 
 impl From<init::Args> for OverrideConfig {
@@ -44,6 +46,7 @@ impl From<init::Args> for OverrideConfig {
             announce_address: args.announce_address,
             monitor_credentials_mode: Some(args.monitor_credentials_mode),
             bind_address: args.bind_address,
+            allow_illegal_ips: args.allow_illegal_ips,
         }
     }
 }
@@ -59,6 +62,7 @@ impl From<run::Args> for OverrideConfig {
             announce_address: args.announce_address,
             monitor_credentials_mode: args.monitor_credentials_mode,
             bind_address: args.bind_address,
+            allow_illegal_ips: args.allow_illegal_ips,
         }
     }
 }

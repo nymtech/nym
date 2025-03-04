@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO \"transaction\" (hash, height, \"index\", success, num_messages, memo, gas_wanted, gas_used, raw_log)\n            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)\n               ON CONFLICT (hash) DO UPDATE\n               SET height = excluded.height,\n               \"index\" = excluded.\"index\",\n               success = excluded.success,\n               num_messages = excluded.num_messages,\n               memo = excluded.memo,\n               gas_wanted = excluded.gas_wanted,\n               gas_used = excluded.gas_used,\n               raw_log = excluded.raw_log\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "422a516baacf8ba26ea2dca46fa57ed06dbebb3615b912fa59d9e22a097ded57"
+}

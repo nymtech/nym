@@ -13,12 +13,8 @@ pub enum PacketVersion {
 }
 
 impl PacketVersion {
-    pub fn new(use_legacy: bool) -> Self {
-        if use_legacy {
-            Self::new_legacy()
-        } else {
-            Self::new_versioned(CURRENT_PACKET_VERSION_NUMBER)
-        }
+    pub fn new() -> Self {
+        Self::new_versioned(CURRENT_PACKET_VERSION_NUMBER)
     }
 
     pub fn new_legacy() -> Self {

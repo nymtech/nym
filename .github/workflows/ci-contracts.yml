@@ -9,6 +9,8 @@ on:
     paths:
       - 'contracts/**'
       - 'common/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
       - '.github/workflows/ci-contracts.yml'
 
 jobs:

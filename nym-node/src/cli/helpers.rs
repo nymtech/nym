@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::DEFAULT_NYMNODE_ID;
+use crate::config;
+use crate::config::default_config_filepath;
 use crate::env::vars::*;
 use celes::Country;
 use clap::builder::ArgPredicate;
 use clap::Args;
-use nym_node::config;
-use nym_node::config::default_config_filepath;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -101,7 +101,7 @@ impl HostArgs {
 #[derive(clap::Args, Debug)]
 pub(crate) struct HttpArgs {
     /// Socket address this node will use for binding its http API.
-    /// default: `0.0.0.0:8080`
+    /// default: `[::]:8080`
     #[clap(
         long,
         env = NYMNODE_HTTP_BIND_ADDRESS_ARG
@@ -181,7 +181,7 @@ impl HttpArgs {
 #[derive(clap::Args, Debug)]
 pub(crate) struct MixnetArgs {
     /// Address this node will bind to for listening for mixnet packets
-    /// default: `0.0.0.0:1789`
+    /// default: `[::]:1789`
     #[clap(
         long,
         env = NYMNODE_MIXNET_BIND_ADDRESS_ARG
@@ -258,7 +258,7 @@ pub(crate) struct WireguardArgs {
     pub(crate) wireguard_enabled: Option<bool>,
 
     /// Socket address this node will use for binding its wireguard interface.
-    /// default: `0.0.0.0:51822`
+    /// default: `[::]:51822`
     #[clap(
         long,
         env = NYMNODE_WG_BIND_ADDRESS_ARG
@@ -313,9 +313,9 @@ impl WireguardArgs {
 }
 
 #[derive(clap::Args, Debug)]
-pub(crate) struct MixnodeArgs {
+pub(crate) struct VerlocArgs {
     /// Socket address this node will use for binding its verloc API.
-    /// default: `0.0.0.0:1790`
+    /// default: `[::]:1790`
     #[clap(
         long,
         env = NYMNODE_VERLOC_BIND_ADDRESS_ARG
@@ -332,21 +332,43 @@ pub(crate) struct MixnodeArgs {
     pub(crate) verloc_announce_port: Option<u16>,
 }
 
-impl MixnodeArgs {
-    // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
-    pub(crate) fn build_config_section(self) -> config::MixnodeConfig {
-        self.override_config_section(config::MixnodeConfig::new_default())
+impl VerlocArgs {
+    pub(crate) fn build_config_section(self) -> config::Verloc {
+        self.override_config_section(config::Verloc::default())
+    }
+
+    pub(crate) fn override_config_section(self, mut section: config::Verloc) -> config::Verloc {
+        if let Some(bind_address) = self.verloc_bind_address {
+            section.bind_address = bind_address
+        }
+        if let Some(announce_port) = self.verloc_announce_port {
+            section.announce_port = Some(announce_port)
+        }
+        section
+    }
+}
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct MetricsArgs {
+    /// Specify whether running statistics of this node should be logged to the console.
+    #[clap(
+        long,
+        env = NYMNODE_ENABLE_CONSOLE_LOGGING
+    )]
+    enable_console_logging: Option<bool>,
+}
+
+impl MetricsArgs {
+    pub(crate) fn build_config_section(self) -> config::MetricsConfig {
+        self.override_config_section(config::MetricsConfig::default())
     }
 
     pub(crate) fn override_config_section(
         self,
-        mut section: config::MixnodeConfig,
-    ) -> config::MixnodeConfig {
-        if let Some(bind_address) = self.verloc_bind_address {
-            section.verloc.bind_address = bind_address
-        }
-        if let Some(announce_port) = self.verloc_announce_port {
-            section.verloc.announce_port = Some(announce_port)
+        mut section: config::MetricsConfig,
+    ) -> config::MetricsConfig {
+        if let Some(enable_console_logging) = self.enable_console_logging {
+            section.debug.log_stats_to_console = enable_console_logging;
         }
         section
     }
@@ -355,7 +377,7 @@ impl MixnodeArgs {
 #[derive(clap::Args, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct EntryGatewayArgs {
     /// Socket address this node will use for binding its client websocket API.
-    /// default: `0.0.0.0:9000`
+    /// default: `[::]:9000`
     #[clap(
         long,
         env = NYMNODE_ENTRY_BIND_ADDRESS_ARG
@@ -400,16 +422,16 @@ impl EntryGatewayArgs {
     pub(crate) fn build_config_section<P: AsRef<Path>>(
         self,
         data_dir: P,
-    ) -> config::EntryGatewayConfig {
-        self.override_config_section(config::EntryGatewayConfig::new_default(data_dir))
+    ) -> config::GatewayTasksConfig {
+        self.override_config_section(config::GatewayTasksConfig::new_default(data_dir))
     }
 
     pub(crate) fn override_config_section(
         self,
-        mut section: config::EntryGatewayConfig,
-    ) -> config::EntryGatewayConfig {
+        mut section: config::GatewayTasksConfig,
+    ) -> config::GatewayTasksConfig {
         if let Some(bind_address) = self.entry_bind_address {
-            section.bind_address = bind_address
+            section.ws_bind_address = bind_address
         }
         if let Some(ws_port) = self.announce_ws_port {
             section.announce_ws_port = Some(ws_port)
@@ -448,14 +470,14 @@ impl ExitGatewayArgs {
     pub(crate) fn build_config_section<P: AsRef<Path>>(
         self,
         data_dir: P,
-    ) -> config::ExitGatewayConfig {
-        self.override_config_section(config::ExitGatewayConfig::new_default(data_dir))
+    ) -> config::ServiceProvidersConfig {
+        self.override_config_section(config::ServiceProvidersConfig::new_default(data_dir))
     }
 
     pub(crate) fn override_config_section(
         self,
-        mut section: config::ExitGatewayConfig,
-    ) -> config::ExitGatewayConfig {
+        mut section: config::ServiceProvidersConfig,
+    ) -> config::ServiceProvidersConfig {
         if let Some(upstream_exit_policy) = self.upstream_exit_policy_url {
             section.upstream_exit_policy_url = upstream_exit_policy
         }

@@ -4,8 +4,8 @@
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
-use nym_topology::gateway::GatewayConversionError;
-use nym_topology::NymTopologyError;
+use nym_topology::node::RoutingNodeError;
+use nym_topology::{NodeId, NymTopologyError};
 use nym_validator_client::ValidatorClientError;
 use std::error::Error;
 use std::path::PathBuf;
@@ -35,6 +35,13 @@ pub enum ClientCoreError {
 
     #[error("no gateway with id: {0}")]
     NoGatewayWithId(String),
+
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(String),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("resolution failed: {0}")]
+    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
 
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
@@ -74,10 +81,10 @@ pub enum ClientCoreError {
     #[error("the gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
 
-    #[error("The gateway is malformed: {source}")]
+    #[error("the node is malformed: {source}")]
     MalformedGateway {
         #[from]
-        source: GatewayConversionError,
+        source: Box<RoutingNodeError>,
     },
 
     #[error("failed to establish connection to gateway: {source}")]
@@ -95,6 +102,9 @@ pub enum ClientCoreError {
 
     #[error("timed out while trying to establish gateway connection")]
     GatewayConnectionTimeout,
+
+    #[error("failed to forward mix messages to gateway")]
+    GatewayFailedToForwardMessages,
 
     #[error("no ping measurements for the gateway ({identity}) performed")]
     NoGatewayMeasurements { identity: String },
@@ -159,6 +169,9 @@ pub enum ClientCoreError {
     #[error("the specified gateway '{gateway}' does not support the wss protocol")]
     UnsupportedWssProtocol { gateway: String },
 
+    #[error("node {id} ({identity}) does not support mixnet entry mode")]
+    UnsupportedEntry { id: NodeId, identity: String },
+
     #[error(
     "failed to load custom topology using path '{}'. detailed message: {source}", file_path.display()
     )]
@@ -209,6 +222,9 @@ pub enum ClientCoreError {
         "fresh registration with gateway {gateway_id} somehow requires an additional key upgrade!"
     )]
     UnexpectedKeyUpgrade { gateway_id: String },
+
+    #[error("failed to derive keys from master key")]
+    HkdfDerivationError {},
 }
 
 /// Set of messages that the client can send to listeners via the task manager

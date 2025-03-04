@@ -13,11 +13,11 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_topology::gateway;
+use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use url::Url;
@@ -38,16 +38,23 @@ pub enum SelectedGateway {
 
 impl SelectedGateway {
     pub fn from_topology_node(
-        node: gateway::LegacyNode,
+        node: RoutingNode,
         must_use_tls: bool,
     ) -> Result<Self, ClientCoreError> {
+        // for now, let's use 'old' behaviour, if you want to change it, you can pass it up the enum stack yourself : )
+        let prefer_ipv6 = false;
+
         let gateway_listener = if must_use_tls {
-            node.clients_address_tls()
+            node.ws_entry_address_tls()
                 .ok_or(ClientCoreError::UnsupportedWssProtocol {
                     gateway: node.identity_key.to_base58_string(),
                 })?
         } else {
-            node.clients_address()
+            node.ws_entry_address(prefer_ipv6)
+                .ok_or(ClientCoreError::UnsupportedEntry {
+                    id: node.node_id,
+                    identity: node.identity_key.to_base58_string(),
+                })?
         };
 
         let gateway_listener =
@@ -200,7 +207,7 @@ pub enum GatewaySetup {
         specification: GatewaySelectionSpecification,
 
         // TODO: seems to be a bit inefficient to pass them by value
-        available_gateways: Vec<gateway::LegacyNode>,
+        available_gateways: Vec<RoutingNode>,
     },
 
     ReuseConnection {
@@ -212,6 +219,34 @@ pub enum GatewaySetup {
 
         client_keys: ClientKeys,
     },
+}
+
+impl Debug for GatewaySetup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GatewaySetup::MustLoad { gateway_id } => f
+                .debug_struct("GatewaySetup::MustLoad")
+                .field("gateway_id", gateway_id)
+                .finish(),
+            GatewaySetup::New {
+                specification,
+                available_gateways,
+            } => f
+                .debug_struct("GatewaySetup::New")
+                .field("specification", specification)
+                .field("available_gateways", available_gateways)
+                .field("gateways", specification)
+                .finish(),
+            GatewaySetup::ReuseConnection {
+                gateway_details, ..
+            } => f
+                .debug_struct("GatewaySetup::ReuseConnection")
+                .field("authenticated_ephemeral_client", &"***")
+                .field("gateway_details", gateway_details)
+                .field("client_keys", &"***")
+                .finish(),
+        }
+    }
 }
 
 impl GatewaySetup {

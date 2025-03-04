@@ -169,10 +169,7 @@ impl RepliableMessage {
             .collect()
     }
 
-    pub fn try_from_bytes(
-        bytes: &[u8],
-        num_mix_hops: u8,
-    ) -> Result<Self, InvalidReplyRequestError> {
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, InvalidReplyRequestError> {
         if bytes.len() < SENDER_TAG_SIZE + 1 {
             return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
@@ -180,11 +177,8 @@ impl RepliableMessage {
             AnonymousSenderTag::from_bytes(bytes[..SENDER_TAG_SIZE].try_into().unwrap());
         let content_tag = RepliableMessageContentTag::try_from(bytes[SENDER_TAG_SIZE])?;
 
-        let content = RepliableMessageContent::try_from_bytes(
-            &bytes[SENDER_TAG_SIZE + 1..],
-            num_mix_hops,
-            content_tag,
-        )?;
+        let content =
+            RepliableMessageContent::try_from_bytes(&bytes[SENDER_TAG_SIZE + 1..], content_tag)?;
 
         Ok(RepliableMessage {
             sender_tag,
@@ -192,23 +186,20 @@ impl RepliableMessage {
         })
     }
 
-    pub fn serialized_size(&self, num_mix_hops: u8) -> usize {
+    pub fn serialized_size(&self) -> usize {
         let content_type_size = 1;
-        SENDER_TAG_SIZE + content_type_size + self.content.serialized_size(num_mix_hops)
+        SENDER_TAG_SIZE + content_type_size + self.content.serialized_size()
     }
 }
 
 // this recovery code is shared between all variants containing reply surbs
-fn recover_reply_surbs(
-    bytes: &[u8],
-    num_mix_hops: u8,
-) -> Result<(Vec<ReplySurb>, usize), InvalidReplyRequestError> {
+fn recover_reply_surbs(bytes: &[u8]) -> Result<(Vec<ReplySurb>, usize), InvalidReplyRequestError> {
     let mut consumed = mem::size_of::<u32>();
     if bytes.len() < consumed {
         return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
     let num_surbs = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-    let surb_size = ReplySurb::serialized_len(num_mix_hops);
+    let surb_size = ReplySurb::serialized_len();
     if bytes[consumed..].len() < num_surbs as usize * surb_size {
         return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
@@ -307,14 +298,13 @@ impl RepliableMessageContent {
 
     fn try_from_bytes(
         bytes: &[u8],
-        num_mix_hops: u8,
         tag: RepliableMessageContentTag,
     ) -> Result<Self, InvalidReplyRequestError> {
         if bytes.is_empty() {
             return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
 
-        let (reply_surbs, n) = recover_reply_surbs(bytes, num_mix_hops)?;
+        let (reply_surbs, n) = recover_reply_surbs(bytes)?;
 
         match tag {
             RepliableMessageContentTag::Data => Ok(RepliableMessageContent::Data {
@@ -340,7 +330,7 @@ impl RepliableMessageContent {
         }
     }
 
-    fn serialized_size(&self, num_mix_hops: u8) -> usize {
+    fn serialized_size(&self) -> usize {
         match self {
             RepliableMessageContent::Data {
                 message,
@@ -348,19 +338,18 @@ impl RepliableMessageContent {
             } => {
                 let num_reply_surbs_tag = mem::size_of::<u32>();
                 num_reply_surbs_tag
-                    + reply_surbs.len() * ReplySurb::serialized_len(num_mix_hops)
+                    + reply_surbs.len() * ReplySurb::serialized_len()
                     + message.len()
             }
             RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
                 let num_reply_surbs_tag = mem::size_of::<u32>();
-                num_reply_surbs_tag + reply_surbs.len() * ReplySurb::serialized_len(num_mix_hops)
+                num_reply_surbs_tag + reply_surbs.len() * ReplySurb::serialized_len()
             }
             RepliableMessageContent::Heartbeat {
                 additional_reply_surbs,
             } => {
                 let num_reply_surbs_tag = mem::size_of::<u32>();
-                num_reply_surbs_tag
-                    + additional_reply_surbs.len() * ReplySurb::serialized_len(num_mix_hops)
+                num_reply_surbs_tag + additional_reply_surbs.len() * ReplySurb::serialized_len()
             }
         }
     }
@@ -570,7 +559,7 @@ mod tests {
             let mut address_bytes = [0; NODE_ADDRESS_LENGTH];
             rng.fill_bytes(&mut address_bytes);
 
-            let dummy_private = PrivateKey::new_with_rng(rng);
+            let dummy_private = PrivateKey::random_from_rng(rng);
             let pub_key = (&dummy_private).into();
             Node {
                 address: NodeAddressBytes::from_bytes(address_bytes),
@@ -578,11 +567,11 @@ mod tests {
             }
         }
 
-        pub(super) fn reply_surb(rng: &mut ChaCha20Rng, num_mix_hops: u8) -> ReplySurb {
+        pub(super) fn reply_surb(rng: &mut ChaCha20Rng) -> ReplySurb {
             // due to gateway
-            let num_hops = num_mix_hops + 1;
-            let route = (0..num_hops).map(|_| node(rng)).collect();
-            let delays = (0..num_hops)
+            const HOPS: u8 = 4;
+            let route = (0..HOPS).map(|_| node(rng)).collect();
+            let delays = (0..HOPS)
                 .map(|_| Delay::new_from_nanos(rng.next_u64()))
                 .collect();
             let mut destination_bytes = [0u8; 32];
@@ -605,47 +594,40 @@ mod tests {
             }
         }
 
-        pub(super) fn reply_surbs(
-            rng: &mut ChaCha20Rng,
-            num_mix_hops: u8,
-            n: usize,
-        ) -> Vec<ReplySurb> {
+        pub(super) fn reply_surbs(rng: &mut ChaCha20Rng, n: usize) -> Vec<ReplySurb> {
             let mut surbs = Vec::with_capacity(n);
             for _ in 0..n {
-                surbs.push(reply_surb(rng, num_mix_hops))
+                surbs.push(reply_surb(rng))
             }
             surbs
         }
 
         pub(super) fn repliable_content_data(
             rng: &mut ChaCha20Rng,
-            num_mix_hops: u8,
             msg_len: usize,
             surbs: usize,
         ) -> RepliableMessageContent {
             RepliableMessageContent::Data {
                 message: random_vec_u8(rng, msg_len),
-                reply_surbs: reply_surbs(rng, num_mix_hops, surbs),
+                reply_surbs: reply_surbs(rng, surbs),
             }
         }
 
         pub(super) fn repliable_content_surbs(
             rng: &mut ChaCha20Rng,
-            num_mix_hops: u8,
             surbs: usize,
         ) -> RepliableMessageContent {
             RepliableMessageContent::AdditionalSurbs {
-                reply_surbs: reply_surbs(rng, num_mix_hops, surbs),
+                reply_surbs: reply_surbs(rng, surbs),
             }
         }
 
         pub(super) fn repliable_content_heartbeat(
             rng: &mut ChaCha20Rng,
-            num_mix_hops: u8,
             surbs: usize,
         ) -> RepliableMessageContent {
             RepliableMessageContent::Heartbeat {
-                additional_reply_surbs: reply_surbs(rng, num_mix_hops, surbs),
+                additional_reply_surbs: reply_surbs(rng, surbs),
             }
         }
 
@@ -676,70 +658,54 @@ mod tests {
         #[test]
         fn serialized_size_matches_actual_serialization() {
             let mut rng = fixtures::test_rng();
-            let num_mix_hops = 3;
 
             let data1 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_data(&mut rng, num_mix_hops, 10000, 0),
+                content: fixtures::repliable_content_data(&mut rng, 10000, 0),
             };
-            assert_eq!(
-                data1.serialized_size(num_mix_hops),
-                data1.into_bytes().len()
-            );
+            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
 
             let data2 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_data(&mut rng, num_mix_hops, 10, 100),
+                content: fixtures::repliable_content_data(&mut rng, 10, 100),
             };
-            assert_eq!(
-                data2.serialized_size(num_mix_hops),
-                data2.into_bytes().len()
-            );
+            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
 
             let data3 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_data(&mut rng, num_mix_hops, 100000, 1000),
+                content: fixtures::repliable_content_data(&mut rng, 100000, 1000),
             };
-            assert_eq!(
-                data3.serialized_size(num_mix_hops),
-                data3.into_bytes().len()
-            );
+            assert_eq!(data3.serialized_size(), data3.into_bytes().len());
 
             let additional_surbs1 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1),
+                content: fixtures::repliable_content_surbs(&mut rng, 1),
             };
             assert_eq!(
-                additional_surbs1.serialized_size(num_mix_hops),
+                additional_surbs1.serialized_size(),
                 additional_surbs1.into_bytes().len()
             );
 
             let additional_surbs2 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1000),
+                content: fixtures::repliable_content_surbs(&mut rng, 1000),
             };
             assert_eq!(
-                additional_surbs2.serialized_size(num_mix_hops),
+                additional_surbs2.serialized_size(),
                 additional_surbs2.into_bytes().len()
             );
 
             let heartbeat1 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1),
+                content: fixtures::repliable_content_heartbeat(&mut rng, 1),
             };
-            assert_eq!(
-                heartbeat1.serialized_size(num_mix_hops),
-                heartbeat1.into_bytes().len()
-            );
+            assert_eq!(heartbeat1.serialized_size(), heartbeat1.into_bytes().len());
 
             let heartbeat2 = RepliableMessage {
                 sender_tag: fixtures::sender_tag(&mut rng),
-                content: fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1000),
+                content: fixtures::repliable_content_heartbeat(&mut rng, 1000),
             };
-            assert_eq!(
-                heartbeat2.serialized_size(num_mix_hops),
-                heartbeat2.into_bytes().len()
-            );
+            assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
         }
     }
 
@@ -750,49 +716,33 @@ mod tests {
         #[test]
         fn serialized_size_matches_actual_serialization() {
             let mut rng = fixtures::test_rng();
-            let num_mix_hops = 3;
 
-            let data1 = fixtures::repliable_content_data(&mut rng, num_mix_hops, 10000, 0);
-            assert_eq!(
-                data1.serialized_size(num_mix_hops),
-                data1.into_bytes().len()
-            );
+            let data1 = fixtures::repliable_content_data(&mut rng, 10000, 0);
+            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
 
-            let data2 = fixtures::repliable_content_data(&mut rng, num_mix_hops, 10, 100);
-            assert_eq!(
-                data2.serialized_size(num_mix_hops),
-                data2.into_bytes().len()
-            );
+            let data2 = fixtures::repliable_content_data(&mut rng, 10, 100);
+            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
 
-            let data3 = fixtures::repliable_content_data(&mut rng, num_mix_hops, 100000, 1000);
-            assert_eq!(
-                data3.serialized_size(num_mix_hops),
-                data3.into_bytes().len()
-            );
+            let data3 = fixtures::repliable_content_data(&mut rng, 100000, 1000);
+            assert_eq!(data3.serialized_size(), data3.into_bytes().len());
 
-            let additional_surbs1 = fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1);
+            let additional_surbs1 = fixtures::repliable_content_surbs(&mut rng, 1);
             assert_eq!(
-                additional_surbs1.serialized_size(num_mix_hops),
+                additional_surbs1.serialized_size(),
                 additional_surbs1.into_bytes().len()
             );
 
-            let additional_surbs2 = fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1000);
+            let additional_surbs2 = fixtures::repliable_content_surbs(&mut rng, 1000);
             assert_eq!(
-                additional_surbs2.serialized_size(num_mix_hops),
+                additional_surbs2.serialized_size(),
                 additional_surbs2.into_bytes().len()
             );
 
-            let heartbeat1 = fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1);
-            assert_eq!(
-                heartbeat1.serialized_size(num_mix_hops),
-                heartbeat1.into_bytes().len()
-            );
+            let heartbeat1 = fixtures::repliable_content_heartbeat(&mut rng, 1);
+            assert_eq!(heartbeat1.serialized_size(), heartbeat1.into_bytes().len());
 
-            let heartbeat2 = fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1000);
-            assert_eq!(
-                heartbeat2.serialized_size(num_mix_hops),
-                heartbeat2.into_bytes().len()
-            );
+            let heartbeat2 = fixtures::repliable_content_heartbeat(&mut rng, 1000);
+            assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
         }
     }
 

@@ -13,7 +13,7 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NodeRefreshBody, NymNodeDescription,
+    NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
 };
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 use nym_api_requests::pagination::PaginatedResponse;
@@ -31,6 +31,7 @@ pub use nym_api_requests::{
         StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{CachedNodesResponse, SkimmedNode},
+    NymNetworkDetailsResponse,
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
@@ -104,6 +105,23 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
+    async fn get_gateways_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAYS,
+                routes::DETAILED_UNFILTERED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_detailed_unfiltered(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
@@ -147,6 +165,35 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_node_performance_history(
+        &self,
+        node_id: NodeId,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PerformanceHistoryResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE_HISTORY,
+                &*node_id.to_string(),
+            ],
+            &params,
+        )
+        .await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn get_nodes_described(
         &self,
         page: Option<u32>,
@@ -162,8 +209,15 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(&[routes::API_VERSION, "nym-nodes", "described"], &params)
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_DESCRIBED,
+            ],
+            &params,
+        )
+        .await
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
@@ -182,29 +236,11 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(&[routes::API_VERSION, "nym-nodes", "bonded"], &params)
-            .await
-    }
-
-    #[deprecated]
-    #[tracing::instrument(level = "debug", skip_all)]
-    async fn get_basic_mixnodes(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
-        let params = if let Some(semver_compatibility) = &semver_compatibility {
-            vec![("semver_compatibility", semver_compatibility.as_str())]
-        } else {
-            vec![]
-        };
-
         self.get_json(
             &[
                 routes::API_VERSION,
-                "unstable",
-                "nym-nodes",
-                "mixnodes",
-                "skimmed",
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_BONDED,
             ],
             &params,
         )
@@ -212,26 +248,46 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_basic_gateways(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
-        let params = if let Some(semver_compatibility) = &semver_compatibility {
-            vec![("semver_compatibility", semver_compatibility.as_str())]
-        } else {
-            vec![]
-        };
-
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_basic_mixnodes(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
+                "mixnodes",
+                "skimmed",
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[deprecated]
+    #[instrument(level = "debug", skip(self))]
+    async fn get_basic_gateways(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
                 "gateways",
                 "skimmed",
             ],
-            &params,
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_rewarded_set(&self) -> Result<RewardedSetResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_REWARDED_SET,
+            ],
+            NO_PARAMS,
         )
         .await
     }
@@ -241,16 +297,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_entry_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -268,7 +319,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "entry-gateways",
                 "all",
@@ -283,16 +334,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_active_mixing_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -310,7 +356,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "mixnodes",
                 "active",
@@ -325,16 +371,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_mixing_capable_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -352,7 +393,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "mixnodes",
                 "all",
@@ -365,16 +406,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -389,7 +425,12 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         self.get_json(
-            &[routes::API_VERSION, "unstable", "nym-nodes", "skimmed"],
+            &[
+                routes::API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
+                "skimmed",
+            ],
             &params,
         )
         .await
@@ -698,8 +739,8 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "nym-nodes",
-                "performance",
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE,
                 &node_id.to_string(),
             ],
             NO_PARAMS,
@@ -714,8 +755,8 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "nym-nodes",
-                "annotation",
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_ANNOTATION,
                 &node_id.to_string(),
             ],
             NO_PARAMS,
@@ -805,20 +846,6 @@ pub trait NymApiClientExt: ApiClient {
             ],
             NO_PARAMS,
             request_body,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn double_spending_filter_v1(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::ECASH_ROUTES,
-                routes::DOUBLE_SPENDING_FILTER_V1,
-            ],
-            NO_PARAMS,
         )
         .await
     }
@@ -933,18 +960,24 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn force_refresh_describe_cache(
         &self,
         request: &NodeRefreshBody,
     ) -> Result<(), NymAPIError> {
         self.post_json(
-            &[routes::API_VERSION, "nym-nodes", "refresh-described"],
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_REFRESH_DESCRIBED,
+            ],
             NO_PARAMS,
             request,
         )
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn issued_ticketbooks_for(
         &self,
         expiration_date: Date,
@@ -961,6 +994,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn issued_ticketbooks_challenge(
         &self,
         expiration_date: Date,
@@ -977,6 +1011,15 @@ pub trait NymApiClientExt: ApiClient {
                 expiration_date,
                 deposits,
             },
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_network_details(&self) -> Result<NymNetworkDetailsResponse, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::NETWORK, routes::DETAILS],
+            NO_PARAMS,
         )
         .await
     }

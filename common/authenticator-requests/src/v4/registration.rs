@@ -28,7 +28,7 @@ pub type HmacSha256 = Hmac<Sha256>;
 pub type Nonce = u64;
 pub type Taken = Option<SystemTime>;
 
-pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
+pub const BANDWIDTH_CAP_PER_DAY: u64 = 250 * 1024 * 1024 * 1024; // 250 GB
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {
@@ -60,7 +60,7 @@ impl From<IpAddr> for IpPair {
             std::net::IpAddr::V4(ipv4_addr) => (ipv4_addr.octets()[2], ipv4_addr.octets()[3]),
             std::net::IpAddr::V6(ipv6_addr) => (ipv6_addr.octets()[14], ipv6_addr.octets()[15]),
         };
-        let last_bytes = (before_last_byte as u16) << 8 | last_byte as u16;
+        let last_bytes = ((before_last_byte as u16) << 8) | last_byte as u16;
         let ipv4 = Ipv4Addr::new(
             WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[0],
             WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[1],
@@ -81,7 +81,7 @@ impl From<IpAddr> for IpPair {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,
@@ -93,7 +93,7 @@ impl InitMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FinalMessage {
     /// Gateway client data
     pub gateway_client: GatewayClient,
@@ -102,28 +102,28 @@ pub struct FinalMessage {
     pub credential: Option<CredentialSpendingData>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RegistrationData {
     pub nonce: u64,
     pub gateway_data: GatewayClient,
     pub wg_port: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RegistredData {
     pub pub_key: PeerPublicKey,
     pub private_ips: IpPair,
     pub wg_port: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RemainingBandwidthData {
     pub available_bandwidth: i64,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GatewayClient {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,
@@ -199,7 +199,7 @@ impl GatewayClient {
 
 // TODO: change the inner type into generic array of size HmacSha256::OutputSize
 // TODO2: rely on our internal crypto/hmac
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClientMac(Vec<u8>);
 
 impl fmt::Display for ClientMac {

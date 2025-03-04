@@ -1,8 +1,9 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cipher_export::StoredExportedStoreCipher;
 use crate::error::StorageError;
+use indexed_db_futures::transaction::TransactionMode;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, KeySizeUser, Params, StoreCipher, Unsigned,
     Version,
@@ -13,7 +14,10 @@ use std::future::IntoFuture;
 use wasm_bindgen::JsValue;
 use wasm_utils::console_log;
 
+pub use indexed_db_futures::database::{Database, VersionChangeEvent};
 pub use indexed_db_futures::prelude::*;
+pub use indexed_db_futures::primitive::{TryFromJs, TryToJs};
+pub use indexed_db_futures::Result as RawDbResult;
 
 mod cipher_export;
 pub mod error;
@@ -54,31 +58,29 @@ impl WasmStorage {
         passphrase: Option<&[u8]>,
     ) -> Result<Self, StorageError>
     where
-        F: Fn(&IdbVersionChangeEvent) -> Result<(), JsValue> + 'static,
+        F: Fn(VersionChangeEvent, Database) -> RawDbResult<()> + 'static,
     {
-        let mut db_req: OpenDbRequest = IdbDatabase::open_u32(db_name, version)?;
-
         // we must always ensure the cipher table is present
-        db_req.set_on_upgrade_needed(Some(
-            move |evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+        let db = Database::open(db_name)
+            .with_version(version)
+            .with_on_upgrade_needed(move |event, db| {
                 // Even if the web-sys bindings expose the version as a f64, the IndexedDB API
                 // works with an unsigned integer.
                 // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
-                let old_version = evt.old_version() as u32;
+                let old_version = event.old_version() as u32;
 
                 if old_version < 1 {
-                    evt.db().create_object_store(CIPHER_INFO_STORE)?;
+                    db.create_object_store(CIPHER_INFO_STORE).build()?;
                 }
 
                 if let Some(migrate) = migrate_fn.as_ref() {
-                    migrate(evt)
+                    migrate(event, db)
                 } else {
                     Ok(())
                 }
-            },
-        ));
+            })
+            .await?;
 
-        let db: IdbDatabase = db_req.into_future().await?;
         let inner = IdbWrapper(db);
         let store_cipher = inner.setup_store_cipher(passphrase).await?;
 
@@ -94,13 +96,12 @@ impl WasmStorage {
     }
 
     pub async fn remove(db_name: &str) -> Result<(), StorageError> {
-        IdbDatabase::delete_by_name(db_name)?.into_future().await?;
+        Database::delete_by_name(db_name)?.into_future().await?;
         Ok(())
     }
 
     pub async fn exists(db_name: &str) -> Result<bool, StorageError> {
-        let db_req: OpenDbRequest = IdbDatabase::open(db_name)?;
-        let db: IdbDatabase = db_req.into_future().await?;
+        let db = Database::open(db_name).await?;
 
         // if the db was already created before, at the very least cipher info store should exist,
         // thus the iterator should return at least one value
@@ -139,7 +140,7 @@ impl WasmStorage {
     pub async fn read_value<T, K>(&self, store: &str, key: K) -> Result<Option<T>, StorageError>
     where
         T: DeserializeOwned,
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.inner
             .read_value_raw(store, key)
@@ -156,7 +157,7 @@ impl WasmStorage {
     ) -> Result<(), StorageError>
     where
         T: Serialize,
-        K: wasm_bindgen::JsCast,
+        K: TryToJs + TryFromJs,
     {
         self.inner
             .store_value_raw(store, key, &self.serialize_value(&value)?)
@@ -165,14 +166,14 @@ impl WasmStorage {
 
     pub async fn remove_value<K>(&self, store: &str, key: K) -> Result<(), StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.inner.remove_value_raw(store, key).await
     }
 
     pub async fn has_value<K>(&self, store: &str, key: K) -> Result<bool, StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         match self.key_count(store, key).await? {
             0 => Ok(false),
@@ -183,82 +184,98 @@ impl WasmStorage {
 
     pub async fn key_count<K>(&self, store: &str, key: K) -> Result<u32, StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.inner.get_key_count(store, key).await
     }
 
-    pub async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
+    pub async fn get_all_keys(&self, store: &str) -> Result<Vec<JsValue>, StorageError> {
         self.inner.get_all_keys(store).await
     }
 }
 
-struct IdbWrapper(IdbDatabase);
+struct IdbWrapper(Database);
 
 impl IdbWrapper {
     async fn read_value_raw<K>(&self, store: &str, key: K) -> Result<Option<JsValue>, StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.0
-            .transaction_on_one_with_mode(store, IdbTransactionMode::Readonly)?
+            .transaction(store)
+            .with_mode(TransactionMode::Readonly)
+            .build()?
             .object_store(store)?
-            .get(&key)?
+            .get(&key)
+            .primitive()?
             .await
             .map_err(Into::into)
     }
 
-    async fn store_value_raw<K>(
+    async fn store_value_raw<K, T>(
         &self,
         store: &str,
         key: K,
-        value: &JsValue,
+        value: &T,
     ) -> Result<(), StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs + TryFromJs,
+        T: TryToJs,
     {
-        self.0
-            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
-            .object_store(store)?
-            .put_key_val_owned(key, value)?
-            .into_future()
-            .await
-            .map_err(Into::into)
+        let tx = self
+            .0
+            .transaction(store)
+            .with_mode(TransactionMode::Readwrite)
+            .build()?;
+
+        let store = tx.object_store(store)?;
+        store.put(value).with_key(key).primitive()?.await?;
+
+        tx.commit().await.map_err(Into::into)
     }
 
     async fn remove_value_raw<K>(&self, store: &str, key: K) -> Result<(), StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
-        self.0
-            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
-            .object_store(store)?
-            .delete_owned(key)?
-            .into_future()
-            .await
-            .map_err(Into::into)
+        let tx = self
+            .0
+            .transaction(store)
+            .with_mode(TransactionMode::Readwrite)
+            .build()?;
+
+        let store = tx.object_store(store)?;
+        store.delete(key).primitive()?.await?;
+
+        tx.commit().await.map_err(Into::into)
     }
 
     async fn get_key_count<K>(&self, store: &str, key: K) -> Result<u32, StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.0
-            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
+            .transaction(store)
+            .with_mode(TransactionMode::Readonly)
+            .build()?
             .object_store(store)?
-            .count_with_key_owned(key)?
-            .into_future()
+            .count()
+            .with_query(key)
+            .primitive()?
             .await
             .map_err(Into::into)
     }
 
-    async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
+    async fn get_all_keys(&self, store: &str) -> Result<Vec<JsValue>, StorageError> {
         self.0
-            .transaction_on_one_with_mode(store, IdbTransactionMode::Readonly)?
+            .transaction(store)
+            .with_mode(TransactionMode::Readonly)
+            .build()?
             .object_store(store)?
-            .get_all_keys()?
-            .into_future()
-            .await
+            .get_all_keys()
+            .primitive()?
+            .await?
+            .collect::<Result<Vec<_>, _>>()
             .map_err(Into::into)
     }
 

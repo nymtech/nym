@@ -15,6 +15,7 @@ pub mod error;
 mod manager;
 mod models;
 
+#[derive(Clone)]
 pub struct OnDiskGatewaysDetails {
     manager: StorageManager,
 }

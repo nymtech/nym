@@ -10,11 +10,9 @@ use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_chunking::fragment::COVER_FRAG_ID;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType, DEFAULT_NUM_MIX_HOPS,
-};
+use nym_sphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType};
 use nym_sphinx_types::NymPacket;
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 
 use std::time;
@@ -36,7 +34,7 @@ pub enum CoverMessageError {
 
 pub fn generate_loop_cover_surb_ack<R>(
     rng: &mut R,
-    topology: &NymTopology,
+    topology: &NymRouteProvider,
     ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
@@ -59,7 +57,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
-    topology: &NymTopology,
+    topology: &NymRouteProvider,
     ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
@@ -118,8 +116,7 @@ where
         .chain(cover_content)
         .collect();
 
-    let route =
-        topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, full_address.gateway())?;
+    let route = topology.random_route_to_egress(rng, full_address.gateway())?;
     let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
     let destination = full_address.as_sphinx_destination();
 

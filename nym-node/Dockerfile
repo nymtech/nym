@@ -1,4 +1,5 @@
-FROM rust:latest AS builder
+# this will only work with VPN, otherwise remove the harbor part
+FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-node
@@ -65,9 +66,15 @@ RUN cargo build --release
 # see https://github.com/nymtech/nym/blob/develop/nym-node/src/env.rs for details
 #-------------------------------------------------------------------
 
-FROM ubuntu:24.04
+FROM harbor.nymte.ch/dockerhub/ubuntu:24.04
 
 WORKDIR /nym
 
+RUN apt update && apt install -y wget
+
 COPY --from=builder /usr/src/nym/target/release/nym-node ./
-ENTRYPOINT [ "/nym/nym-node" ]
+COPY ./nym-node/entrypoint.sh ./
+RUN wget https://builds.ci.nymte.ch/develop/nym-cli
+RUN chmod +x nym-cli
+
+ENTRYPOINT [ "./entrypoint.sh" ]

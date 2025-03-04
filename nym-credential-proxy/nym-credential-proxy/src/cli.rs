@@ -55,6 +55,15 @@ pub struct Cli {
     )]
     pub(crate) http_auth_token: String,
 
+    /// Specify the maximum number of deposits the credential proxy can make in a single transaction
+    /// (default: 32)
+    #[clap(
+        long,
+        env = "NYM_CREDENTIAL_PROXY_MAX_CONCURRENT_DEPOSITS",
+        default_value_t = 32
+    )]
+    pub(crate) max_concurrent_deposits: usize,
+
     #[clap(long, env = "NYM_CREDENTIAL_PROXY_PERSISTENT_STORAGE_STORAGE")]
     pub(crate) persistent_storage_path: Option<PathBuf>,
 }

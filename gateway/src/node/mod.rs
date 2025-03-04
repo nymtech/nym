@@ -1,60 +1,46 @@
-// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
 use crate::error::GatewayError;
-use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::helpers::GatewayTopologyProvider;
-use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use futures::channel::{mpsc, oneshot};
+use crate::node::internal_service_providers::{
+    ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
+};
+use futures::channel::oneshot;
+use nym_authenticator::Authenticator;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
-use nym_crypto::asymmetric::{encryption, identity};
-use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use nym_crypto::asymmetric::ed25519;
+use nym_gateway_storage::models::WireguardPeer;
+use nym_ip_packet_router::IpPacketRouter;
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
-use nym_node_http_api::state::metrics::SharedSessionStats;
-use nym_statistics_common::gateways::{self, GatewayStatsReporter};
-use nym_task::{TaskClient, TaskHandle, TaskManager};
-use nym_topology::NetworkAddress;
-use nym_validator_client::client::NodeId;
+use nym_network_requester::NRServiceProviderBuilder;
+use nym_node_metrics::events::MetricEventsSender;
+use nym_task::TaskClient;
+use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, UserAgent};
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use statistics::GatewayStatisticsCollector;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::IpAddr;
 use std::path::PathBuf;
-use std::process;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::*;
+use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
-pub(crate) mod helpers;
-pub(crate) mod mixnet_handling;
-pub(crate) mod statistics;
+mod internal_service_providers;
+mod stale_data_cleaner;
 
+use crate::node::stale_data_cleaner::StaleMessagesCleaner;
+pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
-pub use nym_gateway_storage::{PersistentStorage, Storage};
-
-// TODO: should this struct live here?
-struct StartedNetworkRequester {
-    /// Handle to interact with the local network requester
-    handle: LocalEmbeddedClientHandle,
-}
-
-// TODO: should this struct live here?
-#[allow(unused)]
-struct StartedAuthenticator {
-    wg_api: Arc<nym_wireguard::WgApiWrapper>,
-
-    /// Handle to interact with the local authenticator
-    handle: LocalEmbeddedClientHandle,
-}
+pub use nym_gateway_storage::{error::GatewayStorageError, GatewayStorage};
+use nym_node_metrics::NymNodeMetrics;
+pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -77,448 +63,106 @@ pub struct LocalAuthenticatorOpts {
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
-pub struct Gateway<St = PersistentStorage> {
+pub struct GatewayTasksBuilder {
     config: Config,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
 
-    // Use None when wireguard feature is not enabled too
-    #[allow(dead_code)]
     authenticator_opts: Option<LocalAuthenticatorOpts>,
 
-    /// ed25519 keypair used to assert one's identity.
-    identity_keypair: Arc<identity::KeyPair>,
-
-    /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
-    sphinx_keypair: Arc<encryption::KeyPair>,
-
-    client_storage: St,
-
-    user_agent: UserAgent,
-
-    stats_storage: PersistentStatsStorage,
-
+    // TODO: combine with authenticator, since you have to start both
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
-    session_stats: Option<SharedSessionStats>,
+    /// ed25519 keypair used to assert one's identity.
+    identity_keypair: Arc<ed25519::KeyPair>,
 
-    task_client: Option<TaskClient>,
+    storage: GatewayStorage,
+
+    mix_packet_sender: MixForwardingSender,
+
+    metrics_sender: MetricEventsSender,
+
+    metrics: NymNodeMetrics,
+
+    mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+
+    shutdown: TaskClient,
+
+    // populated and cached as necessary
+    ecash_manager: Option<Arc<EcashManager>>,
+
+    wireguard_peers: Option<Vec<WireguardPeer>>,
+
+    wireguard_networks: Option<Vec<IpAddr>>,
 }
 
-impl<St> Gateway<St> {
+impl Drop for GatewayTasksBuilder {
+    fn drop(&mut self) {
+        // disarm the shutdown as it was already used to construct relevant tasks and we don't want the builder
+        // to cause shutdown
+        self.shutdown.disarm();
+    }
+}
+
+impl GatewayTasksBuilder {
     #[allow(clippy::too_many_arguments)]
-    pub fn new_loaded(
+    pub fn new(
         config: Config,
-        network_requester_opts: Option<LocalNetworkRequesterOpts>,
-        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
-        authenticator_opts: Option<LocalAuthenticatorOpts>,
-        identity_keypair: Arc<identity::KeyPair>,
-        sphinx_keypair: Arc<encryption::KeyPair>,
-        client_storage: St,
-        user_agent: UserAgent,
-        stats_storage: PersistentStatsStorage,
-    ) -> Self {
-        Gateway {
+        identity: Arc<ed25519::KeyPair>,
+        storage: GatewayStorage,
+        mix_packet_sender: MixForwardingSender,
+        metrics_sender: MetricEventsSender,
+        metrics: NymNodeMetrics,
+        mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+        shutdown: TaskClient,
+    ) -> GatewayTasksBuilder {
+        GatewayTasksBuilder {
             config,
-            network_requester_opts,
-            ip_packet_router_opts,
-            authenticator_opts,
-            identity_keypair,
-            sphinx_keypair,
-            client_storage,
-            user_agent,
-            stats_storage,
+            network_requester_opts: None,
+            ip_packet_router_opts: None,
+            authenticator_opts: None,
             wireguard_data: None,
-            session_stats: None,
-            task_client: None,
+            identity_keypair: identity,
+            storage,
+            mix_packet_sender,
+            metrics_sender,
+            metrics,
+            mnemonic,
+            shutdown,
+            ecash_manager: None,
+            wireguard_peers: None,
+            wireguard_networks: None,
         }
     }
 
-    pub fn set_task_client(&mut self, task_client: TaskClient) {
-        self.task_client = Some(task_client)
+    pub fn set_network_requester_opts(
+        &mut self,
+        network_requester_opts: Option<LocalNetworkRequesterOpts>,
+    ) {
+        self.network_requester_opts = network_requester_opts;
     }
 
-    pub fn set_session_stats(&mut self, session_stats: SharedSessionStats) {
-        self.session_stats = Some(session_stats);
+    pub fn set_ip_packet_router_opts(
+        &mut self,
+        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+    ) {
+        self.ip_packet_router_opts = ip_packet_router_opts;
+    }
+
+    pub fn set_authenticator_opts(&mut self, authenticator_opts: Option<LocalAuthenticatorOpts>) {
+        self.authenticator_opts = authenticator_opts;
     }
 
     pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
         self.wireguard_data = Some(wireguard_data)
     }
 
-    fn gateway_topology_provider(&self) -> GatewayTopologyProvider {
-        // TODO: make topology ttl configurable
-        // (to be done in reeses with the final smooshing)
-        GatewayTopologyProvider::new(
-            self.as_topology_node(),
-            Duration::from_secs(5 * 60),
-            self.user_agent.clone(),
-            self.config.gateway.nym_api_urls.clone(),
-        )
-    }
-
-    fn as_topology_node(&self) -> nym_topology::gateway::LegacyNode {
-        let ip = self
-            .config
-            .host
-            .public_ips
-            .first()
-            .copied()
-            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST));
-        let mix_host = SocketAddr::new(ip, self.config.gateway.mix_port);
-
-        nym_topology::gateway::LegacyNode {
-            // those fields are irrelevant for the purposes of routing so it's fine if they're inaccurate.
-            // the only thing that matters is the identity key (and maybe version)
-            node_id: NodeId::MAX,
-            mix_host,
-            host: NetworkAddress::IpAddr(ip),
-            clients_ws_port: self.config.gateway.clients_port,
-            clients_wss_port: self.config.gateway.clients_wss_port,
-            sphinx_key: *self.sphinx_keypair.public_key(),
-
-            identity_key: *self.identity_keypair.public_key(),
-            version: env!("CARGO_PKG_VERSION").into(),
-        }
-    }
-
-    fn start_mix_socket_listener(
+    // if this is to be used anywhere else, we might need some wrapper around it
+    async fn build_nyxd_signing_client(
         &self,
-        ack_sender: MixForwardingSender,
-        active_clients_store: ActiveClientsStore,
-        shutdown: TaskClient,
-    ) where
-        St: Storage + Clone + 'static,
-    {
-        info!("Starting mix socket listener...");
-
-        let packet_processor =
-            mixnet_handling::PacketProcessor::new(self.sphinx_keypair.private_key());
-
-        let connection_handler = ConnectionHandler::new(
-            packet_processor,
-            self.client_storage.clone(),
-            ack_sender,
-            active_clients_store,
-        );
-
-        let listening_address = SocketAddr::new(
-            self.config.gateway.listening_address,
-            self.config.gateway.mix_port,
-        );
-
-        mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
-    }
-
-    #[cfg(target_os = "linux")]
-    async fn start_authenticator(
-        &mut self,
-        forwarding_channel: MixForwardingSender,
-        topology_provider: GatewayTopologyProvider,
-        shutdown: TaskClient,
-        ecash_verifier: Arc<EcashManager<St>>,
-    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
-    where
-        St: Storage + Clone + 'static,
-    {
-        let opts = self
-            .authenticator_opts
-            .as_ref()
-            .ok_or(GatewayError::UnspecifiedAuthenticatorConfig)?;
-        let (router_tx, mut router_rx) = oneshot::channel();
-        let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
-        let router_shutdown = shutdown.fork("message_router");
-        let transceiver = LocalGateway::new(
-            *self.identity_keypair.public_key(),
-            forwarding_channel,
-            router_tx,
-        );
-        let mut used_private_network_ips = vec![];
-        let mut all_peers = vec![];
-        for wireguard_peer in self
-            .client_storage
-            .get_all_wireguard_peers()
-            .await?
-            .into_iter()
-        {
-            let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
-            let Some(peer) = peer.allowed_ips.pop() else {
-                tracing::warn!(
-                    "Peer {} has empty allowed ips. It will be removed",
-                    peer.public_key
-                );
-                self.client_storage
-                    .remove_wireguard_peer(&peer.public_key.to_string())
-                    .await?;
-                continue;
-            };
-            used_private_network_ips.push(peer.ip);
-            all_peers.push(wireguard_peer);
-        }
-
-        if let Some(wireguard_data) = self.wireguard_data.take() {
-            let (on_start_tx, on_start_rx) = oneshot::channel();
-            let mut authenticator_server = nym_authenticator::Authenticator::new(
-                opts.config.clone(),
-                wireguard_data.inner.clone(),
-                used_private_network_ips,
-            )
-            .with_ecash_verifier(ecash_verifier)
-            .with_custom_gateway_transceiver(Box::new(transceiver))
-            .with_shutdown(shutdown.fork("authenticator"))
-            .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0)
-            .with_custom_topology_provider(Box::new(topology_provider))
-            .with_on_start(on_start_tx);
-
-            if let Some(custom_mixnet) = &opts.custom_mixnet_path {
-                authenticator_server = authenticator_server.with_stored_topology(custom_mixnet)?
-            }
-
-            tokio::spawn(async move {
-                if let Err(e) = authenticator_server.run_service_provider().await {
-                    error!("Run authenticator server - {e}");
-                }
-            });
-
-            let start_data = on_start_rx
-                .await
-                .map_err(|_| GatewayError::AuthenticatorStartupFailure)?;
-
-            // this should be instantaneous since the data is sent on this channel before the on start is called;
-            // the failure should be impossible
-            let Ok(Some(packet_router)) = router_rx.try_recv() else {
-                return Err(Box::new(GatewayError::AuthenticatorStartupFailure));
-            };
-
-            MessageRouter::new(auth_mix_receiver, packet_router)
-                .start_with_shutdown(router_shutdown);
-
-            let wg_api = nym_wireguard::start_wireguard(
-                self.client_storage.clone(),
-                all_peers,
-                shutdown,
-                wireguard_data,
-            )
-            .await?;
-
-            Ok(StartedAuthenticator {
-                wg_api,
-                handle: LocalEmbeddedClientHandle::new(start_data.address, auth_mix_sender),
-            })
-        } else {
-            Err(Box::new(GatewayError::InternalWireguardError(
-                "wireguard not set".to_string(),
-            )))
-        }
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    async fn start_authenticator(
-        &self,
-        _forwarding_channel: MixForwardingSender,
-        _topology_provider: GatewayTopologyProvider,
-        _shutdown: TaskClient,
-        _ecash_verifier: Arc<EcashManager<St>>,
-    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
-        todo!("Authenticator is currently only supported on Linux");
-    }
-
-    fn start_client_websocket_listener(
-        &self,
-        forwarding_channel: MixForwardingSender,
-        active_clients_store: ActiveClientsStore,
-        shutdown: TaskClient,
-        ecash_verifier: Arc<EcashManager<St>>,
-        stats_event_reporter: GatewayStatsReporter,
-    ) where
-        St: Storage + Send + Sync + Clone + 'static,
-    {
-        info!("Starting client [web]socket listener...");
-
-        let listening_address = SocketAddr::new(
-            self.config.gateway.listening_address,
-            self.config.gateway.clients_port,
-        );
-
-        let shared_state = websocket::CommonHandlerState {
-            ecash_verifier,
-            storage: self.client_storage.clone(),
-            local_identity: Arc::clone(&self.identity_keypair),
-            only_coconut_credentials: self.config.gateway.only_coconut_credentials,
-            bandwidth_cfg: (&self.config).into(),
-            stats_event_reporter,
-        };
-
-        websocket::Listener::new(listening_address, shared_state).start(
-            forwarding_channel,
-            active_clients_store,
-            shutdown,
-        );
-    }
-
-    fn start_packet_forwarder(&self, shutdown: TaskClient) -> MixForwardingSender {
-        info!("Starting mix packet forwarder...");
-
-        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
-            self.config.debug.packet_forwarding_initial_backoff,
-            self.config.debug.packet_forwarding_maximum_backoff,
-            self.config.debug.initial_connection_timeout,
-            self.config.debug.maximum_connection_buffer_size,
-            self.config.debug.use_legacy_framed_packet_version,
-            shutdown,
-        );
-
-        tokio::spawn(async move { packet_forwarder.run().await });
-        packet_sender
-    }
-
-    fn start_stats_collector(
-        &self,
-        shared_session_stats: SharedSessionStats,
-        shutdown: TaskClient,
-    ) -> gateways::GatewayStatsReporter {
-        info!("Starting gateway stats collector...");
-
-        let (mut stats_collector, stats_event_sender) =
-            GatewayStatisticsCollector::new(shared_session_stats, self.stats_storage.clone());
-        tokio::spawn(async move { stats_collector.run(shutdown).await });
-        stats_event_sender
-    }
-
-    // TODO: rethink the logic in this function...
-    async fn start_network_requester(
-        &self,
-        forwarding_channel: MixForwardingSender,
-        topology_provider: GatewayTopologyProvider,
-        shutdown: TaskClient,
-    ) -> Result<StartedNetworkRequester, GatewayError> {
-        info!("Starting network requester...");
-
-        // if network requester is enabled, configuration file must be provided!
-        let Some(nr_opts) = &self.network_requester_opts else {
-            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
-        };
-
-        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
-        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
-        let router_shutdown = shutdown.fork("message_router");
-
-        let (router_tx, mut router_rx) = oneshot::channel();
-
-        let transceiver = LocalGateway::new(
-            *self.identity_keypair.public_key(),
-            forwarding_channel,
-            router_tx,
-        );
-
-        let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
-            .with_shutdown(shutdown)
-            .with_custom_gateway_transceiver(Box::new(transceiver))
-            .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0)
-            .with_custom_topology_provider(Box::new(topology_provider))
-            .with_on_start(on_start_tx);
-
-        if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
-            nr_builder = nr_builder.with_stored_topology(custom_mixnet)?
-        }
-
-        tokio::spawn(async move {
-            if let Err(err) = nr_builder.run_service_provider().await {
-                // no need to panic as we have passed a task client to the NR so we're most likely
-                // already in the process of shutting down
-                error!("network requester has failed: {err}")
-            }
-        });
-
-        let start_data = on_start_rx
-            .await
-            .map_err(|_| GatewayError::NetworkRequesterStartupFailure)?;
-
-        // this should be instantaneous since the data is sent on this channel before the on start is called;
-        // the failure should be impossible
-        let Ok(Some(packet_router)) = router_rx.try_recv() else {
-            return Err(GatewayError::NetworkRequesterStartupFailure);
-        };
-
-        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
-        let address = start_data.address;
-
-        info!("the local network requester is running on {address}",);
-        Ok(StartedNetworkRequester {
-            handle: LocalEmbeddedClientHandle::new(address, nr_mix_sender),
-        })
-    }
-
-    async fn start_ip_packet_router(
-        &self,
-        forwarding_channel: MixForwardingSender,
-        topology_provider: GatewayTopologyProvider,
-        shutdown: TaskClient,
-    ) -> Result<LocalEmbeddedClientHandle, GatewayError> {
-        info!("Starting IP packet provider...");
-
-        // if network requester is enabled, configuration file must be provided!
-        let Some(ip_opts) = &self.ip_packet_router_opts else {
-            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
-        };
-
-        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
-        let (ipr_mix_sender, ipr_mix_receiver) = mpsc::unbounded();
-        let router_shutdown = shutdown.fork("message_router");
-
-        let (router_tx, mut router_rx) = oneshot::channel();
-
-        let transceiver = LocalGateway::new(
-            *self.identity_keypair.public_key(),
-            forwarding_channel,
-            router_tx,
-        );
-
-        let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut ip_packet_router =
-            nym_ip_packet_router::IpPacketRouter::new(ip_opts.config.clone())
-                .with_shutdown(shutdown)
-                .with_custom_gateway_transceiver(Box::new(transceiver))
-                .with_wait_for_gateway(true)
-                .with_minimum_gateway_performance(0)
-                .with_custom_topology_provider(Box::new(topology_provider))
-                .with_on_start(on_start_tx);
-
-        if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
-            ip_packet_router = ip_packet_router.with_stored_topology(custom_mixnet)?
-        }
-
-        tokio::spawn(async move {
-            if let Err(err) = ip_packet_router.run_service_provider().await {
-                // no need to panic as we have passed a task client to the ip packet router so
-                // we're most likely already in the process of shutting down
-                error!("ip packet router has failed: {err}")
-            }
-        });
-
-        let start_data = on_start_rx
-            .await
-            .map_err(|_| GatewayError::IpPacketRouterStartupFailure)?;
-
-        // this should be instantaneous since the data is sent on this channel before the on start is called;
-        // the failure should be impossible
-        let Ok(Some(packet_router)) = router_rx.try_recv() else {
-            return Err(GatewayError::IpPacketRouterStartupFailure);
-        };
-
-        MessageRouter::new(ipr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
-        let address = start_data.address;
-
-        info!("the local ip packet router is running on {address}");
-        Ok(LocalEmbeddedClientHandle::new(address, ipr_mix_sender))
-    }
-
-    fn random_nyxd_client(&self) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
+    ) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
@@ -527,81 +171,38 @@ impl<St> Gateway<St> {
         let network_details = NymNetworkDetails::new_from_env();
         let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
 
-        DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+        let nyxd_client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             client_config,
             validator_nyxd.as_ref(),
-            self.config.get_cosmos_mnemonic(),
-        )
-        .map_err(Into::into)
-    }
+            (**self.mnemonic).clone(),
+        )?;
 
-    async fn check_if_bonded(&self) -> bool {
-        // TODO: if anything, this should be getting data directly from the contract
-        // as opposed to the validator API
-        for api_url in self.config.get_nym_api_endpoints() {
-            let client = nym_validator_client::NymApiClient::new(api_url.clone());
-            match client.get_all_basic_nodes(None).await {
-                Ok(nodes) => {
-                    return nodes.iter().any(|node| {
-                        &node.ed25519_identity_pubkey == self.identity_keypair.public_key()
-                    })
-                }
-                Err(err) => {
-                    error!("failed to grab initial network gateways from {api_url}: {err}",);
-                }
-            }
-        }
+        let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
+        let account = nyxd_client.address();
+        let balance = nyxd_client
+            .get_balance(&account, mix_denom_base.clone())
+            .await?
+            .unwrap_or(Coin::new(0, mix_denom_base));
 
-        error!(
-            "failed to grab initial network gateways from any of the available apis. Please try to startup again in few minutes",
-        );
-        process::exit(1);
-    }
-
-    pub async fn run(mut self) -> Result<(), GatewayError>
-    where
-        St: Storage + Clone + 'static,
-    {
-        info!("Starting nym gateway!");
-
-        if self.check_if_bonded().await {
-            warn!("You seem to have bonded your gateway before starting it - that's highly unrecommended as in the future it might result in slashing");
-        }
-
-        let shutdown = self
-            .task_client
-            .take()
-            .map(Into::<TaskHandle>::into)
-            .unwrap_or_else(|| TaskHandle::Internal(TaskManager::new(10)))
-            .name_if_unnamed("gateway");
-
-        let nyxd_client = self.random_nyxd_client()?;
-
-        if self.config.gateway.only_coconut_credentials {
-            debug!("the gateway is running in coconut-only mode - making sure it has enough tokens for credential redemption");
-            let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
-
-            let account = nyxd_client.address();
-            let balance = nyxd_client
-                .get_balance(&account, mix_denom_base.clone())
-                .await?
-                .unwrap_or(Coin::new(0, mix_denom_base));
-
-            error!("this gateway does not have enough tokens for covering transaction fees for credential redemption");
-
-            // see if we have at least 1nym (i.e. 1'000'000unym)
-            if balance.amount < 1_000_000 {
+        // see if we have at least 1nym (i.e. 1'000'000unym)
+        if balance.amount < 1_000_000 {
+            // don't allow constructing the client of we have to use zknym and don't have sufficient balance
+            if self.config.gateway.enforce_zk_nyms {
                 return Err(GatewayError::InsufficientNodeBalance { account, balance });
             }
+
+            // TODO: this has to be enforced **ALL THE TIME in ENTRY mode**,
+            // because even if we don't demand zknym, somebody may send them and we need sufficient tokens for
+            // transaction fees for submitting redemption proposals
+            // but we're not going to introduce this check now as it would break a lot of existing gateways,
+            // so for now just log this error
+            error!("this gateway ({account}) has insufficient balance for possible zk-nym redemption transaction fees. it only has {balance} available.")
         }
-        let shared_session_stats = self.session_stats.take().unwrap_or_default();
-        let stats_event_sender = self.start_stats_collector(
-            shared_session_stats,
-            shutdown.fork("statistics::GatewayStatisticsCollector"),
-        );
 
-        let topology_provider = self.gateway_topology_provider();
+        Ok(nyxd_client)
+    }
 
+    async fn build_ecash_manager(&self) -> Result<Arc<EcashManager>, GatewayError> {
         let handler_config = CredentialHandlerConfig {
             revocation_bandwidth_penalty: self
                 .config
@@ -618,89 +219,272 @@ impl<St> Gateway<St> {
                 .maximum_time_between_redemption,
         };
 
-        let ecash_verifier = Arc::new(
+        let nyxd_client = self.build_nyxd_signing_client().await?;
+        let ecash_manager = Arc::new(
             EcashManager::new(
                 handler_config,
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
-                shutdown.fork("EcashVerifier"),
-                self.client_storage.clone(),
+                self.shutdown.fork("ecash_manager"),
+                self.storage.clone(),
             )
             .await?,
         );
+        Ok(ecash_manager)
+    }
 
-        let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
+    async fn ecash_manager(&mut self) -> Result<Arc<EcashManager>, GatewayError> {
+        match self.ecash_manager.clone() {
+            Some(cached) => Ok(cached),
+            None => {
+                let manager = self.build_ecash_manager().await?;
+                self.ecash_manager = Some(manager.clone());
+                Ok(manager)
+            }
+        }
+    }
 
-        let active_clients_store = ActiveClientsStore::new(stats_event_sender.clone());
-        self.start_mix_socket_listener(
-            mix_forwarding_channel.clone(),
-            active_clients_store.clone(),
-            shutdown.fork("mixnet_handling::Listener"),
-        );
-
-        self.start_client_websocket_listener(
-            mix_forwarding_channel.clone(),
-            active_clients_store.clone(),
-            shutdown.fork("websocket::Listener"),
-            ecash_verifier.clone(),
-            stats_event_sender.clone(),
-        );
-
-        if self.config.network_requester.enabled {
-            let embedded_nr = self
-                .start_network_requester(
-                    mix_forwarding_channel.clone(),
-                    topology_provider.clone(),
-                    shutdown.fork("NetworkRequester"),
-                )
-                .await?;
-            // insert information about embedded NR to the active clients store
-            active_clients_store.insert_embedded(embedded_nr.handle);
-        } else {
-            info!("embedded network requester is disabled");
+    pub async fn build_websocket_listener(
+        &mut self,
+        active_clients_store: ActiveClientsStore,
+    ) -> Result<websocket::Listener, GatewayError> {
+        let shared_state = websocket::CommonHandlerState {
+            ecash_verifier: self.ecash_manager().await?,
+            storage: self.storage.clone(),
+            local_identity: Arc::clone(&self.identity_keypair),
+            only_coconut_credentials: self.config.gateway.enforce_zk_nyms,
+            bandwidth_cfg: (&self.config).into(),
+            metrics: self.metrics.clone(),
+            metrics_sender: self.metrics_sender.clone(),
+            outbound_mix_sender: self.mix_packet_sender.clone(),
+            active_clients_store: active_clients_store.clone(),
         };
 
-        if self.config.ip_packet_router.enabled {
-            let embedded_ip_sp = self
-                .start_ip_packet_router(
-                    mix_forwarding_channel.clone(),
-                    topology_provider.clone(),
-                    shutdown.fork("ip_service_provider"),
-                )
-                .await?;
-            active_clients_store.insert_embedded(embedded_ip_sp);
-        } else {
-            info!("embedded ip packet router is disabled");
+        Ok(websocket::Listener::new(
+            self.config.gateway.websocket_bind_address,
+            shared_state,
+            self.shutdown.fork("websocket"),
+        ))
+    }
+
+    fn build_network_requester(
+        &mut self,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Result<ServiceProviderBeingBuilt<NRServiceProviderBuilder>, GatewayError> {
+        // if network requester is enabled, configuration file must be provided!
+        let Some(nr_opts) = &self.network_requester_opts else {
+            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
         };
 
-        let _wg_api = if self.wireguard_data.is_some() {
-            let embedded_auth = self
-                .start_authenticator(
-                    mix_forwarding_channel,
-                    topology_provider,
-                    shutdown.fork("authenticator"),
-                    ecash_verifier,
-                )
-                .await
-                .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
-            active_clients_store.insert_embedded(embedded_auth.handle);
-            Some(embedded_auth.wg_api)
-        } else {
-            None
-        };
-
-        info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
-
-        info!(
-            "Public key: {:?}",
-            self.identity_keypair.public_key().to_string()
+        let mut message_router_builder = SpMessageRouterBuilder::new(
+            *self.identity_keypair.public_key(),
+            self.mix_packet_sender.clone(),
+            self.shutdown.fork("network_requester_message_router"),
         );
+        let transceiver = message_router_builder.gateway_transceiver();
 
-        if let Err(source) = shutdown.wait_for_shutdown().await {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            return Err(GatewayError::ShutdownFailure { source });
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
+            .with_shutdown(self.shutdown.fork("network_requester_sp"))
+            .with_custom_gateway_transceiver(transceiver)
+            .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0)
+            .with_custom_topology_provider(topology_provider)
+            .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
+            nr_builder = nr_builder.with_stored_topology(custom_mixnet)?
         }
 
-        Ok(())
+        Ok(ServiceProviderBeingBuilt::new(
+            on_start_rx,
+            nr_builder,
+            message_router_builder,
+        ))
+    }
+
+    fn build_ip_router(
+        &mut self,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Result<ServiceProviderBeingBuilt<IpPacketRouter>, GatewayError> {
+        let Some(ip_opts) = &self.ip_packet_router_opts else {
+            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
+        };
+
+        let mut message_router_builder = SpMessageRouterBuilder::new(
+            *self.identity_keypair.public_key(),
+            self.mix_packet_sender.clone(),
+            self.shutdown.fork("ipr_message_router"),
+        );
+        let transceiver = message_router_builder.gateway_transceiver();
+
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+        let mut ip_packet_router = IpPacketRouter::new(ip_opts.config.clone())
+            .with_shutdown(self.shutdown.fork("ipr_sp"))
+            .with_custom_gateway_transceiver(Box::new(transceiver))
+            .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0)
+            .with_custom_topology_provider(topology_provider)
+            .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
+            ip_packet_router = ip_packet_router.with_stored_topology(custom_mixnet)?
+        }
+
+        Ok(ServiceProviderBeingBuilt::new(
+            on_start_rx,
+            ip_packet_router,
+            message_router_builder,
+        ))
+    }
+
+    pub fn build_exit_service_providers(
+        &mut self,
+        // TODO: redesign the trait to allow cloning more easily
+        // (or use concrete types)
+        nr_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        ipr_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Result<ExitServiceProviders, GatewayError> {
+        Ok(ExitServiceProviders {
+            network_requester: self.build_network_requester(nr_topology_provider)?,
+            ip_router: self.build_ip_router(ipr_topology_provider)?,
+        })
+    }
+
+    async fn build_wireguard_peers_and_networks(
+        &self,
+    ) -> Result<(Vec<WireguardPeer>, Vec<IpAddr>), GatewayError> {
+        let mut used_private_network_ips = vec![];
+        let mut all_peers = vec![];
+        for wireguard_peer in self.storage.get_all_wireguard_peers().await?.into_iter() {
+            let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
+            let Some(peer) = peer.allowed_ips.pop() else {
+                let peer_identity = &peer.public_key;
+                warn!("Peer {peer_identity} has empty allowed ips. It will be removed",);
+                self.storage
+                    .remove_wireguard_peer(&peer_identity.to_string())
+                    .await?;
+                continue;
+            };
+            used_private_network_ips.push(peer.ip);
+            all_peers.push(wireguard_peer);
+        }
+
+        Ok((all_peers, used_private_network_ips))
+    }
+
+    // only used under linux
+    #[allow(dead_code)]
+    async fn get_wireguard_peers(&mut self) -> Result<Vec<WireguardPeer>, GatewayError> {
+        if let Some(cached) = self.wireguard_peers.take() {
+            return Ok(cached);
+        }
+
+        let (peers, used_private_network_ips) = self.build_wireguard_peers_and_networks().await?;
+        // cache private networks for the other task
+
+        self.wireguard_networks = Some(used_private_network_ips);
+        Ok(peers)
+    }
+
+    async fn get_wireguard_networks(&mut self) -> Result<Vec<IpAddr>, GatewayError> {
+        if let Some(cached) = self.wireguard_networks.take() {
+            return Ok(cached);
+        }
+
+        let (peers, used_private_network_ips) = self.build_wireguard_peers_and_networks().await?;
+        // cache peers for the other task
+
+        self.wireguard_peers = Some(peers);
+        Ok(used_private_network_ips)
+    }
+
+    pub async fn build_wireguard_authenticator(
+        &mut self,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
+        let ecash_manager = self.ecash_manager().await?;
+        let used_private_network_ips = self.get_wireguard_networks().await?;
+
+        let Some(opts) = &self.authenticator_opts else {
+            return Err(GatewayError::UnspecifiedAuthenticatorConfig);
+        };
+        let Some(wireguard_data) = &self.wireguard_data else {
+            return Err(GatewayError::InternalWireguardError(
+                "wireguard not set".to_string(),
+            ));
+        };
+
+        let mut message_router_builder = SpMessageRouterBuilder::new(
+            *self.identity_keypair.public_key(),
+            self.mix_packet_sender.clone(),
+            self.shutdown.fork("authenticator_message_router"),
+        );
+        let transceiver = message_router_builder.gateway_transceiver();
+
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+
+        let mut authenticator_server = Authenticator::new(
+            opts.config.clone(),
+            wireguard_data.inner.clone(),
+            used_private_network_ips,
+        )
+        .with_ecash_verifier(ecash_manager)
+        .with_custom_gateway_transceiver(transceiver)
+        .with_shutdown(self.shutdown.fork("authenticator_sp"))
+        .with_wait_for_gateway(true)
+        .with_minimum_gateway_performance(0)
+        .with_custom_topology_provider(topology_provider)
+        .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &opts.custom_mixnet_path {
+            authenticator_server = authenticator_server.with_stored_topology(custom_mixnet)?
+        }
+
+        Ok(ServiceProviderBeingBuilt::new(
+            on_start_rx,
+            authenticator_server,
+            message_router_builder,
+        ))
+    }
+
+    pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {
+        StaleMessagesCleaner::new(
+            &self.storage,
+            self.shutdown.fork("stale_messages_cleaner"),
+            self.config.debug.stale_messages_max_age,
+            self.config.debug.stale_messages_cleaner_run_interval,
+        )
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub async fn try_start_wireguard(
+        &mut self,
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+        let _ = self.metrics.clone();
+        unimplemented!("wireguard is not supported on this platform")
+    }
+
+    #[cfg(target_os = "linux")]
+    pub async fn try_start_wireguard(
+        &mut self,
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+        let all_peers = self.get_wireguard_peers().await?;
+
+        let Some(wireguard_data) = self.wireguard_data.take() else {
+            return Err(
+                GatewayError::InternalWireguardError("wireguard not set".to_string()).into(),
+            );
+        };
+
+        let wg_handle = nym_wireguard::start_wireguard(
+            self.storage.clone(),
+            self.metrics.clone(),
+            all_peers,
+            self.shutdown.fork("wireguard"),
+            wireguard_data,
+        )
+        .await?;
+        Ok(wg_handle)
     }
 }

@@ -5,6 +5,7 @@
 #![allow(clippy::drop_non_drop)]
 
 use crate::error::WasmCoreError;
+use nym_client_core::config::ForgetMe;
 use nym_config::helpers::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
@@ -110,6 +111,8 @@ pub struct DebugWasm {
     /// Defines all configuration options related to stats reporting.
     #[wasm_bindgen(getter_with_clone)]
     pub stats_reporting: StatsReportingWasm,
+
+    pub forget_me: ForgetMeWasm,
 }
 
 impl Default for DebugWasm {
@@ -128,6 +131,7 @@ impl From<DebugWasm> for ConfigDebug {
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
+            forget_me: debug.forget_me.into(),
         }
     }
 }
@@ -142,6 +146,7 @@ impl From<ConfigDebug> for DebugWasm {
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
+            forget_me: ForgetMeWasm::from(debug.forget_me),
         }
     }
 }
@@ -387,6 +392,18 @@ pub struct TopologyWasm {
     /// Specifies a minimum performance of a gateway that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_gateway_performance: u8,
+
+    /// Specifies whether this client should attempt to retrieve all available network nodes
+    /// as opposed to just active mixnodes/gateways.
+    pub use_extended_topology: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the target egress node
+    /// when constructing the final hop packets.
+    pub ignore_egress_epoch_role: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the ingress node
+    /// when attempting to establish new connection
+    pub ignore_ingress_epoch_role: bool,
 }
 
 impl Default for TopologyWasm {
@@ -409,6 +426,9 @@ impl From<TopologyWasm> for ConfigTopology {
             topology_structure: Default::default(),
             minimum_mixnode_performance: topology.minimum_mixnode_performance,
             minimum_gateway_performance: topology.minimum_gateway_performance,
+            use_extended_topology: topology.use_extended_topology,
+            ignore_egress_epoch_role: topology.ignore_egress_epoch_role,
+            ignore_ingress_epoch_role: topology.ignore_ingress_epoch_role,
         }
     }
 }
@@ -424,6 +444,9 @@ impl From<ConfigTopology> for TopologyWasm {
             disable_refreshing: topology.disable_refreshing,
             minimum_mixnode_performance: topology.minimum_mixnode_performance,
             minimum_gateway_performance: topology.minimum_gateway_performance,
+            use_extended_topology: topology.use_extended_topology,
+            ignore_egress_epoch_role: topology.ignore_egress_epoch_role,
+            ignore_ingress_epoch_role: topology.ignore_ingress_epoch_role,
         }
     }
 }
@@ -519,6 +542,29 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
             maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
             surb_mix_hops: reply_surbs.surb_mix_hops,
+        }
+    }
+}
+
+#[wasm_bindgen(inspectable)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize, Copy, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ForgetMeWasm {
+    pub client: bool,
+    pub stats: bool,
+}
+
+impl From<ForgetMeWasm> for ForgetMe {
+    fn from(value: ForgetMeWasm) -> Self {
+        ForgetMe::new(value.client, value.stats)
+    }
+}
+
+impl From<ForgetMe> for ForgetMeWasm {
+    fn from(value: ForgetMe) -> Self {
+        Self {
+            client: value.client(),
+            stats: value.stats(),
         }
     }
 }

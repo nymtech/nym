@@ -5,7 +5,6 @@ use crate::config::Config;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
-use nym_gateway_storage::Storage;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
@@ -90,14 +89,13 @@ impl InitialAuthResult {
 
 // imo there's no point in including the peer address in anything higher than debug
 #[instrument(level = "debug", skip_all, fields(peer = %handle.peer_address))]
-pub(crate) async fn handle_connection<R, S, St>(mut handle: FreshHandler<R, S, St>)
+pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)
 where
     R: Rng + CryptoRng + Send,
     S: AsyncRead + AsyncWrite + Unpin + Send,
-    St: Storage + Clone + 'static,
 {
     // don't accept any new requests if we have already received shutdown
-    if handle.shutdown.is_shutdown() {
+    if handle.shutdown.is_shutdown_poll() {
         debug!("stopping the handle as we have received a shutdown");
         return;
     }

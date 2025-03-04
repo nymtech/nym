@@ -1,9 +1,7 @@
 use crate::db::{models::GatewaySessionsRecord, queries, DbPool};
 use error::NodeScraperError;
-
 use nym_network_defaults::{NymNetworkDetails, DEFAULT_NYM_NODE_HTTP_PORT};
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
-use nym_statistics_common::gateways::SessionType;
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::{DescribedNodeType, NymNodeDescription},
@@ -11,6 +9,7 @@ use nym_validator_client::{
 };
 use time::OffsetDateTime;
 
+use nym_node_metrics::entry::SessionType;
 use std::collections::HashMap;
 use tokio::time::Duration;
 use tracing::instrument;
@@ -18,15 +17,14 @@ use tracing::instrument;
 mod error;
 
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
-const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6); //6h, data only update once a day
+const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
 const STALE_DURATION: Duration = Duration::from_secs(86400 * 365); //one year
 
-#[instrument(level = "debug", name = "node_scraper", skip_all)]
+#[instrument(level = "info", name = "metrics_scraper", skip_all)]
 pub(crate) async fn spawn_in_background(db_pool: DbPool, nym_api_client_timeout: Duration) {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {
-        //No graceful shutdown?
         tracing::info!("Refreshing node self-described metrics...");
 
         if let Err(e) = run(&db_pool, &network_defaults, nym_api_client_timeout).await {
@@ -124,6 +122,7 @@ impl MetricsScrapingData {
         }
     }
 
+    #[instrument(level = "info", name = "metrics_scraper", skip_all)]
     async fn try_scrape_metrics(&self) -> Option<SessionStats> {
         match self.try_get_client().await {
             Ok(client) => {
@@ -137,13 +136,13 @@ impl MetricsScrapingData {
                         }
                     }
                     Err(e) => {
-                        tracing::error!("[metrics scraper]: {e}");
+                        tracing::warn!("{e}");
                         None
                     }
                 }
             }
             Err(e) => {
-                tracing::error!("[metrics scraper]: {e}");
+                tracing::warn!("{e}");
                 None
             }
         }

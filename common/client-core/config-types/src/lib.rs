@@ -145,6 +145,11 @@ impl Config {
         self
     }
 
+    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
+        self.debug.forget_me = forget_me;
+        self
+    }
+
     // TODO: this should be refactored properly
     // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
     // medium_toggle:
@@ -517,7 +522,7 @@ impl Default for Acknowledgements {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Topology {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
@@ -550,6 +555,18 @@ pub struct Topology {
     /// Specifies a minimum performance of a gateway that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_gateway_performance: u8,
+
+    /// Specifies whether this client should attempt to retrieve all available network nodes
+    /// as opposed to just active mixnodes/gateways.
+    pub use_extended_topology: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the target egress node
+    /// when constructing the final hop packets.
+    pub ignore_egress_epoch_role: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the ingress node
+    /// when attempting to establish new connection
+    pub ignore_ingress_epoch_role: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -586,6 +603,10 @@ impl Default for Topology {
             topology_structure: TopologyStructure::default(),
             minimum_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             minimum_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
+            use_extended_topology: false,
+
+            ignore_egress_epoch_role: true,
+            ignore_ingress_epoch_role: true,
         }
     }
 }
@@ -703,6 +724,9 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to stats reporting.
     pub stats_reporting: StatsReporting,
+
+    /// Defines all configuration options related to the forget me flag.
+    pub forget_me: ForgetMe,
 }
 
 impl DebugConfig {
@@ -725,6 +749,69 @@ impl Default for DebugConfig {
             topology: Default::default(),
             reply_surbs: Default::default(),
             stats_reporting: Default::default(),
+            forget_me: Default::default(),
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
+pub struct ForgetMe {
+    client: bool,
+    stats: bool,
+}
+
+impl From<bool> for ForgetMe {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::new_all()
+        } else {
+            Self::new_none()
+        }
+    }
+}
+
+impl ForgetMe {
+    pub fn new_all() -> Self {
+        Self {
+            client: true,
+            stats: true,
+        }
+    }
+
+    pub fn new_client() -> Self {
+        Self {
+            client: true,
+            stats: false,
+        }
+    }
+
+    pub fn new_stats() -> Self {
+        Self {
+            client: false,
+            stats: true,
+        }
+    }
+
+    pub fn new(client: bool, stats: bool) -> Self {
+        Self { client, stats }
+    }
+
+    pub fn any(&self) -> bool {
+        self.client || self.stats
+    }
+
+    pub fn client(&self) -> bool {
+        self.client
+    }
+
+    pub fn stats(&self) -> bool {
+        self.stats
+    }
+
+    pub fn new_none() -> Self {
+        Self {
+            client: false,
+            stats: false,
         }
     }
 }

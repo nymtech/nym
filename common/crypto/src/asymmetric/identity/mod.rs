@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use ed25519_dalek::SignatureError;
-use ed25519_dalek::{Signer, SigningKey};
+use ed25519_dalek::{SecretKey, Signer, SigningKey};
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -17,7 +18,7 @@ pub mod serde_helpers;
 use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand::{CryptoRng, Rng, RngCore};
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
@@ -61,16 +62,33 @@ pub struct KeyPair {
     // nothing secret about public key
     #[zeroize(skip)]
     public_key: PublicKey,
+
+    #[zeroize(skip)]
+    index: u32,
 }
 
+/// All keys will always have an index field populated this is to prevent anyone from figuring out if
+/// the keys are derived or random, and alter their behaviour based on that.
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let index = rng.gen();
         let ed25519_signing_key = ed25519_dalek::SigningKey::generate(rng);
 
         KeyPair {
             private_key: PrivateKey(ed25519_signing_key.to_bytes()),
             public_key: PublicKey(ed25519_signing_key.verifying_key()),
+            index,
+        }
+    }
+
+    pub fn from_secret(secret: SecretKey, index: u32) -> Self {
+        let ed25519_signing_key = SigningKey::from(secret);
+
+        KeyPair {
+            private_key: PrivateKey(ed25519_signing_key.to_bytes()),
+            public_key: PublicKey(ed25519_signing_key.verifying_key()),
+            index,
         }
     }
 
@@ -86,15 +104,31 @@ impl KeyPair {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
             public_key: PublicKey::from_bytes(pub_bytes)?,
+            index: fake_index(pub_bytes),
         })
     }
 }
 
+/// Reduces a byte slice into a u32 value by XOR-ing all its bytes into a 4-byte accumulator.
+/// The process iterates over every byte in the input slice, XOR-ing each one into a slot based on its index modulo 4.
+/// If the input slice contains fewer than 4 bytes, the remaining positions in the accumulator remain zero.
+/// Finally, the accumulator is interpreted in big-endian order to produce the resulting u32.
+/// Index is used to verify deterministic identity key, master key and salt are also requried for verification.
+fn fake_index(input: &[u8]) -> u32 {
+    let mut accumulator = [0u8; 4];
+    for (i, &byte) in input.iter().enumerate() {
+        accumulator[i % 4] ^= byte;
+    }
+    u32::from_be_bytes(accumulator)
+}
+
 impl From<PrivateKey> for KeyPair {
     fn from(private_key: PrivateKey) -> Self {
+        let public_key = (&private_key).into();
         KeyPair {
-            public_key: (&private_key).into(),
+            public_key,
             private_key,
+            index: fake_index(public_key.to_bytes().as_ref()),
         }
     }
 }
@@ -114,6 +148,7 @@ impl PemStorableKeyPair for KeyPair {
         KeyPair {
             private_key,
             public_key,
+            index: fake_index(public_key.to_bytes().as_ref()),
         }
     }
 }
@@ -121,6 +156,14 @@ impl PemStorableKeyPair for KeyPair {
 /// ed25519 EdDSA Public Key
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct PublicKey(ed25519_dalek::VerifyingKey);
+
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // each public key has unique bytes representation which can be used
+        // for the hash implementation
+        self.to_bytes().hash(state)
+    }
+}
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

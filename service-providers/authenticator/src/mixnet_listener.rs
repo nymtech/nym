@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
+    net::IpAddr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -11,7 +12,9 @@ use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
-use nym_authenticator_requests::latest::registration::RegistrationData;
+use nym_authenticator_requests::{
+    latest::registration::RegistrationData, v4::registration::IpPair,
+};
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
     traits::{
@@ -27,7 +30,6 @@ use nym_credential_verification::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_gateway_storage::Storage;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -55,7 +57,7 @@ impl RegistredAndFree {
     }
 }
 
-pub(crate) struct MixnetListener<S> {
+pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
     pub(crate) config: Config,
 
@@ -70,19 +72,19 @@ pub(crate) struct MixnetListener<S> {
 
     pub(crate) peer_manager: PeerManager,
 
-    pub(crate) ecash_verifier: Option<Arc<EcashManager<S>>>,
+    pub(crate) ecash_verifier: Option<Arc<EcashManager>>,
 
     pub(crate) timeout_check_interval: IntervalStream,
 }
 
-impl<S: Storage + Clone + 'static> MixnetListener<S> {
+impl MixnetListener {
     pub fn new(
         config: Config,
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
-        ecash_verifier: Option<Arc<EcashManager<S>>>,
+        ecash_verifier: Option<Arc<EcashManager>>,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
@@ -185,7 +187,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     v2::response::AuthenticatorResponse::new_pending_registration_success(
                         v2::registration::RegistrationData {
                             nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone().into(),
+                            gateway_data: v2::registration::GatewayClient::new(
+                                self.keypair().private_key(),
+                                remote_public.inner(),
+                                registration_data.gateway_data.private_ips.ipv4.into(),
+                                registration_data.nonce,
+                            ),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
@@ -200,7 +207,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     v3::response::AuthenticatorResponse::new_pending_registration_success(
                         v3::registration::RegistrationData {
                             nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone().into(),
+                            gateway_data: v3::registration::GatewayClient::new(
+                                self.keypair().private_key(),
+                                remote_public.inner(),
+                                registration_data.gateway_data.private_ips.ipv4.into(),
+                                registration_data.nonce,
+                            ),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
@@ -233,25 +245,24 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         let peer = self.peer_manager.query_peer(remote_public).await?;
         if let Some(peer) = peer {
-            let private_ipv4 = peer
+            let allowed_ipv4 = peer
                 .allowed_ips
                 .iter()
                 .find_map(|ip_mask| match ip_mask.ip {
                     std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
                     _ => None,
-                });
-            let private_ipv6 = peer
+                })
+                .ok_or(AuthenticatorError::InternalError(
+                    "there should be one private IPv4 in the list".to_string(),
+                ))?;
+            let allowed_ipv6 = peer
                 .allowed_ips
                 .iter()
                 .find_map(|ip_mask| match ip_mask.ip {
                     std::net::IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
                     _ => None,
-                });
-            let (Some(allowed_ipv4), Some(allowed_ipv6)) = (private_ipv4, private_ipv6) else {
-                return Err(AuthenticatorError::InternalError(
-                    "there should be one private IP pair in the list".to_string(),
-                ));
-            };
+                })
+                .unwrap_or(IpPair::from(IpAddr::from(allowed_ipv4)).ipv6);
             let bytes = match AuthenticatorVersion::from(protocol) {
                 AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
                     v1::registration::RegistredData {
@@ -316,6 +327,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             .filter(|r| r.1.is_none())
             .choose(&mut thread_rng())
             .ok_or(AuthenticatorError::NoFreeIp)?;
+        let private_ips = *private_ip_ref.0;
         // mark it as used, even though it's not final
         *private_ip_ref.1 = Some(SystemTime::now());
         let gateway_data = GatewayClient::new(
@@ -337,11 +349,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 v1::response::AuthenticatorResponse::new_pending_registration_success(
                     v1::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: v1::GatewayClient {
-                            pub_key: gateway_data.pub_key,
-                            private_ip: gateway_data.private_ips.ipv4.into(),
-                            mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
-                        },
+                        gateway_data: v1::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -356,7 +369,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 v2::response::AuthenticatorResponse::new_pending_registration_success(
                     v2::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
+                        gateway_data: v2::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -371,7 +389,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 v3::response::AuthenticatorResponse::new_pending_registration_success(
                     v3::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
+                        gateway_data: v3::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -519,7 +542,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     }
 
     async fn credential_verification(
-        ecash_verifier: Arc<EcashManager<S>>,
+        ecash_verifier: Arc<EcashManager>,
         credential: CredentialSpendingData,
         client_id: i64,
     ) -> Result<i64> {

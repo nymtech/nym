@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli::try_load_current_config;
 use crate::cli::AuthenticatorError;
 use crate::cli::{override_config, OverrideConfig};
-use crate::cli::{try_load_current_config, version_check};
 use clap::{Args, Subcommand};
 use nym_authenticator_requests::latest::{
     registration::{ClientMac, FinalMessage, GatewayClient, InitMessage, IpPair},
@@ -95,11 +95,6 @@ impl TryFrom<RequestType> for AuthenticatorRequestData {
 pub(crate) async fn execute(args: &Request) -> Result<(), AuthenticatorError> {
     let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
-
-    if !version_check(&config) {
-        log::error!("failed the local version check");
-        return Err(AuthenticatorError::FailedLocalVersionCheck);
-    }
 
     let shutdown = TaskHandle::default();
     let mixnet_client = nym_authenticator::mixnet_client::create_mixnet_client(

@@ -3,29 +3,32 @@
 
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
-use crate::nym_contract_cache::cache::CachedRewardedSet;
-use crate::nym_nodes::handlers::unstable::helpers::{refreshed_at, semver, LegacyAnnotation};
+use crate::nym_nodes::handlers::unstable::helpers::{refreshed_at, LegacyAnnotation};
 use crate::nym_nodes::handlers::unstable::{NodesParams, NodesParamsWithRole};
 use crate::support::caching::Cache;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
 use axum::Json;
-use nym_api_requests::models::{NodeAnnotation, NymNodeDescription};
+use nym_api_requests::models::{
+    NodeAnnotation, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
+};
 use nym_api_requests::nym_nodes::{
     CachedNodesResponse, NodeRole, NodeRoleQueryParam, PaginatedCachedNodesResponse, SkimmedNode,
 };
+use nym_api_requests::pagination::PaginatedResponse;
 use nym_mixnet_contract_common::NodeId;
+use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::future::Future;
 use tokio::sync::RwLockReadGuard;
 use tracing::trace;
+use utoipa::ToSchema;
 
 pub type PaginatedSkimmedNodes = AxumResult<Json<PaginatedCachedNodesResponse<SkimmedNode>>>;
 
 /// Given all relevant caches, build part of response for JUST Nym Nodes
 fn build_nym_nodes_response<'a, NI>(
-    rewarded_set: &CachedRewardedSet,
-    required_semver: &Option<String>,
+    rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
     annotations: &HashMap<NodeId, NodeAnnotation>,
     active_only: bool,
@@ -36,11 +39,6 @@ where
     let mut nodes = Vec::new();
     for nym_node in nym_nodes_subset {
         let node_id = nym_node.node_id;
-
-        // if we have wrong version, ignore
-        if !semver(required_semver, nym_node.version()) {
-            continue;
-        }
 
         let role: NodeRole = rewarded_set.role(node_id).into();
 
@@ -61,8 +59,7 @@ where
 /// Given all relevant caches, add appropriate legacy nodes to the part of the response
 fn add_legacy<LN>(
     nodes: &mut Vec<SkimmedNode>,
-    required_semver: &Option<String>,
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     describe_cache: &DescribedNodes,
     annotated_legacy_nodes: &HashMap<NodeId, LN>,
     active_only: bool,
@@ -70,11 +67,6 @@ fn add_legacy<LN>(
     LN: LegacyAnnotation,
 {
     for (node_id, legacy) in annotated_legacy_nodes.iter() {
-        // if we have wrong version, ignore
-        if !semver(required_semver, legacy.version()) {
-            continue;
-        }
-
         let role: NodeRole = rewarded_set.role(*node_id).into();
 
         // if the role is inactive, see if our filter allows it
@@ -121,7 +113,6 @@ where
     // TODO: implement it
     let _ = query_params.per_page;
     let _ = query_params.page;
-    let semver_compatibility = query_params.semver_compatibility;
 
     // 1. get the rewarded set
     let rewarded_set = state.rewarded_set().await?;
@@ -133,14 +124,24 @@ where
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
     let describe_cache = state.describe_nodes_cache_data().await?;
 
+    let maybe_interval = state
+        .nym_contract_cache()
+        .current_interval()
+        .await
+        .to_owned();
+
+    // 4.0 If the client indicates that they already know about the current topology send empty response
+    if let Some(client_known_epoch) = query_params.epoch_id {
+        if let Some(ref interval) = maybe_interval {
+            if client_known_epoch == interval.current_epoch_id() {
+                return Ok(Json(PaginatedCachedNodesResponse::no_updates()));
+            }
+        }
+    }
+
     // 4. start building the response
-    let mut nodes = build_nym_nodes_response(
-        &rewarded_set,
-        &semver_compatibility,
-        nym_nodes_subset,
-        &annotations,
-        active_only,
-    );
+    let mut nodes =
+        build_nym_nodes_response(&rewarded_set, nym_nodes_subset, &annotations, active_only);
 
     // 5. if we allow legacy nodes, repeat the procedure for them, otherwise return just nym-nodes
     if let Some(true) = query_params.no_legacy {
@@ -151,10 +152,9 @@ where
             describe_cache.timestamp(),
         ]);
 
-        return Ok(Json(PaginatedCachedNodesResponse::new_full(
-            refreshed_at,
-            nodes,
-        )));
+        return Ok(Json(
+            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
+        ));
     }
 
     // 6. grab relevant legacy nodes
@@ -162,7 +162,6 @@ where
     let annotated_legacy_nodes = annotated_legacy_nodes_getter(state).await?;
     add_legacy(
         &mut nodes,
-        &semver_compatibility,
         &rewarded_set,
         &describe_cache,
         &annotated_legacy_nodes,
@@ -177,10 +176,9 @@ where
         annotated_legacy_nodes.timestamp(),
     ]);
 
-    Ok(Json(PaginatedCachedNodesResponse::new_full(
-        refreshed_at,
-        nodes,
-    )))
+    Ok(Json(
+        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
+    ))
 }
 
 /// Deprecated query that gets ALL gateways
@@ -239,14 +237,13 @@ pub(super) async fn deprecated_mixnodes_basic(
 
 async fn nodes_basic(
     state: State<AppState>,
-    Query(query_params): Query<NodesParams>,
+    Query(_query_params): Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
     // unfortunately we have to build the response semi-manually here as we need to add two sources of legacy nodes
 
     // 1. grab all relevant described nym-nodes
     let rewarded_set = state.rewarded_set().await?;
-    let semver_compatibility = &query_params.semver_compatibility;
 
     let describe_cache = state.describe_nodes_cache_data().await?;
     let all_nym_nodes = describe_cache.all_nym_nodes();
@@ -254,18 +251,12 @@ async fn nodes_basic(
     let legacy_mixnodes = state.legacy_mixnode_annotations().await?;
     let legacy_gateways = state.legacy_gateways_annotations().await?;
 
-    let mut nodes = build_nym_nodes_response(
-        &rewarded_set,
-        semver_compatibility,
-        all_nym_nodes,
-        &annotations,
-        active_only,
-    );
+    let mut nodes =
+        build_nym_nodes_response(&rewarded_set, all_nym_nodes, &annotations, active_only);
 
     // add legacy gateways to the response
     add_legacy(
         &mut nodes,
-        semver_compatibility,
         &rewarded_set,
         &describe_cache,
         &legacy_gateways,
@@ -275,7 +266,6 @@ async fn nodes_basic(
     // add legacy mixnodes to the response
     add_legacy(
         &mut nodes,
-        semver_compatibility,
         &rewarded_set,
         &describe_cache,
         &legacy_mixnodes,
@@ -297,16 +287,25 @@ async fn nodes_basic(
     )))
 }
 
+#[allow(dead_code)] // not dead, used in OpenAPI docs
+#[derive(ToSchema)]
+#[schema(title = "PaginatedCachedNodesResponse")]
+pub struct PaginatedCachedNodesResponseSchema {
+    pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+    #[schema(value_type = SkimmedNode)]
+    pub nodes: PaginatedResponse<SkimmedNode>,
+}
+
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
 /// that are currently bonded.
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
     params(NodesParamsWithRole),
-    path = "/",
+    path = "",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn nodes_basic_all(
@@ -339,7 +338,7 @@ pub(super) async fn nodes_basic_all(
     path = "/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn nodes_basic_active(
@@ -391,7 +390,7 @@ async fn mixnodes_basic(
     path = "/mixnodes/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn mixnodes_basic_all(
@@ -410,7 +409,7 @@ pub(super) async fn mixnodes_basic_all(
     path = "/mixnodes/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn mixnodes_basic_active(
@@ -448,7 +447,7 @@ async fn entry_gateways_basic(
     path = "/entry-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn entry_gateways_basic_active(
@@ -467,7 +466,7 @@ pub(super) async fn entry_gateways_basic_active(
     path = "/entry-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn entry_gateways_basic_all(
@@ -505,7 +504,7 @@ async fn exit_gateways_basic(
     path = "/exit-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn exit_gateways_basic_active(
@@ -524,7 +523,7 @@ pub(super) async fn exit_gateways_basic_active(
     path = "/exit-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponse<SkimmedNode>)
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
     )
 )]
 pub(super) async fn exit_gateways_basic_all(

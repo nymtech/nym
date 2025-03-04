@@ -12,13 +12,11 @@ use futures::{stream, StreamExt};
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_mixnet_contract_common::{LegacyMixLayer, NodeId, NymNodeDetails};
+use nym_crypto::asymmetric::ed25519;
+use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
-use nym_topology::gateway::GatewayConversionError;
-use nym_topology::mix::MixnodeConversionError;
-use nym_topology::{gateway, mix, NetworkAddress};
+use nym_topology::node::{RoutingNode, RoutingNodeError};
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, error, info};
@@ -58,6 +56,13 @@ pub enum NodeDescribeCacheError {
     #[error("could not verify signed host information for node {node_id}")]
     MissignedHostInformation { node_id: NodeId },
 
+    #[error("identity of node {node_id} does not match. expected {expected} but got {got}")]
+    MismatchedIdentity {
+        node_id: NodeId,
+        expected: String,
+        got: String,
+    },
+
     #[error("node {node_id} is announcing an illegal ip address")]
     IllegalIpAddress { node_id: NodeId },
 }
@@ -65,87 +70,14 @@ pub enum NodeDescribeCacheError {
 // this exists because I've been moving things around quite a lot and now the place that holds the type
 // doesn't have relevant dependencies for proper impl
 pub(crate) trait NodeDescriptionTopologyExt {
-    fn try_to_topology_mix_node(
-        &self,
-        layer: LegacyMixLayer,
-    ) -> Result<mix::LegacyNode, MixnodeConversionError>;
-
-    fn try_to_topology_gateway(&self) -> Result<gateway::LegacyNode, GatewayConversionError>;
+    fn try_to_topology_node(&self) -> Result<RoutingNode, RoutingNodeError>;
 }
 
 impl NodeDescriptionTopologyExt for NymNodeDescription {
-    // TODO: this might have to be moved around
-    fn try_to_topology_mix_node(
-        &self,
-        layer: LegacyMixLayer,
-    ) -> Result<mix::LegacyNode, MixnodeConversionError> {
-        let keys = &self.description.host_information.keys;
-        let ips = &self.description.host_information.ip_address;
-        if ips.is_empty() {
-            return Err(MixnodeConversionError::NoIpAddressesProvided {
-                mixnode: keys.ed25519.to_base58_string(),
-            });
-        }
-
-        let host = match &self.description.host_information.hostname {
-            None => NetworkAddress::IpAddr(ips[0]),
-            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
-        };
-
-        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
-        // (which doesn't really work in wasm)
-        let mix_host = SocketAddr::new(ips[0], self.description.mix_port());
-
-        Ok(mix::LegacyNode {
-            mix_id: self.node_id,
-            host,
-            mix_host,
-            identity_key: keys.ed25519,
-            sphinx_key: keys.x25519,
-            layer,
-            version: self
-                .description
-                .build_information
-                .build_version
-                .as_str()
-                .into(),
-        })
-    }
-
-    fn try_to_topology_gateway(&self) -> Result<gateway::LegacyNode, GatewayConversionError> {
-        let keys = &self.description.host_information.keys;
-
-        let ips = &self.description.host_information.ip_address;
-        if ips.is_empty() {
-            return Err(GatewayConversionError::NoIpAddressesProvided {
-                gateway: keys.ed25519.to_base58_string(),
-            });
-        }
-
-        let host = match &self.description.host_information.hostname {
-            None => NetworkAddress::IpAddr(ips[0]),
-            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
-        };
-
-        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
-        // (which doesn't really work in wasm)
-        let mix_host = SocketAddr::new(ips[0], self.description.mix_port());
-
-        Ok(gateway::LegacyNode {
-            node_id: self.node_id,
-            host,
-            mix_host,
-            clients_ws_port: self.description.mixnet_websockets.ws_port,
-            clients_wss_port: self.description.mixnet_websockets.wss_port,
-            identity_key: self.description.host_information.keys.ed25519,
-            sphinx_key: self.description.host_information.keys.x25519,
-            version: self
-                .description
-                .build_information
-                .build_version
-                .as_str()
-                .into(),
-        })
+    fn try_to_topology_node(&self) -> Result<RoutingNode, RoutingNodeError> {
+        // for the purposes of routing, performance is completely ignored,
+        // so add dummy value and piggyback on existing conversion
+        (&self.to_skimmed_node(Default::default(), Default::default())).try_into()
     }
 }
 
@@ -289,6 +221,15 @@ async fn try_get_description(
 
     let host_info = client.get_host_information().await.map_err(map_query_err)?;
 
+    // check if the identity key matches the information provided during bonding
+    if data.expected_identity != host_info.keys.ed25519_identity {
+        return Err(NodeDescribeCacheError::MismatchedIdentity {
+            node_id: data.node_id,
+            expected: data.expected_identity.to_base58_string(),
+            got: host_info.keys.ed25519_identity.to_base58_string(),
+        });
+    }
+
     if !host_info.verify_host_information() {
         return Err(NodeDescribeCacheError::MissignedHostInformation {
             node_id: data.node_id,
@@ -315,47 +256,58 @@ async fn try_get_description(
 pub(crate) struct RefreshData {
     host: String,
     node_id: NodeId,
+    expected_identity: ed25519::PublicKey,
     node_type: DescribedNodeType,
 
     port: Option<u16>,
 }
 
-impl<'a> From<&'a LegacyMixNodeDetailsWithLayer> for RefreshData {
-    fn from(node: &'a LegacyMixNodeDetailsWithLayer) -> Self {
-        RefreshData::new(
+impl<'a> TryFrom<&'a LegacyMixNodeDetailsWithLayer> for RefreshData {
+    type Error = ed25519::Ed25519RecoveryError;
+
+    fn try_from(node: &'a LegacyMixNodeDetailsWithLayer) -> Result<Self, Self::Error> {
+        Ok(RefreshData::new(
             &node.bond_information.mix_node.host,
+            node.bond_information.identity().parse()?,
             DescribedNodeType::LegacyMixnode,
             node.mix_id(),
             Some(node.bond_information.mix_node.http_api_port),
-        )
+        ))
     }
 }
 
-impl<'a> From<&'a LegacyGatewayBondWithId> for RefreshData {
-    fn from(node: &'a LegacyGatewayBondWithId) -> Self {
-        RefreshData::new(
+impl<'a> TryFrom<&'a LegacyGatewayBondWithId> for RefreshData {
+    type Error = ed25519::Ed25519RecoveryError;
+
+    fn try_from(node: &'a LegacyGatewayBondWithId) -> Result<Self, Self::Error> {
+        Ok(RefreshData::new(
             &node.bond.gateway.host,
+            node.bond.identity().parse()?,
             DescribedNodeType::LegacyGateway,
             node.node_id,
             None,
-        )
+        ))
     }
 }
 
-impl<'a> From<&'a NymNodeDetails> for RefreshData {
-    fn from(node: &'a NymNodeDetails) -> Self {
-        RefreshData::new(
+impl<'a> TryFrom<&'a NymNodeDetails> for RefreshData {
+    type Error = ed25519::Ed25519RecoveryError;
+
+    fn try_from(node: &'a NymNodeDetails) -> Result<Self, Self::Error> {
+        Ok(RefreshData::new(
             &node.bond_information.node.host,
+            node.bond_information.identity().parse()?,
             DescribedNodeType::NymNode,
             node.node_id(),
             node.bond_information.node.custom_http_port,
-        )
+        ))
     }
 }
 
 impl RefreshData {
     pub fn new(
         host: impl Into<String>,
+        expected_identity: ed25519::PublicKey,
         node_type: DescribedNodeType,
         node_id: NodeId,
         port: Option<u16>,
@@ -363,6 +315,7 @@ impl RefreshData {
         RefreshData {
             host: host.into(),
             node_id,
+            expected_identity,
             node_type,
             port,
         }
@@ -404,7 +357,9 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain mixnodes information from the cache"),
             Some(legacy_mixnodes) => {
                 for node in &**legacy_mixnodes {
-                    nodes_to_query.push(node.into())
+                    if let Ok(data) = node.try_into() {
+                        nodes_to_query.push(data);
+                    }
                 }
             }
         }
@@ -413,7 +368,9 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain gateways information from the cache"),
             Some(legacy_gateways) => {
                 for node in &**legacy_gateways {
-                    nodes_to_query.push(node.into())
+                    if let Ok(data) = node.try_into() {
+                        nodes_to_query.push(data);
+                    }
                 }
             }
         }
@@ -422,7 +379,9 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain nym-nodes information from the cache"),
             Some(nym_nodes) => {
                 for node in &**nym_nodes {
-                    nodes_to_query.push(node.into())
+                    if let Ok(data) = node.try_into() {
+                        nodes_to_query.push(data);
+                    }
                 }
             }
         }

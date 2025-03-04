@@ -8,9 +8,10 @@
 
 use async_trait::async_trait;
 use log::{debug, error, warn};
+pub use nym_topology::providers::piecewise::Config;
 use nym_topology::{
-    providers::piecewise::{Config, NymTopologyProvider, PiecewiseTopologyProvider},
-    EpochRewardedSet, NymTopology, RoutingNode,
+    providers::piecewise::{NymTopologyProvider, PiecewiseTopologyProvider},
+    EpochRewardedSet, NymTopology, RoutingNode, TopologyProvider,
 };
 use nym_validator_client::UserAgent;
 use rand::{prelude::SliceRandom, thread_rng};
@@ -26,13 +27,13 @@ pub struct NymApiTopologyProvider {
 impl NymApiTopologyProvider {
     /// Construct a new thread safe Cached topology provider using the Nym API
     pub fn new(
-        user_agent: UserAgent,
+        config: impl Into<Config>,
         nym_api_urls: Vec<Url>,
-        config: Config,
+        user_agent: Option<UserAgent>,
         initial_topology: Option<NymTopology>,
     ) -> Self {
-        let manager = NymApiPiecewiseProvider::new(nym_api_urls, Some(user_agent));
-        let inner = NymTopologyProvider::new(manager, config, initial_topology);
+        let manager = NymApiPiecewiseProvider::new(nym_api_urls, user_agent);
+        let inner = NymTopologyProvider::new(manager, config.into(), initial_topology);
 
         Self { inner }
     }
@@ -41,6 +42,28 @@ impl NymApiTopologyProvider {
 impl AsRef<NymTopologyProvider<NymApiPiecewiseProvider>> for NymApiTopologyProvider {
     fn as_ref(&self) -> &NymTopologyProvider<NymApiPiecewiseProvider> {
         &self.inner
+    }
+}
+
+impl AsMut<NymTopologyProvider<NymApiPiecewiseProvider>> for NymApiTopologyProvider {
+    fn as_mut(&mut self) -> &mut NymTopologyProvider<NymApiPiecewiseProvider> {
+        &mut self.inner
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait]
+impl TopologyProvider for NymApiTopologyProvider {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        self.as_mut().get_new_topology().await
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl TopologyProvider for NymApiTopologyProvider {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        self.as_mut().get_new_topology().await
     }
 }
 
@@ -81,11 +104,8 @@ impl NymApiPiecewiseProvider {
         self.validator_client
             .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
     }
-}
 
-#[async_trait]
-impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
-    async fn get_full_topology(&mut self) -> Option<NymTopology> {
+    async fn get_full_topology_inner(&mut self) -> Option<NymTopology> {
         let layer_assignments = self.get_layer_assignments().await?;
 
         let mut topology = NymTopology::new_empty(layer_assignments);
@@ -111,7 +131,7 @@ impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
         Some(topology)
     }
 
-    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>> {
+    async fn get_descriptor_batch_inner(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>> {
         // Does this need to return a hashmap of RoutingNodes? that is moderately inconvenient
         // especially when the nodes themselves contain their node_id unless we expect to directly
         // use the result of this fn for lookups where we would otherwise for example, have to
@@ -129,13 +149,13 @@ impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
         let mut out = Vec::new();
         for node in descriptor_vec {
             if let Ok(routing_node) = RoutingNode::try_from(&node) {
-                let _ = out.push(routing_node);
+                out.push(routing_node);
             }
         }
         Some(out)
     }
 
-    async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet> {
+    async fn get_layer_assignments_inner(&mut self) -> Option<EpochRewardedSet> {
         self.validator_client
             .get_current_rewarded_set()
             .await
@@ -144,5 +164,37 @@ impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
                 error!("failed to get current rewarded set: {err}");
             })
             .ok()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait]
+impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
+    async fn get_full_topology(&mut self) -> Option<NymTopology> {
+        self.get_full_topology_inner().await
+    }
+
+    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>> {
+        self.get_descriptor_batch_inner(ids).await
+    }
+
+    async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet> {
+        self.get_layer_assignments_inner().await
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
+    async fn get_full_topology(&mut self) -> Option<NymTopology> {
+        self.get_full_topology_inner().await
+    }
+
+    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>> {
+        self.get_descriptor_batch_inner(ids).await
+    }
+
+    async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet> {
+        self.get_layer_assignments_inner().await
     }
 }

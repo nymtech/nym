@@ -22,7 +22,7 @@ use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyCon
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
-use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
+use crate::client::topology_control::smart_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -556,6 +556,7 @@ where
                 config_topology,
                 nym_api_urls,
                 user_agent,
+                None,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
                 warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");

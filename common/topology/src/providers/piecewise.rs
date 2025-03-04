@@ -112,7 +112,24 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProvider<M> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
+impl<M: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProvider<M> {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        let mut guard = self.inner.lock().await;
+        // check the cache
+        if let Some(cached) = guard.get_current_compatible_topology().await {
+            return Some(cached);
+        }
+
+        // not cached, or cache expired. try update.
+        guard.update_cache().await;
+        guard.get_current_compatible_topology().await
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
 impl<M: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProvider<M> {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
         let mut guard = self.inner.lock().await;
@@ -242,6 +259,7 @@ impl<M: PiecewiseTopologyProvider> NymTopologyProviderInner<M> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl<P: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProviderInner<P> {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
@@ -249,6 +267,15 @@ impl<P: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProviderInner
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl<P: PiecewiseTopologyProvider> TopologyProvider for NymTopologyProviderInner<P> {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        self.get_current_compatible_topology().await
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// Trait allowing construction and upkeep of a
 #[async_trait]
 pub trait PiecewiseTopologyProvider: Send {
@@ -265,7 +292,25 @@ pub trait PiecewiseTopologyProvider: Send {
     async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet>;
 }
 
+#[cfg(target_arch = "wasm32")]
+/// Trait allowing construction and upkeep of a
+#[async_trait(?Send)]
+pub trait PiecewiseTopologyProvider: Send {
+    /// Pull a copy of the full topology.
+    ///
+    /// This is intended to be used sparingly as repeated usage could result in fetching duplicate
+    /// information more often than necessary.
+    async fn get_full_topology(&mut self) -> Option<NymTopology>;
+
+    /// Fetch a node descriptors for the set of provided IDs if available.
+    async fn get_descriptor_batch(&mut self, ids: &[u32]) -> Option<Vec<RoutingNode>>;
+
+    /// Fetch the latest mapping of node IDs to Nym Network layer.
+    async fn get_layer_assignments(&mut self) -> Option<EpochRewardedSet>;
+}
+
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::*;
     use crate::SupportedRoles;

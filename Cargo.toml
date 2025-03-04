@@ -66,7 +66,6 @@ members = [
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
-    "common/nymcoconut",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -257,7 +256,7 @@ handlebars = "3.5.5"
 headers = "0.4.0"
 hex = "0.4.3"
 hex-literal = "0.3.3"
-hickory-resolver = "0.24.3"
+hickory-resolver = "0.24.4"
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
@@ -438,3 +437,13 @@ opt-level = 'z'
 [profile.release.package.mix-fetch-wasm]
 # lto = true
 opt-level = 'z'
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+todo = "deny"
+dbg_macro = "deny"
+exit = "deny"
+panic = "deny"
+unimplemented = "deny"
+unreachable = "deny"

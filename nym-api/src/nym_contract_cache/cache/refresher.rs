@@ -128,6 +128,7 @@ impl NymContractCacheRefresher {
             .collect();
 
         let mut gateways = Vec::with_capacity(gateway_bonds.len());
+        #[allow(clippy::panic)]
         for bond in gateway_bonds {
             // we explicitly panic here because that value MUST exist.
             // if it doesn't, we messed up the migration and we have big problems

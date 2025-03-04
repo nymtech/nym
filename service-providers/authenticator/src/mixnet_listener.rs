@@ -30,7 +30,9 @@ use nym_credential_verification::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
+use nym_sdk::mixnet::{
+    AnonymousSenderTag, InputMessage, MixnetMessageSender, Recipient, TransmissionLane,
+};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
@@ -757,9 +759,13 @@ impl MixnetListener {
     }
 
     // When an incoming mixnet message triggers a response that we send back.
-    async fn handle_response(&self, response: Vec<u8>, recipient: Recipient) -> Result<()> {
-        let input_message =
-            InputMessage::new_regular(recipient, response, TransmissionLane::General, None);
+    async fn handle_response(
+        &self,
+        response: Vec<u8>,
+        recipient: Recipient,
+        sender_tag: Option<AnonymousSenderTag>,
+    ) -> Result<()> {
+        let input_message = create_input_message(recipient, sender_tag, response);
         self.mixnet_client
             .send(input_message)
             .await
@@ -782,9 +788,10 @@ impl MixnetListener {
                 }
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
+                        let sender_tag = msg.sender_tag;
                         match self.on_reconstructed_message(msg).await {
                             Ok((response, recipient)) => {
-                                if let Err(err) = self.handle_response(response, recipient).await {
+                                if let Err(err) = self.handle_response(response, recipient, sender_tag).await {
                                     log::error!("Mixnet listener failed to handle response: {err}");
                                 }
                             }
@@ -855,5 +862,21 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
             log::info!("Received packet with invalid version: v{version}");
             Err(AuthenticatorError::InvalidPacketVersion(version))
         }
+    }
+}
+
+fn create_input_message(
+    nym_address: Recipient,
+    reply_to_tag: Option<AnonymousSenderTag>,
+    response_packet: Vec<u8>,
+) -> InputMessage {
+    let lane = TransmissionLane::General;
+    let packet_type = None;
+    if let Some(reply_to_tag) = reply_to_tag {
+        log::debug!("Creating message using SURB");
+        InputMessage::new_reply(reply_to_tag, response_packet, lane, packet_type)
+    } else {
+        log::debug!("Creating message using nym_address");
+        InputMessage::new_regular(nym_address, response_packet, lane, packet_type)
     }
 }

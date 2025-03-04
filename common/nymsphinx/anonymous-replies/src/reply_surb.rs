@@ -19,6 +19,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ReplySurbError {
+    #[error("did not receive enough data to recover a reply SURB")]
+    TooShort,
+
     #[error("tried to use reply SURB with an unpadded message")]
     UnpaddedMessageError,
 
@@ -131,7 +134,9 @@ impl ReplySurb {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySurbError> {
-        // TODO: introduce bound checks to guard us against out of bound reads
+        if bytes.len() <= SurbEncryptionKeySize::USIZE {
+            return Err(ReplySurbError::TooShort);
+        }
 
         let encryption_key =
             SurbEncryptionKey::try_from_bytes(&bytes[..SurbEncryptionKeySize::USIZE])?;

@@ -2433,7 +2433,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.46"
+version = "1.1.47"
 dependencies = [
  "chrono",
  "clap",
@@ -4780,7 +4780,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.50"
+version = "1.1.51"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4808,7 +4808,6 @@ dependencies = [
  "nym-api-requests",
  "nym-bandwidth-controller",
  "nym-bin-common",
- "nym-coconut",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
@@ -4848,6 +4847,7 @@ dependencies = [
  "sha2 0.9.9",
  "sqlx",
  "tempfile",
+ "tendermint 0.40.1",
  "thiserror 2.0.12",
  "time",
  "tokio",
@@ -4872,6 +4872,7 @@ dependencies = [
  "cosmwasm-std",
  "ecdsa",
  "getset",
+ "humantime-serde",
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
@@ -5028,7 +5029,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.48"
+version = "1.1.49"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5111,7 +5112,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.48"
+version = "1.1.49"
 dependencies = [
  "bs58",
  "clap",
@@ -5289,30 +5290,6 @@ dependencies = [
  "nym-sphinx",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "nym-coconut"
-version = "0.5.0"
-dependencies = [
- "bls12_381",
- "bs58",
- "criterion",
- "digest 0.9.0",
- "doc-comment",
- "ff",
- "getrandom 0.2.15",
- "group",
- "itertools 0.14.0",
- "nym-dkg",
- "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror 2.0.12",
- "zeroize",
 ]
 
 [[package]]
@@ -5974,6 +5951,7 @@ dependencies = [
  "bytes",
  "nym-bin-common",
  "nym-crypto",
+ "nym-service-provider-requests-common",
  "nym-sphinx",
  "rand 0.8.5",
  "serde",
@@ -6005,6 +5983,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",
+ "nym-service-provider-requests-common",
  "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
@@ -6016,7 +5995,6 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "tap",
  "thiserror 2.0.12",
  "time",
  "tokio",
@@ -6175,7 +6153,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.49"
+version = "1.1.50"
 dependencies = [
  "addr",
  "anyhow",
@@ -6226,7 +6204,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6585,7 +6563,9 @@ dependencies = [
 name = "nym-service-provider-requests-common"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -6607,7 +6587,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.48"
+version = "1.1.49"
 dependencies = [
  "bs58",
  "clap",
@@ -7212,7 +7192,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "anyhow",
  "bytes",
@@ -12229,7 +12209,6 @@ dependencies = [
  "getrandom 0.2.15",
  "js-sys",
  "nym-bin-common",
- "nym-coconut",
  "nym-compact-ecash",
  "nym-credentials",
  "nym-crypto",

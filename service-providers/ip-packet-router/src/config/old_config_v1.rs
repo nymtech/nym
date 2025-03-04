@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::persistence::IpPacketRouterPaths;
 use crate::config::Config;
@@ -76,6 +76,7 @@ impl Default for IpPacketRouterV1 {
     fn default() -> Self {
         IpPacketRouterV1 {
             disable_poisson_rate: true,
+            #[allow(clippy::expect_used)]
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL
                     .parse()

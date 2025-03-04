@@ -265,6 +265,7 @@ impl GatewayTasksBuilder {
 
         Ok(websocket::Listener::new(
             self.config.gateway.websocket_bind_address,
+            self.config.debug.maximum_open_connections,
             shared_state,
             self.shutdown.fork("websocket"),
         ))

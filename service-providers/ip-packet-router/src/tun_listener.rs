@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
@@ -5,34 +8,27 @@ use nym_ip_packet_requests::IpPair;
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
+use tokio::sync::mpsc;
 
-use crate::{
-    error::Result,
-    mixnet_listener::{self},
-    util::parse_ip::parse_dst_addr,
-};
+use crate::clients::{ConnectEvent, ConnectedClientEvent, DisconnectEvent};
+use crate::{error::Result, util::parse_ip::parse_dst_addr};
 
 // The TUN listener keeps a local map of the connected clients that has its state updated by the
 // mixnet listener. Basically it's just so that we don't have to have mutexes around shared state.
 // It's even ok if this is slightly out of date
-pub(crate) struct ConnectedClientMirror {
-    pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
-    pub(crate) ips: IpPair,
+struct ConnectedClientMirror {
+    forward_from_tun_tx: mpsc::UnboundedSender<Vec<u8>>,
+    ips: IpPair,
 }
 
 pub(crate) struct ConnectedClientsListener {
     clients_ipv4: HashMap<Ipv4Addr, ConnectedClientMirror>,
     clients_ipv6: HashMap<Ipv6Addr, ConnectedClientMirror>,
-    connected_client_rx:
-        tokio::sync::mpsc::UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
+    connected_client_rx: mpsc::UnboundedReceiver<ConnectedClientEvent>,
 }
 
 impl ConnectedClientsListener {
-    pub(crate) fn new(
-        connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<
-            mixnet_listener::ConnectedClientEvent,
-        >,
-    ) -> Self {
+    pub(crate) fn new(connected_client_rx: mpsc::UnboundedReceiver<ConnectedClientEvent>) -> Self {
         ConnectedClientsListener {
             clients_ipv4: HashMap::new(),
             clients_ipv6: HashMap::new(),
@@ -40,17 +36,17 @@ impl ConnectedClientsListener {
         }
     }
 
-    pub(crate) fn get(&self, ip: &IpAddr) -> Option<&ConnectedClientMirror> {
+    fn get(&self, ip: &IpAddr) -> Option<&ConnectedClientMirror> {
         match ip {
             IpAddr::V4(ip) => self.clients_ipv4.get(ip),
             IpAddr::V6(ip) => self.clients_ipv6.get(ip),
         }
     }
 
-    pub(crate) fn update(&mut self, event: mixnet_listener::ConnectedClientEvent) {
+    pub(crate) fn update(&mut self, event: ConnectedClientEvent) {
         match event {
-            mixnet_listener::ConnectedClientEvent::Connect(connected_event) => {
-                let mixnet_listener::ConnectEvent {
+            ConnectedClientEvent::Connect(connected_event) => {
+                let ConnectEvent {
                     ips,
                     forward_from_tun_tx,
                 } = *connected_event;
@@ -70,9 +66,7 @@ impl ConnectedClientsListener {
                     },
                 );
             }
-            mixnet_listener::ConnectedClientEvent::Disconnect(
-                mixnet_listener::DisconnectEvent(ips),
-            ) => {
+            ConnectedClientEvent::Disconnect(DisconnectEvent(ips)) => {
                 log::trace!("Disconnect client: {ips}");
                 self.clients_ipv4.remove(&ips.ipv4);
                 self.clients_ipv6.remove(&ips.ipv6);
@@ -106,9 +100,7 @@ impl TunListener {
             if forward_from_tun_tx.send(packet).is_err() {
                 log::warn!("Failed to forward packet to connected client {dst_addr}: disconnecting it from tun listener");
                 self.connected_clients
-                    .update(mixnet_listener::ConnectedClientEvent::Disconnect(
-                        mixnet_listener::DisconnectEvent(*ips),
-                    ));
+                    .update(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)));
             }
         } else {
             log::info!(

@@ -70,8 +70,24 @@ impl From<v4::registration::GatewayClient> for v5::registration::GatewayClient {
     }
 }
 
+impl From<v5::registration::GatewayClient> for v4::registration::GatewayClient {
+    fn from(gateway_client: v5::registration::GatewayClient) -> Self {
+        Self {
+            pub_key: gateway_client.pub_key,
+            private_ips: gateway_client.private_ips.into(),
+            mac: gateway_client.mac.into(),
+        }
+    }
+}
+
 impl From<v4::registration::ClientMac> for v5::registration::ClientMac {
     fn from(client_mac: v4::registration::ClientMac) -> Self {
+        Self::new((*client_mac).clone())
+    }
+}
+
+impl From<v5::registration::ClientMac> for v4::registration::ClientMac {
+    fn from(client_mac: v5::registration::ClientMac) -> Self {
         Self::new((*client_mac).clone())
     }
 }
@@ -154,6 +170,16 @@ impl From<v4::registration::RegistrationData> for v5::registration::Registration
     }
 }
 
+impl From<v5::registration::RegistrationData> for v4::registration::RegistrationData {
+    fn from(value: v5::registration::RegistrationData) -> Self {
+        Self {
+            nonce: value.nonce,
+            gateway_data: value.gateway_data.into(),
+            wg_port: value.wg_port,
+        }
+    }
+}
+
 impl From<v4::response::RemainingBandwidthResponse> for v5::response::RemainingBandwidthResponse {
     fn from(value: v4::response::RemainingBandwidthResponse) -> Self {
         Self {
@@ -199,6 +225,15 @@ impl From<v4::registration::IpPair> for v5::registration::IpPair {
     }
 }
 
+impl From<v5::registration::IpPair> for v4::registration::IpPair {
+    fn from(value: v5::registration::IpPair) -> Self {
+        Self {
+            ipv4: value.ipv4,
+            ipv6: value.ipv6,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -213,7 +248,10 @@ mod tests {
     use x25519_dalek::PublicKey;
 
     use super::*;
-    use crate::util::tests::{CREDENTIAL_BYTES, RECIPIENT};
+    use crate::{
+        util::tests::{CREDENTIAL_BYTES, RECIPIENT},
+        v3,
+    };
 
     #[test]
     fn upgrade_initial_req() {

@@ -55,9 +55,13 @@ async fn main() -> anyhow::Result<()> {
     let env = env_path.to_string();
     let client_port = env::args().nth(3).expect("Port not specified");
 
-    let mut proxy_server =
-        tcp_proxy::NymProxyServer::new(&upstream_tcp_addr, &conf_path, Some(env_path.clone()))
-            .await?;
+    let mut proxy_server = tcp_proxy::NymProxyServer::new(
+        &upstream_tcp_addr,
+        &conf_path,
+        Some(env_path.clone()),
+        None,
+    )
+    .await?;
     let proxy_nym_addr = proxy_server.nym_address();
 
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.

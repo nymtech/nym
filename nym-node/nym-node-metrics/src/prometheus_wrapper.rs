@@ -419,7 +419,7 @@ mod tests {
         }
         .to_string();
         assert_eq!(
-            "nym_node_mixnet_ingress_packet_version_sphinx-42",
+            "nym_node_mixnet_ingress_packet_version_sphinx_42",
             parameterised
         );
     }

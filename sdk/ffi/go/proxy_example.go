@@ -99,7 +99,7 @@ func main() {
 	}
 
 	// init a proxy server
-	build_serv_err := bindings.NewProxyServer(upstreamAddress, configDir, &env_path)
+	build_serv_err := bindings.NewProxyServer(upstreamAddress, configDir, &env_path, nil)
 	if build_serv_err != nil {
 		fmt.Println(build_serv_err)
 		return

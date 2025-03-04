@@ -104,6 +104,7 @@ void uniffi_nym_go_ffi_fn_func_new_proxy_server(
 	RustBuffer upstream_address,
 	RustBuffer config_dir,
 	RustBuffer env,
+	RustBuffer gateway,
 	RustCallStatus* out_status
 );
 

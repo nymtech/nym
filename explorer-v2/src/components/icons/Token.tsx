@@ -1,6 +1,6 @@
 import Image from "next/image";
-import * as React from "react";
+import { icons } from "@/utils/getIconByName";
 
 export const Token = () => {
-  return <Image src="/icons/token.svg" alt="Token" width={20} height={20} />;
+  return <Image src={icons.token} alt="Token" width={20} height={20} />;
 };

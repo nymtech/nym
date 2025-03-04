@@ -8,7 +8,7 @@
     "date": "Mon Jan 05 2025 10:26:09 GMT+0000 (Greenwich Mean Time)",
     "readingTime": 5
   },
-  "icon": "/icons/stake-card.svg",
+  "icon": "stakeCard",
   "image": "/images/stake-article.webp",
   "overview": {
     "content": [

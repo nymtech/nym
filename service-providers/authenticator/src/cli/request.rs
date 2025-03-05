@@ -111,16 +111,16 @@ pub(crate) async fn execute(args: &Request) -> Result<(), AuthenticatorError> {
     let authenticator_recipient = Recipient::from_str(&args.authenticator_recipient)?;
     let (request, _) = match request_data {
         AuthenticatorRequestData::Initial(init_message) => {
-            AuthenticatorRequest::new_initial_request(init_message, *mixnet_client.nym_address())
+            AuthenticatorRequest::new_initial_request(init_message)
         }
         AuthenticatorRequestData::Final(final_message) => {
-            AuthenticatorRequest::new_final_request(*final_message, *mixnet_client.nym_address())
+            AuthenticatorRequest::new_final_request(*final_message)
         }
         AuthenticatorRequestData::QueryBandwidth(query_message) => {
-            AuthenticatorRequest::new_query_request(query_message, *mixnet_client.nym_address())
+            AuthenticatorRequest::new_query_request(query_message)
         }
         AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
-            AuthenticatorRequest::new_topup_request(*top_up_message, *mixnet_client.nym_address())
+            AuthenticatorRequest::new_topup_request(*top_up_message)
         }
     };
     mixnet_client

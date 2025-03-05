@@ -203,10 +203,8 @@ mod tests {
     use super::*;
     use futures::StreamExt;
     use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender};
-    #[path = "utils.rs"]
-    mod utils;
+    use nym_sdk::tcp_proxy::{Payload, ProxiedMessage};
     use tempfile::TempDir;
-    use utils::{Payload, ProxiedMessage};
 
     #[tokio::test]
     async fn shutdown_works() -> Result<()> {
@@ -304,7 +302,6 @@ mod tests {
 
         let session_id = uuid::Uuid::new_v4();
         let message_id = 0;
-        // TODO make utils importable from TcpProxy dir
         let outgoing = ProxiedMessage::new(
             Payload::Data("test".as_bytes().to_vec()),
             session_id,

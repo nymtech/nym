@@ -150,9 +150,9 @@ impl<T> Deref for DecayWrapper<T> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProxiedMessage {
-    message: Payload,
-    session_id: Uuid,
-    message_id: u16,
+    pub message: Payload,
+    pub session_id: Uuid,
+    pub message_id: u16,
 }
 
 impl ProxiedMessage {

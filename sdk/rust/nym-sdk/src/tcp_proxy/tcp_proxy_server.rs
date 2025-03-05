@@ -116,7 +116,6 @@ impl NymProxyServer {
                     break;
                 }
                 // On our Mixnet client getting a new message:
-                // - Try deserialise into ProxiedMessage TODO also add check for ReconstructedMessage message innards if != ProxiedMessage
                 // - Check if the attached sessionID exists.
                 // - If !sessionID, spawn a new session_handler() task.
                 // - Send the message down tx => rx in our handler.

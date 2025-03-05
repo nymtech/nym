@@ -259,6 +259,7 @@ mod tests {
         Ok(())
     }
 
+    // TODO WHY IS THIS TEST HANGING
     #[tokio::test]
     async fn echoes_bytes() -> Result<()> {
         let config_dir = TempDir::new()?;
@@ -266,7 +267,7 @@ mod tests {
             None,
             Some(config_dir.path().to_str().unwrap()),
             None,
-            "9000",
+            "9001",
         )
         .await
         .unwrap();
@@ -299,6 +300,7 @@ mod tests {
                 }
             }
         }
+        println!("Sending message");
 
         let session_id = uuid::Uuid::new_v4();
         let message_id = 0;
@@ -309,8 +311,27 @@ mod tests {
         );
         let coded_message = bincode::serialize(&outgoing).unwrap();
 
+        println!("sending {:?}", coded_message);
+
         let mut client = MixnetClient::connect_new().await.unwrap();
+
+        println!("sending client addr {}", client.nym_address());
         let sender = client.split_sender();
+
+        let receiving_task_handle = tokio::spawn(async move {
+            println!("in handle");
+            if let Some(received) = client.next().await {
+                println!("{received:?}");
+                let incoming: ProxiedMessage = bincode::deserialize(&received.message).unwrap();
+                assert_eq!(outgoing.message, incoming.message);
+            }
+            println!("disconnecting client");
+            client.disconnect().await;
+            println!("client disconnected");
+        });
+
+        println!("after recv task handle");
+
         let sending_task_handle = tokio::spawn(async move {
             sender
                 .send_message(echo_addr, &coded_message, IncludedSurbs::Amount(10))
@@ -318,18 +339,17 @@ mod tests {
                 .unwrap();
         });
 
-        let receiving_task_handle = tokio::spawn(async move {
-            if let Some(received) = client.next().await {
-                let incoming: ProxiedMessage = bincode::deserialize(&received.message).unwrap();
-                assert_eq!(outgoing.message, incoming.message);
-            }
-            client.disconnect().await;
-        });
+        println!("after sending task handle");
 
-        sending_task_handle.await.unwrap();
         receiving_task_handle.await.unwrap();
+        sending_task_handle.await.unwrap();
+
+        println!("after handles resolve");
 
         shutdown_tx.send(()).await?;
+
+        println!("sent shutdown");
+
         server_handle.await?;
 
         Ok(())

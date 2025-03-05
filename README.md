@@ -67,3 +67,13 @@ As a general approach, licensing is as follows this pattern:
 - documentation is Apache 2.0 or CC0-1.0
 
 Nym Node Operators and Validators Terms and Conditions can be found [here](https://nym.com/operators-validators-terms).
+
+## Getting Started
+
+```bash
+yarn install
+```
+
+```bash
+yarn build
+```

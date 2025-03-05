@@ -37,11 +37,14 @@ export const NoiseCard = () => {
     );
   }
 
-  const todaysData = data[data.length - 1];
-  const yesterdaysData = data[data.length - 2];
+  const todaysData = data[data.length - 2];
+  const yesterdaysData = data[data.length - 3];
 
   const noiseLast24H =
     todaysData.total_packets_sent + todaysData.total_packets_received;
+
+  
+
   const noisePrevious24H =
     yesterdaysData.total_packets_sent + yesterdaysData.total_packets_received;
 
@@ -89,6 +92,9 @@ export const NoiseCard = () => {
         numericData: item.total_packets_sent + item.total_packets_received,
       };
     });
+
+    console.log("noiseLineGraphData", noiseLineGraphData)
+    console.log("data", data)
 
   return (
     <ExplorerCard label="Mixnet traffic" sx={{ height: "100%" }}>

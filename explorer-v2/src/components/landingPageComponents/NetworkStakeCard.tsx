@@ -1,10 +1,11 @@
 "use client";
 import { fetchNoise } from "@/app/api";
-import { Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-// import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
+import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
+import { LineChart } from "../lineChart";
 
 export const NetworkStakeCard = () => {
   const {
@@ -38,26 +39,34 @@ export const NetworkStakeCard = () => {
     );
   }
 
-  // const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
-  //   packetsAndStaking;
+  const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
+    packetsAndStaking;
 
   const lastTotalStake =
     packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
 
-  // const data = packetsAndStakingData
-  //   .slice(0, -1)
-  //   .map((item: IPacketsAndStakingData) => {
-  //     return {
-  //       date_utc: item.date_utc,
-  //       numericData: item.total_stake / 1000000,
-  //     };
-  //   });
 
-  // const stakeLineGraphData = {
-  //   color: "#00CA33",
-  //   label: "Total stake delegated in NYM",
-  //   data,
-  // };
+    const startDate = new Date("2025-02-26").getTime(); // Convert to timestamp
+
+    const data = packetsAndStakingData
+      .slice(0, -1) // Exclude the last element
+      .filter((item: IPacketsAndStakingData) => {
+        const itemDate = new Date(item.date_utc).getTime(); // Convert each date to timestamp
+        return itemDate >= startDate; // Compare timestamps
+      })
+      .map((item: IPacketsAndStakingData) => ({
+        date_utc: item.date_utc,
+        numericData: item.total_stake / 1000000,
+      }));
+    
+    console.log(data); // Debugging output
+    
+
+  const stakeLineGraphData = {
+    color: "#00CA33",
+    label: "Total stake delegated in NYM",
+    data,
+  };
 
   const title = `${formatBigNum(lastTotalStake)} NYM`;
 
@@ -70,11 +79,11 @@ export const NetworkStakeCard = () => {
         >
           {title}
         </Typography>
-        {/* {stakeLineGraphData && (
+        {stakeLineGraphData && (
           <Box height={225}>
             <LineChart {...stakeLineGraphData} />
           </Box>
-        )} */}
+        )}
       </Stack>
     </ExplorerCard>
   );

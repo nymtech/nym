@@ -27,13 +27,15 @@ export const LineChart = ({
 }) => {
   const chartData: ILineAxes = {
     id: label,
-    data: data.map((item) => {
-      return {
-        x: new Date(item.date_utc),
-        y: item.numericData || 0,
-      };
-    }),
+    data: data.map((item) => ({
+      x: new Date(item.date_utc), // Convert date string to Date object
+      y: item.numericData || 0, // Default to 0 if numericData is missing
+    })),
   };
+
+  // **Find the highest Y value and add a 10% buffer**
+  const maxYValue =
+    Math.max(...chartData.data.map((point) => point.y)) * 1.1 || 150000000;
 
   const yformat = (num: number | string | Date) => {
     if (typeof num === "number") {
@@ -55,12 +57,7 @@ export const LineChart = ({
     <ResponsiveLine
       curve="basis"
       colors={[color]}
-      data={[
-        {
-          id: chartData.id,
-          data: chartData.data,
-        },
-      ]}
+      data={[chartData]}
       animate
       enablePoints={false}
       enableSlices="x"
@@ -100,18 +97,22 @@ export const LineChart = ({
         type: "time",
         format: "%Y-%m-%d",
       }}
-      yScale={{ min: 1, type: "linear" }}
+      yScale={{
+        min: 120000000, // Keeping the minimum static
+        max: maxYValue, // **Dynamically set max value**
+        type: "linear",
+      }}
       xFormat="time:%Y-%m-%d"
       axisLeft={{
         legendOffset: 12,
         tickSize: 3,
         format: yformat,
-        tickValues: 8,
+        tickValues: 6,
       }}
       axisBottom={{
         format: "%b %d",
         legendOffset: -12,
-        tickValues: chartData.data.length > 7 ? "every 5 days" : "every day",
+        tickValues: chartData.data.length > 7 ? "every 5 days" : "every 2 days",
       }}
     />
   );

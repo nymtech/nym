@@ -7,45 +7,56 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::Utc;
+use nym_validator_client::nym_api::SkimmedNode;
 
 pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperNodeInfo>> {
     let mut nodes_to_scrape = Vec::new();
 
-    let mixnode_ids = queries::get_all_mix_ids(pool).await?;
-    let gateway_keys = queries::get_all_gateway_id_keys(pool).await?;
+    let mixnode_ids = queries::get_bonded_mix_ids(pool).await?;
+    let gateway_keys = queries::get_bonded_gateway_id_keys(pool).await?;
 
     let mut entry_exit_nodes = 0;
-    queries::get_nym_nodes(pool)
-        .await?
-        .into_iter()
-        .for_each(|node| {
-            // due to polyfilling, Nym nodes table might contain legacy mixnodes
-            // as well. Mark them as such here.
-            let node_kind = if mixnode_ids.contains(&node.node_id.into()) {
-                ScrapeNodeKind::LegacyMixnode {
-                    mix_id: node.node_id.into(),
+    let skimmed_nodes = queries::get_active_nym_nodes(pool).await.map(|nodes_dto| {
+        nodes_dto.into_iter().filter_map(|node| {
+            let node_id = node.node_id;
+            match SkimmedNode::try_from(node) {
+                Ok(node) => Some(node),
+                Err(e) => {
+                    tracing::error!("Failed to decode node_id={}: {}", node_id, e);
+                    None
                 }
-            } else if gateway_keys.contains(&node.ed25519_identity_pubkey.to_base58_string()) {
-                entry_exit_nodes += 1;
-                ScrapeNodeKind::EntryExitNymNode {
-                    node_id: node.node_id.into(),
-                    identity_key: node.ed25519_identity_pubkey.to_base58_string(),
-                }
-            } else {
-                ScrapeNodeKind::MixingNymNode {
-                    node_id: node.node_id.into(),
-                }
-            };
-            nodes_to_scrape.push(ScraperNodeInfo {
-                node_kind,
-                hosts: node
-                    .ip_addresses
-                    .into_iter()
-                    .map(|ip| ip.to_string())
-                    .collect::<Vec<_>>(),
-                http_api_port: node.mix_port.into(),
-            })
-        });
+            }
+        })
+    })?;
+
+    skimmed_nodes.for_each(|node| {
+        // TODO: relies on polyfilling: Nym nodes table might contain legacy mixnodes
+        // as well. Categorize them here.
+        let node_kind = if mixnode_ids.contains(&node.node_id.into()) {
+            ScrapeNodeKind::LegacyMixnode {
+                mix_id: node.node_id.into(),
+            }
+        } else if gateway_keys.contains(&node.ed25519_identity_pubkey.to_base58_string()) {
+            entry_exit_nodes += 1;
+            ScrapeNodeKind::EntryExitNymNode {
+                node_id: node.node_id.into(),
+                identity_key: node.ed25519_identity_pubkey.to_base58_string(),
+            }
+        } else {
+            ScrapeNodeKind::MixingNymNode {
+                node_id: node.node_id.into(),
+            }
+        };
+        nodes_to_scrape.push(ScraperNodeInfo {
+            node_kind,
+            hosts: node
+                .ip_addresses
+                .into_iter()
+                .map(|ip| ip.to_string())
+                .collect::<Vec<_>>(),
+            http_api_port: node.mix_port.into(),
+        })
+    });
 
     tracing::debug!("Fetched {} 🌟 total nym nodes", nodes_to_scrape.len());
     tracing::debug!("Fetched {} 🚪 entry/exit nodes", entry_exit_nodes);

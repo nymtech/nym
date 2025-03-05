@@ -11,11 +11,21 @@ use crate::{
     http::models::{DailyStats, Mixnode},
 };
 
-pub(crate) async fn insert_mixnodes(
+pub(crate) async fn update_bonded_mixnodes(
     pool: &DbPool,
     mixnodes: Vec<MixnodeRecord>,
 ) -> anyhow::Result<()> {
-    let mut conn = pool.acquire().await?;
+    let mut tx = pool.begin().await?;
+
+    sqlx::query!(
+        r#"UPDATE
+            mixnodes
+        SET
+            bonded = false
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
 
     for record in mixnodes.iter() {
         // https://www.sqlite.org/lang_upsert.html
@@ -43,9 +53,11 @@ pub(crate) async fn insert_mixnodes(
             record.last_updated_utc,
             record.is_dp_delegatee
         )
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await?;
     }
+
+    tx.commit().await?;
 
     Ok(())
 }
@@ -126,7 +138,7 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
     Ok(items)
 }
 
-pub(crate) async fn get_all_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<i64>> {
+pub(crate) async fn get_bonded_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<i64>> {
     let mut conn = pool.acquire().await?;
     let items = sqlx::query!(
         r#"

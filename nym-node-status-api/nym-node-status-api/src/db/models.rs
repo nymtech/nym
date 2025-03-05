@@ -2,19 +2,32 @@ use std::str::FromStr;
 
 use crate::{
     http::{self, models::SummaryHistory},
-    utils::NumericalCheckedCast,
+    utils::{decimal_to_i64, NumericalCheckedCast},
 };
 use anyhow::Context;
 use nym_contracts_common::Percent;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::v1::node::models::NodeDescription;
-use nym_validator_client::nym_api::SkimmedNode;
+use nym_validator_client::{
+    client::NymNodeDetails, models::NymNodeDescription, nym_api::SkimmedNode,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
+
+macro_rules! serialize_opt_to_value {
+    ($var:expr) => {{
+        match $var {
+            None => Ok(None),
+            Some(ref value) => serde_json::to_value(value).map(Some).map_err(|err| {
+                anyhow::anyhow!("Failed to serialize {}: {:?}", stringify!($var), err)
+            }),
+        }
+    }};
+}
 
 pub(crate) struct GatewayInsertRecord {
     pub(crate) identity_key: String,
@@ -406,11 +419,11 @@ impl ScraperNodeInfo {
     }
 }
 
+#[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(sqlx::Decode, Debug)]
 pub(crate) struct NymNodeDto {
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,
-    #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
     pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
     pub mix_port: i64,
@@ -419,8 +432,12 @@ pub(crate) struct NymNodeDto {
     pub supported_roles: serde_json::Value,
     pub entry: Option<serde_json::Value>,
     pub performance: String,
+    pub self_described: Option<serde_json::Value>,
+    pub bond_info: Option<serde_json::Value>,
+    pub active: bool,
 }
 
+#[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(Debug)]
 pub(crate) struct NymNodeInsertRecord {
     pub node_id: i64,
@@ -433,12 +450,33 @@ pub(crate) struct NymNodeInsertRecord {
     pub supported_roles: serde_json::Value,
     pub performance: String,
     pub entry: Option<serde_json::Value>,
+    pub self_described: Option<serde_json::Value>,
+    pub bond_info: Option<serde_json::Value>,
+    pub active: bool,
     pub last_updated_utc: String,
 }
 
 impl NymNodeInsertRecord {
-    pub fn new(skimmed_node: SkimmedNode, total_stake: i64) -> anyhow::Result<Self> {
+    pub fn new(
+        skimmed_node: SkimmedNode,
+        bond_info: Option<&NymNodeDetails>,
+        self_described: Option<&NymNodeDescription>,
+    ) -> anyhow::Result<Self> {
         let now = OffsetDateTime::now_utc().to_string();
+
+        // if a node doesn't expose its self-described endpoint, it can't route traffic
+        // https://nym.com/docs/operators/nodes/nym-node/bonding
+        // same if it's not bonded in the mixnet smart contract
+        // https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
+        let active = self_described.is_some() && bond_info.is_some();
+
+        // if bond info is missing, set stake to 0
+        let total_stake = bond_info
+            .map(|info| decimal_to_i64(info.total_stake()))
+            .unwrap_or(0);
+        let entry = serialize_opt_to_value!(skimmed_node.entry)?;
+        let bond_info = serialize_opt_to_value!(bond_info)?;
+        let self_described = serialize_opt_to_value!(self_described)?;
 
         let record = Self {
             node_id: skimmed_node.node_id.into(),
@@ -450,10 +488,10 @@ impl NymNodeInsertRecord {
             node_role: serde_json::to_value(&skimmed_node.role)?,
             supported_roles: serde_json::to_value(skimmed_node.supported_roles)?,
             performance: skimmed_node.performance.value().to_string(),
-            entry: match skimmed_node.entry {
-                Some(entry) => Some(serde_json::to_value(entry)?),
-                None => None,
-            },
+            entry,
+            self_described,
+            bond_info,
+            active,
             last_updated_utc: now,
         };
 

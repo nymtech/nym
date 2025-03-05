@@ -10,6 +10,7 @@ use crate::http::{server::HttpServer, state::AppState};
 pub(crate) mod gateways;
 pub(crate) mod metrics;
 pub(crate) mod mixnodes;
+pub(crate) mod nym_nodes;
 pub(crate) mod services;
 pub(crate) mod summary;
 pub(crate) mod testruns;
@@ -38,6 +39,7 @@ impl RouterBuilder {
                     .nest("/summary", summary::routes())
                     .nest("/metrics", metrics::routes()),
             )
+            .nest("/v3", Router::new().nest("/nym-nodes", nym_nodes::routes()))
             .nest(
                 "/internal",
                 Router::new().nest("/testruns", testruns::routes()),

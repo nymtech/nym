@@ -210,6 +210,12 @@ pub enum HttpClientError<E: Display = String> {
     #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
     EndpointFailure { status: StatusCode, error: E },
 
+    #[error("failed to decode response body: {source} from {content}")]
+    ResponseDecodeFailure {
+        source: serde_json::Error,
+        content: String,
+    },
+
     #[cfg(target_arch = "wasm32")]
     #[error("the request has timed out")]
     RequestTimeout,
@@ -866,19 +872,19 @@ where
     }
 
     if res.status().is_success() {
-        #[cfg(debug_assertions)]
-        {
-            let text = res.text().await.inspect_err(|err| {
-                tracing::error!("Couldn't even get response text: {err}");
-            })?;
-            tracing::trace!("Result:\n{:#?}", text);
-
-            serde_json::from_str(&text)
-                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))
+        // internally reqwest is first retrieving bytes and then performing parsing via serde_json
+        // (and similarly does the same thing for text())
+        let full = res.bytes().await?;
+        match serde_json::from_slice(&full) {
+            Ok(data) => Ok(data),
+            Err(err) => {
+                let text = String::from_utf8_lossy(&full);
+                Err(HttpClientError::ResponseDecodeFailure {
+                    source: err,
+                    content: text.into_owned(),
+                })
+            }
         }
-
-        #[cfg(not(debug_assertions))]
-        Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

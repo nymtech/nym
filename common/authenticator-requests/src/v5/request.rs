@@ -117,7 +117,10 @@ mod tests {
     fn check_first_bytes_protocol() {
         let version = 5;
         let data = AuthenticatorRequest {
-            protocol: Protocol { version, service_provider_type: ServiceProviderType::Authenticator },
+            protocol: Protocol {
+                version,
+                service_provider_type: ServiceProviderType::Authenticator,
+            },
             data: AuthenticatorRequestData::Initial(InitMessage::new(
                 PeerPublicKey::from_str("yvNUDpT5l7W/xDhiu6HkqTHDQwbs/B3J5UrLmORl1EQ=").unwrap(),
             )),

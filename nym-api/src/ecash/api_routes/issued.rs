@@ -38,6 +38,10 @@ pub(crate) struct ExpirationDatePathParam {
     pub(crate) expiration_date: Date,
 }
 
+async fn number_of_issued_ticketbooks_for() {
+    todo!()
+}
+
 #[utoipa::path(
     tag = "Ecash",
     get,
@@ -77,6 +81,21 @@ async fn issued_ticketbooks_for(
     )
 )]
 async fn issued_ticketbooks_challenge(
+    State(state): State<Arc<EcashState>>,
+    Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
+) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
+    trace!("replying to ticketbooks challenge: {:?}", challenge);
+    state.ensure_signer().await?;
+
+    Ok(Json(
+        state
+            .get_issued_ticketbooks(challenge)
+            .await?
+            .sign(state.local.identity_keypair.private_key()),
+    ))
+}
+
+async fn issued_ticketbooks_challenge_paged(
     State(state): State<Arc<EcashState>>,
     Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
 ) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {

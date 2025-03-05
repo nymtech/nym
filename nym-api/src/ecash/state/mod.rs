@@ -864,6 +864,11 @@ impl EcashState {
             return Err(EcashError::ExpirationDateTooEarly);
         }
 
+        // add some leeway
+        if expiration > ecash_default_expiration_date() + time::Duration::days(2) {
+            return Err(EcashError::ExpirationDateTooLate);
+        }
+
         // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
         // and not have the full data in memory
         if self.local.is_merkle_empty(expiration).await {

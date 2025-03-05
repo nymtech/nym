@@ -27,6 +27,9 @@ pub mod ecash {
     pub const MASTER_VERIFICATION_KEY: &str = "master-verification-key";
     pub const ECASH_ISSUED_TICKETBOOKS_FOR: &str = "issued-ticketbooks-for";
     pub const ECASH_ISSUED_TICKETBOOKS_CHALLENGE: &str = "issued-ticketbooks-challenge";
+    pub const ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT: &str =
+        "issued-ticketbooks-challenge-commitment";
+    pub const ECASH_ISSUED_TICKETBOOKS_DATA: &str = "issued-ticketbooks-data";
 
     pub const EXPIRATION_DATE_PARAM: &str = "expiration_date";
     pub const EPOCH_ID_PARAM: &str = "epoch_id";

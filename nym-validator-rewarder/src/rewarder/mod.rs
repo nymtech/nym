@@ -12,10 +12,12 @@ use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
 use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
+use std::sync::Arc;
 use time::Date;
 use tokio::pin;
 use tracing::{error, info, instrument, warn};
@@ -149,6 +151,8 @@ impl Rewarder {
             return Err(NymRewarderError::RewardingModulesDisabled);
         }
 
+        let rewarder_keypair = todo!("load the keys");
+
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_block_signing_epoch =
@@ -199,6 +203,7 @@ impl Rewarder {
                 config.verification_config(),
                 storage.clone(),
                 &nyxd_client,
+                rewarder_keypair,
                 whitelist,
             ))
         } else {

@@ -7,8 +7,10 @@ use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
+    IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
     IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
+    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse,
+    VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
@@ -1012,22 +1014,39 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn issued_ticketbooks_challenge(
+    async fn issued_ticketbooks_challenge_commitment(
         &self,
         expiration_date: Date,
         deposits: Vec<DepositId>,
-    ) -> Result<IssuedTicketbooksChallengeResponse, NymAPIError> {
+    ) -> Result<IssuedTicketbooksChallengeCommitmentResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
+                routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
             ],
             NO_PARAMS,
-            &IssuedTicketbooksChallengeRequest {
+            &IssuedTicketbooksChallengeCommitmentRequestBody {
                 expiration_date,
                 deposits,
             },
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn issued_ticketbooks_data(
+        &self,
+        request: &IssuedTicketbooksDataRequest,
+    ) -> Result<IssuedTicketbooksDataResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::ECASH_ISSUED_TICKETBOOKS_DATA,
+            ],
+            NO_PARAMS,
+            request,
         )
         .await
     }

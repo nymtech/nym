@@ -1,6 +1,6 @@
 [package]
 name = "nym-validator-rewarder"
-version = "0.2.1"
+version = "0.3.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -56,3 +56,6 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 rand_chacha = { workspace = true }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-crypto = { path = "../common/crypto", features = ["rand"] }
+
+[lints]
+workspace = true

@@ -59,23 +59,24 @@ impl ConnectedClients {
             .any(|client| client.client_id == *client_id)
     }
 
-    //fn lookup_ip_from_client_id(&self, client_id: &ConnectedClientId) -> Option<IpPair> {
-    //    self.clients_ipv4_mapping
-    //        .iter()
-    //        .find_map(|(ipv4, connected_client)| {
-    //            if connected_client.client_id == *client_id {
-    //                Some(IpPair::new(*ipv4, connected_client.ipv6))
-    //            } else {
-    //                None
-    //            }
-    //        })
-    //}
-    //
-    //fn lookup_client(&self, client_id: &ConnectedClientId) -> Option<&ConnectedClient> {
-    //    self.clients_ipv4_mapping
-    //        .values()
-    //        .find(|connected_client| connected_client.client_id == *client_id)
-    //}
+    pub(crate) fn lookup_ip_from_client_id(&self, client_id: &ConnectedClientId) -> Option<IpPair> {
+        self.clients_ipv4_mapping
+            .iter()
+            .find_map(|(ipv4, connected_client)| {
+                if connected_client.client_id == *client_id {
+                    Some(IpPair::new(*ipv4, connected_client.ipv6))
+                } else {
+                    None
+                }
+            })
+    }
+
+    #[allow(unused)]
+    fn lookup_client(&self, client_id: &ConnectedClientId) -> Option<&ConnectedClient> {
+        self.clients_ipv4_mapping
+            .values()
+            .find(|connected_client| connected_client.client_id == *client_id)
+    }
 
     pub(crate) fn connect(
         &mut self,

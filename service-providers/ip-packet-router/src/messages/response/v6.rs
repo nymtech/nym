@@ -119,9 +119,6 @@ impl From<DynamicConnectResponse> for DynamicConnectResponseReplyV6 {
 impl From<DynamicConnectFailureReason> for DynamicConnectFailureReasonV6 {
     fn from(reason: DynamicConnectFailureReason) -> Self {
         match reason {
-            DynamicConnectFailureReason::ClientAlreadyConnected => {
-                DynamicConnectFailureReasonV6::RequestedNymAddressAlreadyInUse
-            }
             DynamicConnectFailureReason::NoAvailableIp => {
                 DynamicConnectFailureReasonV6::NoAvailableIp
             }

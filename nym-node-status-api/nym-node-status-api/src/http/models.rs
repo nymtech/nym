@@ -1,4 +1,6 @@
+use cosmwasm_std::Decimal;
 use nym_node_requests::api::v1::node::models::NodeDescription;
+use nym_validator_client::client::NodeId;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -43,6 +45,23 @@ pub struct Mixnode {
     pub self_described: Option<serde_json::Value>,
     pub description: NodeDescription,
     pub last_updated_utc: String,
+}
+
+#[derive(Clone, Debug, utoipa::ToSchema, Deserialize, Serialize)]
+pub(crate) struct ExtendedNymNode {
+    pub(crate) node_id: NodeId,
+    pub(crate) identity_key: String,
+    pub(crate) uptime: f64,
+    #[schema(value_type = String)]
+    pub(crate) total_stake: Decimal,
+    pub(crate) original_pledge: u128,
+    pub(crate) bonding_address: String,
+    pub(crate) bonded: bool,
+    pub(crate) node_type: String,
+    pub(crate) ip_address: String,
+    pub(crate) accepted_tnc: bool,
+    pub(crate) description: serde_json::Value,
+    pub(crate) rewarding_details: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

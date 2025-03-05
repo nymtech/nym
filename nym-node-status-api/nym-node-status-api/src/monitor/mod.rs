@@ -1,9 +1,10 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayInsertRecord, MixnodeRecord, NetworkSummary, ASSIGNED_ENTRY_COUNT,
-    ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT,
-    MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
+    gateway, mixnode, GatewayInsertRecord, MixnodeRecord, NetworkSummary, NymNodeInsertRecord,
+    ASSIGNED_ENTRY_COUNT, ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
+    GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
+    NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{Location, NodeGeoData};
@@ -11,7 +12,7 @@ use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::client::{NodeId, NymApiClientExt};
+use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
 use nym_validator_client::models::{
     LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription,
 };
@@ -103,19 +104,24 @@ impl Monitor {
         let described_nodes = api_client
             .get_all_described_nodes()
             .await
-            .log_error("get_all_described_nodes")?;
+            .log_error("get_all_described_nodes")?
+            .into_iter()
+            .map(|elem| (elem.node_id, elem))
+            .collect::<HashMap<_, _>>();
         tracing::info!("🟣 described nodes: {}", described_nodes.len());
 
         let gateways = described_nodes
             .iter()
-            .filter(|node| {
-                node.description.declared_role.entry
-                    || node.description.declared_role.exit_ipr
-                    || node.description.declared_role.exit_nr
+            .filter_map(|(_, node)| {
+                if node.description.declared_role.entry || node.description.declared_role.exit_ipr {
+                    Some(node)
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>();
 
-        let bonded_node_info = api_client
+        let bonded_nym_nodes = api_client
             .get_all_bonded_nym_nodes()
             .await?
             .into_iter()
@@ -123,22 +129,27 @@ impl Monitor {
             // for faster reads
             .collect::<HashMap<_, _>>();
 
-        tracing::info!("🟣 bonded_nodes: {}", bonded_node_info.len());
+        tracing::info!("🟣 bonded_nodes: {}", bonded_nym_nodes.len());
 
+        // returns only bonded nodes
         let nym_nodes = api_client
             .get_all_basic_nodes()
             .await
             .log_error("get_all_basic_nodes")?;
 
-        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info)
+        tracing::info!("🟣 get_all_basic_nodes: {}", nym_nodes.len());
+
+        let nym_node_records =
+            self.prepare_nym_node_data(nym_nodes.clone(), &bonded_nym_nodes, &described_nodes);
+        queries::update_nym_nodes(&self.db_pool, nym_node_records)
             .await
-            .map(|_| {
-                tracing::debug!("{} nym nodes written to DB!", nym_nodes.len());
+            .map(|inserted| {
+                tracing::debug!("{} nym nodes written to DB!", inserted);
             })?;
 
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {
-            if let Some(node_details) = bonded_node_info.get(&gateway.node_id) {
+            if let Some(node_details) = bonded_nym_nodes.get(&gateway.node_id) {
                 let bond_info = &node_details.bond_information;
                 let gw_geodata = NodeGeoData {
                     identity_key: bond_info.node.identity_key.to_owned(),
@@ -166,6 +177,7 @@ impl Monitor {
             .map(|elem| elem.identity_key().to_owned())
             .collect::<HashSet<_>>();
 
+        // TODO this assumes polyfilling of legacy mixnodes on Nym API
         let mixnodes_legacy = nym_nodes
             .iter()
             .filter(|node| {
@@ -204,11 +216,12 @@ impl Monitor {
         let assigned_mixing_count = mixing_assigned_nodes.len();
         let count_legacy_mixnodes = mixnodes_legacy.len();
 
-        let gateway_records = self.prepare_gateway_data(&gateways, gateway_geodata, &nym_nodes)?;
+        let gateway_records =
+            self.prepare_gateway_data(&gateways, gateway_geodata, &nym_nodes, &bonded_nym_nodes)?;
 
         let pool = self.db_pool.clone();
         let gateways_count = gateway_records.len();
-        queries::insert_gateways(&pool, gateway_records)
+        queries::update_bonded_gateways(&pool, gateway_records)
             .await
             .map(|_| {
                 tracing::debug!("{} gateway records written to DB!", gateways_count);
@@ -220,7 +233,7 @@ impl Monitor {
             delegation_program_members,
         )?;
         let mixnodes_count = mixnode_records.len();
-        queries::insert_mixnodes(&pool, mixnode_records)
+        queries::update_bonded_mixnodes(&pool, mixnode_records)
             .await
             .map(|_| {
                 tracing::debug!("{} mixnode info written to DB!", mixnodes_count);
@@ -296,9 +309,14 @@ impl Monitor {
             Some(location) => return location,
             None => {
                 for ip in node.description.host_information.ip_address.iter() {
-                    if let Ok(location) = self.ipinfo.locate_ip(ip.to_string()).await {
-                        self.geocache.insert(node_id, location.clone()).await;
-                        return location;
+                    match self.ipinfo.locate_ip(ip.to_string()).await {
+                        Ok(location) => {
+                            self.geocache.insert(node_id, location.clone()).await;
+                            return location;
+                        }
+                        Err(err) => {
+                            tracing::warn!("Couldn't locate IP {} due to: {}", ip, err)
+                        }
                     }
                 }
                 // if no data could be retrieved
@@ -308,17 +326,45 @@ impl Monitor {
         }
     }
 
+    fn prepare_nym_node_data(
+        &self,
+        skimmed_nodes: Vec<SkimmedNode>,
+        bonded_node_info: &HashMap<NodeId, NymNodeDetails>,
+        described_nodes: &HashMap<NodeId, NymNodeDescription>,
+    ) -> Vec<NymNodeInsertRecord> {
+        skimmed_nodes
+            .into_iter()
+            .filter_map(|skimmed_node| {
+                let node_id = skimmed_node.node_id;
+                let bond_info = bonded_node_info.get(&skimmed_node.node_id);
+                let self_described = described_nodes.get(&skimmed_node.node_id);
+                match NymNodeInsertRecord::new(skimmed_node, bond_info, self_described) {
+                    Ok(record) => Some(record),
+                    Err(err) => {
+                        tracing::error!(
+                            "Failed to create insert record for node {}: {}",
+                            node_id,
+                            err
+                        );
+                        None
+                    }
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
     fn prepare_gateway_data(
         &self,
         described_gateways: &[&NymNodeDescription],
         gateway_geodata: Vec<NodeGeoData>,
         skimmed_gateways: &[SkimmedNode],
+        bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
         let mut gateway_records = Vec::new();
 
         for gateway in described_gateways {
             let identity_key = gateway.ed25519_identity_key().to_base58_string();
-            let bonded = true;
+            let bonded = bonded_nodes.contains_key(&gateway.node_id);
             let last_updated_utc = chrono::offset::Utc::now().timestamp();
 
             let self_described = serde_json::to_string(&gateway.description)?;
@@ -364,6 +410,7 @@ impl Monitor {
         for mixnode in mixnodes {
             let mix_id = mixnode.mix_id();
             let identity_key = mixnode.identity_key();
+            // only bonded nodes are given to this function
             let bonded = true;
             let total_stake = decimal_to_i64(mixnode.mixnode_details.total_stake());
             let node_info = mixnode.mix_node();

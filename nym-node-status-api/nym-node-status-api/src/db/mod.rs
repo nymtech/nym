@@ -1,5 +1,9 @@
 use anyhow::{anyhow, Result};
-use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, ConnectOptions, SqlitePool};
+use sqlx::{
+    migrate::Migrator,
+    sqlite::{SqliteAutoVacuum, SqliteConnectOptions, SqliteSynchronous},
+    ConnectOptions, SqlitePool,
+};
 use std::str::FromStr;
 
 pub(crate) mod models;
@@ -16,6 +20,10 @@ pub(crate) struct Storage {
 impl Storage {
     pub async fn init(connection_url: String) -> Result<Self> {
         let connect_options = SqliteConnectOptions::from_str(&connection_url)?
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
+            .foreign_keys(true)
             .create_if_missing(true)
             .disable_statement_logging();
 

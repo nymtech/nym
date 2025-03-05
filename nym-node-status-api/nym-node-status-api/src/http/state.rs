@@ -1,12 +1,16 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use cosmwasm_std::Decimal;
 use moka::{future::Cache, Entry};
+use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
+use nym_validator_client::{models::DescribedNodeType, nym_api::SkimmedNode};
 use tokio::sync::RwLock;
+use tracing::instrument;
 
 use crate::{
-    db::DbPool,
-    http::models::{DailyStats, Gateway, Mixnode, SummaryHistory},
+    db::{queries, DbPool},
+    http::models::{DailyStats, ExtendedNymNode, Gateway, Mixnode, SummaryHistory},
 };
 
 use super::models::SessionStats;
@@ -53,6 +57,7 @@ impl AppState {
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
+static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
 static SESSION_STATS_LIST_KEY: &str = "session-stats";
@@ -63,6 +68,7 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
+    nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
     history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
     session_stats: Cache<String, Arc<RwLock<Vec<SessionStats>>>>,
@@ -76,6 +82,10 @@ impl HttpCache {
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             mixnodes: Cache::builder()
+                .max_capacity(2)
+                .time_to_live(Duration::from_secs(ttl_seconds))
+                .build(),
+            nym_nodes: Cache::builder()
                 .max_capacity(2)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
@@ -177,6 +187,47 @@ impl HttpCache {
                 }
 
                 mixnodes
+            }
+        }
+    }
+
+    pub async fn upsert_nym_node_list(
+        &self,
+        nym_node_list: Vec<ExtendedNymNode>,
+    ) -> Entry<String, Arc<RwLock<Vec<ExtendedNymNode>>>> {
+        self.nym_nodes
+            .entry_by_ref(NYM_NODES_LIST_KEY)
+            .and_upsert_with(|maybe_entry| async {
+                if let Some(entry) = maybe_entry {
+                    let v = entry.into_value();
+                    let mut guard = v.write().await;
+                    *guard = nym_node_list;
+                    v.clone()
+                } else {
+                    Arc::new(RwLock::new(nym_node_list))
+                }
+            })
+            .await
+    }
+
+    pub async fn get_nym_nodes_list(&self, db: &DbPool) -> anyhow::Result<Vec<ExtendedNymNode>> {
+        match self.nym_nodes.get(NYM_NODES_LIST_KEY).await {
+            Some(guard) => {
+                tracing::trace!("Fetching from cache...");
+                let read_lock = guard.read().await;
+                Ok(read_lock.clone())
+            }
+            None => {
+                tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
+
+                let nym_nodes = aggregate_node_info_from_db(db).await.inspect(|nym_nodes| {
+                    if nym_nodes.is_empty() {
+                        tracing::warn!("Database contains 0 nym nodes");
+                    }
+                })?;
+                self.upsert_nym_node_list(nym_nodes.clone()).await;
+
+                Ok(nym_nodes)
             }
         }
     }
@@ -292,4 +343,82 @@ impl HttpCache {
             })
             .await
     }
+}
+
+#[instrument(level = "info", skip_all)]
+async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<ExtendedNymNode>> {
+    let node_bond_info = queries::get_active_node_bond_info(pool).await?;
+    tracing::debug!("Active nodes with bond info: {}", node_bond_info.len());
+
+    let skimmed_nodes = queries::get_all_nym_nodes(pool).await.map(|records| {
+        records
+            .into_iter()
+            .filter_map(|dto| SkimmedNode::try_from(dto).ok())
+            .map(|skimmed_node| (skimmed_node.node_id, skimmed_node))
+            .collect::<HashMap<_, _>>()
+    })?;
+    tracing::debug!("Skimmed nodes: {}", skimmed_nodes.len());
+
+    let described_nodes = queries::get_active_node_descriptions(pool).await?;
+    tracing::debug!("Active described nodes: {}", described_nodes.len());
+
+    let mut parsed_nym_nodes = Vec::new();
+    for (node_id, described_node) in described_nodes {
+        let bond_details = node_bond_info.get(&node_id);
+        let bonded = bond_details.is_some();
+        let total_stake = bond_details
+            .map(|details| details.total_stake())
+            .unwrap_or(Decimal::zero());
+        let identity_key = described_node.ed25519_identity_key().to_string();
+
+        let original_pledge = bond_details
+            .map(|details| details.original_pledge().amount.u128())
+            .unwrap_or(0u128);
+        let rewarding_details = &node_bond_info
+            .get(&node_id)
+            .map(|details| details.rewarding_details.clone());
+
+        let uptime = skimmed_nodes
+            .get(&node_id)
+            .map(|node| node.performance.naive_to_f64())
+            .unwrap_or(0.0);
+        let node_type = match described_node.contract_node_type {
+            DescribedNodeType::NymNode => "nym_node".to_string(),
+            DescribedNodeType::LegacyMixnode => "legacy_mixnode".to_string(),
+            DescribedNodeType::LegacyGateway => "legacy_gateway".to_string(),
+        };
+        let ip_address = described_node
+            .description
+            .host_information
+            .ip_address
+            .first()
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        let accepted_tnc = described_node
+            .description
+            .auxiliary_details
+            .accepted_operator_terms_and_conditions;
+        let description = described_node.description;
+
+        let bonding_address = bond_details
+            .map(|details| details.bond_information.owner.to_string())
+            .unwrap_or_default();
+
+        parsed_nym_nodes.push(ExtendedNymNode {
+            node_id,
+            identity_key,
+            total_stake,
+            uptime,
+            ip_address,
+            original_pledge,
+            bonding_address,
+            bonded,
+            node_type,
+            accepted_tnc,
+            description: serde_json::to_value(description).unwrap_or_default(),
+            rewarding_details: serde_json::to_value(rewarding_details).unwrap_or_default(),
+        });
+    }
+
+    Ok(parsed_nym_nodes)
 }

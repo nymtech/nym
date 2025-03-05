@@ -5,12 +5,7 @@ set -e
 user_rust_log_preference=$RUST_LOG
 export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
 export NYM_API_CLIENT_TIMEOUT=60
-export EXPLORER_CLIENT_TIMEOUT=60
 export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
-
-if [ "$ENVIRONMENT" = "mainnet" ]; then
-    export NYM_NODE_STATUS_API_HM_URL="https://harbourmaster.nymtech.net"
-fi
 
 # public counterpart of the agent's private key.
 # For TESTING only. NOT used in any other environment

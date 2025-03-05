@@ -7,7 +7,7 @@ use nym_sdk::mixnet::{AnonymousSenderTag, Recipient};
 
 use crate::error::{IpPacketRouterError, Result};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ConnectedClientId {
     AnonymousSenderTag(AnonymousSenderTag),
     NymAddress(Box<Recipient>),

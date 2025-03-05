@@ -122,7 +122,7 @@ pub struct BlindSignRequestBody {
 
     /// Signature on the inner sign request and the tx hash
     #[schema(value_type = String)]
-    pub signature: identity::Signature,
+    pub signature: ed25519::Signature,
 
     #[schema(value_type = openapi_schema::PublicKeyUser)]
     pub ecash_pubkey: PublicKeyUser,
@@ -139,7 +139,7 @@ impl BlindSignRequestBody {
     pub fn new(
         inner_sign_request: WithdrawalRequest,
         deposit_id: u32,
-        signature: identity::Signature,
+        signature: ed25519::Signature,
         ecash_pubkey: PublicKeyUser,
         expiration_date: Date,
         ticketbook_type: TicketType,
@@ -539,6 +539,82 @@ pub struct CommitedDeposit {
     pub merkle_index: usize,
 }
 
+//
+//
+
+// make sure only our types can implement this trait (to ensure infallible serialisation)
+mod private {
+    use crate::ecash::models::{
+        IssuedTicketbooksChallengeCommitmentRequestBody,
+        IssuedTicketbooksChallengeCommitmentResponseBody, IssuedTicketbooksDataRequestBody,
+        IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponseBody,
+    };
+
+    pub trait Sealed {}
+
+    // requests
+    impl Sealed for IssuedTicketbooksChallengeCommitmentRequestBody {}
+    impl Sealed for IssuedTicketbooksDataRequestBody {}
+
+    // responses
+    impl Sealed for IssuedTicketbooksChallengeCommitmentResponseBody {}
+    impl Sealed for IssuedTicketbooksForResponseBody {}
+    impl Sealed for IssuedTicketbooksDataResponseBody {}
+}
+
+// the trait is not public as it's only defined on types that are guaranteed to not panic when serialised
+pub trait SignableMessageBody: Serialize + private::Sealed {
+    fn sign(self, key: &ed25519::PrivateKey) -> SignedMessage<Self>
+    where
+        Self: Sized,
+    {
+        let signature = key.sign(self.plaintext());
+        SignedMessage {
+            body: self,
+            signature,
+        }
+    }
+
+    fn plaintext(&self) -> Vec<u8> {
+        #[allow(clippy::unwrap_used)]
+        // SAFETY: all types that implement this trait have valid serialisations
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+impl<T> SignableMessageBody for T where T: Serialize + private::Sealed {}
+
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedMessage<T> {
+    pub body: T,
+    #[schema(value_type = String)]
+    pub signature: ed25519::Signature,
+}
+
+impl<T> SignedMessage<T> {
+    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool
+    where
+        T: SignableMessageBody,
+    {
+        let plaintext = self.body.plaintext();
+        if plaintext.is_empty() {
+            return false;
+        }
+
+        pub_key.verify(&plaintext, &self.signature).is_ok()
+    }
+}
+
+pub type IssuedTicketbooksDataRequest = SignedMessage<IssuedTicketbooksDataRequestBody>;
+pub type IssuedTicketbooksChallengeCommitmentRequest =
+    SignedMessage<IssuedTicketbooksChallengeCommitmentRequestBody>;
+
+pub type IssuedTicketbooksChallengeCommitmentResponse =
+    SignedMessage<IssuedTicketbooksChallengeCommitmentResponseBody>;
+pub type IssuedTicketbooksForResponse = SignedMessage<IssuedTicketbooksForResponseBody>;
+pub type IssuedTicketbooksDataResponse = SignedMessage<IssuedTicketbooksDataResponseBody>;
+
 #[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksForResponseBody {
@@ -549,40 +625,106 @@ pub struct IssuedTicketbooksForResponseBody {
     pub merkle_root: Option<[u8; 32]>,
 }
 
-impl IssuedTicketbooksForResponseBody {
-    pub fn plaintext(&self) -> Vec<u8> {
-        #[allow(clippy::unwrap_used)]
-        serde_json::to_vec(self).unwrap()
-    }
+#[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksChallengeCommitmentRequestBody {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+    #[schema(value_type = Vec<u32>)]
+    pub deposits: Vec<DepositId>,
+}
 
-    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksForResponse {
-        IssuedTicketbooksForResponse {
-            signature: key.sign(self.plaintext()),
-            body: self,
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksChallengeCommitmentResponseBody {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+
+    // keep the original request alongside the requester's signature
+    // to show that we returned the same date as we got asked for
+    // and haven't tampered with the content
+    pub original_request: IssuedTicketbooksChallengeCommitmentRequest,
+
+    /// Indicate the maximum number of entries that can be returned at once
+    /// when asking for ticketbook data
+    pub max_data_response_size: usize,
+
+    pub merkle_proof: IssuedTicketbooksFullMerkleProof,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksDataRequestBody {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+    #[schema(value_type = Vec<u32>)]
+    pub deposits: Vec<DepositId>,
+}
+
+impl IssuedTicketbooksDataRequestBody {
+    pub fn new(
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> IssuedTicketbooksDataRequestBody {
+        IssuedTicketbooksDataRequestBody {
+            expiration_date,
+            deposits,
         }
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksForResponse {
-    pub body: IssuedTicketbooksForResponseBody,
+pub struct IssuedTicketbooksDataResponseBody {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
 
-    /// Signature on the body
     #[schema(value_type = String)]
-    pub signature: identity::Signature,
+    #[serde(with = "nym_serde_helpers::hex")]
+    pub merkle_root: Vec<u8>,
+
+    pub merkle_root_alt: Option<[u8; 32]>,
+
+    #[schema(value_type = BTreeMap<u32, IssuedTicketbook>)]
+    pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
+
+    // keep the original request alongside the requester's signature
+    // to show that we returned the same deposits as we got asked for
+    // and haven't tampered with the content
+    pub original_request: IssuedTicketbooksDataRequest,
+
+    pub truncated: bool,
 }
 
-impl IssuedTicketbooksForResponse {
-    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
-        pub_key
-            .verify(self.body.plaintext(), &self.signature)
-            .is_ok()
+impl IssuedTicketbooksDataResponseBody {
+    // helpers so that library consumers wouldn't need to import all the required dependencies
+    pub fn try_get_partial_credential(
+        issued: &IssuedTicketbook,
+    ) -> Result<BlindedSignature, CompactEcashError> {
+        BlindedSignature::from_bytes(&issued.blinded_partial_credential)
+    }
+
+    pub fn try_get_private_attributes_commitments(
+        issued: &IssuedTicketbook,
+    ) -> Result<Vec<G1Projective>, CompactEcashError> {
+        BlindSignRequestBody::try_decode_joined_commitments(
+            &issued.joined_encoded_private_attributes_commitments,
+        )
     }
 }
 
+//////
+////////
+////////
+////////
+
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
 #[serde(rename_all = "camelCase")]
+#[deprecated]
 pub struct IssuedTicketbooksChallengeRequest {
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
@@ -593,6 +735,7 @@ pub struct IssuedTicketbooksChallengeRequest {
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+#[deprecated]
 pub struct IssuedTicketbooksChallengeResponseBody {
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
@@ -615,38 +758,16 @@ impl IssuedTicketbooksChallengeResponseBody {
             body: self,
         }
     }
-
-    // helpers so that library consumers wouldn't need to import all the required dependencies
-    pub fn try_get_partial_credential(
-        issued: &IssuedTicketbook,
-    ) -> Result<BlindedSignature, CompactEcashError> {
-        BlindedSignature::from_bytes(&issued.blinded_partial_credential)
-    }
-
-    pub fn try_get_private_attributes_commitments(
-        issued: &IssuedTicketbook,
-    ) -> Result<Vec<G1Projective>, CompactEcashError> {
-        BlindSignRequestBody::try_decode_joined_commitments(
-            &issued.joined_encoded_private_attributes_commitments,
-        )
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[deprecated]
 pub struct IssuedTicketbooksChallengeResponse {
     pub body: IssuedTicketbooksChallengeResponseBody,
 
     #[schema(value_type = String)]
-    pub signature: identity::Signature,
-}
-
-impl IssuedTicketbooksChallengeResponse {
-    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
-        pub_key
-            .verify(self.body.plaintext(), &self.signature)
-            .is_ok()
-    }
+    pub signature: ed25519::Signature,
 }
 
 #[cfg(test)]

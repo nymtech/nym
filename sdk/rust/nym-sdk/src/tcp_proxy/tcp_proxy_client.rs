@@ -3,16 +3,12 @@
 
 use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
-use std::{sync::Arc, time::Duration};
-#[path = "client_pool.rs"]
-mod client_pool;
-use client_pool::ClientPool;
-#[path = "utils.rs"]
-mod utils;
+use crate::tcp_proxy::utils::{MessageBuffer, Payload, ProxiedMessage};
 use anyhow::Result;
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
 use nym_sphinx::addressing::Recipient;
+use std::sync::Arc;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
@@ -21,7 +17,6 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument};
-use utils::{MessageBuffer, Payload, ProxiedMessage};
 
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
 const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
@@ -73,10 +68,7 @@ impl NymProxyClient {
     }
 
     pub async fn run(&self) -> Result<()> {
-        info!(
-            "Outgoing Mixnet traffic will be sent to {}",
-            self.server_address
-        );
+        info!("Connecting to mixnet server at {}", self.server_address);
 
         let listener =
             TcpListener::bind(format!("{}:{}", self.listen_address, self.listen_port)).await?;
@@ -240,7 +232,7 @@ impl NymProxyClient {
                         msg_buffer.tick(&mut write).await?;
                     },
                     _ = cancel_token.cancelled() => {
-                        info!("Triggering loop shutdown");
+                        info!("CTRL_C triggered in thread, triggering loop shutdown");
                         break
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
@@ -260,13 +252,8 @@ impl NymProxyClient {
                         msg_buffer.tick(&mut write).await?;
                     },
                     _ = cancel_token.cancelled() => {
-                        info!("Triggering client shutdown");
+                        info!("CTRL_C triggered in thread, triggering client shutdown");
                         client.disconnect().await;
-                        conn_pool.clone().decrement_conn_count()?;
-                        info!(
-                            "Dropped connection - current active connections: {}",
-                            conn_pool.get_conn_count()
-                        );
                         return Ok::<(), anyhow::Error>(())
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {

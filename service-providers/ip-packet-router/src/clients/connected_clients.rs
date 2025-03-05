@@ -61,7 +61,7 @@ impl ConnectedClients {
 
     pub(crate) fn disconnect_client(&mut self, client_id: &ConnectedClientId) {
         if let Some(ips) = self.lookup_ip_from_client_id(client_id) {
-            log::info!("Disconnect client that requested to do so: {ips}");
+            log::debug!("Disconnect client that requested to do so: {ips}");
             self.disconnect_client_handle(ips);
         }
     }

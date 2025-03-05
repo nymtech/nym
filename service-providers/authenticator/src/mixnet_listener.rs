@@ -928,6 +928,17 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
                 Err(AuthenticatorError::InvalidPacketType(request_type))
             }
         }
+        [5, request_type] => {
+            if request_type == ServiceProviderType::Authenticator as u8 {
+                v5::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
+                        source: err,
+                    })
+                    .map(Into::into)
+            } else {
+                Err(AuthenticatorError::InvalidPacketType(request_type))
+            }
+        }
         [version, _] => {
             log::info!("Received packet with invalid version: v{version}");
             Err(AuthenticatorError::InvalidPacketVersion(version))

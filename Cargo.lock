@@ -4747,7 +4747,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.51"
+version = "1.1.52"
 dependencies = [
  "anyhow",
  "async-trait",

@@ -191,6 +191,7 @@ async fn try_get_client(
         // if provided host was malformed, no point in continuing
         let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
             b.with_timeout(Duration::from_secs(5))
+                .no_hickory_dns()
                 .with_user_agent("nym-api-describe-cache")
                 .build()
         }) {

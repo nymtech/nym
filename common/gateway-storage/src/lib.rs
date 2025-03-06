@@ -200,6 +200,20 @@ impl GatewayStorage {
         Ok(())
     }
 
+    pub async fn update_last_used_authentication_timestamp(
+        &self,
+        client_id: i64,
+        last_used_authentication_timestamp: OffsetDateTime,
+    ) -> Result<(), GatewayStorageError> {
+        self.shared_key_manager
+            .update_last_used_authentication_timestamp(
+                client_id,
+                last_used_authentication_timestamp,
+            )
+            .await?;
+        Ok(())
+    }
+
     pub async fn get_client(&self, client_id: i64) -> Result<Option<Client>, GatewayStorageError> {
         let client = self.client_manager.get_client(client_id).await?;
         Ok(client)

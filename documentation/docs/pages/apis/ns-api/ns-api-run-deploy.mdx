@@ -15,14 +15,16 @@ The API stores its data in a local SQLite database. It periodically gets most of
 You can run the `nym-node-status-api` alone, but if you want to run probes for `nym-node`s running as Gateways, you have to also run the `nym-node-status-agent` (which consumes the `nym-node-status-client` lib). The probe will run a set of tests per Gateway node, and return the sort of results seen [here](https://harbourmaster.nymtech.net/gateway/23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb).
 
 ## UI
-Currently we are not shipping a UI component for the Node Status API. The [Harbourmaster](https://harbourmaster.nymtech.net/) frontend consumes this API, amongst other things, but this is an internal repo we use to experiment with new APIs and data on, so it is not public yet.
+The API exposes a [Swagger](https://swagger.io/docs/) documentation UI by default on port `8000` (see an example [here](https://mainnet-node-status-api.nymtech.cc/swagger/)).
+
+Currently we are not shipping a custom UI component for the Node Status API. The [Harbourmaster](https://harbourmaster.nymtech.net/) frontend consumes this API, amongst other things, but this is an internal repo we use to experiment with new APIs and data on, so it is not public yet.
 
 <Callout type="info">
 We invite developers to roll their own UI for their Node Status API instance.
 </Callout>
 
 ## Docker Images
-Coming soon.
+We will ship Docker images for both the `agent` and `api` in the future. There are Docker images for both in root of each corresponding crate ([`agent`](https://github.com/nymtech/nym/blob/09ea406c02e9a3beebc062f525e4ea1b4222dcbb/nym-node-status-api/nym-node-status-agent/Dockerfile), [`api`](https://github.com/nymtech/nym/blob/develop/nym-node-status-api/nym-node-status-api/Dockerfile)) which are used internally, which could be a starting point for developers to dockerize their instance for the moment.
 
 ## Build
 ### Prerequisites
@@ -38,15 +40,17 @@ cargo build --release --package nym-node-status-api --package nym-node-status-ag
 ## Run
 Since the Node Status API depends on both flags and environmental variables, it might be easier to run the binary via a script like the one below - this this script essentially just `source`-s the defined `.env` file after exporting certain binary-specific variables, and then runs the binary. You can find the `.env` files [here](https://github.com/nymtech/nym/tree/master/envs).
 
+<Callout type="info">
+    All CLI flags are configurable as environmental variables and vice versa, so take the following scripts / setups as guides that you can change however best suits your setup. You can see all definitions [here](https://github.com/nymtech/nym/blob/develop/nym-node-status-api/nym-node-status-api/src/cli/mod.rs#L14).
+</Callout>
+
 ```bash
 #!/bin/bash
 
 set -e
 
-user_rust_log_preference=$RUST_LOG
 export ENVIRONMENT=${ENVIRONMENT:-"mainnet"} # see nym/envs/ for all possible environments
 export NYM_API_CLIENT_TIMEOUT=60
-export EXPLORER_CLIENT_TIMEOUT=60
 export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
 export IPINFO_API_TOKEN=<YOUR_IPINFO_API_KEY>
 
@@ -55,7 +59,7 @@ set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
 echo ${monorepo_root}/envs/${ENVIRONMENT}.env
 set +a
-export RUST_LOG=${user_rust_log_preference:-debug} # debug is useful to check everything is working initially, but quite verbose
+export RUST_LOG=${RUST_LOG:-debug} # debug is useful to check everything is working initially, but quite verbose
 
 echo "Verifying environment variables were properly sourced:"
 echo "RUST_LOG=${RUST_LOG}"
@@ -181,6 +185,8 @@ You will then want to export the generated `public-key` so its accessible to the
 ```bash
 export NODE_STATUS_API_AGENT_KEY_LIST=<YOUR_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
 ```
+
+In this situation, you are probably only using one key. However, it is possible to set multiple keys as a comma seperated list, in case you wish to whitelist multiple `-agent`s to be able to submit to a single `-api` instance.
 
 #### Run the Node Status Agent
 ```shell
@@ -321,6 +327,10 @@ swarm $workers
 ```
 
 And run specifying the number of workers with `./<SCRIPT_NAME>.sh <NUMBER_OF_WORKERS>`.
+
+<Callout type="info">
+When running the probe, use logging level `RUST_LOG=info`. The Node Status API relies on that granularity for parsing probe results, and the logs grow incessantly if a lower level (e.g. `DEBUG`) is used.
+</Callout>
 
 ### Ports
 By default the API listens on `8000`, so you will need to configure this post to be reachable on your remote server. You can modify this with the `--http_port` flag.

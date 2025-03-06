@@ -228,6 +228,7 @@ pub struct ClientBuilder {
     timeout: Option<Duration>,
     custom_user_agent: bool,
     reqwest_client_builder: reqwest::ClientBuilder,
+    #[allow(dead_code)] // not dead code, just unused in wasm
     use_secure_dns: bool,
 }
 
@@ -240,7 +241,6 @@ impl ClientBuilder {
         U: IntoUrl,
         E: Display,
     {
-
         let str_url = url.as_str();
 
         // a naive check: if the provided URL does not start with http(s), add that scheme
@@ -258,7 +258,8 @@ impl ClientBuilder {
     pub fn new_with_url(url: Url) -> Self {
         if !url.scheme().starts_with("http") {
             let mut alt = url.clone();
-            #[allow(clippy::unwrap_used)] // https is always a valid protocol so unwrap is safe here
+            #[allow(clippy::unwrap_used)]
+            // https is always a valid protocol so unwrap is safe here
             alt.set_scheme("https").unwrap();
             warn!("the provided url ('{url}') does not contain scheme information. Changing it to '{alt}' ...");
             // TODO: or should we maybe default to https?

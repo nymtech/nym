@@ -57,16 +57,17 @@ Patched version of `dorina` with a few fixes and tweaks to the release. We would
 ```shell
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2025-03-06T14:28:21.408539599Z
-Build Version:      1.6.1
-Commit SHA:         1fb2ebad7ad1bad455d5b896ea14204211727417
-Commit Date:        2025-03-06T15:26:18.000000000+01:00
+Build Timestamp:    2025-03-06T20:32:36.922212778Z
+Build Version:      1.6.2
+Commit SHA:         247ebb7c4339de0a298a7fcb2574122a8306c3b8
+Commit Date:        2025-03-06T21:26:16.000000000+01:00
 Commit Branch:      HEAD
 rustc Version:      1.85.0
 rustc Channel:      stable
 cargo Profile:      release
 ```
 
+- Use legacy crypto for constructing SURB headers ([#5579])
 - Bugfix: make sure to correctly decode response content when putting it into error message ([#5571])
 - Tweak surb management to be more conservative ([#5570])
 - Deserialize v5 authenticator requests ([#5568])
@@ -76,6 +77,7 @@ cargo Profile:      release
 - Feature: v2 authentication request (#5537) ([#5563])
 - Create authenticator v5 request/response types ([#5561])
 
+[#5579]: https://github.com/nymtech/nym/pull/5579
 [#5571]: https://github.com/nymtech/nym/pull/5571
 [#5570]: https://github.com/nymtech/nym/pull/5570
 [#5568]: https://github.com/nymtech/nym/pull/5568

@@ -21,6 +21,12 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
+# used for decoding text responses (they were already implicitly included)
+bytes = { workspace = true }
+encoding_rs = { workspace = true }
+mime = { workspace = true }
+
+
 nym-bin-common = { path = "../bin-common" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
@@ -32,4 +38,4 @@ workspace = true
 features = ["tokio"]
 
 [dev-dependencies]
-tokio = { workspace = true, features=["rt", "macros"] }
+tokio = { workspace = true, features = ["rt", "macros"] }

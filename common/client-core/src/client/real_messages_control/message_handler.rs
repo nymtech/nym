@@ -33,10 +33,12 @@ pub enum PreparationError {
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
 
-    #[error("The received message cannot be sent using a single reply surb. It ended up getting split into {fragments} fragments.")]
+    #[error("message too long for a single SURB, splitting into {fragments} fragments.")]
     MessageTooLongForSingleSurb { fragments: usize },
 
-    #[error("Not enough reply SURBs to send the message. We have {available} available and require at least {required}.")]
+    #[error(
+        "not enough reply SURBs to send the message, available: {available} required: {required}."
+    )]
     NotEnoughSurbs { available: usize, required: usize },
 }
 

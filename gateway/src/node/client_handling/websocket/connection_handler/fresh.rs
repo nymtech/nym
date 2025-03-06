@@ -426,6 +426,11 @@ impl<R, S> FreshHandler<R, S> {
             return Ok(2);
         }
 
+        // a v4 gateway will understand v3 requests (aes256gcm-siv)
+        if client_protocol_version == 3 {
+            return Ok(3);
+        }
+
         // we can't handle clients with higher protocol than ours
         // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
         if client_protocol_version <= CURRENT_PROTOCOL_VERSION {

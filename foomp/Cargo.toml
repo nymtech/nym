@@ -13,7 +13,6 @@ readme.workspace = true
 [dependencies]
 tokio = { workspace = true, features = ["full"] }
 anyhow.workspace = true
-reqwest = "*"
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-validator-client = { path = "../common/client-libs/validator-client", features = ["http-client"] }
 

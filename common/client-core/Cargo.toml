@@ -118,6 +118,8 @@ features = ["wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+anyhow = "1.0.96"
 
 [features]
 default = []

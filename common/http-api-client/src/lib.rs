@@ -871,19 +871,20 @@ where
         }
     }
 
+    println!("response:\n{res:#?}");
+
     if res.status().is_success() {
+        let text = res.text().await?;
+        println!("response text:\n{}", text);
         // internally reqwest is first retrieving bytes and then performing parsing via serde_json
         // (and similarly does the same thing for text())
-        let full = res.bytes().await?;
-        match serde_json::from_slice(&full) {
+        // let full = res.bytes().await?;
+        match serde_json::from_str(&text) {
             Ok(data) => Ok(data),
-            Err(err) => {
-                let text = String::from_utf8_lossy(&full);
-                Err(HttpClientError::ResponseDecodeFailure {
-                    source: err,
-                    content: text.into_owned(),
-                })
-            }
+            Err(err) => Err(HttpClientError::ResponseDecodeFailure {
+                source: err,
+                content: text.clone(),
+            }),
         }
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)

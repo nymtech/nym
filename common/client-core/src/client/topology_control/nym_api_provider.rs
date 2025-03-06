@@ -171,3 +171,33 @@ impl TopologyProvider for NymApiTopologyProvider {
         Some(topology)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn foomp() -> anyhow::Result<()> {
+        let provider = NymApiTopologyProvider::new(
+            Config {
+                min_mixnode_performance: 0,
+                min_gateway_performance: 0,
+                use_extended_topology: false,
+                ignore_egress_epoch_role: false,
+            },
+            vec!["https://validator.nymtech.net/api/".parse()?],
+            None,
+        );
+
+        let a = provider
+            .validator_client
+            .get_current_rewarded_set()
+            .await
+            .unwrap();
+
+        println!("{a:#?}");
+
+        panic!("");
+        Ok(())
+    }
+}

@@ -82,6 +82,7 @@ jobs:
             target/release/nym-cli
             target/release/nymvisor
             target/release/nym-node
+            target/release/foomp
           retention-days: 30
 
       # If this was a pull_request or nightly, upload to build server
@@ -100,6 +101,7 @@ jobs:
           cp target/release/nym-node $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
+          cp target/release/foomp $OUTPUT_DIR
           if [ ${{ github.event_name == 'workflow_dispatch' && inputs.enable_deb == true }} = true ]; then
             cp target/debian/*.deb $OUTPUT_DIR
           fi

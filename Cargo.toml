@@ -100,7 +100,7 @@ members = [
     "documentation/autodoc",
     "explorer-api",
     "explorer-api/explorer-api-requests",
-    "explorer-api/explorer-client",
+    "explorer-api/explorer-client", "foomp",
     "gateway",
     "integrations/bity",
     "nym-api",
@@ -151,6 +151,7 @@ members = [
 ]
 
 default-members = [
+    "foomp",
     "clients/native",
     "clients/socks5",
     "explorer-api",

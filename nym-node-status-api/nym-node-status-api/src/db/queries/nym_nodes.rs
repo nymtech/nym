@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::Context;
 use futures_util::TryStreamExt;
 use nym_validator_client::{client::NymNodeDetails, nym_api::SkimmedNode};
 use tracing::instrument;
@@ -9,7 +10,7 @@ use crate::{
         models::{NymNodeDto, NymNodeInsertRecord},
         DbPool,
     },
-    monitor::decimal_to_i64,
+    utils::decimal_to_i64,
 };
 
 pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNode>> {
@@ -100,7 +101,8 @@ pub(crate) async fn insert_nym_nodes(
             record.last_updated_utc,
         )
         .execute(&mut *conn)
-        .await?;
+        .await
+        .with_context(|| format!("node_id={}", record.node_id))?;
     }
 
     Ok(())

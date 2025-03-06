@@ -99,7 +99,10 @@ async fn get_stats(
     Query(MixStatsQueryParams { offset }): Query<MixStatsQueryParams>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<Vec<DailyStats>>> {
-    let offset = offset.unwrap_or(0);
+    let offset: usize = offset
+        .unwrap_or(0)
+        .try_into()
+        .map_err(|_| HttpError::invalid_input("Offset must be non-negative"))?;
     let last_30_days = state
         .cache()
         .get_mixnode_stats(state.db_pool(), offset)

@@ -1,12 +1,15 @@
-use crate::db::{
-    models::{NodeStats, ScraperNodeInfo},
-    queries::{
-        get_raw_node_stats, insert_daily_node_stats, insert_node_packet_stats,
-        insert_scraped_node_description,
+use crate::{
+    db::{
+        models::{NodeStats, ScraperNodeInfo},
+        queries::{
+            get_raw_node_stats, insert_daily_node_stats, insert_node_packet_stats,
+            insert_scraped_node_description,
+        },
     },
+    utils::generate_node_name,
 };
 use ammonia::Builder;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Datelike, Utc};
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -80,22 +83,33 @@ pub fn build_client() -> Result<reqwest::Client> {
         .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))
 }
 
-pub fn sanitize_description(description: NodeDescriptionResponse) -> NodeDescriptionResponse {
+pub fn sanitize_description(
+    description: NodeDescriptionResponse,
+    node_id: i64,
+) -> NodeDescriptionResponse {
     let mut sanitizer = Builder::new();
     sanitizer
         .tags(std::collections::HashSet::new())
         .generic_attributes(std::collections::HashSet::new())
         .url_schemes(std::collections::HashSet::new());
 
+    const UNKNOWN: &str = "N/A";
     let sanitize_field = |opt: Option<String>| -> Option<String> {
         Some(
             opt.filter(|s| !s.trim().is_empty())
-                .map_or_else(|| "N/A".to_string(), |s| sanitizer.clean(&s).to_string()),
+                .map_or_else(|| UNKNOWN.to_string(), |s| sanitizer.clean(&s).to_string()),
         )
     };
 
+    let mut moniker = sanitize_field(description.moniker);
+    if let Some(sanitized) = &moniker {
+        if sanitized == UNKNOWN {
+            moniker = Some(generate_node_name(node_id));
+        }
+    };
+
     NodeDescriptionResponse {
-        moniker: sanitize_field(description.moniker),
+        moniker,
         website: sanitize_field(description.website),
         security_contact: sanitize_field(description.security_contact),
         details: sanitize_field(description.details),
@@ -108,18 +122,26 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
 
     let mut description = None;
     let mut error = None;
+    let mut tried_url_list = Vec::new();
 
     for mut url in urls {
         url = format!("{}{}", url.trim_end_matches('/'), DESCRIPTION_URL);
+        tried_url_list.push(url.clone());
 
-        match client.get(&url).send().await {
+        match client
+            .get(&url)
+            .send()
+            .await
+            // convert 404 and similar to error
+            .and_then(|res| res.error_for_status())
+        {
             Ok(response) => {
                 if let Ok(desc) = response.json::<NodeDescriptionResponse>().await {
                     description = Some(desc);
                     break;
                 }
             }
-            Err(e) => error = Some(e),
+            Err(e) => error = Some(anyhow!("{:?} ({})", tried_url_list, e)),
         }
     }
 
@@ -128,9 +150,8 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
-    let sanitized_description = sanitize_description(description);
-    insert_scraped_node_description(pool, &node.node_kind, node.node_id, &sanitized_description)
-        .await?;
+    let sanitized_description = sanitize_description(description, *node.node_id());
+    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
 
     Ok(())
 }
@@ -144,9 +165,11 @@ pub async fn scrape_and_store_packet_stats(
 
     let mut stats = None;
     let mut error = None;
+    let mut tried_url_list = Vec::new();
 
     for mut url in urls {
         url = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
+        tried_url_list.push(url.clone());
 
         match client.get(&url).send().await {
             Ok(response) => {
@@ -155,18 +178,18 @@ pub async fn scrape_and_store_packet_stats(
                     break;
                 }
             }
-            Err(e) => error = Some(e),
+            Err(e) => error = Some(anyhow!("{:?} ({})", tried_url_list, e)),
         }
     }
 
     let stats = stats.ok_or_else(|| {
         let err_msg = error.map_or_else(|| "Unknown error".to_string(), |e| e.to_string());
-        anyhow::anyhow!("Failed to fetch stats from any URL: {}", err_msg)
+        anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
     let timestamp = Utc::now();
     let timestamp_utc = timestamp.timestamp();
-    insert_node_packet_stats(pool, node.node_id, &node.node_kind, &stats, timestamp_utc).await?;
+    insert_node_packet_stats(pool, &node.node_kind, &stats, timestamp_utc).await?;
 
     // Update daily stats
     update_daily_stats(pool, node, timestamp, &stats).await?;

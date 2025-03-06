@@ -8,7 +8,7 @@ use sqlx::SqlitePool;
 use tracing::{debug, error, instrument, warn};
 
 use crate::db::models::ScraperNodeInfo;
-use crate::db::queries::get_mixing_nodes_for_scraping;
+use crate::db::queries::get_nodes_for_scraping;
 
 const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4);
 const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
@@ -74,7 +74,7 @@ impl Scraper {
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
-        let nodes = get_mixing_nodes_for_scraping(pool).await?;
+        let nodes = get_nodes_for_scraping(pool).await?;
         if let Ok(mut queue_lock) = queue.lock() {
             queue_lock.extend(nodes);
         } else {
@@ -82,7 +82,7 @@ impl Scraper {
             return Ok(());
         }
 
-        Self::process_description_queue(pool, queue).await?;
+        Self::process_description_queue(pool, queue).await;
         Ok(())
     }
 
@@ -91,7 +91,7 @@ impl Scraper {
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
-        let nodes = get_mixing_nodes_for_scraping(pool).await?;
+        let nodes = get_nodes_for_scraping(pool).await?;
         tracing::info!("Querying {} mixing nodes", nodes.len());
         if let Ok(mut queue_lock) = queue.lock() {
             queue_lock.extend(nodes);
@@ -100,14 +100,11 @@ impl Scraper {
             return Ok(());
         }
 
-        Self::process_packet_queue(pool, queue).await?;
+        Self::process_packet_queue(pool, queue).await;
         Ok(())
     }
 
-    async fn process_description_queue(
-        pool: &SqlitePool,
-        queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
-    ) -> Result<()> {
+    async fn process_description_queue(pool: &SqlitePool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
@@ -132,12 +129,15 @@ impl Scraper {
                 tokio::spawn(async move {
                     match scrape_and_store_description(&pool, &node).await {
                         Ok(_) => debug!(
-                            "✅ Description task #{} for node {} complete",
-                            task_id, node.node_id
+                            "📝 ✅ Description task #{} for node {} complete",
+                            task_id,
+                            node.node_id()
                         ),
                         Err(e) => debug!(
-                            "❌ Description task #{} for node {} failed: {}",
-                            task_id, node.node_id, e
+                            "📝 ❌ Description task #{} for node {} failed: {}",
+                            task_id,
+                            node.node_id(),
+                            e
                         ),
                     }
                     TASK_COUNTER.fetch_sub(1, Ordering::Relaxed);
@@ -146,13 +146,9 @@ impl Scraper {
                 tokio::time::sleep(QUEUE_CHECK_INTERVAL).await;
             }
         }
-        Ok(())
     }
 
-    async fn process_packet_queue(
-        pool: &SqlitePool,
-        queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
-    ) -> Result<()> {
+    async fn process_packet_queue(pool: &SqlitePool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
@@ -177,12 +173,15 @@ impl Scraper {
                 tokio::spawn(async move {
                     match scrape_and_store_packet_stats(&pool, &node).await {
                         Ok(_) => debug!(
-                            "✅ Packet stats task #{} for node {} complete",
-                            task_id, node.node_id
+                            "📊 ✅ Packet stats task #{} for node {} complete",
+                            task_id,
+                            node.node_id()
                         ),
                         Err(e) => debug!(
-                            "❌ Packet stats task #{} for node {} failed: {}",
-                            task_id, node.node_id, e
+                            "📊 ❌ Packet stats task #{} for node {} failed: {}",
+                            task_id,
+                            node.node_id(),
+                            e
                         ),
                     }
                     TASK_COUNTER.fetch_sub(1, Ordering::Relaxed);
@@ -191,6 +190,5 @@ impl Scraper {
                 tokio::time::sleep(QUEUE_CHECK_INTERVAL).await;
             }
         }
-        Ok(())
     }
 }

@@ -70,26 +70,6 @@ impl GwProbe {
         }
     }
 
-    // pub(crate) async fn version(&self) -> String {
-    //     let mut command = tokio::process::Command::new(&self.path);
-    //     command.stdout(std::process::Stdio::piped());
-    //     command.arg("--version");
-
-    //     match command.spawn() {
-    //         Ok(child) => {
-    //             if let Ok(output) = child.wait_with_output().await {
-    //                 return String::from_utf8(output.stdout)
-    //                     .unwrap_or("Unable to get log from test run".to_string());
-    //             }
-    //             "Unable to get probe version".to_string()
-    //         }
-    //         Err(e) => {
-    //             error!("Failed to get probe version: {}", e);
-    //             "Failed to get probe version".to_string()
-    //         }
-    //     }
-    // }
-
     pub(crate) fn run_and_get_log(
         &self,
         gateway_key: &Option<String>,

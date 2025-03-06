@@ -1,0 +1,746 @@
+
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import {Accordion, AccordionItem} from "@nextui-org/react";
+import { MyTab } from 'components/generic-tabs.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Advanced Server Administration
+
+This page is for experienced operators and aspiring sys-admins who seek for higher optimisation and better efficiency of their work managing Nym infrastructure. The steps shared on this page cannot be simply copy-pasted, they ask you for more attention and consideration all the way from choosing server and OS to specs per VM allocation.
+
+<VarInfo />
+
+## Virtualising a Dedicated Server
+
+Some operators or squads of operators orchestrate multiple Nym nodes. Among other benefits (which are out of scope of this page), these operators can decide to acquire one larger dedicated (or bare-metal) server with enough specs (CPU, RAM, storage, bandwidth and port speed) to meet [minimum requirements](../../../nodes#minimum-requirements) for multiple nodes run in parallel.
+
+This guide explains how to prepare your server in order to be able to host multiple nodes running on separated VMs.
+
+<Callout type="info">
+This guide is based on Ubuntu 22.04, in case you prefer another OS, you may have to do a bit of your own research to troubleshoot networking configuration and other parameters.
+</Callout>
+
+### Installing KVM on a Server with Ubuntu 22.04
+
+**KVM** stands for **Kernel-based Virtual Machine**. It is a virtualization technology for Linux that allows a user to run multiple virtual machines (VMs) on a single physical machine. KVM turns the Linux kernel into a hypervisor, enabling it to manage multiple virtualised systems.
+
+Follow the steps below to install KVM on Ubuntu 22.04 LTS.
+
+#### Prerequisites
+
+<Callout type="warning">
+Operators aiming to run Nym node as mixnet [Exit Gateway](../../../community-counsel/exit-gateway) or with wireguard enabled should familiarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../../community-counsel) and follow up with [legal suggestions](../../../community-counsel/legal). Particularly important is to [introduce yourself](../../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
+
+This step is essential part of legal self defense because it may prevent your provider immediately shutting down your entire service (with all the VMs on it) when receiving first abuse report.
+
+Additionally, before purchasing a large server, **contact the provider and ask if the offered CPU supports Virtualization Technology (VT)**, without this feature you will not be able to proceed.
+</Callout>
+
+Start with obtaining a server with Ubuntu 22.04 LTS:
+- Make sure that your server meets [minimum requirements](../vps-setup#nym-node---dedicated-server) multiplied by number of `nym-node` instance you aim to run on it.
+- Most people rent a server from a provider and it comes with a pre-installed OS (in this guide we use Ubuntu 22.04). In case your choice is a bare-metal machine, you probably know what you are doing, there are some useful guides to install a new OS, like [this one on ostechnix.com](https://ostechnix.com/install-ubuntu-server/).
+
+Make sure thay your system actually supports hardware virtualisation:
+- Check out the methods documented in [this guide by ostechnix.com](https://ostechnix.com/how-to-find-if-a-cpu-supports-virtualization-technology-vt/).
+
+Order enough IPv4 and IPv6 (static and public) addresses to have one of each for each planned VM plus one extra for the main machine.
+
+
+When you have your OS installed, validated CPU virtualisation support and obtained IP addresses, you can start configuring your VMs, following the steps below.
+
+> Note that the commands below require root permission. You can either go through the setup as `root` or use `sudo` prefix with the commands used in the guide. You can switch to `root` shell by entering one of these commands `sudo su` or `sudo -i`.
+<Steps>
+
+##### 1. Install KVM
+
+- Install KVM and required components:
+```sh
+apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst
+```
+<br/>
+<AccordionTemplate name="Component breakdown">
+- `qemu-kvm`: Provides the core **KVM virtualization** support using QEMU.
+- `libvirt-daemon-system`: Manages virtual machines via the **libvirt daemon**.
+- `libvirt-clients` Provides command-line tools like `virsh` to manage VMs.
+- `bridge-utils`: Enables **network bridging**, allowing VMs to communicate over the network.
+- `virtinst`: Includes `virt-install` for **creating virtual machines** via CLI.
+</AccordionTemplate>
+
+- Start the `libvertd` service:
+```sh
+systemctl enable libvirtd
+systemctl start libvirtd
+```
+- Validate by checking status of `libvirt` service:
+```sh
+systemctl status libvirtd
+```
+<br/>
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+root@nym-exit:~# systemctl status libvirtd
+● libvirtd.service - Virtualization daemon
+     Loaded: loaded (/lib/systemd/system/libvirtd.service; enabled; vendor preset: enabled)
+     Active: active (running) since Thu 2025-02-27 14:25:28 MSK; 2min 1s ago
+TriggeredBy: ● libvirtd-ro.socket
+             ● libvirtd.socket
+             ● libvirtd-admin.socket
+       Docs: man:libvirtd(8)
+             https://libvirt.org
+   Main PID: 6232 (libvirtd)
+      Tasks: 21 (limit: 32768)
+     Memory: 11.8M
+        CPU: 852ms
+     CGroup: /system.slice/libvirtd.service
+             ├─6232 /usr/sbin/libvirtd
+             ├─6460 /usr/sbin/dnsmasq --conf-file=/var/lib/libvirt/dnsmasq/default.conf --leasefile-ro --dhcp-script=/usr/lib/libvirt/libvirt_leaseshelper
+             └─6461 /usr/sbin/dnsmasq --conf-file=/var/lib/libvirt/dnsmasq/default.conf --leasefile-ro --dhcp-script=/usr/lib/libvirt/libvirt_leaseshelper
+
+Feb 27 14:25:28 nym-exit.example.com systemd[1]: Started Virtualization daemon.
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: started, version 2.90 cachesize 150
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset no-nftset auth cryptohash DNSSEC loop-detect inotify dump>
+Feb 27 14:25:30 nym-exit.example.com dnsmasq-dhcp[6460]: DHCP, IP range 192.168.122.2 -- 192.168.122.254, lease time 1h
+Feb 27 14:25:30 nym-exit.example.com dnsmasq-dhcp[6460]: DHCP, sockets bound exclusively to interface virbr0
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: reading /etc/resolv.conf
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: using nameserver 127.0.0.53#53
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: read /etc/hosts - 8 names
+Feb 27 14:25:30 nym-exit.example.com dnsmasq[6460]: read /var/lib/libvirt/dnsmasq/default.addnhosts - 0 names
+Feb 27 14:25:30 nym-exit.example.com dnsmasq-dhcp[6460]: read /var/lib/libvirt/dnsmasq/default.hostsfile
+```
+</AccordionTemplate>
+
+- In case you don't configure KVM as `root`, add your current user to the `kvm` and `libvirt` groups to enable VM creation and management using the `virsh` command-line tool or the `virt-manager` GUI:
+```bash
+usermod -aG kvm $USER
+usermod -aG libvirt $USER
+```
+
+##### 2. Setup Bridge Networking with KVM
+
+A **bridged network** lets VMs share the host’s network interface, allowing direct IPv4/IPv6 access like a physical machine.
+
+By default, KVM sets up a **private virtual bridge**, enabling VM-to-VM communication within the host. It provides its own subnet, DHCP, and NAT for external access.
+
+Check the IP of KVM’s default virtual interfaces with:
+
+```bash
+ip a
+```
+<br/>
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+root@nym-exit:~# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+    inet 31.222.238.222/24 brd 31.222.238.255 scope global eno49
+       valid_lft forever preferred_lft forever
+    inet6 fe80::3a63:bbff:fe2e:9d20/64 scope link
+       valid_lft forever preferred_lft forever
+4: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+5: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+6: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+7: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+8: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    link/ether 52:54:00:ac:d3:ba brd ff:ff:ff:ff:ff:ff
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+       valid_lft forever preferred_lft forever
+```
+</AccordionTemplate>
+
+
+By default, KVM uses the `virbr0` network with `<IPv4_ADDRESS>.1/24`, assigning guest VMs IPs in the `<IPv4_ADDRESS>.0/24` range. The host OS is reachable at `<IPv4_ADDRESS>.1`, allowing SSH and file transfers (`scp`) between the host and guests.
+
+This setup works if you only access VMs from the host. However, remote systems on a different subnet (e.g., `<IPv4_ADDRESS_ALT>.0/24`) **cannot** reach the VMs.
+
+To enable external access, we need a *public bridge* that connects VMs to the host’s main network, using its DHCP. This ensures VMs get IPs in the same range as the host.
+
+Before configuring a public bridge, **disable Netfilter** on bridges for better performance and security, as it is enabled by default.
+
+- Create a file located at `/etc/sysctl.d/bridge.conf`:
+```bash
+nano /etc/sysctl.d/bridge.conf
+
+# in case of using custom editor, replace nano in the syntax
+```
+
+- Paste inside the following block, save and exit:
+```ini
+net.bridge.bridge-nf-call-ip6tables=0
+net.bridge.bridge-nf-call-iptables=0
+net.bridge.bridge-nf-call-arptables=0
+```
+
+- Create a file `/etc/udev/rules.d/99-bridge.rules`:
+```bash
+nano /etc/udev/rules.d/99-bridge.rules
+```
+
+- Paste this line, save and exit:
+```bash
+ACTION=="add", SUBSYSTEM=="module", KERNEL=="br_netfilter", RUN+="/sbin/sysctl -p /etc/sysctl.d/bridge.conf"
+```
+
+This disables Netfilter on bridges at startup. Save, exit, and reboot to apply changes.
+
+- Disable KVM’s default networking. Find the default network interface with:
+```bash
+ip link
+```
+
+<br/>
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+root@nym-exit:~# ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+4: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+5: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+6: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+7: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+8: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether 52:54:00:ac:d3:ba brd ff:ff:ff:ff:ff:ff
+```
+
+The `virbr0` interface is KVM’s default network. Note your physical interface’s MAC address (e.g., `eno49`). It's the only interface that is currently `UP` and running (`LOWER_UP` state). Other interfaces are `DOWN` and not in use.
+</AccordionTemplate>
+
+- Remove the default KVM network:
+```bash
+virsh net-destroy default
+```
+
+- Remove the default network configuration:
+```bash
+virsh net-undefine default
+```
+
+- In case last two commands didn't work, try this:
+```bash
+ip link delete virbr0 type bridge
+```
+-  Verify that the `virbr0` and `virbr0-nic` interfaces are deleted:
+```bash
+ip link
+```
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+root@nym-exit:~# ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+4: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+5: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+6: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+7: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+```
+KVM network is gone.
+</AccordionTemplate>
+
+
+##### 3. Setup KVM public bridge for new VMs
+
+To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` either called `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
+
+- Before you edit the file, make a backup to stay on the save side:
+```bash
+cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
+# or
+cp /etc/netplan/00-installer.yaml /etc/netplan/00-installer.yaml.bak
+```
+
+- Open `00-installer-config.yaml` or `00-installer.yaml.`config in a text editor:
+```bash
+nano /etc/netplan/00-installer.yaml
+# or
+nano /etc/netplan/00-installer-config.yaml
+```
+
+- Edit the block below and paste it to the config file, save and exit:
+```ini
+#####################################################
+######## CHANGE ALL VARIABLES IN <> BRACKETS ########
+#####################################################
+
+# <INTERFACE> is your own one, you can get with command ip link show
+# <HOST> is your server main IPv4 address
+# <GATEWAY> value can be found by running: ip route | grep default
+
+
+# This is the network config written by 'subiquity'
+network:
+  version: 2
+  ethernets:
+    <INTERFACE>:
+      dhcp4: false
+      dhcp6: false
+
+  # Bridge interface configuration
+  bridges:
+    br0:
+      interfaces: [<INTERFACE>]
+      addresses: [<HOST>/24]
+      routes:
+        - to: default
+          via: <GATEWAY>
+      mtu: 1500
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 1.1.1.1
+          - 77.88.8.8
+      parameters:
+        stp: false            # Disable STP unless multiple bridges exist
+        forward-delay: 15     # Can be shortened, 15 sec is a common default
+```
+
+<Callout type="warning">
+Ensure the indentation matches exactly as shown above. Incorrect spacing will prevent the bridged network interface from activating.
+</Callout>
+
+- Validate `netplan` configuration without applying to prevent breaking network changes:
+```bash
+netplan generate
+
+# Correct configuration output will show nothing
+```
+
+- Safety test your changes to catch syntax errors before applying:
+```bash
+netplan try
+```
+
+- Apply your changes:
+```bash
+netplan --debug  apply
+```
+
+- In case of proubems try some of these steps:
+<AccordionTemplate name="Netplan configuration troubleshooting">
+- Validate YAML configuration, given that YAML is syntax sensitive:
+```bash
+apt install yamllint -y
+
+yamllint /etc/netplan/00-installer.yaml
+# or
+yamllint /etc/netplan/00-installer-config.yaml
+
+
+```
+- Apply correct permissions:
+```bash
+chmod 600 /etc/netplan/00-installer.yaml
+chown root:root /etc/netplan/00-installer.yaml
+```
+
+- Manually bring up the bridge:
+```bash
+ip link add name br0 type bridge
+ip link set br0 up
+ip a show br0
+```
+
+- ensure `systemd-networkd` is enabled:
+```bash
+systemctl restart systemd-networkd
+systemctl status systemd-networkd
+# if inactive, enable it:
+systemctl enable --now systemd-networkd
+```
+</AccordionTemplate>
+
+- If things went wrong, you can always revert from the backed up file:
+```bash
+cp /etc/netplan/00-installer-config.yaml.bak /etc/netplan/00-installer-config.yaml
+# or
+cp /etc/netplan/00-installer.yaml.bak /etc/netplan/00-installer.yaml
+# and
+netplan apply
+```
+
+<Callout type="warning">
+Using different IPs for your physical NIC and KVM bridge will disconnect SSH when applying changes. Reconnect using the bridge's new IP. If both share the same IP, no disruption occurs.
+</Callout>
+
+
+- Verify that the IP address has been assigned to the bridge interface:
+```bash
+ip a
+```
+<AccordionTemplate name="Console output">
+The command output should look similar to this one:
+```
+root@nym-exit:~# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eno1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:14 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f0
+3: eno2: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:15 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f1
+4: eno3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:16 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f2
+5: eno49: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq master br0 state UP group default qlen 1000
+    link/ether 38:63:bb:2e:9d:20 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f0
+6: eno4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:02:ec:35:2e:17 brd ff:ff:ff:ff:ff:ff
+    altname enp2s0f3
+7: eno50: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 38:63:bb:2e:9d:24 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0f1
+8: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 46:50:aa:c0:49:a5 brd ff:ff:ff:ff:ff:ff
+    inet 31.222.238.222/24 brd 31.222.238.255 scope global br0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::4450:aaff:fec0:49a5/64 scope link
+       valid_lft forever preferred_lft forever
+```
+The bridged interface `br0` now has the IP `<HOST>`, and `<INTERFACE>` shows `master br0`, indicating it is part of the bridge.
+</AccordionTemplate>
+
+Alternatively you can use `brctl` command to display the KVM bridge network status:
+```bash
+brctl show br0
+```
+
+##### 4. Add Bridge Network to KVM
+
+- Configure KVM to use the bridge by creating `host-bridge.xml`, open a text editor and pate the block below:
+```bash
+nano host-bridge.xml
+```
+
+```xml
+<network>
+  <name>host-bridge</name>
+  <forward mode="bridge"/>
+  <bridge name="br0"/>
+</network>
+```
+
+- Start the new bridge and set it as the default for VMs:
+```bash
+virsh net-define host-bridge.xml
+virsh net-start host-bridge
+virsh net-autostart host-bridge
+```
+
+- Verify that the KVM bridge is active:
+```bash
+virsh net-list --all
+```
+<AccordionTemplate name="Console output">
+```bash
+root@nym-exit:~# virsh net-list --all
+ Name          State    Autostart   Persistent
+------------------------------------------------
+ host-bridge   active   yes         yes
+```
+</AccordionTemplate>
+
+KVM bridge networking is successfully set up and active!
+
+Your KVM installation is now ready to deploy and manage VMs.
+
+</Steps>
+
+### Setting Up Virtual Machines
+
+After finishing the [installation of KVM](#installing-kvm-on-a-server-with-ubuntu-2204), we can move to the virtualisation configuration.
+
+> **The steps below will guide you through a setup of one VM, therefore you will have to repeat this process for each VM**. That also means that you have to be mindful of space and memory allocation.
+
+<Steps>
+##### 1. Install OS for VMs
+
+This is the OS on which the nodes themselves will run. You can chose any GNU/Linux of your preference.  For this guide we are going to be using Ubuntu 24.04 LTS (Noble Numbat) cloud image from [cloud-images.ubuntu.com](https://cloud-images.ubuntu.com/noble/current/).
+
+- Download Ubuntu Cloud image:
+```bash
+wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+```
+- Copy the image to to `/var/lib/libvirt/images/` asigning to it a name your VM
+```bash
+cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/<VM_NAME>.img
+
+# for example:
+# cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/ubuntu-1.img
+```
+
+##### 2. Create and resize a virtual machine
+
+- Get `guestfs-tools` to be able to customize your login credentials:
+```bash
+apt install guestfs-tools
+```
+
+- Define login credentials:
+```bash
+virt-customize -a /var/lib/libvirt/images/<VM_NAME>.img --root-password password:<PASSWORD>
+# for example
+# virt-customize -a /var/lib/libvirt/images/ubuntu-1.img --root-password password:makesuretosaveyourpasswordslocallytoapasswordmanager
+```
+
+- Use `qemu-img` tool with a command `resize` to create a VM according your needs. You can see `qemu` [documentation page`](https://www.qemu.org/docs/master/tools/qemu-img.html) for more info on how to use it correctly.
+```bash
+qemu-img resize /var/lib/libvirt/images/<VM_NAME>.img +<SIZE_IN_GB>G
+# for example
+# qemu-img resize /var/lib/libvirt/images/ubuntu-1.img +100G
+```
+
+- Resize it from within it after `virt-install` command:
+```bash
+virt-install \
+--name <VM_NAME> \
+--ram=<SIZE_IN_MB> \
+--vcpus=<NUMBER_OF_VIRTUAL_CPUS> \
+--cpu host \
+--hvm \
+--disk bus=virtio,path=/var/lib/libvirt/images/<VM_NAME>.img \
+--network bridge=br0 \
+--graphics none \
+--console pty,target_type=serial \
+--osinfo <YOUR_CHOSEN_OS_NAME> \
+--import
+```
+
+- In our example we go with 4 GB RAM on the same machine as before:
+<br/>
+<AccordionTemplate name="Command example">
+```bash
+virt-install \
+--name ubuntu-1 \
+--ram=4096 \
+--vcpus=4 \
+--cpu host \
+--hvm \
+--disk bus=virtio,path=/var/lib/libvirt/images/ubuntu-1.img \
+--network bridge=br0 \
+--graphics none \
+--console pty,target_type=serial \
+--osinfo ubuntunoble \
+--import
+```
+</AccordionTemplate>
+
+- After loading you should see a login console, you can also initiate it by:
+```bash
+virsh console <VM_NAME>
+# for example
+# virsh console ubuntu-1
+```
+
+- Log in to your new VM using your credentials.
+
+##### 3. Validate your setup
+
+- Make sure the `root` disk has the expected space by running:
+```bash
+df -h
+```
+
+- If not, run:
+```bash
+growpart /dev/vda 1
+resize2fs /dev/vda1
+```
+
+##### 4. Configure networking for the VM
+
+As this guide is based on a newer Ubuntu, we use `netplan`, this may be different on different OS.
+
+- Open `/etc/netplan/01-network-config.yaml` in your favourite text editor:
+```bash
+nano /etc/netplan/01-network-config.yaml
+```
+
+- Insert this config, using your correct IP configuration, save and exit:
+```ini
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    <INTERFACE>:
+      dhcp4: false
+      dhcp6: false  # Set to true if you want automatic IPv6 assignment
+      addresses:
+        - <IPv4_VM>/24  # Assign IPv4 address to the VM
+        - <IPv6_VM>/64  # Assign IPv6 address to the VM
+      routes:
+        - to: default
+          via: <IPv4_GATEWAY_HOST_SERVER>  # IPv4 gateway (host machine)
+        - to: default
+          via: <IPv6_GATEWAY_HOST_SERVER>  # IPv6 gateway (host machine)
+      nameservers:
+        addresses:
+          - 1.1.1.1  # Cloudflare IPv4 DNS
+          - 8.8.8.8  # Google IPv4 DNS
+          - 2606:4700:4700::1111  # Cloudflare IPv6 DNS
+          - 2001:4860:4860::8888  # Google IPv6 DNS
+```
+- Fix wide permissions on the config file:
+```bash
+chmod 600 /etc/netplan/01-network-config.yaml
+```
+
+- Check if the config has any errors:
+```bash
+netplan generate
+```
+
+- Apply the configuration:
+```bash
+netplan --debug  apply
+```
+
+- Verify by checking if IPv4 and IPv6 are assigned correctly and if they route:
+```bash
+ip -4 a
+ip -6 a
+```
+```bash
+ip -4 r
+ip -6 r
+```
+```bash
+# to ping through IPv6, use:
+ping6 nym.com
+```
+- You should be able to ping your new VM from a local machine:
+```bash
+ping <IPv4_VM>
+ping6 <IPv6_VM>
+```
+
+</Steps>
+
+Your VM should be working and fully routable. To be able to use it properly, we will create a direct SSH access to the VM.
+
+#### Configure VM SSH access
+
+<Steps>
+
+##### 1. Log in to your VM, update and upgrade your OS:
+- Log in to your server using as `root` or as a non-root user with `sudo` privileges
+```bash
+apt update; apt upgrade
+```
+
+##### 2. Generate new host SSH keys
+
+Since we used a `cloud-init` image without an SSH server, we need to generate SSH host keys for client authentication and server identity verification. All of them will be saved to this location: `/etc/ssh/<KEY>`.
+
+- Generate a new RSA host key:
+```bash
+ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
+```
+- Generate a new DSA host key:
+```bash
+ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key
+```
+- Generate a new ECDSA host key:
+```bash
+ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
+```
+- Finally, generate a new ED25519 host key:
+```bash
+ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
+```
+##### 3. Restart the SSH service on the server
+- Run:
+```bash
+systemctl restart ssh.service
+```
+
+##### 4. Check if the SSH serice is active
+- Run:
+```bash
+systemctl status ssh.service
+```
+
+##### 5. Create file `~/.ssh/authorized_keys` and add you public key:
+- Create `.ssh` directory:
+```bash
+mkdir ~/.ssh
+```
+
+- Open with your favourite text editor:
+```bash
+nano ~/.ssh/authorized_keys
+```
+- Paste your SSH public key, save and exit
+
+- In case of non-root, setup a correct ownership and permissions:
+```bash
+chmod 600 ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+chown : ~/.ssh
+```
+
+##### 5. Test by connecting via SSH
+
+- Now you should be able to connect to the VM directly from your local terminal
+```bash
+ssh root@<IPv4> -i ~/.ssh/your_ssh_key
+```
+</Steps>
+
+Now your VM is almost ready for `nym-node` [setup](../../nym-node/setup). Before you proceed, ssh in and [configure all prerequisities](../vps-setup#vps-configuration) needed for `nym-node` installation and operation. 

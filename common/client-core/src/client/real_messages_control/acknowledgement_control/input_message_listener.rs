@@ -111,12 +111,17 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
+        log::info!(
+            "input_message_listener: received a message: {:?}",
+            msg.lane()
+        );
         match msg {
             InputMessage::Regular {
                 recipient,
                 data,
                 lane,
             } => {
+                log::info!("input_message_listener: regular");
                 self.handle_plain_message(recipient, data, lane, PacketType::Mix)
                     .await
             }
@@ -126,6 +131,7 @@ where
                 reply_surbs,
                 lane,
             } => {
+                log::info!("input_message_listener: anonymous");
                 self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix)
                     .await
             }
@@ -134,9 +140,13 @@ where
                 data,
                 lane,
             } => {
+                log::info!("input_message_listener: reply");
                 self.handle_reply(recipient_tag, data, lane).await;
             }
-            InputMessage::Premade { msgs, lane } => self.handle_premade_packets(msgs, lane).await,
+            InputMessage::Premade { msgs, lane } => {
+                log::info!("input_message_listener: premade");
+                self.handle_premade_packets(msgs, lane).await
+            }
             InputMessage::MessageWrapper {
                 message,
                 packet_type,
@@ -146,6 +156,8 @@ where
                     data,
                     lane,
                 } => {
+                    log::info!("input_message_listener: wrapper regular");
+
                     self.handle_plain_message(recipient, data, lane, packet_type)
                         .await
                 }
@@ -155,6 +167,7 @@ where
                     reply_surbs,
                     lane,
                 } => {
+                    log::info!("input_message_listener: wrapper anonymous");
                     self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type)
                         .await
                 }
@@ -163,9 +176,11 @@ where
                     data,
                     lane,
                 } => {
+                    log::info!("input_message_listener: wrapper reply");
                     self.handle_reply(recipient_tag, data, lane).await;
                 }
                 InputMessage::Premade { msgs, lane } => {
+                    log::info!("input_message_listener: wrapper premade");
                     self.handle_premade_packets(msgs, lane).await
                 }
                 // MessageWrappers can't be nested

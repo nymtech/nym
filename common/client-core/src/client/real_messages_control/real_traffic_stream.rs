@@ -230,7 +230,7 @@ where
         let (next_message, fragment_id, packet_size) = match next_message {
             StreamMessage::Cover => {
                 let cover_traffic_packet_size = self.loop_cover_message_size();
-                trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
+                info!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
 
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our
@@ -277,6 +277,8 @@ where
             }
         };
 
+        let mix_tx_capacity = self.mix_tx.capacity();
+        log::info!("mix_tx_capacity: {mix_tx_capacity}");
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
             if !self.task_client.is_shutdown_poll() {
                 log::error!("Failed to send: {err}");
@@ -536,13 +538,13 @@ where
             format!("Packet backlog: {lane_status}, avg delay: {delay}ms ({mult})")
         };
 
-        if packets > 1000 {
-            log::warn!("{status_str}");
-        } else if packets > 0 {
+        // if packets > 1000 {
+            // log::warn!("{status_str}");
+        // } else if packets > 0 {
             log::info!("{status_str}");
-        } else {
-            log::debug!("{status_str}");
-        }
+        // } else {
+            // log::debug!("{status_str}");
+        // }
 
         // Send status message to whoever is listening (possibly UI)
         if mult == self.sending_delay_controller.max_multiplier() {
@@ -559,7 +561,7 @@ where
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut status_timer = tokio::time::interval(Duration::from_secs(5));
+            let mut status_timer = tokio::time::interval(Duration::from_secs(1));
 
             while !shutdown.is_shutdown() {
                 tokio::select! {
@@ -572,6 +574,7 @@ where
                         self.log_status(&mut shutdown);
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
+                        self.log_status(&mut shutdown);
                         self.on_message(next_message).await;
                     } else {
                         log::trace!("OutQueueControl: Stopping since channel closed");

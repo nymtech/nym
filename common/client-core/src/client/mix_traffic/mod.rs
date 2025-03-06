@@ -18,7 +18,7 @@ pub type ClientRequestSender = tokio::sync::mpsc::Sender<ClientRequest>;
 pub mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
-pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
+pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 5;
 const MAX_FAILURE_COUNT: usize = 100;
 
 // that's also disgusting.
@@ -96,6 +96,7 @@ impl MixTrafficController {
         mut mix_packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
         debug_assert!(!mix_packets.is_empty());
+        info!("on_messages: received {} mix_packets", mix_packets.len());
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();

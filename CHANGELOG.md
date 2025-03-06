@@ -6,6 +6,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2025.4-dorina-patched] (2025-03-06)
 
+- use legacy crypto for constructing SURB headers ([#5579])
 - bugfix: make sure to correctly decode response content when putting it into error message ([#5571])
 - Tweak surb management to be more conservative ([#5570])
 - Deserialize v5 authenticator requests ([#5568])
@@ -15,6 +16,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - feature: v2 authentication request (#5537) ([#5563])
 - Create authenticator v5 request/response types ([#5561])
 
+[#5579]: https://github.com/nymtech/nym/pull/5579
 [#5571]: https://github.com/nymtech/nym/pull/5571
 [#5570]: https://github.com/nymtech/nym/pull/5570
 [#5568]: https://github.com/nymtech/nym/pull/5568

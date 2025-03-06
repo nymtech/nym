@@ -1,6 +1,6 @@
 [package]
 name = "nymvisor"
-version = "0.1.14"
+version = "0.1.15"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

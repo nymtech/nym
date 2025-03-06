@@ -74,6 +74,39 @@ impl MultiIpPacketCodec {
             Some(packets)
         }
     }
+
+    pub async fn buffer_timeout2(
+        &mut self,
+        lane_queue_lengths: nym_sdk::mixnet::LaneQueueLengths,
+    ) -> Option<Bytes> {
+        // Wait for buffer_timeout to tick
+        let _ = self.buffer_timeout.tick().await;
+
+        // wait for lane_queue_lenghts to go to zero
+        {
+            let now = std::time::Instant::now();
+            loop {
+                let lane_queue_lengths = lane_queue_lengths.lock().unwrap().total();
+                if lane_queue_lengths < 10 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            let elapsed = now.elapsed();
+            tracing::error!(
+                "Waited for lane_queue_lengths to go to zero for {:?}",
+                elapsed
+            );
+        }
+
+        // Flush the buffer and return it
+        let packets = self.flush_current_buffer();
+        if packets.is_empty() {
+            None
+        } else {
+            Some(packets)
+        }
+    }
 }
 
 impl Encoder<Bytes> for MultiIpPacketCodec {

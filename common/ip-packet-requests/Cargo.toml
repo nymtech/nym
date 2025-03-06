@@ -21,3 +21,5 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 tokio-util = { workspace = true, features = ["codec"] }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+tracing.workspace = true

@@ -5960,6 +5960,7 @@ dependencies = [
  "bytes",
  "nym-bin-common",
  "nym-crypto",
+ "nym-sdk",
  "nym-service-provider-requests-common",
  "nym-sphinx",
  "rand 0.8.5",
@@ -5968,6 +5969,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]

@@ -6540,6 +6540,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "tap",
+ "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tokio-stream",

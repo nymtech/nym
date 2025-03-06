@@ -58,6 +58,7 @@ tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 toml = { workspace = true }
+tempfile = { workspace = true }
 
 # tcpproxy dependencies
 clap = { workspace = true, features = ["derive"] }

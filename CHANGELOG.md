@@ -4,6 +4,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.4-dorina-patched] (2025-03-06)
+
+- bugfix: make sure to correctly decode response content when putting it into error message ([#5571])
+- Tweak surb management to be more conservative ([#5570])
+- Deserialize v5 authenticator requests ([#5568])
+- chore: additional logs when attempting to load ecash keys ([#5567])
+- add full response body to error message upon decoding failure ([#5566])
+- hotfix: ensure we bail on merkle leaves insertion upon missing data ([#5565])
+- feature: v2 authentication request (#5537) ([#5563])
+- Create authenticator v5 request/response types ([#5561])
+
+[#5571]: https://github.com/nymtech/nym/pull/5571
+[#5570]: https://github.com/nymtech/nym/pull/5570
+[#5568]: https://github.com/nymtech/nym/pull/5568
+[#5567]: https://github.com/nymtech/nym/pull/5567
+[#5566]: https://github.com/nymtech/nym/pull/5566
+[#5565]: https://github.com/nymtech/nym/pull/5565
+[#5563]: https://github.com/nymtech/nym/pull/5563
+[#5561]: https://github.com/nymtech/nym/pull/5561
+
 ## [2025.4-dorina] (2025-03-04)
 
 - fixed sphinx version metrics registration ([#5546])

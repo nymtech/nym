@@ -224,7 +224,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         msgs.into_iter().map(Into::into).collect()
     }
 
-    fn handle_reconstructed_repliable_messages(
+    async fn handle_reconstructed_repliable_messages(
         &mut self,
         msgs: Vec<RepliableMessage>,
     ) -> Vec<ReconstructedMessage> {
@@ -261,11 +261,11 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
             };
 
-            if let Err(err) = self.reply_controller_sender.send_additional_surbs(
-                msg.sender_tag,
-                reply_surbs,
-                from_surb_request,
-            ) {
+            if let Err(err) = self
+                .reply_controller_sender
+                .send_additional_surbs(msg.sender_tag, reply_surbs, from_surb_request)
+                .await
+            {
                 if !self.task_client.is_shutdown_poll() {
                     error!("{err}");
                 }
@@ -274,7 +274,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         reconstructed
     }
 
-    fn handle_reconstructed_reply_messages(
+    async fn handle_reconstructed_reply_messages(
         &mut self,
         msgs: Vec<ReplyMessage>,
     ) -> Vec<ReconstructedMessage> {
@@ -287,6 +287,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                     if let Err(err) = self
                         .reply_controller_sender
                         .send_additional_surbs_request(*recipient, amount)
+                        .await
                     {
                         if !self.task_client.is_shutdown_poll() {
                             error!("{err}");
@@ -316,10 +317,16 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         }
 
         let mut reconstructed_messages = self.handle_reconstructed_plain_messages(plain_messages);
-        reconstructed_messages
-            .append(&mut self.handle_reconstructed_repliable_messages(repliable_messages));
-        reconstructed_messages
-            .append(&mut self.handle_reconstructed_reply_messages(reply_messages));
+        reconstructed_messages.append(
+            &mut self
+                .handle_reconstructed_repliable_messages(repliable_messages)
+                .await,
+        );
+        reconstructed_messages.append(
+            &mut self
+                .handle_reconstructed_reply_messages(reply_messages)
+                .await,
+        );
 
         let mut inner_guard = self.inner.lock().await;
         debug!(

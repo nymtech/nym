@@ -99,11 +99,15 @@ where
             } => {
                 // if this is retransmission for reply, offload it to the dedicated task
                 // that deals with all the surbs
-                if let Err(err) = self.reply_controller_sender.send_retransmission_data(
-                    *recipient_tag,
-                    weak_timed_out_ack,
-                    *extra_surb_request,
-                ) {
+                if let Err(err) = self
+                    .reply_controller_sender
+                    .send_retransmission_data(
+                        *recipient_tag,
+                        weak_timed_out_ack,
+                        *extra_surb_request,
+                    )
+                    .await
+                {
                     if !self.task_client.is_shutdown_poll() {
                         error!("Failed to send retransmission data to the reply controller: {err}");
                     }

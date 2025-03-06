@@ -69,7 +69,7 @@ where
         // offload reply handling to the dedicated task
         if let Err(err) = self
             .reply_controller_sender
-            .send_reply(recipient_tag, data, lane)
+            .send_reply(recipient_tag, data, lane).await
         {
             if !self.task_client.is_shutdown_poll() {
                 error!("failed to send a reply - {err}");

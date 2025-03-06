@@ -117,7 +117,7 @@ impl Drop for Handler {
 }
 
 impl Handler {
-    async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> Option<ServerResponse> {
+    async fn get_lane_queue_length(&mut self, connection_id: ConnectionId) -> Option<ServerResponse> {
         let req_start = Instant::now();
 
         // get the base queue length
@@ -282,7 +282,7 @@ impl Handler {
         None
     }
 
-    async fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
+    async fn handle_get_lane_queue_length(&mut self, connection_id: u64) -> Option<ServerResponse> {
         self.get_lane_queue_length(connection_id).await
     }
 

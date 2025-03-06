@@ -2291,9 +2291,9 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.34"
+version = "0.8.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b45de904aa0b010bce2ab45264d0631681847fa7b6f2eaa7dab7619943bc4f59"
+checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
 dependencies = [
  "cfg-if",
 ]
@@ -5767,7 +5767,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.3",
- "subtle 2.6.1",
+ "subtle 2.5.0",
  "thiserror 2.0.11",
  "time",
  "tokio",
@@ -5841,8 +5841,11 @@ name = "nym-http-api-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bytes",
+ "encoding_rs",
  "hickory-resolver",
  "http 1.2.0",
+ "mime",
  "nym-bin-common",
  "once_cell",
  "reqwest 0.12.4",

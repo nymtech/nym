@@ -814,9 +814,23 @@ impl NymNode {
             return;
         }
 
-        for nym_api in &self.config.mixnet.nym_api_urls {
-            info!("trying {nym_api}...");
-            let client = NymApiClient::new_with_user_agent(nym_api.clone(), self.user_agent());
+        for nym_api_url in &self.config.mixnet.nym_api_urls {
+            info!("trying {nym_api_url}...");
+
+            let nym_api =
+                match nym_http_api_client::ClientBuilder::new_with_url(nym_api_url.clone())
+                    .no_hickory_dns()
+                    .with_user_agent(self.user_agent())
+                    .build::<&str>()
+                {
+                    Ok(b) => b,
+                    Err(e) => {
+                        warn!("failed to build http client for \"{nym_api_url}\": {e}",);
+                        continue;
+                    }
+                };
+
+            let client = NymApiClient { nym_api };
 
             // make new request every time in case previous one takes longer and invalidates the signature
             let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());

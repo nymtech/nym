@@ -33,6 +33,13 @@ impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
     pub fn dns_resolver<R: Resolve + 'static>(mut self, resolver: Arc<R>) -> Self {
         self.reqwest_client_builder = self.reqwest_client_builder.dns_resolver(resolver);
+        self.use_secure_dns = false;
+        self
+    }
+
+    /// Override the DNS resolver implementation used by the underlying http client.
+    pub fn no_hickory_dns(mut self) -> Self {
+        self.use_secure_dns = false;
         self
     }
 }

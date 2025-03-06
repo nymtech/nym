@@ -6231,6 +6231,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway",
  "nym-gateway-stats-storage",
+ "nym-http-api-client",
  "nym-http-api-common",
  "nym-ip-packet-router",
  "nym-metrics",

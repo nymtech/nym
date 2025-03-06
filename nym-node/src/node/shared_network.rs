@@ -9,6 +9,7 @@ use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS}
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
 use nym_topology::{EpochRewardedSet, NymTopology, Role, TopologyProvider};
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
 use nym_validator_client::{NymApiClient, ValidatorClientError};
 use std::collections::HashSet;
@@ -167,6 +168,7 @@ impl NodesQuerier {
     ) -> Result<NodesByAddressesResponse, ValidatorClientError> {
         let res = self
             .client
+            .nym_api
             .nodes_by_addresses(ips)
             .await
             .inspect_err(|err| error!("failed to obtain node information: {err}"));
@@ -174,7 +176,7 @@ impl NodesQuerier {
         if res.is_err() {
             self.use_next_nym_api()
         }
-        res
+        Ok(res?)
     }
 }
 
@@ -263,9 +265,14 @@ impl NetworkRefresher {
         pending_check_interval: Duration,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
+        let nym_api = nym_http_api_client::Client::builder(nym_api_urls[0].clone())?
+            .no_hickory_dns()
+            .with_user_agent(user_agent)
+            .build()?;
+
         let mut this = NetworkRefresher {
             querier: NodesQuerier {
-                client: NymApiClient::new_with_user_agent(nym_api_urls[0].clone(), user_agent),
+                client: NymApiClient { nym_api },
                 nym_api_urls,
                 currently_used_api: 0,
             },

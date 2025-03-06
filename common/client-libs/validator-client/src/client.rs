@@ -23,12 +23,11 @@ use nym_api_requests::models::{
     NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
-use nym_api_requests::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
+use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_http_api_client::UserAgent;
 use nym_network_defaults::NymNetworkDetails;
-use std::net::IpAddr;
 use time::Date;
 use url::Url;
 
@@ -710,12 +709,5 @@ impl NymApiClient {
             .nym_api
             .issued_ticketbooks_challenge(expiration_date, deposits)
             .await?)
-    }
-
-    pub async fn nodes_by_addresses(
-        &self,
-        addresses: Vec<IpAddr>,
-    ) -> Result<NodesByAddressesResponse, ValidatorClientError> {
-        Ok(self.nym_api.nodes_by_addresses(addresses).await?)
     }
 }

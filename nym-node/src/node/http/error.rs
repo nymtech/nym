@@ -3,6 +3,7 @@
 
 use std::io;
 use std::net::SocketAddr;
+use nym_http_api_client::HttpClientError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -23,5 +24,11 @@ pub enum NymNodeHttpError {
     KeyRecoveryError {
         #[from]
         source: nym_crypto::asymmetric::encryption::KeyRecoveryError,
+    },
+
+    #[error("error building or using HTTP client: {source}")]
+    ClientError {
+        #[from]
+        source: HttpClientError,
     },
 }

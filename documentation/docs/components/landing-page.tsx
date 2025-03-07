@@ -6,10 +6,6 @@ import { useTheme } from "@mui/material/styles";
 import Image from "next/image";
 import Link from "next/link";
 
-// import networkDocs from "../public/images/landing/network-docs.png";
-// import developerDocs from "../public/images/landing/developer-docs.png";
-// import sdkDocs from "../public/images/landing/sdk-docs.png";
-// import operatorGuide from "../public/images/landing/operator-guide.png";
 import networkDocs from "../public/images/landing/Vector1.png";
 import developerDocs from "../public/images/landing/Vector2.png";
 import sdkDocs from "../public/images/landing/Vector3.png";
@@ -41,13 +37,6 @@ export const LandingPage = () => {
       href: "/developers",
       icon: sdkDocs,
     },
-    // {
-    //   text: "SDKs",
-    //   description: "Rust and Typescript SDK docs",
-
-    //   href: "/developers/rust",
-    //   icon: sdkDocs,
-    // },
     {
       text: "APIs",
       description: "Interactive API specs for Nym infrastructure",

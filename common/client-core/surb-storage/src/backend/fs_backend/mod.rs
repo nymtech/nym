@@ -120,6 +120,13 @@ impl Backend {
             manager.delete_all_tags().await?;
         }
 
+        // We ran into a bug where the client was re-using the same sender tag while connected to
+        // different gateways. This does not work since changing the gateway changes the
+        // nym-addres.
+        // A stop-gap solution is to always purge the tags when the client is started.
+        // When writing this I'm not yet sure what the correct solution is.
+        manager.delete_all_tags().await?;
+
         Ok(Backend {
             temporary_old_path: None,
             database_path: owned_path,

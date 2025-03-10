@@ -12,8 +12,9 @@ use nym_api_requests::ecash::models::{
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
-    AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
+    AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainStatusResponse,
+    LegacyDescribedMixNode, NodePerformanceResponse, NodeRefreshBody, NymNodeDescription,
+    PerformanceHistoryResponse, RewardedSetResponse,
 };
 use nym_api_requests::nym_nodes::{
     NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponse,
@@ -63,6 +64,19 @@ pub trait NymApiClientExt: ApiClient {
                 routes::API_VERSION,
                 routes::API_STATUS_ROUTES,
                 routes::HEALTH,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn build_information(&self) -> Result<BinaryBuildInformationOwned, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::API_STATUS_ROUTES,
+                routes::BUILD_INFORMATION,
             ],
             NO_PARAMS,
         )
@@ -1039,6 +1053,15 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_network_details(&self) -> Result<NymNetworkDetailsResponse, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::NETWORK, routes::DETAILS],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_chain_status(&self) -> Result<ChainStatusResponse, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::NETWORK, routes::CHAIN_STATUS],
             NO_PARAMS,
         )
         .await

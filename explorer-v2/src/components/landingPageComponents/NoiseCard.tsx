@@ -93,8 +93,6 @@ export const NoiseCard = () => {
       };
     });
 
-    console.log("noiseLineGraphData", noiseLineGraphData)
-    console.log("data", data)
 
   return (
     <ExplorerCard label="Mixnet traffic" sx={{ height: "100%" }}>

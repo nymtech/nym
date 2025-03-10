@@ -59,7 +59,6 @@ export const NetworkStakeCard = () => {
         numericData: item.total_stake / 1000000,
       }));
     
-    console.log(data); // Debugging output
     
 
   const stakeLineGraphData = {

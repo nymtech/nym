@@ -3,7 +3,6 @@ use crate::db::{
     queries::price::insert_nym_prices,
 };
 use core::str;
-use tokio::task::JoinHandle;
 use tokio::time::Duration;
 
 use crate::db::DbPool;
@@ -13,7 +12,7 @@ const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60 * 2);
 const COINGECKO_API_URL: &str =
     "https://api.coingecko.com/api/v3/simple/price?ids=nym&vs_currencies=chf,usd,eur,gbp,btc";
 
-pub(crate) async fn run_price_scraper(db_pool: &DbPool) -> JoinHandle<()> {
+pub(crate) async fn run_price_scraper(db_pool: &DbPool) {
     loop {
         tracing::info!("Running in a loop 🏃");
         if let Err(e) = get_coingecko_prices(db_pool).await {

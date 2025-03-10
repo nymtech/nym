@@ -3,15 +3,27 @@ use core::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 
+use crate::config::Config;
 use crate::{
     db::DbPool,
     http::{api::RouterBuilder, state::AppState},
 };
 
-pub(crate) async fn build_http_api(db_pool: DbPool, http_port: u16) -> anyhow::Result<HttpServer> {
+pub(crate) async fn build_http_api(
+    db_pool: DbPool,
+    config: &Config,
+    http_port: u16,
+) -> anyhow::Result<HttpServer> {
     let router_builder = RouterBuilder::with_default_routes();
 
-    let state = AppState::new(db_pool);
+    let watched_accounts = config
+        .payment_watcher_config
+        .watched_transfer_accounts()
+        .iter()
+        .map(|a| a.to_string())
+        .collect();
+
+    let state = AppState::new(db_pool, watched_accounts);
     let router = router_builder.with_state(state);
 
     let bind_addr = format!("0.0.0.0:{}", http_port);

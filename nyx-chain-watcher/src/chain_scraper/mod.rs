@@ -60,7 +60,7 @@ pub(crate) async fn run_chain_scraper(
     })
     .with_tx_module(EventScraperModule::new(
         db_pool,
-        config.payment_watcher_config.clone().unwrap_or_default(),
+        config.payment_watcher_config.clone(),
     ));
 
     let instance = scraper.build_and_start().await?;

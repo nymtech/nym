@@ -92,7 +92,7 @@ impl ConfigBuilder {
         Config {
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
-            payment_watcher_config: self.payment_watcher_config,
+            payment_watcher_config: self.payment_watcher_config.unwrap_or_default(),
             data_dir: self.data_dir,
             db_path: self.db_path,
             chain_scraper_db_path: self.chain_scraper_db_path,
@@ -116,7 +116,8 @@ pub struct Config {
     #[serde(skip)]
     chain_scraper_db_path: Option<String>,
 
-    pub payment_watcher_config: Option<PaymentWatcherConfig>,
+    #[serde(default)]
+    pub payment_watcher_config: PaymentWatcherConfig,
 
     #[serde(default)]
     pub logging: LoggingSettings,

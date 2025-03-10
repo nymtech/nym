@@ -1,10 +1,19 @@
 use nym_validator_client::nyxd::AccountId;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PaymentWatcherConfig {
     pub watchers: Vec<PaymentWatcherEntry>,
+}
+
+impl PaymentWatcherConfig {
+    pub fn watched_transfer_accounts(&self) -> Vec<&AccountId> {
+        self.watchers
+            .iter()
+            .filter_map(|e| e.watch_for_transfer_recipient_accounts.as_ref())
+            .flat_map(|a| a)
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

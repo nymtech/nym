@@ -155,11 +155,11 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
 
     // 2. payment listener
     let token = cancellation_token.clone();
+    let payment_watcher_config = config.payment_watcher_config.clone();
     {
         tasks.spawn(async move {
             token
                 .run_until_cancelled(async move {
-                    let payment_watcher_config = config.payment_watcher_config.unwrap_or_default();
                     payment_listener::run_payment_listener(
                         payment_watcher_config,
                         price_scraper_pool,
@@ -185,7 +185,8 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     }
 
     // 4. http api
-    let http_server = http::server::build_http_api(storage.pool_owned(), http_port).await?;
+    let http_server =
+        http::server::build_http_api(storage.pool_owned(), &config, http_port).await?;
     {
         let token = cancellation_token.clone();
         tasks.spawn(async move {

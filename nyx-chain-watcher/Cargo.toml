@@ -29,7 +29,6 @@ nym-node-requests = { path = "../nym-node/nym-node-requests", features = [
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nyxd-scraper = { path = "../common/nyxd-scraper" }
 reqwest = { workspace = true, features = ["rustls-tls"] }
-rocket = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

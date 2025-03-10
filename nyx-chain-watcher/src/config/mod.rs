@@ -14,7 +14,7 @@ use tracing::{debug, error};
 pub(crate) mod payments_watcher;
 mod template;
 
-pub use crate::config::payments_watcher::PaymentWatcherConfig;
+pub use crate::config::payments_watcher::PaymentWatchersConfig;
 use crate::error::NyxChainWatcherError;
 
 const DEFAULT_NYM_CHAIN_WATCHER_DIR: &str = "nym-chain-watcher";
@@ -46,7 +46,7 @@ pub struct ConfigBuilder {
 
     pub chain_scraper_db_path: Option<String>,
 
-    pub payment_watcher_config: Option<PaymentWatcherConfig>,
+    pub payment_watcher_config: Option<PaymentWatchersConfig>,
 
     pub logging: Option<LoggingSettings>,
 }
@@ -76,7 +76,7 @@ impl ConfigBuilder {
     #[allow(dead_code)]
     pub fn with_payment_watcher_config(
         mut self,
-        payment_watcher_config: impl Into<PaymentWatcherConfig>,
+        payment_watcher_config: impl Into<PaymentWatchersConfig>,
     ) -> Self {
         self.payment_watcher_config = Some(payment_watcher_config.into());
         self
@@ -117,7 +117,7 @@ pub struct Config {
     chain_scraper_db_path: Option<String>,
 
     #[serde(default)]
-    pub payment_watcher_config: PaymentWatcherConfig,
+    pub payment_watcher_config: PaymentWatchersConfig,
 
     #[serde(default)]
     pub logging: LoggingSettings,

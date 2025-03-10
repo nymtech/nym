@@ -14,7 +14,9 @@ mod config;
 
 use crate::chain_scraper::run_chain_scraper;
 use crate::db::DbPool;
-use crate::{db, http, payment_listener, price_scraper};
+use crate::http::state::PaymentListenerState;
+use crate::payment_listener::PaymentListener;
+use crate::{db, http, price_scraper};
 pub(crate) use args::Args;
 use nym_task::signal::wait_for_signal;
 
@@ -141,6 +143,9 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     let scraper_pool = storage.pool_owned();
     let shutdown_pool = storage.pool_owned();
 
+    // construct shared state
+    let payment_listener_shared_state = PaymentListenerState::new();
+
     // spawn all the tasks
 
     // 1. chain scraper (note: this doesn't really spawn the full scraper on this task, but we don't want to be blocking waiting for its startup)
@@ -156,16 +161,17 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     // 2. payment listener
     let token = cancellation_token.clone();
     let payment_watcher_config = config.payment_watcher_config.clone();
+    let payment_listener = PaymentListener::new(
+        price_scraper_pool,
+        payment_watcher_config,
+        payment_listener_shared_state.clone(),
+    )?;
     {
         tasks.spawn(async move {
             token
                 .run_until_cancelled(async move {
-                    payment_listener::run_payment_listener(
-                        payment_watcher_config,
-                        price_scraper_pool,
-                    )
-                    .await
-                    .inspect_err(|err| error!("Payment listener error: {err}"))
+                    payment_listener.run().await;
+                    Ok(())
                 })
                 .await
         });
@@ -185,8 +191,13 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     }
 
     // 4. http api
-    let http_server =
-        http::server::build_http_api(storage.pool_owned(), &config, http_port).await?;
+    let http_server = http::server::build_http_api(
+        storage.pool_owned(),
+        &config,
+        http_port,
+        payment_listener_shared_state,
+    )
+    .await?;
     {
         let token = cancellation_token.clone();
         tasks.spawn(async move {

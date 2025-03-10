@@ -18,5 +18,5 @@ pub(crate) fn routes() -> Router<AppState> {
 
 /// Fetch the addresses being watched by the chain watcher
 async fn get_addresses(State(state): State<AppState>) -> HttpResult<Json<Vec<String>>> {
-    Ok(Json(state.watched_addresses.clone()))
+    Ok(Json(state.watched_accounts()))
 }

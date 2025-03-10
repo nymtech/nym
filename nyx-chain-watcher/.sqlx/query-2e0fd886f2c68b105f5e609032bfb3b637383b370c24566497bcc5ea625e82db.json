@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                    SELECT * FROM transactions\n                    WHERE height > ? \n                    ORDER BY height ASC, message_index ASC\n                    ",
+  "query": "\n                SELECT * FROM transactions\n                WHERE height > ?\n                ORDER BY height ASC, message_index ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -64,5 +64,5 @@
       true
     ]
   },
-  "hash": "7b9abf4ff422b8d7a942955dc4fba380e7d5f0127f4745705b8ac9af6c170d19"
+  "hash": "2e0fd886f2c68b105f5e609032bfb3b637383b370c24566497bcc5ea625e82db"
 }

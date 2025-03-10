@@ -7237,7 +7237,6 @@ dependencies = [
  "nym-validator-client",
  "nyxd-scraper",
  "reqwest 0.12.4",
- "rocket",
  "schemars",
  "serde",
  "serde_json",

@@ -209,7 +209,7 @@ blake3 = "1.6.1"
 bloomfilter = "1.0.14"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"
-bytes = "1.7.2"
+bytes = "1.10.1"
 cargo_metadata = "0.18.1"
 celes = "2.5.0"
 cfg-if = "1.0.0"
@@ -310,9 +310,9 @@ rocket_okapi = "0.8.0"
 rs_merkle = "1.4.2"
 safer-ffi = "0.1.13"
 schemars = "0.8.22"
-semver = "1.0.25"
-serde = "1.0.217"
-serde_bytes = "0.11.16"
+semver = "1.0.26"
+serde = "1.0.219"
+serde_bytes = "0.11.17"
 serde_derive = "1.0"
 serde_json = "1.0.140"
 serde_json_path = "0.7.2"
@@ -332,7 +332,7 @@ tap = "1.0.1"
 tar = "0.4.44"
 tempfile = "3.15"
 thiserror = "2.0"
-time = "0.3.37"
+time = "0.3.39"
 tokio = "1.43"
 tokio-postgres = "0.7"
 tokio-stream = "0.1.17"
@@ -371,7 +371,7 @@ prometheus = { version = "0.13.0" }
 # plus to make our live easier we need serde support from https://github.com/zkcrypto/bls12_381/pull/125
 bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect" }
 group = { version = "0.13.0", default-features = false }
-ff = { version = "0.13.0", default-features = false }
+ff = { version = "0.13.1", default-features = false }
 subtle = "2.5.0"
 
 # cosmwasm-related

@@ -175,6 +175,7 @@ impl MetricsScrapingData {
             let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
                 b.with_timeout(Duration::from_secs(5))
                     .with_user_agent("node-status-api-metrics-scraper")
+                    .no_hickory_dns()
                     .build()
             }) {
                 Ok(client) => client,

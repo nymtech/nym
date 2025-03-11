@@ -27,9 +27,10 @@ use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
+use nym_node_metrics::events::{GatewaySessionEvent, MetricEventsSender};
 use nym_sdk::mixnet::{
     AnonymousSenderTag, InputMessage, MixnetMessageSender, Recipient, TransmissionLane,
 };
@@ -76,6 +77,8 @@ pub(crate) struct MixnetListener {
 
     pub(crate) ecash_verifier: Option<Arc<EcashManager>>,
 
+    pub(crate) metrics_events_sender: Option<MetricEventsSender>,
+
     pub(crate) timeout_check_interval: IntervalStream,
 }
 
@@ -87,6 +90,7 @@ impl MixnetListener {
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
         ecash_verifier: Option<Arc<EcashManager>>,
+        metrics_event_sender: Option<MetricEventsSender>,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
@@ -97,6 +101,7 @@ impl MixnetListener {
             registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data),
             ecash_verifier,
+            metrics_events_sender: metrics_event_sender,
             timeout_check_interval,
         }
     }
@@ -510,7 +515,8 @@ impl MixnetListener {
                     "peer with ticket shouldn't have been used before without a ticket".to_string(),
                 ))?;
             if let Err(e) =
-                Self::credential_verification(ecash_verifier.clone(), credential, client_id).await
+                Self::credential_verification(ecash_verifier.clone(), credential.clone(), client_id)
+                    .await
             {
                 ecash_verifier
                     .storage()
@@ -518,6 +524,7 @@ impl MixnetListener {
                     .await?;
                 return Err(e);
             }
+            self.send_ecash_metrics_event(credential);
             let public_key = peer.public_key.to_string();
             if let Err(e) = self.peer_manager.add_peer(peer, Some(client_id)).await {
                 ecash_verifier
@@ -622,6 +629,22 @@ impl MixnetListener {
             ),
         );
         Ok(verifier.verify().await?)
+    }
+
+    fn send_ecash_metrics_event(&self, credential: CredentialSpendingData) {
+        if let Some(metrics_events_sender) = &self.metrics_events_sender {
+            if let Ok(ticket_type) = TicketType::try_from_encoded(credential.payment.t_type) {
+                metrics_events_sender.report_unchecked(GatewaySessionEvent::new_ecash_ticket(
+                    self.mixnet_client
+                        .nym_address()
+                        .as_sphinx_destination()
+                        .address,
+                    ticket_type,
+                ));
+            } else {
+                log::error!("Somehow trying to send a ticket event with an unknown ticket type");
+            }
+        }
     }
 
     async fn on_query_bandwidth_request(
@@ -741,6 +764,7 @@ impl MixnetListener {
             ),
         );
         let available_bandwidth = verifier.verify().await?;
+        self.send_ecash_metrics_event(msg.credential());
 
         let bytes = match AuthenticatorVersion::from(protocol) {
             AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_topup_bandwidth(

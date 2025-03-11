@@ -434,6 +434,7 @@ impl GatewayTasksBuilder {
             used_private_network_ips,
         )
         .with_ecash_verifier(ecash_manager)
+        .with_metrics_event_sender(self.metrics_sender.clone())
         .with_custom_gateway_transceiver(transceiver)
         .with_shutdown(self.shutdown.fork("authenticator_sp"))
         .with_wait_for_gateway(true)

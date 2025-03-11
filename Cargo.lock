@@ -4937,6 +4937,7 @@ dependencies = [
  "nym-gateway-storage",
  "nym-id",
  "nym-network-defaults",
+ "nym-node-metrics",
  "nym-sdk",
  "nym-service-provider-requests-common",
  "nym-service-providers-common",

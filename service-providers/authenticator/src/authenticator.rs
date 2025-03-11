@@ -7,6 +7,7 @@ use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_credential_verification::ecash::EcashManager;
+use nym_node_metrics::events::MetricEventsSender;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
 use nym_wireguard::WireguardGatewayData;
@@ -32,6 +33,7 @@ pub struct Authenticator {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
     ecash_verifier: Option<Arc<EcashManager>>,
+    metrics_sender: Option<MetricEventsSender>,
     used_private_network_ips: Vec<IpAddr>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
@@ -49,6 +51,7 @@ impl Authenticator {
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             ecash_verifier: None,
+            metrics_sender: None,
             wireguard_gateway_data,
             used_private_network_ips,
             shutdown: None,
@@ -60,6 +63,13 @@ impl Authenticator {
     #[allow(unused)]
     pub fn with_ecash_verifier(mut self, ecash_verifier: Arc<EcashManager>) -> Self {
         self.ecash_verifier = Some(ecash_verifier);
+        self
+    }
+
+    #[must_use]
+    #[allow(unused)]
+    pub fn with_metrics_event_sender(mut self, metrics_sender: MetricEventsSender) -> Self {
+        self.metrics_sender = Some(metrics_sender);
         self
     }
 
@@ -163,6 +173,7 @@ impl Authenticator {
             mixnet_client,
             task_handle,
             self.ecash_verifier,
+            self.metrics_sender,
         );
 
         log::info!("The address of this client is: {self_address}");

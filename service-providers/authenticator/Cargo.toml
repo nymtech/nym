@@ -42,6 +42,7 @@ nym-gateway-requests = { path = "../../common/gateway-requests" }
 nym-gateway-storage = { path = "../../common/gateway-storage" }
 nym-id = { path = "../../common/nym-id" }
 nym-network-defaults = { path = "../../common/network-defaults" }
+nym-node-metrics = { path = "../../nym-node/nym-node-metrics" } #TODO SW this is fugly
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../common" }
 nym-service-provider-requests-common = { path = "../../common/service-provider-requests-common" }

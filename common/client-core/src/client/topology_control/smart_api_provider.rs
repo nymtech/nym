@@ -198,3 +198,33 @@ impl PiecewiseTopologyProvider for NymApiPiecewiseProvider {
         self.get_layer_assignments_inner().await
     }
 }
+
+// // Test requires running a local instance of the nym-api binary, for example using:
+// //   `RUST_LOG="info" ./target/debug/nym-api run --nyxd-validator "https://rpc.nymtech.net"`
+
+// #[cfg(test)]
+// mod test {
+//     use std::time::Duration;
+
+//     use super::*;
+//     use nym_bin_common::logging::setup_tracing_logger;
+
+//     #[tokio::test]
+//     async fn local_api_provider_test() {
+//         setup_tracing_logger();
+//         let mut provider = NymApiTopologyProvider::new(
+//             Config::default(),
+//             vec!["http://localhost:8000"
+//                 .parse()
+//                 .expect("failed to parse api url")],
+//             None,
+//             None,
+//         );
+
+//         for _ in 0..180 {
+//             let topo = provider.get_new_topology().await;
+//             assert!(topo.is_some());
+//             tokio::time::sleep(Duration::from_secs(30)).await;
+//         }
+//     }
+// }

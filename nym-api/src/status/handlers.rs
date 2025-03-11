@@ -8,7 +8,7 @@ use axum::extract::State;
 use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{
-    ApiHealthResponse, ApiStatus, DetailedChainStatus, SignerInformationResponse,
+    ApiHealthResponse, ApiStatus, ChainStatus, SignerInformationResponse,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
@@ -47,14 +47,14 @@ async fn health(State(state): State<AppState>) -> Json<ApiHealthResponse> {
             let block_time: OffsetDateTime = res.latest_block.block.header.time.into();
             let diff = now - block_time;
             if diff > CHAIN_STALL_THRESHOLD {
-                DetailedChainStatus::Stalled {
+                ChainStatus::Stalled {
                     approximate_amount: diff.unsigned_abs(),
                 }
             } else {
-                DetailedChainStatus::Synced
+                ChainStatus::Synced
             }
         }
-        Err(_) => DetailedChainStatus::Unknown,
+        Err(_) => ChainStatus::Unknown,
     };
     let health = ApiHealthResponse {
         status: ApiStatus::Up,

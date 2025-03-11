@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_config::defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::BlockResponse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

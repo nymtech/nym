@@ -257,36 +257,30 @@ impl ClientBuilder {
     /// Constructs a new http `ClientBuilder` from a valid url.
     pub fn new_with_url(url: Url) -> Self {
         if !url.scheme().starts_with("http") {
-            let mut alt = url.clone();
-            #[allow(clippy::unwrap_used)]
-            // https is always a valid protocol so unwrap is safe here
-            alt.set_scheme("https").unwrap();
-            warn!("the provided url ('{url}') does not contain scheme information. Changing it to '{alt}' ...");
-            // TODO: or should we maybe default to https?
-            Self::new_with_url(alt)
-        } else {
-            #[cfg(target_arch = "wasm32")]
-            let reqwest_client_builder = reqwest::ClientBuilder::new();
+            warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
+        }
 
-            #[cfg(not(target_arch = "wasm32"))]
-            let reqwest_client_builder = {
-                let r = reqwest::ClientBuilder::new();
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client_builder = reqwest::ClientBuilder::new();
 
-                // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
-                // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
-                //
-                // I am going to leave it here anyways so that gzip decompression is attempted even if
-                // that feature is removed.
-                r.gzip(true)
-            };
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client_builder = {
+            let r = reqwest::ClientBuilder::new();
 
-            ClientBuilder {
-                url,
-                timeout: None,
-                custom_user_agent: false,
-                reqwest_client_builder,
-                use_secure_dns: true,
-            }
+            // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
+            // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
+            //
+            // I am going to leave it here anyways so that gzip decompression is attempted even if
+            // that feature is removed.
+            r.gzip(true)
+        };
+
+        ClientBuilder {
+            url,
+            timeout: None,
+            custom_user_agent: false,
+            reqwest_client_builder,
+            use_secure_dns: true,
         }
     }
 

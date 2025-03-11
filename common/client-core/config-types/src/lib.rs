@@ -658,6 +658,9 @@ pub struct ReplySurbs {
     /// Specifies the number of mixnet hops the packet should go through. If not specified, then
     /// the default value is used.
     pub surb_mix_hops: Option<u8>,
+
+    /// Specifies if we should reset all the sender tags on startup
+    pub fresh_sender_tags: bool,
 }
 
 impl Default for ReplySurbs {
@@ -675,6 +678,7 @@ impl Default for ReplySurbs {
             maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
             maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
             surb_mix_hops: None,
+            fresh_sender_tags: false,
         }
     }
 }

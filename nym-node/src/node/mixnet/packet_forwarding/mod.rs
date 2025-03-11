@@ -1,6 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::mixnet::packet_forwarding::global::is_global_ip;
+use crate::node::shared_network::RoutingFilter;
 use futures::StreamExt;
 use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender, PacketToForward,
@@ -11,14 +13,20 @@ use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
 use std::io;
+use std::net::IpAddr;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
+pub(crate) mod global;
+
 pub struct PacketForwarder<C> {
+    testnet: bool,
+
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
     mixnet_client: C,
 
     metrics: NymNodeMetrics,
+    routing_filter: RoutingFilter,
 
     packet_sender: MixForwardingSender,
     packet_receiver: MixForwardingReceiver,
@@ -26,13 +34,21 @@ pub struct PacketForwarder<C> {
 }
 
 impl<C> PacketForwarder<C> {
-    pub fn new(client: C, metrics: NymNodeMetrics, shutdown: ShutdownToken) -> Self {
+    pub fn new(
+        client: C,
+        testnet: bool,
+        routing_filter: RoutingFilter,
+        metrics: NymNodeMetrics,
+        shutdown: ShutdownToken,
+    ) -> Self {
         let (packet_sender, packet_receiver) = mix_forwarding_channels();
 
         PacketForwarder {
+            testnet,
             delay_queue: NonExhaustiveDelayQueue::new(),
             mixnet_client: client,
             metrics,
+            routing_filter,
             packet_sender,
             packet_receiver,
             shutdown,
@@ -43,11 +59,29 @@ impl<C> PacketForwarder<C> {
         self.packet_sender.clone()
     }
 
+    fn should_route(&mut self, ip_addr: IpAddr) -> bool {
+        // only allow non-global ips on testnets
+        if self.testnet && !is_global_ip(&ip_addr) {
+            return true;
+        }
+
+        self.routing_filter.attempt_resolve(ip_addr).should_route()
+    }
+
     fn forward_packet(&mut self, packet: MixPacket)
     where
         C: SendWithoutResponse,
     {
         let next_hop = packet.next_hop();
+
+        if !self.should_route(next_hop.as_ref().ip()) {
+            debug!("dropping packet as the egress address does not belong to any known node");
+            self.metrics
+                .mixnet
+                .egress_dropped_forward_packet(next_hop.into());
+            return;
+        }
+
         let packet_type = packet.packet_type();
         let packet = packet.into_packet();
 

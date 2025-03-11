@@ -1,14 +1,14 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, ASSIGNED_ENTRY_COUNT,
+    gateway, mixnode, GatewayInsertRecord, MixnodeRecord, NetworkSummary, ASSIGNED_ENTRY_COUNT,
     ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT,
     MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{Location, NodeGeoData};
+use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
-use cosmwasm_std::Decimal;
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::{NodeId, NymApiClientExt};
@@ -29,7 +29,6 @@ pub(crate) use geodata::IpInfoClient;
 
 mod geodata;
 
-// TODO dz should be configurable
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
@@ -109,7 +108,11 @@ impl Monitor {
 
         let gateways = described_nodes
             .iter()
-            .filter(|node| node.description.declared_role.entry)
+            .filter(|node| {
+                node.description.declared_role.entry
+                    || node.description.declared_role.exit_ipr
+                    || node.description.declared_role.exit_nr
+            })
             .collect::<Vec<_>>();
 
         let bonded_node_info = api_client
@@ -120,12 +123,18 @@ impl Monitor {
             // for faster reads
             .collect::<HashMap<_, _>>();
 
+        tracing::info!("🟣 bonded_nodes: {}", bonded_node_info.len());
+
         let nym_nodes = api_client
             .get_all_basic_nodes()
             .await
             .log_error("get_all_basic_nodes")?;
 
-        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info).await?;
+        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone(), &bonded_node_info)
+            .await
+            .map(|_| {
+                tracing::debug!("{} nym nodes written to DB!", nym_nodes.len());
+            })?;
 
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {
@@ -198,10 +207,11 @@ impl Monitor {
         let gateway_records = self.prepare_gateway_data(&gateways, gateway_geodata, &nym_nodes)?;
 
         let pool = self.db_pool.clone();
+        let gateways_count = gateway_records.len();
         queries::insert_gateways(&pool, gateway_records)
             .await
             .map(|_| {
-                tracing::debug!("Gateway info written to DB!");
+                tracing::debug!("{} gateway records written to DB!", gateways_count);
             })?;
 
         let mixnode_records = self.prepare_mixnode_data(
@@ -209,10 +219,11 @@ impl Monitor {
             mixnodes_described,
             delegation_program_members,
         )?;
+        let mixnodes_count = mixnode_records.len();
         queries::insert_mixnodes(&pool, mixnode_records)
             .await
             .map(|_| {
-                tracing::debug!("Mixnode info written to DB!");
+                tracing::debug!("{} mixnode info written to DB!", mixnodes_count);
             })?;
 
         let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
@@ -285,9 +296,14 @@ impl Monitor {
             Some(location) => return location,
             None => {
                 for ip in node.description.host_information.ip_address.iter() {
-                    if let Ok(location) = self.ipinfo.locate_ip(ip.to_string()).await {
-                        self.geocache.insert(node_id, location.clone()).await;
-                        return location;
+                    match self.ipinfo.locate_ip(ip.to_string()).await {
+                        Ok(location) => {
+                            self.geocache.insert(node_id, location.clone()).await;
+                            return location;
+                        }
+                        Err(err) => {
+                            tracing::warn!("Couldn't locate IP {} due to: {}", ip, err)
+                        }
                     }
                 }
                 // if no data could be retrieved
@@ -299,13 +315,13 @@ impl Monitor {
 
     fn prepare_gateway_data(
         &self,
-        gateways: &[&NymNodeDescription],
+        described_gateways: &[&NymNodeDescription],
         gateway_geodata: Vec<NodeGeoData>,
         skimmed_gateways: &[SkimmedNode],
-    ) -> anyhow::Result<Vec<GatewayRecord>> {
+    ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
         let mut gateway_records = Vec::new();
 
-        for gateway in gateways {
+        for gateway in described_gateways {
             let identity_key = gateway.ed25519_identity_key().to_base58_string();
             let bonded = true;
             let last_updated_utc = chrono::offset::Utc::now().timestamp();
@@ -329,7 +345,7 @@ impl Monitor {
                 .unwrap_or_default()
                 .round_to_integer();
 
-            gateway_records.push(GatewayRecord {
+            gateway_records.push(GatewayInsertRecord {
                 identity_key: identity_key.to_owned(),
                 bonded,
                 self_described,
@@ -400,33 +416,6 @@ impl Monitor {
     }
 }
 
-// TODO dz is there a common monorepo place this can be put?
-pub trait NumericalCheckedCast<T>
-where
-    T: TryFrom<Self>,
-    <T as TryFrom<Self>>::Error: std::error::Error,
-    Self: std::fmt::Display + Copy,
-{
-    fn cast_checked(self) -> anyhow::Result<T> {
-        T::try_from(self).map_err(|e| {
-            anyhow::anyhow!(
-                "Couldn't cast {} to {}: {}",
-                self,
-                std::any::type_name::<T>(),
-                e
-            )
-        })
-    }
-}
-
-impl<T, U> NumericalCheckedCast<U> for T
-where
-    U: TryFrom<T>,
-    <U as TryFrom<T>>::Error: std::error::Error,
-    T: std::fmt::Display + Copy,
-{
-}
-
 async fn calculate_stats(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
     let mut conn = pool.acquire().await?;
 
@@ -463,40 +452,4 @@ async fn get_delegation_program_details(
         .collect();
 
     Ok(mix_ids)
-}
-
-pub(crate) fn decimal_to_i64(decimal: Decimal) -> i64 {
-    // Convert the underlying Uint128 to a u128
-    let atomics = decimal.atomics().u128();
-    let precision = 1_000_000_000_000_000_000u128;
-
-    // Get the fractional part
-    let fractional = atomics % precision;
-
-    // Get the integer part
-    let integer = atomics / precision;
-
-    // Combine them into a float
-    let float_value = integer as f64 + (fractional as f64 / 1_000_000_000_000_000_000_f64);
-
-    // Limit to 6 decimal places
-    let rounded_value = (float_value * 1_000_000.0).round() / 1_000_000.0;
-
-    rounded_value as i64
-}
-
-trait LogError<T, E> {
-    fn log_error(self, msg: &str) -> Result<T, E>;
-}
-
-impl<T, E> LogError<T, E> for anyhow::Result<T, E>
-where
-    E: std::error::Error,
-{
-    fn log_error(self, msg: &str) -> Result<T, E> {
-        if let Err(e) = &self {
-            tracing::error!("[{msg}]:\t{e}");
-        }
-        self
-    }
 }

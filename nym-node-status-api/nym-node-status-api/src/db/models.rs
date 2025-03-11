@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     http::{self, models::SummaryHistory},
-    monitor::NumericalCheckedCast,
+    utils::NumericalCheckedCast,
 };
 use anyhow::Context;
 use nym_contracts_common::Percent;
@@ -16,7 +16,7 @@ use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
 
-pub(crate) struct GatewayRecord {
+pub(crate) struct GatewayInsertRecord {
     pub(crate) identity_key: String,
     pub(crate) bonded: bool,
     pub(crate) self_described: String,
@@ -360,14 +360,24 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
-pub(crate) enum MixingNodeKind {
-    LegacyMixnode,
-    NymNode,
+pub(crate) enum ScrapeNodeKind {
+    LegacyMixnode { mix_id: i64 },
+    MixingNymNode { node_id: i64 },
+    EntryExitNymNode { node_id: i64, identity_key: String },
+}
+
+impl ScrapeNodeKind {
+    pub(crate) fn node_id(&self) -> &i64 {
+        match self {
+            ScrapeNodeKind::LegacyMixnode { mix_id } => mix_id,
+            ScrapeNodeKind::MixingNymNode { node_id } => node_id,
+            ScrapeNodeKind::EntryExitNymNode { node_id, .. } => node_id,
+        }
+    }
 }
 
 pub(crate) struct ScraperNodeInfo {
-    pub node_id: i64,
-    pub node_kind: MixingNodeKind,
+    pub node_kind: ScrapeNodeKind,
     pub hosts: Vec<String>,
     pub http_api_port: i64,
 }
@@ -389,6 +399,10 @@ impl ScraperNodeInfo {
         }
 
         urls
+    }
+
+    pub(crate) fn node_id(&self) -> &i64 {
+        self.node_kind.node_id()
     }
 }
 

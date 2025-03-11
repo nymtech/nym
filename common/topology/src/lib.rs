@@ -254,6 +254,15 @@ impl NymTopology {
         }
     }
 
+    pub fn with_additional_nodes<N>(mut self, nodes: impl Iterator<Item = N>) -> Self
+    where
+        N: TryInto<RoutingNode>,
+        <N as TryInto<RoutingNode>>::Error: Display,
+    {
+        self.add_additional_nodes(nodes);
+        self
+    }
+
     pub fn has_node_details(&self, node_id: NodeId) -> bool {
         self.node_details.contains_key(&node_id)
     }

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 set -eu
-export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
 
-probe_git_ref="nym-vpn-core-v1.1.0"
+probe_git_ref="nym-vpn-core-v1.3.2"
 
 crate_root=$(dirname $(realpath "$0"))
 monorepo_root=$(realpath "${crate_root}/../..")
@@ -21,6 +21,7 @@ export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
 export NODE_STATUS_AGENT_SERVER_PORT="8000"
 export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
 export NODE_STATUS_AGENT_AUTH_KEY="BjyC9SsHAZUzPRkQR4sPTvVrp4GgaquTh5YfSJksvvWT"
+export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1"
 
 workers=${1:-1}
 echo "Running $workers workers in parallel"
@@ -54,7 +55,7 @@ function swarm() {
     echo "All agents completed"
 }
 
-# copy_gw_probe
+copy_gw_probe
 build_agent
 
 swarm $workers

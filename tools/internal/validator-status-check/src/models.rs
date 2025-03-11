@@ -15,6 +15,7 @@ pub(crate) struct SignerStatus {
     api_version: ApiVersion,
     rpc_status: RpcStatus,
     used_rpc_endpoint: RpcEndpoint,
+    abci_version: AbciVersion,
 }
 
 impl Display for SignerStatus {
@@ -23,6 +24,7 @@ impl Display for SignerStatus {
         writeln!(f, "api_version: {}", self.api_version)?;
         writeln!(f, "rpc_status: {}", self.rpc_status)?;
         writeln!(f, "used_rpc_endpoint: {}", self.used_rpc_endpoint)?;
+        writeln!(f, "abci_version: {}", self.abci_version)?;
         Ok(())
     }
 }
@@ -34,6 +36,7 @@ impl SignerStatus {
             api_version: Default::default(),
             rpc_status: Default::default(),
             used_rpc_endpoint: Default::default(),
+            abci_version: Default::default(),
         }
     }
 
@@ -93,6 +96,9 @@ impl SignerStatus {
                 } else {
                     self.rpc_status = RpcStatus::Down
                 }
+                self.abci_version = AbciVersion::Available {
+                    version: chain_status.status.abci.version,
+                }
             }
             Err(err) => {
                 error!(
@@ -109,6 +115,7 @@ impl SignerStatus {
             self.api_version.as_cell(),
             self.rpc_status.as_cell(),
             self.used_rpc_endpoint.as_cell(),
+            self.abci_version.as_cell(),
         ]
     }
 }
@@ -133,6 +140,28 @@ impl RpcEndpoint {
         } else {
             format!("⚠️  {}", self.0)
         }
+    }
+}
+
+#[derive(
+    Clone, Default, PartialOrd, PartialEq, Ord, Eq, Display, EnumProperty, Serialize, Deserialize,
+)]
+#[strum(serialize_all = "snake_case")]
+enum AbciVersion {
+    #[strum(props(emoji = "✅"))]
+    #[strum(to_string = "{version}")]
+    Available { version: String },
+
+    #[strum(props(emoji = "❗"))]
+    #[default]
+    Unavailable,
+}
+
+impl AbciVersion {
+    // SAFETY: every variant has a `emoji` prop defined
+    #[allow(clippy::unwrap_used)]
+    fn as_cell(&self) -> String {
+        format!("{} {}", self.get_str("emoji").unwrap(), self)
     }
 }
 

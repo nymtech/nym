@@ -44,7 +44,13 @@ impl Display for NetworkStatus {
         )?;
 
         let mut table = Table::new();
-        table.set_header(vec!["signer", "api version", "rpc status", "rpc endpoint"]);
+        table.set_header(vec![
+            "signer",
+            "api version",
+            "rpc status",
+            "rpc endpoint",
+            "abci version",
+        ]);
         for signer in &self.detailed {
             table.add_row(signer.to_table_row());
         }

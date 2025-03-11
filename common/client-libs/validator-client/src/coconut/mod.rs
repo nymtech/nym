@@ -8,7 +8,6 @@ use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
-use nym_http_api_client::HttpClientError;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 use url::Url;
@@ -72,12 +71,6 @@ pub enum EcashApiError {
         #[from]
         source: crate::ValidatorClientError,
     },
-
-    #[error("error building or using HTTP client: {source}")]
-    ClientError {
-        #[from]
-        source: HttpClientError,
-    },
 }
 
 impl TryFrom<ContractVKShare> for EcashApiClient {
@@ -90,19 +83,8 @@ impl TryFrom<ContractVKShare> for EcashApiClient {
 
         let url_address = Url::parse(&share.announce_address)?;
 
-        // Note: we expect this to be used server-side (gateways / nodes / APIs) not client-side
-        // (vpn client etc.) so we use the system default resolver.
-        #[cfg(not(target_arch = "wasm32"))]
-        let api_client = NymApiClient {
-            nym_api: nym_http_api_client::ClientBuilder::new_with_url(url_address)
-                .no_hickory_dns()
-                .build()?,
-        };
-        #[cfg(target_arch = "wasm32")]
-        let api_client = NymApiClient::new(url_address);
-
         Ok(EcashApiClient {
-            api_client,
+            api_client: NymApiClient::new(url_address),
             verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
             node_id: share.node_index,
             cosmos_address: share.owner.as_str().parse()?,

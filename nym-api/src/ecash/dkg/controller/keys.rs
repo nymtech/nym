@@ -10,7 +10,7 @@ use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use thiserror::__private::AsDisplay;
-use tracing::warn;
+use tracing::{debug, warn};
 
 pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
     rng: &mut R,
@@ -39,17 +39,20 @@ pub(crate) fn load_bte_keypair(config: &config::EcashSigner) -> anyhow::Result<D
 pub(crate) fn load_ecash_keypair_if_exists(
     config: &config::EcashSigner,
 ) -> anyhow::Result<Option<KeyPairWithEpoch>> {
+    let storage_path = &config.storage_paths.ecash_key_path;
+    debug!(
+        "attempting to ecash keypair from {}",
+        storage_path.display()
+    );
     if !config.storage_paths.ecash_key_path.exists() {
+        debug!("the provided filepath doesn't exist - the key won't be loaded");
         return Ok(None);
     }
 
-    if let Ok(ecash_key) =
+    let ecash_key =
         nym_pemstore::load_key::<KeyPairWithEpoch, _>(&config.storage_paths.ecash_key_path)
-    {
-        return Ok(Some(ecash_key));
-    }
-
-    bail!("ecash key load failure")
+            .context("failed to load ecash key")?;
+    Ok(Some(ecash_key))
 }
 
 // the keys can be considered valid if they were generated for the current dkg epoch

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::models::PersistedSharedKeys;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub(crate) struct SharedKeysManager {
@@ -68,6 +69,22 @@ impl SharedKeysManager {
         Ok(())
     }
 
+    pub(crate) async fn update_last_used_authentication_timestamp(
+        &self,
+        client_id: i64,
+        last_used: OffsetDateTime,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE shared_keys SET last_used_authentication = ? WHERE client_id = ?;",
+            last_used,
+            client_id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
     /// Tries to retrieve shared keys stored for the particular client.
     ///
     /// # Arguments
@@ -77,13 +94,10 @@ impl SharedKeysManager {
         &self,
         client_address_bs58: &str,
     ) -> Result<Option<PersistedSharedKeys>, sqlx::Error> {
-        sqlx::query_as!(
-            PersistedSharedKeys,
-            "SELECT * FROM shared_keys WHERE client_address_bs58 = ?",
-            client_address_bs58
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
+        sqlx::query_as("SELECT * FROM shared_keys WHERE client_address_bs58 = ?")
+            .bind(client_address_bs58)
+            .fetch_optional(&self.connection_pool)
+            .await
     }
 
     /// Removes from the database shared keys derived with the particular client.

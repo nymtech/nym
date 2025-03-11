@@ -746,7 +746,7 @@ where
             .request_additional_reply_surbs(target, request_size)
             .await
         {
-            warn!("failed to request additional surbs... - {err}")
+            info!("{err}")
         }
     }
 

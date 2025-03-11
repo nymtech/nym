@@ -89,6 +89,9 @@ pub enum AuthenticatorError {
     #[error("unknown version number")]
     UnknownVersion,
 
+    #[error("missing reply_to for old client")]
+    MissingReplyToForOldClient,
+
     #[error("{0}")]
     PublicKey(#[from] nym_wireguard_types::Error),
 

@@ -50,7 +50,7 @@ const DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER: usize = 0;
 // define how much to request at once
 // clients/client-core/src/client/replies/reply_controller.rs
 const DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 10;
-const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
+const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 50;
 
 const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 

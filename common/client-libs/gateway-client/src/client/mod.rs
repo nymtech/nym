@@ -683,7 +683,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(supports_auth_v2).await?;
+            self.authenticate(false).await?;
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
@@ -1016,8 +1016,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
-        self.authenticate(self.negotiated_protocol.supports_authenticate_v2())
-            .await?;
+        self.authenticate(false).await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

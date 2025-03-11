@@ -44,7 +44,8 @@ impl PaymentListener {
         let txs = sqlx::query_as!(
             Transaction,
             r#"
-                SELECT * FROM transactions
+                SELECT id, tx_hash, height, message_index, sender, recipient, amount, memo, created_at as "created_at: ::time::OffsetDateTime"
+                FROM transactions
                 WHERE height > ?
                 ORDER BY height ASC, message_index ASC
             "#,

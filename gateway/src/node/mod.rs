@@ -251,7 +251,7 @@ impl GatewayTasksBuilder {
         let shared_state = websocket::CommonHandlerState {
             cfg: websocket::Config {
                 enforce_zk_nym: self.config.gateway.enforce_zk_nyms,
-                max_auth_request_age: self.config.debug.maximum_auth_request_age,
+                max_request_timestamp_skew: self.config.debug.max_request_timestamp_skew,
                 bandwidth: (&self.config).into(),
             },
             ecash_verifier: self.ecash_manager().await?,

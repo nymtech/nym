@@ -10,6 +10,7 @@ use nym_sphinx::params::packet_sizes::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::string::FromUtf8Error;
 use thiserror::Error;
+use time::OffsetDateTime;
 
 // specific errors (that should not be nested!!) for clients to match on
 #[derive(Debug, Copy, Clone, Error, Serialize, Deserialize)]
@@ -112,15 +113,15 @@ pub enum AuthenticationFailure {
     #[error("failed to verify request signature")]
     InvalidSignature(#[from] SignatureError),
 
-    #[error("provided request timestamp is in the future")]
-    RequestTimestampInFuture,
-
     #[error("the client is not registered")]
     NotRegistered,
 
-    #[error("the provided request is too stale to process")]
-    StaleRequest,
+    #[error("the provided request timestamp is excessively skewed. got {received} whilst the server time is {server}")]
+    ExcessiveTimestampSkew {
+        received: OffsetDateTime,
+        server: OffsetDateTime,
+    },
 
-    #[error("the provided request timestamp is smaller or equal to a one previously used")]
+    #[error("the provided request timestamp is smaller or equal to one previously used")]
     RequestReuse,
 }

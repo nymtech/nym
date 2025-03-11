@@ -6355,6 +6355,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-explorer-client",
+ "nym-http-api-client",
  "nym-network-defaults",
  "nym-node-metrics",
  "nym-node-requests",

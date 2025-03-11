@@ -68,7 +68,7 @@ impl Debug {
     pub const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
     pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_AGE: Duration = Duration::from_secs(30);
-    const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
+    pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
 }
 
 impl Default for Debug {

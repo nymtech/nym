@@ -147,12 +147,12 @@ use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
+use http::HeaderMap;
+pub use reqwest::IntoUrl;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
-
-pub use reqwest::IntoUrl;
 
 mod user_agent;
 pub use user_agent::UserAgent;
@@ -209,6 +209,12 @@ pub enum HttpClientError<E: Display = String> {
 
     #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
     EndpointFailure { status: StatusCode, error: E },
+
+    #[error("failed to decode response body: {source} from {content}")]
+    ResponseDecodeFailure {
+        source: serde_json::Error,
+        content: String,
+    },
 
     #[cfg(target_arch = "wasm32")]
     #[error("the request has timed out")]
@@ -849,6 +855,26 @@ fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
+fn decode_as_text(bytes: &bytes::Bytes, headers: HeaderMap) -> String {
+    use encoding_rs::{Encoding, UTF_8};
+    use mime::Mime;
+
+    let content_type = headers
+        .get(http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<Mime>().ok());
+
+    let encoding_name = content_type
+        .as_ref()
+        .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+        .unwrap_or("utf-8");
+
+    let encoding = Encoding::for_label(encoding_name.as_bytes()).unwrap_or(UTF_8);
+
+    let (text, _, _) = encoding.decode(bytes);
+    text.into_owned()
+}
+
 /// Attempt to parse a json object from an HTTP response
 #[instrument(level = "debug", skip_all)]
 pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
@@ -864,21 +890,23 @@ where
             return Err(HttpClientError::EmptyResponse { status });
         }
     }
+    let headers = res.headers().clone();
+    tracing::trace!("headers: {:?}", headers);
 
     if res.status().is_success() {
-        #[cfg(debug_assertions)]
-        {
-            let text = res.text().await.inspect_err(|err| {
-                tracing::error!("Couldn't even get response text: {err}");
-            })?;
-            tracing::trace!("Result:\n{:#?}", text);
-
-            serde_json::from_str(&text)
-                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))
+        // internally reqwest is first retrieving bytes and then performing parsing via serde_json
+        // (and similarly does the same thing for text())
+        let full = res.bytes().await?;
+        match serde_json::from_slice(&full) {
+            Ok(data) => Ok(data),
+            Err(err) => {
+                let content = decode_as_text(&full, headers);
+                Err(HttpClientError::ResponseDecodeFailure {
+                    source: err,
+                    content,
+                })
+            }
         }
-
-        #[cfg(not(debug_assertions))]
-        Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

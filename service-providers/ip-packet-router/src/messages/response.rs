@@ -90,9 +90,6 @@ pub(crate) struct DynamicConnectSuccess {
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub(crate) enum DynamicConnectFailureReason {
-    #[error("client already connected")]
-    ClientAlreadyConnected,
-
     #[error("no available ip address")]
     NoAvailableIp,
 

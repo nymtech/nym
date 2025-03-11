@@ -82,9 +82,6 @@ impl From<DynamicConnectResponse> for ConnectResponseReplyV8 {
 impl From<DynamicConnectFailureReason> for ConnectFailureReasonV8 {
     fn from(reason: DynamicConnectFailureReason) -> Self {
         match reason {
-            DynamicConnectFailureReason::ClientAlreadyConnected => {
-                ConnectFailureReasonV8::ClientAlreadyConnected
-            }
             DynamicConnectFailureReason::NoAvailableIp => ConnectFailureReasonV8::NoAvailableIp,
             DynamicConnectFailureReason::Other(err) => ConnectFailureReasonV8::Other(err),
         }

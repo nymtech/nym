@@ -33,14 +33,17 @@ impl DailyMerkleTree {
             .into_iter()
             .map(|l| (l.merkle_index, l))
             .collect();
+        let total_leaves = leaves.len();
 
         let mut sorted_leaves = Vec::new();
         for i in 0..leaves.len() {
             if let Some(next_leaf) = leaves.remove(&i) {
                 sorted_leaves.push(next_leaf);
             } else {
-                let lost = leaves.len() - i + 1;
-                error!("failed to produce consistent merkle tree. there was no leaf with index {i}. at least {lost} leaves got lost")
+                let lost = total_leaves - i + 1;
+                error!("failed to produce consistent merkle tree. there was no leaf with index {i}. at least {lost} leaves got lost");
+                // we have to drop all data above that height because we can't rebuild the full tree
+                break;
             }
         }
 

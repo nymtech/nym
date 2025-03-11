@@ -2433,7 +2433,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.47"
+version = "1.1.48"
 dependencies = [
  "chrono",
  "clap",
@@ -4786,7 +4786,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.51"
+version = "1.1.53"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5035,7 +5035,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.49"
+version = "1.1.50"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5118,7 +5118,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.49"
+version = "1.1.50"
 dependencies = [
  "bs58",
  "clap",
@@ -5880,8 +5880,11 @@ name = "nym-http-api-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bytes",
+ "encoding_rs",
  "hickory-resolver",
  "http 1.2.0",
+ "mime",
  "nym-bin-common",
  "once_cell",
  "reqwest 0.12.4",
@@ -6159,7 +6162,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.50"
+version = "1.1.51"
 dependencies = [
  "addr",
  "anyhow",
@@ -6210,7 +6213,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.6.0"
+version = "1.6.2"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6495,6 +6498,7 @@ name = "nym-pemstore"
 version = "0.3.0"
 dependencies = [
  "pem",
+ "tracing",
 ]
 
 [[package]]
@@ -6594,7 +6598,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.49"
+version = "1.1.50"
 dependencies = [
  "bs58",
  "clap",
@@ -7199,7 +7203,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "anyhow",
  "bytes",
@@ -9448,9 +9452,9 @@ dependencies = [
 
 [[package]]
 name = "sphinx-packet"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "535f2c430778bf59c22249fcc1ed6d384129eb2f0f694706015d636c688f9ac6"
+checksum = "c23047e0cf36ff6904603f499fd13153425cdf5ba47bfbaedbc999da0bd92f4e"
 dependencies = [
  "aes",
  "arrayref",

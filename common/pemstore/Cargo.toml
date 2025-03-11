@@ -9,3 +9,4 @@ repository = { workspace = true }
 
 [dependencies]
 pem = { workspace = true }
+tracing = { workspace = true }

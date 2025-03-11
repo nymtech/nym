@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                    SELECT * FROM transactions\n                    WHERE height > ? \n                    ORDER BY height ASC, message_index ASC\n                    ",
+  "query": "\n                SELECT id, tx_hash, height, message_index, sender, recipient, amount, memo, created_at as \"created_at: ::time::OffsetDateTime\"\n                FROM transactions\n                WHERE height > ?\n                ORDER BY height ASC, message_index ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -44,7 +44,7 @@
         "type_info": "Text"
       },
       {
-        "name": "created_at",
+        "name": "created_at: ::time::OffsetDateTime",
         "ordinal": 8,
         "type_info": "Datetime"
       }
@@ -64,5 +64,5 @@
       true
     ]
   },
-  "hash": "7b9abf4ff422b8d7a942955dc4fba380e7d5f0127f4745705b8ac9af6c170d19"
+  "hash": "f69907735e9b1e1572c4bf6fe8d44d4ea4e55c2a9c4d4f7e1c7e57bcb848ee08"
 }

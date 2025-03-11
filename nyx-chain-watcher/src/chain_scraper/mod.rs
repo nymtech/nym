@@ -1,4 +1,4 @@
-use crate::config::PaymentWatcherConfig;
+use crate::config::PaymentWatchersConfig;
 use crate::env::vars::{
     NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_UNSAFE_NUKE_DB,
     NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT,
@@ -10,7 +10,7 @@ use nyxd_scraper::{
 };
 use sqlx::SqlitePool;
 use std::fs;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
@@ -60,7 +60,7 @@ pub(crate) async fn run_chain_scraper(
     })
     .with_tx_module(EventScraperModule::new(
         db_pool,
-        config.payment_watcher_config.clone().unwrap_or_default(),
+        config.payment_watcher_config.clone(),
     ));
 
     let instance = scraper.build_and_start().await?;
@@ -73,11 +73,11 @@ pub(crate) async fn run_chain_scraper(
 
 pub struct EventScraperModule {
     db_pool: SqlitePool,
-    payment_config: PaymentWatcherConfig,
+    payment_config: PaymentWatchersConfig,
 }
 
 impl EventScraperModule {
-    pub fn new(db_pool: SqlitePool, payment_config: PaymentWatcherConfig) -> Self {
+    pub fn new(db_pool: SqlitePool, payment_config: PaymentWatchersConfig) -> Self {
         Self {
             db_pool,
             payment_config,
@@ -132,6 +132,12 @@ impl TxModule for EventScraperModule {
             return Ok(());
         }
 
+        if tx.tx.body.messages.len() > 1 {
+            error!(
+                "this transaction has more than 1 message in it - payment information will be lost"
+            );
+        }
+
         // Process each event
         for event in events {
             // Only process transfer events
@@ -157,17 +163,7 @@ impl TxModule for EventScraperModule {
                 // If we have all required fields, check if recipient is watched and store
                 if let (Some(recipient), Some(sender), Some(amount)) = (recipient, sender, amount) {
                     // Check if any watcher is watching this recipient
-                    let is_watched = self.payment_config.watchers.iter().any(|watcher| {
-                        if let Some(watched_accounts) =
-                            &watcher.watch_for_transfer_recipient_accounts
-                        {
-                            watched_accounts
-                                .iter()
-                                .any(|account| account.to_string() == recipient)
-                        } else {
-                            false
-                        }
-                    });
+                    let is_watched = self.payment_config.is_being_watched(&recipient);
 
                     if is_watched {
                         if let Err(e) = self

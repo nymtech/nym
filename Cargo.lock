@@ -7233,7 +7233,7 @@ dependencies = [
 
 [[package]]
 name = "nyx-chain-watcher"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7248,7 +7248,6 @@ dependencies = [
  "nym-validator-client",
  "nyxd-scraper",
  "reqwest 0.12.4",
- "rocket",
  "schemars",
  "serde",
  "serde_json",

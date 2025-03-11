@@ -43,7 +43,7 @@ impl AuthenticateRequest {
         max_request_timestamp_skew: Duration,
     ) -> Result<(), AuthenticationFailure> {
         let now = OffsetDateTime::now_utc();
-        if self.content.request_timestamp() + max_request_timestamp_skew < now {
+        if self.content.request_timestamp() < now - max_request_timestamp_skew {
             return Err(AuthenticationFailure::ExcessiveTimestampSkew {
                 received: self.content.request_timestamp(),
                 server: now,

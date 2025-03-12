@@ -374,6 +374,9 @@ pub struct Client {
 impl Client {
     /// Create a new http `Client`
     // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
+    //
+    // In order to prevent interference in API requests at the DNS phase we default to a resolver
+    // that uses DoT and DoH.
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",

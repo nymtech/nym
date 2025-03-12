@@ -1,3 +1,6 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! DNS resolver configuration for internal lookups.
 //!
 //! The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints
@@ -9,6 +12,19 @@
 //!
 //! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
 //! `hickory-resolver` crate
+//!
+//!
+//! Note: The hickory DoH resolver can cause warning logs about H2 connection failure. This
+//! indicates that the long lived https connection was closed by the remote peer and the resolver
+//! will have to reconnect. It should not impact actual functionality.
+//!
+//! code ref: https://github.com/hickory-dns/hickory-dns/blob/06a8b1ce9bd9322d8e6accf857d30257e1274427/crates/proto/src/h2/h2_client_stream.rs#L534
+//!
+//! example log:
+//!
+//! ```
+//!   WARN /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hickory-proto-0.24.3/src/h2/h2_client_stream.rs:493: h2 connection failed: unexpected end of file
+//! ```
 #![deny(missing_docs)]
 
 use crate::ClientBuilder;

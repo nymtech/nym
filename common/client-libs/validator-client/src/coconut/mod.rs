@@ -83,6 +83,12 @@ impl TryFrom<ContractVKShare> for EcashApiClient {
 
         let url_address = Url::parse(&share.announce_address)?;
 
+        // The NymApiClient constructed here uses the default (hickory DoT/DoH) resolver because
+        // this EcashApiClient is used by both client and non-client applications.
+        //
+        // In non-client applications this resolver can cause warning logs about H2 connection
+        // failure. This indicates that the long lived https connection was closed by the remote
+        // peer and the resolver will have to reconnect. It should not impact actual functionality
         Ok(EcashApiClient {
             api_client: NymApiClient::new(url_address),
             verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,

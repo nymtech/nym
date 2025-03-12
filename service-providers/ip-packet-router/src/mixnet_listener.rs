@@ -9,7 +9,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
-use tokio_util::codec::Decoder;
+use tokio_util::codec::{Decoder, FramedRead};
 
 use crate::{
     clients::{ConnectedClientHandler, ConnectedClients},
@@ -127,14 +127,19 @@ impl MixnetListener {
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
         // let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
+        //let mut decoder = MultiIpPacketCodec::new();
+        //let mut bytes = BytesMut::new();
+        //bytes.extend_from_slice(&data_request.ip_packets);
+        //while let Ok(Some(packet)) = decoder.decode(&mut bytes) {
+        //    let result = self.handle_packet(&packet, data_request.version).await;
+        //    responses.push(result);
+        //}
+        //Ok(responses)
+
         let mut decoder = MultiIpPacketCodec::new();
-        let mut bytes = BytesMut::new();
-        bytes.extend_from_slice(&data_request.ip_packets);
-        while let Ok(Some(packet)) = decoder.decode(&mut bytes) {
-            let result = self.handle_packet(&packet, data_request.version).await;
-            responses.push(result);
-        }
-        Ok(responses)
+        let framed_reader = FramedRead::new(data_request.ip_packets, decoder);
+
+        todo!();
     }
 
     // Receving a static connect request from a client with an IP provided that we assign to them,

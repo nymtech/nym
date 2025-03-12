@@ -5,6 +5,7 @@
 
 pub mod status {
     use crate::config::payments_watcher::PaymentWatcherConfig;
+    use crate::db::models::CoingeckoPriceResponse;
     use crate::models::openapi_schema;
     use nym_validator_client::nyxd::Coin;
     use serde::{Deserialize, Serialize};
@@ -103,5 +104,25 @@ pub mod status {
         #[serde(with = "time::serde::rfc3339")]
         pub(crate) timestamp: OffsetDateTime,
         pub(crate) error: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct PriceScraperStatusResponse {
+        pub(crate) last_success: Option<PriceScraperLastSuccess>,
+        pub(crate) last_failure: Option<PriceScraperLastError>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct PriceScraperLastSuccess {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) timestamp: OffsetDateTime,
+        pub(crate) response: CoingeckoPriceResponse,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct PriceScraperLastError {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) timestamp: OffsetDateTime,
+        pub(crate) message: String,
     }
 }

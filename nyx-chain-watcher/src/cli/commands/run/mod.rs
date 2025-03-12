@@ -14,9 +14,10 @@ mod config;
 
 use crate::chain_scraper::run_chain_scraper;
 use crate::db::DbPool;
-use crate::http::state::PaymentListenerState;
+use crate::http::state::{PaymentListenerState, PriceScraperState};
 use crate::payment_listener::PaymentListener;
-use crate::{db, http, price_scraper};
+use crate::price_scraper::PriceScraper;
+use crate::{db, http};
 pub(crate) use args::Args;
 use nym_task::signal::wait_for_signal;
 
@@ -145,6 +146,7 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
 
     // construct shared state
     let payment_listener_shared_state = PaymentListenerState::new();
+    let price_scraper_shared_state = PriceScraperState::new();
 
     // spawn all the tasks
 
@@ -178,12 +180,13 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     }
 
     // 3. price scraper (note, this task never terminates on its own)
+    let price_scraper = PriceScraper::new(price_scraper_shared_state.clone(), watcher_pool);
     {
         let token = cancellation_token.clone();
         tasks.spawn(async move {
             token
                 .run_until_cancelled(async move {
-                    price_scraper::run_price_scraper(&watcher_pool).await;
+                    price_scraper.run().await;
                     Ok(())
                 })
                 .await
@@ -196,6 +199,7 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
         &config,
         http_port,
         payment_listener_shared_state,
+        price_scraper_shared_state,
     )
     .await?;
     {

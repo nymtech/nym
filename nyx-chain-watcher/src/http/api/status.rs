@@ -3,9 +3,10 @@
 
 use crate::http::models::status::{
     ActivePaymentWatchersResponse, ApiStatus, HealthResponse, PaymentListenerFailureDetails,
-    PaymentListenerStatusResponse, ProcessedPayment, WatcherFailureDetails, WatcherState,
+    PaymentListenerStatusResponse, PriceScraperLastError, PriceScraperLastSuccess,
+    PriceScraperStatusResponse, ProcessedPayment, WatcherFailureDetails, WatcherState,
 };
-use crate::http::state::{AppState, PaymentListenerState, StatusState};
+use crate::http::state::{AppState, PaymentListenerState, PriceScraperState, StatusState};
 use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
@@ -18,6 +19,7 @@ pub(crate) fn routes() -> Router<AppState> {
         .route("/build-information", get(build_information))
         .route("/active-payment-watchers", get(active_payment_watchers))
         .route("/payment-listener", get(payment_listener_status))
+        .route("/price-scraper", get(price_scraper_status))
 }
 
 #[utoipa::path(
@@ -129,5 +131,33 @@ pub(crate) async fn payment_listener_status(
                 )
             })
             .collect(),
+    })
+}
+
+#[utoipa::path(
+    tag = "Status",
+    get,
+    path = "/price-scraper",
+    context_path = "/v1/status",
+    responses(
+        (status = 200, body = PriceScraperStatusResponse)
+    )
+)]
+pub(crate) async fn price_scraper_status(
+    State(state): State<PriceScraperState>,
+) -> Json<PriceScraperStatusResponse> {
+    let guard = state.inner.read().await;
+    Json(PriceScraperStatusResponse {
+        last_success: guard
+            .last_success
+            .as_ref()
+            .map(|s| PriceScraperLastSuccess {
+                timestamp: s.timestamp,
+                response: s.response.clone(),
+            }),
+        last_failure: guard.last_failure.as_ref().map(|f| PriceScraperLastError {
+            timestamp: f.timestamp,
+            message: f.message.clone(),
+        }),
     })
 }

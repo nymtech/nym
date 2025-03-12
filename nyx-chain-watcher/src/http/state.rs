@@ -1,3 +1,4 @@
+use crate::db::models::CoingeckoPriceResponse;
 use crate::db::DbPool;
 use crate::helpers::RingBuffer;
 use crate::http::models::status::PaymentWatcher;
@@ -20,6 +21,7 @@ pub(crate) struct AppState {
     pub(crate) registered_payment_watchers: Arc<Vec<PaymentWatcher>>,
     pub(crate) payment_listener_state: PaymentListenerState,
     pub(crate) status_state: StatusState,
+    pub(crate) price_scraper_state: PriceScraperState,
 }
 
 impl AppState {
@@ -27,12 +29,14 @@ impl AppState {
         db_pool: DbPool,
         registered_payment_watchers: Vec<PaymentWatcher>,
         payment_listener_state: PaymentListenerState,
+        price_scraper_state: PriceScraperState,
     ) -> Self {
         Self {
             db_pool,
             registered_payment_watchers: Arc::new(registered_payment_watchers),
             payment_listener_state,
             status_state: Default::default(),
+            price_scraper_state,
         }
     }
 
@@ -76,6 +80,50 @@ impl Deref for StatusState {
 pub(crate) struct StatusStateInner {
     pub(crate) startup_time: Instant,
     pub(crate) build_information: BinaryBuildInformation,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PriceScraperState {
+    pub(crate) inner: Arc<RwLock<PriceScraperStateInner>>,
+}
+
+impl PriceScraperState {
+    pub(crate) fn new() -> Self {
+        PriceScraperState {
+            inner: Arc::new(Default::default()),
+        }
+    }
+
+    pub(crate) async fn new_failure<S: Into<String>>(&self, error: S) {
+        self.inner.write().await.last_failure = Some(PriceScraperLastError {
+            timestamp: OffsetDateTime::now_utc(),
+            message: error.into(),
+        })
+    }
+    pub(crate) async fn new_success(&self, response: CoingeckoPriceResponse) {
+        self.inner.write().await.last_success = Some(PriceScraperLastSuccess {
+            timestamp: OffsetDateTime::now_utc(),
+            response,
+        })
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct PriceScraperStateInner {
+    pub(crate) last_success: Option<PriceScraperLastSuccess>,
+    pub(crate) last_failure: Option<PriceScraperLastError>,
+}
+
+#[derive(Debug)]
+pub(crate) struct PriceScraperLastSuccess {
+    pub(crate) timestamp: OffsetDateTime,
+    pub(crate) response: CoingeckoPriceResponse,
+}
+
+#[derive(Debug)]
+pub(crate) struct PriceScraperLastError {
+    pub(crate) timestamp: OffsetDateTime,
+    pub(crate) message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -219,5 +267,11 @@ impl FromRef<AppState> for PaymentListenerState {
 impl FromRef<AppState> for StatusState {
     fn from_ref(input: &AppState) -> Self {
         input.status_state.clone()
+    }
+}
+
+impl FromRef<AppState> for PriceScraperState {
+    fn from_ref(input: &AppState) -> Self {
+        input.price_scraper_state.clone()
     }
 }

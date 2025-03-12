@@ -4,7 +4,7 @@ use tokio::net::TcpListener;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 
 use crate::config::Config;
-use crate::http::state::PaymentListenerState;
+use crate::http::state::{PaymentListenerState, PriceScraperState};
 use crate::{
     db::DbPool,
     http::{api::RouterBuilder, state::AppState},
@@ -15,6 +15,7 @@ pub(crate) async fn build_http_api(
     config: &Config,
     http_port: u16,
     payment_listener_state: PaymentListenerState,
+    price_scraper_state: PriceScraperState,
 ) -> anyhow::Result<HttpServer> {
     let router_builder = RouterBuilder::with_default_routes();
 
@@ -27,6 +28,7 @@ pub(crate) async fn build_http_api(
             .map(Into::into)
             .collect(),
         payment_listener_state,
+        price_scraper_state,
     );
     let router = router_builder.with_state(state);
 

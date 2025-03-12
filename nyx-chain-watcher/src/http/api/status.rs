@@ -2,19 +2,54 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::models::status::{
-    ActivePaymentWatchersResponse, PaymentListenerFailureDetails, PaymentListenerStatusResponse,
-    ProcessedPayment, WatcherFailureDetails, WatcherState,
+    ActivePaymentWatchersResponse, ApiStatus, HealthResponse, PaymentListenerFailureDetails,
+    PaymentListenerStatusResponse, ProcessedPayment, WatcherFailureDetails, WatcherState,
 };
-use crate::http::state::{AppState, PaymentListenerState};
+use crate::http::state::{AppState, PaymentListenerState, StatusState};
 use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
+use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ops::Deref;
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
+        .route("/health", get(health))
+        .route("/build-information", get(build_information))
         .route("/active-payment-watchers", get(active_payment_watchers))
         .route("/payment-listener", get(payment_listener_status))
+}
+
+#[utoipa::path(
+    tag = "Status",
+    get,
+    path = "/build-information",
+    context_path = "/v1/status",
+    responses(
+        (status = 200, body = BinaryBuildInformationOwned)
+    )
+)]
+async fn build_information(State(state): State<StatusState>) -> Json<BinaryBuildInformationOwned> {
+    Json(state.build_information.to_owned())
+}
+
+#[utoipa::path(
+    tag = "Status",
+    get,
+    path = "/health",
+    context_path = "/v1/status",
+    responses(
+        (status = 200, body = HealthResponse)
+    )
+)]
+async fn health(State(state): State<StatusState>) -> Json<HealthResponse> {
+    let uptime = state.startup_time.elapsed();
+
+    let health = HealthResponse {
+        status: ApiStatus::Up,
+        uptime: uptime.as_secs(),
+    };
+    Json(health)
 }
 
 #[utoipa::path(

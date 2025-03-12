@@ -3,18 +3,23 @@ use crate::helpers::RingBuffer;
 use crate::http::models::status::PaymentWatcher;
 use crate::models::WebhookPayload;
 use axum::extract::FromRef;
+use nym_bin_common::bin_info;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tokio::time::Instant;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AppState {
     db_pool: DbPool,
     pub(crate) registered_payment_watchers: Arc<Vec<PaymentWatcher>>,
     pub(crate) payment_listener_state: PaymentListenerState,
+    pub(crate) status_state: StatusState,
 }
 
 impl AppState {
@@ -27,6 +32,7 @@ impl AppState {
             db_pool,
             registered_payment_watchers: Arc::new(registered_payment_watchers),
             payment_listener_state,
+            status_state: Default::default(),
         }
     }
 
@@ -41,6 +47,35 @@ impl AppState {
             .cloned()
             .collect()
     }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StatusState {
+    inner: Arc<StatusStateInner>,
+}
+
+impl Default for StatusState {
+    fn default() -> Self {
+        StatusState {
+            inner: Arc::new(StatusStateInner {
+                startup_time: Instant::now(),
+                build_information: bin_info!(),
+            }),
+        }
+    }
+}
+
+impl Deref for StatusState {
+    type Target = StatusStateInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct StatusStateInner {
+    pub(crate) startup_time: Instant,
+    pub(crate) build_information: BinaryBuildInformation,
 }
 
 #[derive(Debug, Clone)]
@@ -96,12 +131,6 @@ impl PaymentListenerState {
 
     pub(crate) async fn update_last_checked(&self) {
         self.inner.write().await.last_checked = OffsetDateTime::now_utc();
-    }
-}
-
-impl FromRef<AppState> for PaymentListenerState {
-    fn from_ref(input: &AppState) -> Self {
-        input.payment_listener_state.clone()
     }
 }
 
@@ -179,5 +208,16 @@ impl WatcherFailureDetails {
             timestamp: OffsetDateTime::now_utc(),
             error,
         }
+    }
+}
+
+impl FromRef<AppState> for PaymentListenerState {
+    fn from_ref(input: &AppState) -> Self {
+        input.payment_listener_state.clone()
+    }
+}
+impl FromRef<AppState> for StatusState {
+    fn from_ref(input: &AppState) -> Self {
+        input.status_state.clone()
     }
 }

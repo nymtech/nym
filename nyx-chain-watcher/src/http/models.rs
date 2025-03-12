@@ -12,6 +12,18 @@ pub mod status {
     use time::OffsetDateTime;
     use utoipa::ToSchema;
 
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    #[serde(rename_all = "lowercase")]
+    pub enum ApiStatus {
+        Up,
+    }
+
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    pub struct HealthResponse {
+        pub status: ApiStatus,
+        pub uptime: u64,
+    }
+
     #[derive(Debug, Serialize, Deserialize, ToSchema)]
     pub struct ActivePaymentWatchersResponse {
         pub watchers: Vec<PaymentWatcher>,

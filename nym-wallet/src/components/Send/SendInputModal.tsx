@@ -157,20 +157,6 @@ export const SendInputModal = ({
             initialValue={userFees?.amount}
             fullWidth
           />
-          <TextField
-            name="memo"
-            label="Memo"
-            onChange={(e) => onMemoChange(e.target.value)}
-            value={memo}
-            error={!memoIsValid}
-            helperText={
-              !memoIsValid
-                ? ' The text is invalid, only alphanumeric characters and white spaces are allowed'
-                : undefined
-            }
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
         </Stack>
       )}
     </SimpleModal>

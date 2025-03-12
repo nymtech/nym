@@ -14,7 +14,7 @@ use std::time::Duration;
 #[derive(Clone)]
 pub(crate) struct Config {
     pub(crate) enforce_zk_nym: bool,
-    pub(crate) max_auth_request_age: Duration,
+    pub(crate) max_request_timestamp_skew: Duration,
 
     pub(crate) bandwidth: BandwidthFlushingBehaviourConfig,
 }

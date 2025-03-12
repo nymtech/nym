@@ -641,7 +641,7 @@ impl<R, S> FreshHandler<R, S> {
 
         // do cheap checks first
         // is the provided timestamp relatively recent (and not in the future?)
-        request.verify_timestamp(self.shared_state.cfg.max_auth_request_age)?;
+        request.verify_timestamp(self.shared_state.cfg.max_request_timestamp_skew)?;
 
         // does the message signature verify?
         request.verify_signature()?;

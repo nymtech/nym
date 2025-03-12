@@ -38,13 +38,22 @@ impl AuthenticateRequest {
         })
     }
 
-    pub fn verify_timestamp(&self, max_request_age: Duration) -> Result<(), AuthenticationFailure> {
+    pub fn verify_timestamp(
+        &self,
+        max_request_timestamp_skew: Duration,
+    ) -> Result<(), AuthenticationFailure> {
         let now = OffsetDateTime::now_utc();
-        if self.content.request_timestamp() + max_request_age < now {
-            return Err(AuthenticationFailure::StaleRequest);
+        if self.content.request_timestamp() < now - max_request_timestamp_skew {
+            return Err(AuthenticationFailure::ExcessiveTimestampSkew {
+                received: self.content.request_timestamp(),
+                server: now,
+            });
         }
-        if self.content.request_timestamp() > now {
-            return Err(AuthenticationFailure::RequestTimestampInFuture);
+        if self.content.request_timestamp() - max_request_timestamp_skew > now {
+            return Err(AuthenticationFailure::ExcessiveTimestampSkew {
+                received: self.content.request_timestamp(),
+                server: now,
+            });
         }
         Ok(())
     }

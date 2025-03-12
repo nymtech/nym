@@ -97,8 +97,12 @@ impl Monitor {
             .clone()
             .expect("rust sdk mainnet default missing api_url");
 
-        let api_client =
-            NymApiClient::new_with_timeout(default_api_url, self.nym_api_client_timeout);
+        let nym_api = nym_http_api_client::ClientBuilder::new_with_url(default_api_url)
+            .no_hickory_dns()
+            .with_timeout(self.nym_api_client_timeout)
+            .build::<&str>()?;
+
+        let api_client = NymApiClient { nym_api };
 
         let described_nodes = api_client
             .get_all_described_nodes()

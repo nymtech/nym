@@ -3,6 +3,7 @@
 
 use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
+use nym_http_api_client::HttpClientError;
 use nym_ip_packet_router::error::ClientCoreError;
 use nym_validator_client::ValidatorClientError;
 use std::io;
@@ -208,4 +209,10 @@ pub enum ServiceProvidersError {
     // TODO: more granular errors
     #[error(transparent)]
     ExternalClientCore(#[from] ClientCoreError),
+}
+
+impl From<HttpClientError> for NymNodeError {
+    fn from(value: HttpClientError) -> Self {
+        Self::HttpFailure(NymNodeHttpError::ClientError { source: value })
+    }
 }

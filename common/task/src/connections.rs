@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
+
+const LANE_CONSIDERED_CLEAR: usize = 10;
 
 pub type ConnectionId = u64;
 
@@ -65,6 +70,34 @@ impl LaneQueueLengths {
                 log::warn!("Failed to get lane queue length: {err}");
                 None
             }
+        }
+    }
+
+    pub fn total(&self) -> usize {
+        match self.0.lock() {
+            Ok(inner) => inner.values().sum(),
+            Err(err) => {
+                log::warn!("Failed to get total queue length: {err}");
+                0
+            }
+        }
+    }
+
+    pub async fn wait_until_clear(&self, lane: &TransmissionLane, timeout: Option<Duration>) {
+        let total_time_waited = Instant::now();
+        loop {
+            let lane_length = self.get(lane).unwrap_or_default();
+            if lane_length < LANE_CONSIDERED_CLEAR {
+                break;
+            }
+            if let Some(timeout) = timeout {
+                if total_time_waited.elapsed() > timeout {
+                    log::warn!("Timeout reached while waiting for queue to clear");
+                    break;
+                }
+            }
+            log::trace!("Waiting for queue to clear ({} items left)", lane_length);
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }
 }

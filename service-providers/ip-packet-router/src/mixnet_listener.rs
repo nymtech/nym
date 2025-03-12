@@ -1,7 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::mixnet::MixnetMessageSender;
@@ -9,7 +8,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
-use tokio_util::codec::Decoder;
+use tokio_util::codec::FramedRead;
 
 use crate::{
     clients::{ConnectedClientHandler, ConnectedClients},
@@ -64,7 +63,7 @@ pub(crate) struct MixnetListener {
 impl MixnetListener {
     async fn handle_packet(
         &mut self,
-        ip_packet: &Bytes,
+        ip_packet: &[u8],
         version: ClientVersion,
     ) -> PacketHandleResult {
         log::trace!("Received data request");
@@ -99,7 +98,7 @@ impl MixnetListener {
                     .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
                 Ok(None)
             } else {
-                log::info!("Denied filter check: {dst}");
+                log::debug!("Denied filter check: {dst}");
                 Ok(Some(VersionedResponse {
                     version,
                     reply_to: connected_client.client_id.clone(),
@@ -126,13 +125,16 @@ impl MixnetListener {
         data_request: DataRequest,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
-        let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
-        let mut bytes = BytesMut::new();
-        bytes.extend_from_slice(&data_request.ip_packets);
-        while let Ok(Some(packet)) = decoder.decode(&mut bytes) {
-            let result = self.handle_packet(&packet, data_request.version).await;
+        let decoder = MultiIpPacketCodec::new();
+        let mut framed_reader = FramedRead::new(data_request.ip_packets.as_ref(), decoder);
+
+        while let Some(Ok(packet)) = framed_reader.next().await {
+            let result = self
+                .handle_packet(packet.as_bytes(), data_request.version)
+                .await;
             responses.push(result);
         }
+
         Ok(responses)
     }
 

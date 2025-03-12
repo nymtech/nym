@@ -198,10 +198,10 @@ where
             trace!("we already had sender tag for {recipient}");
             existing
         } else {
-            info!("creating new sender tag for {recipient}");
+            debug!("creating new sender tag for {recipient}");
             let new_tag = AnonymousSenderTag::new_random(&mut self.rng);
             self.tag_storage.insert_new(recipient, new_tag);
-            info!("we'll be using {new_tag} for all anonymous messages sent to {recipient}");
+            info!("using {new_tag} for all anonymous messages sent to {recipient}");
             new_tag
         }
     }

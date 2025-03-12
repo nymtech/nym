@@ -823,10 +823,12 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum IncludedSurbs {
     Amount(u32),
     ExposeSelfAddress,
 }
+
 impl Default for IncludedSurbs {
     fn default() -> Self {
         Self::Amount(DEFAULT_NUMBER_OF_SURBS)

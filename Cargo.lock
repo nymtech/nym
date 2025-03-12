@@ -816,9 +816,9 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.8.0"
-source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect#22cd0a16b674af1629110a2dc8b6cf6c73ea4cd9"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
 dependencies = [
- "digest 0.9.0",
+ "digest 0.10.7",
  "ff",
  "group",
  "pairing",
@@ -4850,7 +4850,7 @@ dependencies = [
  "semver 1.0.26",
  "serde",
  "serde_json",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "sqlx",
  "tempfile",
  "tendermint 0.40.1",
@@ -5331,7 +5331,7 @@ dependencies = [
  "bs58",
  "cfg-if",
  "criterion",
- "digest 0.9.0",
+ "digest 0.10.7",
  "ff",
  "group",
  "itertools 0.14.0",
@@ -5340,7 +5340,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "subtle 2.6.1",
  "thiserror 2.0.12",
  "zeroize",
@@ -5613,7 +5613,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_derive",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "thiserror 2.0.12",
  "zeroize",
 ]

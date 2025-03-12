@@ -385,15 +385,15 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.8.0"
-source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect#22cd0a16b674af1629110a2dc8b6cf6c73ea4cd9"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
 dependencies = [
- "digest 0.9.0",
+ "digest 0.10.7",
  "ff",
  "group",
  "pairing",
  "rand_core 0.6.4",
  "serde",
- "serdect 0.3.0-pre.0",
+ "serdect 0.3.0",
  "subtle",
  "zeroize",
 ]
@@ -3342,7 +3342,7 @@ dependencies = [
  "bls12_381",
  "bs58",
  "cfg-if",
- "digest 0.9.0",
+ "digest 0.10.7",
  "ff",
  "group",
  "itertools 0.14.0",
@@ -3350,7 +3350,7 @@ dependencies = [
  "nym-pemstore",
  "rand 0.8.5",
  "serde",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "subtle",
  "thiserror 2.0.11",
  "zeroize",
@@ -5198,9 +5198,9 @@ dependencies = [
 
 [[package]]
 name = "serdect"
-version = "0.3.0-pre.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "791ef964bfaba6be28a5c3f0c56836e17cb711ac009ca1074b9c735a3ebf240a"
+checksum = "f42f67da2385b51a5f9652db9c93d78aeaf7610bf5ec366080b6de810604af53"
 dependencies = [
  "base16ct",
  "serde",

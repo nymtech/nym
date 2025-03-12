@@ -370,7 +370,7 @@ prometheus = { version = "0.13.0" }
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 # plus to make our live easier we need serde support from https://github.com/zkcrypto/bls12_381/pull/125
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect" }
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect-updated" }
 group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.1", default-features = false }
 subtle = "2.5.0"

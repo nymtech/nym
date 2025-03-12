@@ -126,7 +126,7 @@ impl BankScraperModule {
 
     fn get_unym_coin(&self, coins: &[CosmosCoin]) -> Option<Coin> {
         coins
-            .into_iter()
+            .iter()
             .find(|coin| coin.denom.as_ref() == "unym")
             .map(|c| c.clone().into())
     }
@@ -166,7 +166,7 @@ impl MsgModule for BankScraperModule {
             return Ok(());
         }
 
-        let msg = self.recover_bank_msg(tx.hash, index, &msg)?;
+        let msg = self.recover_bank_msg(tx.hash, index, msg)?;
 
         // Check if any watcher is watching this recipient
         let is_watched = self

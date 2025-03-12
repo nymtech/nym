@@ -1,11 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network::models::{ChainStatusResponse, ContractInformation, NetworkDetails};
+use crate::network::models::{ContractInformation, NetworkDetails};
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
 use axum::extract::State;
 use axum::{extract, Json, Router};
+use nym_api_requests::models::ChainStatusResponse;
 use nym_contracts_common::ContractBuildInformation;
 use std::collections::HashMap;
 use tower_http::compression::CompressionLayer;

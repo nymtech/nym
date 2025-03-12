@@ -137,7 +137,7 @@ members = [
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/testnet-manager/dkg-bypass-contract", "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
     "tools/nym-nr-query",

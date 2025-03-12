@@ -4896,6 +4896,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "tendermint 0.40.1",
+ "tendermint-rpc",
  "thiserror 2.0.12",
  "time",
  "ts-rs",
@@ -11262,6 +11263,24 @@ checksum = "e0f540e3240398cce6128b64ba83fdbdd86129c16a3aa1a3a252efd66eb3d587"
 dependencies = [
  "getrandom 0.3.1",
  "serde",
+]
+
+[[package]]
+name = "validator-status-check"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "comfy-table",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "serde",
+ "serde_json",
+ "strum 0.26.3",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

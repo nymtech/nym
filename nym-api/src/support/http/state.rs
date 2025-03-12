@@ -3,7 +3,7 @@
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::state::EcashState;
-use crate::network::models::{ChainStatus, NetworkDetails};
+use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
@@ -15,7 +15,9 @@ use crate::support::caching::Cache;
 use crate::support::nyxd::Client;
 use crate::support::storage;
 use axum::extract::FromRef;
-use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
+use nym_api_requests::models::{
+    DetailedChainStatus, GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation,
+};
 use nym_mixnet_contract_common::NodeId;
 use nym_task::TaskManager;
 use nym_topology::CachedEpochRewardedSet;
@@ -151,7 +153,7 @@ impl ChainStatusCache {
 
 struct ChainStatusCacheInner {
     last_refreshed_at: OffsetDateTime,
-    cache_value: ChainStatus,
+    cache_value: DetailedChainStatus,
 }
 
 impl ChainStatusCacheInner {
@@ -167,7 +169,7 @@ impl ChainStatusCache {
     pub(crate) async fn get_or_refresh(
         &self,
         client: &Client,
-    ) -> Result<ChainStatus, AxumErrorResponse> {
+    ) -> Result<DetailedChainStatus, AxumErrorResponse> {
         if let Some(cached) = self.check_cache().await {
             return Ok(cached);
         }
@@ -175,7 +177,7 @@ impl ChainStatusCache {
         self.refresh(client).await
     }
 
-    async fn check_cache(&self) -> Option<ChainStatus> {
+    async fn check_cache(&self) -> Option<DetailedChainStatus> {
         let guard = self.inner.read().await;
         let inner = guard.as_ref()?;
         if inner.is_valid(self.cache_ttl) {
@@ -184,7 +186,7 @@ impl ChainStatusCache {
         None
     }
 
-    async fn refresh(&self, client: &Client) -> Result<ChainStatus, AxumErrorResponse> {
+    async fn refresh(&self, client: &Client) -> Result<DetailedChainStatus, AxumErrorResponse> {
         // 1. attempt to get write lock permit
         let mut guard = self.inner.write().await;
 
@@ -201,7 +203,7 @@ impl ChainStatusCache {
             .block_info(abci.last_block_height.value() as u32)
             .await?;
 
-        let status = ChainStatus {
+        let status = DetailedChainStatus {
             abci: abci.into(),
             latest_block: block.into(),
         };

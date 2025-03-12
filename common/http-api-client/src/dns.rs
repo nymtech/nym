@@ -22,7 +22,7 @@
 //!
 //! example log:
 //!
-//! ```
+//! ```txt
 //!   WARN /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hickory-proto-0.24.3/src/h2/h2_client_stream.rs:493: h2 connection failed: unexpected end of file
 //! ```
 #![deny(missing_docs)]

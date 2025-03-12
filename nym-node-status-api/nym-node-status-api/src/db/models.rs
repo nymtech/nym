@@ -373,6 +373,7 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
+#[derive(strum_macros::Display)]
 pub(crate) enum ScrapeNodeKind {
     LegacyMixnode { mix_id: i64 },
     MixingNymNode { node_id: i64 },

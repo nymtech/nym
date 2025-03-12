@@ -195,7 +195,7 @@ pub(crate) async fn get_active_node_descriptions(
         WHERE
             self_described IS NOT NULL
         AND
-            active = 1
+            active = true
         "#,
     )
     .fetch_all(&mut *conn)

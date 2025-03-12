@@ -14,7 +14,7 @@ mod config;
 
 use crate::chain_scraper::run_chain_scraper;
 use crate::db::DbPool;
-use crate::http::state::{PaymentListenerState, PriceScraperState};
+use crate::http::state::{BankScraperModuleState, PaymentListenerState, PriceScraperState};
 use crate::payment_listener::PaymentListener;
 use crate::price_scraper::PriceScraper;
 use crate::{db, http};
@@ -147,15 +147,17 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     // construct shared state
     let payment_listener_shared_state = PaymentListenerState::new();
     let price_scraper_shared_state = PriceScraperState::new();
+    let bank_scraper_module_shared_state = BankScraperModuleState::new();
 
     // spawn all the tasks
 
     // 1. chain scraper (note: this doesn't really spawn the full scraper on this task, but we don't want to be blocking waiting for its startup)
     let scraper_token_handle: JoinHandle<anyhow::Result<CancellationToken>> = tokio::spawn({
         let config = config.clone();
+        let shared_state = bank_scraper_module_shared_state.clone();
         async move {
             // this only blocks until startup sync is done; it then runs on its own set of tasks
-            let scraper = run_chain_scraper(&config, scraper_pool).await?;
+            let scraper = run_chain_scraper(&config, scraper_pool, shared_state).await?;
             Ok(scraper.cancel_token())
         }
     });
@@ -200,6 +202,7 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
         http_port,
         payment_listener_shared_state,
         price_scraper_shared_state,
+        bank_scraper_module_shared_state,
     )
     .await?;
     {

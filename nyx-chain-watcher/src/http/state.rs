@@ -6,7 +6,8 @@ use crate::models::WebhookPayload;
 use axum::extract::FromRef;
 use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
-use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{Coin, MsgSend};
+use nyxd_scraper::ParsedTransactionResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -22,6 +23,7 @@ pub(crate) struct AppState {
     pub(crate) payment_listener_state: PaymentListenerState,
     pub(crate) status_state: StatusState,
     pub(crate) price_scraper_state: PriceScraperState,
+    pub(crate) bank_scraper_module_state: BankScraperModuleState,
 }
 
 impl AppState {
@@ -30,6 +32,7 @@ impl AppState {
         registered_payment_watchers: Vec<PaymentWatcher>,
         payment_listener_state: PaymentListenerState,
         price_scraper_state: PriceScraperState,
+        bank_scraper_module_state: BankScraperModuleState,
     ) -> Self {
         Self {
             db_pool,
@@ -37,6 +40,7 @@ impl AppState {
             payment_listener_state,
             status_state: Default::default(),
             price_scraper_state,
+            bank_scraper_module_state,
         }
     }
 
@@ -259,6 +263,111 @@ impl WatcherFailureDetails {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct BankScraperModuleState {
+    pub(crate) inner: Arc<RwLock<BankScraperModuleStateInner>>,
+}
+
+impl BankScraperModuleState {
+    // TODO: make those configurable
+    const MAX_LAST_BANK_MSGS: usize = 20;
+    const MAX_LAST_WATCHED_BANK_MSGS: usize = 10;
+    const MAX_LAST_REJECTED_BANK_MSGS: usize = 25;
+
+    pub(crate) fn new() -> Self {
+        BankScraperModuleState {
+            inner: Arc::new(RwLock::new(BankScraperModuleStateInner {
+                processed_bank_msgs_since_startup: 0,
+                processed_bank_msgs_to_watched_addresses_since_startup: 0,
+                rejected_bank_msgs_to_watched_addresses_since_startup: 0,
+                last_seen_bank_msgs: RingBuffer::new(Self::MAX_LAST_BANK_MSGS),
+                last_seen_watched_bank_msgs: RingBuffer::new(Self::MAX_LAST_WATCHED_BANK_MSGS),
+                last_rejected_watched_bank_msgs: RingBuffer::new(Self::MAX_LAST_REJECTED_BANK_MSGS),
+            })),
+        }
+    }
+
+    pub(crate) async fn new_bank_msg(
+        &self,
+        tx: &ParsedTransactionResponse,
+        index: usize,
+        msg: &MsgSend,
+        is_watched: bool,
+    ) {
+        let mut guard = self.inner.write().await;
+        guard.processed_bank_msgs_since_startup += 1;
+
+        let details = BankMsgDetails {
+            processed_at: OffsetDateTime::now_utc(),
+            tx_hash: tx.hash.to_string(),
+            height: tx.height.value(),
+            index: index as u32,
+            from: msg.from_address.to_string(),
+            to: msg.to_address.to_string(),
+            amount: msg.amount.iter().map(|c| c.to_string()).collect(),
+            memo: tx.tx.body.memo.clone(),
+        };
+        guard.last_seen_bank_msgs.push(details.clone());
+
+        if is_watched {
+            guard.processed_bank_msgs_to_watched_addresses_since_startup += 1;
+            guard.last_seen_watched_bank_msgs.push(details.clone());
+        }
+    }
+
+    pub(crate) async fn new_rejection<S: Into<String>>(
+        &self,
+        tx_hash: String,
+        height: u64,
+        index: u32,
+        error: S,
+    ) {
+        self.inner
+            .write()
+            .await
+            .last_rejected_watched_bank_msgs
+            .push(BankMsgRejection {
+                rejected_at: OffsetDateTime::now_utc(),
+                tx_hash,
+                height,
+                index,
+                error: error.into(),
+            })
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct BankScraperModuleStateInner {
+    pub(crate) processed_bank_msgs_since_startup: usize,
+    pub(crate) processed_bank_msgs_to_watched_addresses_since_startup: usize,
+    pub(crate) rejected_bank_msgs_to_watched_addresses_since_startup: usize,
+
+    pub(crate) last_seen_bank_msgs: RingBuffer<BankMsgDetails>,
+    pub(crate) last_seen_watched_bank_msgs: RingBuffer<BankMsgDetails>,
+    pub(crate) last_rejected_watched_bank_msgs: RingBuffer<BankMsgRejection>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BankMsgDetails {
+    pub(crate) processed_at: OffsetDateTime,
+    pub(crate) tx_hash: String,
+    pub(crate) height: u64,
+    pub(crate) index: u32,
+    pub(crate) from: String,
+    pub(crate) to: String,
+    pub(crate) amount: Vec<String>,
+    pub(crate) memo: String,
+}
+
+#[derive(Debug)]
+pub(crate) struct BankMsgRejection {
+    pub(crate) rejected_at: OffsetDateTime,
+    pub(crate) tx_hash: String,
+    pub(crate) height: u64,
+    pub(crate) index: u32,
+    pub(crate) error: String,
+}
+
 impl FromRef<AppState> for PaymentListenerState {
     fn from_ref(input: &AppState) -> Self {
         input.payment_listener_state.clone()
@@ -273,5 +382,11 @@ impl FromRef<AppState> for StatusState {
 impl FromRef<AppState> for PriceScraperState {
     fn from_ref(input: &AppState) -> Self {
         input.price_scraper_state.clone()
+    }
+}
+
+impl FromRef<AppState> for BankScraperModuleState {
+    fn from_ref(input: &AppState) -> Self {
+        input.bank_scraper_module_state.clone()
     }
 }

@@ -125,4 +125,38 @@ pub mod status {
         pub(crate) timestamp: OffsetDateTime,
         pub(crate) message: String,
     }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct BankModuleStatusResponse {
+        pub(crate) processed_bank_msgs_since_startup: usize,
+        pub(crate) processed_bank_msgs_to_watched_addresses_since_startup: usize,
+        pub(crate) rejected_bank_msgs_to_watched_addresses_since_startup: usize,
+
+        pub(crate) last_seen_bank_msgs: Vec<BankMsgDetails>,
+        pub(crate) last_seen_watched_bank_msgs: Vec<BankMsgDetails>,
+        pub(crate) last_rejected_watched_bank_msgs: Vec<BankMsgRejection>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct BankMsgDetails {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) processed_at: OffsetDateTime,
+        pub(crate) tx_hash: String,
+        pub(crate) height: u64,
+        pub(crate) index: u32,
+        pub(crate) from: String,
+        pub(crate) to: String,
+        pub(crate) amount: Vec<String>,
+        pub(crate) memo: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct BankMsgRejection {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) rejected_at: OffsetDateTime,
+        pub(crate) tx_hash: String,
+        pub(crate) height: u64,
+        pub(crate) index: u32,
+        pub(crate) error: String,
+    }
 }

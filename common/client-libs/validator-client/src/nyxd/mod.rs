@@ -62,6 +62,7 @@ pub use cw3;
 pub use cw4;
 pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+pub use prost::Name;
 pub use tendermint_rpc::endpoint::block::Response as BlockResponse;
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},

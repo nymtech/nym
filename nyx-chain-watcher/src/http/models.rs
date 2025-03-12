@@ -71,6 +71,7 @@ pub mod status {
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     pub(crate) struct ProcessedPayment {
+        #[serde(with = "time::serde::rfc3339")]
         pub processed_at: OffsetDateTime,
 
         pub tx_hash: String,
@@ -87,6 +88,7 @@ pub mod status {
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     pub(crate) struct PaymentListenerFailureDetails {
+        #[serde(with = "time::serde::rfc3339")]
         pub(crate) timestamp: OffsetDateTime,
         pub(crate) error: String,
     }
@@ -98,6 +100,7 @@ pub mod status {
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     pub(crate) struct WatcherFailureDetails {
+        #[serde(with = "time::serde::rfc3339")]
         pub(crate) timestamp: OffsetDateTime,
         pub(crate) error: String,
     }

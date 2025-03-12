@@ -3,18 +3,21 @@ use crate::env::vars::{
     NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_UNSAFE_NUKE_DB,
     NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT,
 };
+use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
+use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
 use nyxd_scraper::{
-    error::ScraperError, storage::StorageTransaction, NyxdScraper, ParsedTransactionResponse,
-    PruningOptions, TxModule,
+    error::ScraperError, storage::StorageTransaction, MsgModule, NyxdScraper,
+    ParsedTransactionResponse, PruningOptions,
 };
 use sqlx::SqlitePool;
 use std::fs;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
     db_pool: SqlitePool,
+    shared_state: BankScraperModuleState,
 ) -> anyhow::Result<NyxdScraper> {
     let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
 
@@ -58,9 +61,10 @@ pub(crate) async fn run_chain_scraper(
             use_best_effort_start_height,
         },
     })
-    .with_tx_module(EventScraperModule::new(
+    .with_msg_module(BankScraperModule::new(
         db_pool,
         config.payment_watcher_config.clone(),
+        shared_state,
     ));
 
     let instance = scraper.build_and_start().await?;
@@ -71,16 +75,22 @@ pub(crate) async fn run_chain_scraper(
     Ok(instance)
 }
 
-pub struct EventScraperModule {
+pub struct BankScraperModule {
     db_pool: SqlitePool,
     payment_config: PaymentWatchersConfig,
+    shared_state: BankScraperModuleState,
 }
 
-impl EventScraperModule {
-    pub fn new(db_pool: SqlitePool, payment_config: PaymentWatchersConfig) -> Self {
+impl BankScraperModule {
+    pub fn new(
+        db_pool: SqlitePool,
+        payment_config: PaymentWatchersConfig,
+        shared_state: BankScraperModuleState,
+    ) -> Self {
         Self {
             db_pool,
             payment_config,
+            shared_state,
         }
     }
 
@@ -108,23 +118,47 @@ impl EventScraperModule {
             amount,
             memo
         )
-        .execute(&self.db_pool)
-        .await?;
+            .execute(&self.db_pool)
+            .await?;
 
         Ok(())
     }
-}
 
+    fn get_unym_coin(&self, coins: &[CosmosCoin]) -> Option<Coin> {
+        coins
+            .iter()
+            .find(|coin| coin.denom.as_ref() == "unym")
+            .map(|c| c.clone().into())
+    }
+
+    // TODO: ideally this should be done by the scraper itself
+    fn recover_bank_msg(
+        &self,
+        tx_hash: Hash,
+        index: usize,
+        msg: &Any,
+    ) -> Result<MsgSend, ScraperError> {
+        MsgSend::from_any(msg).map_err(|source| ScraperError::MsgParseFailure {
+            hash: tx_hash,
+            index,
+            type_url: self.type_url(),
+            source,
+        })
+    }
+}
 #[async_trait]
-impl TxModule for EventScraperModule {
-    async fn handle_tx(
+impl MsgModule for BankScraperModule {
+    fn type_url(&self) -> String {
+        <MsgSend as Msg>::Proto::type_url()
+    }
+
+    async fn handle_msg(
         &mut self,
+        index: usize,
+        msg: &Any,
         tx: &ParsedTransactionResponse,
-        _: &mut StorageTransaction,
+        _storage_tx: &mut StorageTransaction,
     ) -> Result<(), ScraperError> {
-        let events = &tx.tx_result.events;
-        let height = tx.height.value() as i64;
-        let tx_hash = tx.hash.to_string();
         let memo = tx.tx.body.memo.clone();
 
         // Don't process failed transactions
@@ -132,56 +166,53 @@ impl TxModule for EventScraperModule {
             return Ok(());
         }
 
-        if tx.tx.body.messages.len() > 1 {
-            error!(
-                "this transaction has more than 1 message in it - payment information will be lost"
-            );
-        }
+        let msg = self.recover_bank_msg(tx.hash, index, msg)?;
 
-        // Process each event
-        for event in events {
-            // Only process transfer events
-            if event.kind == "transfer" {
-                let mut recipient = None;
-                let mut sender = None;
-                let mut amount = None;
-                // TODO: get message index from event
-                let message_index = 0;
+        // Check if any watcher is watching this recipient
+        let is_watched = self
+            .payment_config
+            .is_being_watched(msg.to_address.as_ref());
 
-                // Extract transfer event attributes
-                for attr in &event.attributes {
-                    if let (Ok(key), Ok(value)) = (attr.key_str(), attr.value_str()) {
-                        match key {
-                            "recipient" => recipient = Some(value.to_string()),
-                            "sender" => sender = Some(value.to_string()),
-                            "amount" => amount = Some(value.to_string()),
-                            _ => continue,
-                        }
-                    }
-                }
+        self.shared_state
+            .new_bank_msg(tx, index, &msg, is_watched)
+            .await;
 
-                // If we have all required fields, check if recipient is watched and store
-                if let (Some(recipient), Some(sender), Some(amount)) = (recipient, sender, amount) {
-                    // Check if any watcher is watching this recipient
-                    let is_watched = self.payment_config.is_being_watched(&recipient);
+        if is_watched {
+            let Some(unym_coin) = self.get_unym_coin(&msg.amount) else {
+                let warn = format!(
+                    "{} sent {:?} instead of unym!",
+                    msg.from_address, msg.amount
+                );
+                warn!("{warn}");
+                self.shared_state
+                    .new_rejection(tx.hash.to_string(), tx.height.value(), index as u32, warn)
+                    .await;
 
-                    if is_watched {
-                        if let Err(e) = self
-                            .store_transfer_event(
-                                &tx_hash,
-                                height,
-                                message_index,
-                                sender,
-                                recipient,
-                                amount,
-                                Some(memo.clone()),
-                            )
-                            .await
-                        {
-                            warn!("Failed to store transfer event: {}", e);
-                        }
-                    }
-                }
+                // we don't want to fail the whole processing - this is not a failure in that sense!
+                return Ok(());
+            };
+
+            if let Err(err) = self
+                .store_transfer_event(
+                    &tx.hash.to_string(),
+                    tx.height.value() as i64,
+                    index as i64,
+                    msg.from_address.to_string(),
+                    msg.to_address.to_string(),
+                    unym_coin.to_string(),
+                    Some(memo.clone()),
+                )
+                .await
+            {
+                warn!("Failed to store transfer event: {err}");
+                self.shared_state
+                    .new_rejection(
+                        tx.hash.to_string(),
+                        tx.height.value(),
+                        index as u32,
+                        format!("storage failure: {err}"),
+                    )
+                    .await;
             }
         }
 

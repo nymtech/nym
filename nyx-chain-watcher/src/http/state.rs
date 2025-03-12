@@ -1,20 +1,29 @@
+use crate::db::models::CoingeckoPriceResponse;
 use crate::db::DbPool;
 use crate::helpers::RingBuffer;
 use crate::http::models::status::PaymentWatcher;
 use crate::models::WebhookPayload;
 use axum::extract::FromRef;
-use nym_validator_client::nyxd::Coin;
+use nym_bin_common::bin_info;
+use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_validator_client::nyxd::{Coin, MsgSend};
+use nyxd_scraper::ParsedTransactionResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tokio::time::Instant;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AppState {
     db_pool: DbPool,
     pub(crate) registered_payment_watchers: Arc<Vec<PaymentWatcher>>,
     pub(crate) payment_listener_state: PaymentListenerState,
+    pub(crate) status_state: StatusState,
+    pub(crate) price_scraper_state: PriceScraperState,
+    pub(crate) bank_scraper_module_state: BankScraperModuleState,
 }
 
 impl AppState {
@@ -22,11 +31,16 @@ impl AppState {
         db_pool: DbPool,
         registered_payment_watchers: Vec<PaymentWatcher>,
         payment_listener_state: PaymentListenerState,
+        price_scraper_state: PriceScraperState,
+        bank_scraper_module_state: BankScraperModuleState,
     ) -> Self {
         Self {
             db_pool,
             registered_payment_watchers: Arc::new(registered_payment_watchers),
             payment_listener_state,
+            status_state: Default::default(),
+            price_scraper_state,
+            bank_scraper_module_state,
         }
     }
 
@@ -41,6 +55,79 @@ impl AppState {
             .cloned()
             .collect()
     }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StatusState {
+    inner: Arc<StatusStateInner>,
+}
+
+impl Default for StatusState {
+    fn default() -> Self {
+        StatusState {
+            inner: Arc::new(StatusStateInner {
+                startup_time: Instant::now(),
+                build_information: bin_info!(),
+            }),
+        }
+    }
+}
+
+impl Deref for StatusState {
+    type Target = StatusStateInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct StatusStateInner {
+    pub(crate) startup_time: Instant,
+    pub(crate) build_information: BinaryBuildInformation,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PriceScraperState {
+    pub(crate) inner: Arc<RwLock<PriceScraperStateInner>>,
+}
+
+impl PriceScraperState {
+    pub(crate) fn new() -> Self {
+        PriceScraperState {
+            inner: Arc::new(Default::default()),
+        }
+    }
+
+    pub(crate) async fn new_failure<S: Into<String>>(&self, error: S) {
+        self.inner.write().await.last_failure = Some(PriceScraperLastError {
+            timestamp: OffsetDateTime::now_utc(),
+            message: error.into(),
+        })
+    }
+    pub(crate) async fn new_success(&self, response: CoingeckoPriceResponse) {
+        self.inner.write().await.last_success = Some(PriceScraperLastSuccess {
+            timestamp: OffsetDateTime::now_utc(),
+            response,
+        })
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct PriceScraperStateInner {
+    pub(crate) last_success: Option<PriceScraperLastSuccess>,
+    pub(crate) last_failure: Option<PriceScraperLastError>,
+}
+
+#[derive(Debug)]
+pub(crate) struct PriceScraperLastSuccess {
+    pub(crate) timestamp: OffsetDateTime,
+    pub(crate) response: CoingeckoPriceResponse,
+}
+
+#[derive(Debug)]
+pub(crate) struct PriceScraperLastError {
+    pub(crate) timestamp: OffsetDateTime,
+    pub(crate) message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -96,12 +183,6 @@ impl PaymentListenerState {
 
     pub(crate) async fn update_last_checked(&self) {
         self.inner.write().await.last_checked = OffsetDateTime::now_utc();
-    }
-}
-
-impl FromRef<AppState> for PaymentListenerState {
-    fn from_ref(input: &AppState) -> Self {
-        input.payment_listener_state.clone()
     }
 }
 
@@ -179,5 +260,133 @@ impl WatcherFailureDetails {
             timestamp: OffsetDateTime::now_utc(),
             error,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BankScraperModuleState {
+    pub(crate) inner: Arc<RwLock<BankScraperModuleStateInner>>,
+}
+
+impl BankScraperModuleState {
+    // TODO: make those configurable
+    const MAX_LAST_BANK_MSGS: usize = 20;
+    const MAX_LAST_WATCHED_BANK_MSGS: usize = 10;
+    const MAX_LAST_REJECTED_BANK_MSGS: usize = 25;
+
+    pub(crate) fn new() -> Self {
+        BankScraperModuleState {
+            inner: Arc::new(RwLock::new(BankScraperModuleStateInner {
+                processed_bank_msgs_since_startup: 0,
+                processed_bank_msgs_to_watched_addresses_since_startup: 0,
+                rejected_bank_msgs_to_watched_addresses_since_startup: 0,
+                last_seen_bank_msgs: RingBuffer::new(Self::MAX_LAST_BANK_MSGS),
+                last_seen_watched_bank_msgs: RingBuffer::new(Self::MAX_LAST_WATCHED_BANK_MSGS),
+                last_rejected_watched_bank_msgs: RingBuffer::new(Self::MAX_LAST_REJECTED_BANK_MSGS),
+            })),
+        }
+    }
+
+    pub(crate) async fn new_bank_msg(
+        &self,
+        tx: &ParsedTransactionResponse,
+        index: usize,
+        msg: &MsgSend,
+        is_watched: bool,
+    ) {
+        let mut guard = self.inner.write().await;
+        guard.processed_bank_msgs_since_startup += 1;
+
+        let details = BankMsgDetails {
+            processed_at: OffsetDateTime::now_utc(),
+            tx_hash: tx.hash.to_string(),
+            height: tx.height.value(),
+            index: index as u32,
+            from: msg.from_address.to_string(),
+            to: msg.to_address.to_string(),
+            amount: msg.amount.iter().map(|c| c.to_string()).collect(),
+            memo: tx.tx.body.memo.clone(),
+        };
+        guard.last_seen_bank_msgs.push(details.clone());
+
+        if is_watched {
+            guard.processed_bank_msgs_to_watched_addresses_since_startup += 1;
+            guard.last_seen_watched_bank_msgs.push(details.clone());
+        }
+    }
+
+    pub(crate) async fn new_rejection<S: Into<String>>(
+        &self,
+        tx_hash: String,
+        height: u64,
+        index: u32,
+        error: S,
+    ) {
+        self.inner
+            .write()
+            .await
+            .last_rejected_watched_bank_msgs
+            .push(BankMsgRejection {
+                rejected_at: OffsetDateTime::now_utc(),
+                tx_hash,
+                height,
+                index,
+                error: error.into(),
+            })
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct BankScraperModuleStateInner {
+    pub(crate) processed_bank_msgs_since_startup: usize,
+    pub(crate) processed_bank_msgs_to_watched_addresses_since_startup: usize,
+    pub(crate) rejected_bank_msgs_to_watched_addresses_since_startup: usize,
+
+    pub(crate) last_seen_bank_msgs: RingBuffer<BankMsgDetails>,
+    pub(crate) last_seen_watched_bank_msgs: RingBuffer<BankMsgDetails>,
+    pub(crate) last_rejected_watched_bank_msgs: RingBuffer<BankMsgRejection>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BankMsgDetails {
+    pub(crate) processed_at: OffsetDateTime,
+    pub(crate) tx_hash: String,
+    pub(crate) height: u64,
+    pub(crate) index: u32,
+    pub(crate) from: String,
+    pub(crate) to: String,
+    pub(crate) amount: Vec<String>,
+    pub(crate) memo: String,
+}
+
+#[derive(Debug)]
+pub(crate) struct BankMsgRejection {
+    pub(crate) rejected_at: OffsetDateTime,
+    pub(crate) tx_hash: String,
+    pub(crate) height: u64,
+    pub(crate) index: u32,
+    pub(crate) error: String,
+}
+
+impl FromRef<AppState> for PaymentListenerState {
+    fn from_ref(input: &AppState) -> Self {
+        input.payment_listener_state.clone()
+    }
+}
+impl FromRef<AppState> for StatusState {
+    fn from_ref(input: &AppState) -> Self {
+        input.status_state.clone()
+    }
+}
+
+impl FromRef<AppState> for PriceScraperState {
+    fn from_ref(input: &AppState) -> Self {
+        input.price_scraper_state.clone()
+    }
+}
+
+impl FromRef<AppState> for BankScraperModuleState {
+    fn from_ref(input: &AppState) -> Self {
+        input.bank_scraper_module_state.clone()
     }
 }

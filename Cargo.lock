@@ -7234,7 +7234,7 @@ dependencies = [
 
 [[package]]
 name = "nyx-chain-watcher"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7244,14 +7244,12 @@ dependencies = [
  "nym-bin-common",
  "nym-config",
  "nym-network-defaults",
- "nym-node-requests",
  "nym-task",
  "nym-validator-client",
  "nyxd-scraper",
  "reqwest 0.12.4",
  "schemars",
  "serde",
- "serde_json",
  "sqlx",
  "thiserror 2.0.12",
  "time",

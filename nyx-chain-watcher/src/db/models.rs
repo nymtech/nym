@@ -5,7 +5,7 @@ use sqlx::FromRow;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
-#[derive(Clone, Deserialize, Debug, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 pub(crate) struct CurrencyPrices {
     pub(crate) chf: f32,
     pub(crate) usd: f32,
@@ -15,7 +15,7 @@ pub(crate) struct CurrencyPrices {
 }
 
 // Struct to hold Coingecko response
-#[derive(Clone, Deserialize, Debug, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 pub(crate) struct CoingeckoPriceResponse {
     pub(crate) nym: CurrencyPrices,
 }

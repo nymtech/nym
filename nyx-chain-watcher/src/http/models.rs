@@ -5,12 +5,25 @@
 
 pub mod status {
     use crate::config::payments_watcher::PaymentWatcherConfig;
+    use crate::db::models::CoingeckoPriceResponse;
     use crate::models::openapi_schema;
     use nym_validator_client::nyxd::Coin;
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use time::OffsetDateTime;
     use utoipa::ToSchema;
+
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    #[serde(rename_all = "lowercase")]
+    pub enum ApiStatus {
+        Up,
+    }
+
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    pub struct HealthResponse {
+        pub status: ApiStatus,
+        pub uptime: u64,
+    }
 
     #[derive(Debug, Serialize, Deserialize, ToSchema)]
     pub struct ActivePaymentWatchersResponse {
@@ -59,6 +72,7 @@ pub mod status {
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     pub(crate) struct ProcessedPayment {
+        #[serde(with = "time::serde::rfc3339")]
         pub processed_at: OffsetDateTime,
 
         pub tx_hash: String,
@@ -75,6 +89,7 @@ pub mod status {
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     pub(crate) struct PaymentListenerFailureDetails {
+        #[serde(with = "time::serde::rfc3339")]
         pub(crate) timestamp: OffsetDateTime,
         pub(crate) error: String,
     }
@@ -86,7 +101,62 @@ pub mod status {
 
     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
     pub(crate) struct WatcherFailureDetails {
+        #[serde(with = "time::serde::rfc3339")]
         pub(crate) timestamp: OffsetDateTime,
+        pub(crate) error: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct PriceScraperStatusResponse {
+        pub(crate) last_success: Option<PriceScraperLastSuccess>,
+        pub(crate) last_failure: Option<PriceScraperLastError>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct PriceScraperLastSuccess {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) timestamp: OffsetDateTime,
+        pub(crate) response: CoingeckoPriceResponse,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct PriceScraperLastError {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) timestamp: OffsetDateTime,
+        pub(crate) message: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct BankModuleStatusResponse {
+        pub(crate) processed_bank_msgs_since_startup: usize,
+        pub(crate) processed_bank_msgs_to_watched_addresses_since_startup: usize,
+        pub(crate) rejected_bank_msgs_to_watched_addresses_since_startup: usize,
+
+        pub(crate) last_seen_bank_msgs: Vec<BankMsgDetails>,
+        pub(crate) last_seen_watched_bank_msgs: Vec<BankMsgDetails>,
+        pub(crate) last_rejected_watched_bank_msgs: Vec<BankMsgRejection>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct BankMsgDetails {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) processed_at: OffsetDateTime,
+        pub(crate) tx_hash: String,
+        pub(crate) height: u64,
+        pub(crate) index: u32,
+        pub(crate) from: String,
+        pub(crate) to: String,
+        pub(crate) amount: Vec<String>,
+        pub(crate) memo: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub(crate) struct BankMsgRejection {
+        #[serde(with = "time::serde::rfc3339")]
+        pub(crate) rejected_at: OffsetDateTime,
+        pub(crate) tx_hash: String,
+        pub(crate) height: u64,
+        pub(crate) index: u32,
         pub(crate) error: String,
     }
 }

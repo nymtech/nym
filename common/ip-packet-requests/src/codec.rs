@@ -23,14 +23,14 @@ const LENGTH_PREFIX_SIZE: usize = 2;
 // long for the buffer to fill up, since this kills latency.
 pub struct MultiIpPacketCodec {
     buffer: BytesMut,
-    buffer_timeout: tokio::time::Interval,
+    // buffer_timeout: tokio::time::Interval,
 }
 
 impl MultiIpPacketCodec {
-    pub fn new(buffer_timeout: Duration) -> Self {
+    pub fn new() -> Self {
         MultiIpPacketCodec {
             buffer: BytesMut::new(),
-            buffer_timeout: tokio::time::interval(buffer_timeout),
+            // buffer_timeout: tokio::time::interval(buffer_timeout),
         }
     }
 
@@ -62,34 +62,41 @@ impl MultiIpPacketCodec {
 
     // Wait for the buffer_timeout to tick and then flush the buffer.
     // This is useful when we want to send the buffer even if it's not full.
-    pub async fn buffer_timeout(&mut self) -> Option<Bytes> {
-        // Wait for buffer_timeout to tick
-        let _ = self.buffer_timeout.tick().await;
-
-        // Flush the buffer and return it
-        let packets = self.flush_current_buffer();
-        if packets.is_empty() {
-            None
-        } else {
-            Some(packets)
-        }
-    }
+    //pub async fn buffer_timeout(&mut self) -> Option<Bytes> {
+    //    // Wait for buffer_timeout to tick
+    //    let _ = self.buffer_timeout.tick().await;
+    //
+    //    // Flush the buffer and return it
+    //    let packets = self.flush_current_buffer();
+    //    if packets.is_empty() {
+    //        None
+    //    } else {
+    //        Some(packets)
+    //    }
+    //}
 }
 
 impl Encoder<Bytes> for MultiIpPacketCodec {
     type Error = Error;
 
     fn encode(&mut self, packet: Bytes, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        if self.buffer.is_empty() {
-            self.buffer_timeout.reset();
-        }
+        //if self.buffer.is_empty() {
+        //    self.buffer_timeout.reset();
+        //}
         let packet_size = packet.len();
+
+        // Packet size of 0 is a special case, where we trigger flushing the current buffer.
+        if packet_size == 0 {
+            dst.extend_from_slice(&self.buffer);
+            self.buffer = BytesMut::new();
+            return Ok(());
+        }
 
         if self.buffer.len() + packet_size + LENGTH_PREFIX_SIZE > MAX_PACKET_SIZE {
             // If the packet doesn't fit in the buffer, send the buffer and then add it to the buffer
             dst.extend_from_slice(&self.buffer);
             self.buffer = BytesMut::new();
-            self.buffer_timeout.reset();
+            // self.buffer_timeout.reset();
         }
 
         // Add the packet size

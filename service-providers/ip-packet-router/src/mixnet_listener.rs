@@ -126,7 +126,8 @@ impl MixnetListener {
         data_request: DataRequest,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
-        let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
+        // let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
+        let mut decoder = MultiIpPacketCodec::new();
         let mut bytes = BytesMut::new();
         bytes.extend_from_slice(&data_request.ip_packets);
         while let Ok(Some(packet)) = decoder.decode(&mut bytes) {

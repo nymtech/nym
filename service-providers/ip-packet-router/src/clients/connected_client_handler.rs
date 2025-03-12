@@ -72,7 +72,8 @@ impl ConnectedClientHandler {
         let mut activity_timeout = interval(CLIENT_HANDLER_ACTIVITY_TIMEOUT);
         activity_timeout.reset();
 
-        let encoder = MultiIpPacketCodec::new(buffer_timeout);
+        // let encoder = MultiIpPacketCodec::new(buffer_timeout);
+        let encoder = MultiIpPacketCodec::new();
 
         let connected_client_handler = ConnectedClientHandler {
             sent_by: client_id,
@@ -131,6 +132,8 @@ impl ConnectedClientHandler {
     }
 
     async fn run(mut self) -> Result<()> {
+        let mut payload_topup_interval = interval(Duration::from_millis(100));
+        payload_topup_interval.reset();
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
@@ -141,16 +144,23 @@ impl ConnectedClientHandler {
                     log::info!("client handler stopping: activity timeout: {}", self.sent_by);
                     break;
                 },
-                packets = self.encoder.buffer_timeout() => match packets {
-                    Some(packets) => {
-                        if let Err(err) = self.handle_buffer_timeout(packets).await {
-                            log::error!("client handler: failed to handle buffer timeout: {err}");
-                        }
-                    },
-                    None => log::trace!("no packets to send"),
+                // packets = self.encoder.buffer_timeout() => match packets {
+                _ = payload_topup_interval.tick() => {
+                    // Send an empty packet to trigger the buffer timeout
+                    if let Err(err) = self.handle_packet(Vec::new()).await {
+                        log::error!("client handler: failed to handle packet: {err}");
+                    }
+
+                    //Some(packets) => {
+                    //    if let Err(err) = self.handle_buffer_timeout(packets).await {
+                    //        log::error!("client handler: failed to handle buffer timeout: {err}");
+                    //    }
+                    //},
+                    //None => log::trace!("no packets to send"),
                 },
                 packet = self.forward_from_tun_rx.recv() => match packet {
                     Some(packet) => {
+                        payload_topup_interval.reset();
                         if let Err(err) = self.handle_packet(packet).await {
                             log::error!("client handler: failed to handle packet: {err}");
                         }

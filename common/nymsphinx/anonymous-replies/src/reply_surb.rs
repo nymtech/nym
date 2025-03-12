@@ -7,7 +7,7 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
-use nym_sphinx_types::{NymPacket, SURBMaterial, SphinxError, SURB, UPDATED_LEGACY_VERSION};
+use nym_sphinx_types::{NymPacket, SURBMaterial, SphinxError, SURB};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
@@ -101,8 +101,7 @@ impl ReplySurb {
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
-        let surb_material =
-            SURBMaterial::new(route, delays, destination).with_version(UPDATED_LEGACY_VERSION);
+        let surb_material = SURBMaterial::new(route, delays, destination);
 
         // this can't fail as we know we have a valid route to gateway and have correct number of delays
         Ok(ReplySurb {

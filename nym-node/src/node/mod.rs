@@ -32,7 +32,6 @@ use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, NetworkRefresher, RoutingFilter,
 };
 use nym_bin_common::bin_info;
-use nym_contracts_common::Percent;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
 use nym_mixnet_client::client::ActiveConnections;
@@ -52,6 +51,7 @@ use nym_validator_client::models::NodeRefreshBody;
 use nym_validator_client::{NymApiClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
+use nym_topology::node::Performance;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
@@ -581,7 +581,7 @@ impl NymNode {
                 mixnet_exit: true,
             },
             // Perf metrics are not meaningful in this context.
-            performance: Percent::hundred(),
+            performance: Performance::hundred(),
         })
     }
 

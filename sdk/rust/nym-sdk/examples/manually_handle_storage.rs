@@ -4,7 +4,7 @@ use nym_sdk::mixnet::{
     self, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage,
     GatewayRegistration, GatewaysDetailsStore, KeyStore, MixnetClientStorage, MixnetMessageSender,
 };
-use nym_topology::provider_trait::async_trait;
+use async_trait::async_trait;
 
 #[tokio::main]
 async fn main() {

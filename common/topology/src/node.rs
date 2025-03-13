@@ -4,7 +4,6 @@
 use nym_api_requests::models::DeclaredRoles;
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
@@ -13,6 +12,7 @@ use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
 pub use nym_mixnet_contract_common::LegacyMixLayer;
+pub use nym_mixnet_contract_common::reward_params::Performance;
 
 #[derive(Error, Debug)]
 pub enum RoutingNodeError {

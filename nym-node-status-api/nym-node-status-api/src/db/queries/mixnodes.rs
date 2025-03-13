@@ -11,12 +11,13 @@ use crate::{
     http::models::{DailyStats, Mixnode},
 };
 
-pub(crate) async fn update_bonded_mixnodes(
+pub(crate) async fn update_mixnodes(
     pool: &DbPool,
     mixnodes: Vec<MixnodeRecord>,
 ) -> anyhow::Result<()> {
     let mut tx = pool.begin().await?;
 
+    // mark all as unbonded
     sqlx::query!(
         r#"UPDATE
             mixnodes
@@ -27,6 +28,7 @@ pub(crate) async fn update_bonded_mixnodes(
     .execute(&mut *tx)
     .await?;
 
+    // existing nodes get updated on insert
     for record in mixnodes.iter() {
         // https://www.sqlite.org/lang_upsert.html
         sqlx::query!(

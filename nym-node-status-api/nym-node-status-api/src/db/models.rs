@@ -435,7 +435,6 @@ pub(crate) struct NymNodeDto {
     pub performance: String,
     pub self_described: Option<serde_json::Value>,
     pub bond_info: Option<serde_json::Value>,
-    pub active: bool,
 }
 
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
@@ -453,7 +452,6 @@ pub(crate) struct NymNodeInsertRecord {
     pub entry: Option<serde_json::Value>,
     pub self_described: Option<serde_json::Value>,
     pub bond_info: Option<serde_json::Value>,
-    pub active: bool,
     pub last_updated_utc: String,
 }
 
@@ -464,12 +462,6 @@ impl NymNodeInsertRecord {
         self_described: Option<&NymNodeDescription>,
     ) -> anyhow::Result<Self> {
         let now = OffsetDateTime::now_utc().to_string();
-
-        // if a node doesn't expose its self-described endpoint, it can't route traffic
-        // https://nym.com/docs/operators/nodes/nym-node/bonding
-        // same if it's not bonded in the mixnet smart contract
-        // https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
-        let active = self_described.is_some() && bond_info.is_some();
 
         // if bond info is missing, set stake to 0
         let total_stake = bond_info
@@ -492,7 +484,6 @@ impl NymNodeInsertRecord {
             entry,
             self_described,
             bond_info,
-            active,
             last_updated_utc: now,
         };
 

@@ -237,7 +237,7 @@ impl Monitor {
             delegation_program_members,
         )?;
         let mixnodes_count = mixnode_records.len();
-        queries::update_bonded_mixnodes(&pool, mixnode_records)
+        queries::update_mixnodes(&pool, mixnode_records)
             .await
             .map(|_| {
                 tracing::debug!("{} mixnode info written to DB!", mixnodes_count);

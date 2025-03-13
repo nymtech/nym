@@ -347,8 +347,8 @@ impl HttpCache {
 
 #[instrument(level = "info", skip_all)]
 async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<ExtendedNymNode>> {
-    let node_bond_info = queries::get_active_node_bond_info(pool).await?;
-    tracing::debug!("Active nodes with bond info: {}", node_bond_info.len());
+    let node_bond_info = queries::get_described_node_bond_info(pool).await?;
+    tracing::debug!("Described nodes with bond info: {}", node_bond_info.len());
 
     let skimmed_nodes = queries::get_all_nym_nodes(pool).await.map(|records| {
         records
@@ -359,8 +359,8 @@ async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<Extend
     })?;
     tracing::debug!("Skimmed nodes: {}", skimmed_nodes.len());
 
-    let described_nodes = queries::get_active_node_descriptions(pool).await?;
-    tracing::debug!("Active described nodes: {}", described_nodes.len());
+    let described_nodes = queries::get_node_descriptions(pool).await?;
+    tracing::debug!("Described nodes: {}", described_nodes.len());
 
     let mut parsed_nym_nodes = Vec::new();
     for (node_id, described_node) in described_nodes {

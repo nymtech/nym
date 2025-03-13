@@ -41,7 +41,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "macros"] }
 tokio-util = { workspace = true, features = ["codec"] }
 url.workspace = true
 

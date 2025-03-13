@@ -15,7 +15,7 @@ use nym_ip_packet_requests::{
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
-use nym_sdk::mixnet::{MixnetClientSender, MixnetMessageSender};
+use nym_sdk::mixnet::{InputMessage, MixnetClientSender, MixnetMessageSender};
 use tokio::{
     io::AsyncWrite,
     sync::{mpsc, oneshot},
@@ -139,7 +139,10 @@ pub(crate) struct ConnectedClientHandler {
 //}
 
 struct MixnetClientSenderWriter {
-    tx: PollSender<Bytes>,
+    send_to: ConnectedClientId,
+    client_version: ClientVersion,
+
+    tx: PollSender<InputMessage>,
     send_task: JoinHandle<()>,
 }
 
@@ -150,14 +153,10 @@ impl MixnetClientSenderWriter {
         client_version: ClientVersion,
     ) -> Self {
         // We keep the buffer size relatively small to signal backpressure early
-        let (tx, mut rx) = mpsc::channel::<Bytes>(8);
+        let (tx, mut rx) = mpsc::channel(8);
 
         let send_task = tokio::spawn(async move {
-            while let Some(packet) = rx.recv().await {
-                let response_packet =
-                    create_ip_packet(packet, client_version).expect("failed to create ip packet");
-                let input_message = create_input_message(&send_to, response_packet);
-
+            while let Some(input_message) = rx.recv().await {
                 if let Err(err) = mixnet_client_sender.send(input_message).await {
                     log::error!("failed to send packet to mixnet: {err}");
                 }
@@ -165,6 +164,8 @@ impl MixnetClientSenderWriter {
         });
 
         MixnetClientSenderWriter {
+            send_to,
+            client_version,
             tx: PollSender::new(tx),
             send_task,
         }
@@ -188,7 +189,15 @@ impl AsyncWrite for MixnetClientSenderWriter {
         })?;
 
         let packet = BytesMut::from(buf).freeze();
-        self.tx.start_send_unpin(packet).map_err(|_| {
+        let response_packet = create_ip_packet(packet, self.client_version).map_err(|err| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("failed to create ip packet: {err}"),
+            )
+        })?;
+        let input_message = create_input_message(&self.send_to, response_packet);
+
+        self.tx.start_send_unpin(input_message).map_err(|_| {
             std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
         })?;
 

@@ -65,15 +65,13 @@ pub(crate) struct ConnectedClientHandler {
     client_version: ClientVersion,
 }
 
-struct MixnetClientSenderTask {
+struct MixnetClientSenderWriter {
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     send_to: ConnectedClientId,
     client_version: ClientVersion,
-}
 
-struct MixnetClientSenderWriter {
-    tx: mpsc::UnboundedSender<Bytes>,
-    send_task: JoinHandle<()>,
+    sender_fut:
+        Option<Pin<Box<dyn Future<Output = std::result::Result<(), nym_sdk::Error>> + Send>>>,
 }
 
 impl MixnetClientSenderWriter {
@@ -82,44 +80,52 @@ impl MixnetClientSenderWriter {
         send_to: ConnectedClientId,
         client_version: ClientVersion,
     ) -> Self {
-        let (tx, mut rx) = mpsc::unbounded_channel();
-        let send_task = tokio::spawn(async move {
-            while let Some(packet) = rx.recv().await {
-                let response_packet =
-                    create_ip_packet(packet, client_version).expect("failed to create ip packet");
-                let input_message = create_input_message(&send_to, response_packet);
-
-                if let Err(err) = mixnet_client_sender.send(input_message).await {
-                    log::error!("failed to send packet to mixnet: {:?}", err);
-                }
-            }
-        });
-
-        MixnetClientSenderWriter { tx, send_task }
-    }
-}
-
-impl Drop for MixnetClientSenderWriter {
-    fn drop(&mut self) {
-        self.send_task.abort();
+        MixnetClientSenderWriter {
+            mixnet_client_sender,
+            send_to,
+            client_version,
+            sender_fut: None,
+        }
     }
 }
 
 impl AsyncWrite for MixnetClientSenderWriter {
     fn poll_write(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::result::Result<usize, std::io::Error>> {
-        self.tx
-            .send(BytesMut::from(buf).freeze())
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        Poll::Ready(Ok(buf.len()))
+        if self.sender_fut.is_none() {
+            let packet = BytesMut::from(buf).freeze();
+            let response_packet =
+                create_ip_packet(packet, self.client_version).expect("failed to create ip packet");
+
+            let input_message = create_input_message(&self.send_to, response_packet);
+
+            let sender = self.mixnet_client_sender.clone();
+            let fut = async move { sender.send(input_message).await };
+            self.sender_fut = Some(Box::pin(fut));
+        }
+
+        match self.sender_fut.as_mut().unwrap().as_mut().poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(())) => {
+                self.sender_fut = None;
+                Poll::Ready(Ok(buf.len()))
+            }
+            Poll::Ready(Err(err)) => {
+                self.sender_fut = None;
+                Poll::Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("failed to send packet to mixnet: {err}"),
+                )))
+            }
+        }
     }
 
     fn poll_flush(
-        self: Pin<&mut Self>,
-        _cx: &mut Context,
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
     ) -> Poll<std::result::Result<(), std::io::Error>> {
         Poll::Ready(Ok(()))
     }
@@ -131,6 +137,67 @@ impl AsyncWrite for MixnetClientSenderWriter {
         self.poll_flush(cx)
     }
 }
+
+//struct MixnetClientSenderWriter {
+//    tx: mpsc::UnboundedSender<Bytes>,
+//    send_task: JoinHandle<()>,
+//}
+//
+//impl MixnetClientSenderWriter {
+//    fn new(
+//        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+//        send_to: ConnectedClientId,
+//        client_version: ClientVersion,
+//    ) -> Self {
+//        let (tx, mut rx) = mpsc::unbounded_channel();
+//        let send_task = tokio::spawn(async move {
+//            while let Some(packet) = rx.recv().await {
+//                let response_packet =
+//                    create_ip_packet(packet, client_version).expect("failed to create ip packet");
+//                let input_message = create_input_message(&send_to, response_packet);
+//
+//                if let Err(err) = mixnet_client_sender.send(input_message).await {
+//                    log::error!("failed to send packet to mixnet: {:?}", err);
+//                }
+//            }
+//        });
+//
+//        MixnetClientSenderWriter { tx, send_task }
+//    }
+//}
+
+//impl Drop for MixnetClientSenderWriter {
+//    fn drop(&mut self) {
+//        self.send_task.abort();
+//    }
+//}
+
+//impl AsyncWrite for MixnetClientSenderWriter {
+//    fn poll_write(
+//        self: Pin<&mut Self>,
+//        _cx: &mut Context<'_>,
+//        buf: &[u8],
+//    ) -> Poll<std::result::Result<usize, std::io::Error>> {
+//        self.tx
+//            .send(BytesMut::from(buf).freeze())
+//            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+//        Poll::Ready(Ok(buf.len()))
+//    }
+//
+//    fn poll_flush(
+//        self: Pin<&mut Self>,
+//        _cx: &mut Context,
+//    ) -> Poll<std::result::Result<(), std::io::Error>> {
+//        Poll::Ready(Ok(()))
+//    }
+//
+//    fn poll_shutdown(
+//        self: Pin<&mut Self>,
+//        cx: &mut Context,
+//    ) -> Poll<std::result::Result<(), std::io::Error>> {
+//        self.poll_flush(cx)
+//    }
+//}
 
 impl ConnectedClientHandler {
     pub(crate) fn start(

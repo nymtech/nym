@@ -3,7 +3,7 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::{NymTopology, RoutingNode, SupportedRoles, node::Performance};
+use nym_topology::{node::Performance, NymTopology, RoutingNode, SupportedRoles};
 
 #[tokio::main]
 async fn main() {
@@ -48,7 +48,6 @@ async fn main() {
                 mixnet_exit: false,
             },
             performance: Performance::hundred(),
-
         },
         RoutingNode {
             node_id: 66,

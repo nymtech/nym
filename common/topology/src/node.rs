@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
-pub use nym_mixnet_contract_common::LegacyMixLayer;
 pub use nym_mixnet_contract_common::reward_params::Performance;
+pub use nym_mixnet_contract_common::LegacyMixLayer;
 
 #[derive(Error, Debug)]
 pub enum RoutingNodeError {

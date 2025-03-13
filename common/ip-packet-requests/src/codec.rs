@@ -34,31 +34,31 @@ impl MultiIpPacketCodec {
         }
     }
 
-    pub fn bundle_one_packet(packet: Bytes) -> Bytes {
-        let mut bundled_packets = BytesMut::new();
-        bundled_packets.extend_from_slice(&(packet.len() as u16).to_be_bytes());
-        bundled_packets.extend_from_slice(&packet);
-        bundled_packets.freeze()
-    }
-
-    // Append a packet to the buffer and return the buffer if it's full
-    pub fn append_packet(&mut self, packet: Bytes) -> Option<Bytes> {
-        let mut bundled_packets = BytesMut::new();
-        self.encode(packet, &mut bundled_packets).unwrap();
-        if bundled_packets.is_empty() {
-            None
-        } else {
-            // log::info!("Sphinx packet utilization: {:.2}", self.buffer.len() as f64 / MAX_PACKET_SIZE as f64);
-            Some(bundled_packets.freeze())
-        }
-    }
-
-    // Flush the current buffer and return it.
-    pub fn flush_current_buffer(&mut self) -> Bytes {
-        let mut output_buffer = BytesMut::new();
-        std::mem::swap(&mut output_buffer, &mut self.buffer);
-        output_buffer.freeze()
-    }
+    //pub fn bundle_one_packet(packet: Bytes) -> Bytes {
+    //    let mut bundled_packets = BytesMut::new();
+    //    bundled_packets.extend_from_slice(&(packet.len() as u16).to_be_bytes());
+    //    bundled_packets.extend_from_slice(&packet);
+    //    bundled_packets.freeze()
+    //}
+    //
+    //// Append a packet to the buffer and return the buffer if it's full
+    //pub fn append_packet(&mut self, packet: Bytes) -> Option<Bytes> {
+    //    let mut bundled_packets = BytesMut::new();
+    //    self.encode(packet, &mut bundled_packets).unwrap();
+    //    if bundled_packets.is_empty() {
+    //        None
+    //    } else {
+    //        // log::info!("Sphinx packet utilization: {:.2}", self.buffer.len() as f64 / MAX_PACKET_SIZE as f64);
+    //        Some(bundled_packets.freeze())
+    //    }
+    //}
+    //
+    //// Flush the current buffer and return it.
+    //pub fn flush_current_buffer(&mut self) -> Bytes {
+    //    let mut output_buffer = BytesMut::new();
+    //    std::mem::swap(&mut output_buffer, &mut self.buffer);
+    //    output_buffer.freeze()
+    //}
 
     // Wait for the buffer_timeout to tick and then flush the buffer.
     // This is useful when we want to send the buffer even if it's not full.

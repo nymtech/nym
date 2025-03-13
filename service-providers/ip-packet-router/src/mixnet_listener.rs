@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use bytes::{Bytes, BytesMut};
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -99,7 +99,7 @@ impl MixnetListener {
                     .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
                 Ok(None)
             } else {
-                log::info!("Denied filter check: {dst}");
+                log::debug!("Denied filter check: {dst}");
                 Ok(Some(VersionedResponse {
                     version,
                     reply_to: connected_client.client_id.clone(),
@@ -134,12 +134,16 @@ impl MixnetListener {
         //    let result = self.handle_packet(&packet, data_request.version).await;
         //    responses.push(result);
         //}
-        //Ok(responses)
 
-        let mut decoder = MultiIpPacketCodec::new();
-        let framed_reader = FramedRead::new(data_request.ip_packets, decoder);
+        let decoder = MultiIpPacketCodec::new();
+        let mut framed_reader = FramedRead::new(data_request.ip_packets.as_ref(), decoder);
 
-        todo!();
+        while let Some(Ok(packet)) = framed_reader.next().await {
+            let result = self.handle_packet(&packet, data_request.version).await;
+            responses.push(result);
+        }
+
+        Ok(responses)
     }
 
     // Receving a static connect request from a client with an IP provided that we assign to them,

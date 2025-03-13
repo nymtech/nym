@@ -1,9 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::time::Duration;
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
+use futures::{FutureExt, SinkExt};
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec, v6::response::IpPacketResponse as IpPacketResponseV6,
     v7::response::IpPacketResponse as IpPacketResponseV7,
@@ -11,9 +17,12 @@ use nym_ip_packet_requests::{
 };
 use nym_sdk::mixnet::MixnetMessageSender;
 use tokio::{
+    io::AsyncWrite,
     sync::{mpsc, oneshot},
+    task::JoinHandle,
     time::interval,
 };
+use tokio_util::codec::FramedWrite;
 
 use crate::{
     clients::ConnectedClientId,
@@ -37,7 +46,8 @@ pub(crate) struct ConnectedClientHandler {
     forward_from_tun_rx: mpsc::UnboundedReceiver<Vec<u8>>,
 
     // Channel to send packets to the mixnet
-    mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+    // mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+    mixnet_client_sender_writer: MixnetClientSenderWriter,
 
     // Channel to receive close signal
     close_rx: oneshot::Receiver<()>,
@@ -46,10 +56,80 @@ pub(crate) struct ConnectedClientHandler {
     activity_timeout: tokio::time::Interval,
 
     // Encoder to bundle multiple packets into a single one
-    encoder: MultiIpPacketCodec,
+    // encoder: MultiIpPacketCodec,
+    framed_writer: FramedWrite<Vec<u8>, MultiIpPacketCodec>,
+
+    buffer_timeout: Duration,
 
     // The version of the client
     client_version: ClientVersion,
+}
+
+struct MixnetClientSenderTask {
+    mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+    send_to: ConnectedClientId,
+    client_version: ClientVersion,
+}
+
+struct MixnetClientSenderWriter {
+    tx: mpsc::UnboundedSender<Bytes>,
+    send_task: JoinHandle<()>,
+}
+
+impl MixnetClientSenderWriter {
+    fn new(
+        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        send_to: ConnectedClientId,
+        client_version: ClientVersion,
+    ) -> Self {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let send_task = tokio::spawn(async move {
+            while let Some(packet) = rx.recv().await {
+                let response_packet =
+                    create_ip_packet(packet, client_version).expect("failed to create ip packet");
+                let input_message = create_input_message(&send_to, response_packet);
+
+                if let Err(err) = mixnet_client_sender.send(input_message).await {
+                    log::error!("failed to send packet to mixnet: {:?}", err);
+                }
+            }
+        });
+
+        MixnetClientSenderWriter { tx, send_task }
+    }
+}
+
+impl Drop for MixnetClientSenderWriter {
+    fn drop(&mut self) {
+        self.send_task.abort();
+    }
+}
+
+impl AsyncWrite for MixnetClientSenderWriter {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::result::Result<usize, std::io::Error>> {
+        self.tx
+            .send(BytesMut::from(buf).freeze())
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+        Poll::Ready(Ok(buf.len()))
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        _cx: &mut Context,
+    ) -> Poll<std::result::Result<(), std::io::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+    ) -> Poll<std::result::Result<(), std::io::Error>> {
+        self.poll_flush(cx)
+    }
 }
 
 impl ConnectedClientHandler {
@@ -74,14 +154,21 @@ impl ConnectedClientHandler {
 
         // let encoder = MultiIpPacketCodec::new(buffer_timeout);
         let encoder = MultiIpPacketCodec::new();
+        let framed_writer = FramedWrite::new(Vec::new(), encoder);
+
+        let mixnet_client_sender_writer =
+            MixnetClientSenderWriter::new(mixnet_client_sender, client_id.clone(), client_version);
 
         let connected_client_handler = ConnectedClientHandler {
             sent_by: client_id,
             forward_from_tun_rx,
-            mixnet_client_sender,
+            // mixnet_client_sender,
+            mixnet_client_sender_writer,
             close_rx,
             activity_timeout,
-            encoder,
+            framed_writer,
+            buffer_timeout,
+            // encoder,
             client_version,
         };
 
@@ -94,45 +181,47 @@ impl ConnectedClientHandler {
         (forward_from_tun_tx, close_tx, handle)
     }
 
-    async fn create_ip_packet(&self, packets: Bytes) -> Result<Vec<u8>> {
-        match self.client_version {
-            ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
-            ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
-            ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
-        }
-        .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
-    }
+    //async fn create_ip_packet(&self, packets: Bytes) -> Result<Vec<u8>> {
+    //    match self.client_version {
+    //        ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
+    //        ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
+    //        ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
+    //    }
+    //    .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
+    //}
 
-    async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
-        let response_packet = self.create_ip_packet(packets).await?;
-        let input_message = create_input_message(&self.sent_by, response_packet);
+    //async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
+    //    let response_packet = self.create_ip_packet(packets).await?;
+    //    let input_message = create_input_message(&self.sent_by, response_packet);
+    //
+    //    self.mixnet_client_sender
+    //        .send(input_message)
+    //        .await
+    //        .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
+    //}
 
-        self.mixnet_client_sender
-            .send(input_message)
-            .await
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
-    }
-
-    async fn handle_buffer_timeout(&mut self, packets: Bytes) -> Result<()> {
-        if !packets.is_empty() {
-            self.send_packets_to_mixnet(packets).await
-        } else {
-            Ok(())
-        }
-    }
+    //async fn handle_buffer_timeout(&mut self, packets: Bytes) -> Result<()> {
+    //    if !packets.is_empty() {
+    //        self.send_packets_to_mixnet(packets).await
+    //    } else {
+    //        Ok(())
+    //    }
+    //}
 
     async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
         self.activity_timeout.reset();
+        self.framed_writer.send(Bytes::from(packet)).await.unwrap();
+        Ok(())
 
-        if let Some(bundled_packets) = self.encoder.append_packet(packet.into()) {
-            self.send_packets_to_mixnet(bundled_packets).await
-        } else {
-            Ok(())
-        }
+        //if let Some(bundled_packets) = self.encoder.append_packet(packet.into()) {
+        //    self.send_packets_to_mixnet(bundled_packets).await
+        //} else {
+        //    Ok(())
+        //}
     }
 
     async fn run(mut self) -> Result<()> {
-        let mut payload_topup_interval = interval(Duration::from_millis(100));
+        let mut payload_topup_interval = interval(self.buffer_timeout);
         payload_topup_interval.reset();
         loop {
             tokio::select! {
@@ -176,4 +265,13 @@ impl ConnectedClientHandler {
         log::debug!("ConnectedClientHandler: exiting");
         Ok(())
     }
+}
+
+fn create_ip_packet(packets: Bytes, client_version: ClientVersion) -> Result<Vec<u8>> {
+    match client_version {
+        ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
+        ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
+        ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
+    }
+    .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
 }

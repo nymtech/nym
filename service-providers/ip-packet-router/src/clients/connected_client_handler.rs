@@ -28,7 +28,6 @@ use crate::{
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
     messages::ClientVersion,
-    util::create_message::create_input_message,
 };
 
 // Data flow
@@ -50,14 +49,129 @@ pub(crate) struct ConnectedClientHandler {
     // Interval to check for activity timeout
     activity_timeout: tokio::time::Interval,
 
-    // Encoder to bundle multiple packets into a single one
-    // encoder: MultiIpPacketCodec,
-    framed_writer: FramedWrite<MixnetClientSenderWriter, MultiIpPacketCodec>,
+    // The time we have to topup a payload before we send, regardless
+    payload_topup_interval: tokio::time::Interval,
 
-    buffer_timeout: Duration,
+    // The sender to the mixnet. It's a framed writer that bundles IP packets together to fill out
+    // the sphinx packet payload before sending.
+    mixnet_ip_packet_sender: FramedWrite<MixnetClientIpPacketSender, MultiIpPacketCodec>,
 }
 
-struct MixnetClientSenderWriter {
+impl ConnectedClientHandler {
+    pub(crate) fn start(
+        client_id: ConnectedClientId,
+        buffer_timeout: Duration,
+        client_version: ClientVersion,
+        mixnet_client_sender: MixnetClientSender,
+    ) -> (
+        mpsc::UnboundedSender<Vec<u8>>,
+        oneshot::Sender<()>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        log::debug!("Starting connected client handler for: {}", client_id);
+        log::debug!("client version: {:?}", client_version);
+        let (close_tx, close_rx) = oneshot::channel();
+        let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
+
+        // Reset so that we don't get the first tick immediately
+        let mut activity_timeout = interval(CLIENT_HANDLER_ACTIVITY_TIMEOUT);
+        activity_timeout.reset();
+
+        let mut payload_topup_interval = interval(buffer_timeout);
+        payload_topup_interval.reset();
+
+        let mixnet_client_sender_writer = MixnetClientIpPacketSender::new(
+            mixnet_client_sender,
+            client_id.clone(),
+            client_version,
+        );
+
+        let encoder = MultiIpPacketCodec::new();
+        let framed_writer = FramedWrite::new(mixnet_client_sender_writer, encoder);
+
+        let connected_client_handler = ConnectedClientHandler {
+            sent_by: client_id,
+            forward_from_tun_rx,
+            close_rx,
+            activity_timeout,
+            payload_topup_interval,
+            mixnet_ip_packet_sender: framed_writer,
+        };
+
+        let handle = tokio::spawn(async move {
+            if let Err(err) = connected_client_handler.run().await {
+                log::error!("connected client handler has failed: {err}")
+            }
+        });
+
+        (forward_from_tun_tx, close_tx, handle)
+    }
+
+    async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
+        self.activity_timeout.reset();
+        self.payload_topup_interval.reset();
+
+        self.mixnet_ip_packet_sender
+            .send(Bytes::from(packet))
+            .await
+            .map_err(|source| IpPacketRouterError::FailedToEncodeMixnetMessage { source })
+    }
+
+    async fn run(mut self) -> Result<()> {
+        loop {
+            tokio::select! {
+                _ = &mut self.close_rx => {
+                    log::info!("client handler stopping: received close: {}", self.sent_by);
+                    break;
+                },
+                _ = self.activity_timeout.tick() => {
+                    log::info!("client handler stopping: activity timeout: {}", self.sent_by);
+                    break;
+                },
+                _ = self.payload_topup_interval.tick() => {
+                    // Send an empty packet to trigger the buffer timeout
+                    if let Err(err) = self.handle_packet(Vec::new()).await {
+                        log::error!("client handler: failed to handle packet: {err}");
+                    }
+                },
+                packet = self.forward_from_tun_rx.recv() => match packet {
+                    Some(packet) => {
+                        // I don't think this should ever happen, so log this so we are aware of it
+                        if packet.is_empty() {
+                            log::warn!("client handler: received empty packet");
+                            continue;
+                        }
+                        if let Err(err) = self.handle_packet(packet).await {
+                            log::error!("client handler: failed to handle packet: {err}");
+                        }
+                    },
+                    None => {
+                        log::info!("client handler stopping: tun channel closed");
+                        break;
+                    }
+                },
+            }
+        }
+
+        log::debug!("ConnectedClientHandler: exiting");
+        Ok(())
+    }
+}
+
+fn create_ip_packet_response(packets: Bytes, client_version: ClientVersion) -> Result<Vec<u8>> {
+    match client_version {
+        ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
+        ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
+        ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
+    }
+    .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
+}
+
+// Wrapper around the mixnet sender that takes bundled IP packet payloads, wraps them in a IPR IP
+// packet response, and sends them to the mixnet.
+//
+// It is used together with the `FramedWrite` to bundle IP packets together to fill out the sphinx
+struct MixnetClientIpPacketSender {
     send_to: ConnectedClientId,
     client_version: ClientVersion,
 
@@ -65,7 +179,7 @@ struct MixnetClientSenderWriter {
     send_task: JoinHandle<()>,
 }
 
-impl MixnetClientSenderWriter {
+impl MixnetClientIpPacketSender {
     fn new(
         mixnet_client_sender: MixnetClientSender,
         send_to: ConnectedClientId,
@@ -82,7 +196,7 @@ impl MixnetClientSenderWriter {
             }
         });
 
-        MixnetClientSenderWriter {
+        MixnetClientIpPacketSender {
             send_to,
             client_version,
             tx: PollSender::new(tx),
@@ -91,13 +205,13 @@ impl MixnetClientSenderWriter {
     }
 }
 
-impl Drop for MixnetClientSenderWriter {
+impl Drop for MixnetClientIpPacketSender {
     fn drop(&mut self) {
         self.send_task.abort();
     }
 }
 
-impl AsyncWrite for MixnetClientSenderWriter {
+impl AsyncWrite for MixnetClientIpPacketSender {
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -108,14 +222,21 @@ impl AsyncWrite for MixnetClientSenderWriter {
         })?;
 
         let packet = BytesMut::from(buf).freeze();
-        let response_packet = create_ip_packet(packet, self.client_version).map_err(|err| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("failed to create ip packet: {err}"),
-            )
-        })?;
-        let input_message = create_input_message(&self.send_to, response_packet);
 
+        // Create a IPR packet response that the recipient can understand
+        let response_packet =
+            create_ip_packet_response(packet, self.client_version).map_err(|err| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("failed to create ip packet: {err}"),
+                )
+            })?;
+
+        // Wrap the response packet in a mixnet input message
+        let input_message =
+            crate::util::create_message::create_input_message(&self.send_to, response_packet);
+
+        // Pass it to the mixnet sender
         self.tx.start_send_unpin(input_message).map_err(|_| {
             std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
         })?;
@@ -139,104 +260,4 @@ impl AsyncWrite for MixnetClientSenderWriter {
     ) -> Poll<std::result::Result<(), std::io::Error>> {
         self.poll_flush(cx)
     }
-}
-
-impl ConnectedClientHandler {
-    pub(crate) fn start(
-        client_id: ConnectedClientId,
-        buffer_timeout: Duration,
-        client_version: ClientVersion,
-        mixnet_client_sender: MixnetClientSender,
-    ) -> (
-        mpsc::UnboundedSender<Vec<u8>>,
-        oneshot::Sender<()>,
-        tokio::task::JoinHandle<()>,
-    ) {
-        log::debug!("Starting connected client handler for: {}", client_id);
-        log::debug!("client version: {:?}", client_version);
-        let (close_tx, close_rx) = oneshot::channel();
-        let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
-
-        // Reset so that we don't get the first tick immediately
-        let mut activity_timeout = interval(CLIENT_HANDLER_ACTIVITY_TIMEOUT);
-        activity_timeout.reset();
-
-        let mixnet_client_sender_writer =
-            MixnetClientSenderWriter::new(mixnet_client_sender, client_id.clone(), client_version);
-
-        let encoder = MultiIpPacketCodec::new();
-        let framed_writer = FramedWrite::new(mixnet_client_sender_writer, encoder);
-
-        let connected_client_handler = ConnectedClientHandler {
-            sent_by: client_id,
-            forward_from_tun_rx,
-            close_rx,
-            activity_timeout,
-            framed_writer,
-            buffer_timeout,
-        };
-
-        let handle = tokio::spawn(async move {
-            if let Err(err) = connected_client_handler.run().await {
-                log::error!("connected client handler has failed: {err}")
-            }
-        });
-
-        (forward_from_tun_tx, close_tx, handle)
-    }
-
-    async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
-        self.activity_timeout.reset();
-        self.framed_writer
-            .send(Bytes::from(packet))
-            .await
-            .map_err(|source| IpPacketRouterError::FailedToEncodeMixnetMessage { source })
-    }
-
-    async fn run(mut self) -> Result<()> {
-        let mut payload_topup_interval = interval(self.buffer_timeout);
-        payload_topup_interval.reset();
-        loop {
-            tokio::select! {
-                _ = &mut self.close_rx => {
-                    log::info!("client handler stopping: received close: {}", self.sent_by);
-                    break;
-                },
-                _ = self.activity_timeout.tick() => {
-                    log::info!("client handler stopping: activity timeout: {}", self.sent_by);
-                    break;
-                },
-                _ = payload_topup_interval.tick() => {
-                    // Send an empty packet to trigger the buffer timeout
-                    if let Err(err) = self.handle_packet(Vec::new()).await {
-                        log::error!("client handler: failed to handle packet: {err}");
-                    }
-                },
-                packet = self.forward_from_tun_rx.recv() => match packet {
-                    Some(packet) => {
-                        payload_topup_interval.reset();
-                        if let Err(err) = self.handle_packet(packet).await {
-                            log::error!("client handler: failed to handle packet: {err}");
-                        }
-                    },
-                    None => {
-                        log::info!("client handler stopping: tun channel closed");
-                        break;
-                    }
-                },
-            }
-        }
-
-        log::debug!("ConnectedClientHandler: exiting");
-        Ok(())
-    }
-}
-
-fn create_ip_packet(packets: Bytes, client_version: ClientVersion) -> Result<Vec<u8>> {
-    match client_version {
-        ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
-        ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
-        ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
-    }
-    .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
 }

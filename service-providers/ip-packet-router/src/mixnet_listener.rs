@@ -1,15 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use bytes::{Bytes, BytesMut};
-use futures::{StreamExt, TryStreamExt};
+use bytes::Bytes;
+use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
-use tokio_util::codec::{Decoder, FramedRead};
+use tokio_util::codec::FramedRead;
 
 use crate::{
     clients::{ConnectedClientHandler, ConnectedClients},

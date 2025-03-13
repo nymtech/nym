@@ -61,6 +61,11 @@ pub enum IpPacketRouterError {
     #[error("failed to send packet to mixnet: {source}")]
     FailedToSendPacketToMixnet { source: nym_sdk::Error },
 
+    #[error("failed to encode mixnet message: {source}")]
+    FailedToEncodeMixnetMessage {
+        source: nym_ip_packet_requests::codec::Error,
+    },
+
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },
 

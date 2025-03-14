@@ -31,8 +31,7 @@ jobs:
           fi
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG$" ; then
               echo "Tag '$TAG' ALREADY EXISTS on the remote"
-              # TODO uncomment after bumping NS API version
-              # exit 1
+              exit 1
           else
               echo "Tag '$TAG' does not exist on the remote"
           fi
@@ -50,8 +49,7 @@ jobs:
           result=$?
           if [ "${result}" -eq 0 ]; then
               echo "Version '$TAG' defined in Cargo.toml already exists as tag in harbor repo"
-              # TODO uncomment after bumping NS API version
-              # exit 1
+              exit 1
           else
               echo "Version '$TAG' doesn't exist on the remote"
           fi

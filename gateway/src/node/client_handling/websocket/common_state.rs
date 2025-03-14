@@ -19,7 +19,6 @@ pub(crate) struct Config {
     pub(crate) bandwidth: BandwidthFlushingBehaviourConfig,
 }
 
-// I can see this being possible expanded with say storage or client store
 #[derive(Clone)]
 pub(crate) struct CommonHandlerState {
     pub(crate) cfg: Config,

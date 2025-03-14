@@ -45,7 +45,7 @@ impl NetworkStats {
 
     pub fn active_ingress_websocket_connections_count(&self) -> usize {
         self.active_ingress_websocket_connections
-            .load(Ordering::Relaxed)
+            .load(Ordering::SeqCst)
     }
 
     pub fn active_egress_mixnet_connections_counter(&self) -> Arc<AtomicUsize> {

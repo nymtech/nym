@@ -76,6 +76,12 @@ impl MultiIpPacketCodec {
     //}
 }
 
+impl Default for MultiIpPacketCodec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Encoder<Bytes> for MultiIpPacketCodec {
     type Error = Error;
 

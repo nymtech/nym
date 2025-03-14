@@ -180,11 +180,14 @@ struct MixnetClientIpPacketSender {
 }
 
 impl MixnetClientIpPacketSender {
-    fn new(
-        mixnet_client_sender: MixnetClientSender,
+    fn new<Sender>(
+        mixnet_client_sender: Sender,
         send_to: ConnectedClientId,
         client_version: ClientVersion,
-    ) -> Self {
+    ) -> Self
+    where
+        Sender: MixnetMessageSender + Send + 'static,
+    {
         // We keep the buffer size relatively small to signal backpressure early
         let (tx, mut rx) = mpsc::channel(8);
 
@@ -259,5 +262,107 @@ impl AsyncWrite for MixnetClientIpPacketSender {
         cx: &mut Context,
     ) -> Poll<std::result::Result<(), std::io::Error>> {
         self.poll_flush(cx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use super::*;
+
+    use async_trait::async_trait;
+    use nym_sdk::mixnet::AnonymousSenderTag;
+    use tokio::sync::Notify;
+
+    #[derive(Clone)]
+    struct MockMixnetClientSender {
+        sent_messages: Arc<Mutex<Vec<InputMessage>>>,
+        notify: Arc<Notify>,
+    }
+
+    impl MockMixnetClientSender {
+        fn new() -> Self {
+            MockMixnetClientSender {
+                sent_messages: Arc::new(Mutex::new(Vec::new())),
+                notify: Arc::new(Notify::new()),
+            }
+        }
+
+        fn sent_messages(&self) -> Vec<String> {
+            let sent_messages = self.sent_messages.lock().unwrap();
+            sent_messages
+                .iter()
+                .map(|msg| format!("{msg:?}").to_owned())
+                .collect()
+        }
+
+        async fn wait_for_messages(&self, count: usize) {
+            loop {
+                if self.sent_messages.lock().unwrap().len() >= count {
+                    break;
+                }
+                self.notify.notified().await;
+            }
+        }
+    }
+
+    #[async_trait]
+    impl MixnetMessageSender for MockMixnetClientSender {
+        async fn send(&self, message: InputMessage) -> std::result::Result<(), nym_sdk::Error> {
+            let mut sent_messages = self.sent_messages.lock().unwrap();
+            sent_messages.push(message);
+            self.notify.notify_one();
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_combining_framed_write_and_mixnet_client_ip_packet_sender() {
+        let mixnet_client_sender = MockMixnetClientSender::new();
+        let sender_tag = AnonymousSenderTag::new_random(&mut rand::thread_rng());
+        let client_id = ConnectedClientId::AnonymousSenderTag(sender_tag);
+        let client_version = ClientVersion::V8;
+
+        let mixnet_ip_packet_sender = MixnetClientIpPacketSender::new(
+            mixnet_client_sender.clone(),
+            client_id,
+            client_version,
+        );
+
+        let mut ip_packet_sender =
+            FramedWrite::new(mixnet_ip_packet_sender, MultiIpPacketCodec::new());
+
+        assert!(mixnet_client_sender.sent_messages().is_empty());
+
+        // Send two packets. These will be bundled together by the codec
+        ip_packet_sender
+            .send(Bytes::from("hello".to_owned()))
+            .await
+            .expect("failed to send");
+
+        ip_packet_sender
+            .send(Bytes::from("world".to_owned()))
+            .await
+            .expect("failed to send");
+        assert!(mixnet_client_sender.sent_messages().is_empty());
+
+        // The codec will bundle packets together until it fills out the sphinx packet payload, but
+        // we can trigger sending what it has accumulated so far by sending an empty packet
+        ip_packet_sender
+            .send(Bytes::from("").to_owned())
+            .await
+            .expect("failed to send");
+        assert!(mixnet_client_sender.sent_messages().is_empty());
+
+        // This will never been seen by the mixnet sender as it's not sent
+        ip_packet_sender
+            .send(Bytes::from("never seen".to_owned()))
+            .await
+            .expect("failed to send");
+
+        assert!(mixnet_client_sender.sent_messages().is_empty());
+        mixnet_client_sender.wait_for_messages(1).await;
+        assert_eq!(mixnet_client_sender.sent_messages().len(), 1);
     }
 }

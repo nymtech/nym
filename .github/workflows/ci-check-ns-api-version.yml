@@ -28,7 +28,8 @@ jobs:
             echo "Tag is empty"
             exit 1
           fi
-          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$" ; then
+          git ls-remote --tags origin | awk '{print $2}'
+          if git ls-remote --tags origin | awk '{print $2}' | grep -q "refs/tags/$TAG$" ; then
               echo "Tag '$TAG' ALREADY EXISTS on the remote"
               exit 1
           else

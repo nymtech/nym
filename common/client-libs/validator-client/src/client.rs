@@ -12,7 +12,8 @@ use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
     IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequest,
-    IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse, VerifyEcashTicketBody,
+    IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponse,
+    VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -700,6 +701,16 @@ impl NymApiClient {
         expiration_date: Date,
     ) -> Result<IssuedTicketbooksForResponse, ValidatorClientError> {
         Ok(self.nym_api.issued_ticketbooks_for(expiration_date).await?)
+    }
+
+    pub async fn issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForCountResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .issued_ticketbooks_for_count(expiration_date)
+            .await?)
     }
 
     pub async fn issued_ticketbooks_challenge_commitment(

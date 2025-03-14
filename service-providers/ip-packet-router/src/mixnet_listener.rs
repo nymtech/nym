@@ -4,7 +4,7 @@
 use bytes::Bytes;
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
-use nym_sdk::mixnet::MixnetMessageSender;
+use nym_sdk::mixnet::{InputMessage, MixnetMessageSender};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use std::{net::SocketAddr, time::Duration};

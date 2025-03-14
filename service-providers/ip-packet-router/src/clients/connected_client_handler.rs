@@ -54,7 +54,23 @@ pub(crate) struct ConnectedClientHandler {
 
     // The sender to the mixnet. It's a framed writer that bundles IP packets together to fill out
     // the sphinx packet payload before sending.
-    mixnet_ip_packet_sender: FramedWrite<MixnetClientIpPacketSender, MultiIpPacketCodec>,
+    mixnet_ip_packet_sender:
+        FramedWrite<MixnetClientIpPacketSender<BytesToInputMessageImpl>, MultiIpPacketCodec>,
+}
+
+pub fn packet_translator(
+    reply_to: &ConnectedClientId,
+    client_version: ClientVersion,
+    packet: Bytes,
+) -> Result<InputMessage> {
+    // Create a IPR packet response that the recipient can understand
+    let response_packet = create_ip_packet_response(packet, client_version)?;
+
+    // Wrap the response packet in a mixnet input message
+    Ok(crate::util::create_message::create_input_message(
+        reply_to,
+        response_packet,
+    ))
 }
 
 impl ConnectedClientHandler {
@@ -80,10 +96,16 @@ impl ConnectedClientHandler {
         let mut payload_topup_interval = interval(buffer_timeout);
         payload_topup_interval.reset();
 
+        let bytes_to_input_message = BytesToInputMessageImpl {
+            send_to: client_id.clone(),
+            client_version,
+        };
+
         let mixnet_client_sender_writer = MixnetClientIpPacketSender::new(
             mixnet_client_sender,
-            client_id.clone(),
-            client_version,
+            // client_id.clone(),
+            // client_version,
+            bytes_to_input_message,
         );
 
         let encoder = MultiIpPacketCodec::new();
@@ -171,20 +193,43 @@ fn create_ip_packet_response(packets: Bytes, client_version: ClientVersion) -> R
 // packet response, and sends them to the mixnet.
 //
 // It is used together with the `FramedWrite` to bundle IP packets together to fill out the sphinx
-struct MixnetClientIpPacketSender {
-    send_to: ConnectedClientId,
-    client_version: ClientVersion,
+struct MixnetClientIpPacketSender<F>
+where
+    F: BytesToInputMessage,
+{
+    packet_translator: F,
 
     tx: PollSender<InputMessage>,
     send_task: JoinHandle<()>,
 }
 
-impl MixnetClientIpPacketSender {
-    fn new<Sender>(
-        mixnet_client_sender: Sender,
-        send_to: ConnectedClientId,
-        client_version: ClientVersion,
-    ) -> Self
+trait BytesToInputMessage: Unpin {
+    fn to_input_message(&self, bytes: bytes::Bytes) -> Result<InputMessage>;
+}
+
+struct BytesToInputMessageImpl {
+    send_to: ConnectedClientId,
+    client_version: ClientVersion,
+}
+
+impl BytesToInputMessage for BytesToInputMessageImpl {
+    fn to_input_message(&self, bytes: bytes::Bytes) -> Result<InputMessage> {
+        // Create a IPR packet response that the recipient can understand
+        let response_packet = create_ip_packet_response(bytes, self.client_version)?;
+
+        // Wrap the response packet in a mixnet input message
+        Ok(crate::util::create_message::create_input_message(
+            &self.send_to,
+            response_packet,
+        ))
+    }
+}
+
+impl<F> MixnetClientIpPacketSender<F>
+where
+    F: BytesToInputMessage,
+{
+    fn new<Sender>(mixnet_client_sender: Sender, packet_translator: F) -> Self
     where
         Sender: MixnetMessageSender + Send + 'static,
     {
@@ -200,21 +245,26 @@ impl MixnetClientIpPacketSender {
         });
 
         MixnetClientIpPacketSender {
-            send_to,
-            client_version,
+            packet_translator,
             tx: PollSender::new(tx),
             send_task,
         }
     }
 }
 
-impl Drop for MixnetClientIpPacketSender {
+impl<F> Drop for MixnetClientIpPacketSender<F>
+where
+    F: BytesToInputMessage,
+{
     fn drop(&mut self) {
         self.send_task.abort();
     }
 }
 
-impl AsyncWrite for MixnetClientIpPacketSender {
+impl<F> AsyncWrite for MixnetClientIpPacketSender<F>
+where
+    F: BytesToInputMessage,
+{
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -225,19 +275,10 @@ impl AsyncWrite for MixnetClientIpPacketSender {
         })?;
 
         let packet = BytesMut::from(buf).freeze();
-
-        // Create a IPR packet response that the recipient can understand
-        let response_packet =
-            create_ip_packet_response(packet, self.client_version).map_err(|err| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("failed to create ip packet: {err}"),
-                )
-            })?;
-
-        // Wrap the response packet in a mixnet input message
-        let input_message =
-            crate::util::create_message::create_input_message(&self.send_to, response_packet);
+        let input_message = self
+            .packet_translator
+            .to_input_message(packet)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
         // Pass it to the mixnet sender
         self.tx.start_send_unpin(input_message).map_err(|_| {
@@ -324,11 +365,13 @@ mod tests {
         let client_id = ConnectedClientId::AnonymousSenderTag(sender_tag);
         let client_version = ClientVersion::V8;
 
-        let mixnet_ip_packet_sender = MixnetClientIpPacketSender::new(
-            mixnet_client_sender.clone(),
-            client_id,
+        let bytes_to_input_message = BytesToInputMessageImpl {
+            send_to: client_id.clone(),
             client_version,
-        );
+        };
+
+        let mixnet_ip_packet_sender =
+            MixnetClientIpPacketSender::new(mixnet_client_sender.clone(), bytes_to_input_message);
 
         let mut ip_packet_sender =
             FramedWrite::new(mixnet_ip_packet_sender, MultiIpPacketCodec::new());

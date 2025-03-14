@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT mix_id as node_id, host, http_api_port \n            FROM mixnodes \n            WHERE bonded = true\n        ",
+  "query": "\n            SELECT mix_id as node_id, host, http_api_port\n            FROM mixnodes\n            WHERE bonded = true\n        ",
   "describe": {
     "columns": [
       {
@@ -28,5 +28,5 @@
       false
     ]
   },
-  "hash": "8c6c1c67df2d06da74825872f448d30505801b56506668499f9da718f1d6b8f8"
+  "hash": "021c6c65d1ed806d8430bef7883906b42a7e4b280c8efb32db15d7c6a51d7a27"
 }

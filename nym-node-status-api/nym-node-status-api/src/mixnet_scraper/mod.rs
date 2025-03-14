@@ -134,8 +134,9 @@ impl Scraper {
                             node.node_id()
                         ),
                         Err(e) => debug!(
-                            "📝 ❌ Description task #{} for node {} failed: {}",
+                            "📝 ❌ Description task #{} for {} {} failed: {}",
                             task_id,
+                            node.node_kind,
                             node.node_id(),
                             e
                         ),
@@ -178,8 +179,9 @@ impl Scraper {
                             node.node_id()
                         ),
                         Err(e) => debug!(
-                            "📊 ❌ Packet stats task #{} for node {} failed: {}",
+                            "📊 ❌ Packet stats task #{} for {} {} failed: {}",
                             task_id,
+                            node.node_kind,
                             node.node_id(),
                             e
                         ),

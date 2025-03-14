@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE\n            mixnodes\n        SET\n            bonded = false\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "c42917c9542c1d720d92035863064741aefc9f7a7d1630f6b863ebd8174b6684"
+}

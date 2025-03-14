@@ -345,6 +345,8 @@ mod tests {
             .send(Bytes::from("world".to_owned()))
             .await
             .expect("failed to send");
+
+        // Packets are still being collected by the codec
         assert!(mixnet_client_sender.sent_messages().is_empty());
 
         // The codec will bundle packets together until it fills out the sphinx packet payload, but
@@ -355,7 +357,7 @@ mod tests {
             .expect("failed to send");
         assert!(mixnet_client_sender.sent_messages().is_empty());
 
-        // This will never been seen by the mixnet sender as it's not sent
+        // This will never been seen by the mixnet sender as it never gets further than the codec
         ip_packet_sender
             .send(Bytes::from("never seen".to_owned()))
             .await

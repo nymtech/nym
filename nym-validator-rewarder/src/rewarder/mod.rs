@@ -12,7 +12,6 @@ use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
 use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
-use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
@@ -151,7 +150,14 @@ impl Rewarder {
             return Err(NymRewarderError::RewardingModulesDisabled);
         }
 
-        let rewarder_keypair = todo!("load the keys");
+        let rewarder_keypair = Arc::new(
+            config
+                .storage_paths
+                .load_ed25519_identity()
+                .inspect_err(|err|
+                    error!("failed to load ed25519 identity keys: {err}. if this is the first time this binary is running after migrating to the new version, please run 'nym-validator-rewarder regenerate-identity'")
+                )?,
+        );
 
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;

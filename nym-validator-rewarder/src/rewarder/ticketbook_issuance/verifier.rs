@@ -8,7 +8,7 @@ use crate::rewarder::ticketbook_issuance::types::{
 use cosmwasm_std::Decimal;
 use nym_compact_ecash::scheme::withdrawal::verify_partial_blind_signature;
 use nym_compact_ecash::{date_scalar, type_scalar, CompactEcashError};
-use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::EcashTime;
 use nym_network_defaults::MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE;
 use nym_ticketbooks_merkle::{IssuedTicketbook, MerkleLeaf};
@@ -24,7 +24,6 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::Arc;
 use thiserror::Error;
 use time::Date;
 use tracing::{debug, info, instrument, warn};

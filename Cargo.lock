@@ -7062,6 +7062,7 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-pemstore",
  "nym-serde-helpers",
  "nym-task",
  "nym-ticketbooks-merkle",

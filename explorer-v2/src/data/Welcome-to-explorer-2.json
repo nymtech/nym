@@ -9,7 +9,7 @@
     "readingTime": 5
   },
   "icon": "explorerCard",
-  "image": "/explorer/images/Network.webp",
+  "image": "network",
   "overview": {
     "content": [
       {

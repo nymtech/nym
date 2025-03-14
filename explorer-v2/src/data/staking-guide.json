@@ -9,7 +9,7 @@
     "readingTime": 5
   },
   "icon": "stakeCard",
-  "image": "/explorer/images/stake-article.webp",
+  "image": "stakeArticle",
   "overview": {
     "content": [
       {

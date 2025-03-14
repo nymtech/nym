@@ -9,7 +9,7 @@
     "readingTime": 5
   },
   "icon": "gateway",
-  "image": "/explorer/images/placeholder.webp",
+  "image": "placeholder",
   "overview": {
     "content": [
       {

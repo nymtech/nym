@@ -1,3 +1,4 @@
+import { BlogArticleImage } from "@/components/blogs/blogArticleImage";
 import TableOfContents from "@/components/blogs/TableOfContents";
 import type BlogArticle from "@/components/blogs/types";
 import { Breadcrumbs } from "@/components/breadcrumbs/Breadcrumbs";
@@ -86,17 +87,7 @@ export default async function BlogPage({
                     read
                   </Typography>
                 </Box>
-                <Image
-                  src={blogArticle.image}
-                  alt="blog-image"
-                  width={120}
-                  height={60}
-                  sizes="100vw"
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                  }}
-                />
+                <BlogArticleImage imageName={blogArticle.image} />
                 <Box>
                   {blogArticle.overview.content.map(({ text }) => (
                     <Box key={text} sx={{ mt: 3 }}>

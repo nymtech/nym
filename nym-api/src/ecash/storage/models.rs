@@ -88,3 +88,52 @@ pub struct RawExpirationDateSignatures {
     pub epoch_id: u32,
     pub serialised_signatures: Vec<u8>,
 }
+
+#[derive(FromRow)]
+pub struct IssuedTicketbooksCount {
+    pub issuance_date: Date,
+    pub expiration_date: Date,
+    pub count: u32,
+}
+
+#[derive(FromRow)]
+pub struct IssuedTicketbooksOnCount {
+    pub expiration_date: Date,
+    pub count: u32,
+}
+
+#[derive(FromRow)]
+pub struct IssuedTicketbooksForCount {
+    pub issuance_date: Date,
+    pub count: u32,
+}
+
+impl From<IssuedTicketbooksCount> for nym_api_requests::ecash::models::IssuedTicketbooksCount {
+    fn from(value: IssuedTicketbooksCount) -> Self {
+        nym_api_requests::ecash::models::IssuedTicketbooksCount {
+            issuance_date: value.issuance_date,
+            expiration_date: value.expiration_date,
+            count: value.count,
+        }
+    }
+}
+
+impl From<IssuedTicketbooksForCount>
+    for nym_api_requests::ecash::models::IssuedTicketbooksForCount
+{
+    fn from(value: IssuedTicketbooksForCount) -> Self {
+        nym_api_requests::ecash::models::IssuedTicketbooksForCount {
+            issuance_date: value.issuance_date,
+            count: value.count,
+        }
+    }
+}
+
+impl From<IssuedTicketbooksOnCount> for nym_api_requests::ecash::models::IssuedTicketbooksOnCount {
+    fn from(value: IssuedTicketbooksOnCount) -> Self {
+        nym_api_requests::ecash::models::IssuedTicketbooksOnCount {
+            expiration_date: value.expiration_date,
+            count: value.count,
+        }
+    }
+}

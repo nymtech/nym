@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO monitor_run_report(\n                monitor_run_id,\n                network_reliability,\n                packets_sent,\n                packets_received\n            ) VALUES (?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "02f869605f45cdc2c54a2540034505320b5d29fd3551ba054f16370a1de6469b"
+}

@@ -7,7 +7,10 @@ use crate::ecash::storage::helpers::{
     serialise_coin_index_signatures, serialise_expiration_date_signatures,
 };
 use crate::ecash::storage::manager::EcashStorageManagerExt;
-use crate::ecash::storage::models::{IssuedHash, SerialNumberWrapper, TicketProvider};
+use crate::ecash::storage::models::{
+    IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount, IssuedTicketbooksOnCount,
+    SerialNumberWrapper, TicketProvider,
+};
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
@@ -86,6 +89,7 @@ pub trait EcashStorageExt {
         provider_id: i64,
         since: OffsetDateTime,
     ) -> Result<Vec<SerialNumberWrapper>, NymApiStorageError>;
+
     async fn update_last_batch_verification(
         &self,
         provider_id: i64,
@@ -107,6 +111,7 @@ pub trait EcashStorageExt {
         &self,
         epoch_id: EpochId,
     ) -> Result<Option<VerificationKeyAuth>, NymApiStorageError>;
+
     async fn insert_master_verification_key(
         &self,
         epoch_id: EpochId,
@@ -117,6 +122,7 @@ pub trait EcashStorageExt {
         &self,
         epoch_id: EpochId,
     ) -> Result<Option<Vec<AnnotatedCoinIndexSignature>>, NymApiStorageError>;
+
     async fn insert_partial_coin_index_signatures(
         &self,
         epoch_id: EpochId,
@@ -127,6 +133,7 @@ pub trait EcashStorageExt {
         &self,
         epoch_id: EpochId,
     ) -> Result<Option<Vec<AnnotatedCoinIndexSignature>>, NymApiStorageError>;
+
     async fn insert_master_coin_index_signatures(
         &self,
         epoch_id: EpochId,
@@ -137,6 +144,7 @@ pub trait EcashStorageExt {
         &self,
         expiration_date: Date,
     ) -> Result<Option<IssuedExpirationDateSignatures>, NymApiStorageError>;
+
     async fn insert_partial_expiration_date_signatures(
         &self,
         expiration_date: Date,
@@ -147,11 +155,28 @@ pub trait EcashStorageExt {
         &self,
         expiration_date: Date,
     ) -> Result<Option<IssuedExpirationDateSignatures>, NymApiStorageError>;
+
     async fn insert_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
         sigs: &IssuedExpirationDateSignatures,
     ) -> Result<(), NymApiStorageError>;
+
+    async fn get_issued_ticketbooks_count(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<IssuedTicketbooksCount>, NymApiStorageError>;
+
+    async fn get_issued_ticketbooks_on_count(
+        &self,
+        issuance_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksOnCount>, NymApiStorageError>;
+
+    async fn get_issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksForCount>, NymApiStorageError>;
 }
 
 #[async_trait]
@@ -496,5 +521,36 @@ impl EcashStorageExt for NymApiStorage {
             )
             .await?;
         Ok(())
+    }
+
+    async fn get_issued_ticketbooks_count(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<IssuedTicketbooksCount>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_issued_ticketbooks_count(limit, offset)
+            .await?)
+    }
+
+    async fn get_issued_ticketbooks_on_count(
+        &self,
+        issuance_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksOnCount>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_issued_ticketbooks_on_count(issuance_date)
+            .await?)
+    }
+
+    async fn get_issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksForCount>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_issued_ticketbooks_for_count(expiration_date)
+            .await?)
     }
 }

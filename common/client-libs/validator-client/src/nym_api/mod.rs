@@ -8,7 +8,6 @@ use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
     IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
-    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
     IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse,
     VerifyEcashTicketBody,
 };

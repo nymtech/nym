@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO issued_ticketbook (\n                    deposit_id,\n                    dkg_epoch_id,\n                    blinded_partial_credential,\n                    joined_private_commitments,\n                    expiration_date,\n                    ticketbook_type_repr,\n                    merkle_leaf,\n                    merkle_index\n                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);\n\n                INSERT INTO issued_ticketbooks_count(expiration_date, count)\n                VALUES (?, 1)\n                ON CONFLICT(issuance_date, expiration_date) DO UPDATE SET count = count + 1;\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "fde9ce49cf9cbf0559ab8775e071f1399d9152cc3861c6b4ee57dc44f8750050"
+}

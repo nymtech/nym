@@ -11,9 +11,8 @@ use crate::{
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse,
-    VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequest,
+    IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,

@@ -1,0 +1,57 @@
+name: ci-check-ns-api-version
+
+on:
+  pull_request:
+    paths:
+      - "nym-node-status-api/**"
+
+env:
+  WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-api"
+
+jobs:
+  check-if-tag-exists:
+    runs-on: arc-ubuntu-22.04-dind
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Get version from cargo.toml
+        uses: mikefarah/yq@v4.45.1
+        id: get_version
+        with:
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+
+      - name: Check if git tag exists
+        uses: actions/checkout@v4
+      - run: |
+          TAG=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+          if [[ -z "$TAG" ]]; then
+            echo "Tag is empty"
+            exit 1
+          fi
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$" ; then
+              echo "Tag '$TAG' ALREADY EXISTS on the remote"
+              # TODO uncomment after bumping NS API version
+              # exit 1
+          else
+              echo "Tag '$TAG' does not exist on the remote"
+          fi
+      - name: Check if harbor tag exists
+        run: |
+          TAG=${{ steps.get_version.outputs.result }}
+          registry=https://harbor.nymte.ch
+          repo_name=nym/node-status-api
+          if [[ -z $TAG ]]; then
+            echo "Tag is empty"
+            exit 1
+          fi
+          curl -su "${{ secrets.HARBOR_ROBOT_USERNAME }}":"${{ secrets.HARBOR_ROBOT_SECRET }}" "$registry/v2/$repo_name/tags/list" | jq
+          curl -su ${{ secrets.HARBOR_ROBOT_USERNAME }}:${{ secrets.HARBOR_ROBOT_SECRET }} "$registry/v2/$repo_name/tags/list" | jq -e --arg search $TAG '.tags | index($search)' > /dev/null
+          result=$?
+          if [ "${result}" -eq 0 ]; then
+              echo "Version '$TAG' defined in Cargo.toml already exists as tag in harbor repo"
+              # TODO uncomment after bumping NS API version
+              # exit 1
+          else
+              echo "Version '$TAG' doesn't exist on the remote"
+          fi

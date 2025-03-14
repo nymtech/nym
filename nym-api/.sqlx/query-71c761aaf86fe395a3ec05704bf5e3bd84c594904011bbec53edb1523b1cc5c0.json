@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT deposit_id as \"deposit_id: DepositId\", merkle_leaf, merkle_index as \"merkle_index: u32\"\n                FROM issued_ticketbook WHERE expiration_date = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "deposit_id: DepositId",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "merkle_leaf",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "merkle_index: u32",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "71c761aaf86fe395a3ec05704bf5e3bd84c594904011bbec53edb1523b1cc5c0"
+}

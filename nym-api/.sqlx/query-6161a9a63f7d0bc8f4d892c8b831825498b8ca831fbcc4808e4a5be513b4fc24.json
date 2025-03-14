@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                blinded_partial_credential\n                FROM issued_ticketbook\n                WHERE deposit_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "blinded_partial_credential",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6161a9a63f7d0bc8f4d892c8b831825498b8ca831fbcc4808e4a5be513b4fc24"
+}

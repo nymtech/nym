@@ -20,10 +20,10 @@ use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::ecash::models::{
     BatchRedeemTicketsBody, IssuedTicketbooksChallengeCommitmentRequest,
-    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksChallengeCommitmentResponseBody,
-    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponseBody,
+    IssuedTicketbooksChallengeCommitmentResponseBody, IssuedTicketbooksCountResponse,
     IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponseBody,
-    IssuedTicketbooksForResponseBody,
+    IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponseBody,
+    IssuedTicketbooksOnCountResponse,
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
@@ -81,6 +81,10 @@ impl EcashStateConfig {
                 .ecash_signer
                 .debug
                 .issued_ticketbooks_retention_period_days,
+            maximum_data_response_size: global_config
+                .ecash_signer
+                .debug
+                .maximum_size_of_data_request,
         }
     }
 }
@@ -985,5 +989,61 @@ impl EcashState {
             .get_credential_data(serial_number)
             .await
             .map_err(Into::into)
+    }
+
+    pub async fn get_issued_ticketbooks_count(
+        &self,
+        page: u32,
+        per_page: u32,
+    ) -> Result<IssuedTicketbooksCountResponse> {
+        // convert to db offset
+        // we're paging from page 0 like civilised people,
+        // so we have to skip (page * per_page) results
+        let offset = page * per_page;
+        let limit = per_page;
+
+        let issued = self
+            .aux
+            .storage
+            .get_issued_ticketbooks_count(limit, offset)
+            .await?;
+
+        Ok(IssuedTicketbooksCountResponse {
+            issued: issued.into_iter().map(Into::into).collect(),
+        })
+    }
+
+    pub async fn get_issued_ticketbooks_on_count(
+        &self,
+        issuance_date: Date,
+    ) -> Result<IssuedTicketbooksOnCountResponse> {
+        let issued = self
+            .aux
+            .storage
+            .get_issued_ticketbooks_on_count(issuance_date)
+            .await?;
+
+        Ok(IssuedTicketbooksOnCountResponse {
+            issuance_date,
+            total: issued.iter().map(|count| count.count as usize).sum(),
+            issued: issued.into_iter().map(Into::into).collect(),
+        })
+    }
+
+    pub async fn get_issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForCountResponse> {
+        let issued = self
+            .aux
+            .storage
+            .get_issued_ticketbooks_for_count(expiration_date)
+            .await?;
+
+        Ok(IssuedTicketbooksForCountResponse {
+            expiration_date,
+            total: issued.iter().map(|count| count.count as usize).sum(),
+            issued: issued.into_iter().map(Into::into).collect(),
+        })
     }
 }

@@ -318,7 +318,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     // it doesn't matter which server catches the interrupt: it needs only be caught once
     if let Err(err) = axum_shutdown.task_manager_mut().catch_interrupt().await {
-        error!("Error stopping Rocket tasks: {err}");
+        error!("Error stopping axum tasks: {err}");
     }
 
     info!("Stopping nym API");

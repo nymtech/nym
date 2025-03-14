@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            date_utc as \"date_utc!\",\n            SUM(total_stake) as \"total_stake!: i64\",\n            SUM(packets_received) as \"total_packets_received!: i64\",\n            SUM(packets_sent) as \"total_packets_sent!: i64\",\n            SUM(packets_dropped) as \"total_packets_dropped!: i64\"\n        FROM (\n            SELECT\n                date_utc,\n                n.total_stake,\n                n.packets_received,\n                n.packets_sent,\n                n.packets_dropped\n            FROM nym_node_daily_mixing_stats n\n            UNION ALL\n            SELECT\n                m.date_utc,\n                m.total_stake,\n                m.packets_received,\n                m.packets_sent,\n                m.packets_dropped\n            FROM mixnode_daily_stats m\n            LEFT JOIN nym_node_daily_mixing_stats ON m.mix_id = nym_node_daily_mixing_stats.node_id\n            WHERE nym_node_daily_mixing_stats.node_id IS NULL\n        )\n        GROUP BY date_utc\n        ORDER BY date_utc ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "date_utc!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_stake!: i64",
+        "ordinal": 1,
+        "type_info": "Int"
+      },
+      {
+        "name": "total_packets_received!: i64",
+        "ordinal": 2,
+        "type_info": "Int"
+      },
+      {
+        "name": "total_packets_sent!: i64",
+        "ordinal": 3,
+        "type_info": "Int"
+      },
+      {
+        "name": "total_packets_dropped!: i64",
+        "ordinal": 4,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "124d45b9604439584650f401607c46bdbd162c7c689f74fe9ddfdfd48f5ddc07"
+}

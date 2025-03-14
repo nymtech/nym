@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            node_id,\n            self_described as \"self_described: serde_json::Value\"\n        FROM\n            nym_nodes\n        WHERE\n            self_described IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "node_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "self_described: serde_json::Value",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "7526390c3d17622564067f153867295a279179315650f6fb363d5f3177bf70e3"
+}

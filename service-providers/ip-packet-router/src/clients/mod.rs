@@ -6,7 +6,7 @@ mod connected_client_handler;
 mod connected_clients;
 
 pub(crate) use client_id::ConnectedClientId;
-pub(crate) use connected_client_handler::{ConnectedClientHandler, packet_translator};
+pub(crate) use connected_client_handler::ConnectedClientHandler;
 pub(crate) use connected_clients::{
     ConnectEvent, ConnectedClientEvent, ConnectedClients, DisconnectEvent,
 };

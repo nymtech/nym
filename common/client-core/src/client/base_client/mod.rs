@@ -22,7 +22,7 @@ use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyCon
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
-use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
+use crate::client::topology_control::smart_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -54,8 +54,7 @@ use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
-use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::HardcodedTopologyProvider;
+use nym_topology::providers::{HardcodedTopologyProvider, TopologyProvider};
 use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::rngs::OsRng;
 use std::fmt::Debug;
@@ -557,6 +556,7 @@ where
                 config_topology,
                 nym_api_urls,
                 user_agent,
+                None,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
                 warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");

@@ -3,7 +3,7 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::provider_trait::{async_trait, TopologyProvider};
+use nym_topology::providers::{async_trait, TopologyProvider};
 use nym_topology::NymTopology;
 use url::Url;
 

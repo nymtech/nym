@@ -36,7 +36,7 @@ namespace bindings {
   [Throws=GoWrapError]
   void run_proxy_client();
   [Throws=GoWrapError]
-  void new_proxy_server(string upstream_address, string config_dir, string? env);
+  void new_proxy_server(string upstream_address, string config_dir, string? env, string? gateway);
   [Throws=GoWrapError]
   string proxy_server_address();
   [Throws=GoWrapError]

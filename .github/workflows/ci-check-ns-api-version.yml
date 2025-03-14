@@ -12,13 +12,6 @@ jobs:
   check-if-tag-exists:
     runs-on: arc-ubuntu-22.04-dind
     steps:
-      # - name: Login to Harbor
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: harbor.nymte.ch
-      #     username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
-      #     password: ${{ secrets.HARBOR_ROBOT_SECRET }}
-
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -37,7 +30,6 @@ jobs:
             exit 1
           fi
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG$" ; then
-          # git tag -l | grep -q "^$TAG"; then
               echo "Tag '$TAG' ALREADY EXISTS on the remote"
               # TODO uncomment after bumping NS API version
               # exit 1
@@ -51,7 +43,7 @@ jobs:
           repo_name=nym/node-status-api
           if [[ -z $TAG ]]; then
             echo "Tag is empty"
-            # exit 1
+            exit 1
           fi
           curl -su "${{ secrets.HARBOR_ROBOT_USERNAME }}":"${{ secrets.HARBOR_ROBOT_SECRET }}" "$registry/v2/$repo_name/tags/list" | jq
           curl -su ${{ secrets.HARBOR_ROBOT_USERNAME }}:${{ secrets.HARBOR_ROBOT_SECRET }} "$registry/v2/$repo_name/tags/list" | jq -e --arg search $TAG '.tags | index($search)' > /dev/null

@@ -15,16 +15,19 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.45.1
-        id: get_version
-        with:
-          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+      # - name: Get version from cargo.toml
+      #   uses: mikefarah/yq@v4.45.1
+      #   id: get_version
+      #   with:
+      #     cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
       - name: Check if git tag exists
         uses: actions/checkout@v4
       - run: |
-          TAG=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+          cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nym-node-status-api") | .version'
+          toml_version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nym-node-status-api") | .version')
+          TAG=${{ env.WORKING_DIRECTORY }}-$toml_version
+
           if [[ -z "$TAG" ]]; then
             echo "Tag is empty"
             exit 1
@@ -38,7 +41,7 @@ jobs:
           fi
       - name: Check if harbor tag exists
         run: |
-          TAG=${{ steps.get_version.outputs.result }}
+          TAG=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nym-node-status-api") | .version')
           registry=https://harbor.nymte.ch
           repo_name=nym/node-status-api
           if [[ -z $TAG ]]; then

@@ -9,7 +9,6 @@ import { Wrapper } from "@/components/wrapper";
 import { Box, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { format } from "date-fns";
-import Image from "next/image";
 import Markdown from "react-markdown";
 
 export default async function BlogPage({

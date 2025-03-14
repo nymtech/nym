@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// it's fine if compilation fails
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 #[tokio::main]
 async fn main() {
     use sqlx::{Connection, SqliteConnection};

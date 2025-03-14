@@ -16,6 +16,7 @@ use nym_validator_client::ecash::models::{
     CommitedDeposit, DepositId, IssuedTicketbooksChallengeCommitmentResponse,
     IssuedTicketbooksDataRequestBody, IssuedTicketbooksDataResponse,
     IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponse, SignableMessageBody,
+    SignedMessage,
 };
 use nym_validator_client::nyxd::AccountId;
 use rand::distributions::{Distribution, WeightedIndex};
@@ -175,6 +176,21 @@ impl IssuerUnderTest {
         })
     }
 
+    // returns bool to indicate if the issuer got banned
+    fn ban_if_tampered_request<T>(&mut self, original_request: &SignedMessage<T>) -> bool
+    where
+        T: SignableMessageBody,
+    {
+        if !original_request.verify_signature(&self.rewarder_pubkey) {
+            let evidence = self.produce_cheating_evidence(TamperedOriginalRequest {
+                signed_response: original_request,
+            });
+            self.set_banned_issuer("original request body was tampered with", evidence);
+            return true;
+        }
+        false
+    }
+
     async fn get_ticketbooks_data(
         &mut self,
         signing_key: &ed25519::PrivateKey,
@@ -241,16 +257,7 @@ impl IssuerUnderTest {
             }
 
             // 2. check if the signature on original request still matches
-            if !data_response
-                .body
-                .original_request
-                .verify_signature(&self.rewarder_pubkey)
-            {
-                // if the message on the actual response matches, then we know they must have messed with the inner content
-                let evidence = self.produce_cheating_evidence(TamperedOriginalRequest {
-                    signed_response: data_response,
-                });
-                self.set_banned_issuer("original request body was tampered with", evidence);
+            if self.ban_if_tampered_request(&data_response) {
                 return;
             }
 
@@ -271,7 +278,7 @@ impl IssuerUnderTest {
                 if !data_response
                     .body
                     .partial_ticketbooks
-                    .contains_key(&deposit_id)
+                    .contains_key(deposit_id)
                 {
                     let evidence = self.produce_cheating_evidence(data_response);
                     self.set_banned_issuer(
@@ -329,7 +336,7 @@ impl IssuerUnderTest {
             }
         };
 
-        // verify the signature on the response
+        // 1. check if the signature on the response matches
         if !issued_ticketbooks.verify_signature(&self.details.public_key) {
             let evidence = self.produce_basic_cheating_evidence();
             self.set_banned_issuer(
@@ -339,27 +346,29 @@ impl IssuerUnderTest {
             return;
         }
 
+        // 2. check if the signature on original request still matches
+        if self.ban_if_tampered_request(&issued_ticketbooks) {
+            return;
+        }
+
         if expiration_date != issued_ticketbooks.body.expiration_date {
-            todo!("include response in evidence");
-            // let evidence = self.produce_cheating_evidence(MismatchResponse {
-            //     requested: expiration_date,
-            //     received: issued_ticketbooks.body.expiration_date,
-            // });
-            // self.set_banned_issuer(
-            //     format!("bad ticketbook commitments for {expiration_date}"),
-            //     evidence,
-            // );
-            // return;
+            // we know our request wasn't tampered with, so the issuer simply returned data for wrong date
+            let evidence = self.produce_cheating_evidence(MismatchResponse {
+                requested: expiration_date,
+                received: issued_ticketbooks.body.expiration_date,
+                signed_response: issued_ticketbooks,
+            });
+            self.set_banned_issuer(
+                format!("bad ticketbooks data for {expiration_date}"),
+                evidence,
+            );
+            return;
         }
 
         self.issued_commitment = Some(issued_ticketbooks)
     }
 
-    async fn issue_deposit_challenge(
-        &mut self,
-        expiration_date: Date,
-        rewarder_pubkey: ed25519::PublicKey,
-    ) {
+    async fn issue_deposit_challenge(&mut self, expiration_date: Date) {
         // no point in continuing
         if self.caught_cheating() {
             return;
@@ -422,16 +431,7 @@ impl IssuerUnderTest {
         }
 
         // 4. check if the signature on original request still matches
-        if !challenge_commitment
-            .body
-            .original_request
-            .verify_signature(&rewarder_pubkey)
-        {
-            // if the message on the actual response matches, then we know they must have messed with the inner content
-            let evidence = self.produce_cheating_evidence(TamperedOriginalRequest {
-                signed_response: challenge_commitment,
-            });
-            self.set_banned_issuer("original request body was tampered with", evidence);
+        if !self.ban_if_tampered_request(&challenge_commitment) {
             return;
         }
 
@@ -463,13 +463,12 @@ impl IssuerUnderTest {
 
         // 6.2. check if the provided merkle proof has the same number of deposits as initially committed to
         if merkle_proof.total_leaves() != sampled.len() {
-            todo!()
-            // let evidence = self.produce_cheating_evidence(MismatchClaim {
-            //     actual: merkle_proof.total_leaves(),
-            //     claimed: issued.body.deposits.len(),
-            // });
-            // self.set_banned_issuer("inconsistent number of merkle leaves", evidence);
-            // return;
+            let evidence = self.produce_basic_cheating_evidence();
+            self.set_banned_issuer(
+                format!("invalid merkle proof for {expiration_date} - {} leaves present whilst {} deposits got sampled", merkle_proof.total_leaves(), sampled.len()),
+                evidence,
+            );
+            return;
         }
 
         self.challenge_commitment_response = Some(challenge_commitment)
@@ -792,9 +791,7 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
 
             // 5. issue the challenge to the issuer (if applicable) and get its commitment to the response
             // that includes the merkle proof to our sampled deposits
-            issuer
-                .issue_deposit_challenge(self.expiration_date, *self.rewarder_keypair.public_key())
-                .await;
+            issuer.issue_deposit_challenge(self.expiration_date).await;
 
             // 6. retrieve binary data of ticketbooks corresponding to the original challenge
             issuer

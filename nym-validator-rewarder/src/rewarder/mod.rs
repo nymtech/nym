@@ -16,6 +16,7 @@ use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
+use std::sync::Arc;
 use time::Date;
 use tokio::pin;
 use tracing::{error, info, instrument, warn};
@@ -149,6 +150,15 @@ impl Rewarder {
             return Err(NymRewarderError::RewardingModulesDisabled);
         }
 
+        let rewarder_keypair = Arc::new(
+            config
+                .storage_paths
+                .load_ed25519_identity()
+                .inspect_err(|err|
+                    error!("failed to load ed25519 identity keys: {err}. if this is the first time this binary is running after migrating to the new version, please run 'nym-validator-rewarder regenerate-identity'")
+                )?,
+        );
+
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_block_signing_epoch =
@@ -199,6 +209,7 @@ impl Rewarder {
                 config.verification_config(),
                 storage.clone(),
                 &nyxd_client,
+                rewarder_keypair,
                 whitelist,
             ))
         } else {

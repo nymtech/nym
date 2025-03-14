@@ -39,6 +39,23 @@ pub enum NymRewarderError {
         source: io::Error,
     },
 
+    #[error("failed to load ed25519 identity keys from '{}' and '{}': {source}", private_key_path.display(), public_key_path.display())]
+    Ed25519KeyLoadFailure {
+        public_key_path: PathBuf,
+        private_key_path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[error("failed to store ed25519 identity keys to '{}' and '{}': {source}", private_key_path.display(), public_key_path.display())]
+    Ed25519KeyStoreFailure {
+        public_key_path: PathBuf,
+        private_key_path: PathBuf,
+        source: std::io::Error,
+    },
+
+    #[error("attempted to overwrite ed25519 identity keys without --unsafe-overwrite flag")]
+    AttemptedEd25519KeyOverwrite,
+
     #[error("failed to initialise paths")]
     PathInitialisationFailure {
         #[source]

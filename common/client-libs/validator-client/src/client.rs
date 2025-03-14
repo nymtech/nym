@@ -11,7 +11,9 @@ use crate::{
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeResponse, IssuedTicketbooksForResponse, VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequest,
+    IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponse,
+    VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -701,15 +703,32 @@ impl NymApiClient {
         Ok(self.nym_api.issued_ticketbooks_for(expiration_date).await?)
     }
 
-    pub async fn issued_ticketbooks_challenge(
+    pub async fn issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForCountResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .issued_ticketbooks_for_count(expiration_date)
+            .await?)
+    }
+
+    pub async fn issued_ticketbooks_challenge_commitment(
         &self,
         expiration_date: Date,
         deposits: Vec<DepositId>,
-    ) -> Result<IssuedTicketbooksChallengeResponse, ValidatorClientError> {
+    ) -> Result<IssuedTicketbooksChallengeCommitmentResponse, ValidatorClientError> {
         Ok(self
             .nym_api
-            .issued_ticketbooks_challenge(expiration_date, deposits)
+            .issued_ticketbooks_challenge_commitment(expiration_date, deposits)
             .await?)
+    }
+
+    pub async fn issued_ticketbooks_data(
+        &self,
+        request: &IssuedTicketbooksDataRequest,
+    ) -> Result<IssuedTicketbooksDataResponse, ValidatorClientError> {
+        Ok(self.nym_api.issued_ticketbooks_data(request).await?)
     }
 
     pub async fn nodes_by_addresses(

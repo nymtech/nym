@@ -7044,7 +7044,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-rewarder"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "bip39",
@@ -7064,6 +7064,7 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-pemstore",
  "nym-serde-helpers",
  "nym-task",
  "nym-ticketbooks-merkle",

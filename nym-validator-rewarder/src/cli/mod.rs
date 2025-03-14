@@ -15,6 +15,7 @@ pub mod build_info;
 pub mod init;
 pub mod process_block;
 pub mod process_until;
+mod regenerate_identity;
 pub mod run;
 pub mod upgrade_helpers;
 
@@ -46,6 +47,7 @@ impl Cli {
             Commands::Run(args) => run::execute(args).await,
             Commands::ProcessBlock(args) => process_block::execute(args).await,
             Commands::ProcessUntil(args) => process_until::execute(args).await,
+            Commands::RegenerateIdentity(args) => regenerate_identity::execute(args).await,
             Commands::BuildInfo(args) => build_info::execute(args),
         }
     }
@@ -114,6 +116,9 @@ pub(crate) enum Commands {
 
     /// Attempt to process multiple blocks until the provided height.
     ProcessUntil(process_until::Args),
+
+    /// Regenerate existing ed25519 identity keys.
+    RegenerateIdentity(regenerate_identity::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::Args),

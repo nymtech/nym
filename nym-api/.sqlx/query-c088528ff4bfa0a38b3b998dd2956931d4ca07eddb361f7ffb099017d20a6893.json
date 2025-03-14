@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT OR IGNORE INTO verified_tickets(ticket_data, serial_number, spending_date, verified_at, gateway_id)\n                VALUES (?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "c088528ff4bfa0a38b3b998dd2956931d4ca07eddb361f7ffb099017d20a6893"
+}

@@ -195,11 +195,6 @@ impl IssuerUnderTest {
             return;
         };
 
-        // if the root is empty, it means there were no issued ticketbooks
-        let Some(merkle_root) = self.issued_merkle_root_commitment() else {
-            return;
-        };
-
         let sampled = self.sampled_deposits.keys().copied().collect::<Vec<_>>();
 
         let batches = sampled.chunks(batch_size).collect::<Vec<_>>();
@@ -290,6 +285,30 @@ impl IssuerUnderTest {
 
             // 4. append results to the total
             self.ticketbook_data_responses.push(data_response);
+        }
+    }
+
+    async fn get_issued_count(&self, expiration_date: Date) -> usize {
+        match self
+            .details
+            .api_client
+            .issued_ticketbooks_for_count(expiration_date)
+            .await
+        {
+            Ok(res) => {
+                debug!(
+                    "{} claims to have issued {} ticketbooks with expiration on {expiration_date}",
+                    self.details, expiration_date
+                );
+                res.total
+            }
+            Err(err) => {
+                warn!(
+                    "{} does not support queries required for determining issuance rewards: {err}",
+                    self.details
+                );
+                0
+            }
         }
     }
 
@@ -741,7 +760,15 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             let mut being_tested =
                 IssuerUnderTest::new(issuer, *self.rewarder_keypair.public_key());
 
-            // 1. try to obtain commitments for issued ticketbooks (merkle root + deposit ids)
+            // 1. attempt to get number of issued ticketbooks for given expiration date
+            // the purpose of this query is two-fold: check if there's anything to challenge the issuer on
+            // and see if it's running a recent enough version to support subsequent queries
+            let issued_count = being_tested.get_issued_count(self.expiration_date).await;
+            if issued_count == 0 {
+                continue;
+            }
+
+            // 2. try to obtain commitments for issued ticketbooks (merkle root + deposit ids)
             being_tested
                 .get_issued_commitment(self.expiration_date)
                 .await;
@@ -750,13 +777,13 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         }
 
         for issuer in issuers_being_tested.iter_mut() {
-            // 2. toss a coin to see if we have to go through the full verification procedure
+            // 3. toss a coin to see if we have to go through the full verification procedure
             if !self.should_perform_full_verification() {
                 issuer.verification_skipped = true;
                 continue;
             }
 
-            // 3. sample deposits for the challenge (if applicable)
+            // 4. sample deposits for the challenge (if applicable)
             // we want to sample at least the minimum specified amount or the desired ratio of all issued
             let desired_amount = max(
                 self.config.min_validate_per_issuer,
@@ -764,18 +791,18 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             );
             issuer.sample_deposits_for_challenge(desired_amount);
 
-            // 4. issue the challenge to the issuer (if applicable) and get its commitment to the response
+            // 5. issue the challenge to the issuer (if applicable) and get its commitment to the response
             // that includes the merkle proof to our sampled deposits
             issuer
                 .issue_deposit_challenge(self.expiration_date, *self.rewarder_keypair.public_key())
                 .await;
 
-            // 5. retrieve binary data of ticketbooks corresponding to the original challenge
+            // 6. retrieve binary data of ticketbooks corresponding to the original challenge
             issuer
                 .get_ticketbooks_data(self.rewarder_keypair.private_key(), self.expiration_date)
                 .await;
 
-            // 6. verify the responses (if applicable)
+            // 7. verify the responses (if applicable)
             issuer.verify_challenge_response(self.expiration_date);
 
             // if issuer produced valid results, try to update global deposit ids

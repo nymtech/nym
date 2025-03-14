@@ -8,8 +8,8 @@ use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
     IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
-    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse,
-    VerifyEcashTicketBody,
+    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse,
+    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
@@ -1005,6 +1005,23 @@ pub trait NymApiClientExt: ApiClient {
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
                 routes::ECASH_ISSUED_TICKETBOOKS_FOR,
+                &expiration_date.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForCountResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::ECASH_ISSUED_TICKETBOOKS_FOR_COUNT,
                 &expiration_date.to_string(),
             ],
             NO_PARAMS,

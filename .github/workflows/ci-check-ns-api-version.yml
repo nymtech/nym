@@ -22,8 +22,7 @@ jobs:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
       - name: Check if git tag exists
-        uses: actions/checkout@v4
-      - run: |
+        run: |
           TAG=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
           if [[ -z "$TAG" ]]; then
             echo "Tag is empty"

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO mixnode_packet_stats_raw (\n                    mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped\n                ) VALUES (?, ?, ?, ?, ?)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "21e44766729777756f6eb04bf3b81df3e591008a1e3fd664ed83ca86ac51bd8c"
+}

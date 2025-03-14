@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            total_stake\n        FROM mixnodes\n        WHERE mix_id = ?\n        ",
+  "query": "\n                SELECT\n                    total_stake\n                FROM nym_nodes\n                WHERE node_id = ?\n                ",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "969acbff4b128d3a3dc998bb5db1a4c8b4c106767e0276435dc23fcfd6acfe4f"
+  "hash": "d2e07d44594ca5b44a6100482ff432c39d761f2a0ac1d6515cf73416f2eb6c61"
 }

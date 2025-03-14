@@ -96,7 +96,6 @@ pub(crate) async fn update_nym_nodes(
     .map(|records| records.into_iter().map(|record| record.node_id as NodeId))?
     .collect::<HashSet<NodeId>>();
 
-    // active nodes will get updated on insert
     let inserted = node_records.len();
     for record in node_records {
         // https://www.sqlite.org/lang_upsert.html
@@ -148,7 +147,7 @@ pub(crate) async fn update_nym_nodes(
     }
 
     if !nodes_to_delete.is_empty() {
-        tracing::debug!("DELETE {} obsolete nodes", nodes_to_delete.len());
+        tracing::debug!("DELETING {} obsolete nodes", nodes_to_delete.len());
     }
 
     // clean up leftover nodes, which weren't inserted/updated

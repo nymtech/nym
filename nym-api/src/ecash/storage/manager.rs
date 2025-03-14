@@ -266,6 +266,9 @@ impl EcashStorageManagerExt for StorageManager {
     ) -> Result<Vec<RawIssuedTicketbook>, sqlx::Error> {
         // that sucks : (
         // https://stackoverflow.com/a/70032524
+
+        // NOTE: whilst there's no explicit `LIMIT` here,
+        // the API invoking this method forbids using lists of deposits with too many values
         let params = format!("?{}", ", ?".repeat(deposits.len() - 1));
         let query_str = format!("SELECT * FROM issued_ticketbook WHERE deposit_id IN ( {params} )");
         let mut query = sqlx::query_as(&query_str);

@@ -19,8 +19,11 @@ use crate::support::storage::NymApiStorage;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::ecash::models::{
-    BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest,
-    IssuedTicketbooksChallengeResponseBody, IssuedTicketbooksForResponseBody,
+    BatchRedeemTicketsBody, IssuedTicketbooksChallengeCommitmentRequest,
+    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksChallengeCommitmentResponseBody,
+    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponseBody,
+    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponseBody,
+    IssuedTicketbooksForResponseBody,
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
@@ -61,6 +64,7 @@ pub(crate) mod local;
 
 pub struct EcashStateConfig {
     pub(crate) issued_ticketbooks_retention_period_days: u32,
+    pub(crate) maximum_data_response_size: usize,
 }
 
 impl EcashStateConfig {
@@ -820,39 +824,69 @@ impl EcashState {
         entry.proof(deposits)
     }
 
-    pub async fn get_issued_ticketbooks(
+    pub async fn get_issued_ticketbooks_challenge_commitment(
         &self,
-        challenge: IssuedTicketbooksChallengeRequest,
-    ) -> Result<IssuedTicketbooksChallengeResponseBody> {
-        if challenge.expiration_date < self.config.ticketbook_retention_cutoff() {
+        challenge: IssuedTicketbooksChallengeCommitmentRequest,
+    ) -> Result<IssuedTicketbooksChallengeCommitmentResponseBody> {
+        let body = &challenge.body;
+        if body.expiration_date < self.config.ticketbook_retention_cutoff() {
             return Err(EcashError::ExpirationDateTooEarly);
         }
 
-        if challenge.expiration_date > ecash_default_expiration_date() {
+        if body.expiration_date > ecash_default_expiration_date() {
             // we wouldn't have issued any credentials for that expiration date so no point
             // in attempting to construct an ultimately empty response
             return Err(EcashError::ExpirationDateTooLate);
         }
 
         let merkle_proof = self
-            .get_merkle_proof(challenge.expiration_date, &challenge.deposits)
+            .get_merkle_proof(body.expiration_date, &body.deposits)
             .await?;
+
+        Ok(IssuedTicketbooksChallengeCommitmentResponseBody {
+            expiration_date: body.expiration_date,
+            original_request: challenge,
+            max_data_response_size: self.config.maximum_data_response_size,
+            merkle_proof,
+        })
+    }
+
+    pub async fn get_issued_ticketbooks_data(
+        &self,
+        request: IssuedTicketbooksDataRequest,
+    ) -> Result<IssuedTicketbooksDataResponseBody> {
+        let body = &request.body;
+        if body.expiration_date < self.config.ticketbook_retention_cutoff() {
+            return Err(EcashError::ExpirationDateTooEarly);
+        }
+
+        if body.expiration_date > ecash_default_expiration_date() {
+            // we wouldn't have issued any credentials for that expiration date so no point
+            // in attempting to construct an ultimately empty response
+            return Err(EcashError::ExpirationDateTooLate);
+        }
+
+        // prevent ddos attacks by allowing requesters to force us to load all the ticketbooks into memory
+        if body.deposits.len() > self.config.maximum_data_response_size {
+            return Err(EcashError::RequestTooBig {
+                requested: body.deposits.len(),
+                max: self.config.maximum_data_response_size,
+            });
+        }
 
         let partial_ticketbooks = self
             .aux
             .storage
-            .get_issued_ticketbooks(challenge.deposits)
-            .await?;
-
-        let partial_ticketbooks = partial_ticketbooks
+            .get_issued_ticketbooks(&body.deposits)
+            .await?
             .into_iter()
             .map(|t| (t.deposit_id, t))
             .collect();
 
-        Ok(IssuedTicketbooksChallengeResponseBody {
-            expiration_date: challenge.expiration_date,
+        Ok(IssuedTicketbooksDataResponseBody {
+            expiration_date: body.expiration_date,
             partial_ticketbooks,
-            merkle_proof,
+            original_request: request,
         })
     }
 

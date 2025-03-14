@@ -10,6 +10,7 @@ use anyhow::bail;
 use nym_compact_ecash::constants;
 use nym_config::defaults::mainnet::read_parsed_var_if_not_default;
 use nym_config::defaults::var_names::{CONFIGURED, NYXD};
+use nym_config::defaults::MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
@@ -142,6 +143,8 @@ impl Config {
         if !can_sign && self.ecash_signer.enabled {
             bail!("can't enable coconut signer without providing a mnemonic")
         }
+
+        self.ecash_signer.validate()?;
 
         Ok(())
     }
@@ -552,6 +555,13 @@ impl EcashSigner {
             debug: Default::default(),
         }
     }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.debug.maximum_size_of_data_request < MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE {
+            bail!("the .maximum_size_of_data_request field is set to a lower value than the minimum value in the system ({MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE})");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -570,6 +580,9 @@ pub struct EcashSignerDebug {
 
     /// Specifies how long should the full ticket data of verified gateway tickets be kept (beyond the spending date)
     pub verified_tickets_retention_period_days: u32,
+
+    /// Specifies how many partial ticketbooks the api is willing to return in a single request.
+    pub maximum_size_of_data_request: usize,
 }
 
 impl EcashSignerDebug {
@@ -584,6 +597,8 @@ impl EcashSignerDebug {
     // keep the tickets for maximum theoretical validity (+1 day)
     pub(crate) const DEFAULT_VERIFIED_TICKETS_RETENTION_PERIOD_DAYS: u32 =
         constants::CRED_VALIDITY_PERIOD_DAYS + 1;
+
+    pub const MAXIMUM_SIZE_OF_DATA_REQUEST: usize = 100;
 }
 
 impl Default for EcashSignerDebug {
@@ -595,6 +610,7 @@ impl Default for EcashSignerDebug {
                 Self::DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS,
             verified_tickets_retention_period_days:
                 Self::DEFAULT_VERIFIED_TICKETS_RETENTION_PERIOD_DAYS,
+            maximum_size_of_data_request: Self::MAXIMUM_SIZE_OF_DATA_REQUEST,
         }
     }
 }

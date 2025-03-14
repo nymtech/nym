@@ -7,8 +7,10 @@ use crate::support::http::state::AppState;
 use axum::extract::{Path, State};
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
+    IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
     IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksForResponse,
+    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForResponse,
+    SignableMessageBody,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -24,8 +26,12 @@ pub(crate) fn issued_routes() -> Router<AppState> {
             axum::routing::get(issued_ticketbooks_for),
         )
         .route(
-            "/issued-ticketbooks-challenge",
-            axum::routing::post(issued_ticketbooks_challenge),
+            "/issued-ticketbooks-challenge-commitment",
+            axum::routing::post(issued_ticketbooks_challenge_commitment),
+        )
+        .route(
+            "//issued-ticketbooks-data",
+            axum::routing::post(issued_ticketbooks_data),
         )
 }
 
@@ -72,39 +78,48 @@ async fn issued_ticketbooks_for(
 #[utoipa::path(
     tag = "Ecash",
     post,
-    request_body = IssuedTicketbooksChallengeRequest,
-    path = "/issued-ticketbooks-challenge",
+    request_body = IssuedTicketbooksChallengeCommitmentRequest,
+    path = "/issued-ticketbooks-challenge-commitment",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksChallengeResponse),
+        (status = 200, body = IssuedTicketbooksChallengeCommitmentResponse),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
-async fn issued_ticketbooks_challenge(
+async fn issued_ticketbooks_challenge_commitment(
     State(state): State<Arc<EcashState>>,
-    Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
-) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
-    trace!("replying to ticketbooks challenge: {:?}", challenge);
+    Json(request): Json<IssuedTicketbooksChallengeCommitmentRequest>,
+) -> AxumResult<Json<IssuedTicketbooksChallengeCommitmentResponse>> {
     state.ensure_signer().await?;
 
     Ok(Json(
         state
-            .get_issued_ticketbooks(challenge)
+            .get_issued_ticketbooks_challenge_commitment(request)
             .await?
             .sign(state.local.identity_keypair.private_key()),
     ))
 }
 
-async fn issued_ticketbooks_challenge_paged(
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = IssuedTicketbooksDataRequest,
+    path = "/issued-ticketbooks-data",
+    context_path = "/v1/ecash",
+    responses(
+        (status = 200, body = IssuedTicketbooksDataResponse),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn issued_ticketbooks_data(
     State(state): State<Arc<EcashState>>,
-    Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
-) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
-    trace!("replying to ticketbooks challenge: {:?}", challenge);
+    Json(request): Json<IssuedTicketbooksDataRequest>,
+) -> AxumResult<Json<IssuedTicketbooksDataResponse>> {
     state.ensure_signer().await?;
 
     Ok(Json(
         state
-            .get_issued_ticketbooks(challenge)
+            .get_issued_ticketbooks_data(request)
             .await?
             .sign(state.local.identity_keypair.private_key()),
     ))

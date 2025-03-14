@@ -683,12 +683,6 @@ pub struct IssuedTicketbooksDataResponseBody {
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
-    #[schema(value_type = String)]
-    #[serde(with = "nym_serde_helpers::hex")]
-    pub merkle_root: Vec<u8>,
-
-    pub merkle_root_alt: Option<[u8; 32]>,
-
     #[schema(value_type = BTreeMap<u32, IssuedTicketbook>)]
     pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
 
@@ -696,8 +690,6 @@ pub struct IssuedTicketbooksDataResponseBody {
     // to show that we returned the same deposits as we got asked for
     // and haven't tampered with the content
     pub original_request: IssuedTicketbooksDataRequest,
-
-    pub truncated: bool,
 }
 
 impl IssuedTicketbooksDataResponseBody {

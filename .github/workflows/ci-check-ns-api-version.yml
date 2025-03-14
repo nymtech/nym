@@ -5,23 +5,19 @@ on:
     paths:
       - "nym-node-status-api/**"
 
-      # TODO dz parse Cargo.toml version
-      # TODO dz check if there is a harbor image with that tag already
-      # TODO dz if there is, return non-zero
-
 env:
   WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-api"
 
 jobs:
-  build-container:
+  check-if-tag-exists:
     runs-on: arc-ubuntu-22.04-dind
     steps:
-      - name: Login to Harbor
-        uses: docker/login-action@v3
-        with:
-          registry: harbor.nymte.ch
-          username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
-          password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+      # - name: Login to Harbor
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: harbor.nymte.ch
+      #     username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
+      #     password: ${{ secrets.HARBOR_ROBOT_SECRET }}
 
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -32,15 +28,38 @@ jobs:
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
-      - name: Check if tag exists
+      - name: Check if git tag exists
         uses: actions/checkout@v4
       - run: |
-          git ls-remote --tags origin
-          tag=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
-          if git ls-remote --tags origin | grep -q "refs/tags/$tag$" ; then
-          # git tag -l | grep -q "^$tag"; then
-              echo "Tag ${tag} ALREADY EXISTS on the remote"
-              exit 1
+          TAG=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+          if [[ -z "$TAG" ]]; then
+            echo "Tag is empty"
+            exit 1
+          fi
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$" ; then
+          # git tag -l | grep -q "^$TAG"; then
+              echo "Tag '$TAG' ALREADY EXISTS on the remote"
+              # TODO uncomment after bumping NS API version
+              # exit 1
           else
-              echo "Tag ${tag} does not exist on the remote"
+              echo "Tag '$TAG' does not exist on the remote"
+          fi
+      - name: Check if harbor tag exists
+        run: |
+          TAG=${{ steps.get_version.outputs.result }}
+          registry=https://harbor.nymte.ch
+          repo_name=nym/node-status-api
+          if [[ -z $TAG ]]; then
+            echo "Tag is empty"
+            # exit 1
+          fi
+          curl -su "${{ secrets.HARBOR_ROBOT_USERNAME }}":"${{ secrets.HARBOR_ROBOT_SECRET }}" "$registry/v2/$repo_name/tags/list" | jq
+          curl -su ${{ secrets.HARBOR_ROBOT_USERNAME }}:${{ secrets.HARBOR_ROBOT_SECRET }} "$registry/v2/$repo_name/tags/list" | jq -e --arg search $TAG '.tags | index($search)' > /dev/null
+          result=$?
+          if [ "${result}" -eq 0 ]; then
+              echo "Version '$TAG' defined in Cargo.toml already exists as tag in harbor repo"
+              # TODO uncomment after bumping NS API version
+              # exit 1
+          else
+              echo "Version '$TAG' doesn't exist on the remote"
           fi

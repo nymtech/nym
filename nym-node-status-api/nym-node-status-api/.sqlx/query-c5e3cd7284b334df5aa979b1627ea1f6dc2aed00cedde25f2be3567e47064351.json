@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            date_utc as \"date_utc!\",\n            packets_received as \"total_packets_received!: i64\",\n            packets_sent as \"total_packets_sent!: i64\",\n            packets_dropped as \"total_packets_dropped!: i64\",\n            total_stake as \"total_stake!: i64\"\n        FROM (\n            SELECT\n                date_utc,\n                SUM(packets_received) as packets_received,\n                SUM(packets_sent) as packets_sent,\n                SUM(packets_dropped) as packets_dropped,\n                SUM(total_stake) as total_stake\n            FROM mixnode_daily_stats\n            GROUP BY date_utc\n            ORDER BY date_utc DESC\n            LIMIT 30\n        )\n        GROUP BY date_utc\n        ORDER BY date_utc\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "date_utc!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_packets_received!: i64",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_packets_sent!: i64",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_packets_dropped!: i64",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_stake!: i64",
+        "ordinal": 4,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "c5e3cd7284b334df5aa979b1627ea1f6dc2aed00cedde25f2be3567e47064351"
+}

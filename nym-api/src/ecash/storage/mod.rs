@@ -61,7 +61,7 @@ pub trait EcashStorageExt {
 
     async fn get_issued_ticketbooks(
         &self,
-        deposits: Vec<DepositId>,
+        deposits: &[DepositId],
     ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError>;
 
     async fn get_credential_data(
@@ -226,14 +226,14 @@ impl EcashStorageExt for NymApiStorage {
 
     async fn get_issued_ticketbooks(
         &self,
-        deposits: Vec<DepositId>,
+        deposits: &[DepositId],
     ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError> {
         let raw = self.manager.get_issued_ticketbooks(&deposits).await?;
         if raw.len() != deposits.len() {
             warn!("failed to get ticketbooks for all requested deposits. requested {} but only got {}", raw.len(), deposits.len());
             let available: HashSet<_> = raw.iter().map(|t| t.deposit_id).collect();
             let mut missing = Vec::new();
-            for requested in deposits {
+            for &requested in deposits {
                 if !available.contains(&requested) {
                     warn!("the storage is missing ticketbook for deposit {requested}");
                     missing.push(requested);

@@ -288,18 +288,7 @@ impl IssuerUnderTest {
                 }
             }
 
-            // 4. make sure the returned merkle root matches the original commitment
-            if &merkle_root != data_response.body.merkle_root.as_slice() {
-                let evidence = self.produce_cheating_evidence(SignedMismatchClaim {
-                    actual: data_response.body.merkle_root.to_vec(),
-                    claimed: merkle_root.to_vec(),
-                    signed_response: data_response,
-                });
-                self.set_banned_issuer("inconsistent merkle root", evidence);
-                return;
-            }
-
-            // 5. append results to the total
+            // 4. append results to the total
             self.ticketbook_data_responses.push(data_response);
         }
     }

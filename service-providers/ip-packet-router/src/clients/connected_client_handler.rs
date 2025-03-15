@@ -10,7 +10,9 @@ use nym_ip_packet_requests::{
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
-use nym_sdk::mixnet::{BytesToInputMessage, InputMessage, MixnetClientSender, MixnetMessageSink};
+use nym_sdk::mixnet::{
+    InputMessage, MixnetClientSender, MixnetMessageSink, MixnetMessageSinkTranslator,
+};
 use tokio::{
     sync::{mpsc, oneshot},
     time::interval,
@@ -172,7 +174,7 @@ struct MapBytesToInputMessage {
     client_version: ClientVersion,
 }
 
-impl BytesToInputMessage for MapBytesToInputMessage {
+impl MixnetMessageSinkTranslator for MapBytesToInputMessage {
     fn to_input_message(
         &self,
         bytes: bytes::Bytes,

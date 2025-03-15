@@ -22,7 +22,7 @@ const SINK_BUFFER_SIZE_IN_MESSAGES: usize = 8;
 
 // Traits that represents the ability to convert bytes into InputMessages that can be sent to the
 // mixnet. This is typically used to set the destination and other sending parameters.
-pub trait BytesToInputMessage: Unpin {
+pub trait MixnetMessageSinkTranslator: Unpin {
     fn to_input_message(&self, bytes: bytes::Bytes) -> Result<InputMessage, Error>;
 }
 
@@ -31,7 +31,7 @@ pub trait BytesToInputMessage: Unpin {
 // to InputMessages, which typically means setting the destination and other sending parameters.
 pub struct MixnetMessageSink<F>
 where
-    F: BytesToInputMessage,
+    F: MixnetMessageSinkTranslator,
 {
     packet_translator: F,
 
@@ -41,7 +41,7 @@ where
 
 impl<F> MixnetMessageSink<F>
 where
-    F: BytesToInputMessage,
+    F: MixnetMessageSinkTranslator,
 {
     pub fn new<Sender>(mixnet_client_sender: Sender, packet_translator: F) -> Self
     where
@@ -78,7 +78,7 @@ where
 
 impl<F> Drop for MixnetMessageSink<F>
 where
-    F: BytesToInputMessage,
+    F: MixnetMessageSinkTranslator,
 {
     fn drop(&mut self) {
         self.send_task.abort();
@@ -87,7 +87,7 @@ where
 
 impl<F> AsyncWrite for MixnetMessageSink<F>
 where
-    F: BytesToInputMessage,
+    F: MixnetMessageSinkTranslator,
 {
     fn poll_write(
         mut self: Pin<&mut Self>,

@@ -86,6 +86,6 @@ pub use nym_statistics_common::clients::{
 pub use nym_task::connections::TransmissionLane;
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::StoragePaths;
-pub use sink::{BytesToInputMessage, MixnetMessageSink};
+pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
 pub use socks5_client::Socks5MixnetClient;
 pub use traits::MixnetMessageSender;

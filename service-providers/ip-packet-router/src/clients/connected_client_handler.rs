@@ -1,30 +1,21 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-    time::Duration,
-};
+use std::time::Duration;
 
-use bytes::{Bytes, BytesMut};
-use futures::{ready, SinkExt};
+use bytes::Bytes;
+use futures::SinkExt;
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec, v6::response::IpPacketResponse as IpPacketResponseV6,
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
-use nym_sdk::mixnet::{
-    BytesToInputMessage, InputMessage, MixnetMessageSink, MixnetClientSender,
-    MixnetMessageSender,
-};
+use nym_sdk::mixnet::{BytesToInputMessage, InputMessage, MixnetClientSender, MixnetMessageSink};
 use tokio::{
-    io::AsyncWrite,
     sync::{mpsc, oneshot},
-    task::JoinHandle,
     time::interval,
 };
-use tokio_util::{codec::FramedWrite, sync::PollSender};
+use tokio_util::codec::FramedWrite;
 
 use crate::{
     clients::ConnectedClientId,
@@ -58,23 +49,8 @@ pub(crate) struct ConnectedClientHandler {
     // The sender to the mixnet. It's a framed writer that bundles IP packets together to fill out
     // the sphinx packet payload before sending.
     mixnet_ip_packet_sender:
-        FramedWrite<MixnetMessageSink<BytesToInputMessageImpl>, MultiIpPacketCodec>,
+        FramedWrite<MixnetMessageSink<MapBytesToInputMessage>, MultiIpPacketCodec>,
 }
-
-//pub fn packet_translator(
-//    reply_to: &ConnectedClientId,
-//    client_version: ClientVersion,
-//    packet: Bytes,
-//) -> Result<InputMessage> {
-//    // Create a IPR packet response that the recipient can understand
-//    let response_packet = create_ip_packet_response(packet, client_version)?;
-//
-//    // Wrap the response packet in a mixnet input message
-//    Ok(crate::util::create_message::create_input_message(
-//        reply_to,
-//        response_packet,
-//    ))
-//}
 
 impl ConnectedClientHandler {
     pub(crate) fn start(
@@ -99,20 +75,17 @@ impl ConnectedClientHandler {
         let mut payload_topup_interval = interval(buffer_timeout);
         payload_topup_interval.reset();
 
-        let bytes_to_input_message = BytesToInputMessageImpl {
+        // All packes are sent to the same client, using the same version.
+        let bytes_to_input_message = MapBytesToInputMessage {
             send_to: client_id.clone(),
             client_version,
         };
 
-        let mixnet_client_sender_writer = MixnetMessageSink::new(
-            mixnet_client_sender,
-            // client_id.clone(),
-            // client_version,
-            bytes_to_input_message,
-        );
+        let mixnet_client_sink =
+            MixnetMessageSink::new(mixnet_client_sender, bytes_to_input_message);
 
         let encoder = MultiIpPacketCodec::new();
-        let framed_writer = FramedWrite::new(mixnet_client_sender_writer, encoder);
+        let framed_writer = FramedWrite::new(mixnet_client_sink, encoder);
 
         let connected_client_handler = ConnectedClientHandler {
             sent_by: client_id,
@@ -183,15 +156,6 @@ impl ConnectedClientHandler {
     }
 }
 
-//fn create_ip_packet_response(packets: Bytes, client_version: ClientVersion) -> Result<Vec<u8>> {
-//    match client_version {
-//        ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
-//        ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
-//        ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
-//    }
-//    .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
-//}
-
 fn create_ip_packet_response(
     packets: Bytes,
     client_version: ClientVersion,
@@ -201,15 +165,14 @@ fn create_ip_packet_response(
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
     }
-    // .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
 }
 
-struct BytesToInputMessageImpl {
+struct MapBytesToInputMessage {
     send_to: ConnectedClientId,
     client_version: ClientVersion,
 }
 
-impl BytesToInputMessage for BytesToInputMessageImpl {
+impl BytesToInputMessage for MapBytesToInputMessage {
     fn to_input_message(
         &self,
         bytes: bytes::Bytes,
@@ -229,11 +192,11 @@ impl BytesToInputMessage for BytesToInputMessageImpl {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use super::*;
-
     use async_trait::async_trait;
-    use nym_sdk::mixnet::AnonymousSenderTag;
+    use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender};
     use tokio::sync::Notify;
+
+    use super::*;
 
     #[derive(Clone)]
     struct MockMixnetClientSender {
@@ -284,7 +247,7 @@ mod tests {
         let client_id = ConnectedClientId::AnonymousSenderTag(sender_tag);
         let client_version = ClientVersion::V8;
 
-        let bytes_to_input_message = BytesToInputMessageImpl {
+        let bytes_to_input_message = MapBytesToInputMessage {
             send_to: client_id.clone(),
             client_version,
         };

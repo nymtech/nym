@@ -16,6 +16,10 @@ use crate::Error;
 
 use super::MixnetMessageSender;
 
+// The size of the buffer used to send messages to the mixnet. This is used to signal backpressure
+// to the caller when the buffer is full. The size is denominated in number of messages, not bytes.
+const SINK_BUFFER_SIZE_IN_MESSAGES: usize = 8;
+
 // Traits that represents the ability to convert bytes into InputMessages that can be sent to the
 // mixnet. This is typically used to set the destination and other sending parameters.
 pub trait BytesToInputMessage: Unpin {
@@ -43,8 +47,22 @@ where
     where
         Sender: MixnetMessageSender + Send + 'static,
     {
-        // We keep the buffer size relatively small to signal backpressure early
-        let (tx, mut rx) = mpsc::channel(8);
+        let (tx, send_task) = Self::start_sender_task(mixnet_client_sender);
+
+        MixnetMessageSink {
+            packet_translator,
+            tx: PollSender::new(tx),
+            send_task,
+        }
+    }
+
+    fn start_sender_task<Sender>(
+        mixnet_client_sender: Sender,
+    ) -> (mpsc::Sender<InputMessage>, JoinHandle<()>)
+    where
+        Sender: MixnetMessageSender + Send + 'static,
+    {
+        let (tx, mut rx) = mpsc::channel(SINK_BUFFER_SIZE_IN_MESSAGES);
 
         let send_task = tokio::spawn(async move {
             while let Some(input_message) = rx.recv().await {
@@ -54,11 +72,7 @@ where
             }
         });
 
-        MixnetMessageSink {
-            packet_translator,
-            tx: PollSender::new(tx),
-            send_task,
-        }
+        (tx, send_task)
     }
 }
 

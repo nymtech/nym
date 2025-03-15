@@ -22,7 +22,7 @@ const SINK_BUFFER_SIZE_IN_MESSAGES: usize = 8;
 /// Traits that represents the ability to convert bytes into InputMessages that can be sent to the
 /// mixnet. This is typically used to set the destination and other sending parameters.
 pub trait MixnetMessageSinkTranslator: Unpin {
-    fn to_input_message(&self, payload: &[u8]) -> Result<InputMessage, Error>;
+    fn to_input_message(&self, bytes: &[u8]) -> Result<InputMessage, Error>;
 }
 
 /// Wrapper around MixnetMessageSender that implements AsyncWrite and takes bytes and sends them as

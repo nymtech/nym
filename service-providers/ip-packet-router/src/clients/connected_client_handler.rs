@@ -50,7 +50,7 @@ pub(crate) struct ConnectedClientHandler {
 
     // The sender to the mixnet. It's a framed writer that bundles IP packets together to fill out
     // the sphinx packet payload before sending.
-    mixnet_ip_packet_sender:
+    mixnet_ip_packet_sink:
         FramedWrite<MixnetMessageSink<MapBytesToInputMessage>, MultiIpPacketCodec>,
 }
 
@@ -77,17 +77,19 @@ impl ConnectedClientHandler {
         let mut payload_topup_interval = interval(buffer_timeout);
         payload_topup_interval.reset();
 
-        // All packes are sent to the same client, using the same version.
-        let bytes_to_input_message = MapBytesToInputMessage {
-            send_to: client_id.clone(),
-            client_version,
-        };
+        // The mixnet sink takes bytes, create IPR response types that the recipient can
+        // understand, and sends them as InputMessages to the mixnet.
+        let mixnet_client_sink = MixnetMessageSink::new(
+            mixnet_client_sender,
+            MapBytesToInputMessage {
+                send_to: client_id.clone(),
+                client_version,
+            },
+        );
 
-        let mixnet_client_sink =
-            MixnetMessageSink::new(mixnet_client_sender, bytes_to_input_message);
-
-        let encoder = MultiIpPacketCodec::new();
-        let framed_writer = FramedWrite::new(mixnet_client_sink, encoder);
+        // The mixnet ip packet sink takes IP packets, bundles them together, and sends them to the
+        // mixnet client sink
+        let mixnet_ip_packet_sink = FramedWrite::new(mixnet_client_sink, MultiIpPacketCodec::new());
 
         let connected_client_handler = ConnectedClientHandler {
             sent_by: client_id,
@@ -95,7 +97,7 @@ impl ConnectedClientHandler {
             close_rx,
             activity_timeout,
             payload_topup_interval,
-            mixnet_ip_packet_sender: framed_writer,
+            mixnet_ip_packet_sink,
         };
 
         let handle = tokio::spawn(async move {
@@ -111,7 +113,7 @@ impl ConnectedClientHandler {
         self.activity_timeout.reset();
         self.payload_topup_interval.reset();
 
-        self.mixnet_ip_packet_sender
+        self.mixnet_ip_packet_sink
             .send(Bytes::from(packet))
             .await
             .map_err(|source| IpPacketRouterError::FailedToEncodeMixnetMessage { source })
@@ -176,9 +178,12 @@ struct MapBytesToInputMessage {
 }
 
 impl MixnetMessageSinkTranslator for MapBytesToInputMessage {
-    fn to_input_message(&self, bytes: &[u8]) -> std::result::Result<InputMessage, nym_sdk::Error> {
+    fn to_input_message(
+        &self,
+        bundled_ip_packets: &[u8],
+    ) -> std::result::Result<InputMessage, nym_sdk::Error> {
         // Create a IPR packet response that the recipient can understand
-        let response_packet = create_ip_packet_response(bytes, self.client_version)?;
+        let response_packet = create_ip_packet_response(bundled_ip_packets, self.client_version)?;
 
         // Wrap the response packet in a mixnet input message
         Ok(crate::util::create_message::create_input_message(

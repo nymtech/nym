@@ -6,7 +6,6 @@ use std::{
     task::{Context, Poll},
 };
 
-use bytes::BytesMut;
 use futures::{ready, SinkExt};
 use nym_client_core::client::inbound_messages::InputMessage;
 use tokio::{io::AsyncWrite, sync::mpsc, task::JoinHandle};
@@ -20,22 +19,26 @@ use super::MixnetMessageSender;
 // to the caller when the buffer is full. The size is denominated in number of messages, not bytes.
 const SINK_BUFFER_SIZE_IN_MESSAGES: usize = 8;
 
-// Traits that represents the ability to convert bytes into InputMessages that can be sent to the
-// mixnet. This is typically used to set the destination and other sending parameters.
+/// Traits that represents the ability to convert bytes into InputMessages that can be sent to the
+/// mixnet. This is typically used to set the destination and other sending parameters.
 pub trait MixnetMessageSinkTranslator: Unpin {
-    fn to_input_message(&self, bytes: bytes::Bytes) -> Result<InputMessage, Error>;
+    fn to_input_message(&self, payload: &[u8]) -> Result<InputMessage, Error>;
 }
 
-// Wrapper around MixnetMessageSender that implements AsyncWrite and takes bytes and sends them as
-// InputMessages to the mixnet. This requires a BytesToInputMessage implementation to convert bytes
-// to InputMessages, which typically means setting the destination and other sending parameters.
+/// Wrapper around MixnetMessageSender that implements AsyncWrite and takes bytes and sends them as
+/// InputMessages to the mixnet. This requires a BytesToInputMessage implementation to convert bytes
+/// to InputMessages, which typically means setting the destination and other sending parameters.
 pub struct MixnetMessageSink<F>
 where
     F: MixnetMessageSinkTranslator,
 {
-    packet_translator: F,
+    // The function that converts bytes into InputMessages
+    message_translator: F,
 
+    // Send messages to the mixnet sender task
     tx: PollSender<InputMessage>,
+
+    // The handle for the mixnet sender task
     send_task: JoinHandle<()>,
 }
 
@@ -43,15 +46,20 @@ impl<F> MixnetMessageSink<F>
 where
     F: MixnetMessageSinkTranslator,
 {
-    pub fn new<Sender>(mixnet_client_sender: Sender, packet_translator: F) -> Self
+    pub fn new<Sender>(mixnet_client_sender: Sender, message_translator: F) -> Self
     where
         Sender: MixnetMessageSender + Send + 'static,
     {
+        // Create a separate task to send messages to the mixnet. This is driven mostly by the
+        // implementation of AsyncWrite.
         let (tx, send_task) = Self::start_sender_task(mixnet_client_sender);
 
+        // Wrap the sender in PollSener to make the AsyncWrite implementation more ergonomic
+        let tx = PollSender::new(tx);
+
         MixnetMessageSink {
-            packet_translator,
-            tx: PollSender::new(tx),
+            message_translator,
+            tx,
             send_task,
         }
     }
@@ -98,10 +106,9 @@ where
             std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
         })?;
 
-        let packet = BytesMut::from(buf).freeze();
         let input_message = self
-            .packet_translator
-            .to_input_message(packet)
+            .message_translator
+            .to_input_message(buf)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
         // Pass it to the mixnet sender

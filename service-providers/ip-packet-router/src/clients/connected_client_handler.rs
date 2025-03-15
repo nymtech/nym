@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures::SinkExt;
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec, v6::response::IpPacketResponse as IpPacketResponseV6,
@@ -159,9 +159,10 @@ impl ConnectedClientHandler {
 }
 
 fn create_ip_packet_response(
-    packets: Bytes,
+    packets: &[u8],
     client_version: ClientVersion,
 ) -> std::result::Result<Vec<u8>, bincode::Error> {
+    let packets = BytesMut::from(packets).freeze();
     match client_version {
         ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
@@ -175,10 +176,7 @@ struct MapBytesToInputMessage {
 }
 
 impl MixnetMessageSinkTranslator for MapBytesToInputMessage {
-    fn to_input_message(
-        &self,
-        bytes: bytes::Bytes,
-    ) -> std::result::Result<InputMessage, nym_sdk::Error> {
+    fn to_input_message(&self, bytes: &[u8]) -> std::result::Result<InputMessage, nym_sdk::Error> {
         // Create a IPR packet response that the recipient can understand
         let response_packet = create_ip_packet_response(bytes, self.client_version)?;
 

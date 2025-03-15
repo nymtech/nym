@@ -14,7 +14,10 @@ use nym_ip_packet_requests::{
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
-use nym_sdk::mixnet::{InputMessage, MixnetClientSender, MixnetMessageSender};
+use nym_sdk::mixnet::{
+    BytesToInputMessage, InputMessage, MixnetMessageSink, MixnetClientSender,
+    MixnetMessageSender,
+};
 use tokio::{
     io::AsyncWrite,
     sync::{mpsc, oneshot},
@@ -54,10 +57,8 @@ pub(crate) struct ConnectedClientHandler {
 
     // The sender to the mixnet. It's a framed writer that bundles IP packets together to fill out
     // the sphinx packet payload before sending.
-    mixnet_ip_packet_sender: FramedWrite<
-        traits::MixnetClientIpPacketSender<BytesToInputMessageImpl>,
-        MultiIpPacketCodec,
-    >,
+    mixnet_ip_packet_sender:
+        FramedWrite<MixnetMessageSink<BytesToInputMessageImpl>, MultiIpPacketCodec>,
 }
 
 //pub fn packet_translator(
@@ -103,7 +104,7 @@ impl ConnectedClientHandler {
             client_version,
         };
 
-        let mixnet_client_sender_writer = traits::MixnetClientIpPacketSender::new(
+        let mixnet_client_sender_writer = MixnetMessageSink::new(
             mixnet_client_sender,
             // client_id.clone(),
             // client_version,
@@ -208,7 +209,7 @@ struct BytesToInputMessageImpl {
     client_version: ClientVersion,
 }
 
-impl traits::BytesToInputMessage for BytesToInputMessageImpl {
+impl BytesToInputMessage for BytesToInputMessageImpl {
     fn to_input_message(
         &self,
         bytes: bytes::Bytes,
@@ -221,119 +222,6 @@ impl traits::BytesToInputMessage for BytesToInputMessageImpl {
             &self.send_to,
             response_packet,
         ))
-    }
-}
-
-mod traits {
-    use std::{
-        pin::Pin,
-        task::{Context, Poll},
-    };
-
-    use bytes::BytesMut;
-    use futures::{ready, SinkExt};
-    use nym_sdk::mixnet::{InputMessage, MixnetMessageSender};
-    use tokio::{io::AsyncWrite, sync::mpsc, task::JoinHandle};
-    use tokio_util::sync::PollSender;
-
-    // Wrapper around the mixnet sender that takes bundled IP packet payloads, wraps them in a
-    // IPR IP packet response, and sends them to the mixnet.
-    //
-    // It is used together with the `FramedWrite` to bundle IP packets together to fill out the
-    // sphinx
-    pub struct MixnetClientIpPacketSender<F>
-    where
-        F: BytesToInputMessage,
-    {
-        packet_translator: F,
-
-        tx: PollSender<InputMessage>,
-        send_task: JoinHandle<()>,
-    }
-
-    pub trait BytesToInputMessage: Unpin {
-        fn to_input_message(&self, bytes: bytes::Bytes) -> Result<InputMessage, nym_sdk::Error>;
-    }
-
-    impl<F> MixnetClientIpPacketSender<F>
-    where
-        F: BytesToInputMessage,
-    {
-        pub fn new<Sender>(mixnet_client_sender: Sender, packet_translator: F) -> Self
-        where
-            Sender: MixnetMessageSender + Send + 'static,
-        {
-            // We keep the buffer size relatively small to signal backpressure early
-            let (tx, mut rx) = mpsc::channel(8);
-
-            let send_task = tokio::spawn(async move {
-                while let Some(input_message) = rx.recv().await {
-                    if let Err(err) = mixnet_client_sender.send(input_message).await {
-                        log::error!("failed to send packet to mixnet: {err}");
-                    }
-                }
-            });
-
-            MixnetClientIpPacketSender {
-                packet_translator,
-                tx: PollSender::new(tx),
-                send_task,
-            }
-        }
-    }
-
-    impl<F> Drop for MixnetClientIpPacketSender<F>
-    where
-        F: BytesToInputMessage,
-    {
-        fn drop(&mut self) {
-            self.send_task.abort();
-        }
-    }
-
-    impl<F> AsyncWrite for MixnetClientIpPacketSender<F>
-    where
-        F: BytesToInputMessage,
-    {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<std::result::Result<usize, std::io::Error>> {
-            ready!(self.tx.poll_ready_unpin(cx)).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
-            })?;
-
-            let packet = BytesMut::from(buf).freeze();
-            let input_message = self
-                .packet_translator
-                .to_input_message(packet)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-            // Pass it to the mixnet sender
-            self.tx.start_send_unpin(input_message).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
-            })?;
-
-            Poll::Ready(Ok(buf.len()))
-        }
-
-        fn poll_flush(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context,
-        ) -> Poll<std::result::Result<(), std::io::Error>> {
-            ready!(self.tx.poll_flush_unpin(cx)).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
-            })?;
-            Poll::Ready(Ok(()))
-        }
-
-        fn poll_shutdown(
-            self: Pin<&mut Self>,
-            cx: &mut Context,
-        ) -> Poll<std::result::Result<(), std::io::Error>> {
-            self.poll_flush(cx)
-        }
     }
 }
 
@@ -401,10 +289,8 @@ mod tests {
             client_version,
         };
 
-        let mixnet_ip_packet_sender = traits::MixnetClientIpPacketSender::new(
-            mixnet_client_sender.clone(),
-            bytes_to_input_message,
-        );
+        let mixnet_ip_packet_sender =
+            MixnetMessageSink::new(mixnet_client_sender.clone(), bytes_to_input_message);
 
         let mut ip_packet_sender =
             FramedWrite::new(mixnet_ip_packet_sender, MultiIpPacketCodec::new());

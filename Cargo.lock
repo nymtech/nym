@@ -1223,7 +1223,7 @@ dependencies = [
  "crossbeam-utils",
  "futures",
  "hdrhistogram",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "prost-types 0.11.9",
  "serde",
  "serde_json",
@@ -2355,7 +2355,7 @@ dependencies = [
  "anstream",
  "anstyle",
  "env_filter",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "log",
 ]
 
@@ -3374,9 +3374,9 @@ dependencies = [
 
 [[package]]
 name = "humantime"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+checksum = "9b112acc8b3adf4b107a8ec20977da0273a8c386765a3ec0229bd500a1443f9f"
 
 [[package]]
 name = "humantime-serde"
@@ -3384,7 +3384,7 @@ version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57a3db5ea5923d99402c94e9feb261dc5ee9b4efa158b0315f788cf549cc200c"
 dependencies = [
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "serde",
 ]
 
@@ -5412,7 +5412,7 @@ dependencies = [
  "colored",
  "dotenvy",
  "futures",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "nym-bin-common",
  "nym-compact-ecash",
  "nym-config",
@@ -6303,7 +6303,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "celes",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
@@ -7051,7 +7051,7 @@ dependencies = [
  "clap",
  "cosmwasm-std",
  "futures",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "humantime-serde",
  "nym-bin-common",
  "nym-coconut-bandwidth-contract-common",
@@ -7090,7 +7090,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "futures",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "nym-crypto",
  "nym-task",
  "nym-validator-client",
@@ -7215,7 +7215,7 @@ dependencies = [
  "flate2",
  "futures",
  "hex",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "humantime-serde",
  "nix 0.27.1",
  "nym-async-file-watcher",
@@ -7274,7 +7274,7 @@ dependencies = [
  "cosmrs 0.21.1",
  "eyre",
  "futures",
- "humantime 2.1.0",
+ "humantime 2.2.0",
  "serde",
  "sha2 0.10.8",
  "sqlx",

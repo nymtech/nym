@@ -49,6 +49,8 @@ impl Config {
 // - replies to "give additional surbs" requests
 // - will reply to future heartbeats
 
+pub type MaxRetransmissions = Option<u32>;
+
 // TODO: this should be split into ingress and egress controllers
 // because currently its trying to perform two distinct jobs
 pub struct ReplyController<R> {
@@ -59,7 +61,8 @@ pub struct ReplyController<R> {
     // of surbs required to send the message through
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, TransmissionBuffer<Fragment>>,
+    pending_replies:
+        HashMap<AnonymousSenderTag, TransmissionBuffer<(Fragment, MaxRetransmissions)>>,
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
@@ -96,7 +99,7 @@ where
         }
     }
 
-    fn insert_pending_replies<I: IntoIterator<Item = Fragment>>(
+    fn insert_pending_replies<I: IntoIterator<Item = (Fragment, MaxRetransmissions)>>(
         &mut self,
         recipient: &AnonymousSenderTag,
         fragments: I,
@@ -112,7 +115,7 @@ where
     fn re_insert_pending_replies(
         &mut self,
         recipient: &AnonymousSenderTag,
-        fragments: Vec<(TransmissionLane, Fragment)>,
+        fragments: Vec<(TransmissionLane, (Fragment, MaxRetransmissions))>,
     ) {
         trace!("re-inserting pending replies for {recipient}");
         // the buffer should ALWAYS exist at this point, if it doesn't, it's a bug...
@@ -205,6 +208,7 @@ where
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     ) {
         if !self
             .full_reply_storage
@@ -242,7 +246,11 @@ where
                 .get_reply_surbs(&recipient_tag, max_to_send);
 
             if let Some(reply_surbs) = surbs {
-                let to_send = fragments.drain(..max_to_send).collect::<Vec<_>>();
+                let to_send = fragments
+                    .drain(..max_to_send)
+                    .map(|f| (f, max_retransmissions))
+                    .collect::<Vec<_>>();
+
                 if let Err(err) = self
                     .message_handler
                     .try_send_reply_chunks_on_lane(
@@ -276,6 +284,10 @@ where
                 "buffering {no_fragments} fragments for {recipient_tag}",
                 no_fragments = fragments.len()
             );
+            let fragments: Vec<_> = fragments
+                .into_iter()
+                .map(|f| (f, max_retransmissions))
+                .collect();
             self.insert_pending_replies(&recipient_tag, fragments, lane);
         }
 
@@ -409,7 +421,7 @@ where
         &mut self,
         from: &AnonymousSenderTag,
         amount: usize,
-    ) -> Option<Vec<(TransmissionLane, Fragment)>> {
+    ) -> Option<Vec<(TransmissionLane, (Fragment, MaxRetransmissions))>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
         let total = self.pending_replies.get(from)?.total_size();
         trace!("pending queue has {total} elements");
@@ -689,7 +701,11 @@ where
                 recipient,
                 message,
                 lane,
-            } => self.handle_send_reply(recipient, message, lane).await,
+                max_retransmissions,
+            } => {
+                self.handle_send_reply(recipient, message, lane, max_retransmissions)
+                    .await
+            }
             ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,

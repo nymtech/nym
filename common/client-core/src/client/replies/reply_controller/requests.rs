@@ -66,12 +66,14 @@ impl ReplyControllerSender {
         recipient: AnonymousSenderTag,
         message: Vec<u8>,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     ) -> Result<(), ReplyControllerSenderError> {
         self.0
             .unbounded_send(ReplyControllerMessage::SendReply {
                 recipient,
                 message,
                 lane,
+                max_retransmissions,
             })
             .map_err(ReplyControllerSenderError::SendReply)
     }
@@ -160,6 +162,7 @@ pub enum ReplyControllerMessage {
         recipient: AnonymousSenderTag,
         message: Vec<u8>,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     },
 
     AdditionalSurbs {

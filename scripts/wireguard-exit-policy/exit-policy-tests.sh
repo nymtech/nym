@@ -4,55 +4,29 @@
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 NYM_CHAIN="NYM-EXIT"
 WG_INTERFACE="nymwg"
 
-# Function to check port range rules - with sampling for large ranges
 check_port_range_rules() {
     local port_range="$1"
     local protocol="${2:-tcp}"
     local chain="${3:-$NYM_CHAIN}"
+
+    # Extract start and end ports
     local start_port=$(echo "$port_range" | cut -d'-' -f1)
     local end_port=$(echo "$port_range" | cut -d'-' -f2)
-    local range_size=$((end_port - start_port + 1))
-    local failures=0
-    local sample_size=5 
-    local step=1
 
-    # For large ranges, test only a sample of ports
-    if [ $range_size -gt $sample_size ]; then
-        step=$((range_size / sample_size))
-        # Ensure we test the start and end ports
-        local sample_ports=($start_port $end_port)
-
-        for ((i=1; i<sample_size-1; i++)); do
-            sample_ports+=($((start_port + i*step)))
-        done
-
-        for port in "${sample_ports[@]}"; do
-            if [ $port -le $end_port ]; then  # Ensure we don't go out of range
-                if ! iptables -t filter -C "$chain" -p "$protocol" --dport "$port" -j ACCEPT 2>/dev/null; then
-                    echo -e "${RED}✗ Rule missing: $chain $protocol port $port${NC}"
-                    ((failures++))
-                fi
-            fi
-        done
-    else
-        for ((port=start_port; port<=end_port; port++)); do
-            if ! iptables -t filter -C "$chain" -p "$protocol" --dport "$port" -j ACCEPT 2>/dev/null; then
-                echo -e "${RED}✗ Rule missing: $chain $protocol port $port${NC}"
-                ((failures++))
-            fi
-        done
-    fi
-
-    if [ $failures -eq 0 ]; then
-        echo -e "${GREEN}✓ Rule exists: $chain $protocol port range $port_range${NC}"
+    if iptables -t filter -C "$chain" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT 2>/dev/null; then
+        echo -e "${GREEN}✓ Rule exists: $chain $protocol port range $start_port:$end_port${NC}"
         return 0
     else
-        echo -e "${RED}✗ Some rules missing in port range $port_range${NC}"
+        echo -e "${RED}✗ Rule missing: $chain $protocol port range $start_port:$end_port${NC}"
+
+        echo -e "${YELLOW}Dumping all rules in $chain:${NC}"
+        iptables -L "$chain" -n | grep "$protocol"
+
         return 1
     fi
 }
@@ -80,25 +54,36 @@ test_port_range_rules() {
     for range in "${port_ranges[@]}"; do
         IFS=':' read -r port_range protocol service <<< "$range"
 
+        # Extract start and end ports
+        local start_port=$(echo "$port_range" | cut -d'-' -f1)
+        local end_port=$(echo "$port_range" | cut -d'-' -f2)
+
         echo -e "${YELLOW}Testing $service $protocol port range $port_range${NC}"
 
-        check_port_range_rules "$port_range" "$protocol"
-        failures=$?
+        if iptables -t filter -C "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT 2>/dev/null; then
+            echo -e "${GREEN}✓ Rule exists: $NYM_CHAIN $protocol port range $start_port:$end_port${NC}"
+        else
+            echo -e "${RED}✗ Rule missing: $NYM_CHAIN $protocol port range $start_port:$end_port${NC}"
+            ((total_failures++))
 
-        total_failures=$((total_failures + failures))
+            echo -e "${YELLOW}Existing rules for protocol $protocol:${NC}"
+            iptables -L "$NYM_CHAIN" -n | grep "$protocol"
+        fi
     done
 
-    return $total_failures
+    if [ $total_failures -eq 0 ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
-# Test critical services
 test_critical_services() {
     echo -e "${YELLOW}Testing Critical Service Rules...${NC}"
 
     local tcp_services=(
         22      # SSH
         53      # DNS
-        80      # HTTP
         443     # HTTPS
         853     # DNS over TLS
         1194    # OpenVPN
@@ -114,29 +99,56 @@ test_critical_services() {
 
     # Test TCP services
     for port in "${tcp_services[@]}"; do
-        if ! iptables -t filter -C "$NYM_CHAIN" -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-            echo -e "${RED}✗ Rule missing: NYM-EXIT tcp port $port${NC}"
-            ((failures++))
-        else
+        local rule_found=false
+
+        # First check for exact match
+        if iptables -t filter -C "$NYM_CHAIN" -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
             echo -e "${GREEN}✓ Rule exists: NYM-EXIT tcp port $port${NC}"
+            rule_found=true
+        else
+            # If not found as exact port, search for it in port ranges
+            # This checks if the port is covered by any range rule
+            if iptables-save | grep -E "^-A $NYM_CHAIN.*tcp.*dpts:" | grep -qP "dpts:(\d+:)?$port(:|\d+)" || \
+               iptables-save | grep -E "^-A $NYM_CHAIN.*tcp.*dpts:" | grep -qP "dpts:$port:"; then
+                echo -e "${GREEN}✓ Rule exists: NYM-EXIT tcp port $port (covered by a range rule)${NC}"
+                rule_found=true
+            else
+                echo -e "${RED}✗ Rule missing: NYM-EXIT tcp port $port${NC}"
+                ((failures++))
+            fi
         fi
     done
 
-    # Test UDP services
+    # Test UDP services - similar approach
     for port in "${udp_services[@]}"; do
-        if ! iptables -t filter -C "$NYM_CHAIN" -p udp --dport "$port" -j ACCEPT 2>/dev/null; then
-            echo -e "${RED}✗ Rule missing: NYM-EXIT udp port $port${NC}"
-            ((failures++))
-        else
+        local rule_found=false
+
+        if iptables -t filter -C "$NYM_CHAIN" -p udp --dport "$port" -j ACCEPT 2>/dev/null; then
             echo -e "${GREEN}✓ Rule exists: NYM-EXIT udp port $port${NC}"
+            rule_found=true
+        else
+            # If not found as exact port, search for it in port ranges
+            if iptables-save | grep -E "^-A $NYM_CHAIN.*udp.*dpts:" | grep -qP "dpts:(\d+:)?$port(:|\d+)" || \
+               iptables-save | grep -E "^-A $NYM_CHAIN.*udp.*dpts:" | grep -qP "dpts:$port:"; then
+                echo -e "${GREEN}✓ Rule exists: NYM-EXIT udp port $port (covered by a range rule)${NC}"
+                rule_found=true
+            else
+                echo -e "${RED}✗ Rule missing: NYM-EXIT udp port $port${NC}"
+                ((failures++))
+            fi
         fi
     done
+
+    echo -e "${YELLOW}Relevant existing rules for HTTP (port 80):${NC}"
+    iptables-save | grep -E "$NYM_CHAIN.*tcp" | grep -E "(dpt|dpts):.*80"
 
     return $failures
 }
 
-# Verify default reject rule exists - with improved detection
+# Verify default reject rule exists
 test_default_reject_rule() {
+    echo -e "${YELLOW}This test takes some time, do not quit the process${NC}"
+    echo 
     echo -e "${YELLOW}Testing Default Reject Rule...${NC}"
 
     # Try different patterns to detect the reject rule

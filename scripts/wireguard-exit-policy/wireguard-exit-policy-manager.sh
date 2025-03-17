@@ -24,7 +24,7 @@ EXIT_POLICY_LOCATION="https://nymtech.net/.wellknown/network-requester/exit-poli
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 add_port_rules() {
     local chain="$1"
@@ -37,7 +37,6 @@ add_port_rules() {
         local start_port=$(echo "$port" | cut -d'-' -f1)
         local end_port=$(echo "$port" | cut -d'-' -f2)
 
-        # Add as a single rule with a port range
         if ! $chain -C "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT 2>/dev/null; then
             $chain -A "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT
             echo -e "  ${GREEN}Added: $NYM_CHAIN $protocol port range $start_port:$end_port${NC}"
@@ -266,23 +265,23 @@ EOF
 
 add_default_reject_rule() {
     echo -e "${YELLOW}Adding default reject rule...${NC}"
-    
+
     # First remove any existing plain reject rules (without specific destinations)
     iptables -D "$NYM_CHAIN" -j REJECT 2>/dev/null || true
     iptables -D "$NYM_CHAIN" -j REJECT --reject-with icmp-port-unreachable 2>/dev/null || true
     ip6tables -D "$NYM_CHAIN" -j REJECT 2>/dev/null || true
     ip6tables -D "$NYM_CHAIN" -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null || true
-    
+
     # Add the default catch-all reject rule (must be the last rule in the chain)
     iptables -A "$NYM_CHAIN" -j REJECT --reject-with icmp-port-unreachable
     ip6tables -A "$NYM_CHAIN" -j REJECT --reject-with icmp6-port-unreachable
-    
+
     echo -e "${GREEN}Default reject rule added successfully.${NC}"
 }
 
 apply_port_allowlist() {
     echo -e "${YELLOW}Applying allowed ports...${NC}"
-    
+
     # Dictionary of services and their ports
     declare -A PORT_MAPPINGS=(
         ["FTP"]="20-21"
@@ -366,21 +365,21 @@ apply_port_allowlist() {
         ["MOSH"]="60000-61000"
         ["Mumble"]="64738"
     )
-    
+
     # Add TCP and UDP rules for each allowed port
     for service in "${!PORT_MAPPINGS[@]}"; do
         port="${PORT_MAPPINGS[$service]}"
         echo -e "${YELLOW}Adding rules for $service (Port: $port)${NC}"
-        
+
         # Add both TCP and UDP rules for all services
         add_port_rules iptables "$port" "tcp"
         add_port_rules ip6tables "$port" "tcp"
         add_port_rules iptables "$port" "udp"
         add_port_rules ip6tables "$port" "udp"
     done
-    
+
     add_default_reject_rule
-    
+
     echo -e "${GREEN}Port allowlist applied successfully.${NC}"
 }
 
@@ -538,7 +537,7 @@ test_connectivity() {
 
     # More comprehensive interface check
     interface_info=$(ip link show "$WG_INTERFACE" 2>/dev/null)
-    
+
     if [ -z "$interface_info" ]; then
         echo -e "${RED}Interface $WG_INTERFACE not found!${NC}"
         return 1

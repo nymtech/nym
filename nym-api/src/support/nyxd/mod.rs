@@ -4,7 +4,7 @@
 use crate::ecash::error::EcashError;
 use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
@@ -44,7 +44,7 @@ use nym_validator_client::nyxd::{
         PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
-    CosmWasmClient, Fee,
+    BlockResponse, CosmWasmClient, Fee, TendermintRpcClient,
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
@@ -56,6 +56,7 @@ use nym_validator_client::{
 use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;
+use tendermint::abci::response::Info;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 #[macro_export]
@@ -99,12 +100,13 @@ pub enum ClientInner {
 }
 
 impl Client {
-    pub(crate) fn new(config: &Config) -> Self {
+    pub(crate) fn new(config: &Config) -> anyhow::Result<Self> {
         let details = NymNetworkDetails::new_from_env();
         let nyxd_url = config.get_nyxd_url();
 
-        let client_config = nyxd::Config::try_from_nym_network_details(&details)
-            .expect("failed to construct valid validator client config with the provided network");
+        let client_config = nyxd::Config::try_from_nym_network_details(&details).context(
+            "failed to construct valid validator client config with the provided network",
+        )?;
 
         let inner = if let Some(mnemonic) = config.get_mnemonic() {
             ClientInner::Signing(
@@ -113,22 +115,30 @@ impl Client {
                     nyxd_url.as_str(),
                     mnemonic.clone(),
                 )
-                .expect("Failed to connect to nyxd!"),
+                .context("Failed to connect to nyxd!")?,
             )
         } else {
             ClientInner::Query(
                 QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
-                    .expect("Failed to connect to nyxd!"),
+                    .context("Failed to connect to nyxd!")?,
             )
         };
 
-        Client {
+        Ok(Client {
             inner: Arc::new(RwLock::new(inner)),
-        }
+        })
     }
 
     pub(crate) async fn read(&self) -> RwLockReadGuard<'_, ClientInner> {
         self.inner.read().await
+    }
+
+    pub(crate) async fn abci_info(&self) -> Result<Info, NyxdError> {
+        Ok(nyxd_query!(self, abci_info().await?))
+    }
+
+    pub(crate) async fn block_info(&self, height: u32) -> Result<BlockResponse, NyxdError> {
+        Ok(nyxd_query!(self, block(height).await?))
     }
 
     pub(crate) async fn client_address(&self) -> Option<AccountId> {

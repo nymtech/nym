@@ -14,6 +14,7 @@ use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use nym_serde_helpers::date::DATE_FORMAT;
+use nym_validator_client::nyxd::error::NyxdError;
 use reqwest::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -125,6 +126,8 @@ impl TryFrom<i64> for Uptime {
 
 impl From<Uptime> for Performance {
     fn from(uptime: Uptime) -> Self {
+        // SAFETY: uptime has a valid range to be transformed into a `Performance`
+        #[allow(clippy::unwrap_used)]
         Performance::from_percentage_value(uptime.0 as u64).unwrap()
     }
 }
@@ -450,6 +453,15 @@ impl From<RedemptionError> for AxumErrorResponse {
     }
 }
 
+impl From<NyxdError> for AxumErrorResponse {
+    fn from(value: NyxdError) -> Self {
+        Self {
+            message: RequestError::new(value.to_string()),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum NymApiStorageError {
     #[error("could not find status report associated with mixnode {mix_id}")]
@@ -481,6 +493,9 @@ pub enum NymApiStorageError {
     // this one would never be returned to users since it's only possible on startup
     #[error("failed to perform startup SQL migration - {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
+
+    #[error("{value} is not a valid unix timestamp")]
+    InvalidTimestampProvided { value: i64 },
 }
 
 impl From<sqlx::Error> for NymApiStorageError {

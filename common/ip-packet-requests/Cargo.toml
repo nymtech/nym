@@ -13,6 +13,7 @@ bincode = { workspace = true }
 bytes = { workspace = true }
 nym-bin-common = { path = "../bin-common" }
 nym-crypto = { path = "../crypto" }
+nym-service-provider-requests-common = { path = "../service-provider-requests-common" }
 nym-sphinx = { path = "../nymsphinx" }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

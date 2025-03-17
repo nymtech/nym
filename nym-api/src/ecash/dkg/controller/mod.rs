@@ -189,7 +189,10 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             self.state.clear_previous_epoch(epoch_id);
 
             // SAFETY: we just accessed this item in an immutable way, thus it MUST exist so the unwrap is fine
-            self.state.in_progress_state_mut(epoch_id).unwrap().entered = true;
+            #[allow(clippy::unwrap_used)]
+            {
+                self.state.in_progress_state_mut(epoch_id).unwrap().entered = true;
+            }
         }
 
         // so at this point we don't need to be polling the contract so often anymore, but we can't easily

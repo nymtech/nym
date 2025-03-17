@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO mixnode_daily_stats (\n                    mix_id, date_utc,\n                    total_stake, packets_received,\n                    packets_sent, packets_dropped\n                ) VALUES (?, ?, ?, ?, ?, ?)\n                ON CONFLICT(mix_id, date_utc) DO UPDATE SET\n                    total_stake = excluded.total_stake,\n                    packets_received = mixnode_daily_stats.packets_received + excluded.packets_received,\n                    packets_sent = mixnode_daily_stats.packets_sent + excluded.packets_sent,\n                    packets_dropped = mixnode_daily_stats.packets_dropped + excluded.packets_dropped\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "01ee4a30bc3104712e5bc371a45d614a89d88adf02358800433e06100c13c548"
+}

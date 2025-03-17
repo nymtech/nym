@@ -6,14 +6,15 @@ pub mod v1;
 pub mod v2;
 pub mod v3;
 pub mod v4;
+pub mod v5;
 
 mod error;
 mod util;
 
 pub use error::Error;
-pub use v4 as latest;
+pub use v5 as latest;
 
-pub const CURRENT_VERSION: u8 = 4;
+pub const CURRENT_VERSION: u8 = 5;
 
 fn make_bincode_serializer() -> impl bincode::Options {
     use bincode::Options;

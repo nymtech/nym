@@ -157,6 +157,7 @@ impl PacketPreparer {
         self.contract_cache.wait_for_initial_values().await;
         self.described_cache.naive_wait_for_initial_values().await;
 
+        #[allow(clippy::expect_used)]
         let described_nodes = self
             .described_cache
             .get()
@@ -374,6 +375,7 @@ impl PacketPreparer {
             .collect::<Vec<_>>();
 
         // the unwrap on `min()` is fine as we know the iterator is not empty
+        #[allow(clippy::unwrap_used)]
         let most_available = *[
             rand_l1.len(),
             rand_l2.len(),
@@ -427,6 +429,7 @@ impl PacketPreparer {
         // 1. the topology is definitely valid (otherwise we wouldn't be here)
         // 2. the recipient is specified (by calling **mix**_tester)
         // 3. the test message is not too long, i.e. when serialized it will fit in a single sphinx packet
+        #[allow(clippy::unwrap_used)]
         let mix_packets = plaintexts
             .into_iter()
             .map(|p| tester.wrap_plaintext_data(p, &topology, None).unwrap())
@@ -492,6 +495,7 @@ impl PacketPreparer {
     ) -> PreparedPackets {
         let (mixnodes, gateways) = self.all_legacy_mixnodes_and_gateways().await;
 
+        #[allow(clippy::expect_used)]
         let descriptions = self
             .described_cache
             .get()

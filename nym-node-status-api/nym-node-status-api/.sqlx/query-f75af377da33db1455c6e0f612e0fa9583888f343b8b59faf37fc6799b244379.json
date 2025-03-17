@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            mn.mix_id as \"mix_id!\",\n            mn.bonded as \"bonded: bool\",\n            mn.is_dp_delegatee as \"is_dp_delegatee: bool\",\n            mn.total_stake as \"total_stake!\",\n            mn.full_details as \"full_details!\",\n            mn.self_described as \"self_described\",\n            mn.last_updated_utc as \"last_updated_utc!\",\n            COALESCE(md.moniker, \"NA\") as \"moniker!\",\n            COALESCE(md.website, \"NA\") as \"website!\",\n            COALESCE(md.security_contact, \"NA\") as \"security_contact!\",\n            COALESCE(md.details, \"NA\") as \"details!\"\n         FROM mixnodes mn\n         LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id\n         ORDER BY mn.mix_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "mix_id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "bonded: bool",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "is_dp_delegatee: bool",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_stake!",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "full_details!",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "self_described",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_updated_utc!",
+        "ordinal": 6,
+        "type_info": "Int64"
+      },
+      {
+        "name": "moniker!",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "website!",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "security_contact!",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "details!",
+        "ordinal": 10,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f75af377da33db1455c6e0f612e0fa9583888f343b8b59faf37fc6799b244379"
+}

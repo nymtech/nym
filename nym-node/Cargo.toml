@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.5.0"
+version = "1.6.2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -71,7 +71,7 @@ nym-verloc = { path = "../common/verloc" }
 nym-metrics = { path = "../common/nym-metrics" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-topology = { path = "../common/topology" }
-
+nym-http-api-client = { path = "../common/http-api-client" }
 
 # http server
 # useful for `#[axum_macros::debug_handler]`
@@ -98,3 +98,7 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
 cargo_metadata = { workspace = true }
+
+
+[lints]
+workspace = true

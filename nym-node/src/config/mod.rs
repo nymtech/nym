@@ -780,16 +780,26 @@ pub struct Debug {
     /// Specifies the time to live of the internal topology provider cache.
     #[serde(with = "humantime_serde")]
     pub topology_cache_ttl: Duration,
+
+    /// Specifies the time between attempting to resolve any pending unknown nodes in the routing filter
+    #[serde(with = "humantime_serde")]
+    pub routing_nodes_check_interval: Duration,
+
+    /// Specifies whether this node runs in testnet mode thus allowing it to route packets on local interfaces
+    pub testnet: bool,
 }
 
 impl Debug {
-    pub const DEFAULT_TOPOLOGY_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+    pub const DEFAULT_TOPOLOGY_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
+    pub const DEFAULT_ROUTING_NODES_CHECK_INTERVAL: Duration = Duration::from_secs(5 * 60);
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
             topology_cache_ttl: Self::DEFAULT_TOPOLOGY_CACHE_TTL,
+            routing_nodes_check_interval: Self::DEFAULT_ROUTING_NODES_CHECK_INTERVAL,
+            testnet: false,
         }
     }
 }

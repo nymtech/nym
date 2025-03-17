@@ -6,6 +6,7 @@ use pem::Pem;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use tracing::debug;
 
 pub mod traits;
 
@@ -46,6 +47,10 @@ where
     T: PemStorableKey,
     P: AsRef<Path>,
 {
+    debug!(
+        "attempting to load key with the following pem type: {}",
+        T::pem_type()
+    );
     let key_pem = read_pem_file(path)?;
 
     if T::pem_type() != key_pem.tag {

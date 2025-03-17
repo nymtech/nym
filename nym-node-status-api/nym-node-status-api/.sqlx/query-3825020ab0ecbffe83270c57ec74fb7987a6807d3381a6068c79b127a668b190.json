@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO mixnode_description (\n                    mix_id, moniker, website, security_contact, details, last_updated_utc\n                ) VALUES (?, ?, ?, ?, ?, ?)\n                ON CONFLICT (mix_id) DO UPDATE SET\n                    moniker = excluded.moniker,\n                    website = excluded.website,\n                    security_contact = excluded.security_contact,\n                    details = excluded.details,\n                    last_updated_utc = excluded.last_updated_utc\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "3825020ab0ecbffe83270c57ec74fb7987a6807d3381a6068c79b127a668b190"
+}

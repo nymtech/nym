@@ -121,6 +121,19 @@ export const SendInputModal = ({
           initialValue={amount?.amount}
           denom={denom}
         />
+        <TextField
+          name="memo"
+          label="Memo"
+          onChange={(e) => onMemoChange(e.target.value)}
+          value={memo}
+          error={!memoIsValid}
+          placeholder="Optional"
+          helperText={
+            !memoIsValid ? ' The text is invalid, only alphanumeric characters and white spaces are allowed' : undefined
+          }
+          InputLabelProps={{ shrink: true }}
+          fullWidth
+        />
         <Typography fontSize="smaller" sx={{ color: 'error.main' }}>
           {error}
         </Typography>
@@ -142,20 +155,6 @@ export const SendInputModal = ({
             label="Fee"
             onChanged={(v) => onUserFeesChange(v)}
             initialValue={userFees?.amount}
-            fullWidth
-          />
-          <TextField
-            name="memo"
-            label="Memo"
-            onChange={(e) => onMemoChange(e.target.value)}
-            value={memo}
-            error={!memoIsValid}
-            helperText={
-              !memoIsValid
-                ? ' The text is invalid, only alphanumeric characters and white spaces are allowed'
-                : undefined
-            }
-            InputLabelProps={{ shrink: true }}
             fullWidth
           />
         </Stack>

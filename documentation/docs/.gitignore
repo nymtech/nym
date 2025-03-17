@@ -9,5 +9,4 @@ package-lock.json
 .env*.local
 .env
 
-todo.md
 scratch.md

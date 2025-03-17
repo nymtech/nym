@@ -12,3 +12,7 @@ readme.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+bincode.workspace = true

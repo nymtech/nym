@@ -21,7 +21,7 @@ use nym_authenticator_requests::{
         AuthenticatorRequest, AuthenticatorVersion, FinalMessage, InitMessage,
         QueryBandwidthMessage, TopUpMessage,
     },
-    v1, v2, v3, v4, CURRENT_VERSION,
+    v1, v2, v3, v4, v5, CURRENT_VERSION,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
@@ -30,7 +30,9 @@ use nym_credential_verification::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
+use nym_sdk::mixnet::{
+    AnonymousSenderTag, InputMessage, MixnetMessageSender, Recipient, TransmissionLane,
+};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
@@ -40,7 +42,7 @@ use rand::{prelude::IteratorRandom, thread_rng};
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::IntervalStream;
 
-type AuthenticatorHandleResult = Result<(Vec<u8>, Recipient)>;
+type AuthenticatorHandleResult = Result<(Vec<u8>, Option<Recipient>)>;
 const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 
 pub(crate) struct RegistredAndFree {
@@ -153,7 +155,7 @@ impl MixnetListener {
         init_message: Box<dyn InitMessage + Send + Sync + 'static>,
         protocol: Protocol,
         request_id: u64,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key();
         let nonce: u64 = fastrand::u64(..);
@@ -176,7 +178,7 @@ impl MixnetListener {
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
-                        reply_to,
+                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
                     .map_err(|err| {
@@ -196,7 +198,7 @@ impl MixnetListener {
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
-                        reply_to,
+                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
                     .map_err(|err| {
@@ -216,7 +218,7 @@ impl MixnetListener {
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
-                        reply_to,
+                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
                     .map_err(|err| {
@@ -227,11 +229,25 @@ impl MixnetListener {
                     v4::response::AuthenticatorResponse::new_pending_registration_success(
                         v4::registration::RegistrationData {
                             nonce: registration_data.nonce,
+                            gateway_data: registration_data.gateway_data.clone().into(),
+                            wg_port: registration_data.wg_port,
+                        },
+                        request_id,
+                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
+                    )
+                    .to_bytes()
+                    .map_err(|err| {
+                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                    })?
+                }
+                AuthenticatorVersion::V5 => {
+                    v5::response::AuthenticatorResponse::new_pending_registration_success(
+                        v5::registration::RegistrationData {
+                            nonce: registration_data.nonce,
                             gateway_data: registration_data.gateway_data.clone(),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
-                        reply_to,
                     )
                     .to_bytes()
                     .map_err(|err| {
@@ -270,7 +286,7 @@ impl MixnetListener {
                         private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
                 )
                 .to_bytes()
@@ -283,7 +299,7 @@ impl MixnetListener {
                         private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
                 )
                 .to_bytes()
@@ -296,7 +312,7 @@ impl MixnetListener {
                         private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
                 )
                 .to_bytes()
@@ -309,7 +325,19 @@ impl MixnetListener {
                         private_ips: (allowed_ipv4, allowed_ipv6).into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?,
+                AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_registered(
+                    v5::registration::RegistredData {
+                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        private_ips: (allowed_ipv4, allowed_ipv6).into(),
+                        wg_port: self.config.authenticator.announced_port,
+                    },
                     request_id,
                 )
                 .to_bytes()
@@ -358,7 +386,7 @@ impl MixnetListener {
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
                 .map_err(|err| {
@@ -378,7 +406,7 @@ impl MixnetListener {
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
                 .map_err(|err| {
@@ -398,7 +426,7 @@ impl MixnetListener {
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
                 .map_err(|err| {
@@ -409,11 +437,25 @@ impl MixnetListener {
                 v4::response::AuthenticatorResponse::new_pending_registration_success(
                     v4::registration::RegistrationData {
                         nonce: registration_data.nonce,
+                        gateway_data: registration_data.gateway_data.into(),
+                        wg_port: registration_data.wg_port,
+                    },
+                    request_id,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V5 => {
+                v5::response::AuthenticatorResponse::new_pending_registration_success(
+                    v5::registration::RegistrationData {
+                        nonce: registration_data.nonce,
                         gateway_data: registration_data.gateway_data,
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
-                    reply_to,
                 )
                 .to_bytes()
                 .map_err(|err| {
@@ -431,7 +473,7 @@ impl MixnetListener {
         final_message: Box<dyn FinalMessage + Send + Sync + 'static>,
         protocol: Protocol,
         request_id: u64,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
         let mut registred_and_free = self.registred_and_free.write().await;
         let registration_data = registred_and_free
@@ -498,7 +540,7 @@ impl MixnetListener {
                     private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
                     wg_port: registration_data.wg_port,
                 },
-                reply_to,
+                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 request_id,
             )
             .to_bytes()
@@ -509,7 +551,7 @@ impl MixnetListener {
                     private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
                     wg_port: registration_data.wg_port,
                 },
-                reply_to,
+                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 request_id,
             )
             .to_bytes()
@@ -520,7 +562,7 @@ impl MixnetListener {
                     private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
                     wg_port: registration_data.wg_port,
                 },
-                reply_to,
+                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 request_id,
             )
             .to_bytes()
@@ -528,10 +570,20 @@ impl MixnetListener {
             AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
                 v4::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
+                    private_ips: registration_data.gateway_data.private_ips.into(),
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_registered(
+                v5::registration::RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
                     private_ips: registration_data.gateway_data.private_ips,
                     wg_port: registration_data.wg_port,
                 },
-                reply_to,
                 request_id,
             )
             .to_bytes()
@@ -577,7 +629,7 @@ impl MixnetListener {
         msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
         protocol: Protocol,
         request_id: u64,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
         let bandwidth_data = self.peer_manager.query_bandwidth(msg).await?;
         let bytes = match AuthenticatorVersion::from(protocol) {
@@ -587,7 +639,7 @@ impl MixnetListener {
                         available_bandwidth: data.available_bandwidth as u64,
                         suspended: false,
                     }),
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
                 )
                 .to_bytes()
@@ -600,7 +652,7 @@ impl MixnetListener {
                     bandwidth_data.map(|data| v2::registration::RemainingBandwidthData {
                         available_bandwidth: data.available_bandwidth,
                     }),
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
                 )
                 .to_bytes()
@@ -613,7 +665,7 @@ impl MixnetListener {
                     bandwidth_data.map(|data| v3::registration::RemainingBandwidthData {
                         available_bandwidth: data.available_bandwidth,
                     }),
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
                 )
                 .to_bytes()
@@ -626,7 +678,19 @@ impl MixnetListener {
                     bandwidth_data.map(|data| v4::registration::RemainingBandwidthData {
                         available_bandwidth: data.available_bandwidth,
                     }),
-                    reply_to,
+                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V5 => {
+                v5::response::AuthenticatorResponse::new_remaining_bandwidth(
+                    bandwidth_data.map(|data| v5::registration::RemainingBandwidthData {
+                        available_bandwidth: data.available_bandwidth,
+                    }),
                     request_id,
                 )
                 .to_bytes()
@@ -644,7 +708,7 @@ impl MixnetListener {
         msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
         protocol: Protocol,
         request_id: u64,
-        reply_to: Recipient,
+        reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
         let Some(ecash_verifier) = self.ecash_verifier.clone() else {
             return Err(AuthenticatorError::UnsupportedOperation);
@@ -679,11 +743,19 @@ impl MixnetListener {
         let available_bandwidth = verifier.verify().await?;
 
         let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_topup_bandwidth(
+                v5::registration::RemainingBandwidthData {
+                    available_bandwidth,
+                },
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
             AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_topup_bandwidth(
                 v4::registration::RemainingBandwidthData {
                     available_bandwidth,
                 },
-                reply_to,
+                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 request_id,
             )
             .to_bytes()
@@ -692,7 +764,7 @@ impl MixnetListener {
                 v3::registration::RemainingBandwidthData {
                     available_bandwidth,
                 },
-                reply_to,
+                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 request_id,
             )
             .to_bytes()
@@ -757,9 +829,13 @@ impl MixnetListener {
     }
 
     // When an incoming mixnet message triggers a response that we send back.
-    async fn handle_response(&self, response: Vec<u8>, recipient: Recipient) -> Result<()> {
-        let input_message =
-            InputMessage::new_regular(recipient, response, TransmissionLane::General, None);
+    async fn handle_response(
+        &self,
+        response: Vec<u8>,
+        recipient: Option<Recipient>,
+        sender_tag: Option<AnonymousSenderTag>,
+    ) -> Result<()> {
+        let input_message = create_input_message(recipient, sender_tag, response)?;
         self.mixnet_client
             .send(input_message)
             .await
@@ -782,9 +858,10 @@ impl MixnetListener {
                 }
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
+                        let sender_tag = msg.sender_tag;
                         match self.on_reconstructed_message(msg).await {
                             Ok((response, recipient)) => {
-                                if let Err(err) = self.handle_response(response, recipient).await {
+                                if let Err(err) = self.handle_response(response, recipient, sender_tag).await {
                                     log::error!("Mixnet listener failed to handle response: {err}");
                                 }
                             }
@@ -851,9 +928,49 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
                 Err(AuthenticatorError::InvalidPacketType(request_type))
             }
         }
+        [5, request_type] => {
+            if request_type == ServiceProviderType::Authenticator as u8 {
+                v5::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
+                        source: err,
+                    })
+                    .map(Into::into)
+            } else {
+                Err(AuthenticatorError::InvalidPacketType(request_type))
+            }
+        }
         [version, _] => {
             log::info!("Received packet with invalid version: v{version}");
             Err(AuthenticatorError::InvalidPacketVersion(version))
         }
+    }
+}
+
+fn create_input_message(
+    nym_address: Option<Recipient>,
+    reply_to_tag: Option<AnonymousSenderTag>,
+    response_packet: Vec<u8>,
+) -> Result<InputMessage> {
+    let lane = TransmissionLane::General;
+    let packet_type = None;
+    if let Some(reply_to_tag) = reply_to_tag {
+        log::debug!("Creating message using SURB");
+        Ok(InputMessage::new_reply(
+            reply_to_tag,
+            response_packet,
+            lane,
+            packet_type,
+        ))
+    } else if let Some(nym_address) = nym_address {
+        log::debug!("Creating message using nym_address");
+        Ok(InputMessage::new_regular(
+            nym_address,
+            response_packet,
+            lane,
+            packet_type,
+        ))
+    } else {
+        log::error!("No nym-address or sender tag provided");
+        Err(AuthenticatorError::MissingReplyToForOldClient)
     }
 }

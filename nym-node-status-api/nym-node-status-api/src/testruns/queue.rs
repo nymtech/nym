@@ -24,6 +24,7 @@ pub(crate) async fn try_queue_testrun(
             explorer_pretty_bond as "explorer_pretty_bond?"
          FROM gateways
          WHERE gateway_identity_key = ?
+         AND bonded = true
          ORDER BY gateway_identity_key
          LIMIT 1"#,
         identity_key,

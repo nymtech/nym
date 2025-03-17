@@ -14,7 +14,8 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
-use crate::support::http::state::{AppState, ForcedRefresh};
+use crate::support::http::state::{AppState, ChainStatusCache, ForcedRefresh};
+use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use axum::Router;
@@ -46,7 +47,7 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
-use nym_config::defaults::NymNetworkDetails;
+use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::TicketType;
@@ -70,6 +71,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tempfile::{tempdir, TempDir};
 use time::Date;
 use tokio::sync::RwLock;
@@ -107,7 +109,7 @@ impl InternalCounters {
 
         // just hash the current counter
         self.tx_hash_counter += 1;
-        Hash::Sha256(sha2::Sha256::digest(&self.tx_hash_counter.to_be_bytes()).into())
+        Hash::Sha256(sha2::Sha256::digest(self.tx_hash_counter.to_be_bytes()).into())
     }
 
     #[allow(dead_code)]
@@ -428,27 +430,27 @@ impl FakeChainState {
                 );
                 let epoch_id = self.dkg_contract.epoch.epoch_id;
                 let Some(shares) = self.dkg_contract.verification_shares.get_mut(&epoch_id) else {
-                    unimplemented!("no shares for epoch")
+                    panic!("no shares for epoch")
                 };
                 let Some(share) = shares.get_mut(owner.as_str()) else {
-                    unimplemented!("no shares for owner")
+                    panic!("no shares for owner")
                 };
                 share.verified = true
             }
-            other => unimplemented!("unimplemented exec of {other:?}"),
+            other => panic!("unimplemented exec of {other:?}"),
         }
     }
 
     // TODO: make it return a result
     fn execute_contract_msg(&mut self, contract: &String, msg: &Binary, sender: MessageInfo) {
         if contract == &self.group_contract.address {
-            unimplemented!("group contract exec")
+            panic!("group contract exec")
         }
         if contract == &self.multisig_contract.address {
-            unimplemented!("multisig contract exec")
+            panic!("multisig contract exec")
         }
         if contract == &self.ecash_contract.address {
-            unimplemented!("bandwidth contract exec")
+            panic!("bandwidth contract exec")
         }
         if contract == self.dkg_contract.address.as_ref() {
             return self.execute_dkg_contract(sender, msg);
@@ -467,7 +469,7 @@ impl FakeChainState {
                 let sender = mock_info(sender_address.as_ref(), funds);
                 self.execute_contract_msg(contract_addr, msg, sender)
             }
-            other => unimplemented!("unimplemented wasm proposal for {other:?}"),
+            other => panic!("unimplemented wasm proposal for {other:?}"),
         }
     }
 
@@ -477,7 +479,7 @@ impl FakeChainState {
             CosmosMsg::Wasm(wasm_msg) => {
                 self.execute_wasm_msg(wasm_msg, Addr::unchecked(sender_address.as_ref()))
             }
-            other => unimplemented!("unimplemented proposal for {other:?}"),
+            other => panic!("unimplemented proposal for {other:?}"),
         };
     }
 }
@@ -907,7 +909,7 @@ impl super::client::Client for DummyClient {
         };
 
         if proposal.status != cw3::Status::Passed {
-            unimplemented!("proposal hasn't been passed")
+            panic!("proposal hasn't been passed")
         }
         proposal.status = cw3::Status::Executed;
 
@@ -954,7 +956,7 @@ impl super::client::Client for DummyClient {
         if !epoch_dealers.contains_key(self.validator_address.as_ref()) {
             epoch_dealers.insert(self.validator_address.to_string(), dealer_details);
         } else {
-            unimplemented!("already registered")
+            panic!("already registered")
         }
 
         let transaction_hash = guard._counters.next_tx_hash();
@@ -1264,8 +1266,14 @@ struct TestFixture {
 }
 
 impl TestFixture {
-    fn build_app_state(storage: NymApiStorage, ecash_state: EcashState) -> AppState {
+    fn build_app_state(
+        storage: NymApiStorage,
+        ecash_state: EcashState,
+        nyxd_client: Client,
+    ) -> AppState {
         AppState {
+            nyxd_client,
+            chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
             forced_refresh: ForcedRefresh::new(true),
             nym_contract_cache: NymContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
@@ -1337,12 +1345,22 @@ impl TestFixture {
             TaskClient::dummy(),
         );
 
+        // ideally this would have been generic, but that's way too much work
+        // since then `AppState` would have had to be made generic
+        // also, this is such a disgusting workaround to make it 'work'. yuck
+        let mut dummy = NymNetworkDetails::new_empty();
+        dummy.endpoints = vec![ValidatorDetails::new(
+            "http://127.0.0.1:26657",
+            Some("http://why-do-we-even-need-api-url-set-here.wtf"),
+            None,
+        )];
+        dummy.export_to_env();
+        let another_fake_nyxd_client = Client::new(&config).unwrap();
+
         TestFixture {
-            axum: TestServer::new(
-                Router::new()
-                    .nest("/v1/ecash", ecash_routes())
-                    .with_state(Self::build_app_state(storage.clone(), ecash_state)),
-            )
+            axum: TestServer::new(Router::new().nest("/v1/ecash", ecash_routes()).with_state(
+                Self::build_app_state(storage.clone(), ecash_state, another_fake_nyxd_client),
+            ))
             .unwrap(),
             storage,
             chain_state,

@@ -1,6 +1,6 @@
 use nym_validator_client::nyxd::CosmWasmCoin;
-use rocket::serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]

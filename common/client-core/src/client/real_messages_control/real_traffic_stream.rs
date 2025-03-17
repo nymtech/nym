@@ -517,17 +517,25 @@ where
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
-        let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;
-        let lanes = self.transmission_buffer.num_lanes();
+        let lanes = self.transmission_buffer.lanes();
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
+
+        let lane_status = lanes
+            .iter()
+            .map(|lane_name| {
+                let lane_length = self.transmission_buffer.lane_length(lane_name).unwrap_or(0);
+                format!("{lane_name:?}: {lane_length}")
+            })
+            .collect::<Vec<String>>()
+            .join(", ");
+
         let status_str = if self.config.traffic.disable_main_poisson_packet_distribution {
-            format!("Packet backlog: {backlog:.2} kiB ({packets}), {lanes} lanes, no delay")
+            format!("Packet backlog: {lane_status}, no delay")
         } else {
-            format!(
-                "Packet backlog: {backlog:.2} kiB ({packets}), {lanes} lanes, avg delay: {delay}ms ({mult})"
-            )
+            format!("Packet backlog: {lane_status}, avg delay: {delay}ms ({mult})")
         };
+
         if packets > 1000 {
             log::warn!("{status_str}");
         } else if packets > 0 {

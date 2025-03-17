@@ -10,6 +10,7 @@ mod config;
 mod db;
 mod env;
 mod error;
+pub(crate) mod helpers;
 mod http;
 mod logging;
 pub mod models;

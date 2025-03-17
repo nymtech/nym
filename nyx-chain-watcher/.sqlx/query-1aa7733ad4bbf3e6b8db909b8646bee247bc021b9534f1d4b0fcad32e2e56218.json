@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO watcher_execution(start, end, error_message)\n        VALUES (?, ?, ?)\n    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "1aa7733ad4bbf3e6b8db909b8646bee247bc021b9534f1d4b0fcad32e2e56218"
+}

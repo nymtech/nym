@@ -291,7 +291,13 @@ impl PrometheusMetric {
     }
 
     fn set(&self, value: i64) {
-        metrics_registry().set(&self.name(), value);
+        let reg = metrics_registry();
+        if !reg.set(&self.name(), value) {
+            if let Some(registrable) = self.to_registrable_metric() {
+                reg.register_metric(registrable);
+                reg.set(&self.name(), value);
+            }
+        }
     }
 
     fn set_float(&self, value: f64) {
@@ -413,7 +419,7 @@ mod tests {
         }
         .to_string();
         assert_eq!(
-            "nym_node_mixnet_ingress_packet_version_sphinx-42",
+            "nym_node_mixnet_ingress_packet_version_sphinx_42",
             parameterised
         );
     }

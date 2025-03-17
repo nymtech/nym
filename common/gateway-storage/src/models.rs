@@ -14,13 +14,13 @@ pub struct Client {
 
 #[derive(FromRow)]
 pub struct PersistedSharedKeys {
-    #[allow(dead_code)]
     pub client_id: i64,
 
     #[allow(dead_code)]
     pub client_address_bs58: String,
     pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
     pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
+    pub last_used_authentication: Option<OffsetDateTime>,
 }
 
 impl TryFrom<PersistedSharedKeys> for SharedGatewayKey {

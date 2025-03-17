@@ -953,6 +953,7 @@ fn create_input_message(
 ) -> Result<InputMessage> {
     let lane = TransmissionLane::General;
     let packet_type = None;
+    let disable_retransmissions = false;
     if let Some(reply_to_tag) = reply_to_tag {
         log::debug!("Creating message using SURB");
         Ok(InputMessage::new_reply(
@@ -960,6 +961,7 @@ fn create_input_message(
             response_packet,
             lane,
             packet_type,
+            disable_retransmissions,
         ))
     } else if let Some(nym_address) = nym_address {
         log::debug!("Creating message using nym_address");
@@ -968,6 +970,7 @@ fn create_input_message(
             response_packet,
             lane,
             packet_type,
+            disable_retransmissions,
         ))
     } else {
         log::error!("No nym-address or sender tag provided");

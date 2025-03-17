@@ -65,12 +65,15 @@ where
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
         lane: TransmissionLane,
+        disable_retransmissions: bool,
     ) {
         // offload reply handling to the dedicated task
-        if let Err(err) = self
-            .reply_controller_sender
-            .send_reply(recipient_tag, data, lane)
-        {
+        if let Err(err) = self.reply_controller_sender.send_reply(
+            recipient_tag,
+            data,
+            lane,
+            disable_retransmissions,
+        ) {
             if !self.task_client.is_shutdown_poll() {
                 error!("failed to send a reply - {err}");
             }
@@ -83,10 +86,17 @@ where
         content: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
+        disable_retransmissions: bool,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane, packet_type)
+            .try_send_plain_message(
+                recipient,
+                content,
+                lane,
+                packet_type,
+                disable_retransmissions,
+            )
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -100,10 +110,18 @@ where
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
+        disable_retransmissions: bool,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type)
+            .try_send_message_with_reply_surbs(
+                recipient,
+                content,
+                reply_surbs,
+                lane,
+                packet_type,
+                disable_retransmissions,
+            )
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -116,25 +134,42 @@ where
                 recipient,
                 data,
                 lane,
+                disable_retransmissions,
             } => {
-                self.handle_plain_message(recipient, data, lane, PacketType::Mix)
-                    .await
+                self.handle_plain_message(
+                    recipient,
+                    data,
+                    lane,
+                    PacketType::Mix,
+                    disable_retransmissions,
+                )
+                .await
             }
             InputMessage::Anonymous {
                 recipient,
                 data,
                 reply_surbs,
                 lane,
+                disable_retransmissions,
             } => {
-                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix)
-                    .await
+                self.handle_repliable_message(
+                    recipient,
+                    data,
+                    reply_surbs,
+                    lane,
+                    PacketType::Mix,
+                    disable_retransmissions,
+                )
+                .await
             }
             InputMessage::Reply {
                 recipient_tag,
                 data,
                 lane,
+                disable_retransmissions,
             } => {
-                self.handle_reply(recipient_tag, data, lane).await;
+                self.handle_reply(recipient_tag, data, lane, disable_retransmissions)
+                    .await;
             }
             InputMessage::Premade { msgs, lane } => self.handle_premade_packets(msgs, lane).await,
             InputMessage::MessageWrapper {
@@ -145,25 +180,42 @@ where
                     recipient,
                     data,
                     lane,
+                    disable_retransmissions,
                 } => {
-                    self.handle_plain_message(recipient, data, lane, packet_type)
-                        .await
+                    self.handle_plain_message(
+                        recipient,
+                        data,
+                        lane,
+                        packet_type,
+                        disable_retransmissions,
+                    )
+                    .await
                 }
                 InputMessage::Anonymous {
                     recipient,
                     data,
                     reply_surbs,
                     lane,
+                    disable_retransmissions,
                 } => {
-                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type)
-                        .await
+                    self.handle_repliable_message(
+                        recipient,
+                        data,
+                        reply_surbs,
+                        lane,
+                        packet_type,
+                        disable_retransmissions,
+                    )
+                    .await
                 }
                 InputMessage::Reply {
                     recipient_tag,
                     data,
                     lane,
+                    disable_retransmissions,
                 } => {
-                    self.handle_reply(recipient_tag, data, lane).await;
+                    self.handle_reply(recipient_tag, data, lane, disable_retransmissions)
+                        .await;
                 }
                 InputMessage::Premade { msgs, lane } => {
                     self.handle_premade_packets(msgs, lane).await

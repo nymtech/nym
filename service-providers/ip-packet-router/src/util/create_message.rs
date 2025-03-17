@@ -9,12 +9,21 @@ pub(crate) fn create_input_message(
 ) -> InputMessage {
     let lane = TransmissionLane::General;
     let packet_type = None;
+    let disable_retransmissions = false;
     match recipient {
-        ConnectedClientId::NymAddress(recipient) => {
-            InputMessage::new_regular(**recipient, response_packet, lane, packet_type)
-        }
-        ConnectedClientId::AnonymousSenderTag(tag) => {
-            InputMessage::new_reply(*tag, response_packet, lane, packet_type)
-        }
+        ConnectedClientId::NymAddress(recipient) => InputMessage::new_regular(
+            **recipient,
+            response_packet,
+            lane,
+            packet_type,
+            disable_retransmissions,
+        ),
+        ConnectedClientId::AnonymousSenderTag(tag) => InputMessage::new_reply(
+            *tag,
+            response_packet,
+            lane,
+            packet_type,
+            disable_retransmissions,
+        ),
     }
 }

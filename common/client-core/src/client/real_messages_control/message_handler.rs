@@ -350,7 +350,7 @@ where
     pub(crate) async fn try_send_reply_chunks_on_lane(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<Fragment>,
+        fragments: Vec<(Fragment, bool)>,
         reply_surbs: Vec<ReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
@@ -367,12 +367,12 @@ where
     pub(crate) async fn try_send_reply_chunks(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<(TransmissionLane, Fragment)>,
+        fragments: Vec<(TransmissionLane, (Fragment, bool))>,
         reply_surbs: Vec<ReplySurb>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
-                fragments.iter().map(|(_, f)| f.clone()).collect(),
+                fragments.iter().map(|(_, f)| f.0.clone()).collect(),
                 reply_surbs,
             )
             .await?;
@@ -382,7 +382,8 @@ where
 
         for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
             let lane = raw.0;
-            let fragment = raw.1;
+            let fragment = raw.1 .0;
+            let disable_retransmissions = raw.1 .1;
 
             let real_message =
                 RealMessage::new(prepared.mix_packet, Some(prepared.fragment_identifier));
@@ -391,7 +392,9 @@ where
 
             let entry = to_forward.entry(lane).or_default();
             entry.push(real_message);
-            pending_acks.push(pending_ack);
+            if !disable_retransmissions {
+                pending_acks.push(pending_ack);
+            }
         }
 
         for (lane, real_messages) in to_forward {
@@ -416,10 +419,17 @@ where
         message: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
+        disable_retransmissions: bool,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
-            .await
+        self.try_split_and_send_non_reply_message(
+            message,
+            recipient,
+            lane,
+            packet_type,
+            disable_retransmissions,
+        )
+        .await
     }
 
     pub(crate) async fn try_split_and_send_non_reply_message(
@@ -428,6 +438,7 @@ where
         recipient: Recipient,
         lane: TransmissionLane,
         packet_type: PacketType,
+        disable_retransmissions: bool,
     ) -> Result<(), PreparationError> {
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
@@ -473,7 +484,9 @@ where
             pending_acks.push(pending_ack);
         }
 
-        self.insert_pending_acks(pending_acks);
+        if !disable_retransmissions {
+            self.insert_pending_acks(pending_acks);
+        }
         self.forward_messages(real_messages, lane).await;
 
         Ok(())
@@ -495,11 +508,15 @@ where
             reply_surbs,
         ));
 
+        // When sending SURBs we want to retransmit
+        let disable_retransmissions = false;
+
         self.try_split_and_send_non_reply_message(
             message,
             recipient,
             TransmissionLane::AdditionalReplySurbs,
             packet_type,
+            disable_retransmissions,
         )
         .await?;
 
@@ -516,6 +533,7 @@ where
         num_reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
+        disable_retransmissions: bool,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -526,8 +544,14 @@ where
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
-            .await?;
+        self.try_split_and_send_non_reply_message(
+            message,
+            recipient,
+            lane,
+            packet_type,
+            disable_retransmissions,
+        )
+        .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);

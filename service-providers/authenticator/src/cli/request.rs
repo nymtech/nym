@@ -123,6 +123,7 @@ pub(crate) async fn execute(args: &Request) -> Result<(), AuthenticatorError> {
             AuthenticatorRequest::new_topup_request(*top_up_message)
         }
     };
+    let disabled_retransmissions = false;
     mixnet_client
         .split_sender()
         .send(nym_sdk::mixnet::InputMessage::new_regular(
@@ -130,6 +131,7 @@ pub(crate) async fn execute(args: &Request) -> Result<(), AuthenticatorError> {
             request.to_bytes().unwrap(),
             TransmissionLane::General,
             None,
+            disabled_retransmissions,
         ))
         .await
         .map_err(|source| AuthenticatorError::FailedToSendPacketToMixnet { source })?;

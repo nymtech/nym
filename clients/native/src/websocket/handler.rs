@@ -190,7 +190,14 @@ impl Handler {
         });
 
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
+        let disable_retransmissions = false;
+        let input_msg = InputMessage::new_regular(
+            recipient,
+            message,
+            lane,
+            self.packet_type,
+            disable_retransmissions,
+        );
         if let Err(err) = self.msg_input.send(input_msg).await {
             if !self.task_client.is_shutdown_poll() {
                 error!("Failed to send message to the input buffer: {err}");
@@ -222,8 +229,15 @@ impl Handler {
             TransmissionLane::ConnectionId(id)
         });
 
-        let input_msg =
-            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
+        let disable_retransmissions = false;
+        let input_msg = InputMessage::new_anonymous(
+            recipient,
+            message,
+            reply_surbs,
+            lane,
+            self.packet_type,
+            disable_retransmissions,
+        );
         if let Err(err) = self.msg_input.send(input_msg).await {
             if !self.task_client.is_shutdown_poll() {
                 error!("Failed to send anonymous message to the input buffer: {err}");
@@ -251,7 +265,14 @@ impl Handler {
             TransmissionLane::ConnectionId(id)
         });
 
-        let input_msg = InputMessage::new_reply(recipient_tag, message, lane, self.packet_type);
+        let disable_retransmissions = false;
+        let input_msg = InputMessage::new_reply(
+            recipient_tag,
+            message,
+            lane,
+            self.packet_type,
+            disable_retransmissions,
+        );
         if let Err(err) = self.msg_input.send(input_msg).await {
             if !self.task_client.is_shutdown_poll() {
                 error!("Failed to send reply message to the input buffer: {err}");

@@ -70,6 +70,7 @@ pub trait MixnetMessageSender {
         M: AsRef<[u8]> + Send,
     {
         let lane = TransmissionLane::General;
+        let disable_retransmissions = false;
         let input_msg = match surbs {
             IncludedSurbs::Amount(surbs) => InputMessage::new_anonymous(
                 address,
@@ -77,12 +78,14 @@ pub trait MixnetMessageSender {
                 surbs,
                 lane,
                 self.packet_type(),
+                disable_retransmissions,
             ),
             IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
                 address,
                 message.as_ref().to_vec(),
                 lane,
                 self.packet_type(),
+                disable_retransmissions,
             ),
         };
         self.send(input_msg).await
@@ -108,11 +111,13 @@ pub trait MixnetMessageSender {
         M: AsRef<[u8]> + Send,
     {
         let lane = TransmissionLane::General;
+        let disable_retransmissions = false;
         let input_msg = InputMessage::new_reply(
             recipient_tag,
             message.as_ref().to_vec(),
             lane,
             self.packet_type(),
+            disable_retransmissions,
         );
         self.send(input_msg).await
     }

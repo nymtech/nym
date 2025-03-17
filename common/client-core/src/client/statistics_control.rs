@@ -86,11 +86,13 @@ impl StatisticsControl {
     async fn report_stats(&mut self, recipient: Recipient) {
         let stats_report = self.stats.build_report();
 
+        let disable_retransmissions = false;
         let report_message = InputMessage::new_regular(
             recipient,
             stats_report.into(),
             TransmissionLane::General,
             None,
+            disable_retransmissions,
         );
         if let Err(err) = self.report_tx.send(report_message).await {
             log::error!("Failed to report client stats: {:?}", err);

@@ -348,12 +348,14 @@ impl SocksClient {
         let msg =
             Socks5ProviderRequest::new_provider_data(self.config.provider_interface_version, req);
 
+        let disable_retransmissions = false;
         let input_message = InputMessage::new_anonymous(
             self.service_provider,
             msg.into_bytes(),
             self.config.connection_start_surbs,
             TransmissionLane::ConnectionId(self.connection_id),
             self.packet_type,
+            disable_retransmissions,
         );
         self.input_sender
             .send(input_message)
@@ -372,11 +374,13 @@ impl SocksClient {
         let msg =
             Socks5ProviderRequest::new_provider_data(self.config.provider_interface_version, req);
 
+        let disable_retransmissions = false;
         let input_message = InputMessage::new_regular(
             self.service_provider,
             msg.into_bytes(),
             TransmissionLane::ConnectionId(self.connection_id),
             self.packet_type,
+            disable_retransmissions,
         );
         self.input_sender
             .send(input_message)
@@ -436,6 +440,7 @@ impl SocksClient {
                 request_version.provider_interface,
                 provider_request,
             );
+            let disable_retransmissions = false;
             if anonymous {
                 InputMessage::new_anonymous(
                     recipient,
@@ -443,6 +448,7 @@ impl SocksClient {
                     per_request_surbs,
                     lane,
                     packet_type,
+                    disable_retransmissions,
                 )
             } else {
                 InputMessage::new_regular(
@@ -450,6 +456,7 @@ impl SocksClient {
                     provider_message.into_bytes(),
                     lane,
                     packet_type,
+                    disable_retransmissions,
                 )
             }
         })

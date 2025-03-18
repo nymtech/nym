@@ -4,6 +4,104 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.5-chokito] (2025-03-18)
+
+- build(deps): bump braces from 3.0.2 to 3.0.3 in /sdk/typescript/packages/nodejs-client ([#5611])
+- build(deps-dev): bump webpack-dev-middleware from 5.3.3 to 5.3.4 in /wasm/client/internal-dev ([#5610])
+- Export lane queue lengths in sdk ([#5609])
+- Chore/more payment watcher debug endpoints ([#5608])
+- build(deps): bump @babel/helpers from 7.24.4 to 7.26.10 ([#5606])
+- Chore/update bls12 381 fork ([#5605])
+- chore: change auth v2 timestamp skew and allow values from the future ([#5604])
+- Chore/payment watcher debug endpoints ([#5601])
+- Allow resetting all SURB sender tags ([#5600])
+- introduce internal tool for checking signer status ([#5598])
+- build(deps-dev): bump webpack from 5.77.0 to 5.98.0 in /wasm/mix-fetch/internal-dev ([#5597])
+- build(deps): bump body-parser and express in /wasm/mix-fetch/internal-dev ([#5596])
+- build(deps): bump serve-static and express in /wasm/mix-fetch/internal-dev ([#5594])
+- build(deps-dev): bump ws from 8.13.0 to 8.18.1 in /wasm/mix-fetch/internal-dev ([#5593])
+- build(deps): bump cookie and express in /wasm/client/internal-dev ([#5592])
+- build(deps): bump cookie and express in /wasm/mix-fetch/internal-dev ([#5591])
+- build(deps): bump braces from 3.0.2 to 3.0.3 in /wasm/zknym-lib/internal-dev ([#5590])
+- build(deps): bump webpack-dev-middleware from 5.3.3 to 5.3.4 in /wasm/zknym-lib/internal-dev ([#5589])
+- build(deps): bump tempfile from 3.17.1 to 3.18.0 ([#5588])
+- build(deps): bump tokio from 1.43.0 to 1.44.0 ([#5587])
+- build(deps): bump the patch-updates group with 8 updates ([#5585])
+- build(deps): bump ring from 0.17.9 to 0.17.13 ([#5583])
+- delete double memo field in send modal ([#5578])
+- Server Side internal DoT/DoH opt out ([#5577])
+- Rust SDK SURB example: change hardcoded file to tempdir ([#5576])
+- Add /v3/nym-nodes ([#5569])
+- chore: start sending v2 sphinx packets ([#5554])
+- build(deps): bump the patch-updates group across 1 directory with 14 updates ([#5549])
+- build(deps): bump uuid from 1.13.2 to 1.15.1 ([#5542])
+- build(deps): bump rs_merkle from 1.4.2 to 1.5.0 ([#5541])
+- feature: v2 authentication request ([#5537])
+- Set RUSTUP_PERMIT_COPY_RENAME ([#5533])
+- feature: disallow routing mix packets to nodes not present in the topology ([#5526])
+- Make "Memo" visible per default on send NYM ([#5524])
+- feat: make sure any terminated task kills the watcher and write run info to db ([#5517])
+- Another total_stake SQL fix ([#5516])
+- Fix total_stake on SQL update ([#5514])
+- build(deps): bump flate2 from 1.0.35 to 1.1.0 ([#5510])
+- build(deps): bump itertools from 0.13.0 to 0.14.0 ([#5509])
+- build(deps): bump the patch-updates group with 2 updates ([#5505])
+- Treat gateways as Nym Nodes ([#5504])
+- Update version in Cargo.toml ([#5503])
+- feat: use ct_eq for checking bearer token ([#5501])
+- Add extra args for the probe ([#5499])
+- Fix stats bug & remove HM caching ([#5495])
+- fix: Cargo.lock for contracts ([#5489])
+- Display error messages if IPv4 or IPv6 address not found on nymtun0 ([#5465])
+
+[#5611]: https://github.com/nymtech/nym/pull/5611
+[#5610]: https://github.com/nymtech/nym/pull/5610
+[#5609]: https://github.com/nymtech/nym/pull/5609
+[#5608]: https://github.com/nymtech/nym/pull/5608
+[#5606]: https://github.com/nymtech/nym/pull/5606
+[#5605]: https://github.com/nymtech/nym/pull/5605
+[#5604]: https://github.com/nymtech/nym/pull/5604
+[#5601]: https://github.com/nymtech/nym/pull/5601
+[#5600]: https://github.com/nymtech/nym/pull/5600
+[#5598]: https://github.com/nymtech/nym/pull/5598
+[#5597]: https://github.com/nymtech/nym/pull/5597
+[#5596]: https://github.com/nymtech/nym/pull/5596
+[#5594]: https://github.com/nymtech/nym/pull/5594
+[#5593]: https://github.com/nymtech/nym/pull/5593
+[#5592]: https://github.com/nymtech/nym/pull/5592
+[#5591]: https://github.com/nymtech/nym/pull/5591
+[#5590]: https://github.com/nymtech/nym/pull/5590
+[#5589]: https://github.com/nymtech/nym/pull/5589
+[#5588]: https://github.com/nymtech/nym/pull/5588
+[#5587]: https://github.com/nymtech/nym/pull/5587
+[#5585]: https://github.com/nymtech/nym/pull/5585
+[#5583]: https://github.com/nymtech/nym/pull/5583
+[#5578]: https://github.com/nymtech/nym/pull/5578
+[#5577]: https://github.com/nymtech/nym/pull/5577
+[#5576]: https://github.com/nymtech/nym/pull/5576
+[#5569]: https://github.com/nymtech/nym/pull/5569
+[#5554]: https://github.com/nymtech/nym/pull/5554
+[#5549]: https://github.com/nymtech/nym/pull/5549
+[#5542]: https://github.com/nymtech/nym/pull/5542
+[#5541]: https://github.com/nymtech/nym/pull/5541
+[#5537]: https://github.com/nymtech/nym/pull/5537
+[#5533]: https://github.com/nymtech/nym/pull/5533
+[#5526]: https://github.com/nymtech/nym/pull/5526
+[#5524]: https://github.com/nymtech/nym/pull/5524
+[#5517]: https://github.com/nymtech/nym/pull/5517
+[#5516]: https://github.com/nymtech/nym/pull/5516
+[#5514]: https://github.com/nymtech/nym/pull/5514
+[#5510]: https://github.com/nymtech/nym/pull/5510
+[#5509]: https://github.com/nymtech/nym/pull/5509
+[#5505]: https://github.com/nymtech/nym/pull/5505
+[#5504]: https://github.com/nymtech/nym/pull/5504
+[#5503]: https://github.com/nymtech/nym/pull/5503
+[#5501]: https://github.com/nymtech/nym/pull/5501
+[#5499]: https://github.com/nymtech/nym/pull/5499
+[#5495]: https://github.com/nymtech/nym/pull/5495
+[#5489]: https://github.com/nymtech/nym/pull/5489
+[#5465]: https://github.com/nymtech/nym/pull/5465
+
 ## [2025.4-dorina-patched] (2025-03-06)
 
 - use legacy crypto for constructing SURB headers ([#5579])

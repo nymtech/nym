@@ -100,7 +100,6 @@ jobs:
           cp target/release/nymvisor $OUTPUT_DIR
           cp target/release/nym-node $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
-          cp target/release/explorer-api $OUTPUT_DIR
           if [ ${{ github.event_name == 'workflow_dispatch' && inputs.enable_deb == true }} = true ]; then
             cp target/debian/*.deb $OUTPUT_DIR
           fi

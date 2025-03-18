@@ -15,14 +15,12 @@ export default async function Home() {
   return (
     <ContentLayout>
       <Stack gap={5}>
-        <Typography variant="h1" textTransform={"uppercase"}>
-          Mixnet in your hands
-        </Typography>
+
         <NodeAndAddressSearch />
       </Stack>
       <Grid container columnSpacing={5} rowSpacing={5}>
         <Grid size={12}>
-          <SectionHeading title="Noise Generating Mixnet Overview" />
+          <SectionHeading title="Noise Generating Network Overview" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <NoiseCard />

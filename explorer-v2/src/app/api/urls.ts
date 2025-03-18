@@ -1,10 +1,6 @@
-export const NYM_NODES =
-  "https://explorer.nymtech.net/api/v1/tmp/unstable/nym-nodes";
-export const HARBOURMASTER_API_MIXNODES_STATS =
-  "https://harbourmaster.nymtech.net/v2/mixnodes/stats";
+
 export const NS_API_MIXNODES_STATS =
   "https://staging-node-status-api.nymte.ch/v2/mixnodes/stats";
-
 export const CURRENT_EPOCH =
   "https://validator.nymtech.net/api/v1/epoch/current";
 export const CURRENT_EPOCH_REWARDS =
@@ -18,8 +14,7 @@ export const VALIDATOR_BASE_URL =
   process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";
 export const DATA_OBSERVATORY_NODES_URL =
   "https://api.nym.spectredao.net/api/v1/nodes";
-export const DATA_OBSERVATORY_NODES_DELEGATIONS_URL =
-  "https://api.nym.spectredao.net/api/v1/nodes";
+
 export const DATA_OBSERVATORY_DELEGATIONS_URL =
   "https://api.nym.spectredao.net/api/v1/delegations";
 export const DATA_OBSERVATORY_BALANCES_URL =

@@ -80,7 +80,7 @@ where
         let frag_id = timed_out_ack.message_chunk.fragment_identifier();
 
         if timed_out_ack.reached_max_retransmissions(self.maximum_retransmissions) {
-            warn!("reached maximum number of allowed retransmissions for the packet");
+            debug!("reached maximum number of allowed retransmissions for the packet");
             if let Err(err) = self
                 .action_sender
                 .unbounded_send(Action::new_remove(frag_id))

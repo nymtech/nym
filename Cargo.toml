@@ -361,7 +361,7 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
-zeroize = "1.6.0"
+zeroize = "1.8.1"
 
 prometheus = { version = "0.13.0" }
 

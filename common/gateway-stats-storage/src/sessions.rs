@@ -148,7 +148,7 @@ impl SessionManager {
             .await
     }
 
-    pub(crate) async fn get_started_sessions_count(&self, start_date: Date) -> Result<i32> {
+    pub(crate) async fn get_started_sessions_count(&self, start_date: Date) -> Result<i64> {
         Ok(sqlx::query!(
             "SELECT COUNT(*) as count FROM sessions_active WHERE date(start_time) = ?",
             start_date

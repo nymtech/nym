@@ -182,10 +182,11 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
         let response_packet = create_ip_packet_response(bundled_ip_packets, self.client_version)?;
 
         // Wrap the response packet in a mixnet input message
-        Ok(crate::util::create_message::create_input_message(
-            &self.send_to,
-            response_packet,
-        ))
+        let input_message =
+            crate::util::create_message::create_input_message(&self.send_to, response_packet)
+                .with_max_retransmissions(0);
+
+        Ok(input_message)
     }
 }
 

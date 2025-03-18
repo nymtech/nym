@@ -154,7 +154,7 @@ impl InputMessage {
         }
     }
 
-    pub fn with_max_retransmissions(&mut self, max_retransmissions: Option<u32>) -> &mut Self {
+    pub fn set_max_retransmissions(&mut self, max_retransmissions: Option<u32>) -> &mut Self {
         match self {
             InputMessage::Regular {
                 max_retransmissions: m,
@@ -172,10 +172,15 @@ impl InputMessage {
             }
             InputMessage::Premade { .. } => {}
             InputMessage::MessageWrapper { message, .. } => {
-                message.with_max_retransmissions(max_retransmissions);
+                message.set_max_retransmissions(max_retransmissions);
             }
         }
 
+        self
+    }
+
+    pub fn with_max_retransmissions(mut self, max_retransmissions: Option<u32>) -> Self {
+        self.set_max_retransmissions(max_retransmissions);
         self
     }
 }

@@ -104,7 +104,8 @@ impl ConnectedClientHandler {
 
     async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
         let response_packet = self.create_ip_packet(packets).await?;
-        let input_message = create_input_message(&self.sent_by, response_packet);
+        let input_message =
+            create_input_message(&self.sent_by, response_packet).with_max_retransmissions(0);
 
         self.mixnet_client_sender
             .send(input_message)

@@ -253,7 +253,7 @@ impl EcashStorageExt for NymApiStorage {
         &self,
         deposits: &[DepositId],
     ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError> {
-        let raw = self.manager.get_issued_ticketbooks(&deposits).await?;
+        let raw = self.manager.get_issued_ticketbooks(deposits).await?;
         if raw.len() != deposits.len() {
             warn!("failed to get ticketbooks for all requested deposits. requested {} but only got {}", raw.len(), deposits.len());
             let available: HashSet<_> = raw.iter().map(|t| t.deposit_id).collect();

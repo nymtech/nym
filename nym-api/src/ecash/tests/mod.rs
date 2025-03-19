@@ -27,10 +27,7 @@ use cosmwasm_std::{
 };
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
-use nym_api_requests::ecash::models::{
-    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksForResponse,
-};
+use nym_api_requests::ecash::models::IssuedTicketbooksForResponse;
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,

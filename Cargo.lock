@@ -6825,7 +6825,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "tendermint-rpc",
  "thiserror 2.0.12",
  "time",

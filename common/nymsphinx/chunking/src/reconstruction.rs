@@ -164,7 +164,9 @@ pub struct MessageReconstructor {
 }
 
 impl MessageReconstructor {
-    const INCOMPLETE_MESSAGE_TIMEOUT: Duration = Duration::from_secs(300);
+    // We want to be very conservative here. We remove these to avoid memory leaks, but it's okay
+    // to wait for a long time before we do so.
+    const INCOMPLETE_MESSAGE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
     /// Creates an empty `MessageReconstructor`.
     pub fn new() -> Self {

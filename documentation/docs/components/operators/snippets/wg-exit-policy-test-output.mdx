@@ -1,0 +1,47 @@
+```console
+Running Nym Exit Policy Verification Tests...
+Testing Port Range Rules...
+Testing FTP tcp port range 20-21
+✓ Rule exists: NYM-EXIT tcp port range 20:21
+Testing HTTP tcp port range 80-81
+✓ Rule exists: NYM-EXIT tcp port range 80:81
+Testing CPanel tcp port range 2082-2083
+✓ Rule exists: NYM-EXIT tcp port range 2082:2083
+Testing XMPP tcp port range 5222-5223
+✓ Rule exists: NYM-EXIT tcp port range 5222:5223
+Testing Steam (sampling) tcp port range 27000-27050
+✓ Rule exists: NYM-EXIT tcp port range 27000:27050
+Testing FTP over TLS tcp port range 989-990
+✓ Rule exists: NYM-EXIT tcp port range 989:990
+Testing RTP/VoIP tcp port range 5000-5005
+✓ Rule exists: NYM-EXIT tcp port range 5000:5005
+Testing Simplify Media tcp port range 8087-8088
+✓ Rule exists: NYM-EXIT tcp port range 8087:8088
+Testing Zcash tcp port range 8232-8233
+✓ Rule exists: NYM-EXIT tcp port range 8232:8233
+Testing Bitcoin tcp port range 8332-8333
+✓ Rule exists: NYM-EXIT tcp port range 8332:8333
+Test test_port_range_rules PASSED
+Testing Critical Service Rules...
+✓ Rule exists: NYM-EXIT tcp port 22
+✓ Rule exists: NYM-EXIT tcp port 53
+✓ Rule exists: NYM-EXIT tcp port 443
+✓ Rule exists: NYM-EXIT tcp port 853
+✓ Rule exists: NYM-EXIT tcp port 1194
+✓ Rule exists: NYM-EXIT udp port 53
+✓ Rule exists: NYM-EXIT udp port 123
+✓ Rule exists: NYM-EXIT udp port 1194
+Relevant existing rules for HTTP (port 80):
+Test test_critical_services PASSED
+This test takes some time, do not quit the process
+
+Testing Default Reject Rule...
+
+✓ Default REJECT rule exists
+Test test_default_reject_rule PASSED
+
+Test Summary:
+Total Tests:     3
+Failures:        0
+All Tests Passed Successfully!
+```

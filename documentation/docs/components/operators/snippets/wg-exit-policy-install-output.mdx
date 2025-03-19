@@ -1,0 +1,432 @@
+```console
+iptables-persistent is already installed.
+Configuring IP forwarding...
+net.ipv6.conf.all.forwarding=1
+net.ipv4.ip_forward=1
+net.ipv6.conf.all.forwarding = 1
+net.ipv4.ip_forward = 1
+IP forwarding configured successfully.
+Creating Nym exit policy chain...
+Creating chain NYM-EXIT...
+Creating chain NYM-EXIT in ip6tables...
+Linking NYM-EXIT to FORWARD chain...
+Linking NYM-EXIT to IPv6 FORWARD chain...
+Setting up NAT rules...
+IPv4 NAT rule already exists.
+IPv6 NAT rule already exists.
+Configuring DNS and ICMP rules...
+Added IPv6 ICMP rule (allow ping6).
+Added IPv6 DNS rule (UDP).
+Added IPv6 DNS rule (TCP).
+Applying Spamhaus blocklist...
+Downloading exit policy from https://nymtech.net/.wellknown/network-requester/exit-policy.txt
+Processing 429 blocklist rules...
+Blocklist applied successfully.
+Applying allowed ports...
+Adding rules for SILC (Port: 706)
+  Added: NYM-EXIT tcp port 706
+  Added: NYM-EXIT tcp port 706
+  Added: NYM-EXIT udp port 706
+  Added: NYM-EXIT udp port 706
+Adding rules for PostgreSQL (Port: 5432)
+  Added: NYM-EXIT tcp port 5432
+  Added: NYM-EXIT tcp port 5432
+  Added: NYM-EXIT udp port 5432
+  Added: NYM-EXIT udp port 5432
+Adding rules for CPanel (Port: 2082-2083)
+  Added: NYM-EXIT tcp port range 2082:2083
+  Added: NYM-EXIT tcp port range 2082:2083
+  Added: NYM-EXIT udp port range 2082:2083
+  Added: NYM-EXIT udp port range 2082:2083
+Adding rules for Zcash (Port: 8232-8233)
+  Added: NYM-EXIT tcp port range 8232:8233
+  Added: NYM-EXIT tcp port range 8232:8233
+  Added: NYM-EXIT udp port range 8232:8233
+  Added: NYM-EXIT udp port range 8232:8233
+Adding rules for VLSILicenseManager (Port: 1500)
+  Added: NYM-EXIT tcp port 1500
+  Added: NYM-EXIT tcp port 1500
+  Added: NYM-EXIT udp port 1500
+  Added: NYM-EXIT udp port 1500
+Adding rules for NTP (Port: 123)
+  Added: NYM-EXIT tcp port 123
+  Added: NYM-EXIT tcp port 123
+  Added: NYM-EXIT udp port 123
+  Added: NYM-EXIT udp port 123
+Adding rules for PKTKRB (Port: 1293)
+  Added: NYM-EXIT tcp port 1293
+  Added: NYM-EXIT tcp port 1293
+  Added: NYM-EXIT udp port 1293
+  Added: NYM-EXIT udp port 1293
+Adding rules for OpenPGP (Port: 11371)
+  Added: NYM-EXIT tcp port 11371
+  Added: NYM-EXIT tcp port 11371
+  Added: NYM-EXIT udp port 11371
+  Added: NYM-EXIT udp port 11371
+Adding rules for HTTPS (Port: 443)
+  Added: NYM-EXIT tcp port 443
+  Added: NYM-EXIT tcp port 443
+  Added: NYM-EXIT udp port 443
+  Added: NYM-EXIT udp port 443
+Adding rules for POP3 (Port: 110)
+  Added: NYM-EXIT tcp port 110
+  Added: NYM-EXIT tcp port 110
+  Added: NYM-EXIT udp port 110
+  Added: NYM-EXIT udp port 110
+Adding rules for OpenVPN (Port: 1194)
+  Added: NYM-EXIT tcp port 1194
+  Added: NYM-EXIT tcp port 1194
+  Added: NYM-EXIT udp port 1194
+  Added: NYM-EXIT udp port 1194
+Adding rules for XboxLive (Port: 3074)
+  Added: NYM-EXIT tcp port 3074
+  Added: NYM-EXIT tcp port 3074
+  Added: NYM-EXIT udp port 3074
+  Added: NYM-EXIT udp port 3074
+Adding rules for OracleDB (Port: 1521)
+  Added: NYM-EXIT tcp port 1521
+  Added: NYM-EXIT tcp port 1521
+  Added: NYM-EXIT udp port 1521
+  Added: NYM-EXIT udp port 1521
+Adding rules for NFS (Port: 2049)
+  Added: NYM-EXIT tcp port 2049
+  Added: NYM-EXIT tcp port 2049
+  Added: NYM-EXIT udp port 2049
+  Added: NYM-EXIT udp port 2049
+Adding rules for Kerberos (Port: 88)
+  Added: NYM-EXIT tcp port 88
+  Added: NYM-EXIT tcp port 88
+  Added: NYM-EXIT udp port 88
+  Added: NYM-EXIT udp port 88
+Adding rules for POP3OverTLS (Port: 995)
+  Added: NYM-EXIT tcp port 995
+  Added: NYM-EXIT tcp port 995
+  Added: NYM-EXIT udp port 995
+  Added: NYM-EXIT udp port 995
+Adding rules for MMCC (Port: 5050)
+  Added: NYM-EXIT tcp port 5050
+  Added: NYM-EXIT tcp port 5050
+  Added: NYM-EXIT udp port 5050
+  Added: NYM-EXIT udp port 5050
+Adding rules for WHOIS (Port: 43)
+  Added: NYM-EXIT tcp port 43
+  Added: NYM-EXIT tcp port 43
+  Added: NYM-EXIT udp port 43
+  Added: NYM-EXIT udp port 43
+Adding rules for NetnewsAdmin (Port: 991)
+  Added: NYM-EXIT tcp port 991
+  Added: NYM-EXIT tcp port 991
+  Added: NYM-EXIT udp port 991
+  Added: NYM-EXIT udp port 991
+Adding rules for IMAP (Port: 143)
+  Added: NYM-EXIT tcp port 143
+  Added: NYM-EXIT tcp port 143
+  Added: NYM-EXIT udp port 143
+  Added: NYM-EXIT udp port 143
+Adding rules for AndroidMarket (Port: 5228)
+  Added: NYM-EXIT tcp port 5228
+  Added: NYM-EXIT tcp port 5228
+  Added: NYM-EXIT udp port 5228
+  Added: NYM-EXIT udp port 5228
+Adding rules for SMBWindowsFileShare (Port: 445)
+  Added: NYM-EXIT tcp port 445
+  Added: NYM-EXIT tcp port 445
+  Added: NYM-EXIT udp port 445
+  Added: NYM-EXIT udp port 445
+Adding rules for RTSPAlt (Port: 1755)
+  Added: NYM-EXIT tcp port 1755
+  Added: NYM-EXIT tcp port 1755
+  Added: NYM-EXIT udp port 1755
+  Added: NYM-EXIT udp port 1755
+Adding rules for IMAPOverTLS (Port: 993)
+  Added: NYM-EXIT tcp port 993
+  Added: NYM-EXIT tcp port 993
+  Added: NYM-EXIT udp port 993
+  Added: NYM-EXIT udp port 993
+Adding rules for TorORPort (Port: 9001)
+  Added: NYM-EXIT tcp port 9001
+  Added: NYM-EXIT tcp port 9001
+  Added: NYM-EXIT udp port 9001
+  Added: NYM-EXIT udp port 9001
+Adding rules for XMPP (Port: 5222-5223)
+  Added: NYM-EXIT tcp port range 5222:5223
+  Added: NYM-EXIT tcp port range 5222:5223
+  Added: NYM-EXIT udp port range 5222:5223
+  Added: NYM-EXIT udp port range 5222:5223
+Adding rules for FTP (Port: 20-21)
+  Added: NYM-EXIT tcp port range 20:21
+  Added: NYM-EXIT tcp port range 20:21
+  Added: NYM-EXIT udp port range 20:21
+  Added: NYM-EXIT udp port range 20:21
+Adding rules for MOSH (Port: 60000-61000)
+  Added: NYM-EXIT tcp port range 60000:61000
+  Added: NYM-EXIT tcp port range 60000:61000
+  Added: NYM-EXIT udp port range 60000:61000
+  Added: NYM-EXIT udp port range 60000:61000
+Adding rules for Zephyr (Port: 2102-2104)
+  Added: NYM-EXIT tcp port range 2102:2104
+  Added: NYM-EXIT tcp port range 2102:2104
+  Added: NYM-EXIT udp port range 2102:2104
+  Added: NYM-EXIT udp port range 2102:2104
+Adding rules for Rsync (Port: 873)
+  Added: NYM-EXIT tcp port 873
+  Added: NYM-EXIT tcp port 873
+  Added: NYM-EXIT udp port 873
+  Added: NYM-EXIT udp port 873
+Adding rules for Steam (Port: 27000-27050)
+  Added: NYM-EXIT tcp port range 27000:27050
+  Added: NYM-EXIT tcp port range 27000:27050
+  Added: NYM-EXIT udp port range 27000:27050
+  Added: NYM-EXIT udp port range 27000:27050
+Adding rules for Git (Port: 9418)
+  Added: NYM-EXIT tcp port 9418
+  Added: NYM-EXIT tcp port 9418
+  Added: NYM-EXIT udp port 9418
+  Added: NYM-EXIT udp port 9418
+Adding rules for MSNP (Port: 1863)
+  Added: NYM-EXIT tcp port 1863
+  Added: NYM-EXIT tcp port 1863
+  Added: NYM-EXIT udp port 1863
+  Added: NYM-EXIT udp port 1863
+Adding rules for SimplifyMedia (Port: 8087-8088)
+  Added: NYM-EXIT tcp port range 8087:8088
+  Added: NYM-EXIT tcp port range 8087:8088
+  Added: NYM-EXIT udp port range 8087:8088
+  Added: NYM-EXIT udp port range 8087:8088
+Adding rules for TorDirPort (Port: 9030)
+  Added: NYM-EXIT tcp port 9030
+  Added: NYM-EXIT tcp port 9030
+  Added: NYM-EXIT udp port 9030
+  Added: NYM-EXIT udp port 9030
+Adding rules for Virtuozzo (Port: 4643)
+  Added: NYM-EXIT tcp port 4643
+  Added: NYM-EXIT tcp port 4643
+  Added: NYM-EXIT udp port 4643
+  Added: NYM-EXIT udp port 4643
+Adding rules for Gaming (Port: 9339)
+  Added: NYM-EXIT tcp port 9339
+  Added: NYM-EXIT tcp port 9339
+  Added: NYM-EXIT udp port 9339
+  Added: NYM-EXIT udp port 9339
+Adding rules for VMware (Port: 902-904)
+  Added: NYM-EXIT tcp port range 902:904
+  Added: NYM-EXIT tcp port range 902:904
+  Added: NYM-EXIT udp port range 902:904
+  Added: NYM-EXIT udp port range 902:904
+Adding rules for Sametime (Port: 1533)
+  Added: NYM-EXIT tcp port 1533
+  Added: NYM-EXIT tcp port 1533
+  Added: NYM-EXIT udp port 1533
+  Added: NYM-EXIT udp port 1533
+Adding rules for NBX (Port: 2095-2096)
+  Added: NYM-EXIT tcp port range 2095:2096
+  Added: NYM-EXIT tcp port range 2095:2096
+  Added: NYM-EXIT udp port range 2095:2096
+  Added: NYM-EXIT udp port range 2095:2096
+Adding rules for ICQ (Port: 5190)
+  Added: NYM-EXIT tcp port 5190
+  Added: NYM-EXIT tcp port 5190
+  Added: NYM-EXIT udp port 5190
+  Added: NYM-EXIT udp port 5190
+Adding rules for KerberosAdmin (Port: 749)
+  Added: NYM-EXIT tcp port 749
+  Added: NYM-EXIT tcp port 749
+  Added: NYM-EXIT udp port 749
+  Added: NYM-EXIT udp port 749
+Adding rules for RWHOIS (Port: 4321)
+  Added: NYM-EXIT tcp port 4321
+  Added: NYM-EXIT tcp port 4321
+  Added: NYM-EXIT udp port 4321
+  Added: NYM-EXIT udp port 4321
+Adding rules for NDMP (Port: 10000)
+  Added: NYM-EXIT tcp port 10000
+  Added: NYM-EXIT tcp port 10000
+  Added: NYM-EXIT udp port 10000
+  Added: NYM-EXIT udp port 10000
+Adding rules for DNS (Port: 53)
+  Added: NYM-EXIT tcp port 53
+  Added: NYM-EXIT tcp port 53
+  Added: NYM-EXIT udp port 53
+  Added: NYM-EXIT udp port 53
+Adding rules for GoogleVoice (Port: 19294)
+  Added: NYM-EXIT tcp port 19294
+  Added: NYM-EXIT tcp port 19294
+  Added: NYM-EXIT udp port 19294
+  Added: NYM-EXIT udp port 19294
+Adding rules for IMAP3 (Port: 220)
+  Added: NYM-EXIT tcp port 220
+  Added: NYM-EXIT tcp port 220
+  Added: NYM-EXIT udp port 220
+  Added: NYM-EXIT udp port 220
+Adding rules for Bitcoin (Port: 8332-8333)
+  Added: NYM-EXIT tcp port range 8332:8333
+  Added: NYM-EXIT tcp port range 8332:8333
+  Added: NYM-EXIT udp port range 8332:8333
+  Added: NYM-EXIT udp port range 8332:8333
+Adding rules for Mumble (Port: 64738)
+  Added: NYM-EXIT tcp port 64738
+  Added: NYM-EXIT tcp port 64738
+  Added: NYM-EXIT udp port 64738
+  Added: NYM-EXIT udp port 64738
+Adding rules for PPTP (Port: 1723)
+  Added: NYM-EXIT tcp port 1723
+  Added: NYM-EXIT tcp port 1723
+  Added: NYM-EXIT udp port 1723
+  Added: NYM-EXIT udp port 1723
+Adding rules for HTTPSALT (Port: 8443)
+  Added: NYM-EXIT tcp port 8443
+  Added: NYM-EXIT tcp port 8443
+  Added: NYM-EXIT udp port 8443
+  Added: NYM-EXIT udp port 8443
+Adding rules for HTTPProxy (Port: 8888)
+  Added: NYM-EXIT tcp port 8888
+  Added: NYM-EXIT tcp port 8888
+  Added: NYM-EXIT udp port 8888
+  Added: NYM-EXIT udp port 8888
+Adding rules for GNUnet (Port: 2086-2087)
+  Added: NYM-EXIT tcp port range 2086:2087
+  Added: NYM-EXIT tcp port range 2086:2087
+  Added: NYM-EXIT udp port range 2086:2087
+  Added: NYM-EXIT udp port range 2086:2087
+Adding rules for Lightning (Port: 9735)
+  Added: NYM-EXIT tcp port 9735
+  Added: NYM-EXIT tcp port 9735
+  Added: NYM-EXIT udp port 9735
+  Added: NYM-EXIT udp port 9735
+Adding rules for RTSP (Port: 554)
+  Added: NYM-EXIT tcp port 554
+  Added: NYM-EXIT tcp port 554
+  Added: NYM-EXIT udp port 554
+  Added: NYM-EXIT udp port 554
+Adding rules for DNSOverTLS (Port: 853)
+  Added: NYM-EXIT tcp port 853
+  Added: NYM-EXIT tcp port 853
+  Added: NYM-EXIT udp port 853
+  Added: NYM-EXIT udp port 853
+Adding rules for SSH (Port: 22)
+  Added: NYM-EXIT tcp port 22
+  Added: NYM-EXIT tcp port 22
+  Added: NYM-EXIT udp port 22
+  Added: NYM-EXIT udp port 22
+Adding rules for Electrum (Port: 8082)
+  Added: NYM-EXIT tcp port 8082
+  Added: NYM-EXIT tcp port 8082
+  Added: NYM-EXIT udp port 8082
+  Added: NYM-EXIT udp port 8082
+Adding rules for TelnetOverTLS (Port: 992)
+  Added: NYM-EXIT tcp port 992
+  Added: NYM-EXIT tcp port 992
+  Added: NYM-EXIT udp port 992
+  Added: NYM-EXIT udp port 992
+Adding rules for Minecraft (Port: 25565)
+  Added: NYM-EXIT tcp port 25565
+  Added: NYM-EXIT tcp port 25565
+  Added: NYM-EXIT udp port 25565
+  Added: NYM-EXIT udp port 25565
+Adding rules for SVN (Port: 3690)
+  Added: NYM-EXIT tcp port 3690
+  Added: NYM-EXIT tcp port 3690
+  Added: NYM-EXIT udp port 3690
+  Added: NYM-EXIT udp port 3690
+Adding rules for Kpasswd (Port: 464)
+  Added: NYM-EXIT tcp port 464
+  Added: NYM-EXIT tcp port 464
+  Added: NYM-EXIT udp port 464
+  Added: NYM-EXIT udp port 464
+Adding rules for RemoteHTTPS (Port: 981)
+  Added: NYM-EXIT tcp port 981
+  Added: NYM-EXIT tcp port 981
+  Added: NYM-EXIT udp port 981
+  Added: NYM-EXIT udp port 981
+Adding rules for Tari (Port: 9053)
+  Added: NYM-EXIT tcp port 9053
+  Added: NYM-EXIT tcp port 9053
+  Added: NYM-EXIT udp port 9053
+  Added: NYM-EXIT udp port 9053
+Adding rules for ElectrumSSL (Port: 50002)
+  Added: NYM-EXIT tcp port 50002
+  Added: NYM-EXIT tcp port 50002
+  Added: NYM-EXIT udp port 50002
+  Added: NYM-EXIT udp port 50002
+Adding rules for HTTPSALT2 (Port: 9443)
+  Added: NYM-EXIT tcp port 9443
+  Added: NYM-EXIT tcp port 9443
+  Added: NYM-EXIT udp port 9443
+  Added: NYM-EXIT udp port 9443
+Adding rules for LDAP (Port: 389)
+  Added: NYM-EXIT tcp port 389
+  Added: NYM-EXIT tcp port 389
+  Added: NYM-EXIT udp port 389
+  Added: NYM-EXIT udp port 389
+Adding rules for HTTP (Port: 80-81)
+  Added: NYM-EXIT tcp port range 80:81
+  Added: NYM-EXIT tcp port range 80:81
+  Added: NYM-EXIT udp port range 80:81
+  Added: NYM-EXIT udp port range 80:81
+Adding rules for MongoDBDefault (Port: 27017)
+  Added: NYM-EXIT tcp port 27017
+  Added: NYM-EXIT tcp port 27017
+  Added: NYM-EXIT udp port 27017
+  Added: NYM-EXIT udp port 27017
+Adding rules for RTPVOIP (Port: 5000-5005)
+  Added: NYM-EXIT tcp port range 5000:5005
+  Added: NYM-EXIT tcp port range 5000:5005
+  Added: NYM-EXIT udp port range 5000:5005
+  Added: NYM-EXIT udp port range 5000:5005
+Adding rules for MSSQL (Port: 1433)
+  Added: NYM-EXIT tcp port 1433
+  Added: NYM-EXIT tcp port 1433
+  Added: NYM-EXIT udp port 1433
+  Added: NYM-EXIT udp port 1433
+Adding rules for MQTTS (Port: 8883)
+  Added: NYM-EXIT tcp port 8883
+  Added: NYM-EXIT tcp port 8883
+  Added: NYM-EXIT udp port 8883
+  Added: NYM-EXIT udp port 8883
+Adding rules for MySQL (Port: 3306)
+  Added: NYM-EXIT tcp port 3306
+  Added: NYM-EXIT tcp port 3306
+  Added: NYM-EXIT udp port 3306
+  Added: NYM-EXIT udp port 3306
+Adding rules for TeamSpeak (Port: 8767)
+  Added: NYM-EXIT tcp port 8767
+  Added: NYM-EXIT tcp port 8767
+  Added: NYM-EXIT udp port 8767
+  Added: NYM-EXIT udp port 8767
+Adding rules for GroupWise (Port: 1677)
+  Added: NYM-EXIT tcp port 1677
+  Added: NYM-EXIT tcp port 1677
+  Added: NYM-EXIT udp port 1677
+  Added: NYM-EXIT udp port 1677
+Adding rules for EnsimControlPanel (Port: 19638)
+  Added: NYM-EXIT tcp port 19638
+  Added: NYM-EXIT tcp port 19638
+  Added: NYM-EXIT udp port 19638
+  Added: NYM-EXIT udp port 19638
+Adding rules for QTServerAdmin (Port: 1220)
+  Added: NYM-EXIT tcp port 1220
+  Added: NYM-EXIT tcp port 1220
+  Added: NYM-EXIT udp port 1220
+  Added: NYM-EXIT udp port 1220
+Adding rules for Finger (Port: 79)
+  Added: NYM-EXIT tcp port 79
+  Added: NYM-EXIT tcp port 79
+  Added: NYM-EXIT udp port 79
+  Added: NYM-EXIT udp port 79
+Adding rules for FTPOverTLS (Port: 989-990)
+  Added: NYM-EXIT tcp port range 989:990
+  Added: NYM-EXIT tcp port range 989:990
+  Added: NYM-EXIT udp port range 989:990
+  Added: NYM-EXIT udp port range 989:990
+Adding rules for LDAPS (Port: 636)
+  Added: NYM-EXIT tcp port 636
+  Added: NYM-EXIT tcp port 636
+  Added: NYM-EXIT udp port 636
+  Added: NYM-EXIT udp port 636
+Adding default reject rule...
+Default reject rule added successfully.
+Port allowlist applied successfully.
+Saving iptables rules to make them persistent...
+Rules saved to /etc/iptables/rules.v4 and /etc/iptables/rules.v6
+Nym exit policy installed successfully.
+```

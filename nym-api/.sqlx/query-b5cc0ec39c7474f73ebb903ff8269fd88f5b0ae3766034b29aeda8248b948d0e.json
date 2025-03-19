@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT expiration_date, count AS 'count: u32' FROM issued_ticketbooks_count WHERE issuance_date = ?",
+  "query": "SELECT issuance_date AS 'issuance_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count WHERE expiration_date = ?",
   "describe": {
     "columns": [
       {
-        "name": "expiration_date",
+        "name": "issuance_date: Date",
         "ordinal": 0,
         "type_info": "Date"
       },
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "f3b461a5b6609b287cd0721b06d24729d46dda9d4ab7a56dbcb70f69a20aa3f5"
+  "hash": "b5cc0ec39c7474f73ebb903ff8269fd88f5b0ae3766034b29aeda8248b948d0e"
 }

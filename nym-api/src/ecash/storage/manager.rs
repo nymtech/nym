@@ -583,7 +583,7 @@ impl EcashStorageManagerExt for StorageManager {
     ) -> Result<Vec<IssuedTicketbooksCount>, sqlx::Error> {
         sqlx::query_as!(
             IssuedTicketbooksCount,
-            "SELECT issuance_date, expiration_date, count AS 'count: u32' FROM issued_ticketbooks_count LIMIT ? OFFSET ?",
+            "SELECT issuance_date AS 'issuance_date: Date', expiration_date AS 'expiration_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count LIMIT ? OFFSET ?",
             limit,
             offset
         )
@@ -597,7 +597,7 @@ impl EcashStorageManagerExt for StorageManager {
     ) -> Result<Vec<IssuedTicketbooksOnCount>, sqlx::Error> {
         sqlx::query_as!(
             IssuedTicketbooksOnCount,
-            "SELECT expiration_date, count AS 'count: u32' FROM issued_ticketbooks_count WHERE issuance_date = ?",
+            "SELECT expiration_date AS 'expiration_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count WHERE issuance_date = ?",
             issuance_date
         )
         .fetch_all(&self.connection_pool)
@@ -610,7 +610,7 @@ impl EcashStorageManagerExt for StorageManager {
     ) -> Result<Vec<IssuedTicketbooksForCount>, sqlx::Error> {
         sqlx::query_as!(
             IssuedTicketbooksForCount,
-            "SELECT issuance_date, count AS 'count: u32' FROM issued_ticketbooks_count WHERE expiration_date = ?",
+            "SELECT issuance_date AS 'issuance_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count WHERE expiration_date = ?",
             expiration_date
         )
         .fetch_all(&self.connection_pool)

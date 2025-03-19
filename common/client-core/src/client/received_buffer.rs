@@ -409,7 +409,6 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         if !completed_messages.is_empty() {
             self.handle_reconstructed_messages(completed_messages).await
         }
-
         Ok(())
     }
 }

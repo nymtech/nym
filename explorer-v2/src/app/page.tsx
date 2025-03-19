@@ -1,4 +1,4 @@
-import { Stack, Typography } from "@mui/material";
+import { Stack } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import BlogArticlesCards from "../components/blogs/BlogArticleCards";
 import { ContentLayout } from "../components/contentLayout/ContentLayout";

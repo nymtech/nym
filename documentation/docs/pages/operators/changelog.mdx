@@ -47,6 +47,182 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.5-chokito`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.5-chokito)
+- [`nym-node`](nodes/nym-node.mdx) version `1.7.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-03-18T12:17:10.782554174Z
+Build Version:      1.7.0
+Commit SHA:         82e82943aa14e530ab4eb3aaab28ce86d47e5298
+Commit Date:        2025-03-18T10:39:55.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.85.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Update quick overview
+
+1. WebSocket Connection Counter Fix (this is the fix for which we have a [pre-release branch](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-nym-node-patch) out already which will be replaced by this release)
+    - Prevents incorrect session tracking for WebSockets
+
+2. Security Fixes in Dependencies
+    - Address known security vulnerabilities, making updating highly recommended
+
+3. Authorisation & Timestamp Changes
+    - Modifies how timestamps are validated in Auth v2 - this is going to be what the clients use. For example: the clients will start to use v2 variants of everything (prepping the network for the breaking change to come on April 1st which will force clients to only use v2).
+
+
+### Operators Updates & Tools
+
+- Wireguard exit policy
+
+- KVM IPv6
+
+- NTP time
+
+- Token page
+
+
+### Features
+
+- [Display error messages if IPv4 or IPv6 address not found on nymtun0](https://github.com/nymtech/nym/pull/5465): This is with regards to issue [\#5461](https://github.com/nymtech/nym/pull/5461)
+
+- [Connection `fd` callback before actual connection](https://github.com/nymtech/nym/pull/5494)
+
+- [Add extra args for the probe](https://github.com/nymtech/nym/pull/5499)
+
+- [Use ct_eq for checking bearer token](https://github.com/nymtech/nym/pull/5501)
+
+- [Update version in Cargo.toml](https://github.com/nymtech/nym/pull/5503)
+
+- [Treat Gateways as Nym Nodes](https://github.com/nymtech/nym/pull/5504): entry/exit nodes are also scraped for description & packets mixed data. Generate a random moniker for nodes that don't have one set.
+
+- [Bump the patch-updates group with 2 updates](https://github.com/nymtech/nym/pull/5505): [log](https://github.com/rust-lang/log) and [tar](https://github.com/alexcrichton/tar-rs).
+
+- [Bump itertools from `0.13.0` to `0.14.0`](https://github.com/nymtech/nym/pull/5509):Bumps [itertools](https://github.com/rust-itertools/itertools).
+
+- [Bump flate2 from `1.0.35` to `1.1.0`](https://github.com/nymtech/nym/pull/5510): Bumps [flate2](https://github.com/rust-lang/flate2-rs).
+
+- [Make sure any terminated task kills the watcher and write run info to db](https://github.com/nymtech/nym/pull/5517)
+
+- [Make "Memo" visible per default on send NYM](https://github.com/nymtech/nym/pull/5524)
+
+- [Disallow routing mix packets to nodes not present in the topology](https://github.com/nymtech/nym/pull/5526)
+
+- [Set `RUSTUP_PERMIT_COPY_RENAME`](https://github.com/nymtech/nym/pull/5533): Try to fix rustup issues on our self-hosted runners by setting `RUSTUP_PERMIT_COPY_RENAME`
+
+- [v2 authentication request](https://github.com/nymtech/nym/pull/5537): This PR creates new v2 variant of client-gateway authentication message that increases protection against possible connection hijacking.
+
+- [Bump `rs_merkle` from `1.4.2` to `1.5.0`](https://github.com/nymtech/nym/pull/5541): Bumps [rs_merkle](https://github.com/antouhou/rs-merkle)
+
+- [Bump `uuid` from `1.13.2` to `1.15.1`](https://github.com/nymtech/nym/pull/5542): Bumps [`uuid`](https://github.com/uuid-rs/uuid)
+
+- [Bump the `patch-updates` group across 1 directory with 14 updates](https://github.com/nymtech/nym/pull/5549):
+
+| Package | From | To |
+| --- | --- | --- |
+| [`anyhow`](https://github.com/dtolnay/anyhow) | `1.0.96` | `1.0.97` |
+| [`async-trait`](https://github.com/dtolnay/async-trait) | `0.1.86` | `0.1.87` |
+| [`blake3`](https://github.com/BLAKE3-team/BLAKE3) | `1.6.0` | `1.6.1` |
+| [`chrono`](https://github.com/chronotope/chrono) | `0.4.39` | `0.4.40` |
+| [`clap`](https://github.com/clap-rs/clap) | `4.5.30` | `4.5.31` |
+| [`clap_complete`](https://github.com/clap-rs/clap) | `4.5.45` | `4.5.46` |
+| [`console`](https://github.com/console-rs/console) | `0.15.10` | `0.15.11` |
+| [`getset`](https://github.com/jbaublitz/getset) | `0.1.4` | `0.1.5` |
+| [`pin-project`](https://github.com/taiki-e/pin-project) | `1.1.9` | `1.1.10` |
+| [`quote`](https://github.com/dtolnay/quote) | `1.0.38` | `1.0.39` |
+| [`schemars`](https://github.com/GREsau/schemars) | `0.8.21` | `0.8.22` |
+| [`serde_bytes`](https://github.com/serde-rs/bytes) | `0.11.15` | `0.11.16` |
+| [`serde_json`](https://github.com/serde-rs/json) | `1.0.139` | `1.0.140` |
+| [`thiserror`](https://github.com/dtolnay/thiserror) | `2.0.11` | `2.0.12` |
+
+- [Start sending v2 sphinx packets](https://github.com/nymtech/nym/pull/5554)
+
+- [Add /v3/nym-nodes](https://github.com/nymtech/nym/pull/5569): Returns extended node info from local DB
+  - Endpoint caching
+  - Add `bond_info` & `self_described` to DB `nym_nodes`
+  - Update mixnode & gateway bond status on data refresh
+  - Add `active` column to DB `nym_nodes`
+  - Use only active & bonded nodes in scraping/testrun tasks 
+
+- [Rust SDK SURB example: change hardcoded file to tempdir](https://github.com/nymtech/nym/pull/5576): Change hardcoded filepath for client to tempdir
+
+- [Server Side internal DoT/DoH opt out](https://github.com/nymtech/nym/pull/5577): Allow server side (nodes and nym-api) to use nym-http-api-client without  DoH/DoT resolver. 
+
+- [Delete double memo field in send modal](https://github.com/nymtech/nym/pull/5578)
+
+- [Bump ring from `0.17.3` to `0.17.13` in /nym-wallet](https://github.com/nymtech/nym/pull/5582): Bumps [ring](https://github.com/briansmith/ring)
+
+- [Bump the patch-updates group with 8 updates](https://github.com/nymtech/nym/pull/5585): 
+
+| Package | From | To |
+| --- | --- | --- |
+| [`bytes`](https://github.com/tokio-rs/bytes) | `1.10.0` | `1.10.1` |
+| [`semver`](https://github.com/dtolnay/semver) | `1.0.25` | `1.0.26` |
+| [`serde`](https://github.com/serde-rs/serde) | `1.0.218` | `1.0.219` |
+| [`serde_bytes`](https://github.com/serde-rs/bytes) | `0.11.16` | `0.11.17` |
+| [`serde_derive`](https://github.com/serde-rs/serde) | `1.0.218` | `1.0.219` |
+| [`serde_repr`](https://github.com/dtolnay/serde-repr) | `0.1.19` | `0.1.20` |
+| [`time`](https://github.com/time-rs/time) | `0.3.37` | `0.3.39` |
+| [`ff`](https://github.com/zkcrypto/ff) | `0.13.0` | `0.13.1` |
+
+- [Bump `tokio` from `1.43.0` to `1.44.0`](https://github.com/nymtech/nym/pull/5587): Bumps [tokio](https://github.com/tokio-rs/tokio)
+
+- [Bump `tempfile` from `3.17.1` to `3.18.0`](https://github.com/nymtech/nym/pull/5588): Bumps [tempfile](https://github.com/Stebalien/tempfile)
+
+- [Bump `webpack-dev-middleware` from `5.3.3` to `5.3.4` in `/wasm/zknym-lib/internal-dev]`(https://github.com/nymtech/nym/pull/5589): Bumps [webpack-dev-middleware](https://github.com/webpack/webpack-dev-middleware)
+
+- [Bump `braces` from `3.0.2` to `3.0.3` in /wasm/zknym-lib/internal-dev](https://github.com/nymtech/nym/pull/5590): Bumps [braces](https://github.com/micromatch/braces)
+
+- [Bump `cookie` and `express` in `/wasm/client/internal-dev`](https://github.com/nymtech/nym/pull/5592): Bumps [cookie](https://github.com/jshttp/cookie)
+
+- [Bump `ws` from `8.13.0` to `8.18.1` in `/wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/5593): Bumps [ws](https://github.com/websockets/ws)
+
+- [Bump `serve-static` and `express` in `/wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/5594): Bumps [serve-static](https://github.com/expressjs/serve-static)
+
+- [Bump `body-parser` and express in `/wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/5596): Bumps [body-parser](https://github.com/expressjs/body-parser)
+
+- [Bump `webpack` from `5.77.0` to `5.98.0` in /wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/5597): Bumps [webpack](https://github.com/webpack/webpack)
+
+- [Introduce internal tool for checking signer status](https://github.com/nymtech/nym/pull/5598)
+
+- [Allow resetting all `SURB` sender tags](https://github.com/nymtech/nym/pull/5600)
+
+- [Chore/payment watcher debug endpoints](https://github.com/nymtech/nym/pull/5601)
+
+- [Change `auth` v2 timestamp skew and allow values from the future](https://github.com/nymtech/nym/pull/5604)
+
+- [Update bls12 381 fork](https://github.com/nymtech/nym/pull/5605)
+
+- [Bump `@babel/helpers` from `7.24.4` to `7.26.10`](https://github.com/nymtech/nym/pull/5606): Bumps [@babel/helpers](https://github.com/babel/babel/tree/HEAD/packages/babel-helpers)
+
+- [Chore/more payment watcher debug endpoints](https://github.com/nymtech/nym/pull/5608)
+
+- [Export lane queue lengths in sdk](https://github.com/nymtech/nym/pull/5609): Export the lane queue length type to be able to implement backpressure outside of the sdk mixnet client
+
+- [Bump `webpack-dev-middleware` from `5.3.3` to `5.3.4` in `/wasm/client/internal-dev`](https://github.com/nymtech/nym/pull/5610): Bumps [webpack-dev-middleware](https://github.com/webpack/webpack-dev-middleware)
+
+- [Bump `braces` from `3.0.2` to `3.0.3` in `/sdk/typescript/packages/nodejs-client`](https://github.com/nymtech/nym/pull/5611): Bumps [braces](https://github.com/micromatch/braces)
+
+- [Remove explorer-api from ci-build-binaries](https://github.com/nymtech/nym/pull/5616)
+
+### Bugfix
+
+- [`Cargo.lock` for contracts](https://github.com/nymtech/nym/pull/5489)
+
+- [Fix stats bug & remove HM caching](https://github.com/nymtech/nym/pull/5495)
+
+- [Fix `total_stake` on SQL update](https://github.com/nymtech/nym/pull/5514)
+
+- [Another `total_stake` SQL fix](https://github.com/nymtech/nym/pull/5516)
+
+- [Correctly increment `ws` connection counter](https://github.com/nymtech/nym/pull/5620)
+
 ## `v2025.4-dorina-patched`
 
 Patched version of `dorina` with a few fixes and tweaks to the release. We would like to ask `nym-node` operators to upgrade to this version as quickly as possible to implement the fixes across the network and improve general quality before NymVPN launch. 

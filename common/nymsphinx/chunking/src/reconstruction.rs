@@ -308,7 +308,7 @@ impl MessageReconstructor {
     }
 
     pub fn cleanup_stale_buffers(&mut self) {
-        info!("Cleaning up stale buffers...");
+        trace!("Cleaning up stale buffers");
         let now = Instant::now();
         self.reconstructed_sets.retain(|_, set_buf| {
             let keep = now.duration_since(set_buf.last_fragment_timestamp)

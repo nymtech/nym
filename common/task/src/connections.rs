@@ -90,11 +90,9 @@ impl LaneQueueLengths {
             if lane_length < LANE_CONSIDERED_CLEAR {
                 break;
             }
-            if let Some(timeout) = timeout {
-                if total_time_waited.elapsed() > timeout {
-                    log::warn!("Timeout reached while waiting for queue to clear");
-                    break;
-                }
+            if timeout.is_some_and(|timeout| total_time_waited.elapsed() > timeout) {
+                log::warn!("Timeout reached while waiting for queue to clear");
+                break;
             }
             log::trace!("Waiting for queue to clear ({} items left)", lane_length);
             tokio::time::sleep(Duration::from_millis(100)).await;

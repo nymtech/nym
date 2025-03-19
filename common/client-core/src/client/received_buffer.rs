@@ -146,7 +146,9 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     }
 
     fn cleanup_stale_buffers(&mut self) {
-        self.message_receiver.reconstructor().cleanup_stale_buffers();
+        self.message_receiver
+            .reconstructor()
+            .cleanup_stale_buffers();
     }
 }
 
@@ -396,17 +398,18 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
             }
         }
 
+        // Cleanup stale buffers, if there are any fragments that simply never arrived.
+        // We do this here as part of handling new received fragments so that we can keep the event
+        // loop focused on processing new messages.
+        inner_guard.cleanup_stale_buffers();
+
         drop(inner_guard);
 
         if !completed_messages.is_empty() {
             self.handle_reconstructed_messages(completed_messages).await
         }
-        Ok(())
-    }
 
-    async fn cleanup_stale_buffers(&mut self) {
-        let mut guard = self.inner.lock().await;
-        guard.cleanup_stale_buffers();
+        Ok(())
     }
 }
 
@@ -493,8 +496,6 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
 
     async fn run(&mut self) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
-        let mut cleanup_interval = tokio::time::interval(Duration::from_secs(60));
-
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 new_messages = self.mixnet_packet_receiver.next() => {
@@ -505,9 +506,6 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
                         break;
                     }
                 },
-                _ = cleanup_interval.tick() => {
-                    self.received_buffer.cleanup_stale_buffers().await;
-                }
                 _ = self.task_client.recv_with_delay() => {
                     log::trace!("FragmentedMessageReceiver: Received shutdown");
                 }

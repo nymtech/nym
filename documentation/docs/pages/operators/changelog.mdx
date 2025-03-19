@@ -79,11 +79,13 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
+- [Setup commands for `nym-node` simplified](nodes/nym-node/setup#setup--run): `config.toml` defaults to correct binding addresses and ports, no need to specify unless operators want to change those values. 
+
+- [Virtualising dedicated server with KVM now includes IPv6 setup](nodes/preliminary-steps/vps-setup/advanced#installing-kvm-on-a-server-with-ubuntu-2204): Thanks to [LunarDAO](https://lunardao.net) squad we caught a missing IPv6 configuration in KVM installation guide. Operators can now run a bare metal or dedicated server and virtualise it into VMs each with a fully functional node, having all specs fully under control.
+
+- [NTP time synchronization guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server): Some servers had an issue with incorrect time. Please use [this guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server) to update time on your server to synchronize your node operation with the rest of the network.
+
 - Wireguard exit policy
-
-- KVM IPv6
-
-- NTP time
 
 - Token page
 

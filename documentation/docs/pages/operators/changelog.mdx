@@ -65,7 +65,7 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-### Update quick overview
+### Release Summary
 
 1. WebSocket Connection Counter Fix (this is the fix for which we have a [pre-release branch](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-nym-node-patch) out already which will be replaced by this release)
     - Prevents incorrect session tracking for WebSockets
@@ -75,9 +75,13 @@ cargo Profile:      release
 
 3. Authorisation & Timestamp Changes
     - Modifies how timestamps are validated in Auth v2 - this is going to be what the clients use. For example: the clients will start to use v2 variants of everything (prepping the network for the breaking change to come on April 1st which will force clients to only use v2).
+    
+4. Wireguard exit policy [scripts](https://github.com/nymtech/nym/tree/develop/scripts/wireguard-exit-policy)
 
 
 ### Operators Updates & Tools
+
+- [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration) Operators can use a new guide with our scripts to setup wireguard exit policy using IP tables rules.
 
 - [Setup commands for `nym-node` simplified](nodes/nym-node/setup#setup--run): `config.toml` defaults to correct binding addresses and ports, no need to specify unless operators want to change those values. 
 
@@ -85,9 +89,7 @@ cargo Profile:      release
 
 - [NTP time synchronization guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server): Some servers had an issue with incorrect time. Please use [this guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server) to update time on your server to synchronize your node operation with the rest of the network.
 
-- Wireguard exit policy
-
-- Token page
+- [New community managed token page by SpectreDAO](https://explorer.nym.spectredao.net/token): Based on community request, one of the squad administrating several Nym Nodes created a live token dashboard [explorer.nym.spectredao.net/token](https://explorer.nym.spectredao.net/token).
 
 
 ### Features

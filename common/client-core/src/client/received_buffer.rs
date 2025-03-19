@@ -23,6 +23,10 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::TaskClient;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+// The interval at which we check for stale buffers
+const STALE_BUFFER_CHECK_INTERVAL: Duration = Duration::from_secs(10);
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -48,6 +52,9 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     recently_reconstructed: HashSet<i32>,
 
     stats_tx: ClientStatsSender,
+
+    // Periodically check for stale buffers to clean up
+    last_stale_check: Instant,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -147,9 +154,13 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     }
 
     fn cleanup_stale_buffers(&mut self) {
-        self.message_receiver
-            .reconstructor()
-            .cleanup_stale_buffers();
+        let now = Instant::now();
+        if now - self.last_stale_check > STALE_BUFFER_CHECK_INTERVAL {
+            self.last_stale_check = now;
+            self.message_receiver
+                .reconstructor()
+                .cleanup_stale_buffers();
+        }
     }
 }
 
@@ -179,6 +190,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
                 stats_tx,
+                last_stale_check: Instant::now(),
             })),
             reply_key_storage,
             reply_controller_sender,

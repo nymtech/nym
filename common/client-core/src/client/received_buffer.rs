@@ -96,9 +96,10 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
                     }
                     None
                 }
-                _ => unreachable!(
-                    "no other error kind should have been returned here! If so, it's a bug!"
-                ),
+                _ => {
+                    error!("unexpected error occurred during message reconstruction: {err}");
+                    None
+                }
             },
             Ok(reconstruction_result) => match reconstruction_result {
                 Some((reconstructed_message, used_sets)) => {

@@ -308,10 +308,18 @@ impl MessageReconstructor {
     }
 
     pub fn cleanup_stale_buffers(&mut self) {
-        warn!("Cleaning up stale buffers...");
+        info!("Cleaning up stale buffers...");
         let now = Instant::now();
         self.reconstructed_sets.retain(|_, set_buf| {
-            now.duration_since(set_buf.last_fragment_timestamp) < Self::INCOMPLETE_MESSAGE_TIMEOUT
+            let keep = now.duration_since(set_buf.last_fragment_timestamp)
+                < Self::INCOMPLETE_MESSAGE_TIMEOUT;
+            if !keep {
+                warn!(
+                    "Removing stale buffer for set id {}",
+                    set_buf.fragments[0].as_ref().unwrap().id()
+                );
+            }
+            keep
         });
     }
 }

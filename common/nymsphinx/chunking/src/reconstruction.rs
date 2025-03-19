@@ -33,6 +33,7 @@ struct ReconstructionBuffer {
     /// everything in order the whole time, allowing for O(1) insertions and O(n) reconstruction.
     fragments: Vec<Option<Fragment>>,
 
+    /// The timestamp of the last received fragment. Used for cleaning up stale buffers.
     last_fragment_timestamp: Instant,
 }
 
@@ -314,9 +315,12 @@ impl MessageReconstructor {
             let keep = now.duration_since(set_buf.last_fragment_timestamp)
                 < Self::INCOMPLETE_MESSAGE_TIMEOUT;
             if !keep {
-                warn!(
-                    "Removing stale buffer for set id {}",
-                    set_buf.fragments[0].as_ref().unwrap().id()
+                debug!(
+                    "Removing stale buffer for set id {:?}",
+                    set_buf
+                        .fragments
+                        .first()
+                        .and_then(|f| f.as_ref().map(|f| f.id()))
                 );
             }
             keep

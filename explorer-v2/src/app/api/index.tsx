@@ -7,7 +7,6 @@ import type {
   IAccountBalancesInfo,
   IObservatoryNode,
   IPacketsAndStakingData,
-  NodeData,
   NodeRewardDetails,
   NymTokenomics,
   ObservatoryBalance,
@@ -16,11 +15,8 @@ import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
-  DATA_OBSERVATORY_NODES_DELEGATIONS_URL,
   DATA_OBSERVATORY_NODES_URL,
-  NS_API_MIXNODES_STATS,
   NYM_ACCOUNT_ADDRESS,
-  NYM_NODES,
   NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
 } from "./urls";
@@ -76,7 +72,7 @@ export const fetchNodeDelegations = async (
   id: number,
 ): Promise<NodeRewardDetails[]> => {
   const response = await fetch(
-    `${DATA_OBSERVATORY_NODES_DELEGATIONS_URL}/${id}/delegations`,
+    `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
     {
       headers: {
         Accept: "application/json",
@@ -177,7 +173,12 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
 };
 
 export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
-  const response = await fetch(NS_API_MIXNODES_STATS, {
+  if (!process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS) {
+    throw new Error(
+      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined",
+    );
+  }
+  const response = await fetch(process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -206,20 +207,7 @@ export const fetchAccountBalance = async (
   return data;
 };
 
-// 🔹 Fetch Nodes
-export const fetchNodes = async (): Promise<NodeData[]> => {
-  const res = await fetch(NYM_NODES, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-  if (!res.ok) {
-    throw new Error("Failed to fetch nodes");
-  }
-  const data: NodeData[] = await res.json();
-  return data;
-};
+
 
 export const fetchObservatoryNodes = async (): Promise<IObservatoryNode[]> => {
   const allNodes: IObservatoryNode[] = [];

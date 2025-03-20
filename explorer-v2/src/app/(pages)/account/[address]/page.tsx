@@ -1,5 +1,5 @@
-import { fetchNodes } from "@/app/api";
-import type { NodeData } from "@/app/api/types";
+import { fetchObservatoryNodes } from "@/app/api";
+import type { IObservatoryNode } from "@/app/api/types";
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { AccountBalancesCard } from "../../../../components/accountPageComponents/AccountBalancesCard";
@@ -16,10 +16,10 @@ export default async function Account({
   try {
     const address = (await params).address;
 
-    const nymNodes: NodeData[] = await fetchNodes();
+    const nymNodes: IObservatoryNode[] = await fetchObservatoryNodes();
 
     const nymNode = nymNodes.find(
-      (node) => node.bond_information.owner === address,
+      (node) => node.bonding_address === address,
     );
 
     return (

@@ -137,11 +137,6 @@ impl ConnectedClientHandler {
                 },
                 packet = self.forward_from_tun_rx.recv() => match packet {
                     Some(packet) => {
-                        // I don't think this should ever happen, so log this so we are aware of it
-                        if packet.is_empty() {
-                            log::warn!("client handler: received empty packet");
-                            continue;
-                        }
                         if let Err(err) = self.handle_packet(IprPacket::from(packet)).await {
                             log::error!("client handler: failed to handle packet: {err}");
                         }

@@ -323,16 +323,16 @@ nano /etc/netplan/00-installer-config.yaml
 network:
   version: 2
   ethernets:
-    eno49:
+    <INTERFACE>:
       dhcp4: false
       dhcp6: false
 
   # Bridge interface configuration
   bridges:
     br0:
-      interfaces: [<INTERFACE]
+      interfaces: [<INTERFACE>]
       addresses:
-        - <HOSTv4>/24  # IPv4 Address
+        - <HOSTv4>/24  # IPv4> Address
         - <HOSTv6>/64  # IPv6 Address
       routes:
         - to: default

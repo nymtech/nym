@@ -98,7 +98,7 @@ export const LineChart = ({
         format: "%Y-%m-%d",
       }}
       yScale={{
-        min: 120000000, // Keeping the minimum static
+        min: 0, // Keeping the minimum static
         max: maxYValue, // **Dynamically set max value**
         type: "linear",
       }}

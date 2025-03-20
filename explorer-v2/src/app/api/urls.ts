@@ -1,6 +1,4 @@
 
-export const NS_API_MIXNODES_STATS =
-  "https://staging-node-status-api.nymte.ch/v2/mixnodes/stats";
 export const CURRENT_EPOCH =
   "https://validator.nymtech.net/api/v1/epoch/current";
 export const CURRENT_EPOCH_REWARDS =

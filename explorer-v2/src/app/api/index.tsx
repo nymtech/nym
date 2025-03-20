@@ -16,7 +16,6 @@ import {
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
   DATA_OBSERVATORY_NODES_URL,
-  NS_API_MIXNODES_STATS,
   NYM_ACCOUNT_ADDRESS,
   NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
@@ -174,7 +173,12 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
 };
 
 export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
-  const response = await fetch(NS_API_MIXNODES_STATS, {
+  if (!process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS) {
+    throw new Error(
+      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined",
+    );
+  }
+  const response = await fetch(process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",

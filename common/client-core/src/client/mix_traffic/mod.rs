@@ -52,7 +52,7 @@ impl MixTrafficController {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
 
-        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(1);
+        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
 
         (
             MixTrafficController {
@@ -77,7 +77,7 @@ impl MixTrafficController {
     ) {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(1);
+        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
         (
             MixTrafficController {
                 gateway_transceiver,

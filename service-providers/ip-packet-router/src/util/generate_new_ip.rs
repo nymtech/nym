@@ -65,7 +65,6 @@ mod tests {
         let mut rng = rand::rngs::mock::StepRng::new(0, 65540);
         for _ in 2..65535 {
             let pair = generate_random_ips_within_subnet(&mut rng);
-            println!("{:?}", pair);
             assert!(!map.contains(&pair));
             map.insert(pair);
         }

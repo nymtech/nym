@@ -645,7 +645,7 @@ mod maybe_merkle_root_serde {
     where
         S: Serializer,
     {
-        maybe_root.map(|r| hex::encode(r)).serialize(serializer)
+        maybe_root.map(hex::encode).serialize(serializer)
     }
 }
 

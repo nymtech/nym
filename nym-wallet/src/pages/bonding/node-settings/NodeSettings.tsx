@@ -16,12 +16,13 @@ import { AppContext, urls } from 'src/context/main';
 import { getIntervalAsDate } from 'src/utils';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
+import { NodeCostParametersPage } from './settings-pages/NodeCostParametersPage';
 import { NavItems, makeNavItems } from './node-settings.constant';
 
 export const NodeSettings = () => {
   const theme = useTheme();
   const { network } = useContext(AppContext);
-  const { bondedNode, unbond, isLoading } = useBondingContext();
+  const { bondedNode, unbond, updateCostParameters, isLoading } = useBondingContext();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,6 +37,9 @@ export const NodeSettings = () => {
     if (location.state === 'unbond') {
       setValue('Unbond');
     }
+    if (location.state === 'cost-parameters') {
+      setValue('Cost Parameters');
+    }
     // if (location.state === 'test-node') {
     //   setValue('Test my node');
     // }
@@ -49,6 +53,16 @@ export const NodeSettings = () => {
       title: 'Unbond successful',
       subtitle: `This operation will complete when the new epoch starts at: ${nextEpoch}`,
       txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+    });
+  };
+
+  const handleUpdateCostParameters = async (fee?: FeeDetails) => {
+    const tx = await updateCostParameters(fee);
+    setConfirmationDetails({
+      status: 'success',
+      title: 'Cost Parameters Updated',
+      subtitle: 'Your cost parameters have been successfully updated',
+      txUrl: tx?.transaction_hash ? `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}` : undefined,
     });
   };
 
@@ -126,12 +140,19 @@ export const NodeSettings = () => {
       >
         <Divider />
         {value === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {value === 'Cost Parameters' && bondedNode && (
+          <NodeCostParametersPage 
+            bondedNode={bondedNode} 
+            onConfirm={handleUpdateCostParameters} 
+            onError={handleError} 
+          />
+        )}
         {/* {value === 'Test my node' && <NodeTestPage />} */}
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
         {/* {value === 'Playground' && bondedNode && <ApyPlayground bondedNode={bondedNode as TBondedMixnode} />} */}
-        {confirmationDetails && confirmationDetails.status === 'success' && (
+        {confirmationDetails && (
           <ConfirmationDetailsModal
             title={confirmationDetails.title}
             subtitle={confirmationDetails.subtitle || 'This operation can take up to one hour to process'}
@@ -139,12 +160,16 @@ export const NodeSettings = () => {
             txUrl={confirmationDetails.txUrl}
             onClose={() => {
               setConfirmationDetails(undefined);
-              navigate('/bonding');
+              if (confirmationDetails.status === 'success') {
+                navigate('/bonding');
+              }
             }}
           >
-            <Typography fontWeight="bold">
-              You should NOT shutdown your node until the unbond process is complete
-            </Typography>
+            {confirmationDetails.status === 'success' && value === 'Unbond' && (
+              <Typography fontWeight="bold">
+                You should NOT shutdown your node until the unbond process is complete
+              </Typography>
+            )}
           </ConfirmationDetailsModal>
         )}
       </NymCard>

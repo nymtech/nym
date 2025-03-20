@@ -109,12 +109,12 @@ impl ConnectedClientHandler {
         (forward_from_tun_tx, close_tx, handle)
     }
 
-    async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
+    async fn handle_packet(&mut self, packet: IprPacket) -> Result<()> {
         self.activity_timeout.reset();
         self.payload_topup_interval.reset();
 
         self.mixnet_ip_packet_sink
-            .send(IprPacket::from(packet))
+            .send(packet)
             .await
             .map_err(|source| IpPacketRouterError::FailedToEncodeMixnetMessage { source })
     }
@@ -131,8 +131,7 @@ impl ConnectedClientHandler {
                     break;
                 },
                 _ = self.payload_topup_interval.tick() => {
-                    // Send an empty packet to trigger the buffer timeout
-                    if let Err(err) = self.handle_packet(Vec::new()).await {
+                    if let Err(err) = self.handle_packet(IprPacket::Flush).await {
                         log::error!("client handler: failed to handle packet: {err}");
                     }
                 },
@@ -143,7 +142,7 @@ impl ConnectedClientHandler {
                             log::warn!("client handler: received empty packet");
                             continue;
                         }
-                        if let Err(err) = self.handle_packet(packet).await {
+                        if let Err(err) = self.handle_packet(IprPacket::from(packet)).await {
                             log::error!("client handler: failed to handle packet: {err}");
                         }
                     },

@@ -4,7 +4,6 @@ use nym_validator_client::{
     models::NymNodeDescription,
 };
 use std::collections::HashMap;
-use time::OffsetDateTime;
 use tracing::instrument;
 
 use crate::db::{
@@ -139,16 +138,6 @@ pub(crate) async fn update_nym_nodes(
         .await
         .map_err(|e| anyhow::anyhow!("Failed to INSERT node_id={}: {}", record.node_id, e))?;
     }
-
-    // clean up nodes which weren't updated in a week
-    let a_week_ago = (OffsetDateTime::now_utc() - time::Duration::weeks(1)).to_string();
-    sqlx::query!(
-        "DELETE FROM nym_nodes
-        WHERE last_updated_utc < ?",
-        a_week_ago,
-    )
-    .execute(&mut *tx)
-    .await?;
 
     tx.commit().await?;
 

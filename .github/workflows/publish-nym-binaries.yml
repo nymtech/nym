@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [custom-ubuntu-20.04]
+        platform: [custom-ubuntu-22.04]
     runs-on: ${{ matrix.platform }}
 
     outputs:

@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: arc-ubuntu-20.04
+    runs-on: arc-ubuntu-22.04
     env:
       CARGO_TERM_COLOR: always
       RUSTUP_PERMIT_COPY_RENAME: 1

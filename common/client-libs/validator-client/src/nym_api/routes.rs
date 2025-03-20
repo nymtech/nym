@@ -29,7 +29,6 @@ pub mod ecash {
     pub const ECASH_ISSUED_TICKETBOOKS_COUNT: &str = "issued-ticketbooks-count";
     pub const ECASH_ISSUED_TICKETBOOKS_FOR_COUNT: &str = "issued-ticketbooks-for-count";
     pub const ECASH_ISSUED_TICKETBOOKS_ON_COUNT: &str = "issued-ticketbooks-on-count";
-    pub const ECASH_ISSUED_TICKETBOOKS_CHALLENGE: &str = "issued-ticketbooks-challenge";
     pub const ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT: &str =
         "issued-ticketbooks-challenge-commitment";
     pub const ECASH_ISSUED_TICKETBOOKS_DATA: &str = "issued-ticketbooks-data";

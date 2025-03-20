@@ -67,6 +67,6 @@ impl TicketbookIssuance {
         );
 
         // 3. go around and check the specified issuers
-        verifier.check_issuers(issuers).await
+        Ok(verifier.check_issuers(issuers).await)
     }
 }

@@ -12,6 +12,7 @@ use nym_credentials_interface::{
     VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_signature;
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -83,7 +84,8 @@ impl EcashTicketVerificationResponse {
 
 #[derive(Debug, Error, Serialize, Deserialize, ToSchema)]
 pub enum EcashTicketVerificationRejection {
-    #[error("invalid ticket spent date. expected either today's ({today}) or yesterday's* ({yesterday}) date but got {received} instead\n*assuming it's before 1AM UTC")]
+    #[error("invalid ticket spent date. expected either today's ({today}) or yesterday's* ({yesterday}) date but got {received} instead\n*assuming it's before 1AM UTC"
+    )]
     InvalidSpentDate {
         #[serde(with = "crate::helpers::date_serde")]
         #[schema(value_type = String, example = "1970-01-01")]
@@ -589,6 +591,7 @@ impl<T> SignableMessageBody for T where T: Serialize + private::Sealed {}
 pub struct SignedMessage<T> {
     pub body: T,
     #[schema(value_type = String)]
+    #[serde(with = "bs58_ed25519_signature")]
     pub signature: ed25519::Signature,
 }
 
@@ -615,6 +618,37 @@ pub type IssuedTicketbooksChallengeCommitmentResponse =
 pub type IssuedTicketbooksForResponse = SignedMessage<IssuedTicketbooksForResponseBody>;
 pub type IssuedTicketbooksDataResponse = SignedMessage<IssuedTicketbooksDataResponseBody>;
 
+mod maybe_merkle_root_serde {
+    use super::*;
+    use serde::de::Error;
+    use serde::{Deserializer, Serialize, Serializer};
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Option<[u8; 32]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = Option::<String>::deserialize(deserializer)?;
+        match inner {
+            Some(inner) => {
+                let decoded = hex::decode(inner).map_err(Error::custom)?;
+                let arr: [u8; 32] = decoded.as_slice().try_into().map_err(Error::custom)?;
+                Ok(Some(arr))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub(crate) fn serialize<S>(
+        maybe_root: &Option<[u8; 32]>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        maybe_root.map(|r| hex::encode(r)).serialize(serializer)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksForResponseBody {
@@ -622,7 +656,14 @@ pub struct IssuedTicketbooksForResponseBody {
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
     pub deposits: Vec<CommitedDeposit>,
+    #[serde(with = "maybe_merkle_root_serde")]
     pub merkle_root: Option<[u8; 32]>,
+}
+
+impl IssuedTicketbooksForResponseBody {
+    pub fn merkle_root_hex(&self) -> Option<String> {
+        self.merkle_root.map(hex::encode)
+    }
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
@@ -633,6 +674,18 @@ pub struct IssuedTicketbooksChallengeCommitmentRequestBody {
     pub expiration_date: Date,
     #[schema(value_type = Vec<u32>)]
     pub deposits: Vec<DepositId>,
+}
+
+impl IssuedTicketbooksChallengeCommitmentRequestBody {
+    pub fn new(
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> IssuedTicketbooksChallengeCommitmentRequestBody {
+        IssuedTicketbooksChallengeCommitmentRequestBody {
+            expiration_date,
+            deposits,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]

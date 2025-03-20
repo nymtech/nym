@@ -27,7 +27,10 @@ use cosmwasm_std::{
 };
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
-use nym_api_requests::ecash::models::IssuedTicketbooksForResponse;
+use nym_api_requests::ecash::models::{
+    IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
+    IssuedTicketbooksForResponse, SignableMessageBody,
+};
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
@@ -48,13 +51,13 @@ use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{ed25519, identity};
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::routes::{
-    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
+    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
     ECASH_ISSUED_TICKETBOOKS_FOR, ECASH_ROUTES,
 };
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
@@ -1439,29 +1442,33 @@ impl TestFixture {
         response.json()
     }
 
-    async fn issued_ticketbooks_challenge(
+    async fn issued_ticketbooks_challenge_commitment(
         &self,
         expiration_date: Date,
         deposits: Vec<DepositId>,
     ) -> TestResponse {
+        let dummy_keypair = ed25519::KeyPair::new(&mut OsRng);
         self.axum
             .post(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE}"
+                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
             ))
-            .json(&IssuedTicketbooksChallengeRequest {
-                expiration_date,
-                deposits,
-            })
+            .json(
+                &IssuedTicketbooksChallengeCommitmentRequestBody {
+                    expiration_date,
+                    deposits,
+                }
+                .sign(dummy_keypair.private_key()),
+            )
             .await
     }
 
-    async fn issued_ticketbooks_challenge_unchecked(
+    async fn issued_ticketbooks_challenge_commitment_unchecked(
         &self,
         expiration_date: Date,
         deposits: Vec<DepositId>,
-    ) -> IssuedTicketbooksChallengeResponse {
+    ) -> IssuedTicketbooksChallengeCommitmentResponse {
         let response = self
-            .issued_ticketbooks_challenge(expiration_date, deposits)
+            .issued_ticketbooks_challenge_commitment(expiration_date, deposits)
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);

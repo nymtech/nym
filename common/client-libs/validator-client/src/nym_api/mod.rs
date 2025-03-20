@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
+    IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
     IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse,
     IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
@@ -37,10 +37,7 @@ pub use nym_api_requests::{
     nym_nodes::{CachedNodesResponse, SkimmedNode},
     NymNetworkDetailsResponse,
 };
-pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
-use nym_ecash_contract_common::deposit::DepositId;
-pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId, NymNodeDetails};
@@ -48,6 +45,9 @@ use std::net::IpAddr;
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 use tracing::instrument;
+
+pub use nym_coconut_dkg_common::types::EpochId;
+pub use nym_http_api_client::Client;
 
 pub mod error;
 pub mod routes;
@@ -1032,8 +1032,7 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn issued_ticketbooks_challenge_commitment(
         &self,
-        expiration_date: Date,
-        deposits: Vec<DepositId>,
+        request: &IssuedTicketbooksChallengeCommitmentRequest,
     ) -> Result<IssuedTicketbooksChallengeCommitmentResponse, NymAPIError> {
         self.post_json(
             &[
@@ -1042,10 +1041,7 @@ pub trait NymApiClientExt: ApiClient {
                 routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
             ],
             NO_PARAMS,
-            &IssuedTicketbooksChallengeCommitmentRequestBody {
-                expiration_date,
-                deposits,
-            },
+            request,
         )
         .await
     }

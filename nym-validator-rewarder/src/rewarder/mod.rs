@@ -12,6 +12,7 @@ use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
 use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
@@ -21,11 +22,11 @@ use time::Date;
 use tokio::pin;
 use tracing::{error, info, instrument, warn};
 
-mod block_signing;
-mod epoch;
-mod helpers;
-mod nyxd_client;
-mod storage;
+pub(crate) mod block_signing;
+pub(crate) mod epoch;
+pub(crate) mod helpers;
+pub(crate) mod nyxd_client;
+pub(crate) mod storage;
 mod tasks;
 pub(crate) mod ticketbook_issuance;
 
@@ -150,14 +151,7 @@ impl Rewarder {
             return Err(NymRewarderError::RewardingModulesDisabled);
         }
 
-        let rewarder_keypair = Arc::new(
-            config
-                .storage_paths
-                .load_ed25519_identity()
-                .inspect_err(|err|
-                    error!("failed to load ed25519 identity keys: {err}. if this is the first time this binary is running after migrating to the new version, please run 'nym-validator-rewarder regenerate-identity'")
-                )?,
-        );
+        let rewarder_keypair = Self::try_load_identity_keypair(&config)?;
 
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
@@ -245,6 +239,20 @@ impl Rewarder {
             current_block_signing_epoch,
             last_processed_issuance_date,
         })
+    }
+
+    pub(crate) fn try_load_identity_keypair(
+        config: &Config,
+    ) -> Result<Arc<ed25519::KeyPair>, NymRewarderError> {
+        let rewarder_keypair = Arc::new(
+            config
+                .storage_paths
+                .load_ed25519_identity()
+                .inspect_err(|err|
+                    error!("failed to load ed25519 identity keys: {err}. if this is the first time this binary is running after migrating to the new version, please run 'nym-validator-rewarder regenerate-identity'")
+                )?,
+        );
+        Ok(rewarder_keypair)
     }
 
     #[instrument(skip(self))]

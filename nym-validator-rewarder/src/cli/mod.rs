@@ -12,6 +12,7 @@ use tracing::{debug, error};
 use url::Url;
 
 pub mod build_info;
+mod dry_run_check_issuer;
 pub mod init;
 pub mod process_block;
 pub mod process_until;
@@ -41,15 +42,17 @@ pub(crate) struct Cli {
 }
 
 impl Cli {
-    pub(crate) async fn execute(self) -> Result<(), NymRewarderError> {
+    pub(crate) async fn execute(self) -> anyhow::Result<()> {
         match self.command {
-            Commands::Init(args) => init::execute(args),
-            Commands::Run(args) => run::execute(args).await,
-            Commands::ProcessBlock(args) => process_block::execute(args).await,
-            Commands::ProcessUntil(args) => process_until::execute(args).await,
-            Commands::RegenerateIdentity(args) => regenerate_identity::execute(args).await,
-            Commands::BuildInfo(args) => build_info::execute(args),
+            Commands::Init(args) => init::execute(args)?,
+            Commands::Run(args) => run::execute(args).await?,
+            Commands::ProcessBlock(args) => process_block::execute(args).await?,
+            Commands::ProcessUntil(args) => process_until::execute(args).await?,
+            Commands::RegenerateIdentity(args) => regenerate_identity::execute(args).await?,
+            Commands::BuildInfo(args) => build_info::execute(args)?,
+            Commands::DryRunCheckIssuer(args) => dry_run_check_issuer::execute(args).await?,
         }
+        Ok(())
     }
 }
 
@@ -122,6 +125,9 @@ pub(crate) enum Commands {
 
     /// Show build information of this binary
     BuildInfo(build_info::Args),
+
+    /// Check the current issuer status of particular signer without performing any rewarding.
+    DryRunCheckIssuer(dry_run_check_issuer::Args),
 }
 
 fn try_load_current_config(custom_path: &Option<PathBuf>) -> Result<Config, NymRewarderError> {

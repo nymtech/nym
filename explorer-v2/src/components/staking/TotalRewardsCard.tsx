@@ -19,6 +19,9 @@ const TotalRewardsCard = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address exists
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (!address) {

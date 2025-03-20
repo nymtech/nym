@@ -152,6 +152,9 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
   const {
     data: epochRewardsData,
@@ -160,6 +163,9 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   // Extract node roles once `nodeInfo` is available
@@ -177,6 +183,9 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     queryKey: ["gatewayStatus", nodeInfo?.identity_key],
     queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
     enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading || isEpochLoading) {

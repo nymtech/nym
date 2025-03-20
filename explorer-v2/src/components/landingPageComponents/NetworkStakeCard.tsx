@@ -15,6 +15,9 @@ export const NetworkStakeCard = () => {
   } = useQuery({
     queryKey: ["noise"],
     queryFn: fetchNoise,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isStakingLoading) {
@@ -46,20 +49,20 @@ export const NetworkStakeCard = () => {
     packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
 
 
-    const startDate = new Date("2025-02-26").getTime(); // Convert to timestamp
+  const startDate = new Date("2025-02-26").getTime(); // Convert to timestamp
 
-    const data = packetsAndStakingData
-      .slice(0, -1) // Exclude the last element
-      .filter((item: IPacketsAndStakingData) => {
-        const itemDate = new Date(item.date_utc).getTime(); // Convert each date to timestamp
-        return itemDate >= startDate; // Compare timestamps
-      })
-      .map((item: IPacketsAndStakingData) => ({
-        date_utc: item.date_utc,
-        numericData: item.total_stake / 1000000,
-      }));
-    
-    
+  const data = packetsAndStakingData
+    .slice(0, -1) // Exclude the last element
+    .filter((item: IPacketsAndStakingData) => {
+      const itemDate = new Date(item.date_utc).getTime(); // Convert each date to timestamp
+      return itemDate >= startDate; // Compare timestamps
+    })
+    .map((item: IPacketsAndStakingData) => ({
+      date_utc: item.date_utc,
+      numericData: item.total_stake / 1000000,
+    }));
+
+
 
   const stakeLineGraphData = {
     color: "#00CA33",

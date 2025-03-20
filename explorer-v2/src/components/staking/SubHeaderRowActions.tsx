@@ -59,6 +59,9 @@ const SubHeaderRowActions = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address is available
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const handleRefetch = useCallback(async () => {

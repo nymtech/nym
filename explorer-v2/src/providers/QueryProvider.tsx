@@ -11,7 +11,6 @@ interface QueryProviderProps {
 export const QueryProvider = ({ children }: QueryProviderProps) => {
   // Create QueryClient instance
   const [queryClient] = useState(() => new QueryClient());
-
   return (
     <QueryClientProvider client={queryClient}>
       {children}

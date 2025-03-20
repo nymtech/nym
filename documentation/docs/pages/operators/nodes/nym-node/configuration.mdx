@@ -2,7 +2,13 @@ import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
-import { AccordionTemplate } from 'components/accordion-template.tsx'
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+import ExitPolicyInstallOutput from 'components/operators/snippets/wg-exit-policy-install-output.mdx';
+import ExitPolicyStatusOutput from 'components/operators/snippets/wg-exit-policy-status-output.mdx';
+import ExitPolicyTestOutput from 'components/operators/snippets/wg-exit-policy-test-output.mdx';
+import ExitPolicyTestServer from 'components/operators/snippets/wg-exit-policy-testing-from-server.mdx';
+import ExitPolicyTestOutside from 'components/operators/snippets/wg-exit-policy-testing-from-outside.mdx';
+
 
 export const ManagerIPOutput = () => (
   <div>
@@ -434,8 +440,100 @@ journalctl -u nym-node.service -f -n 100
 ```
 </Steps>
 
-
 Make sure that you get the validation of all connectivity. If there are still any problems, please refer to [troubleshooting section](../../troubleshooting/vps-isp.mdx#incorrect-gateway-network-check).
+
+## Wireguard Exit Policy Configuration
+
+Nym Node running as Exit Gateway has contains multiple modules, one of them is Nym Network Requester(NR), routing TCP traffic to the internet. To make sure that the node is not just an open proxy, NR checks agains [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) following these conditions (in this exact order):
+
+1. Do we explicitly block those IP addresses regardless of ports?
+2. Do we allow those specific ports regardless of IPs?
+3. Do block EVERYTHING else!
+
+The exit policy is same for all NRs, the content is shaped by an offchain governance of Nym Node operators on our [forum](https://forum.nym.com/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464).
+
+There is a caveat though. NR is only routing TCP streams and therefore any other type of routing is *not* filtered thorugh the exit policy. To ensure that Nym Nodes follow the same exit policy when routing IP packets through wireguard and don't act as open proxies, the operators have to set up these rules via IP tables rules.
+
+**Follow these steps, using a [setup script]i(https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh) and [testing scripts](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh) written by Nym quality assurance team, to setup exit policy for wireguard:**
+
+<Steps>
+
+###### 1. Download the scripts and make executable
+
+- SSH to your node
+- Create a folder `~/nym-binaries` and navigate there
+```sh
+mkdir $HOME/nym-binaries
+cd $HOME/nym-binaries
+```
+- Download the scripts
+```sh
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh
+
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh
+```
+- Make executable
+```sh
+chmod +x wireguard-exit-policy-manager.sh exit-policy-tests.sh
+```
+
+###### 2. Install `wireguard-exit-policy-manager.sh`
+```sh
+./wireguard-exit-policy-manager.sh install
+```
+- The output should look like this:
+<AccordionTemplate name="Cosole output">
+<ExitPolicyInstallOutput />
+</ AccordionTemplate>
+
+
+###### 3. Run `wireguard-exit-policy-manager.sh`
+```sh
+./wireguard-exit-policy-manager.sh status
+```
+
+- The output should look like this:
+<AccordionTemplate name="Cosole output">
+<ExitPolicyStatusOutput />
+</ AccordionTemplate>
+
+###### 4. Test with `exit-policy-tests.sh`
+
+```sh
+./exit-policy-tests.sh
+```
+
+- The output should look like this:
+<AccordionTemplate name="Cosole output">
+<ExitPolicyTestOutput />
+</ AccordionTemplate>
+
+###### 5. In case of problems, you can clear the exit policy rule
+```sh
+./wireguard-exit-policy-manager.sh clear
+
+./wireguard-exit-policy-manager.sh status
+```
+</ Steps>
+
+Now your wireguart routing should have same rotuing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet) mode of NymVPN.
+
+### Testing Wireguard Exit Policy
+
+You can validate the application of the IP tables routes on your `nym-node` by checking it from the server side as well as from the outside.
+
+    <div>
+      <Tabs items={[
+        <strong>From the server</strong>,
+        <strong>From the outside - using NymVPN</strong>
+      ]} defaultIndex={0}>
+        <Tabs.Tab><ExitPolicyTestServer /></Tabs.Tab>
+        <Tabs.Tab><ExitPolicyTestOutside /></Tabs.Tab>
+      </Tabs>
+    </div>
+
+Your node has successfully implemented wireguard exit policy with the same rotuing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet).
+
 
 ## Running `nym-node` as a non-root
 

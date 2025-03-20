@@ -48,15 +48,8 @@ export const UpdateCostParametersModal = ({
         }
       };
 
-      if (isMixnode(node)) {
-        if (node.proxy) {
-          getFee(simulateUpdateMixnodeCostParams, costParams);
-        } else {
-          getFee(simulateUpdateMixnodeCostParams, costParams);
-        }
-      } else if (isNymNode(node)) {
-        getFee(simulateUpdateMixnodeCostParams, costParams);
-      }
+      getFee(simulateUpdateMixnodeCostParams, costParams);
+      
     } catch (error) {
       onError(error as string);
     }

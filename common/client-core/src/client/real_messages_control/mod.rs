@@ -153,7 +153,7 @@ impl RealMessagesController<OsRng> {
         let rng = OsRng;
 
         // create channels for inter-task communication
-        let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(1);
+        let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(8);
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
         let (ack_action_tx, ack_action_rx) = mpsc::unbounded();
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(

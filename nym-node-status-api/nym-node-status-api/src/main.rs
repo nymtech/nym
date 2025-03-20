@@ -6,9 +6,9 @@ mod cli;
 mod db;
 mod http;
 mod logging;
-mod mixnet_scraper;
+mod node_info_scraper;
 mod monitor;
-mod node_scraper;
+mod session_scraper;
 mod testruns;
 mod utils;
 
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = storage.pool_owned();
 
     // Start the node scraper
-    let scraper = mixnet_scraper::Scraper::new(storage.pool_owned());
+    let scraper = node_info_scraper::Scraper::new(storage.pool_owned());
     tokio::spawn(async move {
         scraper.start().await;
     });
@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
 
     let db_pool_scraper = storage.pool_owned();
     tokio::spawn(async move {
-        node_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
+        session_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
         tracing::info!("Started metrics scraper task");
     });
 

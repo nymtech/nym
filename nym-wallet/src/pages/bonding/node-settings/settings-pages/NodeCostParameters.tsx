@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Button, Typography, Grid, TextField, Stack, InputAdornment } from '@mui/material';
 import { TBondedNode } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
@@ -14,11 +14,23 @@ interface Props {
 export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props) => {
   const [intervalOperatingCost, setIntervalOperatingCost] = useState('');
   const [profitMarginPercent, setProfitMarginPercent] = useState('');
+  const [isFormValid, setIsFormValid] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  
+
+  // Load initial values from the bonded node if available
+  useEffect(() => {
+    if (bondedNode) {
+      if (isMixnode(bondedNode) && bondedNode.operatorCost) {
+        setIntervalOperatingCost(bondedNode.operatorCost.amount);
+      }
+      if (isMixnode(bondedNode) && bondedNode.profitMargin) {
+        setProfitMarginPercent(bondedNode.profitMargin);
+      }
+    }
+  }, [bondedNode]);
+
   const handleIntervalOperatingCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Only allow numbers and decimals
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
       setIntervalOperatingCost(value);
     }
@@ -26,22 +38,21 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
 
   const handleProfitMarginPercentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Only allow numbers and decimals
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
       setProfitMarginPercent(value);
     }
   };
 
-  // Determine if the form is valid for submission
-  const isFormValid = 
-    intervalOperatingCost !== '' && 
-    !isNaN(Number(intervalOperatingCost)) &&
-    profitMarginPercent !== '' && 
-    !isNaN(Number(profitMarginPercent)) &&
-    Number(profitMarginPercent) >= 0 && 
-    Number(profitMarginPercent) <= 100;
+  useEffect(() => {
+    const isOperatingCostValid = intervalOperatingCost !== '' && !isNaN(Number(intervalOperatingCost));
+    const isProfitMarginValid = profitMarginPercent !== '' && 
+                               !isNaN(Number(profitMarginPercent)) && 
+                               Number(profitMarginPercent) >= 0 && 
+                               Number(profitMarginPercent) <= 100;
+    
+    setIsFormValid(isOperatingCostValid && isProfitMarginValid);
+  }, [intervalOperatingCost, profitMarginPercent]);
 
-  // Only display warning for mixnodes or nymnodes
   const shouldDisplayWarning = isMixnode(bondedNode) || isNymNode(bondedNode);
 
   return (
@@ -79,9 +90,9 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
               onChange={handleIntervalOperatingCostChange}
               InputLabelProps={{ shrink: true }}
               InputProps={{
-                endAdornment: <InputAdornment position="end">unym</InputAdornment>,
+                endAdornment: <InputAdornment position="end">nym</InputAdornment>,
               }}
-              helperText="Operating cost in the current denomination (unym)"
+              helperText="Operating cost in the current denomination (nym)"
             />
 
             <TextField

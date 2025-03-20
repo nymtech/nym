@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { FeeDetails, NodeConfigUpdate, TransactionExecuteResult } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails, NodeConfigUpdate, NodeCostParams, TransactionExecuteResult, DecCoin } from '@nymproject/types';
 import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs, TBondNymNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
@@ -22,6 +22,9 @@ import {
   migrateLegacyGateway as migrateLegacyGatewayReq,
   bondNymNode,
   updateNymNodeConfig as updateNymNodeConfigReq,
+  updateMixnodeCostParams,
+  vestingUpdateNodeCostParams,
+  updateNymNodeParams
 } from '../requests';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
@@ -40,6 +43,7 @@ export type TBondingContext = {
   generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
   migrateLegacyNode: () => Promise<TransactionExecuteResult | undefined>;
+  updateCostParameters: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -67,6 +71,9 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   migrateLegacyNode: async () => {
+    throw new Error('Not implemented');
+  },
+  updateCostParameters: async () => {
     throw new Error('Not implemented');
   },
   isVestingAccount: false,
@@ -251,6 +258,43 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return undefined;
   };
 
+  const updateCostParameters = async (fee?: FeeDetails): Promise<TransactionExecuteResult | undefined> => {
+    let tx;
+    setIsLoading(true);
+    try {
+      const costParams: NodeCostParams = {
+        profit_margin_percent: fee?.fee ? String(fee.fee) : '0',
+        interval_operating_cost: {
+          denom: 'unym' as CurrencyDenom,
+          amount: typeof fee?.amount === 'string' ? fee.amount : '0'
+        }
+      };
+
+      if (bondedNode && isMixnode(bondedNode)) {
+        if (bondedNode.proxy) {
+          tx = await vestingUpdateNodeCostParams(costParams);
+        } else {
+          tx = await updateMixnodeCostParams(costParams);
+        }
+      } else if (bondedNode && isNymNode(bondedNode)) {
+        console.log("GOT HERE!!");
+        tx = await updateNymNodeParams(costParams);
+      }
+      
+      if (clientDetails?.client_address) {
+        await getNodeDetails(clientDetails?.client_address);
+      }
+      
+      return tx;
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return undefined;
+  };
+
   const memoizedValue = useMemo(
     () => ({
       isLoading: isLoading || isBondedNodeLoading,
@@ -266,6 +310,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       migrateVestedMixnode,
       migrateLegacyNode,
       isVestingAccount,
+      updateCostParameters,
     }),
     [isLoading, error, bondedNode, isVestingAccount, isBondedNodeLoading],
   );

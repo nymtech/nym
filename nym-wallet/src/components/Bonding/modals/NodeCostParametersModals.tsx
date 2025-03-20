@@ -3,13 +3,15 @@ import { useEffect } from 'react';
 import { Typography } from '@mui/material';
 import { TBondedNode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
+import { isGateway, isMixnode, isNymNode } from 'src/types';
 import { ModalFee } from '../../Modals/ModalFee';
 import { ModalListItem } from '../../Modals/ModalListItem';
 import { SimpleModal } from '../../Modals/SimpleModal';
 import {
   simulateUpdateMixnodeCostParams,
+  updateMixnodeCostParams,
 } from '../../../requests';
-import { CurrencyDenom, NodeCostParams } from '@nymproject/types';
+import { CurrencyDenom, DecCoin, GatewayConfigUpdate, NodeCostParams } from '@nymproject/types';
 
 interface Props {
   node: TBondedNode;
@@ -38,17 +40,23 @@ export const UpdateCostParametersModal = ({
 
   useEffect(() => {
     try {
-      const decimalProfitMargin = (parseFloat(profitMarginPercent) / 100).toString();
-
       const costParams: NodeCostParams = {
-        profit_margin_percent: decimalProfitMargin,
+        profit_margin_percent: profitMarginPercent,
         interval_operating_cost: {
           denom: 'unym' as CurrencyDenom, 
           amount: intervalOperatingCost
         }
       };
-    getFee(simulateUpdateMixnodeCostParams, costParams);
-      
+
+      if (isMixnode(node)) {
+        if (node.proxy) {
+          getFee(simulateUpdateMixnodeCostParams, costParams);
+        } else {
+          getFee(simulateUpdateMixnodeCostParams, costParams);
+        }
+      } else if (isNymNode(node)) {
+        getFee(simulateUpdateMixnodeCostParams, costParams);
+      }
     } catch (error) {
       onError(error as string);
     }
@@ -65,7 +73,7 @@ export const UpdateCostParametersModal = ({
     >
       <ModalListItem 
         label="Interval Operating Cost" 
-        value={`${intervalOperatingCost} unym`} 
+        value={`${intervalOperatingCost} nym`} 
         divider 
       />
       <ModalListItem 

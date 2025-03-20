@@ -82,6 +82,7 @@ fn main() {
             mixnet::bond::update_nymnode_config,
             mixnet::bond::get_nymnode_performance,
             mixnet::bond::get_nymnode_uptime,
+            mixnet::bond::update_nymnode_cost_params,
             mixnet::bond::get_nymnode_stake_saturation,
             mixnet::delegate::delegate_to_mixnode,
             mixnet::delegate::get_pending_delegator_rewards,

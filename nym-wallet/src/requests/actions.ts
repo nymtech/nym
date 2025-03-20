@@ -6,6 +6,7 @@ import {
   MixNodeConfigUpdate,
   NodeConfigUpdate,
   GatewayConfigUpdate,
+  NodeCostParams,
 } from '@nymproject/types';
 import { TBondGatewayArgs, TBondGatewaySignatureArgs } from '../types';
 import { invokeWrapper } from './wrapper';
@@ -21,6 +22,9 @@ export const updateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee
 
 export const updateNymNodeConfig = async (update: NodeConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_nymnode_config', { update, fee });
+
+export const updateNymNodeParams = async (update: NodeCostParams, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_nymnode_cost_params', { update, fee });
 
 export const updateGatewayConfig = async (update: GatewayConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_gateway_config', { update, fee });

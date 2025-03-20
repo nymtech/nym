@@ -16,7 +16,7 @@ import { AppContext, urls } from 'src/context/main';
 import { getIntervalAsDate } from 'src/utils';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
-import { NodeCostParametersPage } from './settings-pages/NodeCostParametersPage';
+import { NodeCostParametersPage } from './settings-pages/NodeCostParameters';
 import { NavItems, makeNavItems } from './node-settings.constant';
 
 export const NodeSettings = () => {
@@ -40,9 +40,6 @@ export const NodeSettings = () => {
     if (location.state === 'cost-parameters') {
       setValue('Cost Parameters');
     }
-    // if (location.state === 'test-node') {
-    //   setValue('Test my node');
-    // }
   }, [location]);
 
   const handleUnbond = async (fee?: FeeDetails) => {
@@ -113,7 +110,6 @@ export const NodeSettings = () => {
                   '& button': {
                     p: 0,
                     mr: 4,
-
                     fontSize: 16,
                   },
                   '& button:hover': {
@@ -147,11 +143,9 @@ export const NodeSettings = () => {
             onError={handleError} 
           />
         )}
-        {/* {value === 'Test my node' && <NodeTestPage />} */}
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
-        {/* {value === 'Playground' && bondedNode && <ApyPlayground bondedNode={bondedNode as TBondedMixnode} />} */}
         {confirmationDetails && (
           <ConfirmationDetailsModal
             title={confirmationDetails.title}

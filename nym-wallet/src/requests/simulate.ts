@@ -43,6 +43,9 @@ export const simulateVestingClaimDelegatorReward = async (mixId: number) =>
 export const simulateVestingUndelegateFromMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_undelegate_from_mixnode', args);
 
+export const simulateNymNodeCostParams = async (args: any) =>
+  invokeWrapper<FeeDetails>('simulate_nymnode_cost_params', args);
+
 export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledge: DecCoin; msgSignature: string }) =>
   invokeWrapper<FeeDetails>('simulate_vesting_bond_gateway', args);
 

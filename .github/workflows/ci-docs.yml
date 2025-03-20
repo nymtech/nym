@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: arc-ubuntu-20.04
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
     defaults:
       run:
         working-directory: documentation/docs

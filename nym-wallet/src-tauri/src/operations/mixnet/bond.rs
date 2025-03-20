@@ -12,7 +12,7 @@ use log::info;
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, StakeSaturationResponse};
-use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId, NymNode, NodeCostParams as OtherNodeCostParams};
+use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId, NymNode};
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_node_requests::api::ErrorResponse;
@@ -335,17 +335,17 @@ pub async fn update_mixnode_cost_params(
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    let contract_cost_params = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
+    let cost_params = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
     log::info!(
         ">>> Update mixnode cost parameters: new parameters = {}, fee {:?}",
-        contract_cost_params.to_inline_json(),
+        cost_params.to_inline_json(),
         fee,
     );
     let res = guard
-    .current_client()?
-    .nyxd
-    .update_cost_params(contract_cost_params, fee)
-    .await?;
+        .current_client()?
+        .nyxd
+        .update_cost_params(cost_params, fee)
+        .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -686,17 +686,23 @@ pub async fn update_nymnode_config(
 
 #[tauri::command]
 pub async fn update_nymnode_cost_params(
-    update: OtherNodeCostParams,
+    new_costs: NodeCostParams,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.write().await;
+    let reg = guard.registered_coins()?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    log::info!(">>> update nym node cost params: update = {update:?}, fee {fee:?}",);
+    let cost_params = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
+
+    log::info!(
+        ">>> update nym node cost params: update = {}, fee {fee:?}",
+        cost_params.to_inline_json()
+    );
     let res = guard
         .current_client()?
         .nyxd
-        .update_cost_params(update, fee)
+        .update_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

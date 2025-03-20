@@ -146,7 +146,7 @@ pub async fn simulate_unbond_mixnode(
 }
 
 #[tauri::command]
-pub async fn simulate_update_mixnode_cost_params(
+pub async fn simulate_update_node_cost_params(
     new_costs: NodeCostParams,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {

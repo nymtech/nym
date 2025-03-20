@@ -177,7 +177,7 @@ fn main() {
             simulate::mixnet::simulate_pledge_more,
             simulate::mixnet::simulate_unbond_mixnode,
             simulate::mixnet::simulate_update_mixnode_config,
-            simulate::mixnet::simulate_update_mixnode_cost_params,
+            simulate::mixnet::simulate_update_node_cost_params,
             simulate::mixnet::simulate_update_gateway_config,
             simulate::mixnet::simulate_delegate_to_node,
             simulate::mixnet::simulate_undelegate_from_node,

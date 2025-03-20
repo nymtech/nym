@@ -51,7 +51,7 @@ export const DesktopHeader = () => {
           ))}
         </Box>
         <ConnectWallet size="small" />
-        <DarkLightSwitchDesktop defaultChecked />
+        <DarkLightSwitchDesktop />
       </Wrapper>
       <Divider variant="fullWidth" sx={{ width: "100%" }} />
     </Box>

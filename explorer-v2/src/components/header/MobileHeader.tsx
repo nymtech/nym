@@ -162,7 +162,7 @@ const MobileMenuHeader = ({
             alignItems: "center",
           }}
         >
-          {!drawerOpen && <DarkLightSwitchDesktop defaultChecked />}
+          {!drawerOpen && <DarkLightSwitchDesktop />}
           <IconButton sx={{}} onClick={() => toggleDrawer(!drawerOpen)}>
             {drawerOpen ? <CloseIcon /> : <MenuIcon />}
           </IconButton>

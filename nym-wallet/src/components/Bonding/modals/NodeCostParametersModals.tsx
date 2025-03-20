@@ -1,17 +1,15 @@
 import * as React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Typography } from '@mui/material';
 import { TBondedNode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { isGateway, isMixnode, isNymNode } from 'src/types';
 import { ModalFee } from '../../Modals/ModalFee';
 import { ModalListItem } from '../../Modals/ModalListItem';
 import { SimpleModal } from '../../Modals/SimpleModal';
 import {
   simulateUpdateMixnodeCostParams,
-  updateMixnodeCostParams,
 } from '../../../requests';
-import { CurrencyDenom, DecCoin, GatewayConfigUpdate, NodeCostParams } from '@nymproject/types';
+import { CurrencyDenom, NodeCostParams } from '@nymproject/types';
 
 interface Props {
   node: TBondedNode;
@@ -31,6 +29,7 @@ export const UpdateCostParametersModal = ({
   onError 
 }: Props) => {
   const { fee, isFeeLoading, getFee, feeError } = useGetFee();
+  const [hasFetchedFee, setHasFetchedFee] = useState(false);
 
   useEffect(() => {
     if (feeError) {
@@ -39,21 +38,27 @@ export const UpdateCostParametersModal = ({
   }, [feeError, onError]);
 
   useEffect(() => {
-    try {
-      const costParams: NodeCostParams = {
-        profit_margin_percent: profitMarginPercent,
-        interval_operating_cost: {
-          denom: 'unym' as CurrencyDenom, 
-          amount: intervalOperatingCost
-        }
-      };
+    if (!hasFetchedFee) {
+      try {
 
+        const decimalProfitMargin = (parseFloat(profitMarginPercent) / 100).toString();
+
+        const costParams: NodeCostParams = {
+          profit_margin_percent: decimalProfitMargin,
+          interval_operating_cost: {
+            denom: 'unym' as CurrencyDenom, 
+            amount: intervalOperatingCost
+          }
+        };
+        
       getFee(simulateUpdateMixnodeCostParams, costParams);
-      
-    } catch (error) {
-      onError(error as string);
+        getFee(simulateUpdateMixnodeCostParams, costParams);
+        setHasFetchedFee(true);
+      } catch (error) {
+        onError(error as string);
+      }
     }
-  }, [node, intervalOperatingCost, profitMarginPercent, getFee, onError]);
+  }, [hasFetchedFee, intervalOperatingCost, profitMarginPercent, getFee, onError]);
 
   return (
     <SimpleModal

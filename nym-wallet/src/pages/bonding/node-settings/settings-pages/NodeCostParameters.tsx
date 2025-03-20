@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Button, Typography, Grid, TextField, Stack, InputAdornment } from '@mui/material';
 import { TBondedNode } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
-import { UpdateCostParametersModal } from 'src/components/Bonding/modals/UpdateCostParametersModal';
+import { UpdateCostParametersModal } from 'src/components/Bonding/modals/NodeCostParametersModals';
 import { isMixnode, isNymNode } from 'src/types';
 
 interface Props {

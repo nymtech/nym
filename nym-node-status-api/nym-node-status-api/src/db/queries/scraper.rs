@@ -3,7 +3,7 @@ use crate::{
         models::{ScrapeNodeKind, ScraperNodeInfo},
         queries, DbPool,
     },
-    node_info_scraper::helpers::NodeDescriptionResponse,
+    scrapers::node_info::helpers::NodeDescriptionResponse,
 };
 use anyhow::Result;
 use chrono::Utc;

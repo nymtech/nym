@@ -2,13 +2,14 @@ use clap::Parser;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_task::signal::wait_for_signal;
 
+use crate::scrapers::{node_info, sessions};
+
 mod cli;
 mod db;
 mod http;
 mod logging;
-mod node_info_scraper;
 mod monitor;
-mod session_scraper;
+mod scrapers;
 mod testruns;
 mod utils;
 
@@ -32,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = storage.pool_owned();
 
     // Start the node scraper
-    let scraper = node_info_scraper::Scraper::new(storage.pool_owned());
+    let scraper = node_info::Scraper::new(storage.pool_owned());
     tokio::spawn(async move {
         scraper.start().await;
     });
@@ -57,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
 
     let db_pool_scraper = storage.pool_owned();
     tokio::spawn(async move {
-        session_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
+        sessions::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
         tracing::info!("Started metrics scraper task");
     });
 

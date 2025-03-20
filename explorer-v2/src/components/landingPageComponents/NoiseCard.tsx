@@ -13,6 +13,9 @@ export const NoiseCard = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["noise"],
     queryFn: fetchNoise,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading) {
@@ -43,7 +46,7 @@ export const NoiseCard = () => {
   const noiseLast24H =
     todaysData.total_packets_sent + todaysData.total_packets_received;
 
-  
+
 
   const noisePrevious24H =
     yesterdaysData.total_packets_sent + yesterdaysData.total_packets_received;

@@ -42,6 +42,9 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const handleStakeOnNode = async ({

@@ -18,6 +18,9 @@ const NodeDelegationsCard = ({ id }: NodeDelegationsCardProps) => {
   } = useQuery({
     queryKey: ["nodeDelegations", id],
     queryFn: () => fetchNodeDelegations(id),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading) {

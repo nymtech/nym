@@ -7,12 +7,15 @@ import ExplorerCard from "../cards/ExplorerCard";
 
 export const RewardsCard = () => {
   const {
-    data: observatoryNodes,
+    data: nymNodes,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["observatoryNodes"],
+    queryKey: ["nymNodes"],
     queryFn: () => fetchObservatoryNodes(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading) {
@@ -23,7 +26,7 @@ export const RewardsCard = () => {
     );
   }
 
-  if (isError || !observatoryNodes) {
+  if (isError || !nymNodes) {
     return (
       <ExplorerCard label="Number of delegations">
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -38,7 +41,7 @@ export const RewardsCard = () => {
       0,
     );
   };
-  const allStakers = getActiveStakersNumber(observatoryNodes);
+  const allStakers = getActiveStakersNumber(nymNodes);
 
   return (
     <ExplorerCard label="Number of delegations">

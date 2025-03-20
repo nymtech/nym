@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
-use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
+use crate::client::real_messages_control::message_handler::{
+    FragmentWithMaxRetransmissions, MessageHandler, PreparationError,
+};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use futures::channel::oneshot;
 use futures::StreamExt;
@@ -10,7 +12,7 @@ use log::{debug, error, info, trace, warn};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurb;
-use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
@@ -62,7 +64,7 @@ pub struct ReplyController<R> {
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
     pending_replies:
-        HashMap<AnonymousSenderTag, TransmissionBuffer<(Fragment, MaxRetransmissions)>>,
+        HashMap<AnonymousSenderTag, TransmissionBuffer<FragmentWithMaxRetransmissions>>,
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
@@ -99,7 +101,7 @@ where
         }
     }
 
-    fn insert_pending_replies<I: IntoIterator<Item = (Fragment, MaxRetransmissions)>>(
+    fn insert_pending_replies<I: IntoIterator<Item = FragmentWithMaxRetransmissions>>(
         &mut self,
         recipient: &AnonymousSenderTag,
         fragments: I,
@@ -115,7 +117,7 @@ where
     fn re_insert_pending_replies(
         &mut self,
         recipient: &AnonymousSenderTag,
-        fragments: Vec<(TransmissionLane, (Fragment, MaxRetransmissions))>,
+        fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
     ) {
         trace!("re-inserting pending replies for {recipient}");
         // the buffer should ALWAYS exist at this point, if it doesn't, it's a bug...
@@ -248,7 +250,10 @@ where
             if let Some(reply_surbs) = surbs {
                 let to_send = fragments
                     .drain(..max_to_send)
-                    .map(|f| (f, max_retransmissions))
+                    .map(|f| FragmentWithMaxRetransmissions {
+                        fragment: f,
+                        max_retransmissions,
+                    })
                     .collect::<Vec<_>>();
 
                 if let Err(err) = self
@@ -286,7 +291,10 @@ where
             );
             let fragments: Vec<_> = fragments
                 .into_iter()
-                .map(|f| (f, max_retransmissions))
+                .map(|fragment| FragmentWithMaxRetransmissions {
+                    fragment,
+                    max_retransmissions,
+                })
                 .collect();
             self.insert_pending_replies(&recipient_tag, fragments, lane);
         }
@@ -421,7 +429,7 @@ where
         &mut self,
         from: &AnonymousSenderTag,
         amount: usize,
-    ) -> Option<Vec<(TransmissionLane, (Fragment, MaxRetransmissions))>> {
+    ) -> Option<Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
         let total = self.pending_replies.get(from)?.total_size();
         trace!("pending queue has {total} elements");

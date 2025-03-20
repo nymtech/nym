@@ -144,6 +144,12 @@ impl Config {
 }
 
 #[derive(Clone)]
+pub(crate) struct FragmentWithMaxRetransmissions {
+    pub(crate) fragment: Fragment,
+    pub(crate) max_retransmissions: MaxRetransmissions,
+}
+
+#[derive(Clone)]
 pub(crate) struct MessageHandler<R> {
     config: Config,
     rng: R,
@@ -357,7 +363,7 @@ where
     pub(crate) async fn try_send_reply_chunks_on_lane(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<(Fragment, MaxRetransmissions)>,
+        fragments: Vec<FragmentWithMaxRetransmissions>,
         reply_surbs: Vec<ReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
@@ -374,12 +380,12 @@ where
     pub(crate) async fn try_send_reply_chunks(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<(TransmissionLane, (Fragment, MaxRetransmissions))>,
+        fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
         reply_surbs: Vec<ReplySurb>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
-                fragments.iter().map(|(_, f)| f.0.clone()).collect(),
+                fragments.iter().map(|(_, f)| f.fragment.clone()).collect(),
                 reply_surbs,
             )
             .await?;
@@ -389,7 +395,10 @@ where
 
         for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
             let lane = raw.0;
-            let (fragment, max_retransmissions) = raw.1;
+            let FragmentWithMaxRetransmissions {
+                fragment,
+                max_retransmissions,
+            } = raw.1;
 
             let real_message =
                 RealMessage::new(prepared.mix_packet, Some(prepared.fragment_identifier));

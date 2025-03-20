@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM nym_nodes\n        WHERE last_updated_utc < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "12524c93213c29a4f231785ba25a5b483d9e1a395c65c536fdc4596b69b4584b"
+}

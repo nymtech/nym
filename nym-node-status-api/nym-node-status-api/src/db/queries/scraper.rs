@@ -16,18 +16,20 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
     let gateway_keys = queries::get_bonded_gateway_id_keys(pool).await?;
 
     let mut entry_exit_nodes = 0;
-    let skimmed_nodes = queries::get_active_nym_nodes(pool).await.map(|nodes_dto| {
-        nodes_dto.into_iter().filter_map(|node| {
-            let node_id = node.node_id;
-            match SkimmedNode::try_from(node) {
-                Ok(node) => Some(node),
-                Err(e) => {
-                    tracing::error!("Failed to decode node_id={}: {}", node_id, e);
-                    None
+    let skimmed_nodes = queries::get_mixing_capable_nym_nodes(pool)
+        .await
+        .map(|nodes_dto| {
+            nodes_dto.into_iter().filter_map(|node| {
+                let node_id = node.node_id;
+                match SkimmedNode::try_from(node) {
+                    Ok(node) => Some(node),
+                    Err(e) => {
+                        tracing::error!("Failed to decode node_id={}: {}", node_id, e);
+                        None
+                    }
                 }
-            }
-        })
-    })?;
+            })
+        })?;
 
     skimmed_nodes.for_each(|node| {
         // TODO: relies on polyfilling: Nym nodes table might contain legacy mixnodes

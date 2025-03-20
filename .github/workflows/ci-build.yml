@@ -27,6 +27,12 @@ on:
       - '.github/workflows/ci-build.yml'
   workflow_dispatch:
 
+concurrency:
+  # only 1 concurrent `ci-build` allowed per branch
+  # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#example-using-concurrency-and-the-default-behavior
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:

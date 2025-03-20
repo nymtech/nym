@@ -66,6 +66,9 @@ const NodeTableWithAction = () => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   // Use React Query to fetch Nym nodes
@@ -76,6 +79,9 @@ const NodeTableWithAction = () => {
   } = useQuery({
     queryKey: ["nymNodes"],
     queryFn: fetchObservatoryNodes,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   // Handle loading state

@@ -16,6 +16,9 @@ export const TokenomicsCard = () => {
   } = useQuery({
     queryKey: ["nymPrice"],
     queryFn: fetchNymPrice,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const {
@@ -25,6 +28,9 @@ export const TokenomicsCard = () => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const {
@@ -34,6 +40,9 @@ export const TokenomicsCard = () => {
   } = useQuery({
     queryKey: ["noise"],
     queryFn: fetchNoise,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading || isEpochLoading || isStakingLoading) {

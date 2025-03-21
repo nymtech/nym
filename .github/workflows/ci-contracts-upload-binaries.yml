@@ -49,7 +49,6 @@ jobs:
         run: |
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_bandwidth.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR

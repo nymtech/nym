@@ -48,13 +48,11 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Install cosmwasm-check
+        run: cargo install cosmwasm-check
+
       - name: Build contracts
-        uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: '-C link-arg=-s'
-        with:
-          command: build
-          args: --manifest-path contracts/Cargo.toml --workspace --lib --target wasm32-unknown-unknown
+        run: make contracts
 
       - name: Run unit tests
         uses: actions-rs/cargo@v1
@@ -73,3 +71,6 @@ jobs:
         with:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings
+
+      - name: Check compatibility
+        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/release/*.wasm

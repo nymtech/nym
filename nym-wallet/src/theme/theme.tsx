@@ -18,107 +18,102 @@ import {
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
+
 const nymPalette: NymPalette = {
   /** emphasises important elements */
-  highlight: '#FB6E4E',
-  success: '#21D073',
+  highlight: 'rgb(20, 231, 111)',
+  success: 'rgb(20, 231, 111)',
   info: '#60D7EF',
-  red: '#DA465B',
+  red: '#E33B5A',
   fee: '#967FF0',
-  background: { light: '#F4F6F8', dark: '#1D2125' },
-  text: {
-    light: '#F2F2F2',
-    dark: '#121726',
-    muted: '#7D7D7D',
-    grey: '#5B6174',
+  background: {
+    light: '#242B2D',
+    dark: '#1C1B1F',
   },
-  linkHover: '#AF4D36',
+  text: {
+    light: '#E6E1E5',
+    dark: '#FFFFFF',
+    muted: '#938F99',
+    grey: '#79747E',
+  },
+  linkHover: 'rgb(20, 231, 111)',
   border: {
-    menu: '#E8E9EB',
+    menu: '#49454F',
   },
 };
 
 const darkMode: NymPaletteVariant = {
   mode: 'dark',
   background: {
-    main: '#1D2125',
-    paper: '#292E34',
-    warn: '#FFE600',
-    grey: '#3A4053',
-    greyStroke: '#545D6A',
+    main: '#242B2D',
+    paper: '#32373D',
+    warn: '#F97316',
+    grey: '#3A373F',
+    greyStroke: '#49454F',
   },
   text: {
     main: '#FFFFFF',
-    muted: '#7D7D7D',
-    warn: '#FFE600',
-    contrast: '#1D2125',
-    grey: '#5B6174',
+    muted: '#938F99',
+    warn: '#F97316',
+    contrast: '#242B2D',
+    grey: '#79747E',
     blue: '#60D7EF',
   },
   topNav: {
-    background: '#111826',
+    background: '#1C1B1F',
   },
   nav: {
-    background: '#292E34',
+    background: '#32373D',
   },
   hover: {
-    background: '#36393E',
+    background: '#3A373F',
   },
   modal: {
-    border: '#484d53',
+    border: '#49454F',
   },
-  chart: { grey: '#3D4249' },
+  chart: {
+    grey: '#49454F',
+  },
 };
 
 const lightMode: NymPaletteVariant = {
   mode: 'light',
   background: {
-    main: '#F4F6F8',
-    paper: '#FFFFFF',
-    warn: '#FFE600',
-    grey: '#F5F5F5',
-    greyStroke: '#E6E6E6',
+    main: '#FFFFFF',
+    paper: '#F4F6F8',
+    warn: '#F97316',
+    grey: '#E2E8EC',
+    greyStroke: '#8DA3B1',
   },
   text: {
-    main: '#121726',
-    muted: '#7D7D7D',
-    warn: '#FFE600',
+    main: '#1C1B1F',
+    muted: '#79747E',
+    warn: '#F97316',
     contrast: '#FFFFFF',
-    grey: '#3A4053',
-    blue: '#514EFB',
+    grey: '#696571',
+    blue: '#60D7EF',
   },
   topNav: {
-    background: '#111826',
-  },
-  nav: {
     background: '#FFFFFF',
   },
+  nav: {
+    background: '#F4F6F8',
+  },
   hover: {
-    background: '#F9F9F9',
+    background: '#E2E8EC',
   },
   modal: {
     border: 'transparent',
   },
-  chart: { grey: '#E6E6E6' },
+  chart: {
+    grey: '#79747E',
+  },
 };
 
-/**
- * Nym palette specific to the Nym Wallet
- *
- * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
- * colours for dark/light mode.
- */
 const nymWalletPalette = (variant: NymPaletteVariant): NymWalletPalette => ({
   nymWallet: variant,
 });
 
-//-----------------------------------------------------------------------------------------------
-// Nym palettes for light and dark mode
-//
-
-/**
- * Map a Nym palette variant onto the MUI palette
- */
 const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   text: {
     primary: variant.text.main,
@@ -137,15 +132,15 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
   info: {
     main: nymPalette.info,
   },
+  error: {
+    main: nymPalette.red,
+  },
   background: {
     default: variant.background.main,
     paper: variant.background.paper,
   },
 });
 
-/**
- * Returns the Network Explorer palette for light mode.
- */
 const createLightModePalette = (): PaletteOptions => ({
   nym: {
     ...nymPalette,
@@ -154,9 +149,6 @@ const createLightModePalette = (): PaletteOptions => ({
   ...variantToMUIPalette(lightMode),
 });
 
-/**
- * Returns the Network Explorer palette for dark mode.
- */
 const createDarkModePalette = (): PaletteOptions => ({
   nym: {
     ...nymPalette,
@@ -164,41 +156,7 @@ const createDarkModePalette = (): PaletteOptions => ({
   },
   ...variantToMUIPalette(darkMode),
 });
-
-/**
- * IMPORANT: if you need to get the default MUI theme, use the following
- *
- *   import { createTheme as systemCreateTheme } from '@mui/system';
- *
- *   // get the MUI system defaults for light mode
- *   const systemTheme = systemCreateTheme({ palette: { mode: 'light' } });
- *
- *
- *   return {
- *     // change `primary` to default MUI `success`
- *     primary: {
- *       main: systemTheme.palette.success.main,
- *     },
- *     nym: {
- *       ...nymPalette,
- *       ...nymWalletPalette,
- *     },
- *   };
- */
-
-//-----------------------------------------------------------------------------------------------
-// Nym theme overrides
-//
-
-/**
- * Gets the theme options to be passed to `createTheme`.
- *
- * Based on pattern from https://mui.com/customization/dark-mode/#dark-mode-with-custom-palette.
- *
- * @param mode     The theme mode: 'light' or 'dark'
- */
 export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
-  // first, create the palette from user's choice of light or dark mode
   const { palette } = createTheme({
     palette: {
       mode,
@@ -206,18 +164,11 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
     },
   });
 
-  // then customise theme and components
   return {
     typography: {
-      fontFamily: [
-        'Open Sans',
-        'sans-serif',
-        'BlinkMacSystemFont',
-        'Roboto',
-        'Oxygen',
-        'Ubuntu',
-        'Helvetica Neue',
-      ].join(','),
+      fontFamily: ['Lato', 'sans-serif', 'BlinkMacSystemFont', 'Roboto', 'Oxygen', 'Ubuntu', 'Helvetica Neue'].join(
+        ',',
+      ),
       fontSize: 14,
       fontWeightRegular: 400,
       button: {
@@ -314,7 +265,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
                     t.palette.mode === 'dark' ? `${t.palette.background.default} !important` : '#FFFFFF !important',
                 },
                 '&& .Mui-selected:hover': {
-                  backgroundColor: 'rgba(251, 110, 78, 0.08) !important',
+                  backgroundColor: 'rgba(112, 117, 255, 0.08) !important',
                 },
               },
             },

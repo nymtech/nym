@@ -39,8 +39,15 @@ jobs:
         with:
           version: '114'
 
+      - name: Install cosmwasm-check
+        run: cargo install cosmwasm-check
+
       - name: Build release contracts
         run: make contracts
+
+      #  make sure the optimised contracts pass the cosmwasm-check
+      - name: Check chain compatibility
+        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/release/*.wasm
 
       - name: Prepare build output
         shell: bash

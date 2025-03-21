@@ -52,7 +52,12 @@ jobs:
         run: cargo install cosmwasm-check
 
       - name: Build contracts
-        run: make contracts
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-C link-arg=-s'
+        with:
+          command: build
+          args: --manifest-path contracts/Cargo.toml --workspace --lib --target wasm32-unknown-unknown
 
       - name: Run unit tests
         uses: actions-rs/cargo@v1
@@ -72,5 +77,5 @@ jobs:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings
 
-      - name: Check compatibility
+      - name: Check chain compatibility
         run: cosmwasm-check contracts/target/wasm32-unknown-unknown/release/*.wasm

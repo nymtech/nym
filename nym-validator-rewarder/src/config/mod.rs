@@ -36,9 +36,6 @@ const DEFAULT_DAILY_REWARDING_BUDGET: u128 = 24000_000000;
 const DEFAULT_REWARDING_DENOM: &str = "unym";
 
 const DEFAULT_BLOCK_SIGNING_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
-const DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE: usize = 10;
-const DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE: f64 = 0.10;
-const DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO: f64 = 0.60;
 
 // 'worst' case scenario
 pub const TYPICAL_BLOCK_TIME: f32 = 5.;
@@ -396,6 +393,11 @@ pub struct TicketbookIssuance {
     /// Specifies whether to only monitor and not send rewards.
     pub monitor_only: bool,
 
+    /// Specifies the minimum number of ticketbooks that had to be issued in a day
+    /// for any rewarding to occur.
+    #[serde(default = "default_ticketbook_issuance_min_daily")]
+    pub minimum_daily_ticketbooks: usize,
+
     /// Defines the minimum number of ticketbooks the rewarder will validate
     /// regardless of the sampling rate
     #[serde(default = "default_ticketbook_issuance_min_validate")]
@@ -414,6 +416,13 @@ pub struct TicketbookIssuance {
     pub whitelist: Vec<AccountId>,
 }
 
+impl TicketbookIssuance {
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE: usize = 10;
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE: f64 = 0.01;
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO: f64 = 0.60;
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_MIN_DAILY: usize = 200;
+}
+
 fn default_ticketbook_issuance_min_validate() -> usize {
     TicketbookIssuance::default().min_validate_per_issuer
 }
@@ -426,14 +435,19 @@ fn default_ticketbook_issuance_full_verification_ratio() -> f64 {
     TicketbookIssuance::default().full_verification_ratio
 }
 
+fn default_ticketbook_issuance_min_daily() -> usize {
+    TicketbookIssuance::default().minimum_daily_ticketbooks
+}
+
 impl Default for TicketbookIssuance {
     fn default() -> Self {
         TicketbookIssuance {
             enabled: false,
             monitor_only: false,
-            min_validate_per_issuer: DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE,
-            sampling_rate: DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE,
-            full_verification_ratio: DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO,
+            minimum_daily_ticketbooks: Self::DEFAULT_TICKETBOOK_ISSUANCE_MIN_DAILY,
+            min_validate_per_issuer: Self::DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE,
+            sampling_rate: Self::DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE,
+            full_verification_ratio: Self::DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO,
             whitelist: vec![],
         }
     }

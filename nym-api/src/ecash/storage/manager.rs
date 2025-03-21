@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::storage::models::{
-    IssuedHash, RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper,
-    TicketProvider, VerifiedTicket,
+    IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount, IssuedTicketbooksOnCount,
+    RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper, TicketProvider,
+    VerifiedTicket,
 };
 use crate::support::storage::manager::StorageManager;
 use async_trait::async_trait;
@@ -147,6 +148,22 @@ pub trait EcashStorageManagerExt {
     ) -> Result<(), sqlx::Error>;
 
     async fn remove_expired_verified_tickets(&self, cutoff: Date) -> Result<(), sqlx::Error>;
+
+    async fn get_issued_ticketbooks_count(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<IssuedTicketbooksCount>, sqlx::Error>;
+
+    async fn get_issued_ticketbooks_on_count(
+        &self,
+        issuance_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksOnCount>, sqlx::Error>;
+
+    async fn get_issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksForCount>, sqlx::Error>;
 }
 
 #[async_trait]
@@ -220,7 +237,11 @@ impl EcashStorageManagerExt for StorageManager {
                     ticketbook_type_repr,
                     merkle_leaf,
                     merkle_index
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+                INSERT INTO issued_ticketbooks_count(expiration_date, count)
+                VALUES (?, 1)
+                ON CONFLICT(issuance_date, expiration_date) DO UPDATE SET count = count + 1;
             "#,
             deposit_id,
             dkg_epoch_id,
@@ -229,7 +250,8 @@ impl EcashStorageManagerExt for StorageManager {
             expiration_date,
             ticketbook_type_repr,
             merkle_leaf,
-            merkle_index
+            merkle_index,
+            expiration_date
         )
         .execute(&self.connection_pool)
         .await?;
@@ -266,6 +288,9 @@ impl EcashStorageManagerExt for StorageManager {
     ) -> Result<Vec<RawIssuedTicketbook>, sqlx::Error> {
         // that sucks : (
         // https://stackoverflow.com/a/70032524
+
+        // NOTE: whilst there's no explicit `LIMIT` here,
+        // the API invoking this method forbids using lists of deposits with too many values
         let params = format!("?{}", ", ?".repeat(deposits.len() - 1));
         let query_str = format!("SELECT * FROM issued_ticketbook WHERE deposit_id IN ( {params} )");
         let mut query = sqlx::query_as(&query_str);
@@ -549,5 +574,46 @@ impl EcashStorageManagerExt for StorageManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
+    }
+
+    async fn get_issued_ticketbooks_count(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<IssuedTicketbooksCount>, sqlx::Error> {
+        sqlx::query_as!(
+            IssuedTicketbooksCount,
+            "SELECT issuance_date AS 'issuance_date: Date', expiration_date AS 'expiration_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count LIMIT ? OFFSET ?",
+            limit,
+            offset
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
+    async fn get_issued_ticketbooks_on_count(
+        &self,
+        issuance_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksOnCount>, sqlx::Error> {
+        sqlx::query_as!(
+            IssuedTicketbooksOnCount,
+            "SELECT expiration_date AS 'expiration_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count WHERE issuance_date = ?",
+            issuance_date
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
+    async fn get_issued_ticketbooks_for_count(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Vec<IssuedTicketbooksForCount>, sqlx::Error> {
+        sqlx::query_as!(
+            IssuedTicketbooksForCount,
+            "SELECT issuance_date AS 'issuance_date: Date', count AS 'count: u32' FROM issued_ticketbooks_count WHERE expiration_date = ?",
+            expiration_date
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 }

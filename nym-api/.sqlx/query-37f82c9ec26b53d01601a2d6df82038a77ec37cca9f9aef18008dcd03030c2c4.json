@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM ecash_ticketbook WHERE expiration_date <= ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "37f82c9ec26b53d01601a2d6df82038a77ec37cca9f9aef18008dcd03030c2c4"
+}

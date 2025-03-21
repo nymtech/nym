@@ -3416,6 +3416,7 @@ dependencies = [
  "cosmwasm-std",
  "ecdsa",
  "getset",
+ "hex",
  "humantime-serde",
  "nym-compact-ecash",
  "nym-config",

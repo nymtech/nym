@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
+    IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
+    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse,
     IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
@@ -36,10 +37,7 @@ pub use nym_api_requests::{
     nym_nodes::{CachedNodesResponse, SkimmedNode},
     NymNetworkDetailsResponse,
 };
-pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
-use nym_ecash_contract_common::deposit::DepositId;
-pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId, NymNodeDetails};
@@ -47,6 +45,9 @@ use std::net::IpAddr;
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 use tracing::instrument;
+
+pub use nym_coconut_dkg_common::types::EpochId;
+pub use nym_http_api_client::Client;
 
 pub mod error;
 pub mod routes;
@@ -1012,22 +1013,52 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn issued_ticketbooks_challenge(
+    async fn issued_ticketbooks_for_count(
         &self,
         expiration_date: Date,
-        deposits: Vec<DepositId>,
-    ) -> Result<IssuedTicketbooksChallengeResponse, NymAPIError> {
+    ) -> Result<IssuedTicketbooksForCountResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::ECASH_ISSUED_TICKETBOOKS_FOR_COUNT,
+                &expiration_date.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn issued_ticketbooks_challenge_commitment(
+        &self,
+        request: &IssuedTicketbooksChallengeCommitmentRequest,
+    ) -> Result<IssuedTicketbooksChallengeCommitmentResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
+                routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
             ],
             NO_PARAMS,
-            &IssuedTicketbooksChallengeRequest {
-                expiration_date,
-                deposits,
-            },
+            request,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn issued_ticketbooks_data(
+        &self,
+        request: &IssuedTicketbooksDataRequest,
+    ) -> Result<IssuedTicketbooksDataResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::ECASH_ISSUED_TICKETBOOKS_DATA,
+            ],
+            NO_PARAMS,
+            request,
         )
         .await
     }

@@ -12,19 +12,21 @@ use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
 use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
+use std::sync::Arc;
 use time::Date;
 use tokio::pin;
 use tracing::{error, info, instrument, warn};
 
-mod block_signing;
-mod epoch;
-mod helpers;
-mod nyxd_client;
-mod storage;
+pub(crate) mod block_signing;
+pub(crate) mod epoch;
+pub(crate) mod helpers;
+pub(crate) mod nyxd_client;
+pub(crate) mod storage;
 mod tasks;
 pub(crate) mod ticketbook_issuance;
 
@@ -124,6 +126,12 @@ impl TicketbookIssuanceDetails {
 
         Ok(amounts)
     }
+
+    pub fn approximate_deposits(&self) -> Option<Result<u32, &NymRewarderError>> {
+        self.results
+            .as_ref()
+            .map(|maybe_results| maybe_results.as_ref().map(|r| r.approximate_deposits))
+    }
 }
 
 pub fn total_spent(amounts: &[(AccountId, Vec<Coin>)], denom: &str) -> Coin {
@@ -148,6 +156,8 @@ impl Rewarder {
         if !config.block_signing.enabled && !config.ticketbook_issuance.enabled {
             return Err(NymRewarderError::RewardingModulesDisabled);
         }
+
+        let rewarder_keypair = Self::try_load_identity_keypair(&config)?;
 
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
@@ -199,6 +209,7 @@ impl Rewarder {
                 config.verification_config(),
                 storage.clone(),
                 &nyxd_client,
+                rewarder_keypair,
                 whitelist,
             ))
         } else {
@@ -234,6 +245,20 @@ impl Rewarder {
             current_block_signing_epoch,
             last_processed_issuance_date,
         })
+    }
+
+    pub(crate) fn try_load_identity_keypair(
+        config: &Config,
+    ) -> Result<Arc<ed25519::KeyPair>, NymRewarderError> {
+        let rewarder_keypair = Arc::new(
+            config
+                .storage_paths
+                .load_ed25519_identity()
+                .inspect_err(|err|
+                    error!("failed to load ed25519 identity keys: {err}. if this is the first time this binary is running after migrating to the new version, please run 'nym-validator-rewarder regenerate-identity'")
+                )?,
+        );
+        Ok(rewarder_keypair)
     }
 
     #[instrument(skip(self))]
@@ -329,6 +354,10 @@ impl Rewarder {
         })
     }
 
+    fn min_deposits(&self) -> usize {
+        self.config.ticketbook_issuance.minimum_daily_ticketbooks
+    }
+
     async fn calculate_and_send_ticketbook_issuance_rewards(
         &mut self,
         issued_ticketbooks: &TicketbookIssuanceDetails,
@@ -337,9 +366,19 @@ impl Rewarder {
         let denom = &self.config.rewarding.daily_budget.denom;
         let total_spent = total_spent(&rewarding_amounts, denom);
 
-        let rewarding_tx = self
-            .send_ticketbook_issuance_rewards(rewarding_amounts)
-            .await?;
+        let approximate_deposits = issued_ticketbooks.approximate_deposits();
+
+        // if we're below the minimum threshold for rewarding, don't attempt to send the tx
+        let rewarding_tx = if let Some(Ok(approximate_deposits)) = approximate_deposits {
+            if approximate_deposits as usize >= self.min_deposits() {
+                self.send_ticketbook_issuance_rewards(rewarding_amounts)
+                    .await?
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         Ok(RewardingResult {
             total_spent,

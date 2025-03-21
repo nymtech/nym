@@ -3,7 +3,7 @@
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
+import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
 import type { RewardingDetails } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
@@ -24,22 +24,25 @@ export const NodeParametersCard = ({ id }: INodeParametersCardProps) => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   // Fetch node information
   const {
-    data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    data: nymNodes,
+    isLoading,
+    isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
-  if (isEpochLoading || isNodeLoading) {
+  if (isEpochLoading || isLoading) {
     return (
       <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
@@ -50,7 +53,7 @@ export const NodeParametersCard = ({ id }: INodeParametersCardProps) => {
     );
   }
 
-  if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
+  if (isEpochError || isError || !nymNodes || !epochRewardsData) {
     return (
       <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -59,7 +62,9 @@ export const NodeParametersCard = ({ id }: INodeParametersCardProps) => {
       </ExplorerCard>
     );
   }
+  const nodeInfo = nymNodes.find((node) => node.node_id === id);
 
+  if (!nodeInfo) return null;
   const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
   const totalStakeFormatted = `${totalStake} NYM`;
 

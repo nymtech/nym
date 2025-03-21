@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
+import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
 
 import { Skeleton, Typography } from "@mui/material";
 import { format } from "date-fns";
@@ -23,22 +23,25 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   // Fetch node information
   const {
-    data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    data: nymNodes,
+    isLoading,
+    isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
-  if (isEpochLoading || isNodeLoading) {
+  if (isEpochLoading || isLoading) {
     return (
       <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
@@ -49,7 +52,7 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
     );
   }
 
-  if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
+  if (isEpochError || isError || !nymNodes || !epochRewardsData) {
     return (
       <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -58,6 +61,10 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
       </ExplorerCard>
     );
   }
+
+  const nodeInfo = nymNodes.find((node) => node.node_id === id);
+
+  if (!nodeInfo) return null;
 
   const softwareUpdateTime = format(
     new Date(nodeInfo.description.build_information.build_timestamp),

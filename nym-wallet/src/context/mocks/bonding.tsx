@@ -197,6 +197,30 @@ export const MockBondingContextProvider = ({
     return '77dcaba7f41409984f4ebce4a386f59b10f1e65ed5514d1acdccae30174bd84b';
   };
 
+  const migrateVestedMixnode = async (): Promise<TransactionExecuteResult | undefined> => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    triggerStateUpdate();
+    setIsLoading(false);
+    return TxResultMock;
+  };
+
+  const migrateLegacyNode = async (): Promise<TransactionExecuteResult | undefined> => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    triggerStateUpdate();
+    setIsLoading(false);
+    return TxResultMock;
+  };
+
+  const updateCostParameters = async (): Promise<TransactionExecuteResult | undefined> => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    triggerStateUpdate();
+    setIsLoading(false);
+    return TxResultMock;
+  };
+
   const resetFeeState = () => {};
 
   const memoizedValue = useMemo(
@@ -218,9 +242,11 @@ export const MockBondingContextProvider = ({
       checkOwnership,
       generateNymNodeMsgPayload,
       isVestingAccount: false,
-      migrateVestedMixnode: async () => undefined,
-      migrateLegacyNode: async () => undefined,
+      migrateVestedMixnode,
+      migrateLegacyNode,
       updateNymNodeConfig,
+      updateCostParameters,
+      bondedNode: bondedMixnode || bondedGateway,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

@@ -219,7 +219,7 @@ export const BondedMixnode = ({
         {network && (
           <Typography sx={{ mt: 2, fontSize: 'small' }}>
             Check more stats of your node on the{' '}
-            <Link href={`${urls(network).networkExplorer}/network-components/nodes/${mixId}`} target="_blank">
+            <Link href={`${urls(network).networkExplorer}/nodes/${mixId}`} target="_blank">
               explorer
             </Link>
           </Typography>

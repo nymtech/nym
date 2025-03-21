@@ -20,7 +20,7 @@ export const simulateBondMixnode = async (args: TBondMixNodeArgs) =>
 export const simulateUnbondMixnode = async (args: any) => invokeWrapper<FeeDetails>('simulate_unbond_mixnode', args);
 
 export const simulateUpdateMixnodeCostParams = async (newCosts: NodeCostParams) =>
-  invokeWrapper<FeeDetails>('simulate_update_mixnode_cost_params', { newCosts });
+  invokeWrapper<FeeDetails>('simulate_update_node_cost_params', { newCosts });
 
 export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_mixnode_config', { update });

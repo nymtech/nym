@@ -685,6 +685,33 @@ pub async fn update_nymnode_config(
 }
 
 #[tauri::command]
+pub async fn update_nymnode_cost_params(
+    new_costs: NodeCostParams,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.write().await;
+    let reg = guard.registered_coins()?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let cost_params = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
+
+    log::info!(
+        ">>> update nym node cost params: update = {}, fee {fee:?}",
+        cost_params.to_inline_json()
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .update_cost_params(cost_params, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
 pub async fn get_nymnode_performance(
     node_id: NodeId,
     state: tauri::State<'_, WalletState>,

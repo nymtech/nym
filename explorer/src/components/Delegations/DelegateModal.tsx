@@ -101,7 +101,7 @@ export const DelegateModal: FCWithChildren<{
           status: 'success',
           message: 'Delegation can take up to one hour to process',
           transactions: [
-            { url: `${urls('MAINNET').blockExplorer}/transaction/${tx.transactionHash}`, hash: tx.transactionHash },
+            { url: `${urls('MAINNET').blockExplorer}/tx/${tx.transactionHash}`, hash: tx.transactionHash },
           ],
         });
       } catch (e) {

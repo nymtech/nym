@@ -129,7 +129,7 @@ export const SendInputModal = ({
           error={!memoIsValid}
           placeholder="Optional"
           helperText={
-            !memoIsValid ? ' The text is invalid, only alphanumeric characters and white spaces are allowed' : undefined
+            !memoIsValid ? 'The text is invalid, only alphanumeric characters and white spaces are allowed' : undefined
           }
           InputLabelProps={{ shrink: true }}
           fullWidth

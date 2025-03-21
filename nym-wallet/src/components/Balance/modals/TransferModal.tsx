@@ -39,7 +39,7 @@ export const TransferModal = ({ onClose }: { onClose: () => void }) => {
         setState('success');
         setTx({
           amount: `${userBalance.tokenAllocation?.spendable} ${clientDetails.display_mix_denom.toUpperCase()}`,
-          url: `${urls(network).blockExplorer}/transaction/${txResponse.transaction_hash}`,
+          url: `${urls(network).blockExplorer}/tx/${txResponse.transaction_hash}`,
         });
         await userBalance.refreshBalances();
       } catch (e) {

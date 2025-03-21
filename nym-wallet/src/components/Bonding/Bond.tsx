@@ -21,7 +21,7 @@ export const Bond = ({
     >
       <Typography variant="body2">
         Bond a nym node. Learn how to set up and run a Nym node{' '}
-        <Link href="https://nymtech.net/operators/nodes/mix-node-setup.html" target="_blank">
+        <Link href="https://nym.com/docs/operators/nodes/nym-node" target="_blank">
           here
         </Link>
       </Typography>

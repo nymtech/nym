@@ -69,6 +69,8 @@ const NodeTableWithAction = () => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   // Use React Query to fetch Nym nodes
@@ -82,6 +84,8 @@ const NodeTableWithAction = () => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   // Handle loading state

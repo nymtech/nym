@@ -7,6 +7,7 @@ import { AccountInfoCard } from "../../../../components/accountPageComponents/Ac
 import { ContentLayout } from "../../../../components/contentLayout/ContentLayout";
 import SectionHeading from "../../../../components/headings/SectionHeading";
 import ExplorerButtonGroup from "../../../../components/toggleButton/ToggleButton";
+import AccountPageButtonGroup from "@/components/accountPageComponents/AccountPageButtonGroup";
 
 export default async function Account({
   params,
@@ -16,11 +17,7 @@ export default async function Account({
   try {
     const address = (await params).address;
 
-    const nymNodes: IObservatoryNode[] = await fetchObservatoryNodes();
 
-    const nymNode = nymNodes.find(
-      (node) => node.bonding_address === address,
-    );
 
     return (
       <ContentLayout>
@@ -31,23 +28,7 @@ export default async function Account({
 
           <Grid size={6} justifyContent="flex-end">
             <Box sx={{ display: "flex", justifyContent: "end" }}>
-              <ExplorerButtonGroup
-                onPage="Account"
-                options={[
-                  {
-                    label: "Nym Node",
-                    isSelected: false,
-                    link: nymNode
-                      ? `/nym-node/${nymNode.node_id}`
-                      : `/account/${address}/not-found`,
-                  },
-                  {
-                    label: "Account",
-                    isSelected: true,
-                    link: `/account/${address}`,
-                  },
-                ]}
-              />
+              <AccountPageButtonGroup address={address} />
             </Box>
           </Grid>
 

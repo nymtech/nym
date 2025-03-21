@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
-import { fetchNodeInfo } from "../../app/api";
+import { fetchObservatoryNodes } from "../../app/api";
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -36,16 +36,41 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
 
   // Fetch node info
   const {
-    data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    data: nymNodes,
+    isLoading: isLoadingNymNodes,
+    isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
   });
+
+  if (isLoading) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Skeleton variant="rectangular" height={80} width={80} />
+        <Skeleton variant="text" />
+        <Skeleton variant="text" height={200} />
+      </ExplorerCard>
+    );
+  }
+
+  if (isError || !nymNodes) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
+  const nodeInfo = nymNodes.find((node) => node.node_id === id);
+
+  if (!nodeInfo) return null;
 
   const handleStakeOnNode = async ({
     nodeId,
@@ -117,25 +142,7 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     }
   }, [isWalletConnected, nodeInfo]);
 
-  if (isNodeLoading) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Skeleton variant="rectangular" height={80} width={80} />
-        <Skeleton variant="text" />
-        <Skeleton variant="text" height={200} />
-      </ExplorerCard>
-    );
-  }
 
-  if (isNodeError || !nodeInfo) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
-          Failed to load node data.
-        </Typography>
-      </ExplorerCard>
-    );
-  }
   const cleanMoniker = DOMPurify.sanitize(
     nodeInfo?.self_description.moniker,
   ).replace(/&amp;/g, "&");

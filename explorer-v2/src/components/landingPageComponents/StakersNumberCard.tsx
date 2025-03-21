@@ -16,6 +16,8 @@ export const RewardsCard = () => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   if (isLoading) {

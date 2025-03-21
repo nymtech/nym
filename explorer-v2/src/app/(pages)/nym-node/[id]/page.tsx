@@ -1,10 +1,10 @@
-import { fetchNodeIdByIdentityKey, fetchNodeInfo } from "@/app/api";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeDataCard } from "@/components/nymNodePageComponents/NodeDataCard";
 // import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
 import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
+import NodePageButtonGroup from "@/components/nymNodePageComponents/NodePageButtonGroup";
 import { NodeParametersCard } from "@/components/nymNodePageComponents/NodeParametersCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRoleCard } from "@/components/nymNodePageComponents/NodeRoleCard";
@@ -20,20 +20,7 @@ export default async function NymNode({
   try {
     let id: string | number;
     const paramsId = (await params).id;
-
-    // check if the params id is a node_id or identity_key
-
-    if (paramsId.length > 10) {
-      id = await fetchNodeIdByIdentityKey(paramsId);
-    } else {
-      id = Number(paramsId);
-    }
-
-    const observatoryNymNode = await fetchNodeInfo(id);
-
-    if (!observatoryNymNode) {
-      return null;
-    }
+    id = Number(paramsId);
 
     return (
       <ContentLayout>
@@ -41,23 +28,7 @@ export default async function NymNode({
           <Grid size={12}>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <SectionHeading title="Nym Node Details" />
-              {observatoryNymNode.bonding_address && (
-                <ExplorerButtonGroup
-                  onPage="Nym Node"
-                  options={[
-                    {
-                      label: "Nym Node",
-                      isSelected: true,
-                      link: `/nym-node/${id}`,
-                    },
-                    {
-                      label: "Account",
-                      isSelected: false,
-                      link: `/account/${observatoryNymNode.bonding_address}`,
-                    },
-                  ]}
-                />
-              )}
+              <NodePageButtonGroup paramId={id.toString()} />
             </Box>
           </Grid>
           <Grid

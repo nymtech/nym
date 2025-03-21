@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchEpochRewards,
   fetchGatewayStatus,
-  fetchNodeInfo,
+  fetchObservatoryNodes,
 } from "../../app/api";
 import type { LastProbeResult, NodeDescription } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -146,15 +146,16 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
 export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
   // Fetch node info
   const {
-    data: nodeInfo,
+    data: nymNodes,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
   });
   const {
     data: epochRewardsData,
@@ -166,7 +167,33 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
+
+  if (isLoading || isEpochLoading) {
+    return (
+      <ExplorerCard label="Node role & performance">
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={300} />
+      </ExplorerCard>
+    );
+  }
+
+  if (isError || !nymNodes || !epochRewardsData || isEpochError) {
+    return (
+      <ExplorerCard label="Node role & performance">
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
+  const nodeInfo = nymNodes.find((node) => node.node_id === id);
+
+  if (!nodeInfo) return null;
 
   // Extract node roles once `nodeInfo` is available
   const nodeRoles = nodeInfo
@@ -188,25 +215,7 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     refetchOnReconnect: false,
   });
 
-  if (isLoading || isEpochLoading) {
-    return (
-      <ExplorerCard label="Node role & performance">
-        <Skeleton variant="text" height={70} />
-        <Skeleton variant="text" height={70} />
-        <Skeleton variant="text" height={300} />
-      </ExplorerCard>
-    );
-  }
 
-  if (isError || !nodeInfo || !epochRewardsData || isEpochError) {
-    return (
-      <ExplorerCard label="Node role & performance">
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
-          Failed to load node data.
-        </Typography>
-      </ExplorerCard>
-    );
-  }
 
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>

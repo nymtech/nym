@@ -15,7 +15,7 @@ pub(crate) use gateways_stats::{delete_old_records, get_sessions_stats, insert_s
 pub(crate) use misc::insert_summaries;
 pub(crate) use mixnodes::{get_all_mixnodes, get_bonded_mix_ids, get_daily_stats, update_mixnodes};
 pub(crate) use nym_nodes::{
-    get_all_nym_nodes, get_described_node_bond_info, get_mixing_capable_nym_nodes,
+    get_all_nym_nodes, get_described_bonded_nym_nodes, get_described_node_bond_info,
     get_node_descriptions, update_nym_nodes,
 };
 pub(crate) use packet_stats::{

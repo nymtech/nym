@@ -44,7 +44,9 @@ pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNo
 ///
 /// same if it's not bonded in the mixnet smart contract
 /// - https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
-pub(crate) async fn get_mixing_capable_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNodeDto>> {
+pub(crate) async fn get_described_bonded_nym_nodes(
+    pool: &DbPool,
+) -> anyhow::Result<Vec<NymNodeDto>> {
     let mut conn = pool.acquire().await?;
 
     sqlx::query_as!(

@@ -23,7 +23,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "PledgeData": {
       "description": "Information regarding pledge (i.e. mixnode or gateway bonding) made with vesting tokens.",

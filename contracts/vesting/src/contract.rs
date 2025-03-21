@@ -3,8 +3,8 @@ use crate::storage::{ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 pub use crate::transactions::*;
 use contracts_common::set_build_information;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    Uint128,
+    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Uint128,
 };
 use vesting_contract_common::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 use vesting_contract_common::{Account, VestingContractError};
@@ -110,16 +110,18 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, VestingContractError> {
     let query_res = match msg {
-        QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
-        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
+        QueryMsg::GetContractVersion {} => to_json_binary(&get_contract_version()),
+        QueryMsg::GetCW2ContractVersion {} => {
+            to_json_binary(&cw2::get_contract_version(deps.storage)?)
+        }
         QueryMsg::GetAccountsPaged {
             start_next_after,
             limit,
-        } => to_binary(&try_get_all_accounts(deps, start_next_after, limit)?),
+        } => to_json_binary(&try_get_all_accounts(deps, start_next_after, limit)?),
         QueryMsg::GetAccountsVestingCoinsPaged {
             start_next_after,
             limit,
-        } => to_binary(&try_get_all_accounts_vesting_coins(
+        } => to_json_binary(&try_get_all_accounts_vesting_coins(
             deps,
             env,
             start_next_after,
@@ -128,7 +130,7 @@ pub fn query(
         QueryMsg::LockedCoins {
             vesting_account_address,
             block_time,
-        } => to_binary(&try_get_locked_coins(
+        } => to_json_binary(&try_get_locked_coins(
             &vesting_account_address,
             block_time,
             env,
@@ -137,7 +139,7 @@ pub fn query(
         QueryMsg::SpendableCoins {
             vesting_account_address,
             block_time,
-        } => to_binary(&try_get_spendable_coins(
+        } => to_json_binary(&try_get_spendable_coins(
             &vesting_account_address,
             block_time,
             env,
@@ -146,7 +148,7 @@ pub fn query(
         QueryMsg::GetVestedCoins {
             vesting_account_address,
             block_time,
-        } => to_binary(&try_get_vested_coins(
+        } => to_json_binary(&try_get_vested_coins(
             &vesting_account_address,
             block_time,
             env,
@@ -155,7 +157,7 @@ pub fn query(
         QueryMsg::GetVestingCoins {
             vesting_account_address,
             block_time,
-        } => to_binary(&try_get_vesting_coins(
+        } => to_json_binary(&try_get_vesting_coins(
             &vesting_account_address,
             block_time,
             env,
@@ -163,69 +165,69 @@ pub fn query(
         )?),
         QueryMsg::GetStartTime {
             vesting_account_address,
-        } => to_binary(&try_get_start_time(&vesting_account_address, deps)?),
+        } => to_json_binary(&try_get_start_time(&vesting_account_address, deps)?),
         QueryMsg::GetEndTime {
             vesting_account_address,
-        } => to_binary(&try_get_end_time(&vesting_account_address, deps)?),
+        } => to_json_binary(&try_get_end_time(&vesting_account_address, deps)?),
         QueryMsg::GetOriginalVesting {
             vesting_account_address,
-        } => to_binary(&try_get_original_vesting(&vesting_account_address, deps)?),
+        } => to_json_binary(&try_get_original_vesting(&vesting_account_address, deps)?),
         QueryMsg::GetHistoricalVestingStakingReward {
             vesting_account_address,
-        } => to_binary(&try_get_historical_vesting_staking_reward(
+        } => to_json_binary(&try_get_historical_vesting_staking_reward(
             &vesting_account_address,
             deps,
         )?),
         QueryMsg::GetSpendableVestedCoins {
             vesting_account_address,
-        } => to_binary(&try_get_spendable_vested_coins(
+        } => to_json_binary(&try_get_spendable_vested_coins(
             &vesting_account_address,
             deps,
             env,
         )?),
         QueryMsg::GetSpendableRewardCoins {
             vesting_account_address,
-        } => to_binary(&try_get_spendable_reward_coins(
+        } => to_json_binary(&try_get_spendable_reward_coins(
             &vesting_account_address,
             deps,
             env,
         )?),
         QueryMsg::GetDelegatedCoins {
             vesting_account_address,
-        } => to_binary(&try_get_delegated_coins(&vesting_account_address, deps)?),
+        } => to_json_binary(&try_get_delegated_coins(&vesting_account_address, deps)?),
         QueryMsg::GetPledgedCoins {
             vesting_account_address,
-        } => to_binary(&try_get_pledged_coins(&vesting_account_address, deps)?),
+        } => to_json_binary(&try_get_pledged_coins(&vesting_account_address, deps)?),
         QueryMsg::GetStakedCoins {
             vesting_account_address,
-        } => to_binary(&try_get_staked_coins(&vesting_account_address, deps)?),
+        } => to_json_binary(&try_get_staked_coins(&vesting_account_address, deps)?),
         QueryMsg::GetWithdrawnCoins {
             vesting_account_address,
-        } => to_binary(&try_get_withdrawn_coins(&vesting_account_address, deps)?),
-        QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
-        QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
-        QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
+        } => to_json_binary(&try_get_withdrawn_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetAccount { address } => to_json_binary(&try_get_account(&address, deps)?),
+        QueryMsg::GetMixnode { address } => to_json_binary(&try_get_mixnode(&address, deps)?),
+        QueryMsg::GetGateway { address } => to_json_binary(&try_get_gateway(&address, deps)?),
         QueryMsg::GetCurrentVestingPeriod { address } => {
-            to_binary(&try_get_current_vesting_period(&address, deps, env)?)
+            to_json_binary(&try_get_current_vesting_period(&address, deps, env)?)
         }
         QueryMsg::GetDelegation {
             address,
             mix_id,
             block_timestamp_secs,
-        } => to_binary(&try_get_delegation(
+        } => to_json_binary(&try_get_delegation(
             deps,
             &address,
             mix_id,
             block_timestamp_secs,
         )?),
         QueryMsg::GetTotalDelegationAmount { address, mix_id } => {
-            to_binary(&try_get_delegation_amount(deps, &address, mix_id)?)
+            to_json_binary(&try_get_delegation_amount(deps, &address, mix_id)?)
         }
         QueryMsg::GetDelegationTimes { address, mix_id } => {
-            to_binary(&try_get_delegation_times(deps, &address, mix_id)?)
+            to_json_binary(&try_get_delegation_times(deps, &address, mix_id)?)
         }
         QueryMsg::GetAllDelegations { start_after, limit } => {
-            to_binary(&try_get_all_delegations(deps, start_after, limit)?)
+            to_json_binary(&try_get_all_delegations(deps, start_after, limit)?)
         }
     };
 

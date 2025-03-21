@@ -16,7 +16,7 @@ use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
 use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
-use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::ecash::models::{
     BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest,
@@ -585,7 +585,7 @@ impl EcashState {
         }
 
         // check if it was actually created by the ecash contract
-        if proposal.proposer != self.global.contract_address.as_ref() {
+        if proposal.proposer.as_str() != self.global.contract_address.as_ref() {
             return Err(RedemptionError::InvalidProposer {
                 proposal_id,
                 received: proposal.proposer.into_string(),
@@ -619,7 +619,7 @@ impl EcashState {
             return Err(RedemptionError::InvalidContract { proposal_id });
         }
 
-        let Ok(ExecuteMsg::RedeemTickets { n, gw }) = from_binary(&msg) else {
+        let Ok(ExecuteMsg::RedeemTickets { n, gw }) = from_json(&msg) else {
             return Err(RedemptionError::InvalidMessage { proposal_id });
         };
 

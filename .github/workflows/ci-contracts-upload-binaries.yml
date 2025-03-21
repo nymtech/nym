@@ -31,7 +31,6 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.77
           target: wasm32-unknown-unknown
           override: true
 
@@ -39,6 +38,9 @@ jobs:
         uses: ./.github/actions/install-wasm-opt
         with:
           version: '114'
+
+      - name: Install cosmwasm-check
+        run: cargo install cosmwasm-check
 
       - name: Build release contracts
         run: make contracts
@@ -50,7 +52,6 @@ jobs:
         run: |
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_bandwidth.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR

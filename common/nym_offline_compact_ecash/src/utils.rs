@@ -269,9 +269,8 @@ pub fn check_vk_pairing(
 
 #[cfg(test)]
 mod tests {
-    use rand::RngCore;
-
     use super::*;
+    use rand::RngCore;
 
     #[test]
     fn polynomial_evaluation() {

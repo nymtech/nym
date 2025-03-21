@@ -106,7 +106,7 @@ mod tests {
     use crate::support::tests::helpers::{
         add_current_dealer, add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT,
     };
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
@@ -116,9 +116,14 @@ mod tests {
     fn current_epoch_id() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let info = mock_info("requester", &[]);
+        let info = message_info(&deps.api.addr_make("requester"), &[]);
         let share = "share".to_string();
 
         add_fixture_dealer(deps.as_mut());
@@ -132,7 +137,7 @@ mod tests {
             .time
             .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let dealer = Addr::unchecked("requester");
+        let dealer = deps.api.addr_make("requester");
         let announce_address = String::from("localhost");
         let dealer_details = DealerDetails {
             address: dealer.clone(),
@@ -163,9 +168,14 @@ mod tests {
     fn commit_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let info = mock_info("requester", &[]);
+        let info = message_info(&deps.api.addr_make("requester"), &[]);
         let share = "share".to_string();
 
         let ret = try_commit_verification_key_share(
@@ -205,7 +215,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(ret, ContractError::NotADealer { epoch_id: 0 });
 
-        let dealer = Addr::unchecked("requester");
+        let dealer = deps.api.addr_make("requester");
         let dealer_details = DealerDetails {
             address: dealer.clone(),
             bte_public_key_with_proof: String::new(),
@@ -238,11 +248,16 @@ mod tests {
     fn invalid_verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let info = mock_info("requester", &[]);
-        let owner = "owner".to_string();
-        let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
+        let info = message_info(&deps.api.addr_make("requester"), &[]);
+        let owner = deps.api.addr_make("owner").to_string();
+        let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
 
         let ret =
             try_verify_verification_key_share(deps.as_mut(), info.clone(), owner.clone(), false)
@@ -297,12 +312,17 @@ mod tests {
     fn verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
-        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
 
-        let owner = "owner".to_string();
-        let info = mock_info(owner.as_ref(), &[]);
+        let owner = deps.api.addr_make("owner");
+        let info = message_info(&owner, &[]);
         let share = "share".to_string();
-        let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
+        let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
 
         add_fixture_dealer(deps.as_mut());
         env.block.time = env
@@ -338,6 +358,7 @@ mod tests {
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
         try_advance_epoch_state(deps.as_mut(), env).unwrap();
 
-        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner, false).unwrap();
+        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.to_string(), false)
+            .unwrap();
     }
 }

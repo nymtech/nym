@@ -1,6 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
@@ -40,9 +41,9 @@ pub fn dealing_metadata_fixture() -> Vec<DealingChunkInfo> {
     }]
 }
 
-pub fn dealer_details_fixture(assigned_index: u64) -> DealerDetails {
+pub fn dealer_details_fixture(api: &MockApi, assigned_index: u64) -> DealerDetails {
     DealerDetails {
-        address: Addr::unchecked(format!("owner{}", assigned_index)),
+        address: api.addr_make(&format!("owner{}", assigned_index)),
         bte_public_key_with_proof: "".to_string(),
         ed25519_identity: "".to_string(),
         announce_address: "".to_string(),

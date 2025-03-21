@@ -71,7 +71,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "ConfigScoreParams": {
       "type": "object",

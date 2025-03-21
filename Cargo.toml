@@ -32,9 +32,8 @@ members = [
     "common/client-libs/validator-client",
     "common/commands",
     "common/config",
-    "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
-    "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/contracts-common", "common/cosmwasm-smart-contracts/easy_addr",
     "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
@@ -361,7 +360,7 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
-zeroize = "1.8.1"
+zeroize = "1.7.0"
 
 prometheus = { version = "0.13.0" }
 
@@ -375,19 +374,18 @@ ff = { version = "0.13.1", default-features = false }
 subtle = "2.5.0"
 
 # cosmwasm-related
-cosmwasm-schema = "=1.4.3"
-cosmwasm-std = "=1.4.3"
-# use 0.5.0 as that's the version used by cosmwasm-std 1.4.3
+cosmwasm-schema = "=2.2.2"
+cosmwasm-std = "=2.2.2"
+# use 1.0.1 as that's the version used by cosmwasm-std 2.2.1
 # (and ideally we don't want to pull the same dependency twice)
-serde-json-wasm = "=0.5.0"
-cosmwasm-storage = "=1.4.3"
+serde-json-wasm = "=1.0.1"
 # same version as used by cosmwasm
-cw-utils = "=1.0.1"
-cw-storage-plus = "=1.2.0"
-cw2 = { version = "=1.1.2" }
-cw3 = { version = "=1.1.2" }
-cw4 = { version = "=1.1.2" }
-cw-controllers = { version = "=1.1.0" }
+cw-utils = "=2.0.0"
+cw-storage-plus = "=2.0.0"
+cw2 = { version = "=2.0.0" }
+cw3 = { version = "=2.0.0" }
+cw4 = { version = "=2.0.0" }
+cw-controllers = { version = "=2.0.0" }
 
 # cosmrs-related
 bip32 = { version = "0.5.3", default-features = false }

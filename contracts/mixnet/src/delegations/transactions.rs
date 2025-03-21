@@ -87,7 +87,7 @@ mod tests {
         use crate::rewards::storage as rewards_storage;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{coin, Addr, Decimal};
         use mixnet_contract_common::nym_node::Role;
         use mixnet_contract_common::{EpochState, EpochStatus};
@@ -115,9 +115,9 @@ mod tests {
 
                 let env = test.env();
 
-                let owner = "delegator";
-                let mix_id = test.add_legacy_mixnode("mix-owner", None);
-                let sender = mock_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
+                let owner = &test.make_addr("delegator");
+                let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+                let sender = message_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
 
                 let res = try_delegate_to_node(test.deps_mut(), env.clone(), sender, mix_id);
                 assert!(matches!(
@@ -131,8 +131,8 @@ mod tests {
         fn can_only_be_done_towards_an_existing_mixnode() {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "delegator";
-            let sender = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
+            let owner = &test.make_addr("delegator");
+            let sender = message_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
 
             let res = try_delegate_to_node(test.deps_mut(), env, sender, 42);
             assert_eq!(
@@ -146,11 +146,11 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let owner = "delegator";
-            let mix_id = test.add_legacy_mixnode("mix-owner", None);
-            let sender1 = mock_info(owner, &[coin(0, TEST_COIN_DENOM)]);
-            let sender2 = mock_info(owner, &[]);
-            let sender3 = mock_info(owner, &[coin(1000, "some-weird-coin")]);
+            let owner = &test.make_addr("delegator");
+            let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+            let sender1 = message_info(owner, &[coin(0, TEST_COIN_DENOM)]);
+            let sender2 = message_info(owner, &[]);
+            let sender3 = message_info(owner, &[coin(1000, "some-weird-coin")]);
 
             let res = try_delegate_to_node(test.deps_mut(), env.clone(), sender1, mix_id);
             assert_eq!(res, Err(MixnetContractError::EmptyDelegation));
@@ -171,10 +171,10 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let owner = "delegator";
-            let mix_id = test.add_legacy_mixnode("mix-owner", None);
-            let sender1 = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
-            let sender2 = mock_info(owner, &[coin(150_000_000, TEST_COIN_DENOM)]);
+            let owner = &test.make_addr("delegator");
+            let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+            let sender1 = message_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
+            let sender2 = message_info(owner, &[coin(150_000_000, TEST_COIN_DENOM)]);
 
             let min_delegation = coin(150_000_000, TEST_COIN_DENOM);
             let mut contract_state = mixnet_params_storage::CONTRACT_STATE
@@ -203,13 +203,15 @@ mod tests {
         fn can_only_be_done_towards_fully_bonded_mixnode() {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "delegator";
-            let sender = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
+            let owner = &test.make_addr("delegator");
+            let sender = message_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
 
-            let mix_id_unbonding = test.add_legacy_mixnode("mix-owner-unbonding", None);
-            let mix_id_unbonded = test.add_legacy_mixnode("mix-owner-unbonded", None);
+            let mix_id_unbonding =
+                test.add_legacy_mixnode(&test.make_addr("mix-owner-unbonding"), None);
+            let mix_id_unbonded =
+                test.add_legacy_mixnode(&test.make_addr("mix-owner-unbonded"), None);
             let mix_id_unbonded_leftover =
-                test.add_legacy_mixnode("mix-owner-unbonded-leftover", None);
+                test.add_legacy_mixnode(&test.make_addr("mix-owner-unbonded-leftover"), None);
 
             // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
             let mut rewarding_details = rewards_storage::MIXNODE_REWARDING
@@ -225,26 +227,15 @@ mod tests {
                 )
                 .unwrap();
 
-            try_remove_mixnode(
-                test.deps_mut(),
-                env.clone(),
-                mock_info("mix-owner-unbonded", &[]),
-            )
-            .unwrap();
-            try_remove_mixnode(
-                test.deps_mut(),
-                env.clone(),
-                mock_info("mix-owner-unbonded-leftover", &[]),
-            )
-            .unwrap();
+            let mix_sender = test.make_sender("mix-owner-unbonded");
+            try_remove_mixnode(test.deps_mut(), env.clone(), mix_sender).unwrap();
+
+            let mix_sender = test.make_sender("mix-owner-unbonded-leftover");
+            try_remove_mixnode(test.deps_mut(), env.clone(), mix_sender).unwrap();
 
             test.execute_all_pending_events();
-            try_remove_mixnode(
-                test.deps_mut(),
-                env.clone(),
-                mock_info("mix-owner-unbonding", &[]),
-            )
-            .unwrap();
+            let mix_sender = test.make_sender("mix-owner-unbonding");
+            try_remove_mixnode(test.deps_mut(), env.clone(), mix_sender).unwrap();
 
             let res = try_delegate_to_node(
                 test.deps_mut(),
@@ -286,10 +277,10 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let owner = "delegator";
-            let mix_id = test.add_legacy_mixnode("mix-owner", None);
-            let sender1 = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
-            let sender2 = mock_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
+            let owner = &test.make_addr("delegator");
+            let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+            let sender1 = message_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
+            let sender2 = message_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
 
             let res = try_delegate_to_node(test.deps_mut(), env.clone(), sender1, mix_id);
             assert!(res.is_ok());
@@ -304,12 +295,12 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let owner = "delegator";
-            let mix_id = test.add_legacy_mixnode("mix-owner", None);
+            let owner = &test.make_addr("delegator");
+            let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let amount1 = coin(100_000_000, TEST_COIN_DENOM);
 
-            let sender1 = mock_info(owner, &[amount1.clone()]);
+            let sender1 = message_info(owner, &[amount1.clone()]);
 
             try_delegate_to_node(test.deps_mut(), env.clone(), sender1, mix_id).unwrap();
 
@@ -329,7 +320,7 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::coin;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use mixnet_contract_common::nym_node::Role;
         use mixnet_contract_common::{EpochState, EpochStatus};
 
@@ -348,8 +339,8 @@ mod tests {
 
             for bad_state in bad_states {
                 let mut test = TestSetup::new();
-                let mix_id = test.add_legacy_mixnode("owner", None);
-                test.add_immediate_delegation("foomp", 1000u32, mix_id);
+                let mix_id = test.add_legacy_mixnode(&test.make_addr("owner"), None);
+                test.add_immediate_delegation(&test.make_addr("foomp"), 1000u32, mix_id);
 
                 let mut status = EpochStatus::new(test.rewarding_validator().sender);
                 status.state = bad_state;
@@ -357,12 +348,9 @@ mod tests {
                     .unwrap();
 
                 let env = test.env();
-                let res = try_remove_delegation_from_node(
-                    test.deps_mut(),
-                    env.clone(),
-                    mock_info("sender", &[]),
-                    mix_id,
-                );
+                let sender = test.make_sender("sender");
+                let res =
+                    try_remove_delegation_from_node(test.deps_mut(), env.clone(), sender, mix_id);
                 assert!(matches!(
                     res,
                     Err(MixnetContractError::EpochAdvancementInProgress { .. })
@@ -374,9 +362,9 @@ mod tests {
         fn cannot_be_performed_if_delegation_never_existed() {
             let mut test = TestSetup::new();
             let env = test.env();
-            let owner = "delegator";
-            let sender = mock_info(owner, &[]);
-            let node_id = test.add_legacy_mixnode("mix-owner", None);
+            let owner = &test.make_addr("delegator");
+            let sender = message_info(owner, &[]);
+            let node_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
 
             let res = try_remove_delegation_from_node(test.deps_mut(), env, sender, node_id);
             assert_eq!(
@@ -394,10 +382,10 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let owner = "delegator";
-            let node_id = test.add_legacy_mixnode("mix-owner", None);
-            let sender1 = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
-            let sender2 = mock_info(owner, &[]);
+            let owner = &test.make_addr("delegator");
+            let node_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+            let sender1 = message_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
+            let sender2 = message_info(owner, &[]);
 
             try_delegate_to_node(test.deps_mut(), env.clone(), sender1, node_id).unwrap();
 
@@ -417,32 +405,25 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let owner = "delegator";
-            let sender = mock_info(owner, &[]);
+            let owner = &test.make_addr("delegator");
+            let sender = message_info(owner, &[]);
 
-            let normal_mix_id = test.add_legacy_mixnode("mix-owner", None);
-            let mix_id_unbonding = test.add_legacy_mixnode("mix-owner-unbonding", None);
+            let normal_mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+            let mix_id_unbonding =
+                test.add_legacy_mixnode(&test.make_addr("mix-owner-unbonding"), None);
             let mix_id_unbonded_leftover =
-                test.add_legacy_mixnode("mix-owner-unbonded-leftover", None);
+                test.add_legacy_mixnode(&test.make_addr("mix-owner-unbonded-leftover"), None);
 
             test.add_immediate_delegation(owner, 10000u32, normal_mix_id);
             test.add_immediate_delegation(owner, 10000u32, mix_id_unbonding);
             test.add_immediate_delegation(owner, 10000u32, mix_id_unbonded_leftover);
 
-            try_remove_mixnode(
-                test.deps_mut(),
-                env.clone(),
-                mock_info("mix-owner-unbonded-leftover", &[]),
-            )
-            .unwrap();
+            let mix_sender = test.make_sender("mix-owner-unbonded-leftover");
+            try_remove_mixnode(test.deps_mut(), env.clone(), mix_sender).unwrap();
 
             test.execute_all_pending_events();
-            try_remove_mixnode(
-                test.deps_mut(),
-                env.clone(),
-                mock_info("mix-owner-unbonding", &[]),
-            )
-            .unwrap();
+            let mix_sender = test.make_sender("mix-owner-unbonding");
+            try_remove_mixnode(test.deps_mut(), env.clone(), mix_sender).unwrap();
 
             let res = try_remove_delegation_from_node(
                 test.deps_mut(),

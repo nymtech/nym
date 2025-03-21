@@ -1,0 +1,14 @@
+[package]
+name = "easy-addr"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["full", "printing", "extra-traits"] }

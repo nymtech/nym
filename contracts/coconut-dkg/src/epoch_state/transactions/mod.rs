@@ -90,7 +90,8 @@ pub(crate) fn try_trigger_resharing(
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_env};
+    use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
 
     #[test]
@@ -101,17 +102,26 @@ pub(crate) mod tests {
         let initial_epoch_info = CURRENT_EPOCH.load(&deps.storage).unwrap();
         assert!(initial_epoch_info.deadline.is_none());
 
+        let not_admin = deps.api.addr_make("not an admin");
         // can only be executed by the admin
-        let res = try_initiate_dkg(deps.as_mut(), env.clone(), mock_info("not an admin", &[]))
+        let res = try_initiate_dkg(deps.as_mut(), env.clone(), message_info(&not_admin, &[]))
             .unwrap_err();
         assert_eq!(ContractError::Admin(AdminError::NotAdmin {}), res);
 
-        let res = try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[]));
+        let res = try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        );
         assert!(res.is_ok());
 
         // can't be initialised more than once
-        let res = try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[]))
-            .unwrap_err();
+        let res = try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap_err();
         assert_eq!(ContractError::AlreadyInitialised, res);
 
         // sets the correct epoch data

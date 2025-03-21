@@ -11,6 +11,8 @@ use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
 use url::Url;
@@ -313,9 +315,15 @@ pub(super) async fn register_with_gateway(
     gateway_id: identity::PublicKey,
     gateway_listener: Url,
     our_identity: Arc<identity::KeyPair>,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<RegistrationResult, ClientCoreError> {
-    let mut gateway_client =
-        GatewayClient::new_init(gateway_listener, gateway_id, our_identity.clone());
+    let mut gateway_client = GatewayClient::new_init(
+        gateway_listener,
+        gateway_id,
+        our_identity.clone(),
+        #[cfg(unix)]
+        connection_fd_callback,
+    );
 
     gateway_client.establish_connection().await.map_err(|err| {
         log::warn!("Failed to establish connection with gateway!");

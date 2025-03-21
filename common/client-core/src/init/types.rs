@@ -18,6 +18,8 @@ use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use url::Url;
@@ -208,6 +210,10 @@ pub enum GatewaySetup {
 
         // TODO: seems to be a bit inefficient to pass them by value
         available_gateways: Vec<RoutingNode>,
+
+        /// Callback useful for allowing initial connection to gateway
+        #[cfg(unix)]
+        connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
     },
 
     ReuseConnection {
@@ -231,6 +237,8 @@ impl Debug for GatewaySetup {
             GatewaySetup::New {
                 specification,
                 available_gateways,
+                #[cfg(unix)]
+                    connection_fd_callback: _,
             } => f
                 .debug_struct("GatewaySetup::New")
                 .field("specification", specification)
@@ -270,6 +278,8 @@ impl GatewaySetup {
                 additional_data: None,
             },
             available_gateways: vec![],
+            #[cfg(unix)]
+            connection_fd_callback: None,
         }
     }
 

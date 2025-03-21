@@ -1065,6 +1065,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         gateway_listener: Url,
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
     ) -> Self {
         log::trace!("Initialising gateway client");
         use futures::channel::mpsc;
@@ -1090,7 +1091,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             stats_reporter: ClientStatsSender::new(None, task_client.clone()),
             negotiated_protocol: None,
             #[cfg(unix)]
-            connection_fd_callback: None,
+            connection_fd_callback,
             task_client,
         }
     }

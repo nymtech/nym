@@ -53,8 +53,8 @@ export const NodeSettings = () => {
     });
   };
 
-  const handleUpdateCostParameters = async (fee?: FeeDetails) => {
-    const tx = await updateCostParameters(fee);
+  const handleUpdateCostParameters = async () => {
+    const tx = await updateCostParameters('0', '0', undefined);
     setConfirmationDetails({
       status: 'success',
       title: 'Cost Parameters Updated',

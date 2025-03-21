@@ -22,8 +22,6 @@ import {
   migrateLegacyGateway as migrateLegacyGatewayReq,
   bondNymNode,
   updateNymNodeConfig as updateNymNodeConfigReq,
-  updateMixnodeCostParams,
-  vestingUpdateNodeCostParams,
   updateNymNodeParams
 } from '../requests';
 
@@ -43,7 +41,11 @@ export type TBondingContext = {
   generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
   migrateLegacyNode: () => Promise<TransactionExecuteResult | undefined>;
-  updateCostParameters: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  updateCostParameters: (
+    profitMarginPercent: string,
+    intervalOperatingCost: string,
+    fee?: FeeDetails
+  ) => Promise<TransactionExecuteResult | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -73,7 +75,7 @@ export const BondingContext = createContext<TBondingContext>({
   migrateLegacyNode: async () => {
     throw new Error('Not implemented');
   },
-  updateCostParameters: async () => {
+  updateCostParameters: async (profitMarginPercent, intervalOperatingCost, fee) => {
     throw new Error('Not implemented');
   },
   isVestingAccount: false,
@@ -258,36 +260,51 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return undefined;
   };
 
-  const updateCostParameters = async (fee?: FeeDetails): Promise<TransactionExecuteResult | undefined> => {
+  const updateCostParameters = async (
+    profitMarginPercent: string,
+    intervalOperatingCost: string,
+    fee?: FeeDetails
+  ): Promise<TransactionExecuteResult | undefined> => {
     let tx;
     setIsLoading(true);
     try {
+      console.log('BondingContext.updateCostParameters called with:', {
+        profitMarginPercent,
+        intervalOperatingCost,
+        fee
+      });
+  
+      // Convert from percentage (20-50) to decimal (0.2-0.5)
+      const decimalProfitMargin = (parseFloat(profitMarginPercent) / 100).toString();
+      console.log('Converted profit margin to decimal:', decimalProfitMargin);
+      
+      const operatingCost = intervalOperatingCost || '0';
+      
       const costParams: NodeCostParams = {
-        profit_margin_percent: fee?.fee ? String(fee.fee) : '0',
+        profit_margin_percent: decimalProfitMargin,
         interval_operating_cost: {
-          denom: 'unym' as CurrencyDenom,
-          amount: typeof fee?.amount === 'string' ? fee.amount : '0'
+          denom: 'unym' as CurrencyDenom, 
+          amount: operatingCost
         }
       };
-
-      if (bondedNode && isMixnode(bondedNode)) {
-        if (bondedNode.proxy) {
-          tx = await vestingUpdateNodeCostParams(costParams);
-        } else {
-          tx = await updateMixnodeCostParams(costParams);
-        }
-      } else if (bondedNode && isNymNode(bondedNode)) {
-        console.log("GOT HERE!!");
-        tx = await updateNymNodeParams(costParams);
+      console.log('Created NodeCostParams:', costParams);
+  
+      if (parseFloat(decimalProfitMargin) < 0.2 || parseFloat(decimalProfitMargin) > 0.5) {
+        throw new Error('Profit margin must be between 20% and 50%');
       }
-      
+  
+      console.log('Calling updateNymNodeParams with:', costParams, fee?.fee);
+      tx = await updateNymNodeParams(costParams, fee?.fee);
+      console.log('Result from updateNymNodeParams:', tx);
+  
       if (clientDetails?.client_address) {
         await getNodeDetails(clientDetails?.client_address);
       }
       
       return tx;
     } catch (e) {
-      Console.warn(e);
+      Console.warn('Error in updateCostParameters:', e);
+      console.error('Error in updateCostParameters:', e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);

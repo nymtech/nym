@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, Typography, Grid, TextField, Stack, InputAdornment } from '@mui/material';
+import { FeeDetails } from '@nymproject/types';
 import { TBondedNode } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
 import { UpdateCostParametersModal } from 'src/components/Bonding/modals/NodeCostParametersModals';
 import { isMixnode, isNymNode } from 'src/types';
+import { useBondingContext } from 'src/context';
 
 interface Props {
   bondedNode: TBondedNode;
@@ -12,10 +14,12 @@ interface Props {
 }
 
 export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props) => {
+  const { updateCostParameters } = useBondingContext();
   const [intervalOperatingCost, setIntervalOperatingCost] = useState('');
   const [profitMarginPercent, setProfitMarginPercent] = useState('');
   const [isFormValid, setIsFormValid] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [fee, setFee] = useState<FeeDetails | undefined>(undefined);
 
   // Load initial values from the bonded node if available
   useEffect(() => {
@@ -47,13 +51,25 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
     const isOperatingCostValid = intervalOperatingCost !== '' && !isNaN(Number(intervalOperatingCost));
     const isProfitMarginValid = profitMarginPercent !== '' && 
                                !isNaN(Number(profitMarginPercent)) && 
-                               Number(profitMarginPercent) >= 0 && 
-                               Number(profitMarginPercent) <= 100;
+                               Number(profitMarginPercent) >= 20 && 
+                               Number(profitMarginPercent) <= 50;
     
     setIsFormValid(isOperatingCostValid && isProfitMarginValid);
   }, [intervalOperatingCost, profitMarginPercent]);
 
   const shouldDisplayWarning = isMixnode(bondedNode) || isNymNode(bondedNode);
+
+  const handleModalConfirm = async () => {
+    try {
+      const uNymAmount = String(Math.floor(Number(intervalOperatingCost) * 1000000));
+      
+      await updateCostParameters(profitMarginPercent, uNymAmount, fee);
+      setIsConfirmed(false);
+      onConfirm();
+    } catch (error) {
+      onError(error as string);
+    }
+  };
 
   return (
     <Box sx={{ p: 3, minHeight: '450px' }}>
@@ -126,12 +142,10 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
           node={bondedNode}
           intervalOperatingCost={intervalOperatingCost}
           profitMarginPercent={profitMarginPercent}
-          onConfirm={async () => {
-            setIsConfirmed(false);
-            onConfirm();
-          }}
+          onConfirm={handleModalConfirm}
           onClose={() => setIsConfirmed(false)}
           onError={onError}
+          onFeeUpdate={setFee}
         />
       )}
     </Box>

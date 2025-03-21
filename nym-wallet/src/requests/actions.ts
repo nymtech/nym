@@ -23,8 +23,17 @@ export const updateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee
 export const updateNymNodeConfig = async (update: NodeConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_nymnode_config', { update, fee });
 
-export const updateNymNodeParams = async (update: NodeCostParams, fee?: Fee) =>
-  invokeWrapper<TransactionExecuteResult>('update_nymnode_cost_params', { update, fee });
+export const updateNymNodeParams = async (newCosts: NodeCostParams, fee?: Fee) => {
+  console.log('updateNymNodeParams called with:', { newCosts, fee });
+  
+  const result = await invokeWrapper<TransactionExecuteResult>('update_nymnode_cost_params', { 
+    newCosts,
+    fee 
+  });
+  
+  console.log('updateNymNodeParams result:', result);
+  return result;
+};
 
 export const updateGatewayConfig = async (update: GatewayConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_gateway_config', { update, fee });

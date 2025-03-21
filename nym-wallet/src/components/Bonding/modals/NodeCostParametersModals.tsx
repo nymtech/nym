@@ -9,7 +9,7 @@ import { SimpleModal } from '../../Modals/SimpleModal';
 import {
   simulateUpdateMixnodeCostParams,
 } from '../../../requests';
-import { CurrencyDenom, NodeCostParams } from '@nymproject/types';
+import { CurrencyDenom, FeeDetails, NodeCostParams } from '@nymproject/types';
 
 interface Props {
   node: TBondedNode;
@@ -18,6 +18,7 @@ interface Props {
   onConfirm: () => Promise<void>;
   onClose: () => void;
   onError: (e: string) => void;
+  onFeeUpdate?: (fee: FeeDetails) => void;
 }
 
 export const UpdateCostParametersModal = ({ 
@@ -26,7 +27,8 @@ export const UpdateCostParametersModal = ({
   profitMarginPercent, 
   onConfirm, 
   onClose, 
-  onError 
+  onError,
+  onFeeUpdate
 }: Props) => {
   const { fee, isFeeLoading, getFee, feeError } = useGetFee();
   const [hasFetchedFee, setHasFetchedFee] = useState(false);
@@ -38,27 +40,34 @@ export const UpdateCostParametersModal = ({
   }, [feeError, onError]);
 
   useEffect(() => {
+    if (fee && onFeeUpdate) {
+      onFeeUpdate(fee);
+    }
+  }, [fee, onFeeUpdate]);
+
+  useEffect(() => {
     if (!hasFetchedFee) {
       try {
-
         const decimalProfitMargin = (parseFloat(profitMarginPercent) / 100).toString();
+        
+        const uNymAmount = String(Math.floor(Number(intervalOperatingCost) * 1000000));
 
         const costParams: NodeCostParams = {
           profit_margin_percent: decimalProfitMargin,
           interval_operating_cost: {
             denom: 'unym' as CurrencyDenom, 
-            amount: intervalOperatingCost
+            amount: uNymAmount
           }
         };
         
-      getFee(simulateUpdateMixnodeCostParams, costParams);
         getFee(simulateUpdateMixnodeCostParams, costParams);
+        
         setHasFetchedFee(true);
       } catch (error) {
         onError(error as string);
       }
     }
-  }, [hasFetchedFee, intervalOperatingCost, profitMarginPercent, getFee, onError]);
+  }, [hasFetchedFee, intervalOperatingCost, profitMarginPercent, getFee, onError, node]);
 
   return (
     <SimpleModal

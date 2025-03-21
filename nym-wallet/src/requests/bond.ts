@@ -37,6 +37,9 @@ export const unbondMixNode = async (fee?: Fee) => invokeWrapper<TransactionExecu
 export const updateMixnodeCostParams = async (newCosts: NodeCostParams, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_mixnode_cost_params', { newCosts, fee });
 
+export const updateNymNodeCostParams = async (newCosts: NodeCostParams, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_nymnode_cost_params', { newCosts, fee });
+
 export const unbond = async (type: EnumNodeType) => {
   if (type === EnumNodeType.mixnode) return unbondMixNode();
   return unbondGateway();

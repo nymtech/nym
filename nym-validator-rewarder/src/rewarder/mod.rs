@@ -126,6 +126,12 @@ impl TicketbookIssuanceDetails {
 
         Ok(amounts)
     }
+
+    pub fn approximate_deposits(&self) -> Option<Result<u32, &NymRewarderError>> {
+        self.results
+            .as_ref()
+            .map(|maybe_results| maybe_results.as_ref().map(|r| r.approximate_deposits))
+    }
 }
 
 pub fn total_spent(amounts: &[(AccountId, Vec<Coin>)], denom: &str) -> Coin {
@@ -348,6 +354,10 @@ impl Rewarder {
         })
     }
 
+    fn min_deposits(&self) -> usize {
+        self.config.ticketbook_issuance.minimum_daily_ticketbooks
+    }
+
     async fn calculate_and_send_ticketbook_issuance_rewards(
         &mut self,
         issued_ticketbooks: &TicketbookIssuanceDetails,
@@ -356,9 +366,19 @@ impl Rewarder {
         let denom = &self.config.rewarding.daily_budget.denom;
         let total_spent = total_spent(&rewarding_amounts, denom);
 
-        let rewarding_tx = self
-            .send_ticketbook_issuance_rewards(rewarding_amounts)
-            .await?;
+        let approximate_deposits = issued_ticketbooks.approximate_deposits();
+
+        // if we're below the minimum threshold for rewarding, don't attempt to send the tx
+        let rewarding_tx = if let Some(Ok(approximate_deposits)) = approximate_deposits {
+            if approximate_deposits as usize >= self.min_deposits() {
+                self.send_ticketbook_issuance_rewards(rewarding_amounts)
+                    .await?
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         Ok(RewardingResult {
             total_spent,

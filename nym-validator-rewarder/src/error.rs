@@ -197,6 +197,9 @@ pub enum NymRewarderError {
     #[error("there were no ticketbook signers to reward in this epoch")]
     NoSignersToReward,
 
+    #[error("attempted to send an empty rewarding coin")]
+    EmptyRewardingCoin,
+
     #[error("the current pruning strategy is set to 'everything' - we won't have any block data for rewarding")]
     EverythingPruningStrategy,
 

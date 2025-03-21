@@ -24,9 +24,9 @@ import { toDisplay } from '../utils';
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
     ? {
-        mixnetExplorer: 'https://mixnet.explorers.guru/',
-        blockExplorer: 'https://blocks.nymtech.net',
-        networkExplorer: 'https://explorer.nymtech.net',
+        mixnetExplorer: 'https://explorer.nym.spectredao.net/',
+        blockExplorer: 'https://ping.pub/nyx',
+        networkExplorer: 'https://explorer.nym.spectredao.net',
       }
     : {
         blockExplorer: `https://${networkName}-blocks.nymtech.net`,

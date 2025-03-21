@@ -97,8 +97,8 @@ export const UpdateCostParametersModal = ({
       <ModalFee isLoading={isFeeLoading} fee={fee} divider />
 
       <Typography fontSize="small">
-        These changes will affect your node's economics and delegator rewards. Your new profit margin and operating cost
-        will be applied in the next interval.
+        These changes will affect your node&apos;s economics and delegator rewards. Your new profit margin and operating
+        cost will be applied in the next interval.
       </Typography>
 
       {/* Warning message */}

@@ -39,6 +39,15 @@ export const NodeSettings = () => {
     intervalOperatingCost: '',
   });
 
+  // Define handleError before using it
+  const handleError = (error: string) => {
+    setConfirmationDetails({
+      status: 'error',
+      title: 'An error occurred',
+      subtitle: error,
+    });
+  };
+
   const handleChange = (_: React.SyntheticEvent, tab: string) => {
     setValue(tab as NavItems);
   };
@@ -59,7 +68,7 @@ export const NodeSettings = () => {
       status: 'success',
       title: 'Unbond successful',
       subtitle: `This operation will complete when the new epoch starts at: ${nextEpoch}`,
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
     });
   };
 
@@ -84,19 +93,11 @@ export const NodeSettings = () => {
         status: 'success',
         title: 'Cost Parameters Updated',
         subtitle: 'Your cost parameters have been successfully updated',
-        txUrl: tx?.transaction_hash ? `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}` : undefined,
+        txUrl: tx?.transaction_hash ? `${urls(network).blockExplorer}/tx/${tx.transaction_hash}` : undefined,
       });
     } catch (error) {
       handleError(String(error));
     }
-  };
-
-  const handleError = (error: string) => {
-    setConfirmationDetails({
-      status: 'error',
-      title: 'An error occurred',
-      subtitle: error,
-    });
   };
 
   if (isLoading) return <LoadingModal />;

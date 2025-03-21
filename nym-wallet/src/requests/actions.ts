@@ -24,14 +24,10 @@ export const updateNymNodeConfig = async (update: NodeConfigUpdate, fee?: Fee) =
   invokeWrapper<TransactionExecuteResult>('update_nymnode_config', { update, fee });
 
 export const updateNymNodeParams = async (newCosts: NodeCostParams, fee?: Fee) => {
-  console.log('updateNymNodeParams called with:', { newCosts, fee });
-
   const result = await invokeWrapper<TransactionExecuteResult>('update_nymnode_cost_params', {
     newCosts,
     fee,
   });
-
-  console.log('updateNymNodeParams result:', result);
   return result;
 };
 

@@ -55,10 +55,10 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdat
   };
 
   useEffect(() => {
-    const isOperatingCostValid = intervalOperatingCost !== '' && !isNaN(Number(intervalOperatingCost));
+    const isOperatingCostValid = intervalOperatingCost !== '' && !Number.isNaN(Number(intervalOperatingCost));
     const isProfitMarginValid =
       profitMarginPercent !== '' &&
-      !isNaN(Number(profitMarginPercent)) &&
+      !Number.isNaN(Number(profitMarginPercent)) &&
       Number(profitMarginPercent) >= 20 &&
       Number(profitMarginPercent) <= 50;
 
@@ -95,8 +95,8 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdat
             {shouldDisplayWarning && (
               <Grid item>
                 <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
-                  Updating cost parameters affects your node's economics in the network. Please ensure you understand
-                  the implications.
+                  Updating cost parameters affects your node&apos;s economics in the network. Please ensure you
+                  understand the implications.
                 </Typography>
               </Grid>
             )}

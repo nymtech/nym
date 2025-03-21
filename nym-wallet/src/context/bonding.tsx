@@ -6,7 +6,6 @@ import {
   NodeConfigUpdate,
   NodeCostParams,
   TransactionExecuteResult,
-  DecCoin,
 } from '@nymproject/types';
 import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs, TBondNymNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
@@ -82,7 +81,7 @@ export const BondingContext = createContext<TBondingContext>({
   migrateLegacyNode: async () => {
     throw new Error('Not implemented');
   },
-  updateCostParameters: async (profitMarginPercent, intervalOperatingCost, fee) => {
+  updateCostParameters: async (_profitMarginPercent, _intervalOperatingCost, _fee) => {
     throw new Error('Not implemented');
   },
   isVestingAccount: false,
@@ -277,7 +276,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     try {
       // Validate input before proceeding
       if (!profitMarginPercent || parseFloat(profitMarginPercent) < 20 || parseFloat(profitMarginPercent) > 50) {
-        throw new Error('Profit margin must be between 20% and 50%');
+        throw new Error(':%');
       }
 
       // Convert from percentage to decimal

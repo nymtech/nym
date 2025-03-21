@@ -185,7 +185,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         message: 'This operation can take up to one hour to process',
         ...balances,
         transactions: [
-          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
+          { url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash },
         ],
       });
     } catch (e) {
@@ -236,7 +236,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         action: 'delegate',
         ...balances,
         transactions: [
-          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
+          { url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash },
         ],
       });
     } catch (e) {
@@ -279,7 +279,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         ...balances,
         transactions: [
           {
-            url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+            url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`,
             hash: tx.transaction_hash,
           },
         ],
@@ -308,7 +308,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         status: 'success',
         action: 'redeem',
         transactions: txs.map((tx) => ({
-          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+          url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`,
           hash: tx.transaction_hash,
         })),
       });

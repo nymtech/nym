@@ -184,9 +184,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         action: 'delegate',
         message: 'This operation can take up to one hour to process',
         ...balances,
-        transactions: [
-          { url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash },
-        ],
+        transactions: [{ url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash }],
       });
     } catch (e) {
       Console.error('Failed to addDelegation', e);
@@ -235,9 +233,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         status: 'success',
         action: 'delegate',
         ...balances,
-        transactions: [
-          { url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash },
-        ],
+        transactions: [{ url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash }],
       });
     } catch (e) {
       Console.error('Failed to addMoreDelegation', e);

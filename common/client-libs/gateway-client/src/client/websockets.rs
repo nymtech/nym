@@ -38,7 +38,8 @@ pub(crate) async fn connect_async(
             // Do a DNS lookup for the domain using our custom DNS resolver
             resolver
                 .resolve_str(domain)
-                .await?
+                .await
+                .inspect_err(|err| tracing::error!("Resolve error {err}"))?
                 .into_iter()
                 .map(|a| SocketAddr::new(a, port))
                 .collect()
@@ -49,20 +50,27 @@ pub(crate) async fn connect_async(
         address: endpoint.to_owned(),
     });
     for sock_addr in sock_addrs {
+        tracing::info!("Trying with {sock_addr}");
         let socket = if sock_addr.is_ipv4() {
             TcpSocket::new_v4()
         } else {
             TcpSocket::new_v6()
         }
-        .map_err(|err| GatewayClientError::NetworkConnectionFailed {
-            address: endpoint.to_owned(),
-            source: err.into(),
+        .map_err(|err| {
+            tracing::error!("Couldn't create the socket");
+            GatewayClientError::NetworkConnectionFailed {
+                address: endpoint.to_owned(),
+                source: err.into(),
+            }
         })?;
 
+        tracing::info!("Preparing to call callback");
         #[cfg(unix)]
         if let Some(callback) = connection_fd_callback.as_ref() {
+            tracing::info!("Calling callback");
             callback.as_ref()(socket.as_raw_fd());
         }
+        tracing::info!("Preparing to connect");
 
         match socket.connect(sock_addr).await {
             Ok(s) => {

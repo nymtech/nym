@@ -268,15 +268,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     let tx;
     setIsLoading(true);
     try {
-      console.log('BondingContext.updateCostParameters called with:', {
-        profitMarginPercent,
-        intervalOperatingCost,
-        fee
-      });
-  
-      // Convert from percentage (20-50) to decimal (0.2-0.5)
+      // Validate input before proceeding
+      if (!profitMarginPercent || parseFloat(profitMarginPercent) < 20 || parseFloat(profitMarginPercent) > 50) {
+        throw new Error('Profit margin must be between 20% and 50%');
+      }
+      
+      // Convert from percentage to decimal
       const decimalProfitMargin = (parseFloat(profitMarginPercent) / 100).toString();
-      console.log('Converted profit margin to decimal:', decimalProfitMargin);
       
       const operatingCost = intervalOperatingCost || '0';
       
@@ -287,29 +285,20 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
           amount: operatingCost
         }
       };
-      console.log('Created NodeCostParams:', costParams);
-  
-      if (parseFloat(decimalProfitMargin) < 0.2 || parseFloat(decimalProfitMargin) > 0.5) {
-        throw new Error('Profit margin must be between 20% and 50%');
-      }
-  
-      console.log('Calling updateNymNodeParams with:', costParams, fee?.fee);
+      
       tx = await updateNymNodeParams(costParams, fee?.fee);
-      console.log('Result from updateNymNodeParams:', tx);
-  
+      
       if (clientDetails?.client_address) {
         await getNodeDetails(clientDetails?.client_address);
       }
       
       return tx;
     } catch (e) {
-      Console.warn('Error in updateCostParameters:', e);
-      console.error('Error in updateCostParameters:', e);
       setError(`an error occurred: ${e}`);
+      throw e;
     } finally {
       setIsLoading(false);
     }
-    return undefined;
   };
 
   const memoizedValue = useMemo(

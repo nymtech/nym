@@ -28,6 +28,16 @@ export const NodeSettings = () => {
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps | undefined>();
   const [value, setValue] = React.useState<NavItems>('General');
+  
+  // Add state to store cost parameters values
+  const [costParametersData, setCostParametersData] = useState<{
+    profitMarginPercent: string;
+    intervalOperatingCost: string;
+    fee?: FeeDetails;
+  }>({
+    profitMarginPercent: '',
+    intervalOperatingCost: '',
+  });
 
   const handleChange = (_: React.SyntheticEvent, tab: string) => {
     setValue(tab as NavItems);
@@ -53,14 +63,36 @@ export const NodeSettings = () => {
     });
   };
 
-  const handleUpdateCostParameters = async () => {
-    const tx = await updateCostParameters('0', '0', undefined);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Cost Parameters Updated',
-      subtitle: 'Your cost parameters have been successfully updated',
-      txUrl: tx?.transaction_hash ? `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}` : undefined,
+  // Function to update state from NodeCostParametersPage
+  const handleCostParametersUpdate = (
+    profitMarginPercent: string,
+    intervalOperatingCost: string,
+    fee?: FeeDetails
+  ) => {
+    setCostParametersData({
+      profitMarginPercent,
+      intervalOperatingCost,
+      fee,
     });
+  };
+
+  const handleUpdateCostParameters = async () => {
+    try {
+      const { profitMarginPercent, intervalOperatingCost, fee } = costParametersData;
+      
+      const uNymAmount = String(Math.floor(Number(intervalOperatingCost || '0') * 1000000));
+      
+      const tx = await updateCostParameters(profitMarginPercent, uNymAmount, fee);
+      
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Cost Parameters Updated',
+        subtitle: 'Your cost parameters have been successfully updated',
+        txUrl: tx?.transaction_hash ? `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}` : undefined,
+      });
+    } catch (error) {
+      handleError(String(error));
+    }
   };
 
   const handleError = (error: string) => {
@@ -140,7 +172,8 @@ export const NodeSettings = () => {
           <NodeCostParametersPage 
             bondedNode={bondedNode} 
             onConfirm={handleUpdateCostParameters} 
-            onError={handleError} 
+            onError={handleError}
+            onUpdateData={handleCostParametersUpdate}
           />
         )}
         {value === 'Unbond' && bondedNode && (

@@ -116,7 +116,7 @@ export const UpdateCostParametersModal = ({
         <Alert severity="warning">
           <Typography variant="body2" fontWeight="medium">
             This action will overwrite your existing profit margin and operating cost settings.
-            Only one cost parameter update is allowed per epoch.
+            Only one cost parameter update is allowed per interval.
           </Typography>
         </Alert>
       </Box>

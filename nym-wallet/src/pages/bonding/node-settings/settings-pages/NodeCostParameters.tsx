@@ -11,9 +11,15 @@ interface Props {
   bondedNode: TBondedNode;
   onConfirm: () => Promise<void>;
   onError: (e: string) => void;
+  onUpdateData?: (profitMarginPercent: string, intervalOperatingCost: string, fee?: FeeDetails) => void;
 }
 
-export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props) => {
+export const NodeCostParametersPage = ({ 
+  bondedNode, 
+  onConfirm, 
+  onError,
+  onUpdateData
+}: Props) => {
   const { updateCostParameters } = useBondingContext();
   const [intervalOperatingCost, setIntervalOperatingCost] = useState('');
   const [profitMarginPercent, setProfitMarginPercent] = useState('');
@@ -32,6 +38,12 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
       }
     }
   }, [bondedNode]);
+
+  useEffect(() => {
+    if (onUpdateData && isFormValid) {
+      onUpdateData(profitMarginPercent, intervalOperatingCost, fee);
+    }
+  }, [profitMarginPercent, intervalOperatingCost, fee, isFormValid, onUpdateData]);
 
   const handleIntervalOperatingCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -62,6 +74,10 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
   const handleModalConfirm = async () => {
     try {
       const uNymAmount = String(Math.floor(Number(intervalOperatingCost) * 1000000));
+      
+      if (onUpdateData) {
+        onUpdateData(profitMarginPercent, intervalOperatingCost, fee);
+      }
       
       await updateCostParameters(profitMarginPercent, uNymAmount, fee);
       setIsConfirmed(false);
@@ -120,7 +136,8 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props
               InputProps={{
                 endAdornment: <InputAdornment position="end">%</InputAdornment>,
               }}
-              helperText="Input your profit margin (e.g., 20 for 20%)"
+              helperText="Input your profit margin (must be between 20% and 50%)"
+              error={profitMarginPercent !== '' && (Number(profitMarginPercent) < 20 || Number(profitMarginPercent) > 50)}
             />
 
             <Button

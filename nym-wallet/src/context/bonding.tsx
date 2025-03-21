@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { CurrencyDenom, FeeDetails, NodeConfigUpdate, NodeCostParams, TransactionExecuteResult, DecCoin } from '@nymproject/types';
+import {
+  CurrencyDenom,
+  FeeDetails,
+  NodeConfigUpdate,
+  NodeCostParams,
+  TransactionExecuteResult,
+  DecCoin,
+} from '@nymproject/types';
 import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs, TBondNymNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
@@ -22,7 +29,7 @@ import {
   migrateLegacyGateway as migrateLegacyGatewayReq,
   bondNymNode,
   updateNymNodeConfig as updateNymNodeConfigReq,
-  updateNymNodeParams
+  updateNymNodeParams,
 } from '../requests';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
@@ -44,7 +51,7 @@ export type TBondingContext = {
   updateCostParameters: (
     profitMarginPercent: string,
     intervalOperatingCost: string,
-    fee?: FeeDetails
+    fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult | undefined>;
 };
 
@@ -263,7 +270,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   const updateCostParameters = async (
     profitMarginPercent: string,
     intervalOperatingCost: string,
-    fee?: FeeDetails
+    fee?: FeeDetails,
   ): Promise<TransactionExecuteResult | undefined> => {
     let tx;
     setIsLoading(true);
@@ -272,26 +279,26 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       if (!profitMarginPercent || parseFloat(profitMarginPercent) < 20 || parseFloat(profitMarginPercent) > 50) {
         throw new Error('Profit margin must be between 20% and 50%');
       }
-      
+
       // Convert from percentage to decimal
       const decimalProfitMargin = (parseFloat(profitMarginPercent) / 100).toString();
-      
+
       const operatingCost = intervalOperatingCost || '0';
-      
+
       const costParams: NodeCostParams = {
         profit_margin_percent: decimalProfitMargin,
         interval_operating_cost: {
-          denom: 'unym' as CurrencyDenom, 
-          amount: operatingCost
-        }
+          denom: 'unym' as CurrencyDenom,
+          amount: operatingCost,
+        },
       };
-      
+
       tx = await updateNymNodeParams(costParams, fee?.fee);
-      
+
       if (clientDetails?.client_address) {
         await getNodeDetails(clientDetails?.client_address);
       }
-      
+
       return tx;
     } catch (e) {
       setError(`an error occurred: ${e}`);

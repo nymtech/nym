@@ -28,7 +28,7 @@ export const NodeSettings = () => {
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps | undefined>();
   const [value, setValue] = React.useState<NavItems>('General');
-  
+
   // Add state to store cost parameters values
   const [costParametersData, setCostParametersData] = useState<{
     profitMarginPercent: string;
@@ -64,11 +64,7 @@ export const NodeSettings = () => {
   };
 
   // Function to update state from NodeCostParametersPage
-  const handleCostParametersUpdate = (
-    profitMarginPercent: string,
-    intervalOperatingCost: string,
-    fee?: FeeDetails
-  ) => {
+  const handleCostParametersUpdate = (profitMarginPercent: string, intervalOperatingCost: string, fee?: FeeDetails) => {
     setCostParametersData({
       profitMarginPercent,
       intervalOperatingCost,
@@ -79,11 +75,11 @@ export const NodeSettings = () => {
   const handleUpdateCostParameters = async () => {
     try {
       const { profitMarginPercent, intervalOperatingCost, fee } = costParametersData;
-      
+
       const uNymAmount = String(Math.floor(Number(intervalOperatingCost || '0') * 1000000));
-      
+
       const tx = await updateCostParameters(profitMarginPercent, uNymAmount, fee);
-      
+
       setConfirmationDetails({
         status: 'success',
         title: 'Cost Parameters Updated',
@@ -169,9 +165,9 @@ export const NodeSettings = () => {
         <Divider />
         {value === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
         {value === 'Cost Parameters' && bondedNode && (
-          <NodeCostParametersPage 
-            bondedNode={bondedNode} 
-            onConfirm={handleUpdateCostParameters} 
+          <NodeCostParametersPage
+            bondedNode={bondedNode}
+            onConfirm={handleUpdateCostParameters}
             onError={handleError}
             onUpdateData={handleCostParametersUpdate}
           />

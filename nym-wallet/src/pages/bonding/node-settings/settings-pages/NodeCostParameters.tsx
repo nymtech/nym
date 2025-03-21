@@ -14,12 +14,7 @@ interface Props {
   onUpdateData?: (profitMarginPercent: string, intervalOperatingCost: string, fee?: FeeDetails) => void;
 }
 
-export const NodeCostParametersPage = ({ 
-  bondedNode, 
-  onConfirm, 
-  onError,
-  onUpdateData
-}: Props) => {
+export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdateData }: Props) => {
   const { updateCostParameters } = useBondingContext();
   const [intervalOperatingCost, setIntervalOperatingCost] = useState('');
   const [profitMarginPercent, setProfitMarginPercent] = useState('');
@@ -46,14 +41,14 @@ export const NodeCostParametersPage = ({
   }, [profitMarginPercent, intervalOperatingCost, fee, isFormValid, onUpdateData]);
 
   const handleIntervalOperatingCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
       setIntervalOperatingCost(value);
     }
   };
 
   const handleProfitMarginPercentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
       setProfitMarginPercent(value);
     }
@@ -61,11 +56,12 @@ export const NodeCostParametersPage = ({
 
   useEffect(() => {
     const isOperatingCostValid = intervalOperatingCost !== '' && !isNaN(Number(intervalOperatingCost));
-    const isProfitMarginValid = profitMarginPercent !== '' && 
-                               !isNaN(Number(profitMarginPercent)) && 
-                               Number(profitMarginPercent) >= 20 && 
-                               Number(profitMarginPercent) <= 50;
-    
+    const isProfitMarginValid =
+      profitMarginPercent !== '' &&
+      !isNaN(Number(profitMarginPercent)) &&
+      Number(profitMarginPercent) >= 20 &&
+      Number(profitMarginPercent) <= 50;
+
     setIsFormValid(isOperatingCostValid && isProfitMarginValid);
   }, [intervalOperatingCost, profitMarginPercent]);
 
@@ -74,11 +70,11 @@ export const NodeCostParametersPage = ({
   const handleModalConfirm = async () => {
     try {
       const uNymAmount = String(Math.floor(Number(intervalOperatingCost) * 1000000));
-      
+
       if (onUpdateData) {
         onUpdateData(profitMarginPercent, intervalOperatingCost, fee);
       }
-      
+
       await updateCostParameters(profitMarginPercent, uNymAmount, fee);
       setIsConfirmed(false);
       onConfirm();
@@ -99,7 +95,8 @@ export const NodeCostParametersPage = ({
             {shouldDisplayWarning && (
               <Grid item>
                 <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
-                  Updating cost parameters affects your node's economics in the network. Please ensure you understand the implications.
+                  Updating cost parameters affects your node's economics in the network. Please ensure you understand
+                  the implications.
                 </Typography>
               </Grid>
             )}
@@ -111,9 +108,7 @@ export const NodeCostParametersPage = ({
               <Error message="Changes to cost parameters will affect your node's attractiveness to delegators and its profitability. Set these values carefully." />
             )}
 
-            <Typography variant="body2">
-              Enter your desired operating cost and profit margin parameters
-            </Typography>
+            <Typography variant="body2">Enter your desired operating cost and profit margin parameters</Typography>
 
             <TextField
               fullWidth
@@ -137,7 +132,9 @@ export const NodeCostParametersPage = ({
                 endAdornment: <InputAdornment position="end">%</InputAdornment>,
               }}
               helperText="Input your profit margin (must be between 20% and 50%)"
-              error={profitMarginPercent !== '' && (Number(profitMarginPercent) < 20 || Number(profitMarginPercent) > 50)}
+              error={
+                profitMarginPercent !== '' && (Number(profitMarginPercent) < 20 || Number(profitMarginPercent) > 50)
+              }
             />
 
             <Button

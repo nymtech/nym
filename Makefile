@@ -157,17 +157,8 @@ contract-schema:
 # Convenience targets for crates that are already part of the main workspace
 # -----------------------------------------------------------------------------
 
-build-explorer-api:
-	cargo build -p explorer-api
-
 build-nym-cli:
 	cargo build -p nym-cli --release
-
-build-nym-gateway:
-	cargo build -p nym-gateway --release
-
-build-nym-mixnode:
-	cargo build -p nym-mixnode --release
 
 # -----------------------------------------------------------------------------
 # Misc
@@ -181,13 +172,7 @@ run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
 
 # Build debian package, and update PPA
-deb-mixnode: build-nym-mixnode
-	cargo deb -p nym-mixnode 
-
-deb-gateway: build-nym-gateway
-	cargo deb -p nym-gateway
-
 deb-cli: build-nym-cli
 	cargo deb -p nym-cli
 
-deb: deb-mixnode deb-gateway deb-cli
+deb: deb-cli

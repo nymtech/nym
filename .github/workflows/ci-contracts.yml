@@ -27,7 +27,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.81 # test
+          toolchain: stable
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
@@ -66,18 +66,6 @@ jobs:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings
 
-      - name: Build release contracts
-        uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: '-C link-arg=-s'
-        with:
-          command: build
-          args: --release --manifest-path contracts/Cargo.toml --workspace --lib --target wasm32-unknown-unknown
-
-      - name: Optimise the release build
-        run: make wasm-opt-contracts
-
-      # cosmwasm-check against debug build will not work due to the memory overhead
-      - name: Check chain compatibility
-        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/release/*.wasm
-
+      - name: Check chain compatibility against release build
+        # this will build contracts in release mode, run wasm-opt and finally cosmwasm-check
+        run: make contracts

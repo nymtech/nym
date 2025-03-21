@@ -137,11 +137,16 @@ CONTRACTS=vesting_contract mixnet_contract nym_ecash cw3_flex_multisig cw4_group
 CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 
-contracts: build-release-contracts wasm-opt-contracts
+contracts: build-release-contracts wasm-opt-contracts cosmwasm-check-contracts
 
 wasm-opt-contracts:
 	for contract in $(CONTRACTS_WASM); do \
 	  wasm-opt --signext-lowering -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
+	done
+
+cosmwasm-check-contracts:
+	for contract in $(CONTRACTS_WASM); do \
+	  cosmwasm-check $(CONTRACTS_OUT_DIR)/$$contract; \
 	done
 
 # Consider adding 's' to make plural consistent (beware: used in github workflow)

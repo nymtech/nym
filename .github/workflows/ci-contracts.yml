@@ -78,4 +78,5 @@ jobs:
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings
 
       - name: Check chain compatibility
-        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/release/*.wasm
+        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/debug/*.wasm
+        

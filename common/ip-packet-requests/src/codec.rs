@@ -23,12 +23,14 @@ const LENGTH_PREFIX_SIZE: usize = 2;
 // long for the buffer to fill up, since this kills latency.
 pub struct MultiIpPacketCodec {
     buffer: BytesMut,
+    pub counter: u64,
 }
 
 impl MultiIpPacketCodec {
     pub fn new() -> Self {
         MultiIpPacketCodec {
             buffer: BytesMut::new(),
+            counter: 0,
         }
     }
 
@@ -89,6 +91,8 @@ impl Encoder<IprPacket> for MultiIpPacketCodec {
         let packet = match packet {
             IprPacket::Flush => {
                 dst.extend_from_slice(&self.buffer);
+                self.counter += 1;
+                println!("Encoding packet: {}", self.counter);
                 self.buffer = BytesMut::new();
                 return Ok(());
             }
@@ -103,6 +107,8 @@ impl Encoder<IprPacket> for MultiIpPacketCodec {
             dst.extend_from_slice(&(packet_size as u16).to_be_bytes());
             // Add the packet to the buffer
             dst.extend_from_slice(&packet);
+            self.counter += 1;
+            println!("Encoding packet: {}", self.counter);
             return Ok(());
         }
 
@@ -111,6 +117,8 @@ impl Encoder<IprPacket> for MultiIpPacketCodec {
         if self.buffer.len() + packet_size + LENGTH_PREFIX_SIZE > MAX_PACKET_SIZE {
             // Send the existing buffer
             dst.extend_from_slice(&self.buffer);
+            self.counter += 1;
+            println!("Encoding packet: {}", self.counter);
             // Start a new buffer
             self.buffer = BytesMut::new();
         }

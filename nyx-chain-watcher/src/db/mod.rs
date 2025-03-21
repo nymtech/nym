@@ -34,7 +34,7 @@ impl Storage {
     }
 
     /// Cloning pool is cheap, it's the same underlying set of connections
-    pub async fn pool_owned(&self) -> DbPool {
+    pub fn pool_owned(&self) -> DbPool {
         self.pool.clone()
     }
 }

@@ -40,6 +40,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                 .stale_messages
                 .cleaner_run_interval,
             stale_messages_max_age: config.gateway_tasks.debug.stale_messages.max_age,
+            maximum_open_connections: config.gateway_tasks.debug.maximum_open_connections,
             zk_nym_tickets: nym_gateway::config::ZkNymTicketHandlerDebug {
                 revocation_bandwidth_penalty: config
                     .gateway_tasks
@@ -59,6 +60,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                     .zk_nym_tickets
                     .maximum_time_between_redemption,
             },
+            max_request_timestamp_skew: config.gateway_tasks.debug.max_request_timestamp_skew,
         },
     )
 }

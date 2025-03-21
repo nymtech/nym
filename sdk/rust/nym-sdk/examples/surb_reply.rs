@@ -3,13 +3,14 @@ use nym_sdk::mixnet::{
     StoragePaths,
 };
 use std::path::PathBuf;
+use tempfile::TempDir;
 
 #[tokio::main]
 async fn main() {
     nym_bin_common::logging::setup_logging();
 
     // Specify some config options
-    let config_dir = PathBuf::from("/tmp/surb-example");
+    let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys

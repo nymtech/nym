@@ -57,7 +57,12 @@ async fn run(
         .clone()
         .expect("rust sdk mainnet default missing api_url");
 
-    let api_client = NymApiClient::new_with_timeout(default_api_url, nym_api_client_timeout);
+    let nym_api = nym_http_api_client::ClientBuilder::new_with_url(default_api_url)
+        .no_hickory_dns()
+        .with_timeout(nym_api_client_timeout)
+        .build::<&str>()?;
+
+    let api_client = NymApiClient { nym_api };
 
     //SW TBC what nodes exactly need to be scraped, the skimmed node endpoint seems to return more nodes
     let bonded_nodes = api_client.get_all_bonded_nym_nodes().await?;
@@ -170,6 +175,7 @@ impl MetricsScrapingData {
             let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
                 b.with_timeout(Duration::from_secs(5))
                     .with_user_agent("node-status-api-metrics-scraper")
+                    .no_hickory_dns()
                     .build()
             }) {
                 Ok(client) => client,

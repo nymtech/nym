@@ -72,6 +72,7 @@ pub struct PendingAcknowledgement {
     delay: SphinxDelay,
     destination: PacketDestination,
     retransmissions: u32,
+    max_retransmissions: Option<u32>,
 }
 
 impl PendingAcknowledgement {
@@ -80,12 +81,14 @@ impl PendingAcknowledgement {
         message_chunk: Fragment,
         delay: SphinxDelay,
         recipient: Recipient,
+        max_retransmissions: Option<u32>,
     ) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
             destination: PacketDestination::KnownRecipient(recipient.into()),
             retransmissions: 0,
+            max_retransmissions,
         }
     }
 
@@ -94,6 +97,7 @@ impl PendingAcknowledgement {
         delay: SphinxDelay,
         recipient_tag: AnonymousSenderTag,
         extra_surb_request: bool,
+        max_retransmissions: Option<u32>,
     ) -> Self {
         PendingAcknowledgement {
             message_chunk,
@@ -103,6 +107,7 @@ impl PendingAcknowledgement {
                 extra_surb_request,
             },
             retransmissions: 0,
+            max_retransmissions,
         }
     }
 
@@ -117,6 +122,18 @@ impl PendingAcknowledgement {
     fn update_retransmitted(&mut self, new_delay: SphinxDelay) {
         self.delay = new_delay;
         self.retransmissions += 1;
+    }
+
+    pub(crate) fn reached_max_retransmissions(
+        &self,
+        global_max_retransmissions: Option<u32>,
+    ) -> bool {
+        let reached_local_max = self
+            .max_retransmissions
+            .is_some_and(|limit| self.retransmissions >= limit);
+        let reached_global_max =
+            global_max_retransmissions.is_some_and(|limit| self.retransmissions >= limit);
+        reached_local_max || reached_global_max
     }
 }
 

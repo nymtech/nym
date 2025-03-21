@@ -1,0 +1,13 @@
+<svg
+  width="15"
+  height="15"
+  viewBox="0 0 15 15"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path d="M3 3L-4.47035e-08 3L-8.31509e-07 6L3 6L3 3Z" fill="currentColor" />
+  <path d="M6 6L3 6L3 9L6 9L6 6Z" fill="currentColor" />
+  <path d="M9 9L6 9L6 12L9 12L9 9Z" fill="currentColor" />
+  <path d="M12 6L9 6L9 9L12 9L12 6Z" fill="currentColor" />
+  <path d="M15 3L12 3L12 6L15 6L15 3Z" fill="currentColor" />
+</svg>

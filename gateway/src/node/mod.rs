@@ -249,11 +249,14 @@ impl GatewayTasksBuilder {
         active_clients_store: ActiveClientsStore,
     ) -> Result<websocket::Listener, GatewayError> {
         let shared_state = websocket::CommonHandlerState {
+            cfg: websocket::Config {
+                enforce_zk_nym: self.config.gateway.enforce_zk_nyms,
+                max_request_timestamp_skew: self.config.debug.max_request_timestamp_skew,
+                bandwidth: (&self.config).into(),
+            },
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
-            only_coconut_credentials: self.config.gateway.enforce_zk_nyms,
-            bandwidth_cfg: (&self.config).into(),
             metrics: self.metrics.clone(),
             metrics_sender: self.metrics_sender.clone(),
             outbound_mix_sender: self.mix_packet_sender.clone(),
@@ -262,6 +265,7 @@ impl GatewayTasksBuilder {
 
         Ok(websocket::Listener::new(
             self.config.gateway.websocket_bind_address,
+            self.config.debug.maximum_open_connections,
             shared_state,
             self.shutdown.fork("websocket"),
         ))

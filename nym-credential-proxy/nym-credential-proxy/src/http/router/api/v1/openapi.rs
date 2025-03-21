@@ -9,48 +9,6 @@ use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
 
-/*
-#[derive(OpenApi)]
-#[openapi(
-    info(title = "Nym VPN Api"),
-    paths(
-        api::v1::freepass::generate_freepass,
-        api::v1::bandwidth_voucher::obtain_bandwidth_voucher_shares,
-        api::v1::bandwidth_voucher::obtain_async_bandwidth_voucher_shares,
-        api::v1::bandwidth_voucher::current_deposit,
-        api::v1::bandwidth_voucher::prehashed_public_attributes,
-        api::v1::bandwidth_voucher::partial_verification_keys,
-        api::v1::bandwidth_voucher::master_verification_key,
-        api::v1::bandwidth_voucher::current_epoch,
-        api::v1::bandwidth_voucher::shares::query_for_shares_by_id,
-    ),
-    components(
-        schemas(
-            api::Output,
-            api::OutputParams,
-            api_requests::v1::ErrorResponse,
-            api_requests::v1::freepass::models::FreepassCredentialResponse,
-            api_requests::v1::freepass::models::FreepassQueryParams,
-            api_requests::v1::bandwidth_voucher::models::DepositResponse,
-            api_requests::v1::bandwidth_voucher::models::AttributesResponse,
-            api_requests::v1::bandwidth_voucher::models::BandwidthVoucherResponse,
-            api_requests::v1::bandwidth_voucher::models::BandwidthVoucherAsyncResponse,
-            api_requests::v1::bandwidth_voucher::models::PartialVerificationKeysResponse,
-            api_requests::v1::bandwidth_voucher::models::CurrentEpochResponse,
-            api_requests::v1::bandwidth_voucher::models::CredentialShare,
-            api_requests::v1::bandwidth_voucher::models::PartialVerificationKey,
-            api_requests::v1::bandwidth_voucher::models::MasterVerificationKeyResponse,
-            api_requests::v1::bandwidth_voucher::models::BandwidthVoucherAsyncRequest,
-            api_requests::v1::bandwidth_voucher::models::BandwidthVoucherRequest,
-            api_requests::v1::bandwidth_voucher::models::BlindSignRequestJsonSchemaWrapper
-        ),
-        responses(RequestError),
-    ),
-    modifiers(&SecurityAddon),
-)]
-pub(crate) struct ApiDoc;
- */
-
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Nym Credential Proxy Api"),

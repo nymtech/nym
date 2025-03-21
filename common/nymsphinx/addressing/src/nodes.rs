@@ -161,6 +161,12 @@ impl From<NymNodeRoutingAddress> for SocketAddr {
     }
 }
 
+impl AsRef<SocketAddr> for NymNodeRoutingAddress {
+    fn as_ref(&self) -> &SocketAddr {
+        &self.0
+    }
+}
+
 impl TryInto<NodeAddressBytes> for NymNodeRoutingAddress {
     type Error = NymNodeRoutingAddressError;
 

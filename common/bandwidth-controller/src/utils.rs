@@ -21,30 +21,67 @@ use rand::thread_rng;
 use std::fmt::Display;
 use std::future::Future;
 
-// it really doesn't need the RwLock because it's never moved across tasks,
-// but we need all the Send/Sync action
-#[derive(Default)]
-pub(crate) struct ApiClientsWrapper(Option<Vec<EcashApiClient>>);
-
-impl ApiClientsWrapper {
-    pub(crate) async fn get_or_init<C>(
+pub(crate) trait EcashClientsProvider {
+    async fn try_get_ecash_clients(
         &mut self,
+    ) -> Result<Vec<EcashApiClient>, BandwidthControllerError>;
+}
+
+impl EcashClientsProvider for Vec<EcashApiClient> {
+    async fn try_get_ecash_clients(
+        &mut self,
+    ) -> Result<Vec<EcashApiClient>, BandwidthControllerError> {
+        Ok(self.clone())
+    }
+}
+
+impl<C> EcashClientsProvider for &mut ApiClientsWrapper<'_, C>
+where
+    C: DkgQueryClient + Sync + Send,
+{
+    async fn try_get_ecash_clients(
+        &mut self,
+    ) -> Result<Vec<EcashApiClient>, BandwidthControllerError> {
+        self.clients().await
+    }
+}
+
+pub(crate) enum ApiClientsWrapper<'a, C> {
+    Uninitialised {
+        query_client: &'a C,
         epoch_id: EpochId,
-        dkg_client: &C,
-    ) -> Result<Vec<EcashApiClient>, BandwidthControllerError>
+    },
+    Cached {
+        clients: Vec<EcashApiClient>,
+    },
+}
+
+impl<'a, C> ApiClientsWrapper<'a, C> {
+    pub(crate) fn new(query_client: &'a C, epoch_id: EpochId) -> Self {
+        ApiClientsWrapper::Uninitialised {
+            query_client,
+            epoch_id,
+        }
+    }
+
+    async fn clients(&mut self) -> Result<Vec<EcashApiClient>, BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
     {
-        if let Some(cached) = &self.0 {
-            return Ok(cached.clone());
+        match self {
+            ApiClientsWrapper::Uninitialised {
+                query_client,
+                epoch_id,
+            } => {
+                let clients = all_ecash_api_clients(*query_client, *epoch_id).await?;
+                *self = ApiClientsWrapper::Cached {
+                    clients: clients.clone(),
+                };
+
+                Ok(clients)
+            }
+            ApiClientsWrapper::Cached { clients } => Ok(clients.clone()),
         }
-
-        let clients = all_ecash_api_clients(dkg_client, epoch_id).await?;
-
-        // technically we don't have to be cloning all the clients here, but it's way simpler than
-        // dealing with locking and whatnot given the performance penalty is negligible
-        self.0 = Some(clients.clone());
-        Ok(clients)
     }
 }
 
@@ -76,7 +113,7 @@ where
 pub(crate) async fn get_aggregate_verification_key<St>(
     storage: &St,
     epoch_id: EpochId,
-    ecash_apis: Vec<EcashApiClient>,
+    mut ecash_apis: impl EcashClientsProvider,
 ) -> Result<VerificationKeyAuth, BandwidthControllerError>
 where
     St: Storage,
@@ -89,6 +126,8 @@ where
     {
         return Ok(stored);
     };
+
+    let ecash_apis = ecash_apis.try_get_ecash_clients().await?;
 
     let master_vk = query_random_apis_until_success(
         ecash_apis,
@@ -115,7 +154,7 @@ where
 pub(crate) async fn get_coin_index_signatures<St>(
     storage: &St,
     epoch_id: EpochId,
-    ecash_apis: Vec<EcashApiClient>,
+    mut ecash_apis: impl EcashClientsProvider,
 ) -> Result<Vec<AnnotatedCoinIndexSignature>, BandwidthControllerError>
 where
     St: Storage,
@@ -128,6 +167,8 @@ where
     {
         return Ok(stored);
     };
+
+    let ecash_apis = ecash_apis.try_get_ecash_clients().await?;
 
     let index_sigs = query_random_apis_until_success(
         ecash_apis,
@@ -159,7 +200,7 @@ pub(crate) async fn get_expiration_date_signatures<St>(
     storage: &St,
     epoch_id: EpochId,
     expiration_date: Date,
-    ecash_apis: Vec<EcashApiClient>,
+    mut ecash_apis: impl EcashClientsProvider,
 ) -> Result<Vec<AnnotatedExpirationDateSignature>, BandwidthControllerError>
 where
     St: Storage,
@@ -172,6 +213,8 @@ where
     {
         return Ok(stored);
     };
+
+    let ecash_apis = ecash_apis.try_get_ecash_clients().await?;
 
     let expiration_sigs = query_random_apis_until_success(
         ecash_apis,

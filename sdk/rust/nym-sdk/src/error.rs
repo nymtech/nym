@@ -93,6 +93,9 @@ pub enum Error {
 
     #[error("this operation is currently unsupported: {details}")]
     Unsupported { details: String },
+
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
 }
 
 impl Error {

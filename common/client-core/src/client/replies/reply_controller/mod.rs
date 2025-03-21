@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
-use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
+use crate::client::real_messages_control::message_handler::{
+    FragmentWithMaxRetransmissions, MessageHandler, PreparationError,
+};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use futures::channel::oneshot;
 use futures::StreamExt;
@@ -10,7 +12,7 @@ use log::{debug, error, info, trace, warn};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurb;
-use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
@@ -49,6 +51,8 @@ impl Config {
 // - replies to "give additional surbs" requests
 // - will reply to future heartbeats
 
+pub type MaxRetransmissions = Option<u32>;
+
 // TODO: this should be split into ingress and egress controllers
 // because currently its trying to perform two distinct jobs
 pub struct ReplyController<R> {
@@ -59,7 +63,8 @@ pub struct ReplyController<R> {
     // of surbs required to send the message through
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, TransmissionBuffer<Fragment>>,
+    pending_replies:
+        HashMap<AnonymousSenderTag, TransmissionBuffer<FragmentWithMaxRetransmissions>>,
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
@@ -96,12 +101,13 @@ where
         }
     }
 
-    fn insert_pending_replies<I: IntoIterator<Item = Fragment>>(
+    fn insert_pending_replies<I: IntoIterator<Item = FragmentWithMaxRetransmissions>>(
         &mut self,
         recipient: &AnonymousSenderTag,
         fragments: I,
         lane: TransmissionLane,
     ) {
+        trace!("buffering pending replies for {recipient}");
         self.pending_replies
             .entry(*recipient)
             .or_insert_with(TransmissionBuffer::new)
@@ -111,8 +117,9 @@ where
     fn re_insert_pending_replies(
         &mut self,
         recipient: &AnonymousSenderTag,
-        fragments: Vec<(TransmissionLane, Fragment)>,
+        fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
     ) {
+        trace!("re-inserting pending replies for {recipient}");
         // the buffer should ALWAYS exist at this point, if it doesn't, it's a bug...
         self.pending_replies
             .entry(*recipient)
@@ -125,6 +132,7 @@ where
         recipient: &AnonymousSenderTag,
         data: Vec<Arc<PendingAcknowledgement>>,
     ) {
+        trace!("re-inserting pending retransmissions for {recipient}");
         // the underlying entry MUST exist as we've just got data from there
         let map_entry = self
             .pending_retransmissions
@@ -142,7 +150,7 @@ where
     }
 
     fn should_request_more_surbs(&self, target: &AnonymousSenderTag) -> bool {
-        trace!("checking if we should request more surbs from {:?}", target);
+        trace!("checking if we should request more surbs from {target}");
 
         let pending_queue_size = self
             .pending_replies
@@ -157,11 +165,6 @@ where
             .unwrap_or_default();
 
         let total_queue = pending_queue_size + retransmission_queue;
-
-        // simple as that - there's absolutely nothing to retransmit
-        if total_queue == 0 {
-            return false;
-        }
 
         let available_surbs = self
             .full_reply_storage
@@ -179,11 +182,27 @@ where
             .full_reply_storage
             .surbs_storage_ref()
             .max_surb_threshold();
+        let min_surbs_threshold_buffer =
+            self.config.reply_surbs.minimum_reply_surb_threshold_buffer;
 
-        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        // After clearing the queue, we want to have at least `min_surbs_threshold` surbs available
+        // and reserved for requesting additional surbs, and in addition to that we also want to
+        // have `min_surbs_threshold_buffer` surbs available proactively.
+        let target_surbs_after_clearing_queue = min_surbs_threshold + min_surbs_threshold_buffer;
 
-        (pending_surbs + available_surbs) < max_surbs_threshold
-            && (pending_surbs + available_surbs) < (total_queue + min_surbs_threshold)
+        // Check if we have enough surbs to handle the total queue and maintain minimum thresholds
+        let total_required_surbs = total_queue + target_surbs_after_clearing_queue;
+        let total_available_surbs = pending_surbs + available_surbs;
+
+        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..+{min_surbs_threshold_buffer}..{max_surbs_threshold}");
+
+        // We should request more surbs if:
+        // 1. We haven't hit the maximum surb threshold, and
+        // 2. We don't have enough surbs to handle the queue plus minimum thresholds
+        let is_below_max_threshold = total_available_surbs < max_surbs_threshold;
+        let is_below_required_surbs = total_available_surbs < total_required_surbs;
+
+        is_below_max_threshold && is_below_required_surbs
     }
 
     async fn handle_send_reply(
@@ -191,6 +210,7 @@ where
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     ) {
         if !self
             .full_reply_storage
@@ -228,7 +248,14 @@ where
                 .get_reply_surbs(&recipient_tag, max_to_send);
 
             if let Some(reply_surbs) = surbs {
-                let to_send = fragments.drain(..max_to_send).collect::<Vec<_>>();
+                let to_send = fragments
+                    .drain(..max_to_send)
+                    .map(|f| FragmentWithMaxRetransmissions {
+                        fragment: f,
+                        max_retransmissions,
+                    })
+                    .collect::<Vec<_>>();
+
                 if let Err(err) = self
                     .message_handler
                     .try_send_reply_chunks_on_lane(
@@ -244,6 +271,10 @@ where
                         &recipient_tag,
                     );
                     warn!("failed to send reply to {recipient_tag}: {err}");
+                    info!(
+                        "buffering {no_fragments} fragments for {recipient_tag}",
+                        no_fragments = to_send.len()
+                    );
                     self.insert_pending_replies(&recipient_tag, to_send, lane);
                 }
             }
@@ -251,6 +282,20 @@ where
 
         // if there's leftover data we didn't send because we didn't have enough (or any) surbs - buffer it
         if !fragments.is_empty() {
+            // Ideally we should have enough surbs above the minimum threshold to handle sending
+            // new replies without having to first request more surbs. That's why I'd like to log
+            // these cases as they might indicate a problem with the surb management.
+            debug!(
+                "buffering {no_fragments} fragments for {recipient_tag}",
+                no_fragments = fragments.len()
+            );
+            let fragments: Vec<_> = fragments
+                .into_iter()
+                .map(|fragment| FragmentWithMaxRetransmissions {
+                    fragment,
+                    max_retransmissions,
+                })
+                .collect();
             self.insert_pending_replies(&recipient_tag, fragments, lane);
         }
 
@@ -265,6 +310,7 @@ where
         target: AnonymousSenderTag,
         amount: u32,
     ) -> Result<(), PreparationError> {
+        debug!("requesting {amount} additional reply surbs for {target}");
         let reply_surb = self
             .full_reply_storage
             .surbs_storage_ref()
@@ -383,7 +429,7 @@ where
         &mut self,
         from: &AnonymousSenderTag,
         amount: usize,
-    ) -> Option<Vec<(TransmissionLane, Fragment)>> {
+    ) -> Option<Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
         let total = self.pending_replies.get(from)?.total_size();
         trace!("pending queue has {total} elements");
@@ -663,7 +709,11 @@ where
                 recipient,
                 message,
                 lane,
-            } => self.handle_send_reply(recipient, message, lane).await,
+                max_retransmissions,
+            } => {
+                self.handle_send_reply(recipient, message, lane, max_retransmissions)
+                    .await
+            }
             ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
@@ -686,7 +736,7 @@ where
     // it should take into consideration the average latency, sending rate and queue size.
     // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
-        trace!("requesting surbs for queues clearing");
+        trace!("requesting surbs for queue clearing");
 
         let pending_queue_size = self
             .pending_replies
@@ -700,17 +750,18 @@ where
             .map(|pending_queue| pending_queue.len())
             .unwrap_or_default();
 
+        let min_surbs_buffer = self.config.reply_surbs.minimum_reply_surb_threshold_buffer as u32;
+
         let total_queue = (pending_queue_size + retransmission_queue) as u32;
 
-        if total_queue == 0 {
-            trace!("the pending queues for {:?} are already empty", target);
-            return;
-        }
+        // To proactively request additional surbs, we aim to have a buffer of extra surbs in our
+        // storage.
+        let total_queue_with_buffer = total_queue + min_surbs_buffer;
 
         let request_size = min(
             self.config.reply_surbs.maximum_reply_surb_request_size,
             max(
-                total_queue,
+                total_queue_with_buffer,
                 self.config.reply_surbs.minimum_reply_surb_request_size,
             ),
         );
@@ -719,7 +770,7 @@ where
             .request_additional_reply_surbs(target, request_size)
             .await
         {
-            warn!("failed to request additional surbs... - {err}")
+            info!("{err}")
         }
     }
 

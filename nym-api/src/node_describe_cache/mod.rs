@@ -17,6 +17,7 @@ use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use nym_topology::node::{RoutingNode, RoutingNodeError};
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, error, info};
@@ -84,10 +85,14 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
 #[derive(Debug, Clone)]
 pub struct DescribedNodes {
     nodes: HashMap<NodeId, NymNodeDescription>,
+    addresses_cache: HashMap<IpAddr, NodeId>,
 }
 
 impl DescribedNodes {
     pub fn force_update(&mut self, node: NymNodeDescription) {
+        for ip in &node.description.host_information.ip_address {
+            self.addresses_cache.insert(*ip, node.node_id);
+        }
         self.nodes.insert(node.node_id, node);
     }
 
@@ -128,6 +133,10 @@ impl DescribedNodes {
             .values()
             .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
             .filter(|n| n.description.declared_role.can_operate_exit_gateway())
+    }
+
+    pub fn node_with_address(&self, address: IpAddr) -> Option<NodeId> {
+        self.addresses_cache.get(&address).copied()
     }
 }
 
@@ -182,6 +191,7 @@ async fn try_get_client(
         // if provided host was malformed, no point in continuing
         let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
             b.with_timeout(Duration::from_secs(5))
+                .no_hickory_dns()
                 .with_user_agent("nym-api-describe-cache")
                 .build()
         }) {
@@ -396,9 +406,20 @@ impl CacheItemProvider for NodeDescriptionProvider {
         .collect::<HashMap<_, _>>()
         .await;
 
-        info!("refreshed self described data for {} nodes", nodes.len());
+        let mut addresses_cache = HashMap::new();
+        for node in nodes.values() {
+            for ip in &node.description.host_information.ip_address {
+                addresses_cache.insert(*ip, node.node_id);
+            }
+        }
 
-        Ok(DescribedNodes { nodes })
+        info!("refreshed self described data for {} nodes", nodes.len());
+        info!("with {} unique ip addresses", addresses_cache.len());
+
+        Ok(DescribedNodes {
+            nodes,
+            addresses_cache,
+        })
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::cli::commands::run::args::Args;
 use crate::cli::DEFAULT_NYX_CHAIN_WATCHER_ID;
-use crate::config::payments_watcher::{HttpAuthenticationOptions, PaymentWatcherEntry};
-use crate::config::{default_config_filepath, Config, ConfigBuilder, PaymentWatcherConfig};
+use crate::config::payments_watcher::{HttpAuthenticationOptions, PaymentWatcherConfig};
+use crate::config::{default_config_filepath, Config, ConfigBuilder, PaymentWatchersConfig};
 use crate::error::NyxChainWatcherError;
 use tracing::{info, warn};
 
@@ -18,8 +18,8 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
     } = args;
 
     // if there are no args set, then try load the config
-    if args.watch_for_transfer_recipient_accounts.is_none()
-        && args.watch_for_transfer_recipient_accounts.is_none()
+    if args.watch_for_transfer_recipient_accounts.is_empty()
+        && args.watch_for_transfer_recipient_accounts.is_empty()
         && args.chain_watcher_db_path.is_none()
     {
         info!("Loading default config file...");
@@ -27,12 +27,12 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
     }
 
     // set default messages
-    if watch_for_chain_message_types.is_none() {
-        watch_for_chain_message_types = Some(vec!["/cosmos.bank.v1beta1.MsgSend".to_string()]);
+    if watch_for_chain_message_types.is_empty() {
+        watch_for_chain_message_types = vec!["/cosmos.bank.v1beta1.MsgSend".to_string()];
     }
 
     // warn if no accounts set
-    if watch_for_transfer_recipient_accounts.is_none() {
+    if watch_for_transfer_recipient_accounts.is_empty() {
         warn!(
             "You did not specify any accounts to watch in {}. Only chain data will be stored.",
             crate::env::vars::NYX_CHAIN_WATCHER_WATCH_ACCOUNTS
@@ -58,8 +58,8 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
         let authentication =
             webhook_auth.map(|token| HttpAuthenticationOptions::AuthorizationBearerToken { token });
 
-        let watcher_config = PaymentWatcherConfig {
-            watchers: vec![PaymentWatcherEntry {
+        let watcher_config = PaymentWatchersConfig {
+            watchers: vec![PaymentWatcherConfig {
                 id: DEFAULT_NYX_CHAIN_WATCHER_ID.to_string(),
                 description: None,
                 watch_for_transfer_recipient_accounts: watch_for_transfer_recipient_accounts

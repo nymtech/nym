@@ -20,6 +20,7 @@
 //!   - `/mixnodes/<tier>` => only returns mixnode role data
 //!   - `/gateway/<tier>` => only returns (entry) gateway role data
 
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::nym_nodes::handlers::unstable::full_fat::nodes_detailed;
 use crate::nym_nodes::handlers::unstable::semi_skimmed::nodes_expanded;
 use crate::nym_nodes::handlers::unstable::skimmed::{
@@ -29,10 +30,14 @@ use crate::nym_nodes::handlers::unstable::skimmed::{
 };
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
-use axum::routing::get;
-use axum::Router;
-use nym_api_requests::nym_nodes::NodeRoleQueryParam;
+use axum::extract::State;
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use nym_api_requests::nym_nodes::{
+    NodeRoleQueryParam, NodesByAddressesRequestBody, NodesByAddressesResponse,
+};
 use serde::Deserialize;
+use std::collections::HashMap;
 use tower_http::compression::CompressionLayer;
 
 pub(crate) mod full_fat;
@@ -74,6 +79,7 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
         .nest("/full-fat", Router::new().route("/", get(nodes_detailed)))
         .route("/gateways/skimmed", get(skimmed::deprecated_gateways_basic))
         .route("/mixnodes/skimmed", get(skimmed::deprecated_mixnodes_basic))
+        .route("/by-addresses", post(nodes_by_addresses))
         .layer(CompressionLayer::new())
 }
 
@@ -128,4 +134,37 @@ impl<'a> From<&'a NodesParams> for PaginationRequest {
             per_page: params.per_page,
         }
     }
+}
+
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    post,
+    request_body = NodesByAddressesRequestBody,
+    path = "/by-addresses",
+    context_path = "/v1/unstable/nym-nodes",
+    responses(
+        (status = 200, body = NodesByAddressesResponse)
+    )
+)]
+async fn nodes_by_addresses(
+    state: State<AppState>,
+    Json(body): Json<NodesByAddressesRequestBody>,
+) -> AxumResult<Json<NodesByAddressesResponse>> {
+    // if the request is too big, simply reject it
+    if body.addresses.len() > 100 {
+        return Err(AxumErrorResponse::bad_request(
+            "requested too many addresses",
+        ));
+    }
+
+    // TODO: perhaps introduce different cache because realistically nym-api will receive
+    // request for the same couple addresses from all nodes in quick succession
+    let describe_cache = state.describe_nodes_cache_data().await?;
+
+    let mut existence = HashMap::new();
+    for address in body.addresses {
+        existence.insert(address, describe_cache.node_with_address(address));
+    }
+
+    Ok(Json(NodesByAddressesResponse { existence }))
 }

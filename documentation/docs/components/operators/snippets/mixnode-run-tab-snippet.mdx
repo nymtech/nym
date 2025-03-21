@@ -6,7 +6,7 @@ If you run a `nym-node` for the first time, you will need to specify a few param
 To initialise and run your node, use this command:
 
 ```sh
-./nym-node run --mode mixnode --mixnet-bind-address 0.0.0.0:1789 --verloc-bind-address 0.0.0.0:1790 --http-bind-address 0.0.0.0:8080 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
+./nym-node run --mode mixnode --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
 ```
 
 **Init only**
@@ -15,7 +15,7 @@ Adding `--init-only` option results in `nym-node` initialising a configuration f
 
 Initialise only with a custom `--id` and `--init-only` command:
 ```sh
-./nym-node run --mode mixnode --id <ID> --init-only --mixnet-bind-address 0.0.0.0:1789 --verloc-bind-address 0.0.0.0:1790 --http-bind-address 0.0.0.0:8080 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
+./nym-node run --mode mixnode --id <ID> --init-only --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
 ```
 
 If you prefer to have a generic local identifier set to `default-nym-node`, skip `--id` option.

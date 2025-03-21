@@ -66,7 +66,6 @@ members = [
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
-    "common/nymcoconut",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -99,9 +98,9 @@ members = [
     "common/wireguard",
     "common/wireguard-types",
     "documentation/autodoc",
-    "explorer-api",
-    "explorer-api/explorer-api-requests",
-    "explorer-api/explorer-client",
+    # "explorer-api",
+    # "explorer-api/explorer-api-requests",
+    # "explorer-api/explorer-client",
     "gateway",
     "integrations/bity",
     "nym-api",
@@ -138,7 +137,7 @@ members = [
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/testnet-manager/dkg-bypass-contract", "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
     "tools/nym-nr-query",
@@ -154,7 +153,6 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
-    "explorer-api",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-node",
@@ -192,10 +190,10 @@ aes = "0.8.1"
 aes-gcm = "0.10.1"
 aes-gcm-siv = "0.11.1"
 ammonia = "4"
-anyhow = "1.0.95"
+anyhow = "1.0.97"
 arc-swap = "1.7.1"
 argon2 = "0.5.0"
-async-trait = "0.1.86"
+async-trait = "0.1.88"
 axum = "0.7.5"
 axum-client-ip = "0.6.1"
 axum-extra = "0.9.4"
@@ -206,24 +204,24 @@ bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 bit-vec = "0.7.0"                                     # can we unify those?
 bitvec = "1.0.0"
-blake3 = "1.5.5"
+blake3 = "1.6.1"
 bloomfilter = "1.0.14"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"
-bytes = "1.7.2"
+bytes = "1.10.1"
 cargo_metadata = "0.18.1"
-celes = "2.5.0"
+celes = "2.6.0"
 cfg-if = "1.0.0"
 chacha20 = "0.9.0"
 chacha20poly1305 = "0.10.1"
-chrono = "0.4.39"
+chrono = "0.4.40"
 cipher = "0.4.3"
-clap = "4.5.30"
+clap = "4.5.32"
 clap_complete = "4.5"
 clap_complete_fig = "4.5"
 colored = "2.2"
 comfy-table = "7.1.4"
-console = "0.15.10"
+console = "0.15.11"
 console-subscriber = "0.1.1"
 console_error_panic_hook = "0.1"
 const-str = "0.5.6"
@@ -242,29 +240,30 @@ doc-comment = "0.3"
 dotenvy = "0.15.6"
 ecdsa = "0.16"
 ed25519-dalek = "2.1"
-env_logger = "0.11.6"
+encoding_rs = "0.8.35"
+env_logger = "0.11.7"
 envy = "0.4"
 etherparse = "0.13.0"
 eyre = "0.6.9"
 fastrand = "2.1.1"
-flate2 = "1.0.35"
+flate2 = "1.1.0"
 futures = "0.3.31"
 futures-util = "0.3"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
-getset = "0.1.4"
+getset = "0.1.5"
 handlebars = "3.5.5"
 headers = "0.4.0"
 hex = "0.4.3"
 hex-literal = "0.3.3"
-hickory-resolver = "0.24.3"
+hickory-resolver = "0.24.4"
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
 http-body-util = "0.1"
 httpcodec = "0.2.3"
 human-repr = "1.1.0"
-humantime = "2.1.0"
+humantime = "2.2.0"
 humantime-serde = "1.1.1"
 hyper = "1.6.0"
 hyper-util = "0.1"
@@ -273,7 +272,7 @@ inquire = "0.6.2"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
 isocountry = "0.3.2"
-itertools = "0.13.0"
+itertools = "0.14.0"
 k256 = "0.13"
 lazy_static = "1.5.0"
 ledger-transport = "0.10.0"
@@ -285,7 +284,7 @@ moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"
 notify = "5.1.0"
 okapi = "0.7.0"
-once_cell = "1.20.3"
+once_cell = "1.21.1"
 opentelemetry = "0.19.0"
 opentelemetry-jaeger = "0.18.0"
 parking_lot = "0.12.3"
@@ -308,21 +307,21 @@ reqwest = { version = "0.12.4", default-features = false }
 rocket = "0.5.0"
 rocket_cors = "0.6.0"
 rocket_okapi = "0.8.0"
-rs_merkle = "1.4.2"
+rs_merkle = "1.5.0"
 safer-ffi = "0.1.13"
-schemars = "0.8.21"
-semver = "1.0.25"
-serde = "1.0.217"
-serde_bytes = "0.11.15"
+schemars = "0.8.22"
+semver = "1.0.26"
+serde = "1.0.219"
+serde_bytes = "0.11.17"
 serde_derive = "1.0"
-serde_json = "1.0.138"
+serde_json = "1.0.140"
 serde_json_path = "0.7.2"
 serde_repr = "0.1"
 serde_with = "3.9.0"
 serde_yaml = "0.9.25"
 sha2 = "0.10.8"
 si-scale = "0.2.3"
-sphinx-packet = "0.3.1"
+sphinx-packet = "=0.3.2"
 sqlx = "0.7.4"
 strum = "0.26"
 strum_macros = "0.26"
@@ -331,16 +330,16 @@ syn = "1"
 sysinfo = "0.33.0"
 tap = "1.0.1"
 tar = "0.4.44"
-tempfile = "3.15"
+tempfile = "3.19"
 thiserror = "2.0"
-time = "0.3.37"
-tokio = "1.43"
+time = "0.3.39"
+tokio = "1.44"
 tokio-postgres = "0.7"
 tokio-stream = "0.1.17"
 tokio-test = "0.4.4"
 tokio-tun = "0.11.5"
 tokio-tungstenite = { version = "0.20.1" }
-tokio-util = "0.7.13"
+tokio-util = "0.7.14"
 toml = "0.8.20"
 tower = "0.5.2"
 tower-http = "0.5.2"
@@ -362,7 +361,7 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
-zeroize = "1.6.0"
+zeroize = "1.8.1"
 
 prometheus = { version = "0.13.0" }
 
@@ -370,9 +369,9 @@ prometheus = { version = "0.13.0" }
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 # plus to make our live easier we need serde support from https://github.com/zkcrypto/bls12_381/pull/125
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect" }
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect-updated" }
 group = { version = "0.13.0", default-features = false }
-ff = { version = "0.13.0", default-features = false }
+ff = { version = "0.13.1", default-features = false }
 subtle = "2.5.0"
 
 # cosmwasm-related
@@ -403,7 +402,7 @@ prost = { version = "0.13", default-features = false }
 gloo-utils = "0.2.0"
 gloo-net = "0.6.0"
 
-indexed_db_futures = "0.6.0"
+indexed_db_futures = "0.6.1"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
@@ -438,3 +437,13 @@ opt-level = 'z'
 [profile.release.package.mix-fetch-wasm]
 # lto = true
 opt-level = 'z'
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+todo = "deny"
+dbg_macro = "deny"
+exit = "deny"
+panic = "deny"
+unimplemented = "deny"
+unreachable = "deny"

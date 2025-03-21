@@ -10,7 +10,8 @@ pub(crate) fn generate_key_pair(path: impl AsRef<Path>) -> anyhow::Result<()> {
     let mut private_key_file = File::create(priv_key_path)?;
     private_key_file.write_all(keypair.private_key().to_base58_string().as_bytes())?;
 
-    let pub_key_path = priv_key_path.with_extension("public");
+    let pub_key_path = priv_key_path.with_file_name("public-key");
+
     let mut public_key_file = File::create(&pub_key_path)?;
     public_key_file.write_all(keypair.public_key().to_base58_string().as_bytes())?;
 

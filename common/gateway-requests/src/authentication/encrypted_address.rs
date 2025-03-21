@@ -15,6 +15,12 @@ use thiserror::Error;
 // this is no longer constant size due to the differences in ciphertext between aes128ctr and aes256gcm-siv (inclusion of tag)
 pub struct EncryptedAddressBytes(Vec<u8>);
 
+impl From<Vec<u8>> for EncryptedAddressBytes {
+    fn from(encrypted_address: Vec<u8>) -> Self {
+        EncryptedAddressBytes(encrypted_address)
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum EncryptedAddressConversionError {
     #[error("Failed to decode the encrypted address - {0}")]

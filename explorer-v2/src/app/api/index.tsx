@@ -53,20 +53,15 @@ export const fetchGatewayStatus = async (
   return response.json();
 };
 
-export const fetchNodeInfo = async (
-  id: number,
-): Promise<IObservatoryNode | undefined> => {
-  const nodes = await fetchObservatoryNodes();
-  return nodes?.find((node) => node.node_id === id);
-};
 
-export const fetchNodeIdByIdentityKey = async (
-  identity_key: string,
-): Promise<number> => {
-  const nodes = await fetchObservatoryNodes();
-  const node = nodes?.find((node) => node.identity_key === identity_key);
-  return node?.node_id || 0;
-};
+
+// export const fetchNodeIdByIdentityKey = async (
+//   identity_key: string,
+// ): Promise<number> => {
+//   const nodes = await fetchObservatoryNodes();
+//   const node = nodes?.find((node) => node.identity_key === identity_key);
+//   return node?.node_id || 0;
+// };
 
 export const fetchNodeDelegations = async (
   id: number,
@@ -239,7 +234,7 @@ export const fetchObservatoryNodes = async (): Promise<IObservatoryNode[]> => {
       page++; // Move to the next page
     }
   }
-
+  console.log("fetching...")
   return allNodes;
 };
 

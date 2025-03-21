@@ -67,6 +67,8 @@ const StakeTableWithAction = () => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   // Use React Query to fetch Nym nodes
@@ -80,6 +82,8 @@ const StakeTableWithAction = () => {
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
   // Handle loading state

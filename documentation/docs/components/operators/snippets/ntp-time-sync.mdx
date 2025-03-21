@@ -1,0 +1,10 @@
+- Run synchronization against [pool.ntp.org](https://www.ntppool.org/en/):
+```bash
+ntpdate -q pool.ntp.org
+```
+- Enable `ntp` service, start and review the status:
+```bash
+systemctl enable --now ntp
+service ntp start
+service ntp status
+```

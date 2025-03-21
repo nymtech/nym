@@ -10,7 +10,7 @@ use crate::{
     CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
 };
 use async_trait::async_trait;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -52,7 +52,10 @@ impl Backend {
         Ok(backend)
     }
 
-    pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    pub async fn try_load<P: AsRef<Path>>(
+        database_path: P,
+        fresh_sender_tags: bool,
+    ) -> Result<Self, StorageError> {
         let owned_path: PathBuf = database_path.as_ref().into();
         if owned_path.file_name().is_none() {
             return Err(StorageError::DatabasePathWithoutFilename {
@@ -117,6 +120,9 @@ impl Backend {
 
         if days > 2 {
             info!("it's been over {days} days and {hours} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.");
+            manager.delete_all_tags().await?;
+        } else if fresh_sender_tags {
+            debug!("starting with fresh sender tags");
             manager.delete_all_tags().await?;
         }
 

@@ -35,6 +35,7 @@ mod config;
 mod connection_state;
 mod native_client;
 mod paths;
+mod sink;
 mod socks5_client;
 mod traits;
 
@@ -82,8 +83,9 @@ pub use nym_sphinx::{
 pub use nym_statistics_common::clients::{
     connection::ConnectionStatsEvent, ClientStatsEvents, ClientStatsSender,
 };
-pub use nym_task::connections::TransmissionLane;
+pub use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::StoragePaths;
+pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
 pub use socks5_client::Socks5MixnetClient;
 pub use traits::MixnetMessageSender;

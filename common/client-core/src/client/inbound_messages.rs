@@ -28,6 +28,7 @@ pub enum InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     },
 
     /// Creates a message used for a duplex anonymous communication where the recipient
@@ -43,6 +44,7 @@ pub enum InputMessage {
         data: Vec<u8>,
         reply_surbs: u32,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -53,6 +55,7 @@ pub enum InputMessage {
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
         lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
     },
 
     MessageWrapper {
@@ -92,6 +95,7 @@ impl InputMessage {
             recipient,
             data,
             lane,
+            max_retransmissions: None,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -112,28 +116,7 @@ impl InputMessage {
             data,
             reply_surbs,
             lane,
-        };
-        if let Some(packet_type) = packet_type {
-            InputMessage::new_wrapper(message, packet_type)
-        } else {
-            message
-        }
-    }
-
-    // IMHO `new_anonymous` should take `mix_hops: Option<u8>` as an argument instead of creating
-    // this function, but that would potentially break backwards compatibility with the current API
-    pub fn new_anonymous_with_custom_hops(
-        recipient: Recipient,
-        data: Vec<u8>,
-        reply_surbs: u32,
-        lane: TransmissionLane,
-        packet_type: Option<PacketType>,
-    ) -> Self {
-        let message = InputMessage::Anonymous {
-            recipient,
-            data,
-            reply_surbs,
-            lane,
+            max_retransmissions: None,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -152,6 +135,7 @@ impl InputMessage {
             recipient_tag,
             data,
             lane,
+            max_retransmissions: None,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -168,5 +152,35 @@ impl InputMessage {
             | InputMessage::Premade { lane, .. } => lane,
             InputMessage::MessageWrapper { message, .. } => message.lane(),
         }
+    }
+
+    pub fn set_max_retransmissions(&mut self, max_retransmissions: u32) -> &mut Self {
+        match self {
+            InputMessage::Regular {
+                max_retransmissions: m,
+                ..
+            }
+            | InputMessage::Anonymous {
+                max_retransmissions: m,
+                ..
+            }
+            | InputMessage::Reply {
+                max_retransmissions: m,
+                ..
+            } => {
+                *m = Some(max_retransmissions);
+            }
+            InputMessage::Premade { .. } => {}
+            InputMessage::MessageWrapper { message, .. } => {
+                message.set_max_retransmissions(max_retransmissions);
+            }
+        }
+
+        self
+    }
+
+    pub fn with_max_retransmissions(mut self, max_retransmissions: u32) -> Self {
+        self.set_max_retransmissions(max_retransmissions);
+        self
     }
 }

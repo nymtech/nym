@@ -30,7 +30,6 @@ pub use sphinx_packet::{
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
     version::Version,
-    version::UPDATED_LEGACY_VERSION,
     Error as SphinxError, ProcessedPacket, ProcessedPacketData,
 };
 
@@ -91,12 +90,8 @@ impl NymPacket {
         destination: &Destination,
         delays: &[Delay],
     ) -> Result<NymPacket, NymPacketError> {
-        // FIXME:
-        // for now explicitly use the legacy version until sufficient number of nodes
-        // understand both variants
         Ok(NymPacket::Sphinx(
             SphinxPacketBuilder::new()
-                .with_version(UPDATED_LEGACY_VERSION)
                 .with_payload_size(size)
                 .build_packet(message, route, destination, delays)?,
         ))

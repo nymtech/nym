@@ -1,0 +1,30 @@
+[package]
+name = "validator-status-check"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive"] }
+comfy-table = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+strum = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+time = { workspace = true }
+
+
+nym-validator-client = { path = "../../../common/client-libs/validator-client" }
+nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-network-defaults = { path = "../../../common/network-defaults" }
+
+[lints]
+workspace = true

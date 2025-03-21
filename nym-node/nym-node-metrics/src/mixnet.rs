@@ -213,7 +213,7 @@ impl Display for PacketKind {
             PacketKind::Unknown => "unknown".fmt(f),
             PacketKind::Outfox => "outfox".fmt(f),
             PacketKind::Sphinx(sphinx_version) => {
-                write!(f, "sphinx-{sphinx_version}")
+                write!(f, "sphinx_{sphinx_version}")
             }
         }
     }

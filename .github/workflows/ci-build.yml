@@ -27,6 +27,12 @@ on:
       - '.github/workflows/ci-build.yml'
   workflow_dispatch:
 
+concurrency:
+  # only 1 concurrent `ci-build` allowed per branch
+  # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#example-using-concurrency-and-the-default-behavior
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
@@ -37,6 +43,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       IPINFO_API_TOKEN: ${{ secrets.IPINFO_API_TOKEN }}
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools protobuf-compiler

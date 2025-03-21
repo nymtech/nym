@@ -140,6 +140,9 @@ impl EcashState {
         }
     }
 
+    // whilst we normally don't want to panic, this one would only occur at startup,
+    // if some logical invariants got broken (which have to be fixed in code anyway)
+    #[allow(clippy::panic)]
     pub(crate) fn spawn_background_cleaner(&mut self) {
         match std::mem::take(&mut self.background_cleaner_state) {
             BackgroundCleanerState::WaitingStartup(cleaner) => {
@@ -147,8 +150,6 @@ impl EcashState {
                     _handle: cleaner.start(),
                 }
             }
-            // whilst we normally don't want to panic, this one would only occur at startup,
-            // if some logical invariants got broken (which have to be fixed in code anyway)
             _ => panic!("attempted to spawn background cleaner more than once"),
         }
     }

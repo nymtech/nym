@@ -1,4 +1,5 @@
-FROM rust:latest AS builder
+# this will only work with VPN, otherwise remove the harbor part
+FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nyx-chain-watcher
@@ -21,7 +22,7 @@ RUN cargo build --release
 # and https://github.com/nymtech/nym/blob/develop/nyx-chain-watcher/src/env.rs for env vars
 #-------------------------------------------------------------------
 
-FROM ubuntu:24.04
+FROM harbor.nymte.ch/dockerhub/ubuntu:24.04
 
 RUN apt update && apt install -yy curl ca-certificates
 

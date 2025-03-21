@@ -43,11 +43,14 @@ pub mod nym_nodes {
     pub const NYM_NODES_BONDED: &str = "bonded";
     pub const NYM_NODES_REWARDED_SET: &str = "rewarded-set";
     pub const NYM_NODES_REFRESH_DESCRIBED: &str = "refresh-described";
+    pub const BY_ADDRESSES: &str = "by-addresses";
 }
 
 pub const STATUS_ROUTES: &str = "status";
 pub const API_STATUS_ROUTES: &str = "api-status";
 pub const HEALTH: &str = "health";
+pub const BUILD_INFORMATION: &str = "build-information";
+
 pub const MIXNODE: &str = "mixnode";
 pub const GATEWAY: &str = "gateway";
 pub const NYM_NODES: &str = "nym-nodes";
@@ -69,4 +72,5 @@ pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
 pub const SERVICE_PROVIDERS: &str = "services";
 
 pub const DETAILS: &str = "details";
+pub const CHAIN_STATUS: &str = "chain-status";
 pub const NETWORK: &str = "network";

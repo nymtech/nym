@@ -20,12 +20,12 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](.
 ```sh
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2025-02-13T11:49:34.670488195Z
-Build Version:      1.5.0
-Commit SHA:         a3e19b4563843055b305ea9a397eb1ad84b5c378
-Commit Date:        2025-02-10T18:14:47.000000000+01:00
+Build Timestamp:    2025-03-18T12:17:10.782554174Z
+Build Version:      1.7.0
+Commit SHA:         82e82943aa14e530ab4eb3aaab28ce86d47e5298
+Commit Date:        2025-03-18T10:39:55.000000000+01:00
 Commit Branch:      HEAD
-rustc Version:      1.84.1
+rustc Version:      1.85.0
 rustc Channel:      stable
 cargo Profile:      release
 ```
@@ -44,7 +44,7 @@ From `nym-node v1.3.0` operators can choose multiple functionalities for their `
 
 ### Mixnet Routing
 
-***Mixnet mode (5-hop) is the full anonymising option of NymVPN. Read more about the Mixnet architecture [here](http://localhost:3000/docs/network/architecture)***
+***Mixnet mode (5-hop) is the full anonymising option of NymVPN. Read more about the Mixnet architecture [here](../../../network/architecture)***
 
 Nym Node has three functionalities in the Mixnet: `entry-gateway`, `mixnode` and `exit-gateway`. These are selected with a flag `--mode <MODE>` alongside `nym-node` command `run` .
 
@@ -178,7 +178,7 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 
 ## Functionality & Performance Check
 
-We have a chapter called [Performance Monitoring & Testing](../nodes/performance-and-testing) including much more information and tooling. If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+We have a chapter called [Performance Monitoring & Testing](../performance-and-testing) including much more information and tooling. If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
 For more information about available endpoints and their status, you can refer to:
 ```sh

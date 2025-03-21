@@ -1,0 +1,336 @@
+import { Callout } from 'nextra/components'
+import { AccordionTemplate } from 'components/accordion-template.tsx'
+
+# NS API: Deployment Guide
+
+## Components
+The Node Status API is made up of 3 components:
+- `nym-node-status-api`
+- `nym-node-status-client`
+- `nym-node-status-agent`
+
+The API stores its data in a local SQLite database. It periodically gets most of its data from a [NymAPI](../nym-api) instance, and for instances also running with the Gateway Probe, uses the stored topology to conduct performance probe tests.
+
+## Gateway Probe
+You can run the `nym-node-status-api` alone, but if you want to run probes for `nym-node`s running as Gateways, you have to also run the `nym-node-status-agent` (which consumes the `nym-node-status-client` lib). The probe will run a set of tests per Gateway node, and return the sort of results seen [here](https://harbourmaster.nymtech.net/gateway/23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb).
+
+## UI
+The API exposes a [Swagger](https://swagger.io/docs/) documentation UI by default on port `8000` (see an example [here](https://mainnet-node-status-api.nymtech.cc/swagger/)).
+
+Currently we are not shipping a custom UI component for the Node Status API. The [Harbourmaster](https://harbourmaster.nymtech.net/) frontend consumes this API, amongst other things, but this is an internal repo we use to experiment with new APIs and data on, so it is not public yet.
+
+<Callout type="info">
+We invite developers to roll their own UI for their Node Status API instance.
+</Callout>
+
+## Docker Images
+We will ship Docker images for both the `agent` and `api` in the future. There are Docker images for both in root of each corresponding crate ([`agent`](https://github.com/nymtech/nym/blob/09ea406c02e9a3beebc062f525e4ea1b4222dcbb/nym-node-status-api/nym-node-status-agent/Dockerfile), [`api`](https://github.com/nymtech/nym/blob/develop/nym-node-status-api/nym-node-status-api/Dockerfile)) which are used internally, which could be a starting point for developers to dockerize their instance for the moment.
+
+## Build
+### Prerequisites
+- Rust
+- SQLite
+- Get an `ipinfo` key following instructions [here](https://github.com/ipinfo/rust?tab=readme-ov-file#getting-started).
+
+### Compilation
+```shell
+cargo build --release --package nym-node-status-api --package nym-node-status-agent --package nym-node-status-client
+```
+
+## Run
+Since the Node Status API depends on both flags and environmental variables, it might be easier to run the binary via a script like the one below - this this script essentially just `source`-s the defined `.env` file after exporting certain binary-specific variables, and then runs the binary. You can find the `.env` files [here](https://github.com/nymtech/nym/tree/master/envs).
+
+<Callout type="info">
+    All CLI flags are configurable as environmental variables and vice versa, so take the following scripts / setups as guides that you can change however best suits your setup. You can see all definitions [here](https://github.com/nymtech/nym/blob/develop/nym-node-status-api/nym-node-status-api/src/cli/mod.rs#L14).
+</Callout>
+
+```bash
+#!/bin/bash
+
+set -e
+
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"} # see nym/envs/ for all possible environments
+export NYM_API_CLIENT_TIMEOUT=60
+export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
+export IPINFO_API_TOKEN=<YOUR_IPINFO_API_KEY>
+
+monorepo_root=<PATH/TO/NYM/>
+set -a
+source "${monorepo_root}/envs/${ENVIRONMENT}.env"
+echo ${monorepo_root}/envs/${ENVIRONMENT}.env
+set +a
+export RUST_LOG=${RUST_LOG:-debug} # debug is useful to check everything is working initially, but quite verbose
+
+echo "Verifying environment variables were properly sourced:"
+echo "RUST_LOG=${RUST_LOG}"
+echo "BECH32_PREFIX=${BECH32_PREFIX}"
+echo "NETWORK_NAME=${NETWORK_NAME}"
+
+<PATH/TO/>nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
+```
+
+### Functionality Without Gateway Probe
+Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`, as you can see in this snipped output of the `gateways` endpoint:
+
+<AccordionTemplate name="Output">
+```shell
+{
+      "gateway_identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+      "bonded": true,
+      "performance": 99,
+      "self_described": {
+        "authenticator": {
+          "address": "6Gdtw13Fa46AvkqkHELZZCMKWASDodoJeK9APRNpjjdj.7ji8DDkpjA2AdgwK7wbZm8yi4xZGogGJeypBQt4hAw3P@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb"
+        },
+        "auxiliary_details": {
+          "accepted_operator_terms_and_conditions": true,
+          "announce_ports": {
+            "mix_port": null,
+            "verloc_port": null
+          },
+          "location": null
+        },
+        "build_information": {
+          "binary_name": "nym-node",
+          "build_timestamp": "2025-02-13T11:49:34.670488195Z",
+          "build_version": "1.5.0",
+          "cargo_profile": "release",
+          "cargo_triple": "x86_64-unknown-linux-gnu",
+          "commit_branch": "HEAD",
+          "commit_sha": "a3e19b4563843055b305ea9a397eb1ad84b5c378",
+          "commit_timestamp": "2025-02-10T18:14:47.000000000+01:00",
+          "rustc_channel": "stable",
+          "rustc_version": "1.84.1"
+        },
+        "declared_role": {
+          "entry": true,
+          "exit_ipr": true,
+          "exit_nr": true,
+          "mixnode": false
+        },
+        "host_information": {
+          "hostname": "bwng1.bwnym.xyz",
+          "ip_address": [
+            "95.164.2.86"
+          ],
+          "keys": {
+            "ed25519": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+            "x25519": "H6pFjqtdSVxkxEQ3wFnuSoobDAUqHx1bYMVJzPZdRByn",
+            "x25519_noise": null
+          }
+        },
+        "ip_packet_router": {
+          "address": "7ms2D2uYiTuhX6MKeVL5rz5usgehEoxAAovwYm9nJyBF.3siMjk3wTU7ykaXLNi9c7LpX8yonYKPCA4BQoMwhsfTV@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb"
+        },
+        "last_polled": "2025-03-03 09:48:03.635274187 +00:00:00",
+        "mixnet_websockets": {
+          "ws_port": 9000,
+          "wss_port": 9001
+        },
+        "network_requester": {
+          "address": "HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+          "uses_exit_policy": true
+        },
+        "wireguard": {
+          "port": 51822,
+          "public_key": "6o8x9GitFjcrkjrJnivWaQCPnxXykQPYLneNr2FEB8Vq"
+        }
+      },
+      "explorer_pretty_bond": {
+        "identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+        "location": {
+          "latitude": 52.5083,
+          "longitude": 5.475,
+          "two_letter_iso_country_code": "NL"
+        },
+        "owner": "n1cp5gq0apat6c7qmenqp5zjprn2vwvc7jl29j8r",
+        "pledge_amount": {
+          "amount": "100000000",
+          "denom": "unym"
+        }
+      },
+      "description": {
+        "moniker": "bwn_g1",
+        "website": "https://bwnym.xyz",
+        "security_contact": "bwnym@proton.me",
+        "details": "This gateway is part of the NYM project, which is dedicated to create outstanding privacy software that is legally compliant without sacrificing integrity or having any backdoors."
+      },
+      "last_probe_result": null,
+      "last_probe_log": null,
+      "last_testrun_utc": null,
+      "last_updated_utc": "2025-03-03T10:45:48+00:00",
+      "routing_score": 0.0,
+      "config_score": 0
+    },
+```
+</AccordionTemplate>
+
+If you have already run the API before, make sure to add the following to your script `--database-url "sqlite://node-status-api.sqlite?mode=rwc` so it will continue using the same DB.
+
+### Functionality with Gateway Probe
+If you want to enable Gateway node probes and have the NS API store that data, you need to periodically run the `nym-node-status-agent`, authenticated with your `nym-node-status-api` instance. Authentication is to make sure that only the `-agent` you are operating (or others you trust) are submitting data to your API instance.
+
+#### Compile Gateway Probe
+The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary which currently is in the NymVPN repo. `git checkout` to the most recent [release](https://github.com/nymtech/nym-vpn-client/releases), and compile the probe by following the [readme instructions](https://github.com/nymtech/nym-vpn-client/tree/develop/nym-vpn-core/crates/nym-gateway-probe). You will point the `-agent` at this binary when doing Probe testruns.
+
+#### Generate Keypair
+```shell
+<PATH/TO/>nym-node-status-agent generate-keypair --path <PATH/TO/KEY/FILE/TO/GENERATE>/<KEY_NAME>
+# e.g.
+# nym-node-status-agent generate-keypair --path ~/.ssh/ns-agent-key
+```
+
+You will then want to export the generated `public-key` so its accessible to the `nym-node-status-api` however you are setting your environmental variables, as `NODE_STATUS_API_AGENT_KEY_LIST`:
+
+```bash
+export NODE_STATUS_API_AGENT_KEY_LIST=<YOUR_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
+```
+
+In this situation, you are probably only using one key. However, it is possible to set multiple keys as a comma seperated list, in case you wish to whitelist multiple `-agent`s to be able to submit to a single `-api` instance.
+
+#### Run the Node Status Agent
+```shell
+<PATH/TO/>nym-node-status-agent run-probe --server-address http://127.0.0.1 --server-port 8000 --ns-api-auth-key "<NS_AGENT_PRIVATE_KEY>" --probe-path <PATH/TO/> nym-gateway-probe
+```
+
+You will see a lot of output like so:
+
+<AccordionTemplate name="Output">
+```shell
+listen_port=48586
+public_key=3f95caf771b8a63b9bdae6c186f7aba2eae93483f1c82c0243b5e00c85b4ec26
+preshared_key=0000000000000000000000000000000000000000000000000000000000000000
+protocol_version=1
+endpoint=185.186.78.251:51822
+last_handshake_time_sec=0
+last_handshake_time_nsec=0
+tx_bytes=0
+rx_bytes=0
+persistent_keepalive_interval=0
+allowed_ip=0.0.0.0/0
+2025/03/03 18:58:28 Pinging nymtech.net seq=0
+2025/03/03 18:58:29 Ping latency: 44.503483ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=1
+2025/03/03 18:58:29 Ping latency: 42.852414ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=2
+2025/03/03 18:58:29 Ping latency: 43.627256ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=3
+2025/03/03 18:58:29 Ping latency: 43.638839ms
+2025/03/03 18:58:29 Pinging nymtech.net seq=4
+2025/03/03 18:58:29 Ping latency: 43.345357ms
+2025/03/03 18:58:29 Pinging 1.1.1.1 seq=0
+2025/03/03 18:58:29 Ping latency: 46.327233ms
+2025/03/03 18:58:34 Pinging 1.1.1.1 seq=1
+2025/03/03 18:58:34 Ping latency: 46.273726ms
+2025/03/03 18:58:39 Pinging 1.1.1.1 seq=2
+2025/03/03 18:58:39 Ping latency: 46.542774ms
+2025/03/03 18:58:44 Pinging 1.1.1.1 seq=3
+2025/03/03 18:58:44 Ping latency: 45.663545ms
+2025/03/03 18:58:49 Pinging 1.1.1.1 seq=4
+2025/03/03 18:58:49 Ping latency: 43.803063ms
+2025/03/03 18:58:56 Downloaded file content length: 1.00 MB
+2025/03/03 18:58:56 Download duration: 1.308072386s
+2025/03/03 18:58:56 private_key=1083749e43f4f8fb008f3f7deef9107ef86a68969670ddbb9f07bf85f94fb564
+listen_port=39129
+public_key=3f95caf771b8a63b9bdae6c186f7aba2eae93483f1c82c0243b5e00c85b4ec26
+preshared_key=0000000000000000000000000000000000000000000000000000000000000000
+protocol_version=1
+endpoint=185.186.78.251:51822
+last_handshake_time_sec=0
+last_handshake_time_nsec=0
+tx_bytes=0
+rx_bytes=0
+persistent_keepalive_interval=0
+allowed_ip=::/0
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=0
+2025/03/03 18:58:56 Ping latency: 42.839528ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=1
+2025/03/03 18:58:56 Ping latency: 54.844651ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=2
+2025/03/03 18:58:56 Ping latency: 51.23104ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=3
+2025/03/03 18:58:56 Ping latency: 43.320409ms
+2025/03/03 18:58:56 Pinging ipv6.google.com seq=4
+2025/03/03 18:58:56 Ping latency: 63.517358ms
+2025/03/03 18:58:56 Pinging 2001:4860:4860::8888 seq=0
+2025/03/03 18:58:56 Ping latency: 54.682534ms
+2025/03/03 18:59:01 Pinging 2001:4860:4860::8888 seq=1
+2025/03/03 18:59:01 Ping latency: 55.56235ms
+2025/03/03 18:59:06 Pinging 2001:4860:4860::8888 seq=2
+2025/03/03 18:59:06 Ping latency: 55.970418ms
+2025/03/03 18:59:11 Pinging 2001:4860:4860::8888 seq=3
+2025/03/03 18:59:14 Failed to send ping: i/o timeout
+2025/03/03 18:59:19 Pinging 2001:4860:4860::8888 seq=4
+2025/03/03 18:59:22 Failed to send ping: i/o timeout
+2025/03/03 18:59:27 Pinging 2606:4700:4700::1111 seq=0
+2025/03/03 18:59:27 Ping latency: 45.072616ms
+2025/03/03 18:59:32 Pinging 2606:4700:4700::1111 seq=1
+2025/03/03 18:59:32 Ping latency: 44.357306ms
+2025/03/03 18:59:37 Pinging 2606:4700:4700::1111 seq=2
+2025/03/03 18:59:37 Ping latency: 44.013562ms
+2025/03/03 18:59:42 Pinging 2606:4700:4700::1111 seq=3
+2025/03/03 18:59:42 Ping latency: 46.94342ms
+2025/03/03 18:59:47 Pinging 2606:4700:4700::1111 seq=4
+2025/03/03 18:59:48 Ping latency: 43.372288ms
+2025/03/03 18:59:53 Pinging 2620:fe::fe seq=0
+2025/03/03 18:59:53 Ping latency: 42.164952ms
+2025/03/03 18:59:58 Pinging 2620:fe::fe seq=1
+2025/03/03 18:59:58 Ping latency: 42.295812ms
+2025/03/03 19:00:03 Pinging 2620:fe::fe seq=2
+2025/03/03 19:00:03 Ping latency: 43.117534ms
+2025/03/03 19:00:08 Pinging 2620:fe::fe seq=3
+2025/03/03 19:00:08 Ping latency: 44.26068ms
+2025/03/03 19:00:13 Pinging 2620:fe::fe seq=4
+2025/03/03 19:00:13 Ping latency: 45.29956ms
+2025/03/03 19:00:21 Downloaded file content length: 10.00 MB
+2025/03/03 19:00:21 Download duration: 3.39529252s
+```
+</AccordionTemplate>
+
+Whilst you can run the `-agent` directly, it might be easier to run multiple instances in parallel with a script like so:
+
+```bash
+#!/bin/bash
+
+set -eu
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
+
+probe_git_ref="nym-vpn-core-v1.4.0" # check for the most recent release
+monorepo_root=<PATH/TO/NYM/>
+
+set -a
+source "${monorepo_root}/envs/${ENVIRONMENT}.env"
+set +a
+
+export RUST_LOG="info"
+export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
+export NODE_STATUS_AGENT_SERVER_PORT="8000"
+export NODE_STATUS_AGENT_AUTH_KEY=<NS_AGENT_PRIVATE_KEY>
+export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1"
+
+workers=${1:-1}
+echo "Running $workers workers in parallel"
+
+function swarm() {
+  local workers=$1
+
+  for ((i = 1; i <= workers; i++)); do
+    ${monorepo_root}/target/release/nym-node-status-agent run-probe --probe-path ~/<PATH/TO>/nym-vpn-client/nym-vpn-core/target/debug/nym-gateway-probe &
+  done
+
+  wait
+
+  echo "All agents completed"
+}
+
+swarm $workers
+```
+
+And run specifying the number of workers with `./<SCRIPT_NAME>.sh <NUMBER_OF_WORKERS>`.
+
+<Callout type="info">
+When running the probe, use logging level `RUST_LOG=info`. The Node Status API relies on that granularity for parsing probe results, and the logs grow incessantly if a lower level (e.g. `DEBUG`) is used.
+</Callout>
+
+### Ports
+By default the API listens on `8000`, so you will need to configure this post to be reachable on your remote server. You can modify this with the `--http_port` flag.

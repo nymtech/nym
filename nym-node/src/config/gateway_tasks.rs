@@ -47,6 +47,17 @@ pub struct Debug {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 
+    /// The maximum number of client connections the gateway will keep open at once.
+    pub maximum_open_connections: usize,
+
+    /// Specifies the minimum performance of mixnodes in the network that are to be used in internal topologies
+    /// of the services providers
+    pub minimum_mix_performance: u8,
+
+    /// Defines the timestamp skew of a signed authentication request before it's deemed too excessive to process.
+    #[serde(alias = "maximum_auth_request_age")]
+    pub max_request_timestamp_skew: Duration,
+
     pub stale_messages: StaleMessageDebug,
 
     pub client_bandwidth: ClientBandwidthDebug,
@@ -55,13 +66,19 @@ pub struct Debug {
 }
 
 impl Debug {
-    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+    pub const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+    pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
+    pub const DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW: Duration = Duration::from_secs(120);
+    pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            maximum_open_connections: Self::DEFAULT_MAXIMUM_OPEN_CONNECTIONS,
+            max_request_timestamp_skew: Self::DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW,
+            minimum_mix_performance: Self::DEFAULT_MINIMUM_MIX_PERFORMANCE,
             stale_messages: Default::default(),
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),

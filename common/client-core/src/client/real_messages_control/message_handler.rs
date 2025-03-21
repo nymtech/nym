@@ -6,6 +6,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
     BatchRealMessageSender, RealMessage,
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
+use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use log::{debug, error, info, trace, warn};
@@ -33,10 +34,12 @@ pub enum PreparationError {
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
 
-    #[error("The received message cannot be sent using a single reply surb. It ended up getting split into {fragments} fragments.")]
+    #[error("message too long for a single SURB, splitting into {fragments} fragments.")]
     MessageTooLongForSingleSurb { fragments: usize },
 
-    #[error("Not enough reply SURBs to send the message. We have {available} available and require at least {required}.")]
+    #[error(
+        "not enough reply SURBs to send the message, available: {available} required: {required}."
+    )]
     NotEnoughSurbs { available: usize, required: usize },
 }
 
@@ -141,6 +144,12 @@ impl Config {
 }
 
 #[derive(Clone)]
+pub(crate) struct FragmentWithMaxRetransmissions {
+    pub(crate) fragment: Fragment,
+    pub(crate) max_retransmissions: MaxRetransmissions,
+}
+
+#[derive(Clone)]
 pub(crate) struct MessageHandler<R> {
     config: Config,
     rng: R,
@@ -196,10 +205,10 @@ where
             trace!("we already had sender tag for {recipient}");
             existing
         } else {
-            info!("creating new sender tag for {recipient}");
+            debug!("creating new sender tag for {recipient}");
             let new_tag = AnonymousSenderTag::new_random(&mut self.rng);
             self.tag_storage.insert_new(recipient, new_tag);
-            info!("we'll be using {new_tag} for all anonymous messages sent to {recipient}");
+            info!("using {new_tag} for all anonymous messages sent to {recipient}");
             new_tag
         }
     }
@@ -292,8 +301,14 @@ where
             Some(chunk.fragment_identifier()),
         );
         let delay = prepared_fragment.total_delay;
-        let pending_ack =
-            PendingAcknowledgement::new_anonymous(chunk, delay, target, is_extra_surb_request);
+        let max_retransmissions = None;
+        let pending_ack = PendingAcknowledgement::new_anonymous(
+            chunk,
+            delay,
+            target,
+            is_extra_surb_request,
+            max_retransmissions,
+        );
 
         let lane = if is_extra_surb_request {
             TransmissionLane::ReplySurbRequest
@@ -348,7 +363,7 @@ where
     pub(crate) async fn try_send_reply_chunks_on_lane(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<Fragment>,
+        fragments: Vec<FragmentWithMaxRetransmissions>,
         reply_surbs: Vec<ReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
@@ -365,12 +380,12 @@ where
     pub(crate) async fn try_send_reply_chunks(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<(TransmissionLane, Fragment)>,
+        fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
         reply_surbs: Vec<ReplySurb>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
-                fragments.iter().map(|(_, f)| f.clone()).collect(),
+                fragments.iter().map(|(_, f)| f.fragment.clone()).collect(),
                 reply_surbs,
             )
             .await?;
@@ -380,12 +395,21 @@ where
 
         for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
             let lane = raw.0;
-            let fragment = raw.1;
+            let FragmentWithMaxRetransmissions {
+                fragment,
+                max_retransmissions,
+            } = raw.1;
 
             let real_message =
                 RealMessage::new(prepared.mix_packet, Some(prepared.fragment_identifier));
             let delay = prepared.total_delay;
-            let pending_ack = PendingAcknowledgement::new_anonymous(fragment, delay, target, false);
+            let pending_ack = PendingAcknowledgement::new_anonymous(
+                fragment,
+                delay,
+                target,
+                false,
+                max_retransmissions,
+            );
 
             let entry = to_forward.entry(lane).or_default();
             entry.push(real_message);
@@ -414,10 +438,17 @@ where
         message: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
+        max_retransmissions: Option<u32>,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
-            .await
+        self.try_split_and_send_non_reply_message(
+            message,
+            recipient,
+            lane,
+            packet_type,
+            max_retransmissions,
+        )
+        .await
     }
 
     pub(crate) async fn try_split_and_send_non_reply_message(
@@ -426,6 +457,7 @@ where
         recipient: Recipient,
         lane: TransmissionLane,
         packet_type: PacketType,
+        max_retransmissions: Option<u32>,
     ) -> Result<(), PreparationError> {
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
@@ -465,7 +497,8 @@ where
                 Some(fragment.fragment_identifier()),
             );
             let delay = prepared_fragment.total_delay;
-            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
+            let pending_ack =
+                PendingAcknowledgement::new_known(fragment, delay, recipient, max_retransmissions);
 
             real_messages.push(real_message);
             pending_acks.push(pending_ack);
@@ -493,11 +526,15 @@ where
             reply_surbs,
         ));
 
+        // When sending SURBs we want to retransmit
+        let max_retransmissions = None;
+
         self.try_split_and_send_non_reply_message(
             message,
             recipient,
             TransmissionLane::AdditionalReplySurbs,
             packet_type,
+            max_retransmissions,
         )
         .await?;
 
@@ -514,6 +551,7 @@ where
         num_reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
+        max_retransmissions: Option<u32>,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -524,8 +562,14 @@ where
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
-            .await?;
+        self.try_split_and_send_non_reply_message(
+            message,
+            recipient,
+            lane,
+            packet_type,
+            max_retransmissions,
+        )
+        .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);

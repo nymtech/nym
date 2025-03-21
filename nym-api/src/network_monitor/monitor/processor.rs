@@ -169,6 +169,9 @@ where
     where
         R: Sync + Send + 'static,
     {
+        // this panic could only be triggered by incorrect startup sequence and shouldn't affect
+        // the binary beyond that
+        #[allow(clippy::expect_used)]
         let mut receiver_task = self
             .receiver_task
             .take()

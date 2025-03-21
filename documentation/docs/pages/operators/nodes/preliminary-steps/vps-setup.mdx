@@ -3,8 +3,9 @@ import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import PortsNymNode from 'components/operators/snippets/ports-nym-node.mdx';
-import PortsValidator from 'components/operators/snippets/ports-validator.mdx'
-import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx'
+import PortsValidator from 'components/operators/snippets/ports-validator.mdx';
+import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx';
+import NTPSync from 'components/operators/snippets/ntp-time-sync.mdx'
 
 # VPS Setup & Configuration
 
@@ -42,14 +43,18 @@ apt update -y && apt --fix-broken install
 ```
 - Install dependencies
 ```sh
-apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git
+apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git ntp ntpdate
 ```
 - Double check ufw is installed correctly
 ```sh
 apt install ufw --fix-missing
 ```
 
-###### 2. Configure your firewall using Uncomplicated Firewall (UFW)
+###### 2. Synchronize time of your server
+
+<NTPSync />
+
+###### 3. Configure your firewall using Uncomplicated Firewall (UFW)
 
 For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
 
@@ -70,7 +75,7 @@ ufw enable
 ufw status
 ```
 
-###### 3. Open all needed ports to have your firewall for `nym-node` working correctly
+###### 4. Open all needed ports to have your firewall for `nym-node` working correctly
 
 <div>
   <Tabs items={[

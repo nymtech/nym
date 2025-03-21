@@ -462,6 +462,10 @@ pub struct ReplySurbsWasm {
     /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
     pub maximum_reply_surb_storage_threshold: usize,
 
+    /// Defines the soft threshold ontop of the minimum reply surb storage threshold for when the client
+    /// should proactively request additional reply surbs.
+    pub minimum_reply_surb_threshold_buffer: usize,
+
     /// Defines the minimum number of reply surbs the client would request.
     pub minimum_reply_surb_request_size: u32,
 
@@ -490,6 +494,9 @@ pub struct ReplySurbsWasm {
     /// Defines how many mix nodes the reply surb should go through.
     /// If not set, the default value is going to be used.
     pub surb_mix_hops: Option<u8>,
+
+    /// Specifies if we should reset all the sender tags on startup
+    pub fresh_sender_tags: bool,
 }
 
 impl Default for ReplySurbsWasm {
@@ -503,6 +510,7 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
         ConfigReplySurbs {
             minimum_reply_surb_storage_threshold: reply_surbs.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: reply_surbs.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_threshold_buffer: reply_surbs.minimum_reply_surb_threshold_buffer,
             minimum_reply_surb_request_size: reply_surbs.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: reply_surbs.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: reply_surbs
@@ -520,6 +528,7 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
                 reply_surbs.maximum_reply_key_age_ms as u64,
             ),
             surb_mix_hops: reply_surbs.surb_mix_hops,
+            fresh_sender_tags: reply_surbs.fresh_sender_tags,
         }
     }
 }
@@ -529,6 +538,7 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
         ReplySurbsWasm {
             minimum_reply_surb_storage_threshold: reply_surbs.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: reply_surbs.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_threshold_buffer: reply_surbs.minimum_reply_surb_threshold_buffer,
             minimum_reply_surb_request_size: reply_surbs.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: reply_surbs.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: reply_surbs
@@ -542,6 +552,7 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
             maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
             surb_mix_hops: reply_surbs.surb_mix_hops,
+            fresh_sender_tags: reply_surbs.fresh_sender_tags,
         }
     }
 }

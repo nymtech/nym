@@ -20,7 +20,7 @@ pub(crate) struct Args {
         value_delimiter = ',',
         env = NYX_CHAIN_WATCHER_WATCH_ACCOUNTS
     )]
-    pub watch_for_transfer_recipient_accounts: Option<Vec<AccountId>>,
+    pub watch_for_transfer_recipient_accounts: Vec<AccountId>,
 
     /// (Override) Watch for chain messages of these types
     #[clap(
@@ -28,7 +28,7 @@ pub(crate) struct Args {
         value_delimiter = ',',
         env = NYX_CHAIN_WATCHER_WATCH_CHAIN_MESSAGE_TYPES
     )]
-    pub watch_for_chain_message_types: Option<Vec<String>>,
+    pub watch_for_chain_message_types: Vec<String>,
 
     /// (Override) The webhook to call when we find something
     #[clap(

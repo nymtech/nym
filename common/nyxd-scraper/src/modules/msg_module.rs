@@ -9,6 +9,8 @@ use cosmrs::Any;
 
 #[async_trait]
 pub trait MsgModule {
+    fn type_url(&self) -> String;
+
     async fn handle_msg(
         &mut self,
         index: usize,

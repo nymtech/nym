@@ -97,7 +97,13 @@ pub struct Debug {
     /// Specifies maximum age of stored messages before they are removed from the storage
     pub stale_messages_max_age: Duration,
 
+    /// The maximum number of client connections the gateway will keep open at once.
+    pub maximum_open_connections: usize,
+
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
+
+    /// Defines the timestamp skew of a signed authentication request before it's deemed too excessive to process.
+    pub max_request_timestamp_skew: Duration,
 }
 
 #[derive(Debug, Clone)]

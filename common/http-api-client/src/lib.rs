@@ -147,12 +147,12 @@ use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
+use http::HeaderMap;
+pub use reqwest::IntoUrl;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
-
-pub use reqwest::IntoUrl;
 
 mod user_agent;
 pub use user_agent::UserAgent;
@@ -210,6 +210,12 @@ pub enum HttpClientError<E: Display = String> {
     #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
     EndpointFailure { status: StatusCode, error: E },
 
+    #[error("failed to decode response body: {source} from {content}")]
+    ResponseDecodeFailure {
+        source: serde_json::Error,
+        content: String,
+    },
+
     #[cfg(target_arch = "wasm32")]
     #[error("the request has timed out")]
     RequestTimeout,
@@ -222,6 +228,8 @@ pub struct ClientBuilder {
     timeout: Option<Duration>,
     custom_user_agent: bool,
     reqwest_client_builder: reqwest::ClientBuilder,
+    #[allow(dead_code)] // not dead code, just unused in wasm
+    use_secure_dns: bool,
 }
 
 impl ClientBuilder {
@@ -233,37 +241,46 @@ impl ClientBuilder {
         U: IntoUrl,
         E: Display,
     {
-        // a naive check: if the provided URL does not start with http(s), add that scheme
         let str_url = url.as_str();
 
+        // a naive check: if the provided URL does not start with http(s), add that scheme
         if !str_url.starts_with("http") {
             let alt = format!("http://{str_url}");
             warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
-            #[cfg(target_arch = "wasm32")]
-            let reqwest_client_builder = reqwest::ClientBuilder::new();
+            Ok(Self::new_with_url(url.into_url()?))
+        }
+    }
 
-            #[cfg(not(target_arch = "wasm32"))]
-            let reqwest_client_builder = {
-                let r = reqwest::ClientBuilder::new()
-                    .dns_resolver(Arc::new(HickoryDnsResolver::default()));
+    /// Constructs a new http `ClientBuilder` from a valid url.
+    pub fn new_with_url(url: Url) -> Self {
+        if !url.scheme().starts_with("http") {
+            warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
+        }
 
-                // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
-                // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
-                //
-                // I am going to leave it here anyways so that gzip decompression is attempted even if
-                // that feature is removed.
-                r.gzip(true)
-            };
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client_builder = reqwest::ClientBuilder::new();
 
-            Ok(ClientBuilder {
-                url: url.into_url()?,
-                timeout: None,
-                custom_user_agent: false,
-                reqwest_client_builder,
-            })
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client_builder = {
+            let r = reqwest::ClientBuilder::new();
+
+            // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
+            // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
+            //
+            // I am going to leave it here anyways so that gzip decompression is attempted even if
+            // that feature is removed.
+            r.gzip(true)
+        };
+
+        ClientBuilder {
+            url,
+            timeout: None,
+            custom_user_agent: false,
+            reqwest_client_builder,
+            use_secure_dns: true,
         }
     }
 
@@ -319,10 +336,18 @@ impl ClientBuilder {
             let mut builder = self
                 .reqwest_client_builder
                 .timeout(self.timeout.unwrap_or(DEFAULT_TIMEOUT));
+
+            // if no custom user agent was set, use a default
             if !self.custom_user_agent {
                 builder =
                     builder.user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
             }
+
+            // unless explicitly disabled use the DoT/DoH enabled resolver
+            if self.use_secure_dns {
+                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+            }
+
             builder.build()?
         };
 
@@ -349,6 +374,9 @@ pub struct Client {
 impl Client {
     /// Create a new http `Client`
     // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
+    //
+    // In order to prevent interference in API requests at the DNS phase we default to a resolver
+    // that uses DoT and DoH.
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",
@@ -849,6 +877,26 @@ fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
+fn decode_as_text(bytes: &bytes::Bytes, headers: HeaderMap) -> String {
+    use encoding_rs::{Encoding, UTF_8};
+    use mime::Mime;
+
+    let content_type = headers
+        .get(http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<Mime>().ok());
+
+    let encoding_name = content_type
+        .as_ref()
+        .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+        .unwrap_or("utf-8");
+
+    let encoding = Encoding::for_label(encoding_name.as_bytes()).unwrap_or(UTF_8);
+
+    let (text, _, _) = encoding.decode(bytes);
+    text.into_owned()
+}
+
 /// Attempt to parse a json object from an HTTP response
 #[instrument(level = "debug", skip_all)]
 pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
@@ -864,21 +912,23 @@ where
             return Err(HttpClientError::EmptyResponse { status });
         }
     }
+    let headers = res.headers().clone();
+    tracing::trace!("headers: {:?}", headers);
 
     if res.status().is_success() {
-        #[cfg(debug_assertions)]
-        {
-            let text = res.text().await.inspect_err(|err| {
-                tracing::error!("Couldn't even get response text: {err}");
-            })?;
-            tracing::trace!("Result:\n{:#?}", text);
-
-            serde_json::from_str(&text)
-                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))
+        // internally reqwest is first retrieving bytes and then performing parsing via serde_json
+        // (and similarly does the same thing for text())
+        let full = res.bytes().await?;
+        match serde_json::from_slice(&full) {
+            Ok(data) => Ok(data),
+            Err(err) => {
+                let content = decode_as_text(&full, headers);
+                Err(HttpClientError::ResponseDecodeFailure {
+                    source: err,
+                    content,
+                })
+            }
         }
-
-        #[cfg(not(debug_assertions))]
-        Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

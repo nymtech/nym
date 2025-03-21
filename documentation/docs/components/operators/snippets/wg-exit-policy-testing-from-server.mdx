@@ -1,0 +1,11 @@
+Run this command to define variable `BLOCKED_IP` and try to `ping` it:
+```shell
+BLOCKED_IP=$(grep "ExitPolicy reject" /etc/nym/exit-policy.txt | head -1 | sed -E 's/ExitPolicy reject ([^:]+):.*/\1/' | sed 's/\/.*$//')
+
+ping -c 3 $BLOCKED_IP
+```
+You should see `100% packet loss` as an outcome.
+```shell
+telnet $BLOCKED_IP 80
+```
+You should see `telnet: Unable to connect to remote host: Connection timed out`.

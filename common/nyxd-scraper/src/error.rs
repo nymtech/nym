@@ -83,6 +83,15 @@ pub enum ScraperError {
         source: cosmrs::ErrorReport,
     },
 
+    #[error("could not parse msg in tx {hash} at index {index} into {type_url}: {source}")]
+    MsgParseFailure {
+        hash: Hash,
+        index: usize,
+        type_url: String,
+        #[source]
+        source: cosmrs::ErrorReport,
+    },
+
     #[error("received an invalid chain subscription event of kind {kind} while we were waiting for new block data (query: '{query}')")]
     InvalidSubscriptionEvent { query: String, kind: String },
 

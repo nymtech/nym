@@ -4,6 +4,216 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.5-chokito] (2025-03-18)
+
+- build(deps): bump braces from 3.0.2 to 3.0.3 in /sdk/typescript/packages/nodejs-client ([#5611])
+- build(deps-dev): bump webpack-dev-middleware from 5.3.3 to 5.3.4 in /wasm/client/internal-dev ([#5610])
+- Export lane queue lengths in sdk ([#5609])
+- Chore/more payment watcher debug endpoints ([#5608])
+- build(deps): bump @babel/helpers from 7.24.4 to 7.26.10 ([#5606])
+- Chore/update bls12 381 fork ([#5605])
+- chore: change auth v2 timestamp skew and allow values from the future ([#5604])
+- Chore/payment watcher debug endpoints ([#5601])
+- Allow resetting all SURB sender tags ([#5600])
+- introduce internal tool for checking signer status ([#5598])
+- build(deps-dev): bump webpack from 5.77.0 to 5.98.0 in /wasm/mix-fetch/internal-dev ([#5597])
+- build(deps): bump body-parser and express in /wasm/mix-fetch/internal-dev ([#5596])
+- build(deps): bump serve-static and express in /wasm/mix-fetch/internal-dev ([#5594])
+- build(deps-dev): bump ws from 8.13.0 to 8.18.1 in /wasm/mix-fetch/internal-dev ([#5593])
+- build(deps): bump cookie and express in /wasm/client/internal-dev ([#5592])
+- build(deps): bump cookie and express in /wasm/mix-fetch/internal-dev ([#5591])
+- build(deps): bump braces from 3.0.2 to 3.0.3 in /wasm/zknym-lib/internal-dev ([#5590])
+- build(deps): bump webpack-dev-middleware from 5.3.3 to 5.3.4 in /wasm/zknym-lib/internal-dev ([#5589])
+- build(deps): bump tempfile from 3.17.1 to 3.18.0 ([#5588])
+- build(deps): bump tokio from 1.43.0 to 1.44.0 ([#5587])
+- build(deps): bump the patch-updates group with 8 updates ([#5585])
+- build(deps): bump ring from 0.17.9 to 0.17.13 ([#5583])
+- delete double memo field in send modal ([#5578])
+- Server Side internal DoT/DoH opt out ([#5577])
+- Rust SDK SURB example: change hardcoded file to tempdir ([#5576])
+- Add /v3/nym-nodes ([#5569])
+- chore: start sending v2 sphinx packets ([#5554])
+- build(deps): bump the patch-updates group across 1 directory with 14 updates ([#5549])
+- build(deps): bump uuid from 1.13.2 to 1.15.1 ([#5542])
+- build(deps): bump rs_merkle from 1.4.2 to 1.5.0 ([#5541])
+- feature: v2 authentication request ([#5537])
+- Set RUSTUP_PERMIT_COPY_RENAME ([#5533])
+- feature: disallow routing mix packets to nodes not present in the topology ([#5526])
+- Make "Memo" visible per default on send NYM ([#5524])
+- feat: make sure any terminated task kills the watcher and write run info to db ([#5517])
+- Another total_stake SQL fix ([#5516])
+- Fix total_stake on SQL update ([#5514])
+- build(deps): bump flate2 from 1.0.35 to 1.1.0 ([#5510])
+- build(deps): bump itertools from 0.13.0 to 0.14.0 ([#5509])
+- build(deps): bump the patch-updates group with 2 updates ([#5505])
+- Treat gateways as Nym Nodes ([#5504])
+- Update version in Cargo.toml ([#5503])
+- feat: use ct_eq for checking bearer token ([#5501])
+- Add extra args for the probe ([#5499])
+- Fix stats bug & remove HM caching ([#5495])
+- fix: Cargo.lock for contracts ([#5489])
+- Display error messages if IPv4 or IPv6 address not found on nymtun0 ([#5465])
+
+[#5611]: https://github.com/nymtech/nym/pull/5611
+[#5610]: https://github.com/nymtech/nym/pull/5610
+[#5609]: https://github.com/nymtech/nym/pull/5609
+[#5608]: https://github.com/nymtech/nym/pull/5608
+[#5606]: https://github.com/nymtech/nym/pull/5606
+[#5605]: https://github.com/nymtech/nym/pull/5605
+[#5604]: https://github.com/nymtech/nym/pull/5604
+[#5601]: https://github.com/nymtech/nym/pull/5601
+[#5600]: https://github.com/nymtech/nym/pull/5600
+[#5598]: https://github.com/nymtech/nym/pull/5598
+[#5597]: https://github.com/nymtech/nym/pull/5597
+[#5596]: https://github.com/nymtech/nym/pull/5596
+[#5594]: https://github.com/nymtech/nym/pull/5594
+[#5593]: https://github.com/nymtech/nym/pull/5593
+[#5592]: https://github.com/nymtech/nym/pull/5592
+[#5591]: https://github.com/nymtech/nym/pull/5591
+[#5590]: https://github.com/nymtech/nym/pull/5590
+[#5589]: https://github.com/nymtech/nym/pull/5589
+[#5588]: https://github.com/nymtech/nym/pull/5588
+[#5587]: https://github.com/nymtech/nym/pull/5587
+[#5585]: https://github.com/nymtech/nym/pull/5585
+[#5583]: https://github.com/nymtech/nym/pull/5583
+[#5578]: https://github.com/nymtech/nym/pull/5578
+[#5577]: https://github.com/nymtech/nym/pull/5577
+[#5576]: https://github.com/nymtech/nym/pull/5576
+[#5569]: https://github.com/nymtech/nym/pull/5569
+[#5554]: https://github.com/nymtech/nym/pull/5554
+[#5549]: https://github.com/nymtech/nym/pull/5549
+[#5542]: https://github.com/nymtech/nym/pull/5542
+[#5541]: https://github.com/nymtech/nym/pull/5541
+[#5537]: https://github.com/nymtech/nym/pull/5537
+[#5533]: https://github.com/nymtech/nym/pull/5533
+[#5526]: https://github.com/nymtech/nym/pull/5526
+[#5524]: https://github.com/nymtech/nym/pull/5524
+[#5517]: https://github.com/nymtech/nym/pull/5517
+[#5516]: https://github.com/nymtech/nym/pull/5516
+[#5514]: https://github.com/nymtech/nym/pull/5514
+[#5510]: https://github.com/nymtech/nym/pull/5510
+[#5509]: https://github.com/nymtech/nym/pull/5509
+[#5505]: https://github.com/nymtech/nym/pull/5505
+[#5504]: https://github.com/nymtech/nym/pull/5504
+[#5503]: https://github.com/nymtech/nym/pull/5503
+[#5501]: https://github.com/nymtech/nym/pull/5501
+[#5499]: https://github.com/nymtech/nym/pull/5499
+[#5495]: https://github.com/nymtech/nym/pull/5495
+[#5489]: https://github.com/nymtech/nym/pull/5489
+[#5465]: https://github.com/nymtech/nym/pull/5465
+
+## [2025.4-dorina-patched] (2025-03-06)
+
+- use legacy crypto for constructing SURB headers ([#5579])
+- bugfix: make sure to correctly decode response content when putting it into error message ([#5571])
+- Tweak surb management to be more conservative ([#5570])
+- Deserialize v5 authenticator requests ([#5568])
+- chore: additional logs when attempting to load ecash keys ([#5567])
+- add full response body to error message upon decoding failure ([#5566])
+- hotfix: ensure we bail on merkle leaves insertion upon missing data ([#5565])
+- feature: v2 authentication request (#5537) ([#5563])
+- Create authenticator v5 request/response types ([#5561])
+
+[#5579]: https://github.com/nymtech/nym/pull/5579
+[#5571]: https://github.com/nymtech/nym/pull/5571
+[#5570]: https://github.com/nymtech/nym/pull/5570
+[#5568]: https://github.com/nymtech/nym/pull/5568
+[#5567]: https://github.com/nymtech/nym/pull/5567
+[#5566]: https://github.com/nymtech/nym/pull/5566
+[#5565]: https://github.com/nymtech/nym/pull/5565
+[#5563]: https://github.com/nymtech/nym/pull/5563
+[#5561]: https://github.com/nymtech/nym/pull/5561
+
+## [2025.4-dorina] (2025-03-04)
+
+- fixed sphinx version metrics registration ([#5546])
+- Feature/chain status api ([#5539])
+- Add SURBs soft threshold ([#5535])
+- Simplify IPR v8 ([#5532])
+- Shared instance for DNS AsyncResolver ([#5523])
+- merge #5512 again after reverting due to incorrect rebase ([#5520])
+- cherry-pick 17d3ff2d775f61aee381d90a304ed416c08f33fc onto dorina ([#5519])
+- cherry-pick 6e5d0dac1b75413c5f09122b0d953f8ec6ef48df onto dorina ([#5518])
+- chore: workspace global panic preventing lints ([#5512])
+- bugfix: dont query for ecash apis unless necessary when spending ticketbooks ([#5508])
+- bugfix: bound check when recovering a reply SURB ([#5502])
+- chore: removed all old coconut code ([#5500])
+- IPR request types v8 ([#5498])
+- Support static routes for HTTP requests ([#5487])
+- build(deps): bump the patch-updates group across 1 directory with 3 updates ([#5482])
+- added missing import to doctest ([#5480])
+- adjusted TestSetup::new_complex to ensure bonded node's existence ([#5478])
+- Trigger contracts CI on main workspace Cargo changes ([#5477])
+- build(deps): bump http from 1.1.0 to 1.2.0 ([#5472])
+- build(deps): bump utoipa-swagger-ui from 8.0.3 to 8.1.0 ([#5471])
+- build(deps): bump colored from 2.1.0 to 2.2.0 ([#5470])
+- build(deps): bump celes from 2.4.0 to 2.5.0 ([#5469])
+- build(deps): bump the patch-updates group with 2 updates ([#5467])
+- build(deps): bump elliptic from 6.5.4 to 6.6.1 in /docker/typescript_client/upload_contract ([#5463])
+- Run cargo autoinherit ([#5460])
+- Fix clippy::precedence ([#5457])
+- Provide Interval context with node descriptor endpoints ([#5456])
+- fix: update fx average rate calcs to ignore 0 values ([#5454])
+- Feature/add gbp currency ([#5453])
+- Add helper to extract a list of sqlite files with journal files wal/shm ([#5452])
+- Add a middleware layer to the nym api allowing for data compression ([#5451])
+- Condense core API functionalities and enable gzip decompression for reqwest payloads ([#5450])
+- build(deps): bump uniffi_build from 0.25.3 to 0.29.0 ([#5448])
+- Upgrade tower to 0.5.2 ([#5446])
+- build(deps): bump hickory-proto from 0.24.2 to 0.24.3 ([#5444])
+- Seedable clients ([#5440])
+- build(deps): bump the patch-updates group across 1 directory with 10 updates ([#5439])
+- Remove all recv_with_delay and add shutdown condition to loops in client-core ([#5435])
+- Disable the test for checking the remaining bandwidth in nym-node-status-api ([#5425])
+- Dz nym node stats ([#5418])
+- build(deps): bump hyper from 1.4.1 to 1.6.0 ([#5416])
+- build(deps): bump publicsuffix from 2.2.3 to 2.3.0 ([#5367])
+- Nymnode entrypoint docker ([#5300])
+
+[#5546]: https://github.com/nymtech/nym/pull/5546
+[#5539]: https://github.com/nymtech/nym/pull/5539
+[#5535]: https://github.com/nymtech/nym/pull/5535
+[#5532]: https://github.com/nymtech/nym/pull/5532
+[#5523]: https://github.com/nymtech/nym/pull/5523
+[#5520]: https://github.com/nymtech/nym/pull/5520
+[#5519]: https://github.com/nymtech/nym/pull/5519
+[#5518]: https://github.com/nymtech/nym/pull/5518
+[#5512]: https://github.com/nymtech/nym/pull/5512
+[#5508]: https://github.com/nymtech/nym/pull/5508
+[#5502]: https://github.com/nymtech/nym/pull/5502
+[#5500]: https://github.com/nymtech/nym/pull/5500
+[#5498]: https://github.com/nymtech/nym/pull/5498
+[#5487]: https://github.com/nymtech/nym/pull/5487
+[#5482]: https://github.com/nymtech/nym/pull/5482
+[#5480]: https://github.com/nymtech/nym/pull/5480
+[#5478]: https://github.com/nymtech/nym/pull/5478
+[#5477]: https://github.com/nymtech/nym/pull/5477
+[#5472]: https://github.com/nymtech/nym/pull/5472
+[#5471]: https://github.com/nymtech/nym/pull/5471
+[#5470]: https://github.com/nymtech/nym/pull/5470
+[#5469]: https://github.com/nymtech/nym/pull/5469
+[#5467]: https://github.com/nymtech/nym/pull/5467
+[#5463]: https://github.com/nymtech/nym/pull/5463
+[#5460]: https://github.com/nymtech/nym/pull/5460
+[#5457]: https://github.com/nymtech/nym/pull/5457
+[#5456]: https://github.com/nymtech/nym/pull/5456
+[#5454]: https://github.com/nymtech/nym/pull/5454
+[#5453]: https://github.com/nymtech/nym/pull/5453
+[#5452]: https://github.com/nymtech/nym/pull/5452
+[#5451]: https://github.com/nymtech/nym/pull/5451
+[#5450]: https://github.com/nymtech/nym/pull/5450
+[#5448]: https://github.com/nymtech/nym/pull/5448
+[#5446]: https://github.com/nymtech/nym/pull/5446
+[#5444]: https://github.com/nymtech/nym/pull/5444
+[#5440]: https://github.com/nymtech/nym/pull/5440
+[#5439]: https://github.com/nymtech/nym/pull/5439
+[#5435]: https://github.com/nymtech/nym/pull/5435
+[#5425]: https://github.com/nymtech/nym/pull/5425
+[#5418]: https://github.com/nymtech/nym/pull/5418
+[#5416]: https://github.com/nymtech/nym/pull/5416
+[#5367]: https://github.com/nymtech/nym/pull/5367
+[#5300]: https://github.com/nymtech/nym/pull/5300
+
 ## [2025.3-ruta] (2025-02-10)
 
 - Push down forget me to client configs ([#5431])
@@ -48,7 +258,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Downgrade harmless log message from info to debug ([#5403])
 - Redirect from mixnode page to nodes page ([#5397])
 - chore :update version of chain watcher and validator rewarder ([#5394])
-- bugfix: correctly handle ingore epoch roles flag ([#5390])
+- bugfix: correctly handle ignore epoch roles flag ([#5390])
 - bugfix: terminate mixnet socket listener on shutdown ([#5389])
 - feat: make client ignore dual mode nodes by default ([#5388])
 - Handle ecash network errors differently ([#5378])
@@ -69,7 +279,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Use expect in geodata test to give error message on failure ([#5314])
 - feature: periodically remove stale gateway messages ([#5312])
 - build(deps): bump the patch-updates group across 1 directory with 35 updates ([#5310])
-- Add dependabot assignes for the root cargo ecosystem ([#5297])
+- Add dependabot assigns for the root cargo ecosystem ([#5297])
 - Move tun constants to network defaults ([#5286])
 - Include IPINFO_API_TOKEN in nightly CI ([#5285])
 - Nyx Chain Watcher ([#5274])
@@ -122,7 +332,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2025.1-reeses] (2025-01-15)
 
-- Feture/legacy alert ([#5346])
+- Feature, Future/legacy alert ([#5346])
 - chore: readjusted --mode behaviour to fix the regression ([#5331])
 - chore: apply 1.84 linter suggestions ([#5330])
 - bugfix: make sure refresh data key matches bond info ([#5329])
@@ -202,7 +412,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2024.14-crunch-patched] (2024-12-17)
 
-- Fixes an issue to allow previously registred clients to connect to latest nym-nodes
+- Fixes an issue to allow previously registered clients to connect to latest nym-nodes
 - Fixes compatibility issues between nym-nodes and older clients
 
 ## [2024.14-crunch] (2024-12-11)
@@ -210,7 +420,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Merge/release/2024.14-crunch ([#5242])
 - bugfix: added explicit openapi servers to account for route prefixes ([#5237])
 - Further config score adjustments ([#5225])
-- feature: remve any filtering on node semver ([#5224])
+- feature: remove any filtering on node semver ([#5224])
 - Backport #5218 ([#5220])
 - Derive serialize for UserAgent (#5210) ([#5217])
 - dont consider legacy nodes for rewarded set selection ([#5215])
@@ -389,7 +599,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - bugfix/feature: added NymApiClient method to get all skimmed nodes ([#5062])
 - Merge1/release/2024.13 magura ([#5061])
 - added hacky routes to return nymnodes alongside legacy nodes ([#5051])
-- bugfix: mark migrated gateways as rewarded in the previous epoch in case theyre in the rewarded set ([#5049])
+- bugfix: mark migrated gateways as rewarded in the previous epoch in case they're, their, there in the rewarded set ([#5049])
 - bugfix: adjust runtime storage migration ([#5047])
 - bugfix: supersede 'cb13be27f8f61d9ae74d924e85d2e6787895eb14' by using… ([#5046])
 - bugfix: restore default http port for nym-api ([#5045])
@@ -450,7 +660,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Fix broken build after merge ([#4937])
 - bugfix: correctly paginate through 'search_tx' endpoint ([#4936])
 - Add more conversions for responses of authenticator messages ([#4929])
-- Directory Sevices v2.1 ([#4903])
+- Directory Services, Devices v2.1 ([#4903])
 - Migrate Legacy Node (Frontend)  ([#4826])
 - Fix critical issues SI84 and SI85 from Cure53 ([#4758])
 
@@ -834,7 +1044,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Remove stale peers ([#4640])
 - Add generic wg private network routing ([#4636])
 - Feature/new node endpoints ([#4635])
-- standarised ContractBuildInformation and added it to all contracts ([#4631])
+- standardised ContractBuildInformation and added it to all contracts ([#4631])
 - validate nym-node public ips on startup ([#4630])
 - Bump defguard wg ([#4625])
 - Fix cargo warnings ([#4624])
@@ -1455,7 +1665,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
 - renamed all references to validator_api to nym_api
 - renamed all references to nymd to nyxd ([#2696])
-- all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
+- all-binaries: standardised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
@@ -1960,7 +2170,7 @@ The release also include some additional work for distributed key generation in 
 - Explorer UI tests missing data-testid [\#903](https://github.com/nymtech/nym/pull/903) ([tommyv1987](https://github.com/tommyv1987))
 - Fix up Nym-Wallet README.md [\#899](https://github.com/nymtech/nym/pull/899) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/batch delegator rewarding [\#898](https://github.com/nymtech/nym/pull/898) ([jstuczyn](https://github.com/jstuczyn))
-- Bug mapp nodemap [\#897](https://github.com/nymtech/nym/pull/897) ([Aid19801](https://github.com/Aid19801))
+- Bug map nodemap [\#897](https://github.com/nymtech/nym/pull/897) ([Aid19801](https://github.com/Aid19801))
 - Bug fix/macos keyboard shortcuts [\#896](https://github.com/nymtech/nym/pull/896) ([fmtabbara](https://github.com/fmtabbara))
 - Add a Mobile Nav to the Network Explorer [\#895](https://github.com/nymtech/nym/pull/895) ([Aid19801](https://github.com/Aid19801))
 - Only use ts-rs in tests [\#894](https://github.com/nymtech/nym/pull/894) ([durch](https://github.com/durch))

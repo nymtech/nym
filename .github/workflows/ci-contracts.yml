@@ -51,6 +51,11 @@ jobs:
       - name: Install cosmwasm-check
         run: cargo install cosmwasm-check
 
+      - name: Install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '114'
+
       - name: Build contracts
         uses: actions-rs/cargo@v1
         env:
@@ -77,6 +82,18 @@ jobs:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings
 
+      - name: Build release contracts
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-C link-arg=-s'
+        with:
+          command: build
+          args: --release --manifest-path contracts/Cargo.toml --workspace --lib --target wasm32-unknown-unknown
+
+      - name: Optimise the release build
+        run: make wasm-opt-contracts
+
+      # cosmwasm-check against debug build will not work due to the memory overhead
       - name: Check chain compatibility
-        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/debug/*.wasm
-        
+        run: cosmwasm-check contracts/target/wasm32-unknown-unknown/release/*.wasm
+

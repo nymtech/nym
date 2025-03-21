@@ -14,28 +14,12 @@ on:
       - '.github/workflows/ci-contracts.yml'
 
 jobs:
-  matrix_prep:
-    runs-on: ubuntu-20.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      # creates the matrix strategy from ci-contracts-matrix-includes.json
-      - uses: actions/checkout@v4
-      - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@main
-        with:
-          inputFile: '.github/workflows/ci-contracts-matrix-includes.json'
-          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
-    needs: matrix_prep
-    strategy:
-      fail-fast: false
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,7 +27,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
+          toolchain: 1.81 # test
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy

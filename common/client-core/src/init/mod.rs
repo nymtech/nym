@@ -23,6 +23,8 @@ use nym_topology::node::RoutingNode;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::Serialize;
+#[cfg(unix)]
+use std::{os::fd::RawFd, sync::Arc};
 
 pub mod helpers;
 pub mod types;
@@ -53,6 +55,7 @@ async fn setup_new_gateway<K, D>(
     details_store: &D,
     selection_specification: GatewaySelectionSpecification,
     available_gateways: Vec<RoutingNode>,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
@@ -108,9 +111,14 @@ where
             // if we're using a 'normal' gateway setup, do register
             let our_identity = client_keys.identity_keypair();
 
-            let registration =
-                helpers::register_with_gateway(gateway_id, gateway_listener.clone(), our_identity)
-                    .await?;
+            let registration = helpers::register_with_gateway(
+                gateway_id,
+                gateway_listener.clone(),
+                our_identity,
+                #[cfg(unix)]
+                connection_fd_callback,
+            )
+            .await?;
             (
                 GatewayDetails::new_remote(
                     gateway_id,
@@ -203,9 +211,19 @@ where
         GatewaySetup::New {
             specification,
             available_gateways,
+            #[cfg(unix)]
+            connection_fd_callback,
         } => {
             log::debug!("GatewaySetup::New with spec: {specification:?}");
-            setup_new_gateway(key_store, details_store, specification, available_gateways).await
+            setup_new_gateway(
+                key_store,
+                details_store,
+                specification,
+                available_gateways,
+                #[cfg(unix)]
+                connection_fd_callback,
+            )
+            .await
         }
         GatewaySetup::ReuseConnection {
             authenticated_ephemeral_client,

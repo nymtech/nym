@@ -543,6 +543,8 @@ where
         Ok(GatewaySetup::New {
             specification: selection_spec,
             available_gateways,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback.clone(),
         })
     }
 

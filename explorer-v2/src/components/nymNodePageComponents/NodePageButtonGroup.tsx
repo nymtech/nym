@@ -25,7 +25,6 @@ export default function NodePageButtonGroup({ paramId }: Props) {
     const id = Number(paramId)
     const {
         data: nymNodes,
-        isLoading,
         isError,
     } = useQuery({
         queryKey: ["nymNodes"],

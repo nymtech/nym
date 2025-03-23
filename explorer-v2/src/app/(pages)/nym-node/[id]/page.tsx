@@ -8,7 +8,6 @@ import NodePageButtonGroup from "@/components/nymNodePageComponents/NodePageButt
 import { NodeParametersCard } from "@/components/nymNodePageComponents/NodeParametersCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRoleCard } from "@/components/nymNodePageComponents/NodeRoleCard";
-import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 

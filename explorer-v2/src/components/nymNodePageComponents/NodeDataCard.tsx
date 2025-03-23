@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
-
 import { Skeleton, Typography } from "@mui/material";
 import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";

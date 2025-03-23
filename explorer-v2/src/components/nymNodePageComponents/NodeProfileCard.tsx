@@ -48,7 +48,7 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     refetchOnMount: false,
   });
 
-  if (isLoading) {
+  if (isLoadingNymNodes) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
         <Skeleton variant="rectangular" height={80} width={80} />

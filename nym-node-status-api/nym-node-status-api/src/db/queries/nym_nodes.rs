@@ -1,10 +1,9 @@
-use anyhow::Context;
 use futures_util::TryStreamExt;
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::NymNodeDescription,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tracing::instrument;
 
 use crate::db::{
@@ -45,7 +44,9 @@ pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNo
 ///
 /// same if it's not bonded in the mixnet smart contract
 /// - https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
-pub(crate) async fn get_active_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNodeDto>> {
+pub(crate) async fn get_described_bonded_nym_nodes(
+    pool: &DbPool,
+) -> anyhow::Result<Vec<NymNodeDto>> {
     let mut conn = pool.acquire().await?;
 
     sqlx::query_as!(
@@ -84,17 +85,14 @@ pub(crate) async fn update_nym_nodes(
 ) -> anyhow::Result<usize> {
     let mut tx = pool.begin().await?;
 
-    let mut nodes_to_delete = sqlx::query!(
-        r#"SELECT
-            node_id as "node_id!: i64"
-        FROM
-            nym_nodes
-        "#,
+    sqlx::query!(
+        "UPDATE nym_nodes
+        SET
+            self_described = NULL,
+            bond_info = NULL",
     )
-    .fetch_all(&mut *tx)
-    .await
-    .map(|records| records.into_iter().map(|record| record.node_id as NodeId))?
-    .collect::<HashSet<NodeId>>();
+    .execute(&mut *tx)
+    .await?;
 
     let inserted = node_records.len();
     for record in node_records {
@@ -140,26 +138,7 @@ pub(crate) async fn update_nym_nodes(
         )
         .execute(&mut *tx)
         .await
-        .with_context(|| format!("Failed to INSERT node_id={}", record.node_id))?;
-
-        // if node was updated, remove it from the list
-        nodes_to_delete.remove(&(record.node_id as NodeId));
-    }
-
-    if !nodes_to_delete.is_empty() {
-        tracing::debug!("DELETING {} obsolete nodes", nodes_to_delete.len());
-    }
-
-    // clean up leftover nodes, which weren't inserted/updated
-    for node_id in nodes_to_delete {
-        sqlx::query!(
-            "DELETE FROM nym_nodes
-            WHERE node_id = ?",
-            node_id,
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to DELETE node_id={}: {}", node_id, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to INSERT node_id={}: {}", record.node_id, e))?;
     }
 
     tx.commit().await?;

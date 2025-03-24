@@ -169,7 +169,7 @@ generate-typescript:
 	yarn types:lint:fix
 
 run-api-tests:
-	cd nym-api/tests/functional_test && yarn test:qa
+	cargo test --test public-api-tests
 
 # Build debian package, and update PPA
 deb-cli: build-nym-cli

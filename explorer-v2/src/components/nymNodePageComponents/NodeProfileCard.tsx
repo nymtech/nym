@@ -70,7 +70,6 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
 
   const nodeInfo = nymNodes.find((node) => node.node_id === id);
 
-  if (!nodeInfo) return null;
 
   const handleStakeOnNode = async ({
     nodeId,
@@ -142,6 +141,7 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     }
   }, [isWalletConnected, nodeInfo]);
 
+  if (!nodeInfo) return null;
 
   const cleanMoniker = DOMPurify.sanitize(
     nodeInfo?.self_description.moniker,

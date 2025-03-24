@@ -1,12 +1,10 @@
-import { fetchObservatoryNodes } from "@/app/api";
-import type { IObservatoryNode } from "@/app/api/types";
+
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { AccountBalancesCard } from "../../../../components/accountPageComponents/AccountBalancesCard";
 import { AccountInfoCard } from "../../../../components/accountPageComponents/AccountInfoCard";
 import { ContentLayout } from "../../../../components/contentLayout/ContentLayout";
 import SectionHeading from "../../../../components/headings/SectionHeading";
-import ExplorerButtonGroup from "../../../../components/toggleButton/ToggleButton";
 import AccountPageButtonGroup from "@/components/accountPageComponents/AccountPageButtonGroup";
 
 export default async function Account({

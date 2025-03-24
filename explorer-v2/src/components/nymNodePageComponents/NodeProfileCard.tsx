@@ -48,19 +48,11 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     refetchOnMount: false,
   });
 
-  if (isError || !nymNodes) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
-          Failed to load node data.
-        </Typography>
-      </ExplorerCard>
-    );
-  }
-  const nodeInfo = nymNodes.find((node) => node.node_id === id);
 
+  const nodeInfo = nymNodes?.find((node) => node.node_id === id);
 
   const handleOnSelectStake = useCallback(() => {
+    if (!nodeInfo) return;
     if (!isWalletConnected) {
       setInfoModalProps({
         open: true,
@@ -87,6 +79,16 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
       });
     }
   }, [isWalletConnected, nodeInfo]);
+
+  if (isError || !nymNodes) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
 
   if (isLoadingNymNodes) {
     return (

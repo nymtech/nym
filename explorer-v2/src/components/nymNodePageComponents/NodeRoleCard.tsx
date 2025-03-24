@@ -171,6 +171,28 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
 
   });
 
+  const nodeInfo = nymNodes?.find((node) => node.node_id === id);
+  // Extract node roles once `nodeInfo` is available
+  const nodeRoles = nodeInfo
+    ? getNodeRoles(nodeInfo.description.declared_role)
+    : [];
+
+  // Define whether to fetch gateway status
+  const shouldFetchGatewayStatus = nodeRoles.some((role) =>
+    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
+  );
+
+
+  // Fetch gateway status only if `shouldFetchGatewayStatus` is true
+  const { data: gatewayStatus } = useQuery({
+    queryKey: ["gatewayStatus", nodeInfo?.identity_key],
+    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
+    enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+  });
+
   if (isLoading || isEpochLoading) {
     return (
       <ExplorerCard label="Node role & performance">
@@ -190,30 +212,6 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
       </ExplorerCard>
     );
   }
-
-  const nodeInfo = nymNodes.find((node) => node.node_id === id);
-
-
-  // Extract node roles once `nodeInfo` is available
-  const nodeRoles = nodeInfo
-    ? getNodeRoles(nodeInfo.description.declared_role)
-    : [];
-
-  // Define whether to fetch gateway status
-  const shouldFetchGatewayStatus = nodeRoles.some((role) =>
-    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
-  );
-
-  // Fetch gateway status only if `shouldFetchGatewayStatus` is true
-  const { data: gatewayStatus } = useQuery({
-    queryKey: ["gatewayStatus", nodeInfo?.identity_key],
-    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
-    enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false, // Prevents unnecessary refetching
-    refetchOnReconnect: false,
-  });
-
 
 
   const NodeRoles = nodeRoles.map((role) => (

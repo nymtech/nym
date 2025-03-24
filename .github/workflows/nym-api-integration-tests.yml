@@ -1,0 +1,45 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    paths:
+      - "nym-api/**"
+      - "tests/**"
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: http://localhost:8000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Build nym-api
+        run: cargo build --package nym-api
+
+      - name: Launch nym-api in background
+        run: |
+          ./target/debug/nym-api &
+
+      - name: Wait for nym-api to become ready
+        run: |
+          for i in {1..20}; do
+            curl -sSf http://localhost:8000/v1/status/config-score-details && break
+            echo "Waiting for nym-api to start..."
+            sleep 2
+          done
+
+      - name: Run integration tests
+        run: cargo test --test public_api_tests -- --nocapture

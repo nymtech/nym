@@ -533,6 +533,10 @@ impl NymNode {
         self.x25519_sphinx_keys.public_key()
     }
 
+    pub(crate) fn x25519_sphinx_keys(&self) -> Arc<x25519::KeyPair> {
+        self.x25519_sphinx_keys.clone()
+    }
+
     pub(crate) fn x25519_noise_key(&self) -> &x25519::PublicKey {
         self.x25519_noise_keys.public_key()
     }

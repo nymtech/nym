@@ -52,7 +52,7 @@ pub(crate) fn test_mixing_throughput(config_path: PathBuf, senders: usize) -> an
 
     let nym_node = tester.prepare_nymnode(config_path)?;
     let listener = nym_node.config().mixnet.bind_address;
-    let pubkey = *nym_node.x25519_sphinx_key();
+    let sphinx_keys = nym_node.x25519_sphinx_keys();
 
     // for now try one client
     let token = nym_node.shutdown_token("dummy-load-client");
@@ -62,7 +62,7 @@ pub(crate) fn test_mixing_throughput(config_path: PathBuf, senders: usize) -> an
         let c = ThroughputTestingClient::try_create(
             Duration::from_millis(1000),
             10,
-            pubkey,
+            &sphinx_keys,
             listener,
             token,
         )

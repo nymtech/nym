@@ -48,16 +48,6 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     refetchOnMount: false,
   });
 
-  if (isLoadingNymNodes) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Skeleton variant="rectangular" height={80} width={80} />
-        <Skeleton variant="text" />
-        <Skeleton variant="text" height={200} />
-      </ExplorerCard>
-    );
-  }
-
   if (isError || !nymNodes) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
@@ -67,9 +57,46 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
       </ExplorerCard>
     );
   }
-
   const nodeInfo = nymNodes.find((node) => node.node_id === id);
 
+
+  const handleOnSelectStake = useCallback(() => {
+    if (!isWalletConnected) {
+      setInfoModalProps({
+        open: true,
+        title: "Connect Wallet",
+        message: "Connect your wallet to stake",
+        Action: (
+          <ConnectWallet
+            fullWidth
+            onClick={() =>
+              setInfoModalProps({
+                open: false,
+              })
+            }
+          />
+        ),
+        onClose: () => setInfoModalProps({ open: false }),
+      });
+      return;
+    }
+    if (nodeInfo) {
+      setSelectedNodeForStaking({
+        nodeId: nodeInfo.node_id,
+        identityKey: nodeInfo.identity_key,
+      });
+    }
+  }, [isWalletConnected, nodeInfo]);
+
+  if (isLoadingNymNodes) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Skeleton variant="rectangular" height={80} width={80} />
+        <Skeleton variant="text" />
+        <Skeleton variant="text" height={200} />
+      </ExplorerCard>
+    );
+  }
 
   const handleStakeOnNode = async ({
     nodeId,
@@ -113,33 +140,7 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     setIsLoading(false);
   };
 
-  const handleOnSelectStake = useCallback(() => {
-    if (!isWalletConnected) {
-      setInfoModalProps({
-        open: true,
-        title: "Connect Wallet",
-        message: "Connect your wallet to stake",
-        Action: (
-          <ConnectWallet
-            fullWidth
-            onClick={() =>
-              setInfoModalProps({
-                open: false,
-              })
-            }
-          />
-        ),
-        onClose: () => setInfoModalProps({ open: false }),
-      });
-      return;
-    }
-    if (nodeInfo) {
-      setSelectedNodeForStaking({
-        nodeId: nodeInfo.node_id,
-        identityKey: nodeInfo.identity_key,
-      });
-    }
-  }, [isWalletConnected, nodeInfo]);
+
 
   if (!nodeInfo) return null;
 

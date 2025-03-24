@@ -17,9 +17,8 @@ export default async function NymNode({
   params: Promise<{ id: string }>; // node_id or identity_key
 }) {
   try {
-    let id: string | number;
     const paramsId = (await params).id;
-    id = Number(paramsId);
+    const id = Number(paramsId);
 
     return (
       <ContentLayout>

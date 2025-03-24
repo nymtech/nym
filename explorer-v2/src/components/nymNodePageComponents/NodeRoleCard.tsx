@@ -193,7 +193,6 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
 
   const nodeInfo = nymNodes.find((node) => node.node_id === id);
 
-  if (!nodeInfo) return null;
 
   // Extract node roles once `nodeInfo` is available
   const nodeRoles = nodeInfo
@@ -222,6 +221,9 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
       <Chip key={role} label={role} size="small" />
     </Stack>
   ));
+
+  if (!nodeInfo) return null;
+
 
   const qualityOfServiceStars = nodeInfo?.uptime
     ? calculateQualityOfServiceStars(nodeInfo.uptime)

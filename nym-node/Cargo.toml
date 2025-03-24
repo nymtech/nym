@@ -62,6 +62,8 @@ nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
 nym-sphinx-framing = { path = "../common/nymsphinx/framing" }
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-forwarding = { path = "../common/nymsphinx/forwarding" }
+nym-sphinx-routing = { path = "../common/nymsphinx/routing" }
+nym-sphinx-params = { path = "../common/nymsphinx/params" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }

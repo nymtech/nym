@@ -11,7 +11,7 @@ pub(crate) struct Args {
     output: OutputFormat,
 }
 
-pub(crate) fn execute(args: Args) -> Result<(), NymNodeError> {
+pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
     println!("{}", args.output.format(&bin_info_owned!()));
     Ok(())
 }

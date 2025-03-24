@@ -1,11 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::commands::{bonding_information, build_info, migrate, node_details, run, sign};
+use crate::cli::commands::{
+    bonding_information, build_info, migrate, node_details, run, sign, test_throughput,
+};
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
-use crate::error::NymNodeError;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
+use std::future::Future;
 use std::sync::OnceLock;
 
 mod commands;
@@ -42,15 +44,26 @@ pub(crate) struct Cli {
 }
 
 impl Cli {
-    pub(crate) async fn execute(self) -> Result<(), NymNodeError> {
+    fn execute_async<F: Future>(fut: F) -> anyhow::Result<F::Output> {
+        Ok(tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?
+            .block_on(fut))
+    }
+
+    pub(crate) fn execute(self) -> anyhow::Result<()> {
         match self.command {
-            Commands::BuildInfo(args) => build_info::execute(args),
-            Commands::BondingInformation(args) => bonding_information::execute(args).await,
-            Commands::NodeDetails(args) => node_details::execute(args).await,
-            Commands::Run(args) => run::execute(*args).await,
-            Commands::Migrate(args) => migrate::execute(*args).await,
-            Commands::Sign(args) => sign::execute(args).await,
+            Commands::BuildInfo(args) => build_info::execute(args)?,
+            Commands::BondingInformation(args) => {
+                { Self::execute_async(bonding_information::execute(args))? }?
+            }
+            Commands::NodeDetails(args) => { Self::execute_async(node_details::execute(args))? }?,
+            Commands::Run(args) => { Self::execute_async(run::execute(*args))? }?,
+            Commands::Migrate(args) => migrate::execute(*args)?,
+            Commands::Sign(args) => { Self::execute_async(sign::execute(args))? }?,
+            Commands::TestThroughput(args) => test_throughput::execute(args)?,
         }
+        Ok(())
     }
 }
 
@@ -73,6 +86,11 @@ pub(crate) enum Commands {
 
     /// Use identity key of this node to sign provided message.
     Sign(sign::Args),
+
+    /// Attempt to approximate the maximum mixnet throughput if nym-node
+    /// was running on this machine in mixnet mode
+    #[clap(hide = true)]
+    TestThroughput(test_throughput::Args),
 }
 
 #[cfg(test)]

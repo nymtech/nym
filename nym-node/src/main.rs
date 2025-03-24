@@ -15,10 +15,10 @@ mod env;
 pub(crate) mod error;
 mod logging;
 pub(crate) mod node;
+pub(crate) mod throughput_test;
 pub(crate) mod wireguard;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     // std::env::set_var(
     //     "RUST_LOG",
     //     "trace,handlebars=warn,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn",
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
         maybe_print_banner(crate_name!(), crate_version!());
     }
 
-    cli.execute().await?;
+    cli.execute()?;
 
     Ok(())
 }

@@ -21,7 +21,7 @@ pub(crate) struct Args {
     pub(crate) output: OutputFormat,
 }
 
-pub async fn execute(args: Args) -> Result<(), NymNodeError> {
+pub async fn execute(args: Args) -> anyhow::Result<()> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let details = NymNode::new(config).await?.display_details()?;
     args.output.to_stdout(&details);

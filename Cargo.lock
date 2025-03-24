@@ -6142,6 +6142,8 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
  "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-task",
  "nym-topology",

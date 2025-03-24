@@ -21,7 +21,7 @@ pub struct Args {
     pub(crate) output: OutputFormat,
 }
 
-pub async fn execute(args: Args) -> Result<(), NymNodeError> {
+pub async fn execute(args: Args) -> anyhow::Result<()> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let info = BondingInformation::try_load(&config)?;
     args.output.to_stdout(&info);

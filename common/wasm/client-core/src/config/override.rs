@@ -378,6 +378,9 @@ pub struct ReplySurbsWasmOverride {
 
     #[tsify(optional)]
     pub surb_mix_hops: Option<u8>,
+
+    /// Specifies if we should reset all the sender tags on startup
+    pub fresh_sender_tags: bool,
 }
 
 impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
@@ -416,6 +419,7 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),
             surb_mix_hops: value.surb_mix_hops,
+            fresh_sender_tags: value.fresh_sender_tags,
         }
     }
 }

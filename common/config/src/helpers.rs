@@ -25,15 +25,6 @@ pub fn in6addr_any_init() -> IpAddr {
     IpAddr::V6(Ipv6Addr::UNSPECIFIED)
 }
 
-/// Helper for providing binding warnings if node tries to bind to any of those
-pub const SPECIAL_ADDRESSES: &[IpAddr] = &[
-    IpAddr::V4(Ipv4Addr::LOCALHOST),
-    IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-    IpAddr::V4(Ipv4Addr::BROADCAST),
-    IpAddr::V6(Ipv6Addr::LOCALHOST),
-    IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-];
-
 // TODO: is it really part of 'Config'?
 pub trait OptionalSet {
     /// If the value is available (i.e. `Some`), the provided closure is applied.

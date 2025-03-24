@@ -14,12 +14,11 @@ use std::time::Duration;
 #[derive(Clone)]
 pub(crate) struct Config {
     pub(crate) enforce_zk_nym: bool,
-    pub(crate) max_auth_request_age: Duration,
+    pub(crate) max_request_timestamp_skew: Duration,
 
     pub(crate) bandwidth: BandwidthFlushingBehaviourConfig,
 }
 
-// I can see this being possible expanded with say storage or client store
 #[derive(Clone)]
 pub(crate) struct CommonHandlerState {
     pub(crate) cfg: Config,

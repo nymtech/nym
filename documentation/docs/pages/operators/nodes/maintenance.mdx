@@ -128,9 +128,14 @@ mkdir -pv <PATH_TO_TARGET_DIRECTORY>
 
 ###### 2. Backup `clients.sqlite` database
 
+
 - Install `sqlite3`
 ```sh
 apt install sqlite3
+```
+- **Stop your node**
+```sh
+service nym-node stop
 ```
 - Open sqlite CLI shell inside `clients.sqlite` database
 ```sh
@@ -151,10 +156,14 @@ sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
 scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes/<ID> <PATH_TO_TARGET_DIRECTORY>
 ```
 
-###### 4. Verify the success of the backup
+###### 4. Verify the success of the backup & start your node
 
 The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the backup target directory.
 
+- Start your node
+```sh
+service nym-node start && journalctl -u nym-node -f
+```
 </Steps>
 
 Now you have everything needed to restore your `nym-node` on another server. If you are in a need of doing so, follow the steps in [*Restoring a node*](#restoring-a-node) chapter below.
@@ -360,7 +369,7 @@ mkdir ~/.nym/nym-nodes
 ```
 ###### 2. Backup `clients.sqlite` database
 
-- Stop your node
+- **Stop your node**
 ```sh
 service nym-node stop
 ```

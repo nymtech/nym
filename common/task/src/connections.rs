@@ -103,4 +103,8 @@ impl LaneQueueLengthsInner {
     {
         self.map.entry(*lane).and_modify(f);
     }
+
+    pub fn total(&self) -> usize {
+        self.map.values().sum()
+    }
 }

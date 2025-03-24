@@ -182,9 +182,11 @@ impl BlockProcessor {
             // the ones concerned with individual messages
             for (index, msg) in block_tx.tx.body.messages.iter().enumerate() {
                 for msg_module in &mut self.msg_modules {
-                    msg_module
-                        .handle_msg(index, msg, &block_tx, &mut tx)
-                        .await?
+                    if msg.type_url == msg_module.type_url() {
+                        msg_module
+                            .handle_msg(index, msg, &block_tx, &mut tx)
+                            .await?
+                    }
                 }
             }
         }

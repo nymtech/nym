@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.53"
+version = "1.1.54"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
@@ -141,7 +141,7 @@ tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
-sha2 = "0.9"
+sha2 = { workspace = true }
 
 [lints]
 workspace = true

@@ -109,7 +109,7 @@ impl InternalCounters {
 
         // just hash the current counter
         self.tx_hash_counter += 1;
-        Hash::Sha256(sha2::Sha256::digest(&self.tx_hash_counter.to_be_bytes()).into())
+        Hash::Sha256(sha2::Sha256::digest(self.tx_hash_counter.to_be_bytes()).into())
     }
 
     #[allow(dead_code)]

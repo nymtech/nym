@@ -228,6 +228,8 @@ pub struct ClientBuilder {
     timeout: Option<Duration>,
     custom_user_agent: bool,
     reqwest_client_builder: reqwest::ClientBuilder,
+    #[allow(dead_code)] // not dead code, just unused in wasm
+    use_secure_dns: bool,
 }
 
 impl ClientBuilder {
@@ -239,37 +241,46 @@ impl ClientBuilder {
         U: IntoUrl,
         E: Display,
     {
-        // a naive check: if the provided URL does not start with http(s), add that scheme
         let str_url = url.as_str();
 
+        // a naive check: if the provided URL does not start with http(s), add that scheme
         if !str_url.starts_with("http") {
             let alt = format!("http://{str_url}");
             warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
-            #[cfg(target_arch = "wasm32")]
-            let reqwest_client_builder = reqwest::ClientBuilder::new();
+            Ok(Self::new_with_url(url.into_url()?))
+        }
+    }
 
-            #[cfg(not(target_arch = "wasm32"))]
-            let reqwest_client_builder = {
-                let r = reqwest::ClientBuilder::new()
-                    .dns_resolver(Arc::new(HickoryDnsResolver::default()));
+    /// Constructs a new http `ClientBuilder` from a valid url.
+    pub fn new_with_url(url: Url) -> Self {
+        if !url.scheme().starts_with("http") {
+            warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
+        }
 
-                // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
-                // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
-                //
-                // I am going to leave it here anyways so that gzip decompression is attempted even if
-                // that feature is removed.
-                r.gzip(true)
-            };
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client_builder = reqwest::ClientBuilder::new();
 
-            Ok(ClientBuilder {
-                url: url.into_url()?,
-                timeout: None,
-                custom_user_agent: false,
-                reqwest_client_builder,
-            })
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client_builder = {
+            let r = reqwest::ClientBuilder::new();
+
+            // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
+            // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
+            //
+            // I am going to leave it here anyways so that gzip decompression is attempted even if
+            // that feature is removed.
+            r.gzip(true)
+        };
+
+        ClientBuilder {
+            url,
+            timeout: None,
+            custom_user_agent: false,
+            reqwest_client_builder,
+            use_secure_dns: true,
         }
     }
 
@@ -325,10 +336,18 @@ impl ClientBuilder {
             let mut builder = self
                 .reqwest_client_builder
                 .timeout(self.timeout.unwrap_or(DEFAULT_TIMEOUT));
+
+            // if no custom user agent was set, use a default
             if !self.custom_user_agent {
                 builder =
                     builder.user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
             }
+
+            // unless explicitly disabled use the DoT/DoH enabled resolver
+            if self.use_secure_dns {
+                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+            }
+
             builder.build()?
         };
 
@@ -355,6 +374,9 @@ pub struct Client {
 impl Client {
     /// Create a new http `Client`
     // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
+    //
+    // In order to prevent interference in API requests at the DNS phase we default to a resolver
+    // that uses DoT and DoH.
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",

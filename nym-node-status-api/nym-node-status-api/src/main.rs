@@ -10,6 +10,7 @@ mod mixnet_scraper;
 mod monitor;
 mod node_scraper;
 mod testruns;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -66,7 +67,6 @@ async fn main() -> anyhow::Result<()> {
         args.nym_http_cache_ttl,
         agent_key_list.to_owned(),
         args.max_agent_count,
-        args.hm_url,
     )
     .await
     .expect("Failed to start server");

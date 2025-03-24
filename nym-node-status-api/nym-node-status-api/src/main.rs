@@ -2,8 +2,6 @@ use clap::Parser;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_task::signal::wait_for_signal;
 
-use crate::scrapers::{node_info, sessions};
-
 mod cli;
 mod db;
 mod http;
@@ -33,14 +31,19 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = storage.pool_owned();
 
     // Start the node scraper
-    let scraper = node_info::Scraper::new(storage.pool_owned());
+    let scraper = scrapers::node_info::Scraper::new(storage.pool_owned());
     tokio::spawn(async move {
         scraper.start().await;
     });
 
-    // Start the monitor
-    let args_clone = args.clone();
+    let db_pool = storage.pool_owned();
+    tokio::spawn(async move {
+        scrapers::nym_api_versions::spawn(db_pool).await;
+        tracing::info!("Started nym_api scraper task");
+    });
 
+    let args_clone = args.clone();
+    let db_pool = storage.pool_owned();
     tokio::spawn(async move {
         monitor::spawn_in_background(
             db_pool,
@@ -58,7 +61,8 @@ async fn main() -> anyhow::Result<()> {
 
     let db_pool_scraper = storage.pool_owned();
     tokio::spawn(async move {
-        sessions::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
+        scrapers::sessions::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout)
+            .await;
         tracing::info!("Started metrics scraper task");
     });
 

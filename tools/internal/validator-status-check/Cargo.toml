@@ -28,3 +28,11 @@ nym-network-defaults = { path = "../../../common/network-defaults" }
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "validator_status_check"
+path = "src/main.rs"
+
+[lib]
+name = "validator_status_check"
+path = "src/lib.rs"

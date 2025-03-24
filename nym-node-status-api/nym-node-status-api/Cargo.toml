@@ -36,6 +36,7 @@ nym-statistics-common = { path = "../../common/statistics" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
+validator-status-check = { path = "../../tools/internal/validator-status-check" }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 regex = { workspace = true }

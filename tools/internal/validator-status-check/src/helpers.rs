@@ -10,7 +10,7 @@ use nym_validator_client::nyxd::Config;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use tracing::info;
 
-async fn get_query_client() -> anyhow::Result<QueryHttpRpcNyxdClient> {
+pub async fn get_query_client() -> anyhow::Result<QueryHttpRpcNyxdClient> {
     let network = NymNetworkDetails::new_from_env();
 
     let Some(endpoint_info) = network.endpoints.first() else {
@@ -24,12 +24,12 @@ async fn get_query_client() -> anyhow::Result<QueryHttpRpcNyxdClient> {
     )?)
 }
 
-pub(crate) async fn get_known_dealers() -> anyhow::Result<Vec<DealerDetails>> {
+pub async fn get_known_dealers() -> anyhow::Result<Vec<DealerDetails>> {
     let client = get_query_client().await?;
     Ok(client.get_all_current_dealers().await?)
 }
 
-pub(crate) async fn get_signer_status(raw_api_endpoint: &str) -> SignerStatus {
+pub async fn get_signer_status(raw_api_endpoint: &str) -> SignerStatus {
     info!("attempting to get signer status of {raw_api_endpoint}...");
     let mut status = SignerStatus::new(raw_api_endpoint.to_string());
 

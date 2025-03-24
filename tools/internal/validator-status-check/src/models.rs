@@ -10,7 +10,7 @@ use time::{Duration, OffsetDateTime};
 use tracing::error;
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct SignerStatus {
+pub struct SignerStatus {
     api_endpoint: String,
     api_version: ApiVersion,
     rpc_status: RpcStatus,
@@ -30,7 +30,7 @@ impl Display for SignerStatus {
 }
 
 impl SignerStatus {
-    pub(crate) fn new(api_endpoint: String) -> Self {
+    pub fn new(api_endpoint: String) -> Self {
         SignerStatus {
             api_endpoint,
             api_version: Default::default(),
@@ -40,11 +40,11 @@ impl SignerStatus {
         }
     }
 
-    pub(crate) fn api_up(&self) -> bool {
+    pub fn api_up(&self) -> bool {
         matches!(self.api_version, ApiVersion::Available { .. })
     }
 
-    pub(crate) fn rpc_up(&self) -> bool {
+    pub fn rpc_up(&self) -> bool {
         matches!(self.rpc_status, RpcStatus::Up)
     }
 
@@ -60,7 +60,7 @@ impl SignerStatus {
         Some(NymApiClient::new(api_endpoint))
     }
 
-    pub(crate) async fn try_update_api_version(&mut self) {
+    pub async fn try_update_api_version(&mut self) {
         let Some(client) = self.build_api_client() else {
             return;
         };
@@ -79,7 +79,7 @@ impl SignerStatus {
         }
     }
 
-    pub(crate) async fn try_update_rpc_status(&mut self) {
+    pub async fn try_update_rpc_status(&mut self) {
         let Some(client) = self.build_api_client() else {
             return;
         };
@@ -109,7 +109,7 @@ impl SignerStatus {
         }
     }
 
-    pub(crate) fn to_table_row(&self) -> Vec<String> {
+    pub fn to_table_row(&self) -> Vec<String> {
         vec![
             self.api_endpoint.to_string(),
             self.api_version.as_cell(),

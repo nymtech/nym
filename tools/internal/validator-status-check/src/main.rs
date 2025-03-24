@@ -8,8 +8,8 @@ use nym_network_defaults::setup_env;
 use tracing::trace;
 
 mod commands;
-mod helpers;
-mod models;
+
+use validator_status_check::{helpers, models};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

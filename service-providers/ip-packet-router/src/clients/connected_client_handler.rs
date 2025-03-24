@@ -3,8 +3,7 @@
 
 use std::time::Duration;
 
-use bytes::BytesMut;
-use futures::SinkExt;
+use bytes::{Bytes, BytesMut};
 use nym_ip_packet_requests::{
     codec::{IprPacket, MultiIpPacketCodec},
     v6::response::IpPacketResponse as IpPacketResponseV6,
@@ -12,13 +11,13 @@ use nym_ip_packet_requests::{
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
 use nym_sdk::mixnet::{
-    InputMessage, MixnetClientSender, MixnetMessageSink, MixnetMessageSinkTranslator,
+    InputMessage, MixnetClientSender, MixnetMessageSender, MixnetMessageSinkTranslator,
 };
 use tokio::{
     sync::{mpsc, oneshot},
-    time::interval,
+    time::{interval, Interval},
 };
-use tokio_util::codec::FramedWrite;
+use tokio_util::codec::Encoder;
 
 use crate::{
     clients::ConnectedClientId,
@@ -44,14 +43,19 @@ pub(crate) struct ConnectedClientHandler {
     close_rx: oneshot::Receiver<()>,
 
     // Interval to check for activity timeout
-    activity_timeout: tokio::time::Interval,
+    activity_timeout: Interval,
 
     // The time we have to topup a payload before we send, regardless
-    payload_topup_interval: tokio::time::Interval,
+    payload_topup_interval: Interval,
 
-    // The sender to the mixnet. It's a framed writer that bundles IP packets together to fill out
-    // the sphinx packet payload before sending.
-    mixnet_ip_packet_sink: FramedWrite<MixnetMessageSink<ToIprDataResponse>, MultiIpPacketCodec>,
+    // The codec that will bundle the IP packets into a single buffer
+    packet_bundler: MultiIpPacketCodec,
+
+    // Used to convert the bundled IP packets into a IPR packet response
+    input_message_creator: ToIprDataResponse,
+
+    // The mixnet client sender that will send the IPR packet responses across the mixnet
+    mixnet_client_sender: MixnetClientSender,
 }
 
 impl ConnectedClientHandler {
@@ -77,19 +81,12 @@ impl ConnectedClientHandler {
         let mut payload_topup_interval = interval(buffer_timeout);
         payload_topup_interval.reset();
 
-        // The mixnet sink takes bytes, create IPR response types that the recipient can
-        // understand, and sends them as InputMessages to the mixnet.
-        let mixnet_client_sink = MixnetMessageSink::new_with_custom_translator(
-            mixnet_client_sender,
-            ToIprDataResponse {
-                send_to: client_id.clone(),
-                client_version,
-            },
-        );
+        let packet_bundler = MultiIpPacketCodec::new();
 
-        // The mixnet ip packet sink takes IP packets, bundles them together, and sends them to the
-        // mixnet client sink
-        let mixnet_ip_packet_sink = FramedWrite::new(mixnet_client_sink, MultiIpPacketCodec::new());
+        let input_message_creator = ToIprDataResponse {
+            send_to: client_id.clone(),
+            client_version,
+        };
 
         let connected_client_handler = ConnectedClientHandler {
             sent_by: client_id,
@@ -97,7 +94,9 @@ impl ConnectedClientHandler {
             close_rx,
             activity_timeout,
             payload_topup_interval,
-            mixnet_ip_packet_sink,
+            packet_bundler,
+            input_message_creator,
+            mixnet_client_sender,
         };
 
         let handle = tokio::spawn(async move {
@@ -109,14 +108,37 @@ impl ConnectedClientHandler {
         (forward_from_tun_tx, close_tx, handle)
     }
 
+    fn bundle_packet(&mut self, packet: IprPacket) -> Result<Option<Bytes>> {
+        let mut bundled_packets = BytesMut::new();
+        self.packet_bundler
+            .encode(packet, &mut bundled_packets)
+            .map_err(|source| IpPacketRouterError::FailedToEncodeMixnetMessage { source })?;
+        if bundled_packets.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(bundled_packets.freeze()))
+        }
+    }
+
     async fn handle_packet(&mut self, packet: IprPacket) -> Result<()> {
         self.activity_timeout.reset();
+
+        let bundled_packets = match self.bundle_packet(packet)? {
+            Some(packets) => packets,
+            None => return Ok(()),
+        };
+
         self.payload_topup_interval.reset();
 
-        self.mixnet_ip_packet_sink
-            .send(packet)
+        let input_packet = self
+            .input_message_creator
+            .to_input_message(&bundled_packets)
+            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet { source })?;
+
+        self.mixnet_client_sender
+            .send(input_packet)
             .await
-            .map_err(|source| IpPacketRouterError::FailedToEncodeMixnetMessage { source })
+            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet { source })
     }
 
     async fn run(mut self) -> Result<()> {
@@ -168,6 +190,7 @@ fn create_ip_packet_response(
 
 // This struct is used by the sink to translate the the bundled IP packets into a IPR packet
 // responses that can be sent to the mixnet.
+#[derive(Clone, Debug)]
 struct ToIprDataResponse {
     send_to: ConnectedClientId,
     client_version: ClientVersion,
@@ -196,8 +219,10 @@ mod tests {
 
     use async_trait::async_trait;
     use bytes::Bytes;
-    use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender};
+    use futures::SinkExt;
+    use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, MixnetMessageSink};
     use tokio::sync::Notify;
+    use tokio_util::codec::FramedWrite;
 
     use super::*;
 

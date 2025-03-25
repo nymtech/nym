@@ -12,7 +12,7 @@ pub(crate) struct ClientStats {
 
 impl ClientStats {
     pub(crate) fn new_received(&self, new_measurement: u64) {
-        const ALPHA: f64 = 0.001;
+        const ALPHA: f64 = 0.1;
         const ONE_SUB_ALPHA: f64 = 1.0 - ALPHA;
 
         let old_average_latency = self.inner.average_latency_nanos.load(Ordering::SeqCst);

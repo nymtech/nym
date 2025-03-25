@@ -31,7 +31,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::time::{interval, sleep, Instant};
 use tokio_util::codec::Framed;
-use tracing::{error, info, Span};
+use tracing::{debug, error, info, Span};
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 struct PacketTag {
@@ -103,13 +103,14 @@ impl ThroughputTestingClient {
         latency_threshold: Duration,
         node_keys: &x25519::KeyPair,
         node_listener: SocketAddr,
+        stats: ClientStats,
         cancellation_token: ShutdownToken,
     ) -> anyhow::Result<Self> {
         // attempt to bind to some port to receive processed packets
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await?;
         let local_address = listener.local_addr()?;
 
-        println!("Listening on {}", local_address);
+        info!("listening on {local_address}");
 
         // create the sphinx packet we're going to be repeatedly sending
         // (next hop has to be our mixnode, then this client, and then it doesn't matter since the packet won't
@@ -170,7 +171,7 @@ impl ThroughputTestingClient {
         };
 
         Ok(ThroughputTestingClient {
-            stats: ClientStats::default(),
+            stats,
             last_received_update: Instant::now(),
             last_received_at_update: 0,
             current_batch: 0,
@@ -185,10 +186,6 @@ impl ThroughputTestingClient {
             forward_connection: Framed::new(forward_connection, NymCodec),
             payload_key,
         })
-    }
-
-    pub(crate) fn shared_stats(&self) -> ClientStats {
-        self.stats.clone()
     }
 
     fn update_progress_bar(&mut self) {
@@ -292,24 +289,38 @@ impl ThroughputTestingClient {
         let diff = 1. - saturation;
 
         if saturation > 1. {
-            info!("packet latency over threshold: need to decrease sending rate");
+            debug!("saturation {saturation:.2}, packet latency over threshold: need to decrease sending rate");
         } else {
-            info!("packet latency under threshold: can increase sending rate");
+            debug!("saturation {saturation:.2}, packet latency under threshold: can increase sending rate");
         }
 
-        info!("saturation {saturation:.2}");
-
-        // be conservative and only apply 80% of the diff
+        // be conservative and only apply 50% of the diff
         // (and split it equally between sending delay and batch size)
-        let mut new_batch_size = (batch_size as f64 * (1. + 0.4 * diff)).floor() as u64;
-        let new_sending_delay_millis =
-            (sending_delay_millis as f64 * (1. - 0.4 * diff)).floor() as u64;
-        let mut new_sending_delay = Duration::from_millis(new_sending_delay_millis);
+        // but also make sure the current values don't increase by more than 10%
+        let mut new_batch_size = (batch_size as f64 * (1. + 0.25 * diff)).floor() as u64;
+        let mut new_sending_delay_millis =
+            (sending_delay_millis as f64 * (1. - 0.25 * diff)).floor() as u64;
+
+        if (new_batch_size as f64) > (batch_size as f64 * 1.1) {
+            new_batch_size = ((batch_size as f64) * 1.1) as u64;
+        }
+        if (new_batch_size as f64) < (batch_size as f64 * 0.9) {
+            new_batch_size = ((batch_size as f64) * 0.9) as u64;
+        }
+
+        if (new_sending_delay_millis as f64) > (sending_delay_millis as f64 * 1.1) {
+            new_sending_delay_millis = ((sending_delay_millis as f64) * 1.1) as u64;
+        }
+        if (new_sending_delay_millis as f64) < (sending_delay_millis as f64 * 0.9) {
+            new_sending_delay_millis = ((sending_delay_millis as f64) * 0.9) as u64;
+        }
 
         // normalize values
-        if new_batch_size == 0 {
+        if new_batch_size < 10 {
             new_batch_size = 10;
         }
+        let mut new_sending_delay = Duration::from_millis(new_sending_delay_millis);
+
         if new_sending_delay.is_zero() {
             new_sending_delay = Duration::from_micros(500);
         }
@@ -317,12 +328,12 @@ impl ThroughputTestingClient {
             new_sending_delay = Duration::from_millis(100);
         }
 
-        info!(
+        debug!(
             "changing sending delay from {} to {}",
             self.sending_delay.human_duration(),
             new_sending_delay.human_duration()
         );
-        info!("changing sending batch from {batch_size} to {new_batch_size}");
+        debug!("changing sending batch from {batch_size} to {new_batch_size}");
 
         self.sending_delay = new_sending_delay;
         self.current_batch_size = new_batch_size as usize;
@@ -351,8 +362,8 @@ impl ThroughputTestingClient {
                 _ = update_interval.tick() => {
                     self.update_progress_bar();
 
-                    // every 5s attempt to adjust sending rates
-                    if last_rate_update.elapsed() > Duration::from_secs(5) {
+                    // every 500ms attempt to adjust sending rates
+                    if last_rate_update.elapsed() > Duration::from_millis(500) {
                         last_rate_update = Instant::now();
                         self.update_sending_rates();
                         sending_interval = interval(self.sending_delay);

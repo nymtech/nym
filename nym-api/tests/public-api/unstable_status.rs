@@ -13,9 +13,9 @@ async fn test_get_gateway_unstable_test_results() {
         identity
     );
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
-    let json: Value = res.json().await.expect("Invalid JSON");
+    let json: Value = res.json().await.unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
     let data_array = json
         .get("data")
         .and_then(|v| v.as_array())
@@ -43,9 +43,9 @@ async fn test_get_mixnode_unstable_test_results() {
         mix_id
     );
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
-    let json: Value = res.json().await.expect("Invalid JSON");
+    let json: Value = res.json().await.unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
     let data_array = json
         .get("data")
         .and_then(|v| v.as_array())
@@ -69,7 +69,7 @@ async fn test_get_latest_network_monitor_run_details() {
         base_url()
     );
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let monitor_run_id = json

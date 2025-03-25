@@ -8,7 +8,7 @@ use tokio;
 async fn test_get_skimmed_nodes_active() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/active", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let data = json.get("nodes").and_then(|r| r.get("data")).expect("Missing 'data' field");
@@ -24,7 +24,7 @@ async fn test_get_skimmed_nodes_active() {
 async fn test_get_skimmed_active_mixnodes() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/mixnodes/active", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
@@ -37,7 +37,7 @@ async fn test_get_skimmed_active_mixnodes() {
 async fn test_get_skimmed_all_mixnodes() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/mixnodes/all", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
@@ -50,7 +50,7 @@ async fn test_get_skimmed_all_mixnodes() {
 async fn test_get_skimmed_active_exit_gateways() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/exit-gateways/active", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
@@ -63,7 +63,7 @@ async fn test_get_skimmed_active_exit_gateways() {
 async fn test_get_skimmed_all_exit_gateways() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/exit-gateways/all", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
@@ -76,7 +76,7 @@ async fn test_get_skimmed_all_exit_gateways() {
 async fn test_get_skimmed_active_entry_gateways() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/entry-gateways/active", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
@@ -89,7 +89,7 @@ async fn test_get_skimmed_active_entry_gateways() {
 async fn test_get_skimmed_all_entry_gateways() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/entry-gateways/all", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success());
+    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
     let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");

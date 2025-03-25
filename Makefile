@@ -168,6 +168,7 @@ generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
 	yarn types:lint:fix
 
+# Run the integration tests for public nym-api endpoints
 run-api-tests:
 	cargo test --test public-api-tests
 

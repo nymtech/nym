@@ -1,13 +1,27 @@
-
 use reqwest::Client;
 use serde_json::Value;
+use reqwest::Response;
 
 pub fn test_client() -> Client {
     Client::new()
 }
 
 pub fn base_url() -> String {
-    std::env::var("API_BASE_URL").unwrap_or_else(|_| "https://sandbox-nym-api1.nymtech.net/api".into())
+    std::env::var("API_BASE_URL")
+        .unwrap_or_else(|_| "https://sandbox-nym-api1.nymtech.net/api".into())
+}
+
+pub async fn validate_json_response(res: Response) -> Value {
+    assert!(
+        res.status().is_success(),
+        "Expected 2xx but got {}",
+        res.status()
+    );
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
+    json
 }
 
 pub async fn get_any_node_id() -> String {
@@ -41,16 +55,12 @@ pub async fn get_mixnode_node_id() -> u64 {
                 .and_then(|d| d.get("declared_role"))
                 .and_then(|r| r.get("mixnode"))
                 .and_then(|m| m.as_bool())
-                .map(|is_mixnode| is_mixnode) 
+                .map(|is_mixnode| is_mixnode)
                 .unwrap_or(true)
         })
-        .and_then(|node| {
-            node.get("node_id")
-                .and_then(|v| v.as_u64())
-        })
+        .and_then(|node| node.get("node_id").and_then(|v| v.as_u64()))
         .expect("Unable to find mixnode node id")
 }
-
 
 pub async fn get_gateway_identity_key() -> String {
     let url = format!("{}/v1/nym-nodes/described", base_url());

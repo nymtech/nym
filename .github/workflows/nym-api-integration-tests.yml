@@ -29,11 +29,11 @@ jobs:
       - name: Build nym-api
         run: cargo build --package nym-api
 
-      - name: Launch nym-api in background
+      - name: Run nym-api in the background
         run: |
           ./target/debug/nym-api &
 
-      - name: Wait for nym-api to become ready
+      - name: Wait for nym-api to come alive
         run: |
           for i in {1..20}; do
             curl -sSf http://localhost:8000/v1/status/config-score-details && break

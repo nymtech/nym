@@ -120,6 +120,7 @@ nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 nym-statistics-common = { path = "../common/statistics" }
+chrono.workspace = true
 
 [features]
 no-reward = []

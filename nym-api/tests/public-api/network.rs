@@ -1,15 +1,12 @@
 mod utils;
-use utils::{base_url, test_client};
-use serde_json::Value;
+use utils::{base_url, test_client, validate_json_response};
 use tokio;
 
 #[tokio::test]
 async fn test_get_chain_status() {
     let url = format!("{}/v1/network/chain-status", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    
-    assert!(res.status().is_success(), "Expected 200 OK, got {}", res.status());
-    let json: Value = res.json().await.expect("Invalid JSON");
+    let json = validate_json_response(res).await;
 
     let block_header = json
         .get("status")
@@ -27,9 +24,7 @@ async fn test_get_chain_status() {
 async fn test_get_network_details() {
     let url = format!("{}/v1/network/details", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    
-    assert!(res.status().is_success(), "Expected 200 OK, got {}", res.status());
-    let json: Value = res.json().await.expect("Invalid JSON");
+    let json = validate_json_response(res).await;
 
     assert!(json.get("connected_nyxd").is_some(), "Missing 'connected_nyxd'");
     let contracts = json
@@ -43,9 +38,7 @@ async fn test_get_network_details() {
 async fn test_get_nym_contracts() {
     let url = format!("{}/v1/network/nym-contracts", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    
-    assert!(res.status().is_success(), "Expected 200 OK, got {}", res.status());
-    let json: Value = res.json().await.expect("Invalid JSON");
+    let json = validate_json_response(res).await;
 
     assert!(json.get("nym-mixnet-contract").is_some(), "Missing 'nym-mixnet-contract'");
     assert!(json.get("nym-ecash-contract").is_some(), "Missing 'nym-ecash-contract'");
@@ -55,9 +48,7 @@ async fn test_get_nym_contracts() {
 async fn test_get_nym_contracts_detailed() {
     let url = format!("{}/v1/network/nym-contracts-detailed", base_url());
     let res = test_client().get(&url).send().await.unwrap();
-    
-    assert!(res.status().is_success(), "Expected 200 OK, got {}", res.status());
-    let json: Value = res.json().await.expect("Invalid JSON");
+    let json = validate_json_response(res).await;
 
     let mixnet_contract = json
     .get("nym-mixnet-contract")
@@ -65,9 +56,9 @@ async fn test_get_nym_contracts_detailed() {
     .expect("Missing details for mixnet contract");
     assert!(mixnet_contract.get("commit_branch").is_some(), "Missing 'commit_branch'");
 
-    let mixnet_contract = json
+    let ecash_contract = json
     .get("nym-ecash-contract")
     .and_then(|s| s.get("details"))
     .expect("Missing details for ecash contract");
-    assert!(mixnet_contract.get("commit_branch").is_some(), "Missing 'commit_branch'");
+    assert!(ecash_contract.get("commit_branch").is_some(), "Missing 'commit_branch'");
 }

@@ -3728,6 +3728,7 @@ dependencies = [
  "number_prefix",
  "portable-atomic",
  "unicode-width 0.2.0",
+ "vt100",
  "web-time",
 ]
 
@@ -4908,6 +4909,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "tracing-tree",
@@ -6118,11 +6120,11 @@ dependencies = [
  "clap",
  "colored",
  "cupid",
- "dashmap",
  "futures",
  "headers",
  "human-repr",
  "humantime-serde",
+ "indicatif",
  "ipnetwork",
  "lioness",
  "nym-authenticator",
@@ -6160,7 +6162,6 @@ dependencies = [
  "semver 1.0.26",
  "serde",
  "serde_json",
- "si-scale",
  "sysinfo",
  "thiserror 2.0.12",
  "time",
@@ -6169,6 +6170,7 @@ dependencies = [
  "toml 0.8.20",
  "tower-http",
  "tracing",
+ "tracing-indicatif",
  "tracing-subscriber",
  "url",
  "utoipa",
@@ -10326,6 +10328,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-indicatif"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8201ca430e0cd893ef978226fd3516c06d9c494181c8bf4e5b32e30ed4b40aa1"
+dependencies = [
+ "indicatif",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "tracing-log"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10919,6 +10933,39 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vt100"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84cd863bf0db7e392ba3bd04994be3473491b31e66340672af5d11943c6274de"
+dependencies = [
+ "itoa",
+ "log",
+ "unicode-width 0.1.14",
+ "vte",
+]
+
+[[package]]
+name = "vte"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5022b5fbf9407086c180e9557be968742d839e68346af7792b8592489732197"
+dependencies = [
+ "arrayvec",
+ "utf8parse",
+ "vte_generate_state_changes",
+]
+
+[[package]]
+name = "vte_generate_state_changes"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e369bee1b05d510a7b4ed645f5faa90619e05437111783ea5848f28d97d3c2e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
 
 [[package]]
 name = "waker-fn"

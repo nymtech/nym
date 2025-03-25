@@ -22,17 +22,17 @@ bs58.workspace = true
 celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
-dashmap = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }
+indicatif = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-si-scale = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
+tracing-indicatif = { workspace = true }
 tracing-subscriber.workspace = true
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true, features = ["codec"] }

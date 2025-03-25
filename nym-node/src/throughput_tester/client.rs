@@ -1,23 +1,24 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::throughput_tester::stats::ClientStats;
 use anyhow::bail;
 use arrayref::array_ref;
 use blake2::VarBlake2b;
 use chacha::ChaCha;
 use futures::{stream, SinkExt, Stream, StreamExt};
+use human_repr::{HumanCount, HumanDuration, HumanThroughput};
 use lioness::Lioness;
 use nym_crypto::asymmetric::x25519;
-use nym_pemstore::traits::PemStorableKeyPair;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
-use nym_sphinx_params::{PacketSize, PacketType};
+use nym_sphinx_params::PacketSize;
 use nym_sphinx_routing::generate_hop_delays;
 use nym_sphinx_types::header::keys::PayloadKey;
 use nym_sphinx_types::{
     Destination, DestinationAddressBytes, Node, NymPacket, SphinxHeader,
-    DESTINATION_ADDRESS_LENGTH, HEADER_SIZE, IDENTIFIER_LENGTH,
+    DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH,
 };
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
@@ -30,6 +31,8 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::time::{interval, sleep, Instant};
 use tokio_util::codec::Framed;
+use tracing::{error, info, Span};
+use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 struct PacketTag {
     sending_timestamp: OffsetDateTime,
@@ -42,6 +45,12 @@ impl PacketTag {
 
     fn elapsed(&self) -> time::Duration {
         OffsetDateTime::now_utc() - self.sending_timestamp
+    }
+
+    fn elapsed_nanos(&self) -> u64 {
+        // here we're making few assumptions: the latency is lower than u64::MAX
+        // and it's strictly positive (which are rather valid...)
+        self.elapsed().whole_nanoseconds() as u64
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -71,8 +80,12 @@ impl PacketTag {
 }
 
 pub(crate) struct ThroughputTestingClient {
+    stats: ClientStats,
+    last_received_update: Instant,
+    last_received_at_update: usize,
     current_batch: u64,
-    initial_sending_delay: Duration,
+    sending_delay: Duration,
+    latency_threshold: Duration,
     current_batch_size: usize,
     forward_header_bytes: Vec<u8>,
     unwrapped_forward_payload_bytes: Vec<u8>,
@@ -87,6 +100,7 @@ impl ThroughputTestingClient {
     pub(crate) async fn try_create(
         initial_sending_delay: Duration,
         initial_batch_size: usize,
+        latency_threshold: Duration,
         node_keys: &x25519::KeyPair,
         node_listener: SocketAddr,
         cancellation_token: ShutdownToken,
@@ -156,8 +170,12 @@ impl ThroughputTestingClient {
         };
 
         Ok(ThroughputTestingClient {
+            stats: ClientStats::default(),
+            last_received_update: Instant::now(),
+            last_received_at_update: 0,
             current_batch: 0,
-            initial_sending_delay,
+            sending_delay: initial_sending_delay,
+            latency_threshold,
             current_batch_size: initial_batch_size,
             forward_header_bytes: sphinx_packet.header.to_bytes(),
             unwrapped_forward_payload_bytes,
@@ -167,6 +185,35 @@ impl ThroughputTestingClient {
             forward_connection: Framed::new(forward_connection, NymCodec),
             payload_key,
         })
+    }
+
+    pub(crate) fn shared_stats(&self) -> ClientStats {
+        self.stats.clone()
+    }
+
+    fn update_progress_bar(&mut self) {
+        let received = self.stats.received();
+        let sent = self.stats.sent();
+        let latency = self.stats.average_latency_duration();
+        let received_since_update = received - self.last_received_at_update;
+
+        let time_delta_secs = self.last_received_update.elapsed().as_secs_f64();
+        let receive_rate = received_since_update as f64 / time_delta_secs;
+
+        self.last_received_at_update = received;
+        self.last_received_update = Instant::now();
+        // I couldn't figure out how to directly pull it from span fields without duplication,
+        // so that's a second best
+        Span::current().pb_set_message(&format!(
+            "{}: CURRENT SENDING DELAY/BATCH: {} / {} | received: {} sent: {} (avg packet latency: {}, avg receive rate: {})",
+            self.local_address,
+            self.sending_delay.human_duration(),
+            self.current_batch_size,
+            received.human_count_bare(),
+            sent.human_count_bare(),
+            latency.human_duration(),
+            receive_rate.human_throughput("packets")
+        ));
     }
 
     fn lioness_encrypt(&self, block: &mut [u8]) -> anyhow::Result<()> {
@@ -197,8 +244,6 @@ impl ThroughputTestingClient {
     async fn send_packets(&mut self) -> anyhow::Result<()> {
         // mess with our payload in such a way that upon unwrapping by the first hop,
         // we'll get our tag
-
-        println!("sending");
         let mut batch = Vec::with_capacity(self.current_batch_size);
         let now = OffsetDateTime::now_utc();
         for i in 0..self.current_batch_size {
@@ -215,13 +260,15 @@ impl ThroughputTestingClient {
         self.forward_connection
             .send_all(&mut stream::iter(batch))
             .await?;
+        self.stats.new_sent_batch(self.current_batch_size);
+
         Ok(())
     }
 
     // don't bother processing packets, just increment the count because that's the only thing that matters
     fn handle_received(&mut self, maybe_packet: Result<FramedNymPacket, NymCodecError>) {
         let Ok(received) = maybe_packet else {
-            println!("FAILED TO RECEIVE PACKET");
+            error!("FAILED TO RECEIVE PACKET");
             return;
         };
         let inner = received.into_inner();
@@ -229,35 +276,92 @@ impl ThroughputTestingClient {
         #[allow(clippy::unwrap_used)]
         let sphinx = inner.as_sphinx_packet().unwrap();
         let tag = PacketTag::from_bytes(sphinx.payload.as_bytes());
-        println!("packet latency: {:?}s", tag.elapsed().as_seconds_f32());
 
-        // TODO: mess with sizing/tagging somehow
-        println!("received packet - TODO: increase counters etc.")
+        self.stats.new_received(tag.elapsed_nanos());
     }
 
-    // given we're running locally, we assume transmission delay is negligible
-    // (in reality it's probably few ms, but it's a good enough approximation for now)
+    fn update_sending_rates(&mut self) {
+        let current = self.stats.average_latency_nanos() as f64;
+        let threshold = self.latency_threshold.as_nanos() as f64;
+
+        let saturation = current / threshold;
+
+        let sending_delay_millis = self.sending_delay.as_millis();
+        let batch_size = self.current_batch_size;
+
+        let diff = 1. - saturation;
+
+        if saturation > 1. {
+            info!("packet latency over threshold: need to decrease sending rate");
+        } else {
+            info!("packet latency under threshold: can increase sending rate");
+        }
+
+        info!("saturation {saturation:.2}");
+
+        // be conservative and only apply 80% of the diff
+        // (and split it equally between sending delay and batch size)
+        let mut new_batch_size = (batch_size as f64 * (1. + 0.4 * diff)).floor() as u64;
+        let new_sending_delay_millis =
+            (sending_delay_millis as f64 * (1. - 0.4 * diff)).floor() as u64;
+        let mut new_sending_delay = Duration::from_millis(new_sending_delay_millis);
+
+        // normalize values
+        if new_batch_size == 0 {
+            new_batch_size = 10;
+        }
+        if new_sending_delay.is_zero() {
+            new_sending_delay = Duration::from_micros(500);
+        }
+        if new_sending_delay.as_millis() > 100 {
+            new_sending_delay = Duration::from_millis(100);
+        }
+
+        info!(
+            "changing sending delay from {} to {}",
+            self.sending_delay.human_duration(),
+            new_sending_delay.human_duration()
+        );
+        info!("changing sending batch from {batch_size} to {new_batch_size}");
+
+        self.sending_delay = new_sending_delay;
+        self.current_batch_size = new_batch_size as usize;
+    }
 
     #[allow(clippy::panic)]
     pub(crate) async fn run(mut self) -> anyhow::Result<()> {
         let mut ingress_connection = StreamWrapper::default();
 
-        let mut sending_interval = interval(self.initial_sending_delay);
+        let mut sending_interval = interval(self.sending_delay);
         sending_interval.reset();
+
+        // quite arbitrary
+        let mut update_interval = interval(Duration::from_millis(500));
+        update_interval.reset();
+
+        let mut last_rate_update = Instant::now();
 
         loop {
             select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
-                    println!("cancelled");
+                    info!("cancelled");
                     return Ok(());
                 }
-                _ = sending_interval.tick() => {
-                    println!("send");
-                    self.send_packets().await?;
+                _ = update_interval.tick() => {
+                    self.update_progress_bar();
+
+                    // every 5s attempt to adjust sending rates
+                    if last_rate_update.elapsed() > Duration::from_secs(5) {
+                        last_rate_update = Instant::now();
+                        self.update_sending_rates();
+                        sending_interval = interval(self.sending_delay);
+                        sending_interval.reset();
+                    }
+
                 }
                 accepted = self.listener.accept() => {
-                    println!("accept");
+                    info!("accepted connection");
                     if ingress_connection.inner.is_some() {
                         // this should never happen under local settings
                         // (and since it's not exposed to 'proper' traffic, it's fine to panic and shutdown)
@@ -276,6 +380,9 @@ impl ThroughputTestingClient {
                         continue;
                     };
                     self.handle_received(received)
+                }
+                 _ = sending_interval.tick() => {
+                    self.send_packets().await?;
                 }
             }
         }

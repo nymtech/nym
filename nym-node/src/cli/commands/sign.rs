@@ -3,7 +3,6 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
-use crate::error::NymNodeError;
 use crate::node::helpers::load_ed25519_identity_keypair;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;

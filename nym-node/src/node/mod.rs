@@ -29,8 +29,7 @@ use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::shared_network::{
-    CachedNetwork, CachedTopologyProvider, NetworkRefresher, NetworkRoutingFilter, OpenFilter,
-    RoutingFilter,
+    CachedNetwork, CachedTopologyProvider, NetworkRefresher, OpenFilter, RoutingFilter,
 };
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};

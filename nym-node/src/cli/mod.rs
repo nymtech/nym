@@ -5,12 +5,13 @@ use crate::cli::commands::{
     bonding_information, build_info, migrate, node_details, run, sign, test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
+use crate::logging::setup_tracing_logger;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::future::Future;
 use std::sync::OnceLock;
 
-mod commands;
+pub(crate) mod commands;
 mod helpers;
 
 pub const DEFAULT_NYMNODE_ID: &str = "default-nym-node";
@@ -52,6 +53,11 @@ impl Cli {
     }
 
     pub(crate) fn execute(self) -> anyhow::Result<()> {
+        // NOTE: `test_throughput` sets up its own logger as it has to include additional layers
+        if !matches!(self.command, Commands::TestThroughput(..)) {
+            setup_tracing_logger()?;
+        }
+
         match self.command {
             Commands::BuildInfo(args) => build_info::execute(args)?,
             Commands::BondingInformation(args) => {

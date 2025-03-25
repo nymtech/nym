@@ -4,7 +4,7 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use crate::{cli::Cli, logging::setup_tracing_logger};
+use crate::cli::Cli;
 use clap::{crate_name, crate_version, Parser};
 use nym_bin_common::logging::maybe_print_banner;
 use nym_config::defaults::setup_env;
@@ -15,7 +15,7 @@ mod env;
 pub(crate) mod error;
 mod logging;
 pub(crate) mod node;
-pub(crate) mod throughput_test;
+pub(crate) mod throughput_tester;
 pub(crate) mod wireguard;
 
 fn main() -> anyhow::Result<()> {
@@ -26,7 +26,6 @@ fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     setup_env(cli.config_env_file.as_ref());
-    setup_tracing_logger()?;
 
     if !cli.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());

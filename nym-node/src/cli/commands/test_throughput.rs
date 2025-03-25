@@ -17,11 +17,19 @@ pub struct Args {
     #[clap(flatten)]
     config: ConfigArgs,
 
-    #[clap(long, default_value_t = 3)]
+    #[clap(long, default_value_t = 10)]
     senders: usize,
 
+    /// target packet latency, if current value is below threshold, clients will increase their sending rates
+    /// and similarly if it's above it, they will decrease it
     #[clap(long, default_value = "15ms", value_parser = humantime::parse_duration)]
     packet_latency_threshold: Duration,
+
+    #[clap(long, default_value_t = 50)]
+    starting_sending_batch_size: usize,
+
+    #[clap(long, default_value = "20ms", value_parser = humantime::parse_duration)]
+    starting_sending_delay: Duration,
 }
 
 fn init_test_logger() -> anyhow::Result<()> {
@@ -49,5 +57,7 @@ pub fn execute(args: Args) -> anyhow::Result<()> {
         args.config.config_path(),
         args.senders,
         args.packet_latency_threshold,
+        args.starting_sending_batch_size,
+        args.starting_sending_delay,
     )
 }

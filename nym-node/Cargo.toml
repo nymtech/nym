@@ -40,9 +40,6 @@ toml = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
-# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
-semver = { workspace = true }
-
 # system info:
 cupid = { workspace = true }
 sysinfo = { workspace = true }
@@ -79,8 +76,6 @@ nym-http-api-client = { path = "../common/http-api-client" }
 # useful for `#[axum_macros::debug_handler]`
 #axum-macros = "0.3.8"
 axum.workspace = true
-axum-extra = { workspace = true, features = ["typed-header"] }
-headers.workspace = true
 time = { workspace = true, features = ["serde"] }
 tower-http = { workspace = true, features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
@@ -98,17 +93,18 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 
 # throughput tester to recreate lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
 [dependencies.lioness]
-version = "0.1.2"
+version = "*"
 
 [dependencies.chacha]
-version = "0.3.0"
+version = "*"
 
 [dependencies.arrayref]
-version = "0.3.7"
+version = "*"
 
 [dependencies.blake2]
-version = "0.8.0"
+version = "*"
 
 
 

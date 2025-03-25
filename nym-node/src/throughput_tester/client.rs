@@ -283,7 +283,7 @@ impl ThroughputTestingClient {
 
         let saturation = current / threshold;
 
-        let sending_delay_millis = self.sending_delay.as_millis();
+        let sending_delay_nanos = self.sending_delay.as_nanos();
         let batch_size = self.current_batch_size;
 
         let diff = 1. - saturation;
@@ -298,8 +298,8 @@ impl ThroughputTestingClient {
         // (and split it equally between sending delay and batch size)
         // but also make sure the current values don't increase by more than 10%
         let mut new_batch_size = (batch_size as f64 * (1. + 0.25 * diff)).floor() as u64;
-        let mut new_sending_delay_millis =
-            (sending_delay_millis as f64 * (1. - 0.25 * diff)).floor() as u64;
+        let mut new_sending_delay_nanos =
+            (sending_delay_nanos as f64 * (1. - 0.25 * diff)).floor() as u64;
 
         if (new_batch_size as f64) > (batch_size as f64 * 1.1) {
             new_batch_size = ((batch_size as f64) * 1.1) as u64;
@@ -308,18 +308,18 @@ impl ThroughputTestingClient {
             new_batch_size = ((batch_size as f64) * 0.9) as u64;
         }
 
-        if (new_sending_delay_millis as f64) > (sending_delay_millis as f64 * 1.1) {
-            new_sending_delay_millis = ((sending_delay_millis as f64) * 1.1) as u64;
+        if (new_sending_delay_nanos as f64) > (sending_delay_nanos as f64 * 1.1) {
+            new_sending_delay_nanos = ((sending_delay_nanos as f64) * 1.1) as u64;
         }
-        if (new_sending_delay_millis as f64) < (sending_delay_millis as f64 * 0.9) {
-            new_sending_delay_millis = ((sending_delay_millis as f64) * 0.9) as u64;
+        if (new_sending_delay_nanos as f64) < (sending_delay_nanos as f64 * 0.9) {
+            new_sending_delay_nanos = ((sending_delay_nanos as f64) * 0.9) as u64;
         }
 
         // normalize values
         if new_batch_size < 10 {
             new_batch_size = 10;
         }
-        let mut new_sending_delay = Duration::from_millis(new_sending_delay_millis);
+        let mut new_sending_delay = Duration::from_nanos(new_sending_delay_nanos);
 
         if new_sending_delay.is_zero() {
             new_sending_delay = Duration::from_micros(500);

@@ -12,7 +12,7 @@ use indicatif::{ProgressState, ProgressStyle};
 use nym_crypto::asymmetric::x25519;
 use nym_task::ShutdownToken;
 use rand::{thread_rng, Rng};
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -48,7 +48,13 @@ impl ThroughputTest {
 
     fn prepare_nymnode(&self, config_path: PathBuf) -> anyhow::Result<NymNode> {
         self.node_runtime.block_on(async {
-            let config = try_load_current_config(config_path).await?;
+            let mut config = try_load_current_config(config_path).await?;
+
+            // make sure to change bind address to localhost!
+            config
+                .mixnet
+                .bind_address
+                .set_ip(IpAddr::V4(Ipv4Addr::LOCALHOST));
 
             let nym_node = NymNode::new(config).await?;
             Ok(nym_node)
@@ -132,18 +138,21 @@ async fn global_stats(
     )
 
 )]
+#[allow(clippy::too_many_arguments)]
 async fn run_testing_client(
     sender_id: usize,
     node_keys: Arc<x25519::KeyPair>,
     node_listener: SocketAddr,
     packet_latency_threshold: Duration,
+    starting_sending_batch_size: usize,
+    starting_sending_delay: Duration,
     stats: ClientStats,
     shutdown_token: ShutdownToken,
 ) -> anyhow::Result<()> {
     let _ = sender_id;
     let client = ThroughputTestingClient::try_create(
-        Duration::from_millis(50),
-        100,
+        starting_sending_delay,
+        starting_sending_batch_size,
         packet_latency_threshold,
         &node_keys,
         node_listener,
@@ -154,7 +163,7 @@ async fn run_testing_client(
 
     // wait a random amount of time before actually starting to desync the clients a bit
     // (so they wouldn't update their rates at the same time)
-    let delay = Duration::from_millis(thread_rng().gen_range(100..5000));
+    let delay = Duration::from_millis(thread_rng().gen_range(10..200));
     info!(
         "waiting for {} before attempting to start the processing loop",
         delay.human_duration()
@@ -168,11 +177,14 @@ pub(crate) fn test_mixing_throughput(
     config_path: PathBuf,
     senders: usize,
     packet_latency_threshold: Duration,
+    starting_sending_batch_size: usize,
+    starting_sending_delay: Duration,
 ) -> anyhow::Result<()> {
     let tester = ThroughputTest::new(senders)?;
 
     let nym_node = tester.prepare_nymnode(config_path)?;
     let listener = nym_node.config().mixnet.bind_address;
+
     let sphinx_keys = nym_node.x25519_sphinx_keys();
 
     let mut stats = Vec::with_capacity(senders);
@@ -209,6 +221,8 @@ pub(crate) fn test_mixing_throughput(
             sphinx_keys.clone(),
             listener,
             packet_latency_threshold,
+            starting_sending_batch_size,
+            starting_sending_delay,
             stats.clone(),
             token,
         );

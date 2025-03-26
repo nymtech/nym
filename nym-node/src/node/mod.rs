@@ -28,9 +28,8 @@ use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgress
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::shared_network::{
-    CachedNetwork, CachedTopologyProvider, NetworkRefresher, OpenFilter, RoutingFilter,
-};
+use crate::node::routing_filter::{OpenFilter, RoutingFilter};
+use crate::node::shared_network::{CachedNetwork, CachedTopologyProvider, NetworkRefresher};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
@@ -69,6 +68,8 @@ pub mod helpers;
 pub(crate) mod http;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
+pub(crate) mod replay_protection;
+mod routing_filter;
 mod shared_network;
 
 pub struct GatewayTasksData {

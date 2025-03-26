@@ -18,8 +18,6 @@ export default async function NymNode({
 }) {
   try {
     const paramId = (await params).id;
-    const id = Number(paramId);
-
 
 
     return (

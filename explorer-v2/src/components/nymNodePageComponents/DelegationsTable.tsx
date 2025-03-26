@@ -38,7 +38,6 @@ const DelegationsTable = ({ id }: Props) => {
 
   const {
     data: delegations = [],
-    isLoading,
     isError,
   } = useQuery({
     queryKey: ["nodeDelegations", id],
@@ -51,7 +50,6 @@ const DelegationsTable = ({ id }: Props) => {
 
 
 
-  if (isError) return null;
 
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [
@@ -157,6 +155,9 @@ const DelegationsTable = ({ id }: Props) => {
       },
     }),
   });
+
+  if (isError) return null;
+
   return <MaterialReactTable table={table} />;
 };
 

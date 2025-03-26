@@ -7,12 +7,15 @@ import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
+import { IObservatoryNode } from "@/app/api/types";
 
-interface IBasicInfoCardProps {
-  id: number;
-}
+type Props = {
+  paramId: string;
+};
 
-export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
+export const BasicInfoCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   const {
     data: nymNodes,
     isLoading,
@@ -50,7 +53,14 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
     );
   }
 
-  const nodeInfo = nymNodes.find((node) => node.node_id === id);
+  // get node info based on wether it's dentity_key or node_id 
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+  }
 
   if (!nodeInfo) return null;
 

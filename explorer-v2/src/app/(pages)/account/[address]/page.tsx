@@ -15,8 +15,6 @@ export default async function Account({
   try {
     const address = (await params).address;
 
-
-
     return (
       <ContentLayout>
         <Grid container columnSpacing={5} rowSpacing={5}>

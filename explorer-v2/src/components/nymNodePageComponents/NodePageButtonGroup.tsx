@@ -3,26 +3,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchObservatoryNodes } from "@/app/api";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
+import { IObservatoryNode } from "@/app/api/types";
 
 type Props = {
     paramId: string;
 };
 
-// const resolveNodeId = async (paramId: string) => {
-//     if (paramId.length > 10) {
-//         return await fetchNodeIdByIdentityKey(paramId);
-//     }
-//     return Number(paramId);
-// };
-
-// const fetchResolvedNodeInfo = async (paramId: string) => {
-//     const id = await resolveNodeId(paramId);
-//     const node = await fetchNodeInfo(id);
-//     return { node, id };
-// };
-
 export default function NodePageButtonGroup({ paramId }: Props) {
-    const id = Number(paramId)
+    let nodeInfo: IObservatoryNode | undefined
+
     const {
         data: nymNodes,
         isError,
@@ -38,7 +27,16 @@ export default function NodePageButtonGroup({ paramId }: Props) {
 
     if (!nymNodes || isError) return null;
 
-    const nodeInfo = nymNodes.find((node) => node.node_id === id);
+
+    // get node info based on wether it's dentity_key or node_id 
+
+    if (paramId.length > 10) {
+        nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+
+    } else {
+        nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+    }
+
 
     if (!nodeInfo) return null;
 

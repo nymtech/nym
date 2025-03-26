@@ -7,14 +7,14 @@ import {
   fetchGatewayStatus,
   fetchObservatoryNodes,
 } from "../../app/api";
-import type { LastProbeResult, NodeDescription } from "../../app/api/types";
+import type { IObservatoryNode, LastProbeResult, NodeDescription } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
 
-interface INodeRoleCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
 type NodeDescriptionNotNull = NonNullable<NodeDescription>;
 type DeclaredRoleKey = keyof NodeDescriptionNotNull["declared_role"];
@@ -143,7 +143,9 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
   }
 }
 
-export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
+export const NodeRoleCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   // Fetch node info
   const {
     data: nymNodes,
@@ -171,8 +173,13 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
 
   });
 
-  const nodeInfo = nymNodes?.find((node) => node.node_id === id);
-  // Extract node roles once `nodeInfo` is available
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+  }  // Extract node roles once `nodeInfo` is available
   const nodeRoles = nodeInfo
     ? getNodeRoles(nodeInfo.description.declared_role)
     : [];

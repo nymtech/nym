@@ -17,12 +17,15 @@ import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
+import { IObservatoryNode } from "@/app/api/types";
 
-interface INodeProfileCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
-export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
+export const NodeProfileCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { nymClient } = useNymClient();
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -49,7 +52,15 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   });
 
 
-  const nodeInfo = nymNodes?.find((node) => node.node_id === id);
+
+  // get node info based on wether it's dentity_key or node_id 
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+  }
 
   const handleOnSelectStake = useCallback(() => {
     if (!nodeInfo) return;
@@ -80,6 +91,15 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     }
   }, [isWalletConnected, nodeInfo]);
 
+  if (isLoadingNymNodes) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Skeleton variant="rectangular" height={80} width={80} />
+        <Skeleton variant="text" />
+        <Skeleton variant="text" height={200} />
+      </ExplorerCard>
+    );
+  }
   if (isError || !nymNodes) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
@@ -90,15 +110,6 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     );
   }
 
-  if (isLoadingNymNodes) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Skeleton variant="rectangular" height={80} width={80} />
-        <Skeleton variant="text" />
-        <Skeleton variant="text" height={200} />
-      </ExplorerCard>
-    );
-  }
 
   const handleStakeOnNode = async ({
     nodeId,

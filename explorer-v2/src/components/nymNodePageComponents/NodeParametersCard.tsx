@@ -4,15 +4,17 @@ import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
-import type { RewardingDetails } from "../../app/api/types";
+import type { IObservatoryNode, RewardingDetails } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
-interface INodeParametersCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
-export const NodeParametersCard = ({ id }: INodeParametersCardProps) => {
+export const NodeParametersCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   // Fetch epoch rewards
   const {
     data: epochRewardsData,
@@ -62,9 +64,17 @@ export const NodeParametersCard = ({ id }: INodeParametersCardProps) => {
       </ExplorerCard>
     );
   }
-  const nodeInfo = nymNodes.find((node) => node.node_id === id);
+  // get node info based on wether it's dentity_key or node_id 
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+  }
 
   if (!nodeInfo) return null;
+
   const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
   const totalStakeFormatted = `${totalStake} NYM`;
 

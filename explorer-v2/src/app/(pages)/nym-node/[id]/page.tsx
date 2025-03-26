@@ -17,8 +17,10 @@ export default async function NymNode({
   params: Promise<{ id: string }>; // node_id or identity_key
 }) {
   try {
-    const paramsId = (await params).id;
-    const id = Number(paramsId);
+    const paramId = (await params).id;
+    const id = Number(paramId);
+
+
 
     return (
       <ContentLayout>
@@ -26,7 +28,7 @@ export default async function NymNode({
           <Grid size={12}>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <SectionHeading title="Nym Node Details" />
-              <NodePageButtonGroup paramId={id.toString()} />
+              <NodePageButtonGroup paramId={paramId} />
             </Box>
           </Grid>
           <Grid
@@ -35,7 +37,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <NodeProfileCard id={id} />
+            <NodeProfileCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -43,7 +45,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <BasicInfoCard id={id} />
+            <BasicInfoCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -51,7 +53,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <NodeRoleCard id={id} />
+            <NodeRoleCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -59,7 +61,7 @@ export default async function NymNode({
               md: 6,
             }}
           >
-            <NodeParametersCard id={id} />
+            <NodeParametersCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -67,14 +69,14 @@ export default async function NymNode({
               md: 6,
             }}
           >
-            <NodeDataCard id={id} />
+            <NodeDataCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
               xs: 12,
             }}
           >
-            <NodeDelegationsCard id={id} />
+            <NodeDelegationsCard paramId={paramId} />
           </Grid>
           {/* 
           <Grid

@@ -6,12 +6,15 @@ import { Skeleton, Typography } from "@mui/material";
 import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
+import { IObservatoryNode } from "@/app/api/types";
 
-interface INodeMetricsCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
-export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
+export const NodeDataCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   const {
     data: epochRewardsData,
     isLoading: isEpochLoading,
@@ -61,7 +64,14 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
     );
   }
 
-  const nodeInfo = nymNodes.find((node) => node.node_id === id);
+  // get node info based on wether it's dentity_key or node_id 
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+  }
 
   if (!nodeInfo) return null;
 

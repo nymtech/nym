@@ -4,10 +4,10 @@
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::node::NymNode;
 use crate::throughput_tester::client::ThroughputTestingClient;
+use crate::throughput_tester::global_stats::GlobalStatsUpdater;
 use crate::throughput_tester::stats::ClientStats;
-use colored::Colorize;
 use futures::future::join_all;
-use human_repr::{HumanCount, HumanDuration, HumanThroughput};
+use human_repr::HumanDuration;
 use indicatif::{ProgressState, ProgressStyle};
 use nym_crypto::asymmetric::x25519;
 use nym_task::ShutdownToken;
@@ -16,14 +16,14 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use sysinfo::System;
+use tokio::runtime;
 use tokio::runtime::Runtime;
-use tokio::time::{interval, sleep, Instant};
-use tokio::{runtime, select};
-use tracing::{info, info_span, instrument, Span};
+use tokio::time::sleep;
+use tracing::{info, info_span, instrument};
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 pub(crate) mod client;
+pub(crate) mod global_stats;
 mod stats;
 
 pub struct ThroughputTest {
@@ -59,75 +59,6 @@ impl ThroughputTest {
             let nym_node = NymNode::new(config).await?;
             Ok(nym_node)
         })
-    }
-}
-
-async fn global_stats(
-    header_span: Span,
-    client_stats: Vec<ClientStats>,
-    shutdown_token: ShutdownToken,
-) {
-    let mut update_interval = interval(Duration::from_millis(500));
-    let mut system_info = System::new_all();
-
-    fn update_stats_span(
-        system: &mut System,
-        header_span: &Span,
-        stats: &[ClientStats],
-        last_received: &mut usize,
-        last_update: &mut Instant,
-    ) {
-        let mut all_received = 0;
-        let mut all_sent = 0;
-        let mut all_latencies = 0;
-        for stat in stats {
-            all_sent += stat.sent();
-            all_received += stat.received();
-            all_latencies += stat.average_latency_nanos();
-        }
-
-        let time_delta_secs = last_update.elapsed().as_secs_f64();
-        let receive_rate = (all_received - *last_received) as f64 / time_delta_secs;
-        let avg_rate = receive_rate.human_throughput("packets");
-        let avg_latency = all_latencies as f64 / stats.len() as f64;
-
-        system.refresh_cpu_usage();
-        let cpu_usage = system.global_cpu_usage();
-        let cpu_count = system.cpus().len();
-        let usage_per_cpu = cpu_usage / cpu_count as f32;
-
-        let formatted_usage = if usage_per_cpu < 0.3 {
-            format!("{:.2}%", usage_per_cpu * 100.).green().bold()
-        } else if usage_per_cpu < 0.7 {
-            format!("{:.2}%", usage_per_cpu * 100.).yellow().bold()
-        } else {
-            format!("{:.2}%", usage_per_cpu * 100.).red().bold()
-        };
-
-        header_span.pb_set_message(&format!(
-            "active_clients: {} | total received: {} total sent {} (avg packet latency: {}, total receive rate: {avg_rate}), avg core load: {formatted_usage}",
-            stats.len(),
-            all_received.human_count_bare(),
-            all_sent.human_count_bare(),
-            Duration::from_nanos(avg_latency as u64).human_duration()
-        ));
-        *last_received = all_received;
-        *last_update = Instant::now();
-    }
-
-    let mut last_received = 0;
-    let mut last_update = Instant::now();
-
-    loop {
-        select! {
-            biased;
-            _ = shutdown_token.cancelled() => {
-                break;
-            }
-            _ = update_interval.tick() => {
-                    update_stats_span(&mut system_info, &header_span, &client_stats, &mut last_received, &mut last_update);
-            }
-        }
     }
 }
 
@@ -179,6 +110,7 @@ pub(crate) fn test_mixing_throughput(
     packet_latency_threshold: Duration,
     starting_sending_batch_size: usize,
     starting_sending_delay: Duration,
+    output_directory: PathBuf,
 ) -> anyhow::Result<()> {
     let tester = ThroughputTest::new(senders)?;
 
@@ -211,7 +143,7 @@ pub(crate) fn test_mixing_throughput(
     header_span.pb_set_length(1);
     header_span.pb_set_position(1);
 
-    let mut clients_handles = Vec::new();
+    let mut tasks_handles = Vec::new();
 
     for (sender_id, stats) in stats.iter().enumerate() {
         let token = nym_node.shutdown_token(format!("dummy-load-client-{sender_id}"));
@@ -227,20 +159,27 @@ pub(crate) fn test_mixing_throughput(
             token,
         );
         let handle = tester.clients_runtime.spawn(client_future);
-        clients_handles.push(handle);
+        tasks_handles.push(handle);
     }
 
-    tester.clients_runtime.spawn(global_stats(
+    let mut global_stats = GlobalStatsUpdater::new(
         header_span,
         stats,
+        output_directory,
         nym_node.shutdown_token("global-stats"),
-    ));
+    );
+
+    let stats_handle = tester.clients_runtime.spawn(async move {
+        global_stats.run().await;
+        Ok(())
+    });
+    tasks_handles.push(stats_handle);
 
     tester
         .node_runtime
         .block_on(async move { nym_node.run_minimal_mixnet_processing().await })?;
 
-    tester.clients_runtime.block_on(join_all(clients_handles));
+    tester.clients_runtime.block_on(join_all(tasks_handles));
 
     Ok(())
 }

@@ -21,6 +21,7 @@ bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
+csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime-serde = { workspace = true }

@@ -296,28 +296,28 @@ impl ThroughputTestingClient {
 
         // be conservative and only apply 50% of the diff
         // (and split it equally between sending delay and batch size)
-        // but also make sure the current values don't increase by more than 10%
+        // but also make sure the current values don't increase by more than 5%
         let mut new_batch_size = (batch_size as f64 * (1. + 0.25 * diff)).floor() as u64;
         let mut new_sending_delay_nanos =
             (sending_delay_nanos as f64 * (1. - 0.25 * diff)).floor() as u64;
 
-        if (new_batch_size as f64) > (batch_size as f64 * 1.1) {
-            new_batch_size = ((batch_size as f64) * 1.1) as u64;
+        if (new_batch_size as f64) > (batch_size as f64 * 1.05) {
+            new_batch_size = ((batch_size as f64) * 1.05) as u64;
         }
-        if (new_batch_size as f64) < (batch_size as f64 * 0.9) {
-            new_batch_size = ((batch_size as f64) * 0.9) as u64;
+        if (new_batch_size as f64) < (batch_size as f64 * 0.95) {
+            new_batch_size = ((batch_size as f64) * 0.95) as u64;
         }
 
-        if (new_sending_delay_nanos as f64) > (sending_delay_nanos as f64 * 1.1) {
-            new_sending_delay_nanos = ((sending_delay_nanos as f64) * 1.1) as u64;
+        if (new_sending_delay_nanos as f64) > (sending_delay_nanos as f64 * 1.05) {
+            new_sending_delay_nanos = ((sending_delay_nanos as f64) * 1.05) as u64;
         }
-        if (new_sending_delay_nanos as f64) < (sending_delay_nanos as f64 * 0.9) {
-            new_sending_delay_nanos = ((sending_delay_nanos as f64) * 0.9) as u64;
+        if (new_sending_delay_nanos as f64) < (sending_delay_nanos as f64 * 0.95) {
+            new_sending_delay_nanos = ((sending_delay_nanos as f64) * 0.95) as u64;
         }
 
         // normalize values
-        if new_batch_size < 10 {
-            new_batch_size = 10;
+        if new_batch_size < 20 {
+            new_batch_size = 20;
         }
         let mut new_sending_delay = Duration::from_nanos(new_sending_delay_nanos);
 

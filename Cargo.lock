@@ -6118,6 +6118,7 @@ dependencies = [
  "chacha",
  "clap",
  "colored",
+ "csv",
  "cupid",
  "futures",
  "human-repr",

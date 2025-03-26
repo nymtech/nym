@@ -70,6 +70,7 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
       chains={chainsWithNyx}
       assetLists={assetsWithNyx}
       wallets={[...keplr]}
+      throwErrors
     >
       {children}
     </ChainProvider>

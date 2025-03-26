@@ -5716,9 +5716,9 @@
     global "^4.4.0"
 
 "@storybook/client-logger@^6.4.0 || >=6.5.0-0":
-  version "8.6.9"
-  resolved "https://registry.yarnpkg.com/@storybook/client-logger/-/client-logger-8.6.9.tgz#0f571e7fee848441045b27aced71784bdc77aef6"
-  integrity sha512-Sg/CAFJg1L+JqloiNzSjR2T+ChrY5pMlD+msEKhmlBwplCAMaoUFBQ4PvnftqWIeLouA8w+jCqkiOP0U/Y9MpA==
+  version "8.6.10"
+  resolved "https://registry.yarnpkg.com/@storybook/client-logger/-/client-logger-8.6.10.tgz#13026219ec1d521aae1d843bbecf86b216ac2d42"
+  integrity sha512-11ESSaOzYrzq57v+J4Pfy5cDo2b9Uvdk4LEfsYPRnGqhExRxd9VnSREfV+4u5005RES6smy0WyTFx00H+mP0ww==
 
 "@storybook/components@6.5.16":
   version "6.5.16"
@@ -5946,9 +5946,9 @@
     global "^4.4.0"
 
 "@storybook/instrumenter@^6.4.0 || >=6.5.0-0":
-  version "8.6.9"
-  resolved "https://registry.yarnpkg.com/@storybook/instrumenter/-/instrumenter-8.6.9.tgz#ee74cc4e9c618f59db0b5750b689c162e630cb47"
-  integrity sha512-Gp6OSiu9KA/p1HWd7VW9TtpWX32ZBfqRVrOm4wW1AM6B4XACbQWFE/aQ25HwU834yfdJkr2BW+uUH8DBAQ6kTw==
+  version "8.6.10"
+  resolved "https://registry.yarnpkg.com/@storybook/instrumenter/-/instrumenter-8.6.10.tgz#a30e9c97bf5a01f1ff1ed19af07eb64efa947943"
+  integrity sha512-Hlps6V0lkhFMbgcJQRynVBne51ciG7Xv+YtiDCd0PQtvZu8+vVJr/ebWt3nCwpvkRHooYiud1ScA3K8McyA73w==
   dependencies:
     "@storybook/global" "^5.0.0"
     "@vitest/utils" "^2.1.1"
@@ -7293,9 +7293,9 @@
   integrity sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==
 
 "@types/semver@^7.3.12", "@types/semver@^7.3.8":
-  version "7.5.8"
-  resolved "https://registry.yarnpkg.com/@types/semver/-/semver-7.5.8.tgz#8268a8c57a3e4abd25c165ecd36237db7948a55e"
-  integrity sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==
+  version "7.7.0"
+  resolved "https://registry.yarnpkg.com/@types/semver/-/semver-7.7.0.tgz#64c441bdae033b378b6eef7d0c3d77c329b9378e"
+  integrity sha512-k107IF4+Xr7UHjwDc7Cfd6PRQfbdkiRabXGRjo07b4WyPahFBZCZ1sE+BNxYIJPPg73UkfOsVOLwqVc/6ETrIA==
 
 "@types/send@*":
   version "0.17.4"

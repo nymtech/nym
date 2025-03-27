@@ -32,7 +32,7 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
-use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::providers::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;

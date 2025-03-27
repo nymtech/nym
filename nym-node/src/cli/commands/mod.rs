@@ -7,3 +7,4 @@ pub(super) mod migrate;
 pub(crate) mod node_details;
 pub(super) mod run;
 pub(super) mod sign;
+pub(crate) mod test_throughput;

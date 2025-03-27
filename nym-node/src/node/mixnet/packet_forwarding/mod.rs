@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::mixnet::packet_forwarding::global::is_global_ip;
 use crate::node::shared_network::RoutingFilter;
 use futures::StreamExt;
 use nym_mixnet_client::forwarder::{
@@ -13,38 +12,33 @@ use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
 use std::io;
-use std::net::IpAddr;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
 pub(crate) mod global;
 
-pub struct PacketForwarder<C> {
-    testnet: bool,
-
+pub struct PacketForwarder<C, F> {
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
     mixnet_client: C,
 
     metrics: NymNodeMetrics,
-    routing_filter: RoutingFilter,
+    routing_filter: F,
 
     packet_sender: MixForwardingSender,
     packet_receiver: MixForwardingReceiver,
     shutdown: ShutdownToken,
 }
 
-impl<C> PacketForwarder<C> {
+impl<C, F> PacketForwarder<C, F> {
     pub fn new(
         client: C,
-        testnet: bool,
-        routing_filter: RoutingFilter,
+        routing_filter: F,
         metrics: NymNodeMetrics,
         shutdown: ShutdownToken,
     ) -> Self {
         let (packet_sender, packet_receiver) = mix_forwarding_channels();
 
         PacketForwarder {
-            testnet,
             delay_queue: NonExhaustiveDelayQueue::new(),
             mixnet_client: client,
             metrics,
@@ -59,22 +53,14 @@ impl<C> PacketForwarder<C> {
         self.packet_sender.clone()
     }
 
-    fn should_route(&mut self, ip_addr: IpAddr) -> bool {
-        // only allow non-global ips on testnets
-        if self.testnet && !is_global_ip(&ip_addr) {
-            return true;
-        }
-
-        self.routing_filter.attempt_resolve(ip_addr).should_route()
-    }
-
     fn forward_packet(&mut self, packet: MixPacket)
     where
         C: SendWithoutResponse,
+        F: RoutingFilter,
     {
         let next_hop = packet.next_hop();
 
-        if !self.should_route(next_hop.as_ref().ip()) {
+        if !self.routing_filter.should_route(next_hop.as_ref().ip()) {
             debug!("dropping packet as the egress address does not belong to any known node");
             self.metrics
                 .mixnet
@@ -113,6 +99,7 @@ impl<C> PacketForwarder<C> {
     fn handle_done_delaying(&mut self, packet: Expired<MixPacket>)
     where
         C: SendWithoutResponse,
+        F: RoutingFilter,
     {
         let delayed_packet = packet.into_inner();
         self.forward_packet(delayed_packet);
@@ -121,6 +108,7 @@ impl<C> PacketForwarder<C> {
     fn handle_new_packet(&mut self, new_packet: PacketToForward)
     where
         C: SendWithoutResponse,
+        F: RoutingFilter,
     {
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
@@ -152,6 +140,7 @@ impl<C> PacketForwarder<C> {
     pub async fn run(&mut self)
     where
         C: SendWithoutResponse,
+        F: RoutingFilter,
     {
         let mut processed = 0;
         trace!("starting PacketForwarder");

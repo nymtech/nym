@@ -29,7 +29,7 @@ use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::shared_network::{
-    CachedNetwork, CachedTopologyProvider, NetworkRefresher, RoutingFilter,
+    CachedNetwork, CachedTopologyProvider, NetworkRefresher, OpenFilter, RoutingFilter,
 };
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -461,6 +461,10 @@ impl NymNode {
         &self.config
     }
 
+    pub(crate) fn shutdown_token<S: Into<String>>(&self, child_suffix: S) -> ShutdownToken {
+        self.shutdown_manager.clone_token(child_suffix)
+    }
+
     pub(crate) fn with_accepted_operator_terms_and_conditions(
         mut self,
         accepted_operator_terms_and_conditions: bool,
@@ -528,12 +532,17 @@ impl NymNode {
         self.x25519_sphinx_keys.public_key()
     }
 
+    pub(crate) fn x25519_sphinx_keys(&self) -> Arc<x25519::KeyPair> {
+        self.x25519_sphinx_keys.clone()
+    }
+
     pub(crate) fn x25519_noise_key(&self) -> &x25519::PublicKey {
         self.x25519_noise_keys.public_key()
     }
 
     async fn build_network_refresher(&self) -> Result<NetworkRefresher, NymNodeError> {
         NetworkRefresher::initialise_new(
+            self.config.debug.testnet,
             self.user_agent(),
             self.config.mixnet.nym_api_urls.clone(),
             self.config.debug.topology_cache_ttl,
@@ -970,12 +979,15 @@ impl NymNode {
         events_sender
     }
 
-    pub(crate) fn start_mixnet_listener(
+    pub(crate) fn start_mixnet_listener<F>(
         &self,
         active_clients_store: &ActiveClientsStore,
-        routing_filter: RoutingFilter,
+        routing_filter: F,
         shutdown: ShutdownToken,
-    ) -> (MixForwardingSender, ActiveConnections) {
+    ) -> (MixForwardingSender, ActiveConnections)
+    where
+        F: RoutingFilter + Send + Sync + 'static,
+    {
         let processing_config = ProcessingConfig::new(&self.config);
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
@@ -1002,7 +1014,6 @@ impl NymNode {
 
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
-            self.config.debug.testnet,
             routing_filter,
             self.metrics.clone(),
             shutdown.clone_with_suffix("mix-packet-forwarder"),
@@ -1026,6 +1037,19 @@ impl NymNode {
 
         mixnet::Listener::new(self.config.mixnet.bind_address, shared).start();
         (mix_packet_sender, active_connections)
+    }
+
+    pub(crate) async fn run_minimal_mixnet_processing(self) -> Result<(), NymNodeError> {
+        self.start_mixnet_listener(
+            &ActiveClientsStore::new(),
+            OpenFilter,
+            self.shutdown_manager.clone_token("mixnet-traffic"),
+        );
+
+        self.shutdown_manager.close();
+        self.shutdown_manager.wait_for_shutdown_signal().await;
+
+        Ok(())
     }
 
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {

@@ -11,7 +11,7 @@ pub(crate) struct Args {
     _args: Vec<String>,
 }
 
-pub(crate) async fn execute(_args: Args) -> Result<(), NymNodeError> {
+pub(crate) fn execute(_args: Args) -> Result<(), NymNodeError> {
     let orange = TrueColor {
         r: 251,
         g: 110,

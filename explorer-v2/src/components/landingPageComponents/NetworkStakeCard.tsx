@@ -60,7 +60,7 @@ export const NetworkStakeCard = () => {
     .map((item: IPacketsAndStakingData) => ({
       date_utc: item.date_utc,
       numericData: item.total_stake / 1000000,
-    }));
+    })).filter((item) => item.numericData >= 50_000_000)
 
 
 

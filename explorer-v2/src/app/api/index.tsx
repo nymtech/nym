@@ -224,7 +224,6 @@ export const fetchObservatoryNodes = async (): Promise<IObservatoryNode[]> => {
       page++; // Move to the next page
     }
   }
-  console.log("fetching...")
   return allNodes;
 };
 

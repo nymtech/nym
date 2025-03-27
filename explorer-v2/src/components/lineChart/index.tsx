@@ -112,7 +112,7 @@ export const LineChart = ({
       axisBottom={{
         format: "%b %d",
         legendOffset: -12,
-        tickValues: chartData.data.length > 7 ? "every 5 days" : "every 2 days",
+        tickValues: chartData.data.length > 7 ? "every 6 days" : "every 2 days",
       }}
     />
   );

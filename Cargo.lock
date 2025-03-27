@@ -4692,6 +4692,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if",
+ "chrono",
  "clap",
  "console-subscriber",
  "cosmwasm-std",

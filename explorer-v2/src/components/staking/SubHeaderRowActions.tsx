@@ -13,7 +13,9 @@ import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
 
-const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
+// const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
+const fee = "auto"
+
 
 // Fetch delegations
 const fetchDelegations = async (

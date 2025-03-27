@@ -94,7 +94,7 @@ export const NoiseCard = () => {
         date_utc: item.date_utc,
         numericData: item.total_packets_sent + item.total_packets_received,
       };
-    });
+    }).filter((item) => item.numericData >= 2_500_000_000)
 
 
   return (

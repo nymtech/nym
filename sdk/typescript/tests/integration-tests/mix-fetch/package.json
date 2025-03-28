@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "dependencies": {
     "serve-handler": "^6.1.5",
-    "puppeteer": "^21.1.1"
+    "puppeteer": "^24.4.0"
   }
 }

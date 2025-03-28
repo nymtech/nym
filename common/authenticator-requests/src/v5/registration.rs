@@ -15,7 +15,7 @@ use std::{fmt, ops::Deref, str::FromStr};
 #[cfg(feature = "verify")]
 use hmac::{Hmac, Mac};
 #[cfg(feature = "verify")]
-use nym_crypto::asymmetric::encryption::PrivateKey;
+use nym_crypto::asymmetric::encryption::{PrivateKey, PublicKey};
 #[cfg(feature = "verify")]
 use sha2::Sha256;
 
@@ -145,14 +145,14 @@ impl GatewayClient {
     ) -> Self {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
-        let static_secret = x25519_dalek::StaticSecret::from(local_secret.to_bytes());
-        let local_public: x25519_dalek::PublicKey = (&static_secret).into();
+        let local_public = PublicKey::from(local_secret);
+        let remote_public = PublicKey::from(remote_public);
 
-        let dh = static_secret.diffie_hellman(&remote_public);
+        let dh = local_secret.diffie_hellman(&remote_public);
 
         // TODO: change that to use our nym_crypto::hmac module instead
         #[allow(clippy::expect_used)]
-        let mut mac = HmacSha256::new_from_slice(dh.as_bytes())
+        let mut mac = HmacSha256::new_from_slice(&dh[..])
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(local_public.as_bytes());
@@ -160,7 +160,7 @@ impl GatewayClient {
         mac.update(&nonce.to_le_bytes());
 
         GatewayClient {
-            pub_key: PeerPublicKey::new(local_public),
+            pub_key: PeerPublicKey::new(local_public.into()),
             private_ips,
             mac: ClientMac(mac.finalize().into_bytes().to_vec()),
         }
@@ -172,13 +172,13 @@ impl GatewayClient {
     pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
-        let static_secret = x25519_dalek::StaticSecret::from(gateway_key.to_bytes());
+        let client_pubkey = PublicKey::from(*self.pub_key.deref());
 
-        let dh = static_secret.diffie_hellman(&self.pub_key);
+        let dh = gateway_key.diffie_hellman(&client_pubkey);
 
         // TODO: change that to use our nym_crypto::hmac module instead
         #[allow(clippy::expect_used)]
-        let mut mac = HmacSha256::new_from_slice(dh.as_bytes())
+        let mut mac = HmacSha256::new_from_slice(&dh[..])
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(self.pub_key.as_bytes());

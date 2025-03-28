@@ -6124,6 +6124,7 @@ dependencies = [
  "csv",
  "cupid",
  "futures",
+ "hkdf",
  "human-repr",
  "humantime-serde",
  "indicatif",
@@ -6163,6 +6164,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "sysinfo",
  "thiserror 2.0.12",
  "time",
@@ -9246,9 +9248,9 @@ dependencies = [
 
 [[package]]
 name = "sphinx-packet"
-version = "0.3.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c23047e0cf36ff6904603f499fd13153425cdf5ba47bfbaedbc999da0bd92f4e"
+checksum = "b63a72efe7dce8a546d5cb855e60699ae69203d0d7e4335a654eb87e93d7d141"
 dependencies = [
  "aes",
  "arrayref",
@@ -9267,6 +9269,7 @@ dependencies = [
  "sha2 0.10.8",
  "subtle 2.6.1",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

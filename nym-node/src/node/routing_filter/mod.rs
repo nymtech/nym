@@ -22,12 +22,12 @@ impl RoutingFilter for OpenFilter {
 // pub(crate) struct ComposedRoutingFilter {
 //     layers: Vec<Box<dyn RoutingFilter + Send + Sync + 'static>>,
 // }
-// 
+//
 // impl ComposedRoutingFilter {
 //     pub(crate) fn new() -> Self {
 //         Self::default()
 //     }
-// 
+//
 //     pub(crate) fn with_filter<F: RoutingFilter + Send + Sync + 'static>(
 //         mut self,
 //         filter: F,
@@ -36,7 +36,7 @@ impl RoutingFilter for OpenFilter {
 //         self
 //     }
 // }
-// 
+//
 // impl RoutingFilter for ComposedRoutingFilter {
 //     fn should_route(&self, ip: IpAddr) -> bool {
 //         self.layers.iter().all(|l| l.should_route(ip))

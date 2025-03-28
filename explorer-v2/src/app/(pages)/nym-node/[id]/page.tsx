@@ -1,14 +1,13 @@
-import { fetchNodeIdByIdentityKey, fetchNodeInfo } from "@/app/api";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeDataCard } from "@/components/nymNodePageComponents/NodeDataCard";
 // import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
 import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
+import NodePageButtonGroup from "@/components/nymNodePageComponents/NodePageButtonGroup";
 import { NodeParametersCard } from "@/components/nymNodePageComponents/NodeParametersCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRoleCard } from "@/components/nymNodePageComponents/NodeRoleCard";
-import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 
@@ -18,22 +17,8 @@ export default async function NymNode({
   params: Promise<{ id: string }>; // node_id or identity_key
 }) {
   try {
-    let id: string | number;
-    const paramsId = (await params).id;
+    const paramId = (await params).id;
 
-    // check if the params id is a node_id or identity_key
-
-    if (paramsId.length > 10) {
-      id = await fetchNodeIdByIdentityKey(paramsId);
-    } else {
-      id = Number(paramsId);
-    }
-
-    const observatoryNymNode = await fetchNodeInfo(id);
-
-    if (!observatoryNymNode) {
-      return null;
-    }
 
     return (
       <ContentLayout>
@@ -41,23 +26,7 @@ export default async function NymNode({
           <Grid size={12}>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <SectionHeading title="Nym Node Details" />
-              {observatoryNymNode.bonding_address && (
-                <ExplorerButtonGroup
-                  onPage="Nym Node"
-                  options={[
-                    {
-                      label: "Nym Node",
-                      isSelected: true,
-                      link: `/nym-node/${id}`,
-                    },
-                    {
-                      label: "Account",
-                      isSelected: false,
-                      link: `/account/${observatoryNymNode.bonding_address}`,
-                    },
-                  ]}
-                />
-              )}
+              <NodePageButtonGroup paramId={paramId} />
             </Box>
           </Grid>
           <Grid
@@ -66,7 +35,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <NodeProfileCard id={id} />
+            <NodeProfileCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -74,7 +43,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <BasicInfoCard id={id} />
+            <BasicInfoCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -82,7 +51,7 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <NodeRoleCard id={id} />
+            <NodeRoleCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -90,7 +59,7 @@ export default async function NymNode({
               md: 6,
             }}
           >
-            <NodeParametersCard id={id} />
+            <NodeParametersCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
@@ -98,14 +67,14 @@ export default async function NymNode({
               md: 6,
             }}
           >
-            <NodeDataCard id={id} />
+            <NodeDataCard paramId={paramId} />
           </Grid>
           <Grid
             size={{
               xs: 12,
             }}
           >
-            <NodeDelegationsCard id={id} />
+            <NodeDelegationsCard paramId={paramId} />
           </Grid>
           {/* 
           <Grid

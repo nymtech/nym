@@ -3,8 +3,8 @@
 import { useChain } from "@cosmos-kit/react";
 import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchTotalStakerRewards } from "../../app/api";
 import type { NodeRewardDetails } from "../../app/api/types";
 import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
@@ -13,7 +13,21 @@ import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
 
-const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
+// const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
+function createFee(gas: number, gasPrice: number, denom: string) {
+  return {
+    gas: gas.toString(),
+    amount: [
+      {
+        amount: Math.ceil(gas * gasPrice).toString(),
+        denom,
+      },
+    ],
+  };
+}
+
+const fee = createFee(1_000_000, 0.025, "unym");
+
 
 // Fetch delegations
 const fetchDelegations = async (
@@ -59,6 +73,9 @@ const SubHeaderRowActions = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address is available
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const handleRefetch = useCallback(async () => {
@@ -86,6 +103,10 @@ const SubHeaderRowActions = () => {
       }));
 
       const cosmWasmSigningClient = await getSigningCosmWasmClient();
+
+      
+
+  
 
       const result = await cosmWasmSigningClient.executeMultiple(
         address,

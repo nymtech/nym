@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
-import { fetchNodeInfo } from "../../app/api";
+import { fetchObservatoryNodes } from "../../app/api";
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -17,12 +17,15 @@ import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
+import { IObservatoryNode } from "@/app/api/types";
 
-interface INodeProfileCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
-export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
+export const NodeProfileCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { nymClient } = useNymClient();
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -36,13 +39,77 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
 
   // Fetch node info
   const {
-    data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    data: nymNodes,
+    isLoading: isLoadingNymNodes,
+    isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
+
+
+
+  // get node info based on wether it's dentity_key or node_id 
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+  }
+
+  const handleOnSelectStake = useCallback(() => {
+    if (!nodeInfo) return;
+    if (!isWalletConnected) {
+      setInfoModalProps({
+        open: true,
+        title: "Connect Wallet",
+        message: "Connect your wallet to stake",
+        Action: (
+          <ConnectWallet
+            fullWidth
+            onClick={() =>
+              setInfoModalProps({
+                open: false,
+              })
+            }
+          />
+        ),
+        onClose: () => setInfoModalProps({ open: false }),
+      });
+      return;
+    }
+    if (nodeInfo) {
+      setSelectedNodeForStaking({
+        nodeId: nodeInfo.node_id,
+        identityKey: nodeInfo.identity_key,
+      });
+    }
+  }, [isWalletConnected, nodeInfo]);
+
+  if (isLoadingNymNodes) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Skeleton variant="rectangular" height={80} width={80} />
+        <Skeleton variant="text" />
+        <Skeleton variant="text" height={200} />
+      </ExplorerCard>
+    );
+  }
+  if (isError || !nymNodes) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
 
   const handleStakeOnNode = async ({
     nodeId,
@@ -86,53 +153,10 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     setIsLoading(false);
   };
 
-  const handleOnSelectStake = useCallback(() => {
-    if (!isWalletConnected) {
-      setInfoModalProps({
-        open: true,
-        title: "Connect Wallet",
-        message: "Connect your wallet to stake",
-        Action: (
-          <ConnectWallet
-            fullWidth
-            onClick={() =>
-              setInfoModalProps({
-                open: false,
-              })
-            }
-          />
-        ),
-        onClose: () => setInfoModalProps({ open: false }),
-      });
-      return;
-    }
-    if (nodeInfo) {
-      setSelectedNodeForStaking({
-        nodeId: nodeInfo.node_id,
-        identityKey: nodeInfo.identity_key,
-      });
-    }
-  }, [isWalletConnected, nodeInfo]);
 
-  if (isNodeLoading) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Skeleton variant="rectangular" height={80} width={80} />
-        <Skeleton variant="text" />
-        <Skeleton variant="text" height={200} />
-      </ExplorerCard>
-    );
-  }
 
-  if (isNodeError || !nodeInfo) {
-    return (
-      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
-          Failed to load node data.
-        </Typography>
-      </ExplorerCard>
-    );
-  }
+  if (!nodeInfo) return null;
+
   const cleanMoniker = DOMPurify.sanitize(
     nodeInfo?.self_description.moniker,
   ).replace(/&amp;/g, "&");

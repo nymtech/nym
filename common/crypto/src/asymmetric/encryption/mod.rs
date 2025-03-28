@@ -132,6 +132,10 @@ impl PublicKey {
         *self.0.as_bytes()
     }
 
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_SIZE] {
+        self.0.as_bytes()
+    }
+
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PUBLIC_KEY_SIZE {
             return Err(KeyRecoveryError::InvalidSizePublicKey {
@@ -228,7 +232,6 @@ impl<'a> From<&'a PrivateKey> for PublicKey {
         PublicKey((&pk.0).into())
     }
 }
-
 impl FromStr for PrivateKey {
     type Err = KeyRecoveryError;
 

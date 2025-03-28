@@ -6,13 +6,12 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use serde::Serialize;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::str::FromStr;
 
 use x25519_dalek::PublicKey;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct PeerPublicKey(PublicKey);
 
 impl PeerPublicKey {
@@ -33,12 +32,6 @@ impl PeerPublicKey {
 impl fmt::Display for PeerPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", general_purpose::STANDARD.encode(self.0.as_bytes()))
-    }
-}
-
-impl Hash for PeerPublicKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.as_bytes().hash(state)
     }
 }
 

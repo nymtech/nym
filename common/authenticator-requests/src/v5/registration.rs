@@ -143,8 +143,6 @@ impl GatewayClient {
         private_ips: IpPair,
         nonce: u64,
     ) -> Self {
-        // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
-        #[allow(clippy::expect_used)]
         let local_public = PublicKey::from(local_secret);
         let remote_public = PublicKey::from(remote_public);
 
@@ -170,8 +168,6 @@ impl GatewayClient {
     // Client should perform this step when generating its payload, using its own WG PK
     #[cfg(feature = "verify")]
     pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
-        // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
-        #[allow(clippy::expect_used)]
         let client_pubkey = PublicKey::from(*self.pub_key.deref());
 
         let dh = gateway_key.diffie_hellman(&client_pubkey);

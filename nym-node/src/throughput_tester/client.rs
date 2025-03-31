@@ -160,7 +160,7 @@ impl ThroughputTestingClient {
 
         // SAFETY: we constructed a sphinx packet...
         #[allow(clippy::unwrap_used)]
-        let sphinx_packet = forward_packet.as_sphinx_packet().unwrap();
+        let sphinx_packet = forward_packet.to_sphinx_packet().unwrap();
         let header = &sphinx_packet.header;
 
         // derive the expanded shared secret for our node so we could tag the payload to figure out latency
@@ -283,7 +283,7 @@ impl ThroughputTestingClient {
         let inner = received.into_inner();
         // safety: we sent a sphinx packet...
         #[allow(clippy::unwrap_used)]
-        let sphinx = inner.as_sphinx_packet().unwrap();
+        let sphinx = inner.to_sphinx_packet().unwrap();
         let tag = PacketTag::from_bytes(sphinx.payload.as_bytes());
 
         self.stats.new_received(tag.elapsed_nanos());

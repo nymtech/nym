@@ -8,7 +8,8 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_framing::processing::{
-    process_framed_packet, MixProcessingResultData, ProcessedFinalHop,
+    finalize_packet_unwrapping, perform_partial_unwrapping, process_framed_packet,
+    MixProcessingResult, MixProcessingResultData, PacketProcessingError, ProcessedFinalHop,
 };
 use nym_sphinx_types::Delay;
 use std::net::SocketAddr;
@@ -128,15 +129,58 @@ impl ConnectionHandler {
         self.shared.forward_ack_packet(final_hop_data.forward_ack);
     }
 
+    async fn check_for_packet_replays(&self, replay_tag: &[u8]) -> bool {
+        false
+        // todo!()
+    }
+
+    async fn handle_received_packet_with_replay_detection(
+        &self,
+        packet: FramedNymPacket,
+    ) -> Result<MixProcessingResult, PacketProcessingError> {
+        // 1. derive and expand shared secret
+        // also check the header integrity
+        let partially_unwrapped = match perform_partial_unwrapping(
+            packet.packet(),
+            self.shared.sphinx_keys.private_key().as_ref(),
+        ) {
+            Ok(unwrapped) => unwrapped,
+            Err(err) => {
+                trace!("failed to process received mix packet: {err}");
+                self.shared
+                    .metrics
+                    .mixnet
+                    .ingress_malformed_packet(self.remote_address.ip());
+                return Err(err);
+            }
+        };
+
+        // 2. check for packet replay
+        if let Some(replay_tag) = partially_unwrapped.replay_tag() {
+            if self.check_for_packet_replays(replay_tag).await {
+                self.shared
+                    .metrics
+                    .mixnet
+                    .ingress_replayed_packet(self.remote_address.ip());
+                return Err(PacketProcessingError::PacketReplay);
+            }
+        }
+
+        // 3. process the rest of the packet
+        finalize_packet_unwrapping(packet, partially_unwrapped)
+    }
+
     #[instrument(skip(self, packet), level = "debug")]
     async fn handle_received_nym_packet(&self, packet: FramedNymPacket) {
-        // TODO: here be replay attack detection with bloomfilters and all the fancy stuff
-        //
-
         nanos!("handle_received_nym_packet", {
             // 1. attempt to unwrap the packet
-            let unwrapped_packet =
-                process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
+            // if it's a sphinx packet attempt to do pre-processing and replay detection
+            let unwrapped_packet = if packet.is_sphinx() {
+                self.handle_received_packet_with_replay_detection(packet)
+                    .await
+            } else {
+                process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref())
+            };
 
             // 2. increment our favourite metrics stats
             self.shared
@@ -154,7 +198,7 @@ impl ConnectionHandler {
                     }
                 },
             }
-        })
+        });
     }
 
     #[instrument(

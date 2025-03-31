@@ -4,8 +4,8 @@ use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressE
 use nym_sphinx_params::{PacketSize, PacketType};
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymPacketError,
-    NymProcessedPacket, OutfoxError, PrivateKey, ProcessedPacketData, SphinxError,
-    Version as SphinxPacketVersion,
+    NymProcessedPacket, OutfoxError, OutfoxProcessedPacket, PrivateKey, ProcessedPacketData,
+    SphinxError, Version as SphinxPacketVersion,
 };
 use std::fmt::Display;
 use thiserror::Error;
@@ -13,6 +13,7 @@ use thiserror::Error;
 use crate::packet::FramedNymPacket;
 use nym_metrics::nanos;
 use nym_sphinx_forwarding::packet::MixPacket;
+use nym_sphinx_types::header::shared_secret::ExpandedSharedSecret;
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -49,6 +50,26 @@ pub struct MixProcessingResult {
     pub processing_data: MixProcessingResultData,
 }
 
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
+pub enum PartialMixProcessingResult {
+    Sphinx {
+        expanded_shared_secret: ExpandedSharedSecret,
+    },
+    Outfox,
+}
+
+impl PartialMixProcessingResult {
+    pub fn replay_tag(&self) -> Option<&[u8]> {
+        match self {
+            PartialMixProcessingResult::Sphinx {
+                expanded_shared_secret,
+            } => Some(expanded_shared_secret.replay_tag()),
+            PartialMixProcessingResult::Outfox => None,
+        }
+    }
+}
+
 type ForwardAck = MixPacket;
 
 #[derive(Debug)]
@@ -75,11 +96,67 @@ pub enum PacketProcessingError {
     #[error("failed to recover the expected SURB-Ack packet: {0}")]
     MalformedSurbAck(#[from] SurbAckRecoveryError),
 
-    #[error("the received packet was set to use the very old and very much deprecated 'VPN' mode")]
-    ReceivedOldTypeVpnPacket,
-
     #[error("failed to process received outfox packet: {0}")]
     OutfoxProcessingError(#[from] OutfoxError),
+
+    #[error("attempted to partially process an outfox packet")]
+    PartialOutfoxProcessing,
+
+    #[error("this packet has already been processed before")]
+    PacketReplay,
+}
+
+/// Attempt to partially unwrap received packet to derive relevant keys
+/// to allow us to reject it for obvious bad behaviour (like replay or invalid mac)
+/// without performing full processing
+pub fn perform_partial_unwrapping(
+    packet: &NymPacket,
+    sphinx_key: &PrivateKey,
+) -> Result<PartialMixProcessingResult, PacketProcessingError> {
+    nanos!("perform_partial_unwrapping", {
+        match packet {
+            NymPacket::Sphinx(packet) => {
+                let expanded_shared_secret =
+                    packet.header.compute_expanded_shared_secret(sphinx_key);
+
+                // don't continue if the header is malformed
+                packet
+                    .header
+                    .ensure_header_integrity(&expanded_shared_secret)?;
+
+                Ok(PartialMixProcessingResult::Sphinx {
+                    expanded_shared_secret,
+                })
+            }
+
+            NymPacket::Outfox(_) => Ok(PartialMixProcessingResult::Outfox),
+        }
+    })
+}
+
+pub fn finalize_packet_unwrapping(
+    received: FramedNymPacket,
+    partial_result: PartialMixProcessingResult,
+) -> Result<MixProcessingResult, PacketProcessingError> {
+    // nanos!("finalize_packet_unwrapping", {
+    let packet_size = received.packet_size();
+    let packet_type = received.packet_type();
+
+    let packet = received.into_inner();
+
+    // currently partial unwrapping is only implemented for sphinx packets.
+    // attempting to call it for anything else should result in a failure
+    let (
+        NymPacket::Sphinx(packet),
+        PartialMixProcessingResult::Sphinx {
+            expanded_shared_secret,
+        },
+    ) = (packet, partial_result)
+    else {
+        return Err(PacketProcessingError::PartialOutfoxProcessing);
+    };
+    let processed_packet = packet.process_with_expanded_secret(&expanded_shared_secret)?;
+    wrap_processed_sphinx_packet(processed_packet, packet_size, packet_type)
 }
 
 pub fn process_framed_packet(
@@ -128,6 +205,76 @@ fn perform_framed_packet_processing(
     })
 }
 
+fn wrap_processed_sphinx_packet(
+    packet: nym_sphinx_types::ProcessedPacket,
+    packet_size: PacketSize,
+    packet_type: PacketType,
+) -> Result<MixProcessingResult, PacketProcessingError> {
+    let processing_data = match packet.data {
+        ProcessedPacketData::ForwardHop {
+            next_hop_packet,
+            next_hop_address,
+            delay,
+        } => process_forward_hop(
+            NymPacket::Sphinx(next_hop_packet),
+            next_hop_address,
+            delay,
+            packet_type,
+        ),
+        // right now there's no use for the surb_id included in the header - probably it should get removed from the
+        // sphinx all together?
+        ProcessedPacketData::FinalHop {
+            destination,
+            identifier: _,
+            payload,
+        } => process_final_hop(
+            destination,
+            payload.recover_plaintext()?,
+            packet_size,
+            packet_type,
+        ),
+    }?;
+
+    Ok(MixProcessingResult {
+        packet_version: MixPacketVersion::Sphinx(packet.version),
+        processing_data,
+    })
+}
+
+fn wrap_processed_outfox_packet(
+    packet: OutfoxProcessedPacket,
+    packet_size: PacketSize,
+    packet_type: PacketType,
+) -> Result<MixProcessingResult, PacketProcessingError> {
+    let next_address = *packet.next_address();
+    let packet = packet.into_packet();
+    if packet.is_final_hop() {
+        let processing_data = process_final_hop(
+            DestinationAddressBytes::from_bytes(next_address),
+            packet.recover_plaintext()?.to_vec(),
+            packet_size,
+            packet_type,
+        )?;
+        Ok(MixProcessingResult {
+            packet_version: MixPacketVersion::Outfox,
+            processing_data,
+        })
+    } else {
+        let packet = MixPacket::new(
+            NymNodeRoutingAddress::try_from_bytes(&next_address)?,
+            NymPacket::Outfox(packet),
+            PacketType::Outfox,
+        );
+        Ok(MixProcessingResult {
+            packet_version: MixPacketVersion::Outfox,
+            processing_data: MixProcessingResultData::ForwardHop {
+                packet,
+                delay: None,
+            },
+        })
+    }
+}
+
 fn perform_final_processing(
     packet: NymProcessedPacket,
     packet_size: PacketSize,
@@ -135,64 +282,10 @@ fn perform_final_processing(
 ) -> Result<MixProcessingResult, PacketProcessingError> {
     match packet {
         NymProcessedPacket::Sphinx(packet) => {
-            let processing_data = match packet.data {
-                ProcessedPacketData::ForwardHop {
-                    next_hop_packet,
-                    next_hop_address,
-                    delay,
-                } => process_forward_hop(
-                    NymPacket::Sphinx(next_hop_packet),
-                    next_hop_address,
-                    delay,
-                    packet_type,
-                ),
-                // right now there's no use for the surb_id included in the header - probably it should get removed from the
-                // sphinx all together?
-                ProcessedPacketData::FinalHop {
-                    destination,
-                    identifier: _,
-                    payload,
-                } => process_final_hop(
-                    destination,
-                    payload.recover_plaintext()?,
-                    packet_size,
-                    packet_type,
-                ),
-            }?;
-
-            Ok(MixProcessingResult {
-                packet_version: MixPacketVersion::Sphinx(packet.version),
-                processing_data,
-            })
+            wrap_processed_sphinx_packet(packet, packet_size, packet_type)
         }
         NymProcessedPacket::Outfox(packet) => {
-            let next_address = *packet.next_address();
-            let packet = packet.into_packet();
-            if packet.is_final_hop() {
-                let processing_data = process_final_hop(
-                    DestinationAddressBytes::from_bytes(next_address),
-                    packet.recover_plaintext()?.to_vec(),
-                    packet_size,
-                    packet_type,
-                )?;
-                Ok(MixProcessingResult {
-                    packet_version: MixPacketVersion::Outfox,
-                    processing_data,
-                })
-            } else {
-                let packet = MixPacket::new(
-                    NymNodeRoutingAddress::try_from_bytes(&next_address)?,
-                    NymPacket::Outfox(packet),
-                    PacketType::Outfox,
-                );
-                Ok(MixProcessingResult {
-                    packet_version: MixPacketVersion::Outfox,
-                    processing_data: MixProcessingResultData::ForwardHop {
-                        packet,
-                        delay: None,
-                    },
-                })
-            }
+            wrap_processed_outfox_packet(packet, packet_size, packet_type)
         }
     }
 }

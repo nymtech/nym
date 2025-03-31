@@ -46,6 +46,15 @@ impl MixingStats {
             .store(update_timestamp, Ordering::Release);
     }
 
+    pub fn ingress_replayed_packet(&self, source: IpAddr) {
+        self.ingress
+            .replayed_packets_received
+            .fetch_add(1, Ordering::Relaxed);
+        self.ingress.senders.entry(source).or_default().replayed += 1;
+
+        todo!()
+    }
+
     pub fn ingress_malformed_packet(&self, source: IpAddr) {
         self.ingress
             .malformed_packets_received
@@ -197,6 +206,7 @@ pub struct IngressRecipientStats {
     pub forward_packets: IngressPacketsStats,
     pub final_hop_packets: IngressPacketsStats,
     pub malformed: usize,
+    pub replayed: usize,
 }
 
 #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq)]
@@ -232,6 +242,9 @@ pub struct IngressMixingStats {
     // packets that failed to get unwrapped
     malformed_packets_received: AtomicUsize,
 
+    // packets that were already received and processed before
+    replayed_packets_received: AtomicUsize,
+
     // (forward) packets that had invalid, i.e. too large, delays
     excessive_delay_packets: AtomicUsize,
 
@@ -251,6 +264,10 @@ impl IngressMixingStats {
 
     pub fn final_hop_packets_received(&self) -> usize {
         self.final_hop_packets_received.load(Ordering::Relaxed)
+    }
+
+    pub fn replayed_packets_received(&self) -> usize {
+        self.replayed_packets_received.load(Ordering::Relaxed)
     }
 
     pub fn malformed_packets_received(&self) -> usize {

@@ -12,6 +12,10 @@ import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { GasPrice } from "@cosmjs/stargate";
+
+
 
 // const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
 function createFee(gas: number, gasPrice: number, denom: string) {
@@ -48,7 +52,11 @@ const SubHeaderRowActions = () => {
   });
 
   const { address, nymClient } = useNymClient();
-  const { getSigningCosmWasmClient } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { getSigningCosmWasmClient, chain, getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
+
+
+
+
 
   const queryClient = useQueryClient();
 
@@ -92,6 +100,15 @@ const SubHeaderRowActions = () => {
         throw new Error("Wallet, client, or delegations not available.");
       }
 
+      const signer = await getOfflineSigner();
+      const gasPrice = GasPrice.fromString("0.025unym");
+
+      const client = await SigningCosmWasmClient.connectWithSigner(
+  "https://rpc.nymtech.net/", // rpc endpoint from CosmosKit
+  signer,
+  { gasPrice }
+);
+
       const messages = delegations.map((delegation: NodeRewardDetails) => ({
         contractAddress: NYM_MIXNET_CONTRACT,
         funds: [],
@@ -108,10 +125,10 @@ const SubHeaderRowActions = () => {
 
   
 
-      const result = await cosmWasmSigningClient.executeMultiple(
+      const result = await client.executeMultiple(
         address,
         messages,
-        fee,
+        "auto",
         "Redeeming all rewards",
       );
       // Success state

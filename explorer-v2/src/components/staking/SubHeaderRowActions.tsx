@@ -18,19 +18,19 @@ import { GasPrice } from "@cosmjs/stargate";
 
 
 // const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
-function createFee(gas: number, gasPrice: number, denom: string) {
-  return {
-    gas: gas.toString(),
-    amount: [
-      {
-        amount: Math.ceil(gas * gasPrice).toString(),
-        denom,
-      },
-    ],
-  };
-}
+// function createFee(gas: number, gasPrice: number, denom: string) {
+//   return {
+//     gas: gas.toString(),
+//     amount: [
+//       {
+//         amount: Math.ceil(gas * gasPrice).toString(),
+//         denom,
+//       },
+//     ],
+//   };
+// }
 
-const fee = createFee(1_000_000, 0.025, "unym");
+// const fee = createFee(1_000_000, 0.025, "unym");
 
 
 // Fetch delegations
@@ -121,10 +121,7 @@ const SubHeaderRowActions = () => {
 
       // const cosmWasmSigningClient = await getSigningCosmWasmClient();
 
-      
-
-  
-
+    
       const result = await client.executeMultiple(
         address,
         messages,

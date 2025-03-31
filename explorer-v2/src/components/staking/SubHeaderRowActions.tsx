@@ -52,7 +52,7 @@ const SubHeaderRowActions = () => {
   });
 
   const { address, nymClient } = useNymClient();
-  const { getSigningCosmWasmClient, chain, getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { getSigningCosmWasmClient, getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
 
 
 
@@ -119,7 +119,7 @@ const SubHeaderRowActions = () => {
         },
       }));
 
-      const cosmWasmSigningClient = await getSigningCosmWasmClient();
+      // const cosmWasmSigningClient = await getSigningCosmWasmClient();
 
       
 

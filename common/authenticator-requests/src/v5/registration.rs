@@ -168,13 +168,12 @@ impl GatewayClient {
     // Client should perform this step when generating its payload, using its own WG PK
     #[cfg(feature = "verify")]
     pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
-        let client_pubkey = PublicKey::from(*self.pub_key.deref());
-
-        let dh = gateway_key.diffie_hellman(&client_pubkey);
+        // use gateways key as a ref to an x25519_dalek key
+        let dh = (gateway_key.as_ref()).diffie_hellman(&self.pub_key);
 
         // TODO: change that to use our nym_crypto::hmac module instead
         #[allow(clippy::expect_used)]
-        let mut mac = HmacSha256::new_from_slice(&dh[..])
+        let mut mac = HmacSha256::new_from_slice(dh.as_bytes())
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(self.pub_key.as_bytes());

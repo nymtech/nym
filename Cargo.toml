@@ -347,6 +347,7 @@ tracing-log = "0.2"
 tracing-opentelemetry = "0.19.0"
 tracing-subscriber = "0.3.19"
 tracing-tree = "0.2.2"
+tracing-indicatif = "0.3.9"
 ts-rs = "10.1.0"
 tungstenite = { version = "0.20.1", default-features = false }
 uniffi = "0.29.1"

@@ -3,7 +3,6 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
-use crate::error::NymNodeError;
 use crate::node::helpers::load_ed25519_identity_keypair;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
@@ -70,7 +69,7 @@ fn print_signed_contract_msg(
 
 // SAFETY: clippy ArgGroup ensures only a single branch is actually called
 #[allow(clippy::unreachable)]
-pub async fn execute(args: Args) -> Result<(), NymNodeError> {
+pub async fn execute(args: Args) -> anyhow::Result<()> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let identity_keypair =
         load_ed25519_identity_keypair(config.storage_paths.keys.ed25519_identity_storage_paths())?;

@@ -3,7 +3,6 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
-use crate::error::NymNodeError;
 use crate::node::bonding_information::BondingInformation;
 use nym_bin_common::output_format::OutputFormat;
 
@@ -21,7 +20,7 @@ pub struct Args {
     pub(crate) output: OutputFormat,
 }
 
-pub async fn execute(args: Args) -> Result<(), NymNodeError> {
+pub async fn execute(args: Args) -> anyhow::Result<()> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let info = BondingInformation::try_load(&config)?;
     args.output.to_stdout(&info);

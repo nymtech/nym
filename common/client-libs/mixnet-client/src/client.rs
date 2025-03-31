@@ -24,10 +24,10 @@ use tracing::*;
 
 #[derive(Clone, Copy)]
 pub struct Config {
-    initial_reconnection_backoff: Duration,
-    maximum_reconnection_backoff: Duration,
-    initial_connection_timeout: Duration,
-    maximum_connection_buffer_size: usize,
+    pub initial_reconnection_backoff: Duration,
+    pub maximum_reconnection_backoff: Duration,
+    pub initial_connection_timeout: Duration,
+    pub maximum_connection_buffer_size: usize,
 }
 
 impl Config {
@@ -50,7 +50,7 @@ pub trait SendWithoutResponse {
     // Without response in this context means we will not listen for anything we might get back (not
     // that we should get anything), including any possible io errors
     fn send_without_response(
-        &mut self,
+        &self,
         address: NymNodeRoutingAddress,
         packet: NymPacket,
         packet_type: PacketType,
@@ -196,7 +196,7 @@ impl Client {
         }
     }
 
-    fn make_connection(&mut self, address: NymNodeRoutingAddress, pending_packet: FramedNymPacket) {
+    fn make_connection(&self, address: NymNodeRoutingAddress, pending_packet: FramedNymPacket) {
         let (sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // this CAN'T fail because we just created the channel which has a non-zero capacity
@@ -247,7 +247,7 @@ impl Client {
 
 impl SendWithoutResponse for Client {
     fn send_without_response(
-        &mut self,
+        &self,
         address: NymNodeRoutingAddress,
         packet: NymPacket,
         packet_type: PacketType,

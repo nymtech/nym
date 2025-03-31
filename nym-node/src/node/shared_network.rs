@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
+use crate::node::mixnet::packet_forwarding::global::is_global_ip;
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use nym_gateway::node::UserAgent;
@@ -22,8 +23,34 @@ use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
 
+pub(crate) trait RoutingFilter {
+    fn should_route(&self, ip: IpAddr) -> bool;
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub(crate) struct OpenFilter;
+
+impl RoutingFilter for OpenFilter {
+    fn should_route(&self, _: IpAddr) -> bool {
+        true
+    }
+}
+
+impl RoutingFilter for NetworkRoutingFilter {
+    fn should_route(&self, ip: IpAddr) -> bool {
+        // only allow non-global ips on testnets
+        if self.testnet_mode && !is_global_ip(&ip) {
+            return true;
+        }
+
+        self.attempt_resolve(ip).should_route()
+    }
+}
+
 #[derive(Clone)]
-pub(crate) struct RoutingFilter {
+pub(crate) struct NetworkRoutingFilter {
+    testnet_mode: bool,
+
     resolved: KnownNodes,
 
     // while this is technically behind a lock, it should not be called too often as once resolved it will
@@ -31,9 +58,10 @@ pub(crate) struct RoutingFilter {
     pending: UnknownNodes,
 }
 
-impl RoutingFilter {
-    fn new_empty() -> Self {
-        RoutingFilter {
+impl NetworkRoutingFilter {
+    fn new_empty(testnet_mode: bool) -> Self {
+        NetworkRoutingFilter {
+            testnet_mode,
             resolved: Default::default(),
             pending: Default::default(),
         }
@@ -254,11 +282,12 @@ pub struct NetworkRefresher {
     shutdown_token: ShutdownToken,
 
     network: CachedNetwork,
-    routing_filter: RoutingFilter,
+    routing_filter: NetworkRoutingFilter,
 }
 
 impl NetworkRefresher {
     pub(crate) async fn initialise_new(
+        testnet: bool,
         user_agent: UserAgent,
         nym_api_urls: Vec<Url>,
         full_refresh_interval: Duration,
@@ -280,7 +309,7 @@ impl NetworkRefresher {
             pending_check_interval,
             shutdown_token,
             network: CachedNetwork::new_empty(),
-            routing_filter: RoutingFilter::new_empty(),
+            routing_filter: NetworkRoutingFilter::new_empty(testnet),
         };
 
         this.obtain_initial_network().await?;
@@ -403,7 +432,7 @@ impl NetworkRefresher {
             .map_err(|source| NymNodeError::InitialTopologyQueryFailure { source })
     }
 
-    pub(crate) fn routing_filter(&self) -> RoutingFilter {
+    pub(crate) fn routing_filter(&self) -> NetworkRoutingFilter {
         self.routing_filter.clone()
     }
 

@@ -162,6 +162,7 @@ const SubHeaderRowActions = () => {
     delegations,
     getSigningCosmWasmClient,
     handleRefetch,
+    getOfflineSigner
   ]);
 
   const handleRedeemRewardsButtonClick = () => {

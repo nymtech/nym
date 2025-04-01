@@ -30,14 +30,12 @@ jobs:
       - name: Node
         uses: actions/setup-node@v4
         with:
-          node-version: 21
-
-      - name: Install Rust stable + targets
+          node-version: 18
+      - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           targets: x86_64-apple-darwin aarch64-apple-darwin
-
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -45,12 +43,19 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
+          # create variables
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # import certificate and provisioning profile from secrets
           echo -n "$APPLE_CERTIFICATE" | base64 --decode --output $CERTIFICATE_PATH
+
+          # create temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
           security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
@@ -64,50 +69,39 @@ jobs:
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: Build for Apple Silicon (ARM64)
+      - name: Install app dependencies and build it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn tauri build --target aarch64-apple-darwin
-
-      - name: Build for Intel (x86_64)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn tauri build --target x86_64-apple-darwin
-
-      - name: Merge into universal app
-        run: |
-          mkdir -p universal-app/nym-wallet.app/Contents
-          cp -R target/aarch64-apple-darwin/release/bundle/macos/nym-wallet.app/Contents/* universal-app/nym-wallet.app/Contents
-          lipo -create \
-            target/aarch64-apple-darwin/release/bundle/macos/nym-wallet.app/Contents/MacOS/nym-wallet \
-            target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app/Contents/MacOS/nym-wallet \
-            -output universal-app/nym-wallet.app/Contents/MacOS/nym-wallet
-
-      - name: Check final binary architecture
-        run: lipo -info universal-app/nym-wallet.app/Contents/MacOS/nym-wallet
-
-      - name: Compress universal app
-        run: |
-          tar -czf nym-wallet-universal.app.tar.gz -C universal-app nym-wallet.app
+          ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: yarn && yarn build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nym-wallet-universal.app.tar.gz
-          path: nym-wallet-universal.app.tar.gz
+          name: nym-wallet.app.tar.gz
+          path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz
           retention-days: 5
 
       - name: Clean up keychain
         if: ${{ always() }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
-          files: nym-wallet-universal.app.tar.gz
+          files: |
+            nym-wallet/target/release/bundle/dmg/*.dmg
+            nym-wallet/target/release/bundle/macos/*.app.tar.gz*
 
       - name: Deploy artifacts to CI www
         continue-on-error: true
@@ -115,7 +109,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "nym-wallet-universal.app.tar.gz"
+          SOURCE: "nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet

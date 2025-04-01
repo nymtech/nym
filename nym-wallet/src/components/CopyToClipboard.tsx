@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { Check, ContentCopy } from '@mui/icons-material';
-import { clipboard } from '@tauri-apps/api';
 import { Console } from '../utils/console';
+import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 
 export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; iconButton?: boolean }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (_text: string) => {
     try {
-      await clipboard.writeText(_text);
+      await writeText(_text);
       setCopied(true);
     } catch (e) {
       Console.error(`failed to copy: ${e}`);

@@ -180,12 +180,11 @@ impl MemoryEcachTicketbookManager {
             .await
             .ticketbooks
             .iter()
-            .find(|ticketbook| {
+            .any(|ticketbook| {
                 let ser = ticketbook.1.ticketbook.pack();
                 let data = Zeroizing::new(ser.data);
                 search_data.eq(&data)
             })
-            .is_some()
     }
 
     pub(crate) async fn get_ticketbooks_info(&self) -> Vec<BasicTicketbookInformation> {

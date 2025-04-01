@@ -6,6 +6,7 @@ use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use cosmwasm_std::Timestamp;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
@@ -29,13 +30,14 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, CurrentIntervalResponse, EpochRewardedSet, EpochStatus, ExecuteMsg,
-    GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails, RewardedSet,
-    RoleAssignment,
+    ConfigScoreParams, CurrentIntervalResponse, Delegation, EpochRewardedSet, EpochStatus,
+    ExecuteMsg, GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails,
+    PendingRewardResponse, RewardedSet, RoleAssignment,
 };
+use nym_topology::NodeId;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
-use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::{PagedDkgQueryClient, VestingQueryClient};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
     contract_traits::{
@@ -53,7 +55,7 @@ use nym_validator_client::nyxd::{
 use nym_validator_client::{
     nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient, QueryHttpRpcNyxdClient,
 };
-use nym_vesting_contract_common::AccountVestingCoins;
+use nym_vesting_contract_common::{Account, AccountVestingCoins};
 use serde::Deserialize;
 use std::sync::Arc;
 use tendermint::abci::response::Info;
@@ -402,6 +404,89 @@ impl Client {
     pub(crate) async fn reconcile_epoch_events(&self, limit: Option<u32>) -> Result<(), NyxdError> {
         nyxd_signing!(self, reconcile_epoch_events(limit, None).await?);
         Ok(())
+    }
+
+    pub(crate) async fn get_all_balances(
+        &self,
+        address: &AccountId,
+    ) -> Result<Vec<Coin>, NyxdError> {
+        nyxd_query!(self, get_all_balances(address).await)
+    }
+
+    pub(crate) async fn get_all_delegator_delegations(
+        &self,
+        delegation_owner: &AccountId,
+    ) -> Result<Vec<Delegation>, NyxdError> {
+        nyxd_query!(self, get_all_delegator_delegations(delegation_owner).await)
+    }
+
+    pub(crate) async fn get_pending_delegator_reward(
+        &self,
+        delegator: &AccountId,
+        node_id: NodeId,
+        proxy: Option<String>,
+    ) -> Result<PendingRewardResponse, NyxdError> {
+        nyxd_query!(
+            self,
+            get_pending_delegator_reward(delegator, node_id, proxy).await
+        )
+    }
+
+    pub(crate) async fn get_pending_operator_reward(
+        &self,
+        operator: &AccountId,
+    ) -> Result<PendingRewardResponse, NyxdError> {
+        nyxd_query!(self, get_pending_operator_reward(operator).await)
+    }
+
+    pub(crate) async fn get_vesting_account(&self, address: &str) -> Result<Account, NyxdError> {
+        let guard = self.inner.read().await;
+        match &*guard {
+            crate::support::nyxd::ClientInner::Signing(client) => {
+                nym_validator_client::nyxd::contract_traits::VestingQueryClient::get_account(
+                    client, address,
+                )
+                .await
+            }
+            crate::support::nyxd::ClientInner::Query(client) => {
+                nym_validator_client::nyxd::contract_traits::VestingQueryClient::get_account(
+                    client, address,
+                )
+                .await
+            }
+        }
+    }
+
+    pub(crate) async fn locked_coins(
+        &self,
+        addr: &str,
+        block_time: Option<Timestamp>,
+    ) -> Result<Coin, NyxdError> {
+        nyxd_query!(self, locked_coins(addr.as_ref(), block_time).await)
+    }
+
+    pub(crate) async fn vested_coins(
+        &self,
+        addr: &str,
+        block_time: Option<Timestamp>,
+    ) -> Result<Coin, NyxdError> {
+        nyxd_query!(self, vested_coins(addr.as_ref(), block_time).await)
+    }
+
+    pub(crate) async fn vesting_coins(
+        &self,
+        addr: &str,
+        block_time: Option<Timestamp>,
+    ) -> Result<Coin, NyxdError> {
+        nyxd_query!(self, vesting_coins(addr.as_ref(), block_time).await)
+    }
+
+    pub(crate) async fn spendable_coins(
+        &self,
+        addr: &str,
+        block_time: Option<Timestamp>,
+    ) -> Result<Coin, NyxdError> {
+        nyxd_query!(self, spendable_coins(addr.as_ref(), block_time).await)
     }
 }
 

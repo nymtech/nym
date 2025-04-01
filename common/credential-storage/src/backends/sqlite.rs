@@ -95,6 +95,20 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
+    pub(crate) async fn contains_ticketbook_data(&self, data: &[u8]) -> Result<bool, sqlx::Error> {
+        let exists = sqlx::query(
+            r#"
+                SELECT * FROM ecash_ticketbook WHERE ticketbook_data = ?
+            "#,
+        )
+        .bind(data)
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .is_some();
+
+        Ok(exists)
+    }
+
     pub(crate) async fn get_ticketbooks_info(
         &self,
     ) -> Result<Vec<BasicTicketbookInformation>, sqlx::Error> {

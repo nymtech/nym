@@ -172,6 +172,22 @@ impl MemoryEcachTicketbookManager {
         );
     }
 
+    pub(crate) async fn contains_ticketbook(&self, ticketbook: &IssuedTicketBook) -> bool {
+        let ser = ticketbook.pack();
+        let search_data = Zeroizing::new(ser.data);
+        self.inner
+            .read()
+            .await
+            .ticketbooks
+            .iter()
+            .find(|ticketbook| {
+                let ser = ticketbook.1.ticketbook.pack();
+                let data = Zeroizing::new(ser.data);
+                search_data.eq(&data)
+            })
+            .is_some()
+    }
+
     pub(crate) async fn get_ticketbooks_info(&self) -> Vec<BasicTicketbookInformation> {
         let guard = self.inner.read().await;
 

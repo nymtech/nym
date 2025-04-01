@@ -1,4 +1,4 @@
-import { appWindow } from '@tauri-apps/api/window';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import bs58 from 'bs58';
 import Big from 'big.js';
 import { valid } from 'semver';
@@ -14,6 +14,7 @@ import {
   userBalance,
 } from '../requests';
 import { Console } from './console';
+const appWindow = getCurrentWebviewWindow()
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key

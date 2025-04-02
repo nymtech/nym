@@ -36,6 +36,8 @@ jobs:
         with:
           toolchain: stable
           target: x86_64-apple-darwin
+          override: true
+          default: false
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

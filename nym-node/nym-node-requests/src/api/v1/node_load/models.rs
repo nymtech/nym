@@ -18,6 +18,7 @@ use strum::{Display, EnumString};
     Eq,
     JsonSchema,
     PartialOrd,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -70,7 +71,7 @@ impl From<f64> for Load {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, JsonSchema)]
+#[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, JsonSchema, Eq, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct NodeLoad {
     pub total: Load,

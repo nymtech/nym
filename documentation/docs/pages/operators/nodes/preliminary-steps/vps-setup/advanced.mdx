@@ -308,17 +308,18 @@ nano /etc/netplan/00-installer-config.yaml
 ```
 
 - Edit the block below and paste it to the config file, save and exit:
-```ini
+```yaml
 #####################################################
 ######## CHANGE ALL VARIABLES IN <> BRACKETS ########
 #####################################################
 
 # <INTERFACE> is your own one, you can get with command ip link show
-# <HOST> is your server main IPv4 address
-# <GATEWAY> value can be found by running: ip route | grep default
+# <HOSTv4> is your server main IPv4 address
+# <HOSTv6> is your server main IPv6 address
+# <GATEWAYv4> value can be found by running: ip -4 route | grep default
+# <GATEWAYv6> value can be found by running: ip -6 route | grep default
 
-
-# This is the network config written by 'subiquity'
+---
 network:
   version: 2
   ethernets:
@@ -330,19 +331,26 @@ network:
   bridges:
     br0:
       interfaces: [<INTERFACE>]
-      addresses: [<HOST>/24]
+      addresses:
+        - <HOSTv4>/24  # IPv4> Address
+        - <HOSTv6>/64  # IPv6 Address
       routes:
         - to: default
-          via: <GATEWAY>
+          via: <GATEWAYv4>  # IPv4 Gateway
+        - to: default
+          via: <GATEWAYv6>  # IPv6 Gateway
       mtu: 1500
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 1.1.1.1
-          - 77.88.8.8
+          - 1.1.1.1  # Cloudflare IPv4 DNS
+          - 8.8.8.8  # Google IPv4 DNS
+          - 8.8.4.4  # Secondary Google IPv4 DNS
+          - 2606:4700:4700::1111  # Cloudflare IPv6 DNS
+          - 2001:4860:4860::8888  # Google IPv6 DNS
+        search: []
       parameters:
-        stp: false            # Disable STP unless multiple bridges exist
-        forward-delay: 15     # Can be shortened, 15 sec is a common default
+        stp: false  # Disable STP unless multiple bridges exist
+        forward-delay: 15  # Can be shortened, 15 sec is a common default
 ```
 
 <Callout type="warning">
@@ -613,7 +621,17 @@ nano /etc/netplan/01-network-config.yaml
 ```
 
 - Insert this config, using your correct IP configuration, save and exit:
-```ini
+```yaml
+#####################################################
+######## CHANGE ALL VARIABLES IN <> BRACKETS ########
+#####################################################
+
+# <INTERFACE> is your own one, you can get with command ip link show
+# <VM_IPv4> is your VM IPv4 address
+# <VM_IPv6> is your VM Pv6 address
+# <GATEWAYv4> value can be found by running: ip -4 route | grep default
+# <GATEWAYv6> value can be found by running: ip -6 route | grep default
+
 network:
   version: 2
   renderer: networkd
@@ -622,17 +640,18 @@ network:
       dhcp4: false
       dhcp6: false  # Set to true if you want automatic IPv6 assignment
       addresses:
-        - <IPv4_VM>/24  # Assign IPv4 address to the VM
-        - <IPv6_VM>/64  # Assign IPv6 address to the VM
+        - <VM_IPv4>/24  # Assign IPv4 address to the VM
+        - <VM_IPv6>/64  # Assign IPv6 address to the VM
       routes:
         - to: default
-          via: <IPv4_GATEWAY_HOST_SERVER>  # IPv4 gateway (host machine)
+          via: <GATEWAYv4>  # IPv4 gateway
         - to: default
-          via: <IPv6_GATEWAY_HOST_SERVER>  # IPv6 gateway (host machine)
+          via: <GATEWAYv6>  # IPv6 gateway
       nameservers:
         addresses:
           - 1.1.1.1  # Cloudflare IPv4 DNS
           - 8.8.8.8  # Google IPv4 DNS
+	  - 8.8.4.4  # Secondary Google IPv4 DNS
           - 2606:4700:4700::1111  # Cloudflare IPv6 DNS
           - 2001:4860:4860::8888  # Google IPv6 DNS
 ```
@@ -743,4 +762,4 @@ ssh root@<IPv4> -i ~/.ssh/your_ssh_key
 ```
 </Steps>
 
-Now your VM is almost ready for `nym-node` [setup](../../nym-node/setup). Before you proceed, ssh in and [configure all prerequisities](../vps-setup#vps-configuration) needed for `nym-node` installation and operation. 
+Now your VM is almost ready for `nym-node` [setup](../../nym-node/setup). Before you proceed, ssh in and [configure all prerequisities](../vps-setup#vps-configuration) needed for `nym-node` installation and operation.

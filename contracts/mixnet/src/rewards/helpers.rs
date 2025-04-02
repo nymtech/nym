@@ -258,7 +258,7 @@ mod tests {
 
         let pledge = Uint128::new(250_000_000);
         let pledge_dec = 250_000_000u32.into_base_decimal().unwrap();
-        let mix_id = test.add_legacy_mixnode("mix-owner", Some(pledge));
+        let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), Some(pledge));
         let active_params = test.active_node_params(100.0);
 
         // no rewards
@@ -297,12 +297,12 @@ mod tests {
 
         let delegation_amount = Uint128::new(2_500_000_000);
         let delegation_dec = 2_500_000_000_u32.into_base_decimal().unwrap();
-        let mix_id = test.add_legacy_mixnode("mix-owner", None);
-        let delegator = "delegator";
-        test.add_immediate_delegation(delegator, delegation_amount, mix_id);
+        let mix_id = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+        let delegator = test.make_addr("delegator");
+        test.add_immediate_delegation(&delegator, delegation_amount, mix_id);
 
         // no rewards
-        let delegation = test.delegation(mix_id, delegator, &None);
+        let delegation = test.delegation(mix_id, &delegator, &None);
         let mix_rewarding = test.mix_rewarding(mix_id);
         let res =
             withdraw_delegator_reward(test.deps_mut().storage, delegation, mix_rewarding).unwrap();
@@ -318,7 +318,7 @@ mod tests {
         test.skip_to_next_epoch_end();
         let dist3 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
-        let delegation_pre = test.delegation(mix_id, delegator, &None);
+        let delegation_pre = test.delegation(mix_id, &delegator, &None);
         let mix_rewarding = test.mix_rewarding(mix_id);
         let res = withdraw_delegator_reward(
             test.deps_mut().storage,
@@ -331,7 +331,7 @@ mod tests {
         let updated = test.mix_rewarding(mix_id);
         assert_decimals(updated.delegates, delegation_dec);
 
-        let delegation_post = test.delegation(mix_id, delegator, &None);
+        let delegation_post = test.delegation(mix_id, &delegator, &None);
         assert_ne!(
             delegation_pre.cumulative_reward_ratio,
             delegation_post.cumulative_reward_ratio

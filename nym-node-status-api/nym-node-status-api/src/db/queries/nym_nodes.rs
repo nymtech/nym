@@ -1,22 +1,20 @@
-use std::collections::HashMap;
-
-use anyhow::Context;
 use futures_util::TryStreamExt;
-use nym_validator_client::{client::NymNodeDetails, nym_api::SkimmedNode};
+use nym_validator_client::{
+    client::{NodeId, NymNodeDetails},
+    models::NymNodeDescription,
+};
+use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::{
-    db::{
-        models::{NymNodeDto, NymNodeInsertRecord},
-        DbPool,
-    },
-    utils::decimal_to_i64,
+use crate::db::{
+    models::{NymNodeDto, NymNodeInsertRecord},
+    DbPool,
 };
 
-pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNode>> {
+pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNodeDto>> {
     let mut conn = pool.acquire().await?;
 
-    let items = sqlx::query_as!(
+    sqlx::query_as!(
         NymNodeDto,
         r#"SELECT
             node_id,
@@ -28,44 +26,76 @@ pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNo
             node_role as "node_role: serde_json::Value",
             supported_roles as "supported_roles: serde_json::Value",
             entry as "entry: serde_json::Value",
-            performance
+            performance,
+            self_described as "self_described: serde_json::Value",
+            bond_info as "bond_info: serde_json::Value"
         FROM
             nym_nodes
         "#,
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<NymNodeDto>>()
-    .await?;
-
-    let mut skimmed_nodes = Vec::new();
-    for item in items {
-        let node_id = item.node_id;
-        match SkimmedNode::try_from(item) {
-            Ok(node) => skimmed_nodes.push(node),
-            Err(e) => {
-                tracing::warn!("Failed to decode node_id={}: {}", node_id, e);
-            }
-        }
-    }
-
-    Ok(skimmed_nodes)
+    .await
+    .map_err(From::from)
 }
 
-#[instrument(level = "debug", skip_all)]
-pub(crate) async fn insert_nym_nodes(
+/// if a node doesn't expose its self-described endpoint, it can't route traffic
+/// - https://nym.com/docs/operators/nodes/nym-node/bonding
+///
+/// same if it's not bonded in the mixnet smart contract
+/// - https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
+pub(crate) async fn get_described_bonded_nym_nodes(
     pool: &DbPool,
-    nym_nodes: Vec<SkimmedNode>,
-    bonded_node_info: &HashMap<u32, NymNodeDetails>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<NymNodeDto>> {
     let mut conn = pool.acquire().await?;
 
-    for nym_node in nym_nodes.into_iter() {
-        let total_stake = bonded_node_info
-            .get(&nym_node.node_id)
-            .map(|details| decimal_to_i64(details.total_stake()))
-            .unwrap_or(0);
+    sqlx::query_as!(
+        NymNodeDto,
+        r#"SELECT
+            node_id,
+            ed25519_identity_pubkey,
+            total_stake,
+            ip_addresses as "ip_addresses!: serde_json::Value",
+            mix_port,
+            x25519_sphinx_pubkey,
+            node_role as "node_role: serde_json::Value",
+            supported_roles as "supported_roles: serde_json::Value",
+            entry as "entry: serde_json::Value",
+            performance,
+            self_described as "self_described: serde_json::Value",
+            bond_info as "bond_info: serde_json::Value"
+        FROM
+            nym_nodes
+        WHERE
+            self_described IS NOT NULL
+        AND
+            bond_info IS NOT NULL
+        "#,
+    )
+    .fetch(&mut *conn)
+    .try_collect::<Vec<NymNodeDto>>()
+    .await
+    .map_err(From::from)
+}
 
-        let record = NymNodeInsertRecord::new(nym_node, total_stake)?;
+#[instrument(level = "debug", skip_all, fields(node_records=node_records.len()))]
+pub(crate) async fn update_nym_nodes(
+    pool: &DbPool,
+    node_records: Vec<NymNodeInsertRecord>,
+) -> anyhow::Result<usize> {
+    let mut tx = pool.begin().await?;
+
+    sqlx::query!(
+        "UPDATE nym_nodes
+        SET
+            self_described = NULL,
+            bond_info = NULL",
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let inserted = node_records.len();
+    for record in node_records {
         // https://www.sqlite.org/lang_upsert.html
         sqlx::query!(
             "INSERT INTO nym_nodes
@@ -74,9 +104,11 @@ pub(crate) async fn insert_nym_nodes(
                     ip_addresses, mix_port,
                     x25519_sphinx_pubkey, node_role,
                     supported_roles, entry,
+                    self_described,
+                    bond_info,
                     performance, last_updated_utc
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id) DO UPDATE SET
                 ed25519_identity_pubkey=excluded.ed25519_identity_pubkey,
                 ip_addresses=excluded.ip_addresses,
@@ -85,6 +117,8 @@ pub(crate) async fn insert_nym_nodes(
                 node_role=excluded.node_role,
                 supported_roles=excluded.supported_roles,
                 entry=excluded.entry,
+                self_described=excluded.self_described,
+                bond_info=excluded.bond_info,
                 performance=excluded.performance,
                 last_updated_utc=excluded.last_updated_utc
                 ;",
@@ -97,13 +131,85 @@ pub(crate) async fn insert_nym_nodes(
             record.node_role,
             record.supported_roles,
             record.entry,
+            record.self_described,
+            record.bond_info,
             record.performance,
             record.last_updated_utc,
         )
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await
-        .with_context(|| format!("node_id={}", record.node_id))?;
+        .map_err(|e| anyhow::anyhow!("Failed to INSERT node_id={}: {}", record.node_id, e))?;
     }
 
-    Ok(())
+    tx.commit().await?;
+
+    Ok(inserted)
+}
+
+pub(crate) async fn get_described_node_bond_info(
+    pool: &DbPool,
+) -> anyhow::Result<HashMap<NodeId, NymNodeDetails>> {
+    let mut conn = pool.acquire().await?;
+
+    sqlx::query!(
+        r#"SELECT
+            node_id,
+            bond_info as "bond_info: serde_json::Value"
+        FROM
+            nym_nodes
+        WHERE
+            bond_info IS NOT NULL
+        AND
+            self_described IS NOT NULL
+        "#,
+    )
+    .fetch_all(&mut *conn)
+    .await
+    .map(|records| {
+        records
+            .into_iter()
+            .filter_map(|record| {
+                record
+                    .bond_info
+                    // only return details for nodes which have details stored
+                    .and_then(|bond_info| serde_json::from_value::<NymNodeDetails>(bond_info).ok())
+                    .map(|res| (record.node_id as NodeId, res))
+            })
+            .collect::<HashMap<_, _>>()
+    })
+    .map_err(From::from)
+}
+
+pub(crate) async fn get_node_descriptions(
+    pool: &DbPool,
+) -> anyhow::Result<HashMap<NodeId, NymNodeDescription>> {
+    let mut conn = pool.acquire().await?;
+
+    sqlx::query!(
+        r#"SELECT
+            node_id,
+            self_described as "self_described: serde_json::Value"
+        FROM
+            nym_nodes
+        WHERE
+            self_described IS NOT NULL
+        "#,
+    )
+    .fetch_all(&mut *conn)
+    .await
+    .map(|records| {
+        records
+            .into_iter()
+            .filter_map(|record| {
+                record
+                    .self_described
+                    // only return details for nodes which have details stored
+                    .and_then(|description| {
+                        serde_json::from_value::<NymNodeDescription>(description).ok()
+                    })
+                    .map(|res| (record.node_id as NodeId, res))
+            })
+            .collect::<HashMap<_, _>>()
+    })
+    .map_err(From::from)
 }

@@ -187,6 +187,8 @@ where
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
+        #[cfg(unix)]
+        connection_fd_callback: None,
     };
 
     let init_details =

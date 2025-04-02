@@ -7,6 +7,9 @@ pub const TICKETBOOK_VALIDITY_DAYS: u32 = 7;
 /// Specifies the number of tickets in each issued ticketbook.
 pub const TICKETBOOK_SIZE: u64 = 50;
 
+/// Specifies the minimum request size each signer must support
+pub const MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE: usize = 50;
+
 /// This type is defined mostly for the purposes of having constants (like sizes) associated with given variants
 /// It's not meant to be serialised or have any fancy traits defined on it (in this crate)
 #[derive(Copy, Clone, Debug, PartialEq)]

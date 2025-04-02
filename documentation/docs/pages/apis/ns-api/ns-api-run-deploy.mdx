@@ -9,7 +9,7 @@ The Node Status API is made up of 3 components:
 - `nym-node-status-client`
 - `nym-node-status-agent`
 
-The API stores its data in a local SQLite database. It periodically gets most of its data from a [NymAPI](./nym-api) instance, and for instances also running with the Gateway Probe, uses the stored topology to conduct performance probe tests.
+The API stores its data in a local SQLite database. It periodically gets most of its data from a [NymAPI](../nym-api) instance, and for instances also running with the Gateway Probe, uses the stored topology to conduct performance probe tests.
 
 ## Gateway Probe
 You can run the `nym-node-status-api` alone, but if you want to run probes for `nym-node`s running as Gateways, you have to also run the `nym-node-status-agent` (which consumes the `nym-node-status-client` lib). The probe will run a set of tests per Gateway node, and return the sort of results seen [here](https://harbourmaster.nymtech.net/gateway/23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb).

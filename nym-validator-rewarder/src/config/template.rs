@@ -20,6 +20,9 @@ mnemonic = '{{ mnemonic }}'
 nyxd_scraper = '{{ storage_paths.nyxd_scraper }}'
 reward_history = '{{ storage_paths.reward_history }}'
 
+private_ed25519_identity_key_file = '{{ storage_paths.private_ed25519_identity_key_file }}'
+public_ed25519_identity_key_file = '{{ storage_paths.public_ed25519_identity_key_file }}'
+
 [rewarding]
 # Specifies total budget for a 24h period.
 daily_budget = '{{ rewarding.daily_budget }}'

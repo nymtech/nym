@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT epoch_id as \"epoch_id: u32\", serialised_key, serialization_revision as \"serialization_revision: u8\"\n                FROM master_verification_key WHERE epoch_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "epoch_id: u32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "serialised_key",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "serialization_revision: u8",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0112296b190328a3856d1adf51aafa2525da6c0b871633aad80ad555db9cf47c"
+}

@@ -48,7 +48,7 @@ impl Div<GasPrice> for &Coin {
             panic!("attempted to divide by zero!")
         };
 
-        let implicit_gas_limit = gas_price_inv * Uint128::new(self.amount);
+        let implicit_gas_limit = Uint128::new(self.amount).mul_floor(gas_price_inv);
         if implicit_gas_limit.u128() >= u64::MAX as u128 {
             u64::MAX
         } else {
@@ -169,13 +169,7 @@ impl CoinConverter for CosmosCoin {
     type Target = CosmWasmCoin;
 
     fn convert_coin(&self) -> Self::Target {
-        CosmWasmCoin::new(
-            self.amount
-                .to_string()
-                .parse()
-                .expect("cosmos coin had an invalid amount assigned"),
-            self.denom.to_string(),
-        )
+        CosmWasmCoin::new(self.amount, self.denom.to_string())
     }
 }
 

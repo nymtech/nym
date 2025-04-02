@@ -1,6 +1,6 @@
 [package]
 name = "nym-validator-rewarder"
-version = "0.2.1"
+version = "0.3.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -37,16 +37,16 @@ nym-config = { path = "../common/config" }
 nym-ecash-time = { path = "../common/ecash-time" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
-nym-crypto = { path = "../common/crypto", features = ["asymmetric"] }
+nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-credentials = { path = "../common/credentials" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nyxd-scraper = { path = "../common/nyxd-scraper" }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["base64"] }
+nym-pemstore = { path = "../common/pemstore" }
 
 [build-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
@@ -55,4 +55,6 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 [dev-dependencies]
 rand_chacha = { workspace = true }
 nym-credentials-interface = { path = "../common/credentials-interface" }
-nym-crypto = { path = "../common/crypto", features = ["rand"] }
+
+[lints]
+workspace = true

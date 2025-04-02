@@ -16,8 +16,8 @@ use mixnet_contract_common::NodeId;
 // LEGACY CONSTANTS:
 
 // current parameters used for rewarding purposes
-pub(crate) const REWARDING_PARAMS: Item<'_, RewardingParams> = Item::new(REWARDING_PARAMS_KEY);
-pub(crate) const PENDING_REWARD_POOL_CHANGE: Item<'_, RewardPoolChange> =
+pub(crate) const REWARDING_PARAMS: Item<RewardingParams> = Item::new(REWARDING_PARAMS_KEY);
+pub(crate) const PENDING_REWARD_POOL_CHANGE: Item<RewardPoolChange> =
     Item::new(PENDING_REWARD_POOL_KEY);
 
 pub const MIXNODE_REWARDING: Map<NodeId, NodeRewarding> = Map::new(MIXNODES_REWARDING_PK_NAMESPACE);
@@ -25,23 +25,23 @@ pub const MIXNODE_REWARDING: Map<NodeId, NodeRewarding> = Map::new(MIXNODES_REWA
 // we're using the same underlying key to allow seamless delegation migration
 pub const NYMNODE_REWARDING: Map<NodeId, NodeRewarding> = MIXNODE_REWARDING;
 
-pub struct RewardingStorage<'a> {
+pub struct RewardingStorage {
     /// Global parameters used for reward calculation, such as the current reward pool, the active set size, etc.
-    pub global_rewarding_params: Item<'a, RewardingParams>,
+    pub global_rewarding_params: Item<RewardingParams>,
 
     /// All the changes to the rewarding pool that should get applied upon the **interval** finishing.
-    pub pending_reward_pool_change: Item<'a, RewardPoolChange>,
+    pub pending_reward_pool_change: Item<RewardPoolChange>,
 
     /// Information associated with all nym-nodes (and legacy-mixnodes) required for reward calculation
     // important note: this is using **EXACTLY** the same underlying key (and structure) as legacy mixnode rewarding
-    pub nym_node_rewarding_data: Map<'a, NodeId, NodeRewarding>,
+    pub nym_node_rewarding_data: Map<NodeId, NodeRewarding>,
 
     /// keeps track of total cumulative work submitted for this rewarding epoch to make sure it never goes above 1
-    pub cumulative_epoch_work: Item<'a, WorkFactor>,
+    pub cumulative_epoch_work: Item<WorkFactor>,
 }
 
-impl<'a> RewardingStorage<'a> {
-    pub const fn new() -> RewardingStorage<'a> {
+impl RewardingStorage {
+    pub const fn new() -> RewardingStorage {
         RewardingStorage {
             global_rewarding_params: REWARDING_PARAMS,
             pending_reward_pool_change: PENDING_REWARD_POOL_CHANGE,
@@ -52,7 +52,7 @@ impl<'a> RewardingStorage<'a> {
 
     // an 'alias' because a `new` method might be a bit misleading since it'd suggest a brand new storage is created
     // as opposed to using the same underlying data as before
-    pub const fn load() -> RewardingStorage<'a> {
+    pub const fn load() -> RewardingStorage {
         Self::new()
     }
 

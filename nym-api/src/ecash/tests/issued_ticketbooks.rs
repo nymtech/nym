@@ -68,7 +68,7 @@ async fn issued_ticketbooks_for() {
 }
 
 #[tokio::test]
-async fn issued_ticketbooks_challenge() {
+async fn issued_ticketbooks_challenge_commitment() {
     let deposit_id1 = 123;
     let deposit_id2 = 321;
 
@@ -88,7 +88,7 @@ async fn issued_ticketbooks_challenge() {
 
     // empty challenge
     let response = test_fixture
-        .issued_ticketbooks_challenge(expiration_date, vec![])
+        .issued_ticketbooks_challenge_commitment(expiration_date, vec![])
         .await;
     assert_eq!(
         response.text(),
@@ -97,7 +97,7 @@ async fn issued_ticketbooks_challenge() {
 
     // // challenge for what we haven't issued
     let response = test_fixture
-        .issued_ticketbooks_challenge(expiration_date, vec![deposit_id1])
+        .issued_ticketbooks_challenge_commitment(expiration_date, vec![deposit_id1])
         .await;
     assert_eq!(
         response.text(),
@@ -107,66 +107,35 @@ async fn issued_ticketbooks_challenge() {
         .to_string()
     );
 
-    let cred1 = test_fixture.issue_ticketbook(request1.clone()).await;
+    let _ = test_fixture.issue_ticketbook(request1.clone()).await;
     let response = test_fixture
-        .issued_ticketbooks_challenge_unchecked(expiration_date, vec![deposit_id1])
+        .issued_ticketbooks_challenge_commitment_unchecked(expiration_date, vec![deposit_id1])
         .await;
-    assert_eq!(response.body.partial_ticketbooks.len(), 1);
     assert_eq!(response.body.expiration_date, expiration_date);
     assert_eq!(response.body.merkle_proof.total_leaves(), 1);
 
-    let ticketbook = &response.body.partial_ticketbooks[&deposit_id1];
-    assert_eq!(
-        cred1.blinded_signature.to_bytes().to_vec(),
-        ticketbook.blinded_partial_credential
-    );
-
-    let cred2 = test_fixture.issue_ticketbook(request2.clone()).await;
+    let _ = test_fixture.issue_ticketbook(request2.clone()).await;
     // proof for the old deposit
     let response = test_fixture
-        .issued_ticketbooks_challenge_unchecked(expiration_date, vec![deposit_id1])
+        .issued_ticketbooks_challenge_commitment_unchecked(expiration_date, vec![deposit_id1])
         .await;
-    assert_eq!(response.body.partial_ticketbooks.len(), 1);
     assert_eq!(response.body.expiration_date, expiration_date);
     assert_eq!(response.body.merkle_proof.total_leaves(), 2);
 
-    // proof for new deposit
-    let ticketbook = &response.body.partial_ticketbooks[&deposit_id1];
-    assert_eq!(
-        cred1.blinded_signature.to_bytes().to_vec(),
-        ticketbook.blinded_partial_credential
-    );
     // proof for new deposit
     let response = test_fixture
-        .issued_ticketbooks_challenge_unchecked(expiration_date, vec![deposit_id2])
+        .issued_ticketbooks_challenge_commitment_unchecked(expiration_date, vec![deposit_id2])
         .await;
-    assert_eq!(response.body.partial_ticketbooks.len(), 1);
     assert_eq!(response.body.expiration_date, expiration_date);
     assert_eq!(response.body.merkle_proof.total_leaves(), 2);
-
-    // proof for new deposit
-    let ticketbook = &response.body.partial_ticketbooks[&deposit_id2];
-    assert_eq!(
-        cred2.blinded_signature.to_bytes().to_vec(),
-        ticketbook.blinded_partial_credential
-    );
 
     // proof for BOTH deposits
     let response = test_fixture
-        .issued_ticketbooks_challenge_unchecked(expiration_date, vec![deposit_id1, deposit_id2])
+        .issued_ticketbooks_challenge_commitment_unchecked(
+            expiration_date,
+            vec![deposit_id1, deposit_id2],
+        )
         .await;
-    assert_eq!(response.body.partial_ticketbooks.len(), 2);
     assert_eq!(response.body.expiration_date, expiration_date);
     assert_eq!(response.body.merkle_proof.total_leaves(), 2);
-
-    let ticketbook = &response.body.partial_ticketbooks[&deposit_id1];
-    assert_eq!(
-        cred1.blinded_signature.to_bytes().to_vec(),
-        ticketbook.blinded_partial_credential
-    );
-    let ticketbook = &response.body.partial_ticketbooks[&deposit_id2];
-    assert_eq!(
-        cred2.blinded_signature.to_bytes().to_vec(),
-        ticketbook.blinded_partial_credential
-    );
 }

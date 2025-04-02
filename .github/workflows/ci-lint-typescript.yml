@@ -16,6 +16,8 @@ on:
 jobs:
   build:
     runs-on: arc-ubuntu-20.04
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - uses: actions/checkout@v4
       - uses: rlespinasse/github-slug-action@v3.x
@@ -42,7 +44,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: "1.23.7"
 
       - name: Install
         run: yarn

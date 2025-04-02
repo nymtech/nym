@@ -82,7 +82,7 @@ export const Bonding = () => {
       setConfirmationDetails({
         status: 'success',
         title: 'Bonding successful',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+        txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
       });
     }
   };
@@ -94,7 +94,7 @@ export const Bonding = () => {
       setConfirmationDetails({
         status: 'success',
         title: 'Migration successful',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+        txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
       });
     }
   };
@@ -106,7 +106,7 @@ export const Bonding = () => {
       setConfirmationDetails({
         status: 'success',
         title: 'Migration successful',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+        txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
       });
     }
   };
@@ -133,7 +133,7 @@ export const Bonding = () => {
       setConfirmationDetails({
         status: 'success',
         title: 'Bond amount changed successfully',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+        txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
       });
     }
   };
@@ -145,7 +145,7 @@ export const Bonding = () => {
       setConfirmationDetails({
         status: 'success',
         title: 'Rewards redeemed successfully',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+        txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
       });
     }
   };

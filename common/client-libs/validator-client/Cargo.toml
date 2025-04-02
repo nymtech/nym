@@ -16,7 +16,6 @@ nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
-nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-ecash-contract-common = { path = "../../cosmwasm-smart-contracts/ecash-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
@@ -56,7 +55,7 @@ cw4 = { workspace = true }
 cw-controllers = { workspace = true }
 prost = { workspace = true, default-features = false }
 flate2 = { workspace = true }
-sha2 = { version = "0.9.5" }
+sha2 = { workspace = true }
 itertools = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 cosmwasm-std = { workspace = true }

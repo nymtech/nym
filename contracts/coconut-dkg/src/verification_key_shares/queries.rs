@@ -158,8 +158,17 @@ pub(crate) mod tests {
     fn vk_shares_pagination_works() {
         let mut deps = init_contract();
 
-        let owner = format!("owner{}", 1);
-        let vk_share = vk_share_fixture(&owner, 0);
+        let mut owners = [
+            deps.api.addr_make("owner1"),
+            deps.api.addr_make("owner2"),
+            deps.api.addr_make("owner3"),
+            deps.api.addr_make("owner4"),
+        ];
+        // sort them due to how values are saved
+        owners.sort();
+
+        let owner = owners[0].clone();
+        let vk_share = vk_share_fixture(owner.as_ref(), 0);
         let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
@@ -172,8 +181,8 @@ pub(crate) mod tests {
         assert_eq!(1, page1.shares.len());
 
         // save another
-        let owner = format!("owner{}", 2);
-        let vk_share = vk_share_fixture(&owner, 0);
+        let owner = owners[1].clone();
+        let vk_share = vk_share_fixture(owner.as_str(), 0);
         let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
@@ -183,8 +192,8 @@ pub(crate) mod tests {
         let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.shares.len());
 
-        let owner = format!("owner{}", 3);
-        let vk_share = vk_share_fixture(&owner, 0);
+        let owner = owners[2].clone();
+        let vk_share = vk_share_fixture(owner.as_str(), 0);
         let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
@@ -206,8 +215,8 @@ pub(crate) mod tests {
 
         assert_eq!(1, page2.shares.len());
 
-        let owner = format!("owner{}", 4);
-        let vk_share = vk_share_fixture(&owner, 0);
+        let owner = owners[3].clone();
+        let vk_share = vk_share_fixture(owner.as_str(), 0);
         let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)

@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-12-large]
+        platform: [macos-15]
     runs-on: ${{ matrix.platform }}
 
     outputs:
@@ -30,7 +30,7 @@ jobs:
       - name: Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 21
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:

@@ -14,6 +14,7 @@ getset = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 humantime-serde = { workspace = true }
+hex = { workspace = true }
 serde_json = { workspace = true }
 sha2.workspace = true
 tendermint = { workspace = true }

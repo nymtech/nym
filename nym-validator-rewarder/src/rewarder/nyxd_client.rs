@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::warn;
+use tracing::{error, warn};
 use url::Url;
 
 #[derive(Clone)]
@@ -61,6 +61,15 @@ impl NyxdClient {
         memo: impl Into<String> + Send + 'static,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Hash, NymRewarderError> {
+        if amounts
+            .iter()
+            .any(|(_, coins)| coins.is_empty() || coins.iter().any(|c| c.amount == 0))
+        {
+            // this should have never happened!
+            error!("attempted to send 0 coins reward!");
+            return Err(NymRewarderError::EmptyRewardingCoin);
+        }
+
         self.inner
             .write()
             .await

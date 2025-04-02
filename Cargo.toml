@@ -32,9 +32,8 @@ members = [
     "common/client-libs/validator-client",
     "common/commands",
     "common/config",
-    "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
-    "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/contracts-common", "common/cosmwasm-smart-contracts/easy_addr",
     "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
@@ -98,9 +97,9 @@ members = [
     "common/wireguard",
     "common/wireguard-types",
     "documentation/autodoc",
-    "explorer-api",
-    "explorer-api/explorer-api-requests",
-    "explorer-api/explorer-client",
+    # "explorer-api",
+    # "explorer-api/explorer-api-requests",
+    # "explorer-api/explorer-client",
     "gateway",
     "integrations/bity",
     "nym-api",
@@ -153,7 +152,6 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
-    "explorer-api",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-node",
@@ -194,7 +192,7 @@ ammonia = "4"
 anyhow = "1.0.97"
 arc-swap = "1.7.1"
 argon2 = "0.5.0"
-async-trait = "0.1.87"
+async-trait = "0.1.88"
 axum = "0.7.5"
 axum-client-ip = "0.6.1"
 axum-extra = "0.9.4"
@@ -211,13 +209,13 @@ bs58 = "0.5.1"
 bytecodec = "0.4.15"
 bytes = "1.10.1"
 cargo_metadata = "0.18.1"
-celes = "2.5.0"
+celes = "2.6.0"
 cfg-if = "1.0.0"
 chacha20 = "0.9.0"
 chacha20poly1305 = "0.10.1"
 chrono = "0.4.40"
 cipher = "0.4.3"
-clap = "4.5.31"
+clap = "4.5.32"
 clap_complete = "4.5"
 clap_complete_fig = "4.5"
 colored = "2.2"
@@ -242,7 +240,7 @@ dotenvy = "0.15.6"
 ecdsa = "0.16"
 ed25519-dalek = "2.1"
 encoding_rs = "0.8.35"
-env_logger = "0.11.6"
+env_logger = "0.11.7"
 envy = "0.4"
 etherparse = "0.13.0"
 eyre = "0.6.9"
@@ -264,7 +262,7 @@ http = "1"
 http-body-util = "0.1"
 httpcodec = "0.2.3"
 human-repr = "1.1.0"
-humantime = "2.1.0"
+humantime = "2.2.0"
 humantime-serde = "1.1.1"
 hyper = "1.6.0"
 hyper-util = "0.1"
@@ -285,7 +283,7 @@ moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"
 notify = "5.1.0"
 okapi = "0.7.0"
-once_cell = "1.20.3"
+once_cell = "1.21.1"
 opentelemetry = "0.19.0"
 opentelemetry-jaeger = "0.18.0"
 parking_lot = "0.12.3"
@@ -331,7 +329,7 @@ syn = "1"
 sysinfo = "0.33.0"
 tap = "1.0.1"
 tar = "0.4.44"
-tempfile = "3.18"
+tempfile = "3.19"
 thiserror = "2.0"
 time = "0.3.39"
 tokio = "1.44"
@@ -340,7 +338,7 @@ tokio-stream = "0.1.17"
 tokio-test = "0.4.4"
 tokio-tun = "0.11.5"
 tokio-tungstenite = { version = "0.20.1" }
-tokio-util = "0.7.13"
+tokio-util = "0.7.14"
 toml = "0.8.20"
 tower = "0.5.2"
 tower-http = "0.5.2"
@@ -362,7 +360,7 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
-zeroize = "1.6.0"
+zeroize = "1.7.0"
 
 prometheus = { version = "0.13.0" }
 
@@ -376,19 +374,18 @@ ff = { version = "0.13.1", default-features = false }
 subtle = "2.5.0"
 
 # cosmwasm-related
-cosmwasm-schema = "=1.4.3"
-cosmwasm-std = "=1.4.3"
-# use 0.5.0 as that's the version used by cosmwasm-std 1.4.3
+cosmwasm-schema = "=2.2.2"
+cosmwasm-std = "=2.2.2"
+# use 1.0.1 as that's the version used by cosmwasm-std 2.2.1
 # (and ideally we don't want to pull the same dependency twice)
-serde-json-wasm = "=0.5.0"
-cosmwasm-storage = "=1.4.3"
+serde-json-wasm = "=1.0.1"
 # same version as used by cosmwasm
-cw-utils = "=1.0.1"
-cw-storage-plus = "=1.2.0"
-cw2 = { version = "=1.1.2" }
-cw3 = { version = "=1.1.2" }
-cw4 = { version = "=1.1.2" }
-cw-controllers = { version = "=1.1.0" }
+cw-utils = "=2.0.0"
+cw-storage-plus = "=2.0.0"
+cw2 = { version = "=2.0.0" }
+cw3 = { version = "=2.0.0" }
+cw4 = { version = "=2.0.0" }
+cw-controllers = { version = "=2.0.0" }
 
 # cosmrs-related
 bip32 = { version = "0.5.3", default-features = false }
@@ -403,7 +400,7 @@ prost = { version = "0.13", default-features = false }
 gloo-utils = "0.2.0"
 gloo-net = "0.6.0"
 
-indexed_db_futures = "0.6.0"
+indexed_db_futures = "0.6.1"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"

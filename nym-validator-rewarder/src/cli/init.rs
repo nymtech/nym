@@ -4,7 +4,10 @@
 use crate::cli::ConfigOverridableArgs;
 use crate::config::{default_config_directory, default_data_directory, Config};
 use crate::error::NymRewarderError;
+use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;
+use nym_pemstore::KeyPairPath;
+use rand::rngs::OsRng;
 use std::path::PathBuf;
 use std::{fs, io};
 
@@ -31,6 +34,19 @@ fn init_paths() -> io::Result<()> {
     fs::create_dir_all(default_config_directory())
 }
 
+fn init_keys(paths: KeyPairPath) -> Result<(), NymRewarderError> {
+    let mut rng = OsRng;
+
+    let keypair = ed25519::KeyPair::new(&mut rng);
+    nym_pemstore::store_keypair(&keypair, &paths).map_err(|source| {
+        NymRewarderError::Ed25519KeyStoreFailure {
+            public_key_path: paths.public_key_path,
+            private_key_path: paths.private_key_path,
+            source,
+        }
+    })
+}
+
 pub(crate) fn execute(args: Args) -> Result<(), NymRewarderError> {
     let path = args
         .custom_config_path
@@ -51,6 +67,11 @@ pub(crate) fn execute(args: Args) -> Result<(), NymRewarderError> {
 
     let config = Config::new(args.mnemonic, websocket, nyxd).with_override(args.config_override);
     config.validate()?;
+
+    init_keys(KeyPairPath::new(
+        &config.storage_paths.private_ed25519_identity_key_file,
+        &config.storage_paths.public_ed25519_identity_key_file,
+    ))?;
 
     config
         .save_to_path(&path)

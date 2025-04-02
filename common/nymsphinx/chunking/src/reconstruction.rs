@@ -4,6 +4,7 @@ use crate::fragment::Fragment;
 use crate::{monitoring, ChunkingError};
 use log::*;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 // TODO: perhaps a more sophisticated approach with writing to disk periodically in case
 // we're receiving fast & furious in uncompressed 4K - we don't want to keep that in memory;
@@ -31,6 +32,9 @@ struct ReconstructionBuffer {
     /// appropriately resized and all missing fragments are set to a `None`, thus keeping
     /// everything in order the whole time, allowing for O(1) insertions and O(n) reconstruction.
     fragments: Vec<Option<Fragment>>,
+
+    /// The timestamp of the last received fragment. Used for cleaning up stale buffers.
+    last_fragment_timestamp: Instant,
 }
 
 /// Type alias representing fully reconstructed message - its original data and list of all
@@ -56,6 +60,7 @@ impl ReconstructionBuffer {
             previous_fragments_set_id: None,
             next_fragments_set_id: None,
             fragments: fragments_buffer,
+            last_fragment_timestamp: Instant::now(),
         }
     }
 
@@ -99,6 +104,8 @@ impl ReconstructionBuffer {
     /// `previous_fragments_set_id` and `next_fragments_set_id` are set for the ease
     /// of access.
     fn insert_fragment(&mut self, fragment: Fragment) {
+        self.last_fragment_timestamp = Instant::now();
+
         // all fragments in the buffer should always have the same id as before inserting an element,
         // the correct buffer instance is looked up based on the fragment to be inserted.
         debug_assert!({
@@ -158,6 +165,10 @@ pub struct MessageReconstructor {
 }
 
 impl MessageReconstructor {
+    // We want to be very conservative here. We remove these to avoid memory leaks, but it's okay
+    // to wait for a long time before we do so.
+    const INCOMPLETE_MESSAGE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
     /// Creates an empty `MessageReconstructor`.
     pub fn new() -> Self {
         Default::default()
@@ -295,6 +306,25 @@ impl MessageReconstructor {
     /// Given raw `Fragment` data, tries to decode and return it.
     pub fn recover_fragment(&self, fragment_data: Vec<u8>) -> Result<Fragment, ChunkingError> {
         Fragment::try_from_bytes(&fragment_data)
+    }
+
+    pub fn cleanup_stale_buffers(&mut self) {
+        trace!("Cleaning up stale buffers");
+        let now = Instant::now();
+        self.reconstructed_sets.retain(|_, set_buf| {
+            let keep = now.duration_since(set_buf.last_fragment_timestamp)
+                < Self::INCOMPLETE_MESSAGE_TIMEOUT;
+            if !keep {
+                debug!(
+                    "Removing stale buffer for set id {:?}",
+                    set_buf
+                        .fragments
+                        .first()
+                        .and_then(|f| f.as_ref().map(|f| f.id()))
+                );
+            }
+            keep
+        });
     }
 }
 
@@ -508,6 +538,8 @@ mod reconstruction_buffer {
 
 #[cfg(test)]
 mod message_reconstructor {
+    use std::time::Instant;
+
     use super::*;
     use crate::fragment::unlinked_fragment_payload_max_len;
     use crate::set::{max_one_way_linked_set_payload_length, two_way_linked_set_payload_length};
@@ -869,6 +901,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: None,
                 next_fragments_set_id: None,
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
 
@@ -879,6 +912,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: None,
                 next_fragments_set_id: None,
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
 
@@ -1006,6 +1040,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: None,
                 next_fragments_set_id: Some(1234),
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
 
@@ -1016,6 +1051,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: Some(12345),
                 next_fragments_set_id: Some(123),
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
 
@@ -1026,6 +1062,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: Some(1234),
                 next_fragments_set_id: Some(12),
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
 
@@ -1036,6 +1073,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: Some(123),
                 next_fragments_set_id: None,
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
 
@@ -1083,6 +1121,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: None,
                 next_fragments_set_id: Some(1234),
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
         reconstructor.reconstructed_sets.insert(
@@ -1092,6 +1131,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: Some(12345),
                 next_fragments_set_id: None,
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
         assert_eq!(reconstructor.previous_linked_set_id(12345), None);
@@ -1139,6 +1179,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: None,
                 next_fragments_set_id: Some(1234),
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
         reconstructor.reconstructed_sets.insert(
@@ -1148,6 +1189,7 @@ mod message_reconstructor {
                 previous_fragments_set_id: Some(12345),
                 next_fragments_set_id: None,
                 fragments: vec![],
+                last_fragment_timestamp: Instant::now(),
             },
         );
         assert_eq!(reconstructor.next_linked_set_id(12345), Some(1234));

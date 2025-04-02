@@ -1,19 +1,20 @@
-import { TBondedNode } from 'src/context';
-import { isNymNode } from 'src/types';
+import { TBondedNode } from 'src/context/bonding';
+import { isMixnode, isNymNode } from 'src/types';
 
-export const makeNavItems = (bondedNode: TBondedNode) => {
-  const navItems: NavItems[] = ['Unbond'];
+// Update the NavItems type to include 'Cost Parameters'
+export type NavItems = 'General' | 'Cost Parameters' | 'Unbond';
 
-  if (isNymNode(bondedNode)) {
-    // Add these items to the beginning of the array "General", "Test my node", "Playground"
-    // Temporarily removed , 'Test my node due to wasm issues which we need to fix
-    // 'Playground' due to freezing issues
-    navItems.unshift('General');
+export const makeNavItems = (node: TBondedNode): NavItems[] => {
+  // Basic tabs that are always available
+  const tabs: NavItems[] = ['General'];
+
+  // Add Cost Parameters tab for all node types
+  tabs.push('Cost Parameters');
+
+  // Add unbond tab for specific node types
+  if (isMixnode(node) || isNymNode(node)) {
+    tabs.push('Unbond');
   }
 
-  return navItems;
+  return tabs;
 };
-
-// And these back in once fixed.
-// 'Playground' | 'Test my node' include in array at a later point
-export type NavItems = 'General' | 'Unbond';

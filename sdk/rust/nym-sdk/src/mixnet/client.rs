@@ -543,6 +543,8 @@ where
         Ok(GatewaySetup::New {
             specification: selection_spec,
             available_gateways,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback.clone(),
         })
     }
 
@@ -823,10 +825,12 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum IncludedSurbs {
     Amount(u32),
     ExposeSelfAddress,
 }
+
 impl Default for IncludedSurbs {
     fn default() -> Self {
         Self::Amount(DEFAULT_NUMBER_OF_SURBS)

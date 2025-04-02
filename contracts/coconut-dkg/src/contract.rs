@@ -26,7 +26,7 @@ use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_pa
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
-    entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    entry_point, to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -129,50 +129,52 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
-        QueryMsg::GetState {} => to_binary(&query_state(deps.storage)?)?,
-        QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
-        QueryMsg::CanAdvanceState {} => to_binary(&query_can_advance_state(deps.storage, env)?)?,
+        QueryMsg::GetState {} => to_json_binary(&query_state(deps.storage)?)?,
+        QueryMsg::GetCurrentEpochState {} => to_json_binary(&query_current_epoch(deps.storage)?)?,
+        QueryMsg::CanAdvanceState {} => {
+            to_json_binary(&query_can_advance_state(deps.storage, env)?)?
+        }
         QueryMsg::GetCurrentEpochThreshold {} => {
-            to_binary(&query_current_epoch_threshold(deps.storage)?)?
+            to_json_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
         QueryMsg::GetEpochThreshold { epoch_id } => {
-            to_binary(&query_epoch_threshold(deps.storage, epoch_id)?)?
+            to_json_binary(&query_epoch_threshold(deps.storage, epoch_id)?)?
         }
         QueryMsg::GetRegisteredDealer {
             dealer_address,
             epoch_id,
-        } => to_binary(&query_registered_dealer_details(
+        } => to_json_binary(&query_registered_dealer_details(
             deps,
             dealer_address,
             epoch_id,
         )?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
-            to_binary(&query_dealer_details(deps, dealer_address)?)?
+            to_json_binary(&query_dealer_details(deps, dealer_address)?)?
         }
         QueryMsg::GetCurrentDealers { limit, start_after } => {
-            to_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
+            to_json_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealerIndices { limit, start_after } => {
-            to_binary(&query_dealers_indices_paged(deps, start_after, limit)?)?
+            to_json_binary(&query_dealers_indices_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealingsMetadata {
             epoch_id,
             dealer,
             dealing_index,
-        } => to_binary(&query_dealing_metadata(
+        } => to_json_binary(&query_dealing_metadata(
             deps,
             epoch_id,
             dealer,
             dealing_index,
         )?)?,
         QueryMsg::GetDealerDealingsStatus { epoch_id, dealer } => {
-            to_binary(&query_dealer_dealings_status(deps, epoch_id, dealer)?)?
+            to_json_binary(&query_dealer_dealings_status(deps, epoch_id, dealer)?)?
         }
         QueryMsg::GetDealingStatus {
             epoch_id,
             dealer,
             dealing_index,
-        } => to_binary(&query_dealing_status(
+        } => to_json_binary(&query_dealing_status(
             deps,
             epoch_id,
             dealer,
@@ -183,7 +185,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             dealer,
             dealing_index,
             chunk_index,
-        } => to_binary(&query_dealing_chunk_status(
+        } => to_json_binary(&query_dealing_chunk_status(
             deps,
             epoch_id,
             dealer,
@@ -195,7 +197,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             dealer,
             dealing_index,
             chunk_index,
-        } => to_binary(&query_dealing_chunk(
+        } => to_json_binary(&query_dealing_chunk(
             deps,
             epoch_id,
             dealer,
@@ -203,14 +205,16 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             chunk_index,
         )?)?,
         QueryMsg::GetVerificationKey { owner, epoch_id } => {
-            to_binary(&query_vk_share(deps, owner, epoch_id)?)?
+            to_json_binary(&query_vk_share(deps, owner, epoch_id)?)?
         }
         QueryMsg::GetVerificationKeys {
             epoch_id,
             limit,
             start_after,
-        } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
-        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?)?,
+        } => to_json_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
+        QueryMsg::GetCW2ContractVersion {} => {
+            to_json_binary(&cw2::get_contract_version(deps.storage)?)?
+        }
     };
 
     Ok(response)
@@ -236,7 +240,7 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
@@ -311,13 +315,13 @@ mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let msg = InstantiateMsg {
-            group_addr: "group_addr".to_string(),
-            multisig_addr: "multisig_addr".to_string(),
+            group_addr: deps.api.addr_make("group_addr").to_string(),
+            multisig_addr: deps.api.addr_make("multisig_addr").to_string(),
             time_configuration: None,
             mix_denom: "nym".to_string(),
             key_size: 5,
         };
-        let info = mock_info("creator", &[]);
+        let info = message_info(&deps.api.addr_make("creator"), &[]);
 
         let res = instantiate(deps.as_mut(), env, info, msg);
         assert!(res.is_ok())
@@ -326,9 +330,11 @@ mod tests {
     #[test]
     fn execute_add_dealer() {
         let init_funds = coins(100, TEST_MIX_DENOM);
+
+        let api = MockApi::default();
         const MEMBER_SIZE: usize = 100;
         let members: [Addr; MEMBER_SIZE] =
-            std::array::from_fn(|idx| Addr::unchecked(format!("member{}", idx)));
+            std::array::from_fn(|idx| api.addr_make(&format!("member{}", idx)));
 
         let mut app = AppBuilder::new().build(|router, _, storage| {
             router
@@ -378,7 +384,7 @@ mod tests {
             assert_eq!(ContractError::AlreadyADealer, err.downcast().unwrap());
         }
 
-        let unauthorized_member = Addr::unchecked("not_a_member");
+        let unauthorized_member = MockApi::default().addr_make("not_a_member");
         let err = app
             .execute_contract(
                 unauthorized_member,

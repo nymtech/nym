@@ -1,0 +1,9 @@
+- Install these dependencies on your local machine:
+```shell
+sudo apt install tcpdump
+
+sudo tcpdump -i nymwg -n
+```
+- Connect to [NymVPN](https://nym.com) and select your node as an Exit Gateway (after running the exit policy [manager script](#wireguard-exit-policy-configuration))
+- Run the `tcpdump` command before registering
+- Have the output of the `echo $BLOCKED_IP` from your node and try to go into your browser or a registered client and try to connect - It will not resolve.

@@ -320,7 +320,7 @@ pub mod tests {
     use crate::support::tests::fixtures::active_set_update_fixture;
     use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::message_info;
 
     // a simple wrapper to streamline checking for rewarding results
     trait TestRewarding {
@@ -386,9 +386,12 @@ pub mod tests {
             #[test]
             fn when_target_mixnode_unbonded() {
                 let mut test = TestSetup::new();
-                let node_id_unbonded = test.add_rewarded_legacy_mixnode("mix-owner-unbonded", None);
-                let node_id_unbonded_leftover =
-                    test.add_rewarded_legacy_mixnode("mix-owner-unbonded-leftover", None);
+                let node_id_unbonded =
+                    test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner-unbonded"), None);
+                let node_id_unbonded_leftover = test.add_rewarded_legacy_mixnode(
+                    &test.make_addr("mix-owner-unbonded-leftover"),
+                    None,
+                );
                 let node_id_never_existed = 42;
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![
@@ -462,7 +465,10 @@ pub mod tests {
             #[test]
             fn when_target_mixnode_has_zero_performance() {
                 let mut test = TestSetup::new();
-                let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+                let node_id = test.add_rewarded_legacy_mixnode(
+                    &test.make_addr(test.make_addr("mix-owner")),
+                    None,
+                );
 
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![node_id]);
@@ -481,7 +487,10 @@ pub mod tests {
             #[test]
             fn when_target_mixnode_has_zero_work_factor() {
                 let mut test = TestSetup::new();
-                let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+                let node_id = test.add_rewarded_legacy_mixnode(
+                    &test.make_addr(test.make_addr("mix-owner")),
+                    None,
+                );
 
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![node_id]);
@@ -503,7 +512,7 @@ pub mod tests {
             #[test]
             fn when_target_nymnode_has_zero_performance() {
                 let mut test = TestSetup::new();
-                let node_id = test.add_dummy_nymnode("node-owner", None);
+                let node_id = test.add_dummy_nymnode(&test.make_addr("node-owner"), None);
 
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![node_id]);
@@ -522,7 +531,8 @@ pub mod tests {
             #[test]
             fn when_target_node_has_zero_workfactor() {
                 let mut test = TestSetup::new();
-                let node_id = test.add_dummy_nymnode("mix-owner", None);
+                let node_id =
+                    test.add_dummy_nymnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![node_id]);
@@ -544,7 +554,10 @@ pub mod tests {
             #[test]
             fn when_theres_only_one_node_to_reward() {
                 let mut test = TestSetup::new();
-                let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+                let node_id = test.add_rewarded_legacy_mixnode(
+                    &test.make_addr(test.make_addr("mix-owner")),
+                    None,
+                );
 
                 test.skip_to_next_epoch_end();
                 test.force_change_mix_rewarded_set(vec![node_id]);
@@ -566,7 +579,10 @@ pub mod tests {
 
                 let mut ids = Vec::new();
                 for i in 0..100 {
-                    let node_id = test.add_rewarded_legacy_mixnode(&format!("mix-owner{i}"), None);
+                    let node_id = test.add_rewarded_legacy_mixnode(
+                        &test.make_addr(test.make_addr(format!("mix-owner{i}"))),
+                        None,
+                    );
                     ids.push(node_id);
                 }
 
@@ -632,8 +648,9 @@ pub mod tests {
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
             let mut test = TestSetup::new();
-            let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
-            let some_sender = mock_info("foomper", &[]);
+            let node_id = test
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
+            let some_sender = message_info(&test.make_addr("foomper"), &[]);
 
             // skip time to when the following epoch is over (since mixnodes are not eligible for rewarding
             // in the same epoch they're bonded and we need the rewarding epoch to be over)
@@ -657,9 +674,10 @@ pub mod tests {
         fn can_only_be_performed_if_node_is_fully_bonded() {
             let mut test = TestSetup::new();
             let node_id_never_existed = 42;
-            let node_id_unbonded = test.add_rewarded_legacy_mixnode("mix-owner-unbonded", None);
-            let node_id_unbonded_leftover =
-                test.add_rewarded_legacy_mixnode("mix-owner-unbonded-leftover", None);
+            let node_id_unbonded =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner-unbonded"), None);
+            let node_id_unbonded_leftover = test
+                .add_rewarded_legacy_mixnode(&test.make_addr("mix-owner-unbonded-leftover"), None);
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![
                 node_id_unbonded,
@@ -713,7 +731,8 @@ pub mod tests {
         fn can_only_be_performed_once_epoch_is_over() {
             let mut test = TestSetup::new();
 
-            let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let node_id = test
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             // node is in the active set BUT the current epoch has just begun
             test.skip_to_next_epoch();
@@ -736,7 +755,8 @@ pub mod tests {
         #[test]
         fn can_only_be_performed_once_per_node_per_epoch() {
             let mut test = TestSetup::new();
-            let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let node_id = test
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id, 42]);
@@ -764,7 +784,8 @@ pub mod tests {
         #[test]
         fn requires_nonzero_performance_score() {
             let mut test = TestSetup::new();
-            let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let node_id = test
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id, 42]);
@@ -802,7 +823,8 @@ pub mod tests {
         #[test]
         fn requires_nonzero_work_factor() {
             let mut test = TestSetup::new();
-            let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let node_id = test
+                .add_rewarded_legacy_mixnode(&test.make_addr(test.make_addr("mix-owner")), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id, 42]);
@@ -842,20 +864,36 @@ pub mod tests {
         #[test]
         fn correctly_accounts_for_rewards_distributed() {
             let mut test = TestSetup::new();
-            let node_id1 = test.add_rewarded_legacy_mixnode("mix-owner1", None);
-            let node_id2 = test.add_rewarded_legacy_mixnode("mix-owner2", None);
-            let node_id3 = test.add_rewarded_legacy_mixnode("mix-owner3", None);
+            let node_id1 = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), None);
+            let node_id2 = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), None);
+            let node_id3 = test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner3"), None);
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id1, node_id2, node_id3]);
             test.start_epoch_transition();
             let params = test.active_node_params(98.0);
 
-            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id2);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(100_000_000),
+                node_id2,
+            );
 
-            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id3);
-            test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), node_id3);
-            test.add_immediate_delegation("delegator3", Uint128::new(9_100_000_000), node_id3);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(100_000_000),
+                node_id3,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator2"),
+                Uint128::new(123_456_000),
+                node_id3,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator3"),
+                Uint128::new(9_100_000_000),
+                node_id3,
+            );
 
             let change = storage::PENDING_REWARD_POOL_CHANGE
                 .load(test.deps().storage)
@@ -907,20 +945,39 @@ pub mod tests {
 
             let mut test = TestSetup::new();
             let global_rewarding_params = test.rewarding_params();
-            let node_id1 = test.add_rewarded_legacy_mixnode("mix-owner1", Some(operator1));
-            let node_id2 = test.add_rewarded_legacy_mixnode("mix-owner2", Some(operator2));
-            let node_id3 = test.add_rewarded_legacy_mixnode("mix-owner3", Some(operator3));
+            let node_id1 =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(operator1));
+            let node_id2 =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(operator2));
+            let node_id3 =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner3"), Some(operator3));
 
             test.skip_to_next_epoch_end();
             test.start_epoch_transition();
             test.force_change_mix_rewarded_set(vec![node_id1, node_id2, node_id3]);
             let performance = test_helpers::performance(98.0);
 
-            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id2);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(100_000_000),
+                node_id2,
+            );
 
-            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id3);
-            test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), node_id3);
-            test.add_immediate_delegation("delegator3", Uint128::new(9_100_000_000), node_id3);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(100_000_000),
+                node_id3,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator2"),
+                Uint128::new(123_456_000),
+                node_id3,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator3"),
+                Uint128::new(9_100_000_000),
+                node_id3,
+            );
 
             // bypass proper epoch progression and force change the state
             test.set_epoch_in_progress_state();
@@ -946,11 +1003,27 @@ pub mod tests {
             // add few more delegations and repeat it
             // (note: we're not concerned about whether particular delegation owner got the correct amount,
             // this is checked in other unit tests)
-            test.add_immediate_delegation("delegator1", Uint128::new(50_000_000), node_id1);
-            test.add_immediate_delegation("delegator1", Uint128::new(200_000_000), node_id2);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(50_000_000),
+                node_id1,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(200_000_000),
+                node_id2,
+            );
 
-            test.add_immediate_delegation("delegator5", Uint128::new(123_000_000), node_id3);
-            test.add_immediate_delegation("delegator6", Uint128::new(456_000_000), node_id3);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator5"),
+                Uint128::new(123_000_000),
+                node_id3,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator6"),
+                Uint128::new(456_000_000),
+                node_id3,
+            );
 
             // bypass proper epoch progression and force change the state
             test.set_epoch_in_progress_state();
@@ -982,21 +1055,35 @@ pub mod tests {
             let mut test = TestSetup::new();
             let global_rewarding_params = test.rewarding_params();
 
-            let node_id1 = test.add_rewarded_legacy_mixnode("mix-owner1", Some(operator1));
-            let node_id2 = test.add_rewarded_legacy_mixnode("mix-owner2", Some(operator2));
+            let node_id1 =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner1"), Some(operator1));
+            let node_id2 =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("mix-owner2"), Some(operator2));
 
             test.skip_to_next_epoch_end();
             test.force_change_mix_rewarded_set(vec![node_id1, node_id2]);
             let performance = test_helpers::performance(98.0);
 
-            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id1);
-            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id2);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(100_000_000),
+                node_id1,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator1"),
+                Uint128::new(100_000_000),
+                node_id2,
+            );
 
-            test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), node_id1);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator2"),
+                Uint128::new(123_456_000),
+                node_id1,
+            );
 
-            let del11 = test.delegation(node_id1, "delegator1", &None);
-            let del12 = test.delegation(node_id1, "delegator2", &None);
-            let del21 = test.delegation(node_id2, "delegator1", &None);
+            let del11 = test.delegation(node_id1, &test.make_addr("delegator1"), &None);
+            let del12 = test.delegation(node_id1, &test.make_addr("delegator2"), &None);
+            let del21 = test.delegation(node_id2, &test.make_addr("delegator1"), &None);
 
             for _ in 0..10 {
                 test.start_epoch_transition();
@@ -1091,11 +1178,19 @@ pub mod tests {
             }
 
             // add more delegations and check few more epochs (so that the delegations would start from non-default unit delegation value)
-            test.add_immediate_delegation("delegator3", Uint128::new(15_850_000_000), node_id1);
-            test.add_immediate_delegation("delegator3", Uint128::new(15_850_000_000), node_id2);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator3"),
+                Uint128::new(15_850_000_000),
+                node_id1,
+            );
+            test.add_immediate_delegation(
+                &test.make_addr("delegator3"),
+                Uint128::new(15_850_000_000),
+                node_id2,
+            );
 
-            let del13 = test.delegation(node_id1, "delegator3", &None);
-            let del23 = test.delegation(node_id2, "delegator3", &None);
+            let del13 = test.delegation(node_id1, &test.make_addr("delegator3"), &None);
+            let del23 = test.delegation(node_id2, &test.make_addr("delegator3"), &None);
 
             for _ in 0..10 {
                 test.start_epoch_transition();
@@ -1222,7 +1317,7 @@ pub mod tests {
         #[test]
         fn regardless_of_performance_or_work_they_get_nothing() {
             let mut test = TestSetup::new();
-            let (_, node_id) = test.add_legacy_gateway("owner", None);
+            let (_, node_id) = test.add_legacy_gateway(&test.make_addr("owner"), None);
 
             test.skip_to_next_epoch_end();
             test.force_assign_rewarded_set(vec![RoleAssignment::new(
@@ -1272,10 +1367,10 @@ pub mod tests {
         impl RewardingSetup {
             pub fn new_rewarding_setup() -> Self {
                 let mut inner = TestSetup::new();
-                let mixing_node = inner.add_dummy_nymnode("mixing-owner", None);
-                let entry_node = inner.add_dummy_nymnode("entry-owner", None);
-                let exit_node = inner.add_dummy_nymnode("exit-owner", None);
-                let standby_node = inner.add_dummy_nymnode("standby-owner", None);
+                let mixing_node = inner.add_dummy_nymnode(&inner.make_addr("mixing-owner"), None);
+                let entry_node = inner.add_dummy_nymnode(&inner.make_addr("entry-owner"), None);
+                let exit_node = inner.add_dummy_nymnode(&inner.make_addr("exit-owner"), None);
+                let standby_node = inner.add_dummy_nymnode(&inner.make_addr("standby-owner"), None);
 
                 RewardingSetup {
                     standby_node,
@@ -1459,8 +1554,9 @@ pub mod tests {
 
                 let env = actual_setup.env();
 
+                let delegator = actual_setup.make_addr("delegator");
                 // add some delegations to indicate the rewarding information shouldn't get removed
-                actual_setup.add_immediate_delegation("delegator", Uint128::new(12345678), node);
+                actual_setup.add_immediate_delegation(&delegator, Uint128::new(12345678), node);
                 pending_events::unbond_nym_node(actual_setup.deps_mut(), &env, 123, node).unwrap();
 
                 let mut res = actual_setup.reward_all(100.);
@@ -1485,7 +1581,8 @@ pub mod tests {
 
                 actual_setup.skip_to_next_epoch_end();
 
-                let extra = actual_setup.add_dummy_nymnode("foomp", None);
+                let addr = &actual_setup.make_addr("foomp");
+                let extra = actual_setup.add_dummy_nymnode(addr, None);
 
                 // add extra node to the rewarded set so rewarding wouldn't immediately go into event reconciliation
                 let role = actual_setup.local_node_role(node);
@@ -1518,7 +1615,7 @@ pub mod tests {
     mod withdrawing_delegator_reward {
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
@@ -1528,23 +1625,27 @@ pub mod tests {
         fn can_only_be_done_if_delegation_exists() {
             let mut test = TestSetup::new();
             // add relatively huge stake so that the reward would be high enough to offset operating costs
-            let node_id1 = test
-                .add_rewarded_legacy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
-            let node_id2 = test
-                .add_rewarded_legacy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+            let node_id1 = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner1"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
+            let node_id2 = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner2"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
             let active_params = test.active_node_params(100.);
 
-            let delegator1 = "delegator1";
-            let delegator2 = "delegator2";
+            let delegator1 = test.make_addr("delegator1");
+            let delegator2 = test.make_addr("delegator2");
 
-            let sender1 = mock_info(delegator1, &[]);
-            let sender2 = mock_info(delegator2, &[]);
+            let sender1 = message_info(&delegator1, &[]);
+            let sender2 = message_info(&delegator2, &[]);
 
             // note that there's no delegation from delegator1 towards mix1
-            test.add_immediate_delegation(delegator2, 100_000_000u128, node_id1);
+            test.add_immediate_delegation(&delegator2, 100_000_000u128, node_id1);
 
-            test.add_immediate_delegation(delegator1, 100_000_000u128, node_id2);
-            test.add_immediate_delegation(delegator2, 100_000_000u128, node_id2);
+            test.add_immediate_delegation(&delegator1, 100_000_000u128, node_id2);
+            test.add_immediate_delegation(&delegator2, 100_000_000u128, node_id2);
 
             // perform some rewarding so that we'd have non-zero rewards
             test.skip_to_next_epoch_end();
@@ -1578,22 +1679,28 @@ pub mod tests {
         fn tokens_are_only_sent_if_reward_is_nonzero() {
             let mut test = TestSetup::new();
             // add relatively huge stake so that the reward would be high enough to offset operating costs
-            let node_id1 = test
-                .add_rewarded_legacy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
-            let node_id2 = test
-                .add_rewarded_legacy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+            let node_id1 = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner1"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
+            let node_id2 = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner2"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
             let active_params = test.active_node_params(100.);
 
             // very low stake so operating cost would be higher than total reward
-            let low_stake_id =
-                test.add_rewarded_legacy_mixnode("mix-owner3", Some(Uint128::new(100_000_000)));
+            let low_stake_id = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner3"),
+                Some(Uint128::new(100_000_000)),
+            );
 
-            let delegator = "delegator";
-            let sender = mock_info(delegator, &[]);
+            let delegator = test.make_addr("delegator");
+            let sender = message_info(&delegator, &[]);
 
-            test.add_immediate_delegation(delegator, 100_000_000u128, node_id1);
-            test.add_immediate_delegation(delegator, 100_000_000u128, node_id2);
-            test.add_immediate_delegation(delegator, 1_000u128, low_stake_id);
+            test.add_immediate_delegation(&delegator, 100_000_000u128, node_id1);
+            test.add_immediate_delegation(&delegator, 100_000_000u128, node_id2);
+            test.add_immediate_delegation(&delegator, 1_000u128, low_stake_id);
 
             // reward mix1, but don't reward mix2
             test.skip_to_next_epoch_end();
@@ -1606,7 +1713,7 @@ pub mod tests {
                 try_withdraw_delegator_reward(test.deps_mut(), sender.clone(), node_id1).unwrap();
             assert!(matches!(
                 &res1.messages[0].msg,
-                CosmosMsg::Bank(BankMsg::Send { to_address, amount }) if to_address == delegator && !amount[0].amount.is_zero()
+                CosmosMsg::Bank(BankMsg::Send { to_address, amount }) if to_address == delegator.as_str() && !amount[0].amount.is_zero()
             ),);
 
             let res2 =
@@ -1623,16 +1730,20 @@ pub mod tests {
             // note: if node has unbonded or is in the process of unbonding, the expected
             // way of getting back the rewards is to completely undelegate
             let mut test = TestSetup::new();
-            let node_id_unbonding = test
-                .add_rewarded_legacy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
-            let node_id_unbonded_leftover = test
-                .add_rewarded_legacy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+            let node_id_unbonding = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner1"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
+            let node_id_unbonded_leftover = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner2"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
 
-            let delegator = "delegator";
-            let sender = mock_info(delegator, &[]);
+            let delegator = test.make_addr("delegator");
+            let sender = message_info(&delegator, &[]);
 
-            test.add_immediate_delegation(delegator, 100_000_000u128, node_id_unbonding);
-            test.add_immediate_delegation(delegator, 100_000_000u128, node_id_unbonded_leftover);
+            test.add_immediate_delegation(&delegator, 100_000_000u128, node_id_unbonding);
+            test.add_immediate_delegation(&delegator, 100_000_000u128, node_id_unbonded_leftover);
 
             let active_params = test.active_node_params(100.);
             test.skip_to_next_epoch_end();
@@ -1685,19 +1796,23 @@ pub mod tests {
         #[test]
         fn correctly_determines_earned_share_and_resets_reward_ratio() {
             let mut test = TestSetup::new();
-            let node_id_single = test
-                .add_rewarded_legacy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
-            let node_id_quad = test
-                .add_rewarded_legacy_mixnode("mix-owner2", Some(Uint128::new(1_000_000_000_000)));
+            let node_id_single = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner1"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
+            let node_id_quad = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("mix-owner2"),
+                Some(Uint128::new(1_000_000_000_000)),
+            );
 
-            let delegator1 = "delegator1";
-            let delegator2 = "delegator2";
-            let delegator3 = "delegator3";
-            let delegator4 = "delegator4";
-            let sender1 = mock_info(delegator1, &[]);
-            let sender2 = mock_info(delegator2, &[]);
-            let sender3 = mock_info(delegator3, &[]);
-            let sender4 = mock_info(delegator4, &[]);
+            let delegator1 = test.make_addr("delegator1");
+            let delegator2 = test.make_addr("delegator2");
+            let delegator3 = test.make_addr("delegator3");
+            let delegator4 = test.make_addr("delegator4");
+            let sender1 = message_info(&delegator1, &[]);
+            let sender2 = message_info(&delegator2, &[]);
+            let sender3 = message_info(&delegator3, &[]);
+            let sender4 = message_info(&delegator4, &[]);
 
             let amount_single = 100_000_000u128;
 
@@ -1706,12 +1821,12 @@ pub mod tests {
             let amount_quad3 = 250_000_000u128;
             let amount_quad4 = 500_000_000u128;
 
-            test.add_immediate_delegation(delegator1, amount_single, node_id_single);
+            test.add_immediate_delegation(&delegator1, amount_single, node_id_single);
 
-            test.add_immediate_delegation(delegator1, amount_quad1, node_id_quad);
-            test.add_immediate_delegation(delegator2, amount_quad2, node_id_quad);
-            test.add_immediate_delegation(delegator3, amount_quad3, node_id_quad);
-            test.add_immediate_delegation(delegator4, amount_quad4, node_id_quad);
+            test.add_immediate_delegation(&delegator1, amount_quad1, node_id_quad);
+            test.add_immediate_delegation(&delegator2, amount_quad2, node_id_quad);
+            test.add_immediate_delegation(&delegator3, amount_quad3, node_id_quad);
+            test.add_immediate_delegation(&delegator4, amount_quad4, node_id_quad);
 
             let active_params = test.active_node_params(100.);
             test.skip_to_next_epoch_end();
@@ -1735,14 +1850,14 @@ pub mod tests {
                 test.set_epoch_in_progress_state();
             }
 
-            let before = test.read_delegation(node_id_single, delegator1, None);
+            let before = test.read_delegation(node_id_single, &delegator1, None);
             assert_eq!(before.cumulative_reward_ratio, Decimal::zero());
             let res1 =
                 try_withdraw_delegator_reward(test.deps_mut(), sender1.clone(), node_id_single)
                     .unwrap();
             let (_, reward) = test_helpers::get_bank_send_msg(&res1).unwrap();
             assert_eq!(truncate_reward_amount(accumulated_single), reward[0].amount);
-            let after = test.read_delegation(node_id_single, delegator1, None);
+            let after = test.read_delegation(node_id_single, &delegator1, None);
             assert_ne!(after.cumulative_reward_ratio, Decimal::zero());
             assert_eq!(
                 after.cumulative_reward_ratio,
@@ -1750,8 +1865,8 @@ pub mod tests {
             );
 
             // withdraw first two rewards. note that due to scaling we expect second reward to be 4x the first one
-            let before1 = test.read_delegation(node_id_quad, delegator1, None);
-            let before2 = test.read_delegation(node_id_quad, delegator2, None);
+            let before1 = test.read_delegation(node_id_quad, &delegator1, None);
+            let before2 = test.read_delegation(node_id_quad, &delegator2, None);
             assert_eq!(before1.cumulative_reward_ratio, Decimal::zero());
             assert_eq!(before2.cumulative_reward_ratio, Decimal::zero());
             let res1 =
@@ -1775,13 +1890,13 @@ pub mod tests {
                 Uint128::new(4),
             );
 
-            let after1 = test.read_delegation(node_id_quad, delegator1, None);
+            let after1 = test.read_delegation(node_id_quad, &delegator1, None);
             assert_ne!(after1.cumulative_reward_ratio, Decimal::zero());
             assert_eq!(
                 after1.cumulative_reward_ratio,
                 test.mix_rewarding(node_id_quad).total_unit_reward
             );
-            let after2 = test.read_delegation(node_id_quad, delegator2, None);
+            let after2 = test.read_delegation(node_id_quad, &delegator2, None);
             assert_ne!(after2.cumulative_reward_ratio, Decimal::zero());
             assert_eq!(
                 after2.cumulative_reward_ratio,
@@ -1799,10 +1914,10 @@ pub mod tests {
                 test.set_epoch_in_progress_state();
             }
 
-            let before1_new = test.read_delegation(node_id_quad, delegator1, None);
-            let before2_new = test.read_delegation(node_id_quad, delegator2, None);
-            let before3 = test.read_delegation(node_id_quad, delegator3, None);
-            let before4 = test.read_delegation(node_id_quad, delegator4, None);
+            let before1_new = test.read_delegation(node_id_quad, &delegator1, None);
+            let before2_new = test.read_delegation(node_id_quad, &delegator2, None);
+            let before3 = test.read_delegation(node_id_quad, &delegator3, None);
+            let before4 = test.read_delegation(node_id_quad, &delegator4, None);
 
             assert_eq!(
                 before1_new.cumulative_reward_ratio,
@@ -1869,10 +1984,10 @@ pub mod tests {
         fn can_only_be_done_if_bond_exists() {
             let mut test = TestSetup::new();
 
-            let owner = "mix-owner";
+            let owner = &test.make_addr(test.make_addr("mix-owner"));
             let node_id =
                 test.add_rewarded_legacy_mixnode(owner, Some(Uint128::new(1_000_000_000_000)));
-            let sender = mock_info("random-guy", &[]);
+            let sender = message_info(&test.make_addr("random-guy"), &[]);
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
@@ -1893,15 +2008,15 @@ pub mod tests {
         fn tokens_are_only_sent_if_reward_is_nonzero() {
             let mut test = TestSetup::new();
 
-            let owner1 = "mix-owner1";
-            let owner2 = "mix-owner2";
+            let owner1 = &test.make_addr("mix-owner1");
+            let owner2 = &test.make_addr("mix-owner2");
             let node_id1 =
                 test.add_rewarded_legacy_mixnode(owner1, Some(Uint128::new(1_000_000_000_000)));
             test.add_rewarded_legacy_mixnode(owner2, Some(Uint128::new(1_000_000_000_000)));
             let active_params = test.active_node_params(100.);
 
-            let sender1 = mock_info(owner1, &[]);
-            let sender2 = mock_info(owner2, &[]);
+            let sender1 = message_info(owner1, &[]);
+            let sender2 = message_info(owner2, &[]);
 
             // reward mix1, but don't reward mix2
             test.skip_to_next_epoch_end();
@@ -1912,7 +2027,7 @@ pub mod tests {
             let res1 = try_withdraw_operator_reward(test.deps_mut(), sender1).unwrap();
             assert!(matches!(
                 &res1.messages[0].msg,
-                CosmosMsg::Bank(BankMsg::Send { to_address, amount }) if to_address == owner1 && !amount[0].amount.is_zero()
+                CosmosMsg::Bank(BankMsg::Send { to_address, amount }) if to_address == owner1.as_str() && !amount[0].amount.is_zero()
             ),);
 
             let res2 = try_withdraw_operator_reward(test.deps_mut(), sender2).unwrap();
@@ -1924,17 +2039,21 @@ pub mod tests {
             // note: if node has unbonded or is in the process of unbonding, the expected
             // way of getting back the rewards is finish the undelegation
             let mut test = TestSetup::new();
-            let owner1 = "mix-owner1";
-            let owner2 = "mix-owner2";
-            let sender1 = mock_info(owner1, &[]);
-            let sender2 = mock_info(owner2, &[]);
+            let owner1 = &test.make_addr("mix-owner1");
+            let owner2 = &test.make_addr("mix-owner2");
+            let sender1 = message_info(owner1, &[]);
+            let sender2 = message_info(owner2, &[]);
             let node_id_unbonding =
                 test.add_rewarded_legacy_mixnode(owner1, Some(Uint128::new(1_000_000_000_000)));
             let node_id_unbonded_leftover =
                 test.add_rewarded_legacy_mixnode(owner2, Some(Uint128::new(1_000_000_000_000)));
 
             // add some delegation to the second node so that it wouldn't be cleared upon unbonding
-            test.add_immediate_delegation("delegator", 100_000_000u128, node_id_unbonded_leftover);
+            test.add_immediate_delegation(
+                &test.make_addr("delegator"),
+                100_000_000u128,
+                node_id_unbonded_leftover,
+            );
 
             let active_params = test.active_node_params(100.);
             test.skip_to_next_epoch_end();
@@ -2045,7 +2164,7 @@ pub mod tests {
 
             let rewarding_validator = test.rewarding_validator();
             let owner = test.owner();
-            let random = mock_info("random-guy", &[]);
+            let random = message_info(&test.make_addr("random-guy"), &[]);
 
             let env = test.env();
             let res = try_update_active_set_distribution(
@@ -2319,7 +2438,7 @@ pub mod tests {
 
             let rewarding_validator = test.rewarding_validator();
             let owner = test.owner();
-            let random = mock_info("random-guy", &[]);
+            let random = message_info(&test.make_addr("random-guy"), &[]);
 
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,

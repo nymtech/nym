@@ -21,15 +21,15 @@ use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;
 use axum_test::{TestResponse, TestServer};
-use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::testing::{message_info, mock_env};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, MessageInfo, WasmMsg,
+    from_json, to_json_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, MessageInfo, WasmMsg,
 };
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::ecash::models::{
-    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksForResponse,
+    IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
+    IssuedTicketbooksForResponse, SignableMessageBody,
 };
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::dealer::{
@@ -51,13 +51,13 @@ use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{ed25519, identity};
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::routes::{
-    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
+    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
     ECASH_ISSUED_TICKETBOOKS_FOR, ECASH_ROUTES,
 };
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
@@ -415,7 +415,7 @@ impl FakeChainState {
 
     // TODO: make it return a result
     fn execute_dkg_contract(&mut self, sender: MessageInfo, msg: &Binary) {
-        let exec_msg: nym_coconut_dkg_common::msg::ExecuteMsg = from_binary(msg).unwrap();
+        let exec_msg: nym_coconut_dkg_common::msg::ExecuteMsg = from_json(msg).unwrap();
         match exec_msg {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner,
@@ -443,13 +443,13 @@ impl FakeChainState {
 
     // TODO: make it return a result
     fn execute_contract_msg(&mut self, contract: &String, msg: &Binary, sender: MessageInfo) {
-        if contract == &self.group_contract.address {
+        if contract == self.group_contract.address.as_str() {
             panic!("group contract exec")
         }
-        if contract == &self.multisig_contract.address {
+        if contract == self.multisig_contract.address.as_str() {
             panic!("multisig contract exec")
         }
-        if contract == &self.ecash_contract.address {
+        if contract == self.ecash_contract.address.as_str() {
             panic!("bandwidth contract exec")
         }
         if contract == self.dkg_contract.address.as_ref() {
@@ -466,7 +466,7 @@ impl FakeChainState {
                 msg,
                 funds,
             } => {
-                let sender = mock_info(sender_address.as_ref(), funds);
+                let sender = message_info(&sender_address, funds);
                 self.execute_contract_msg(contract_addr, msg, sender)
             }
             other => panic!("unimplemented wasm proposal for {other:?}"),
@@ -1084,7 +1084,7 @@ impl super::client::Client for DummyClient {
             };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: chain.dkg_contract.address.to_string(),
-            msg: to_binary(&verify_vk_share_req).unwrap(),
+            msg: to_json_binary(&verify_vk_share_req).unwrap(),
             funds: vec![],
         });
         let proposal = Proposal {
@@ -1442,29 +1442,33 @@ impl TestFixture {
         response.json()
     }
 
-    async fn issued_ticketbooks_challenge(
+    async fn issued_ticketbooks_challenge_commitment(
         &self,
         expiration_date: Date,
         deposits: Vec<DepositId>,
     ) -> TestResponse {
+        let dummy_keypair = ed25519::KeyPair::new(&mut OsRng);
         self.axum
             .post(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE}"
+                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
             ))
-            .json(&IssuedTicketbooksChallengeRequest {
-                expiration_date,
-                deposits,
-            })
+            .json(
+                &IssuedTicketbooksChallengeCommitmentRequestBody {
+                    expiration_date,
+                    deposits,
+                }
+                .sign(dummy_keypair.private_key()),
+            )
             .await
     }
 
-    async fn issued_ticketbooks_challenge_unchecked(
+    async fn issued_ticketbooks_challenge_commitment_unchecked(
         &self,
         expiration_date: Date,
         deposits: Vec<DepositId>,
-    ) -> IssuedTicketbooksChallengeResponse {
+    ) -> IssuedTicketbooksChallengeCommitmentResponse {
         let response = self
-            .issued_ticketbooks_challenge(expiration_date, deposits)
+            .issued_ticketbooks_challenge_commitment(expiration_date, deposits)
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);

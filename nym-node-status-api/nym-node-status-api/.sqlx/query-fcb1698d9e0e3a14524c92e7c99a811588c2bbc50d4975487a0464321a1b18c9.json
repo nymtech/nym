@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO nym_nodes_packet_stats_raw (\n                    node_id, timestamp_utc, packets_received, packets_sent, packets_dropped\n                ) VALUES (?, ?, ?, ?, ?)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "fcb1698d9e0e3a14524c92e7c99a811588c2bbc50d4975487a0464321a1b18c9"
+}

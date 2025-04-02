@@ -336,7 +336,6 @@ mod tests {
     use crate::rewards::storage as rewards_storage;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::Addr;
     use mixnet_contract_common::pending_events::PendingEpochEventKind;
     use mixnet_contract_common::NodeId;
 
@@ -346,7 +345,7 @@ mod tests {
         let env = test.env();
         for i in 0..n {
             let dummy_action =
-                PendingEpochEventKind::new_undelegate(Addr::unchecked("foomp"), i as NodeId);
+                PendingEpochEventKind::new_undelegate(test.make_addr("foomp"), i as NodeId);
             storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
     }
@@ -464,10 +463,10 @@ mod tests {
             let mut test = TestSetup::new();
 
             let env = test.env();
-            let legit_mix = test.add_legacy_mixnode("mix-owner", None);
-            let delegator = Addr::unchecked("delegator");
+            let legit_mix = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
+            let delegator = test.make_addr("delegator");
             let amount = 123_456_789u128;
-            test.add_immediate_delegation(delegator.as_str(), amount, legit_mix);
+            test.add_immediate_delegation(&delegator, amount, legit_mix);
 
             let mut expected_events = Vec::new();
             let mut expected_messages: Vec<SubMsg<Empty>> = Vec::new();
@@ -476,18 +475,18 @@ mod tests {
             // we expect to receive BankMsg with tokens being returned,
             // and event regarding delegation
             let non_existent_delegation = PendingEpochEventKind::new_delegate(
-                Addr::unchecked("foomp"),
+                test.make_addr("foomp"),
                 123,
                 coin(123, TEST_COIN_DENOM),
             );
             storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
-                &Addr::unchecked("foomp"),
+                &test.make_addr("foomp"),
                 123,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
-                to_address: "foomp".to_string(),
+                to_address: test.make_addr("foomp").to_string(),
                 amount: coins(123, TEST_COIN_DENOM),
             }));
 
@@ -692,7 +691,7 @@ mod tests {
             let mut expected_events = Vec::new();
             let expected_messages: Vec<SubMsg<Empty>> = Vec::new();
 
-            let legit_mix = test.add_legacy_mixnode("mix-owner", None);
+            let legit_mix = test.add_legacy_mixnode(&test.make_addr("mix-owner"), None);
             let new_costs = NodeCostParams {
                 profit_margin_percent: Percent::from_percentage_value(12).unwrap(),
                 interval_operating_cost: coin(123_000, TEST_COIN_DENOM),
@@ -815,7 +814,7 @@ mod tests {
     #[cfg(test)]
     mod beginning_epoch_transition {
         use super::*;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
 
         #[test]
         fn returns_error_if_epoch_is_in_progress() {
@@ -871,7 +870,7 @@ mod tests {
 
             test.skip_to_current_epoch_end();
 
-            let random = mock_info("alice", &[]);
+            let random = message_info(&test.make_addr("alice"), &[]);
             let owner = test.owner();
 
             let res = try_begin_epoch_transition(test.deps_mut(), env.clone(), random);
@@ -948,7 +947,7 @@ mod tests {
     mod reconciling_epoch_events {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{coin, coins, BankMsg, Empty, SubMsg};
         use mixnet_contract_common::events::{
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
@@ -1113,7 +1112,7 @@ mod tests {
             test.skip_to_current_epoch_end();
             test.set_epoch_reconciliation_state();
 
-            let random = mock_info("alice", &[]);
+            let random = message_info(&test.make_addr("alice"), &[]);
             let owner = test.owner();
 
             let res = try_reconcile_epoch_events(test.deps_mut(), env.clone(), random, None);
@@ -1285,18 +1284,18 @@ mod tests {
 
             // epoch event
             let non_existent_delegation = PendingEpochEventKind::new_delegate(
-                Addr::unchecked("foomp"),
+                test.make_addr("foomp"),
                 123,
                 coin(123, TEST_COIN_DENOM),
             );
             storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
-                &Addr::unchecked("foomp"),
+                &test.make_addr("foomp"),
                 123,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
-                to_address: "foomp".to_string(),
+                to_address: test.make_addr("foomp").to_string(),
                 amount: coins(123, TEST_COIN_DENOM),
             }));
             expected_events.push(new_pending_epoch_events_execution_event(1));
@@ -1348,14 +1347,14 @@ mod tests {
     #[cfg(test)]
     mod assigning_roles {
         use super::*;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::Uint128;
 
         fn setup_test() -> TestSetup {
             let mut test = TestSetup::new();
 
             for i in 0..10 {
-                test.add_dummy_nymnode(&format!("node-owner-{i}"), None);
+                test.add_dummy_nymnode(&test.make_addr(format!("node-owner-{i}")), None);
             }
 
             test.skip_to_current_epoch_end();
@@ -1377,9 +1376,9 @@ mod tests {
 
             for bad_state in bad_states {
                 let mut test = TestSetup::new();
-                test.add_legacy_mixnode("1", Some(Uint128::new(100000000)));
-                test.add_legacy_mixnode("2", Some(Uint128::new(100000000)));
-                test.add_legacy_mixnode("3", Some(Uint128::new(100000000)));
+                test.add_legacy_mixnode(&test.make_addr("1"), Some(Uint128::new(100000000)));
+                test.add_legacy_mixnode(&test.make_addr("2"), Some(Uint128::new(100000000)));
+                test.add_legacy_mixnode(&test.make_addr("3"), Some(Uint128::new(100000000)));
 
                 test.skip_to_current_epoch_end();
 
@@ -1478,10 +1477,10 @@ mod tests {
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
             let mut test = TestSetup::new();
-            test.add_dummy_nymnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_nymnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_nymnode("3", Some(Uint128::new(100000000)));
-            let some_sender = mock_info("foomper", &[]);
+            test.add_dummy_nymnode(&test.make_addr("1"), Some(Uint128::new(100000000)));
+            test.add_dummy_nymnode(&test.make_addr("2"), Some(Uint128::new(100000000)));
+            test.add_dummy_nymnode(&test.make_addr("3"), Some(Uint128::new(100000000)));
+            let some_sender = message_info(&test.make_addr("foomper"), &[]);
 
             test.skip_to_current_epoch_end();
             test.set_epoch_role_assignment_state();
@@ -1788,7 +1787,7 @@ mod tests {
     #[cfg(test)]
     mod updating_interval_config {
         use super::*;
-        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::Decimal;
         use cw_controllers::AdminError::NotAdmin;
         use std::time::Duration;
@@ -1847,7 +1846,7 @@ mod tests {
 
             let rewarding_validator = test.rewarding_validator();
             let owner = test.owner();
-            let random = mock_info("random-guy", &[]);
+            let random = message_info(&test.make_addr("random-guy"), &[]);
 
             let env = test.env();
             let res = try_update_interval_config(

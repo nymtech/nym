@@ -133,15 +133,20 @@ clippy: sdk-wasm-lint
 # Build contracts ready for deploy
 # -----------------------------------------------------------------------------
 
-CONTRACTS=vesting_contract mixnet_contract nym_ecash
+CONTRACTS=vesting_contract mixnet_contract nym_ecash cw3_flex_multisig cw4_group nym_coconut_dkg
 CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 
-contracts: build-release-contracts wasm-opt-contracts
+contracts: build-release-contracts wasm-opt-contracts cosmwasm-check-contracts
 
 wasm-opt-contracts:
 	for contract in $(CONTRACTS_WASM); do \
 	  wasm-opt --signext-lowering -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
+	done
+
+cosmwasm-check-contracts:
+	for contract in $(CONTRACTS_WASM); do \
+	  cosmwasm-check $(CONTRACTS_OUT_DIR)/$$contract; \
 	done
 
 # Consider adding 's' to make plural consistent (beware: used in github workflow)
@@ -152,17 +157,8 @@ contract-schema:
 # Convenience targets for crates that are already part of the main workspace
 # -----------------------------------------------------------------------------
 
-build-explorer-api:
-	cargo build -p explorer-api
-
 build-nym-cli:
 	cargo build -p nym-cli --release
-
-build-nym-gateway:
-	cargo build -p nym-gateway --release
-
-build-nym-mixnode:
-	cargo build -p nym-mixnode --release
 
 # -----------------------------------------------------------------------------
 # Misc
@@ -176,13 +172,7 @@ run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
 
 # Build debian package, and update PPA
-deb-mixnode: build-nym-mixnode
-	cargo deb -p nym-mixnode 
-
-deb-gateway: build-nym-gateway
-	cargo deb -p nym-gateway
-
 deb-cli: build-nym-cli
 	cargo deb -p nym-cli
 
-deb: deb-mixnode deb-gateway deb-cli
+deb: deb-cli

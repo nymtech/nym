@@ -176,6 +176,7 @@ pub struct IssuedTicketbooksFullMerkleProof {
     included_leaves: Vec<MerkleLeaf>,
     total_leaves: usize,
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     #[serde(with = "nym_serde_helpers::hex")]
     root: Vec<u8>,
 }

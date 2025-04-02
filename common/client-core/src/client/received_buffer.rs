@@ -23,6 +23,10 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::TaskClient;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+// The interval at which we check for stale buffers
+const STALE_BUFFER_CHECK_INTERVAL: Duration = Duration::from_secs(10);
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -48,6 +52,9 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     recently_reconstructed: HashSet<i32>,
 
     stats_tx: ClientStatsSender,
+
+    // Periodically check for stale buffers to clean up
+    last_stale_check: Instant,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -96,9 +103,10 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
                     }
                     None
                 }
-                _ => unreachable!(
-                    "no other error kind should have been returned here! If so, it's a bug!"
-                ),
+                _ => {
+                    error!("unexpected error occurred during message reconstruction: {err}");
+                    None
+                }
             },
             Ok(reconstruction_result) => match reconstruction_result {
                 Some((reconstructed_message, used_sets)) => {
@@ -144,6 +152,16 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
 
         self.recover_from_fragment(fragment_data, raw_fragment_size)
     }
+
+    fn cleanup_stale_buffers(&mut self) {
+        let now = Instant::now();
+        if now - self.last_stale_check > STALE_BUFFER_CHECK_INTERVAL {
+            self.last_stale_check = now;
+            self.message_receiver
+                .reconstructor()
+                .cleanup_stale_buffers();
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -172,6 +190,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
                 stats_tx,
+                last_stale_check: Instant::now(),
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -391,6 +410,11 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 completed_messages.push(completed)
             }
         }
+
+        // Cleanup stale buffers, if there are any fragments that simply never arrived.
+        // We do this here as part of handling new received fragments so that we can keep the event
+        // loop focused on processing new messages.
+        inner_guard.cleanup_stale_buffers();
 
         drop(inner_guard);
 

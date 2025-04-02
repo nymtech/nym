@@ -4,6 +4,82 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.6-chuckles] (2025-03-31)
+
+- Remove Google public DNS ([#5660])
+- Revert using AsyncWrite sink in IPR ([#5656])
+- Add fd callback for initial authentication ([#5654])
+- Add concurrency limit to CI ([#5651])
+- Remove UNIQUE constraint on node pubkey ([#5649])
+- Add RUSTUP_PERMIT_COPY_RENAME in two workflows that we forgot about ([#5646])
+- Upgrade sha2 to workspace version for validator-client ([#5644])
+- Add max_retransmissions flag on each message ([#5642])
+- build(deps): bump zip from 2.2.2 to 2.4.1 ([#5639])
+- build(deps): bump dtolnay/rust-toolchain from 1.90.0 to 1.100.0 ([#5638])
+- / regenerated yarn.lock ([#5636])
+- Rework IPR codec to extract out timer and implement AsyncWrite ([#5632])
+- build(deps): bump tempfile from 3.18.0 to 3.19.0 ([#5631])
+- build(deps): bump zeroize from 1.6.0 to 1.8.1 ([#5630])
+- build(deps): bump once_cell from 1.20.3 to 1.21.1 ([#5629])
+- build(deps): bump uuid from 1.15.1 to 1.16.0 ([#5628])
+- build(deps): bump celes from 2.5.0 to 2.6.0 ([#5627])
+- build(deps): bump http from 1.2.0 to 1.3.1 ([#5626])
+- build(deps): bump humantime from 2.1.0 to 2.2.0 ([#5625])
+- build(deps): bump the patch-updates group with 8 updates ([#5624])
+- build(deps): bump @babel/runtime from 7.16.3 to 7.26.10 in /testnet-faucet ([#5621])
+- Feature/paginated ticketbooks challenge ([#5619])
+- build(deps-dev): bump webpack from 5.77.0 to 5.98.0 in /wasm/client/internal-dev ([#5615])
+- build(deps-dev): bump ws from 8.13.0 to 8.18.1 in /wasm/client/internal-dev ([#5614])
+- build(deps): bump golang.org/x/net from 0.23.0 to 0.36.0 in /wasm/mix-fetch/go-mix-conn ([#5613])
+- build(deps): bump braces from 3.0.2 to 3.0.3 in /sdk/typescript/packages/mix-fetch-node ([#5612])
+- Wireguard exit policies (and tests) ([#5557])
+- Explorer V2 ([#5548])
+- Clean stale partially received buffers ([#5536])
+- Corrected typos ([#5497])
+- build(deps): bump @octokit/plugin-paginate-rest and @actions/github in /.github/actions/nym-hash-releases/src ([#5488])
+- feature: upgrade cosmwasm to 2.2 ([#5479])
+- build(deps): bump store2 from 2.14.3 to 2.14.4 ([#5391])
+- build(deps): bump nanoid from 3.3.7 to 3.3.8 in /documentation/docs ([#5335])
+- build(deps): bump next from 13.5.7 to 14.2.15 in /documentation/docs ([#5281])
+- Bump http-proxy-middleware from 2.0.6 to 2.0.7 ([#5019])
+
+[#5660]: https://github.com/nymtech/nym/pull/5660
+[#5656]: https://github.com/nymtech/nym/pull/5656
+[#5654]: https://github.com/nymtech/nym/pull/5654
+[#5651]: https://github.com/nymtech/nym/pull/5651
+[#5649]: https://github.com/nymtech/nym/pull/5649
+[#5646]: https://github.com/nymtech/nym/pull/5646
+[#5644]: https://github.com/nymtech/nym/pull/5644
+[#5642]: https://github.com/nymtech/nym/pull/5642
+[#5639]: https://github.com/nymtech/nym/pull/5639
+[#5638]: https://github.com/nymtech/nym/pull/5638
+[#5636]: https://github.com/nymtech/nym/pull/5636
+[#5632]: https://github.com/nymtech/nym/pull/5632
+[#5631]: https://github.com/nymtech/nym/pull/5631
+[#5630]: https://github.com/nymtech/nym/pull/5630
+[#5629]: https://github.com/nymtech/nym/pull/5629
+[#5628]: https://github.com/nymtech/nym/pull/5628
+[#5627]: https://github.com/nymtech/nym/pull/5627
+[#5626]: https://github.com/nymtech/nym/pull/5626
+[#5625]: https://github.com/nymtech/nym/pull/5625
+[#5624]: https://github.com/nymtech/nym/pull/5624
+[#5621]: https://github.com/nymtech/nym/pull/5621
+[#5619]: https://github.com/nymtech/nym/pull/5619
+[#5615]: https://github.com/nymtech/nym/pull/5615
+[#5614]: https://github.com/nymtech/nym/pull/5614
+[#5613]: https://github.com/nymtech/nym/pull/5613
+[#5612]: https://github.com/nymtech/nym/pull/5612
+[#5557]: https://github.com/nymtech/nym/pull/5557
+[#5548]: https://github.com/nymtech/nym/pull/5548
+[#5536]: https://github.com/nymtech/nym/pull/5536
+[#5497]: https://github.com/nymtech/nym/pull/5497
+[#5488]: https://github.com/nymtech/nym/pull/5488
+[#5479]: https://github.com/nymtech/nym/pull/5479
+[#5391]: https://github.com/nymtech/nym/pull/5391
+[#5335]: https://github.com/nymtech/nym/pull/5335
+[#5281]: https://github.com/nymtech/nym/pull/5281
+[#5019]: https://github.com/nymtech/nym/pull/5019
+
 ## [2025.5-chokito] (2025-03-18)
 
 - build(deps): bump braces from 3.0.2 to 3.0.3 in /sdk/typescript/packages/nodejs-client ([#5611])
@@ -258,7 +334,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Downgrade harmless log message from info to debug ([#5403])
 - Redirect from mixnode page to nodes page ([#5397])
 - chore :update version of chain watcher and validator rewarder ([#5394])
-- bugfix: correctly handle ingore epoch roles flag ([#5390])
+- bugfix: correctly handle ignore epoch roles flag ([#5390])
 - bugfix: terminate mixnet socket listener on shutdown ([#5389])
 - feat: make client ignore dual mode nodes by default ([#5388])
 - Handle ecash network errors differently ([#5378])
@@ -279,7 +355,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Use expect in geodata test to give error message on failure ([#5314])
 - feature: periodically remove stale gateway messages ([#5312])
 - build(deps): bump the patch-updates group across 1 directory with 35 updates ([#5310])
-- Add dependabot assignes for the root cargo ecosystem ([#5297])
+- Add dependabot assigns for the root cargo ecosystem ([#5297])
 - Move tun constants to network defaults ([#5286])
 - Include IPINFO_API_TOKEN in nightly CI ([#5285])
 - Nyx Chain Watcher ([#5274])
@@ -332,7 +408,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2025.1-reeses] (2025-01-15)
 
-- Feture/legacy alert ([#5346])
+- Feature, Future/legacy alert ([#5346])
 - chore: readjusted --mode behaviour to fix the regression ([#5331])
 - chore: apply 1.84 linter suggestions ([#5330])
 - bugfix: make sure refresh data key matches bond info ([#5329])
@@ -412,7 +488,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2024.14-crunch-patched] (2024-12-17)
 
-- Fixes an issue to allow previously registred clients to connect to latest nym-nodes
+- Fixes an issue to allow previously registered clients to connect to latest nym-nodes
 - Fixes compatibility issues between nym-nodes and older clients
 
 ## [2024.14-crunch] (2024-12-11)
@@ -420,7 +496,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Merge/release/2024.14-crunch ([#5242])
 - bugfix: added explicit openapi servers to account for route prefixes ([#5237])
 - Further config score adjustments ([#5225])
-- feature: remve any filtering on node semver ([#5224])
+- feature: remove any filtering on node semver ([#5224])
 - Backport #5218 ([#5220])
 - Derive serialize for UserAgent (#5210) ([#5217])
 - dont consider legacy nodes for rewarded set selection ([#5215])
@@ -599,7 +675,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - bugfix/feature: added NymApiClient method to get all skimmed nodes ([#5062])
 - Merge1/release/2024.13 magura ([#5061])
 - added hacky routes to return nymnodes alongside legacy nodes ([#5051])
-- bugfix: mark migrated gateways as rewarded in the previous epoch in case theyre in the rewarded set ([#5049])
+- bugfix: mark migrated gateways as rewarded in the previous epoch in case they're, their, there in the rewarded set ([#5049])
 - bugfix: adjust runtime storage migration ([#5047])
 - bugfix: supersede 'cb13be27f8f61d9ae74d924e85d2e6787895eb14' by using… ([#5046])
 - bugfix: restore default http port for nym-api ([#5045])
@@ -660,7 +736,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Fix broken build after merge ([#4937])
 - bugfix: correctly paginate through 'search_tx' endpoint ([#4936])
 - Add more conversions for responses of authenticator messages ([#4929])
-- Directory Sevices v2.1 ([#4903])
+- Directory Services, Devices v2.1 ([#4903])
 - Migrate Legacy Node (Frontend)  ([#4826])
 - Fix critical issues SI84 and SI85 from Cure53 ([#4758])
 
@@ -1044,7 +1120,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Remove stale peers ([#4640])
 - Add generic wg private network routing ([#4636])
 - Feature/new node endpoints ([#4635])
-- standarised ContractBuildInformation and added it to all contracts ([#4631])
+- standardised ContractBuildInformation and added it to all contracts ([#4631])
 - validate nym-node public ips on startup ([#4630])
 - Bump defguard wg ([#4625])
 - Fix cargo warnings ([#4624])
@@ -1665,7 +1741,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
 - renamed all references to validator_api to nym_api
 - renamed all references to nymd to nyxd ([#2696])
-- all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
+- all-binaries: standardised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
@@ -2170,7 +2246,7 @@ The release also include some additional work for distributed key generation in 
 - Explorer UI tests missing data-testid [\#903](https://github.com/nymtech/nym/pull/903) ([tommyv1987](https://github.com/tommyv1987))
 - Fix up Nym-Wallet README.md [\#899](https://github.com/nymtech/nym/pull/899) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/batch delegator rewarding [\#898](https://github.com/nymtech/nym/pull/898) ([jstuczyn](https://github.com/jstuczyn))
-- Bug mapp nodemap [\#897](https://github.com/nymtech/nym/pull/897) ([Aid19801](https://github.com/Aid19801))
+- Bug map nodemap [\#897](https://github.com/nymtech/nym/pull/897) ([Aid19801](https://github.com/Aid19801))
 - Bug fix/macos keyboard shortcuts [\#896](https://github.com/nymtech/nym/pull/896) ([fmtabbara](https://github.com/fmtabbara))
 - Add a Mobile Nav to the Network Explorer [\#895](https://github.com/nymtech/nym/pull/895) ([Aid19801](https://github.com/Aid19801))
 - Only use ts-rs in tests [\#894](https://github.com/nymtech/nym/pull/894) ([durch](https://github.com/durch))

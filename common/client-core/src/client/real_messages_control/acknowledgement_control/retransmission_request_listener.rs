@@ -79,17 +79,15 @@ where
 
         let frag_id = timed_out_ack.message_chunk.fragment_identifier();
 
-        if let Some(limit) = self.maximum_retransmissions {
-            if timed_out_ack.retransmissions >= limit {
-                warn!("reached maximum number of allowed retransmissions for the packet");
-                if let Err(err) = self
-                    .action_sender
-                    .unbounded_send(Action::new_remove(frag_id))
-                {
-                    error!("Failed to send remove action to the controller: {err}");
-                }
-                return;
+        if timed_out_ack.reached_max_retransmissions(self.maximum_retransmissions) {
+            debug!("reached maximum number of allowed retransmissions for the packet");
+            if let Err(err) = self
+                .action_sender
+                .unbounded_send(Action::new_remove(frag_id))
+            {
+                error!("Failed to send remove action to the controller: {err}");
             }
+            return;
         }
 
         let maybe_prepared_fragment = match &timed_out_ack.destination {

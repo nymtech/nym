@@ -37,6 +37,9 @@ pub enum EcashError {
     #[error("the provided expiration date is too early")]
     ExpirationDateTooEarly,
 
+    #[error("attempted to request too many partial ticketbooks at once. got {requested}, but the maximum allowed is {max}")]
+    RequestTooBig { requested: usize, max: usize },
+
     #[error("the provided expiration date is malformed")]
     MalformedExpirationDate { raw: String },
 

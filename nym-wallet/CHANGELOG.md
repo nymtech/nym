@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [2025.6-chuckles] (2025-04-01)
+
+- Wallet-revamp to be in line with new nym-theming ([#5653])
+- Update wallet to include Interval Operator Cost and Profit Margin ([#5652])
+
+[#5653]: https://github.com/nymtech/nym/pull/5653
+[#5652]: https://github.com/nymtech/nym/pull/5652
+
 ## [2024.13-magura] (2024-11-18)
 
 - bugfix: [wallet] displaying delegations for native nymnodes ([#5087])

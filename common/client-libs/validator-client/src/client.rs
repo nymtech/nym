@@ -11,7 +11,9 @@ use crate::{
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeResponse, IssuedTicketbooksForResponse, VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
+    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse,
+    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -25,15 +27,14 @@ use nym_api_requests::models::{
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
 use nym_coconut_dkg_common::types::EpochId;
-use nym_ecash_contract_common::deposit::DepositId;
 use nym_http_api_client::UserAgent;
+use nym_mixnet_contract_common::EpochRewardedSet;
 use nym_network_defaults::NymNetworkDetails;
 use std::net::IpAddr;
 use time::Date;
 use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
-use nym_mixnet_contract_common::EpochRewardedSet;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
 };
@@ -701,15 +702,31 @@ impl NymApiClient {
         Ok(self.nym_api.issued_ticketbooks_for(expiration_date).await?)
     }
 
-    pub async fn issued_ticketbooks_challenge(
+    pub async fn issued_ticketbooks_for_count(
         &self,
         expiration_date: Date,
-        deposits: Vec<DepositId>,
-    ) -> Result<IssuedTicketbooksChallengeResponse, ValidatorClientError> {
+    ) -> Result<IssuedTicketbooksForCountResponse, ValidatorClientError> {
         Ok(self
             .nym_api
-            .issued_ticketbooks_challenge(expiration_date, deposits)
+            .issued_ticketbooks_for_count(expiration_date)
             .await?)
+    }
+
+    pub async fn issued_ticketbooks_challenge_commitment(
+        &self,
+        request: &IssuedTicketbooksChallengeCommitmentRequest,
+    ) -> Result<IssuedTicketbooksChallengeCommitmentResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .issued_ticketbooks_challenge_commitment(request)
+            .await?)
+    }
+
+    pub async fn issued_ticketbooks_data(
+        &self,
+        request: &IssuedTicketbooksDataRequest,
+    ) -> Result<IssuedTicketbooksDataResponse, ValidatorClientError> {
+        Ok(self.nym_api.issued_ticketbooks_data(request).await?)
     }
 
     pub async fn nodes_by_addresses(

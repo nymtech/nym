@@ -11,7 +11,8 @@ use nym_credentials_interface::{
     BlindedSignature, CompactEcashError, CredentialSpendingData, PublicKeyUser,
     VerificationKeyAuth, WithdrawalRequest,
 };
-use nym_crypto::asymmetric::{ed25519, identity};
+use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_signature;
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -83,7 +84,8 @@ impl EcashTicketVerificationResponse {
 
 #[derive(Debug, Error, Serialize, Deserialize, ToSchema)]
 pub enum EcashTicketVerificationRejection {
-    #[error("invalid ticket spent date. expected either today's ({today}) or yesterday's* ({yesterday}) date but got {received} instead\n*assuming it's before 1AM UTC")]
+    #[error("invalid ticket spent date. expected either today's ({today}) or yesterday's* ({yesterday}) date but got {received} instead\n*assuming it's before 1AM UTC"
+    )]
     InvalidSpentDate {
         #[serde(with = "crate::helpers::date_serde")]
         #[schema(value_type = String, example = "1970-01-01")]
@@ -122,7 +124,7 @@ pub struct BlindSignRequestBody {
 
     /// Signature on the inner sign request and the tx hash
     #[schema(value_type = String)]
-    pub signature: identity::Signature,
+    pub signature: ed25519::Signature,
 
     #[schema(value_type = openapi_schema::PublicKeyUser)]
     pub ecash_pubkey: PublicKeyUser,
@@ -139,7 +141,7 @@ impl BlindSignRequestBody {
     pub fn new(
         inner_sign_request: WithdrawalRequest,
         deposit_id: u32,
-        signature: identity::Signature,
+        signature: ed25519::Signature,
         ecash_pubkey: PublicKeyUser,
         expiration_date: Date,
         ticketbook_type: TicketType,
@@ -539,6 +541,114 @@ pub struct CommitedDeposit {
     pub merkle_index: usize,
 }
 
+//
+//
+
+// make sure only our types can implement this trait (to ensure infallible serialisation)
+mod private {
+    use crate::ecash::models::{
+        IssuedTicketbooksChallengeCommitmentRequestBody,
+        IssuedTicketbooksChallengeCommitmentResponseBody, IssuedTicketbooksDataRequestBody,
+        IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponseBody,
+    };
+
+    pub trait Sealed {}
+
+    // requests
+    impl Sealed for IssuedTicketbooksChallengeCommitmentRequestBody {}
+    impl Sealed for IssuedTicketbooksDataRequestBody {}
+
+    // responses
+    impl Sealed for IssuedTicketbooksChallengeCommitmentResponseBody {}
+    impl Sealed for IssuedTicketbooksForResponseBody {}
+    impl Sealed for IssuedTicketbooksDataResponseBody {}
+}
+
+// the trait is not public as it's only defined on types that are guaranteed to not panic when serialised
+pub trait SignableMessageBody: Serialize + private::Sealed {
+    fn sign(self, key: &ed25519::PrivateKey) -> SignedMessage<Self>
+    where
+        Self: Sized,
+    {
+        let signature = key.sign(self.plaintext());
+        SignedMessage {
+            body: self,
+            signature,
+        }
+    }
+
+    fn plaintext(&self) -> Vec<u8> {
+        #[allow(clippy::unwrap_used)]
+        // SAFETY: all types that implement this trait have valid serialisations
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+impl<T> SignableMessageBody for T where T: Serialize + private::Sealed {}
+
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedMessage<T> {
+    pub body: T,
+    #[schema(value_type = String)]
+    #[serde(with = "bs58_ed25519_signature")]
+    pub signature: ed25519::Signature,
+}
+
+impl<T> SignedMessage<T> {
+    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool
+    where
+        T: SignableMessageBody,
+    {
+        let plaintext = self.body.plaintext();
+        if plaintext.is_empty() {
+            return false;
+        }
+
+        pub_key.verify(&plaintext, &self.signature).is_ok()
+    }
+}
+
+pub type IssuedTicketbooksDataRequest = SignedMessage<IssuedTicketbooksDataRequestBody>;
+pub type IssuedTicketbooksChallengeCommitmentRequest =
+    SignedMessage<IssuedTicketbooksChallengeCommitmentRequestBody>;
+
+pub type IssuedTicketbooksChallengeCommitmentResponse =
+    SignedMessage<IssuedTicketbooksChallengeCommitmentResponseBody>;
+pub type IssuedTicketbooksForResponse = SignedMessage<IssuedTicketbooksForResponseBody>;
+pub type IssuedTicketbooksDataResponse = SignedMessage<IssuedTicketbooksDataResponseBody>;
+
+mod maybe_merkle_root_serde {
+    use super::*;
+    use serde::de::Error;
+    use serde::{Deserializer, Serialize, Serializer};
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Option<[u8; 32]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = Option::<String>::deserialize(deserializer)?;
+        match inner {
+            Some(inner) => {
+                let decoded = hex::decode(inner).map_err(Error::custom)?;
+                let arr: [u8; 32] = decoded.as_slice().try_into().map_err(Error::custom)?;
+                Ok(Some(arr))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub(crate) fn serialize<S>(
+        maybe_root: &Option<[u8; 32]>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        maybe_root.map(hex::encode).serialize(serializer)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksForResponseBody {
@@ -546,44 +656,19 @@ pub struct IssuedTicketbooksForResponseBody {
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
     pub deposits: Vec<CommitedDeposit>,
+    #[serde(with = "maybe_merkle_root_serde")]
     pub merkle_root: Option<[u8; 32]>,
 }
 
 impl IssuedTicketbooksForResponseBody {
-    pub fn plaintext(&self) -> Vec<u8> {
-        #[allow(clippy::unwrap_used)]
-        serde_json::to_vec(self).unwrap()
-    }
-
-    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksForResponse {
-        IssuedTicketbooksForResponse {
-            signature: key.sign(self.plaintext()),
-            body: self,
-        }
+    pub fn merkle_root_hex(&self) -> Option<String> {
+        self.merkle_root.map(hex::encode)
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksForResponse {
-    pub body: IssuedTicketbooksForResponseBody,
-
-    /// Signature on the body
-    #[schema(value_type = String)]
-    pub signature: identity::Signature,
-}
-
-impl IssuedTicketbooksForResponse {
-    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
-        pub_key
-            .verify(self.body.plaintext(), &self.signature)
-            .is_ok()
-    }
-}
-
-#[derive(Serialize, Deserialize, ToSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksChallengeRequest {
+pub struct IssuedTicketbooksChallengeCommitmentRequestBody {
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
@@ -591,31 +676,76 @@ pub struct IssuedTicketbooksChallengeRequest {
     pub deposits: Vec<DepositId>,
 }
 
+impl IssuedTicketbooksChallengeCommitmentRequestBody {
+    pub fn new(
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> IssuedTicketbooksChallengeCommitmentRequestBody {
+        IssuedTicketbooksChallengeCommitmentRequestBody {
+            expiration_date,
+            deposits,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksChallengeResponseBody {
+pub struct IssuedTicketbooksChallengeCommitmentResponseBody {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+
+    // keep the original request alongside the requester's signature
+    // to show that we returned the same date as we got asked for
+    // and haven't tampered with the content
+    pub original_request: IssuedTicketbooksChallengeCommitmentRequest,
+
+    /// Indicate the maximum number of entries that can be returned at once
+    /// when asking for ticketbook data
+    pub max_data_response_size: usize,
+
+    pub merkle_proof: IssuedTicketbooksFullMerkleProof,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksDataRequestBody {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+    #[schema(value_type = Vec<u32>)]
+    pub deposits: Vec<DepositId>,
+}
+
+impl IssuedTicketbooksDataRequestBody {
+    pub fn new(
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> IssuedTicketbooksDataRequestBody {
+        IssuedTicketbooksDataRequestBody {
+            expiration_date,
+            deposits,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksDataResponseBody {
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
     #[schema(value_type = BTreeMap<u32, IssuedTicketbook>)]
     pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
-    pub merkle_proof: IssuedTicketbooksFullMerkleProof,
+
+    // keep the original request alongside the requester's signature
+    // to show that we returned the same deposits as we got asked for
+    // and haven't tampered with the content
+    pub original_request: IssuedTicketbooksDataRequest,
 }
 
-impl IssuedTicketbooksChallengeResponseBody {
-    pub fn plaintext(&self) -> Vec<u8> {
-        #[allow(clippy::unwrap_used)]
-        serde_json::to_vec(self).unwrap()
-    }
-
-    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksChallengeResponse {
-        IssuedTicketbooksChallengeResponse {
-            signature: key.sign(self.plaintext()),
-            body: self,
-        }
-    }
-
+impl IssuedTicketbooksDataResponseBody {
     // helpers so that library consumers wouldn't need to import all the required dependencies
     pub fn try_get_partial_credential(
         issued: &IssuedTicketbook,
@@ -632,21 +762,68 @@ impl IssuedTicketbooksChallengeResponseBody {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksChallengeResponse {
-    pub body: IssuedTicketbooksChallengeResponseBody,
-
-    #[schema(value_type = String)]
-    pub signature: identity::Signature,
+pub struct IssuedTicketbooksCountResponse {
+    pub issued: Vec<IssuedTicketbooksCount>,
 }
 
-impl IssuedTicketbooksChallengeResponse {
-    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
-        pub_key
-            .verify(self.body.plaintext(), &self.signature)
-            .is_ok()
-    }
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksCount {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub issuance_date: Date,
+
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+
+    pub count: u32,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksOnCountResponse {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub issuance_date: Date,
+
+    pub total: usize,
+
+    pub issued: Vec<IssuedTicketbooksOnCount>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksForCountResponse {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+
+    pub total: usize,
+
+    pub issued: Vec<IssuedTicketbooksForCount>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksOnCount {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub expiration_date: Date,
+
+    pub count: u32,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksForCount {
+    #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
+    pub issuance_date: Date,
+
+    pub count: u32,
 }
 
 #[cfg(test)]

@@ -1,0 +1,92 @@
+{
+  "langSelectorLabel": "Language",
+  "socialLinks": [
+    { "name": "Telegram", "link": "https://nymtech.net/go/telegram" },
+    { "name": "Twitter", "link": "https://nymtech.net/go/x" },
+    {
+      "name": "Discord",
+      "link": "https://nymtech.net/go/discord"
+    },
+    { "name": "GitHub", "link": "https://nymtech.net/go/github" },
+    { "name": "YouTube", "link": "https://nymtech.net/go/youtube" }
+  ],
+  "links": [
+    {
+      "title": "Get started",
+      "links": [
+        {
+          "name": "Download NymVPN",
+          "link": "download"
+        },
+        {
+          "name": "Test NymVPN",
+          "link": "alpha"
+        },
+        {
+          "name": "Become an operator",
+          "link": "https://nymtech.net/operators"
+        },
+        { "name": "Visit nymtech.net", "link": "https://nymtech.net" },
+        {
+          "name": "Subscribe to Nym’s newsletter",
+          "link": "https://eepurl.com/gdor_f"
+        }
+      ]
+    },
+    {
+      "title": "Popular blog posts",
+      "links": [
+        { "name": "Decentralized VPNs", "link": "blog/decentralized-vpns" },
+        {
+          "name": "Blockchain-based VPNs",
+          "link": "blog/blockchain-based-vpns-all-you-need-to-know"
+        },
+        {
+          "name": "Privacy protection with VPN",
+          "link": "blog/how-does-a-vpn-protect-you-and-your-privacy"
+        },
+        {
+          "name": "Tracking prevention with VPN",
+          "link": "blog/can-you-be-tracked-while-using-a-vpn"
+        },
+        {
+          "name": "Online privacy threats",
+          "link": "blog/internet-privacy-main-threats-and-protections"
+        }
+      ]
+    },
+    {
+      "title": "Resources",
+      "links": [
+        { "name": "NymVPN blog", "link": "blog" },
+        {
+          "name": "NymVPN public roadmap",
+          "link": "https://trello.com/b/qVhBo3e2/nymvpn-public-roadmap"
+        },
+        {
+          "name": "NymVPN localization",
+          "link": "https://weblate.nymte.ch/projects/nymvpn/"
+        }
+      ]
+    },
+    {
+      "title": "Company",
+      "links": [
+        { "name": "Contact", "link": "contact" },
+        {
+          "name": "Careers",
+          "link": "https://nym.teamtailor.com/"
+        },
+        {
+          "name": "Support",
+          "link": "https://support.nymvpn.com/hc/en-us"
+        },
+        { "name": "Imprint", "link": "imprint" },
+        { "name": "Privacy statements", "link": "privacy" },
+        { "name": "Terms of use", "link": "terms" }
+      ]
+    }
+  ],
+  "trademarkText": "WireGuard is a registered trademark of Jason A. Donenfeld",
+  "rightsText": "© 2024 Nym Technologies S.A., all rights reserved"
+}

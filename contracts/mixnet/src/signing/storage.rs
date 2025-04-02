@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, StdResult, Storage};
 use cw_storage_plus::Map;
 use nym_contracts_common::signing::Nonce;
 
-pub const NONCES: Map<'_, Addr, Nonce> = Map::new(SIGNING_NONCES_NAMESPACE);
+pub const NONCES: Map<Addr, Nonce> = Map::new(SIGNING_NONCES_NAMESPACE);
 
 pub fn get_signing_nonce(storage: &dyn Storage, address: Addr) -> StdResult<Nonce> {
     let nonce = NONCES.may_load(storage, address)?.unwrap_or(0);

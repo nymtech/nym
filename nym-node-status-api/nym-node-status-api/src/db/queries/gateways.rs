@@ -30,11 +30,22 @@ pub(crate) async fn select_gateway_identity(
     Ok(record.gateway_identity_key)
 }
 
-pub(crate) async fn insert_gateways(
+pub(crate) async fn update_bonded_gateways(
     pool: &DbPool,
     gateways: Vec<GatewayInsertRecord>,
 ) -> anyhow::Result<()> {
-    let mut db = pool.acquire().await?;
+    let mut tx = pool.begin().await?;
+
+    sqlx::query!(
+        r#"UPDATE
+            gateways
+        SET
+            bonded = false
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
+
     for record in gateways {
         sqlx::query!(
             "INSERT INTO gateways
@@ -55,9 +66,11 @@ pub(crate) async fn insert_gateways(
             record.last_updated_utc,
             record.performance
         )
-        .execute(&mut *db)
+        .execute(&mut *tx)
         .await?;
     }
+
+    tx.commit().await?;
 
     Ok(())
 }
@@ -101,7 +114,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
     Ok(items)
 }
 
-pub(crate) async fn get_all_gateway_id_keys(pool: &DbPool) -> anyhow::Result<HashSet<String>> {
+pub(crate) async fn get_bonded_gateway_id_keys(pool: &DbPool) -> anyhow::Result<HashSet<String>> {
     let mut conn = pool.acquire().await?;
     let items = sqlx::query!(
         r#"

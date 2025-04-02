@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT mix_id\n            FROM mixnodes\n            WHERE bonded = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "mix_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c910788edefe64bbb34379702bcbde9ec6159c9fa03b13652e1f620dcd92125e"
+}

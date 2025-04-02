@@ -77,17 +77,10 @@ impl StoredDealing {
     #[cfg(test)]
     fn prefix(
         prefix: (EpochId, Dealer, DealingIndex),
-    ) -> cw_storage_plus::Prefix<ChunkIndex, PartialContractDealingData, ChunkIndex> {
+    ) -> cw_storage_plus::Prefix<ChunkIndex, PartialContractDealingData> {
         use cw_storage_plus::Prefixer;
 
-        cw_storage_plus::Prefix::with_deserialization_functions(
-            Self::NAMESPACE,
-            &prefix.prefix(),
-            &[],
-            // explicitly panic to make sure we're never attempting to call an unexpected deserializer on our data
-            |_, _, kv| Self::deserialize_dealing_record(kv),
-            |_, _, _| panic!("attempted to call custom de_fn_v"),
-        )
+        cw_storage_plus::Prefix::new(Self::NAMESPACE, &prefix.prefix())
     }
 
     // prefix-range related should we need it
@@ -98,15 +91,23 @@ impl StoredDealing {
         start: Option<cw_storage_plus::Bound<ChunkIndex>>,
     ) -> impl Iterator<Item = cosmwasm_std::StdResult<PartialContractDealing>> + 'a {
         let dealing_index = prefix.2;
-        Self::prefix(prefix)
-            .range(storage, start, None, cosmwasm_std::Order::Ascending)
-            .map(move |maybe_record| {
-                maybe_record.map(|(chunk_index, data)| PartialContractDealing {
-                    dealing_index,
-                    chunk_index,
-                    data,
-                })
+        let prefix = Self::prefix(prefix);
+
+        cw_storage_plus::range_with_prefix(
+            storage,
+            &prefix,
+            start.map(|b| b.to_raw_bound()),
+            None,
+            cosmwasm_std::Order::Ascending,
+        )
+        .map(Self::deserialize_dealing_record)
+        .map(move |maybe_record| {
+            maybe_record.map(|(chunk_index, data)| PartialContractDealing {
+                dealing_index,
+                chunk_index,
+                data,
             })
+        })
     }
 
     fn storage_key(
@@ -186,22 +187,19 @@ impl StoredDealing {
 
         type StorageKey<'a> = (EpochId, Dealer<'a>, (DealingIndex, ChunkIndex));
 
-        let empty_prefix: cw_storage_plus::Prefix<
-            StorageKey,
-            PartialContractDealingData,
-            StorageKey,
-        > = cw_storage_plus::Prefix::with_deserialization_functions(
-            Self::NAMESPACE,
-            &[],
-            &[],
-            |_, _, kv| StorageKey::from_vec(kv.0).map(|kt| (kt, ContractSafeBytes(kv.1))),
-            |_, _, _| unimplemented!(),
-        );
+        let empty_prefix: cw_storage_plus::Prefix<StorageKey, PartialContractDealingData> =
+            cw_storage_plus::Prefix::new(Self::NAMESPACE, &[]);
 
-        empty_prefix
-            .range(storage, None, None, cosmwasm_std::Order::Ascending)
-            .collect::<cosmwasm_std::StdResult<_>>()
-            .unwrap()
+        cw_storage_plus::range_with_prefix(
+            storage,
+            &empty_prefix,
+            None,
+            None,
+            cosmwasm_std::Order::Ascending,
+        )
+        .map(|kv| StorageKey::from_vec(kv.0).map(|kt| (kt, ContractSafeBytes(kv.1))))
+        .collect::<cosmwasm_std::StdResult<_>>()
+        .unwrap()
     }
 }
 

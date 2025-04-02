@@ -14,28 +14,12 @@ on:
       - '.github/workflows/ci-contracts.yml'
 
 jobs:
-  matrix_prep:
-    runs-on: ubuntu-20.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      # creates the matrix strategy from ci-contracts-matrix-includes.json
-      - uses: actions/checkout@v4
-      - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@main
-        with:
-          inputFile: '.github/workflows/ci-contracts-matrix-includes.json'
-          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
-    needs: matrix_prep
-    strategy:
-      fail-fast: false
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,10 +27,18 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
+
+      - name: Install cosmwasm-check
+        run: cargo install cosmwasm-check
+
+      - name: Install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '114'
 
       - name: Build contracts
         uses: actions-rs/cargo@v1
@@ -73,3 +65,7 @@ jobs:
         with:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings
+
+      - name: Check chain compatibility against release build
+        # this will build contracts in release mode, run wasm-opt and finally cosmwasm-check
+        run: make contracts

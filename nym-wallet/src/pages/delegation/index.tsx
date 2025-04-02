@@ -184,9 +184,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         action: 'delegate',
         message: 'This operation can take up to one hour to process',
         ...balances,
-        transactions: [
-          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
-        ],
+        transactions: [{ url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash }],
       });
     } catch (e) {
       Console.error('Failed to addDelegation', e);
@@ -235,9 +233,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         status: 'success',
         action: 'delegate',
         ...balances,
-        transactions: [
-          { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
-        ],
+        transactions: [{ url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`, hash: tx.transaction_hash }],
       });
     } catch (e) {
       Console.error('Failed to addMoreDelegation', e);
@@ -279,7 +275,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         ...balances,
         transactions: [
           {
-            url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+            url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`,
             hash: tx.transaction_hash,
           },
         ],
@@ -308,7 +304,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         status: 'success',
         action: 'redeem',
         transactions: txs.map((tx) => ({
-          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+          url: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`,
           hash: tx.transaction_hash,
         })),
       });
@@ -374,10 +370,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           <Typography variant="body2">
             Checkout the{' '}
             <Link
-              href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+              href={`${urls(network).networkExplorer}/nodes/`}
               target="_blank"
               rel="noreferrer"
-              text="list of mixnodes"
+              text="list of nym-nodes"
               fontWeight={theme.palette.mode === 'light' ? 400 : 600}
               noIcon
             />{' '}
@@ -417,7 +413,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
                 <Stack marginTop={1.5} gap={0.5} direction="row" alignItems="center">
                   <Typography fontSize={14}>Select nodes to delegate to using the</Typography>
                   <Link
-                    href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                    href={`${urls(network).networkExplorer}/nodes`}
                     target="_blank"
                     rel="noreferrer"
                     text="network Explorer"

@@ -72,7 +72,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       const txResponse = await send({ amount: val, address: to, memo: memo || '', fee: fee?.fee });
       setTxDetails({
         amount: `${amount?.amount} ${clientDetails?.display_mix_denom.toUpperCase()}`,
-        txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,
+        txUrl: `${urls(network).blockExplorer}/tx/${txResponse.tx_hash}`,
       });
     } catch (e) {
       Console.error(e as string);

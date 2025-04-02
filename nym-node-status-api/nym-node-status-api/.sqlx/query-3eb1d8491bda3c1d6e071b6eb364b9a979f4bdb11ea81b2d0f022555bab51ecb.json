@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            gw.gateway_identity_key as \"gateway_identity_key!\",\n            gw.bonded as \"bonded: bool\",\n            gw.performance as \"performance!\",\n            gw.self_described as \"self_described?\",\n            gw.explorer_pretty_bond as \"explorer_pretty_bond?\",\n            gw.last_probe_result as \"last_probe_result?\",\n            gw.last_probe_log as \"last_probe_log?\",\n            gw.last_testrun_utc as \"last_testrun_utc?\",\n            gw.last_updated_utc as \"last_updated_utc!\",\n            COALESCE(gd.moniker, \"NA\") as \"moniker!\",\n            COALESCE(gd.website, \"NA\") as \"website!\",\n            COALESCE(gd.security_contact, \"NA\") as \"security_contact!\",\n            COALESCE(gd.details, \"NA\") as \"details!\"\n         FROM gateways gw\n         LEFT JOIN gateway_description gd\n         ON gw.gateway_identity_key = gd.gateway_identity_key\n         ORDER BY gw.gateway_identity_key",
+  "describe": {
+    "columns": [
+      {
+        "name": "gateway_identity_key!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "bonded: bool",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "performance!",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "self_described?",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "explorer_pretty_bond?",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_probe_result?",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_probe_log?",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_testrun_utc?",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "last_updated_utc!",
+        "ordinal": 8,
+        "type_info": "Int64"
+      },
+      {
+        "name": "moniker!",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "website!",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "security_contact!",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "details!",
+        "ordinal": 12,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3eb1d8491bda3c1d6e071b6eb364b9a979f4bdb11ea81b2d0f022555bab51ecb"
+}

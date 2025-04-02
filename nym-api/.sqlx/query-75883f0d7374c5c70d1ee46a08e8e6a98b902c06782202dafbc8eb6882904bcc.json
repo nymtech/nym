@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE ticket_providers\n                SET last_batch_verification = ?\n                WHERE id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "75883f0d7374c5c70d1ee46a08e8e6a98b902c06782202dafbc8eb6882904bcc"
+}

@@ -54,7 +54,7 @@ pub async fn create(args: Args, client: SigningClient, network_details: &NymNetw
 
     let denom = network_details.chain_details.mix_denom.base.to_string();
 
-    let coin = Coin::new(args.amount.into(), &denom);
+    let coin = Coin::new(args.amount, &denom);
 
     let res = client
         .create_periodic_vesting_account(

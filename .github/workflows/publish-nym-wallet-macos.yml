@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: 21
       - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
+        uses: brndnmtthws/rust-action-rustup@v1
         with:
           toolchain: stable
           target: x86_64-apple-darwin

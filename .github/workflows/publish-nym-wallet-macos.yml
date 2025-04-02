@@ -36,9 +36,6 @@ jobs:
         with:
           toolchain: stable
           targets: x86_64-apple-darwin
-      
-      - name: Set CARGO_BUILD_TARGET environment variable
-        run: echo "CARGO_BUILD_TARGET=x86_64-apple-darwin" >> $GITHUB_ENV
         
       - name: Install the Apple developer certificate for code signing
         env:
@@ -85,7 +82,10 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: yarn && yarn build
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          yarn
+          yarn tauri build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

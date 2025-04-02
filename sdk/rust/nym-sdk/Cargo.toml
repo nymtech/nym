@@ -18,9 +18,9 @@ path = "src/tcp_proxy/bin/proxy_client.rs"
 async-trait = { workspace = true }
 bip39 = { workspace = true }
 nym-client-core = { path = "../../../common/client-core", features = [
-    "fs-credentials-storage",
-    "fs-surb-storage",
-    "fs-gateways-storage",
+  "fs-credentials-storage",
+  "fs-surb-storage",
+  "fs-gateways-storage",
 ] }
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../common/gateway-requests" }
@@ -36,14 +36,14 @@ nym-task = { path = "../../../common/task" }
 nym-topology = { path = "../../../common/topology" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client", features = [
-    "http-client",
+  "http-client",
 ] }
 nym-socks5-requests = { path = "../../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../../service-providers/common" }
 nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
 nym-bin-common = { path = "../../../common/bin-common", features = [
-    "basic_tracing",
+  "basic_tracing",
 ] }
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }
@@ -73,7 +73,6 @@ serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 dirs.workspace = true
-tempfile.workspace = true
 
 [dev-dependencies]
 anyhow = { workspace = true }

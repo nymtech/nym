@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { Check, ContentCopy } from '@mui/icons-material';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { Console } from '../utils/console';
-import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 
 export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; iconButton?: boolean }) => {
   const [copied, setCopied] = useState(false);

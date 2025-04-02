@@ -4,9 +4,10 @@
 use crate::ecash::error::EcashError;
 use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
+use crate::unstable_routes::models::NymVestingAccount;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use cosmwasm_std::Timestamp;
+use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
@@ -39,6 +40,7 @@ use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{PagedDkgQueryClient, VestingQueryClient};
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
         DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MixnetQueryClient,
@@ -50,7 +52,7 @@ use nym_validator_client::nyxd::{
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    AccountId, Coin, TendermintTime,
+    AccountId, TendermintTime,
 };
 use nym_validator_client::{
     nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient, QueryHttpRpcNyxdClient,
@@ -439,7 +441,7 @@ impl Client {
         nyxd_query!(self, get_pending_operator_reward(operator).await)
     }
 
-    pub(crate) async fn get_vesting_account(&self, address: &str) -> Result<Account, NyxdError> {
+    async fn _get_vesting_account(&self, address: &str) -> Result<Account, NyxdError> {
         let guard = self.inner.read().await;
         match &*guard {
             crate::support::nyxd::ClientInner::Signing(client) => {
@@ -457,7 +459,42 @@ impl Client {
         }
     }
 
-    pub(crate) async fn locked_coins(
+    pub(crate) async fn _get_vesting_coins(&self, address: &str) -> Option<NymVestingAccount> {
+        // 1. is there a vesting account?
+        if self._get_vesting_account(address).await.is_ok() {
+            // 2. there is vesting account, get all the coins
+            let mut locked = CosmWasmCoin::default();
+            let mut vested = CosmWasmCoin::default();
+            let mut vesting = CosmWasmCoin::default();
+            let mut spendable = CosmWasmCoin::default();
+
+            // 3. try to get each coin type
+            if let Ok(coin) = self._locked_coins(address.as_ref(), None).await {
+                locked = coin.into();
+            }
+            if let Ok(coin) = self._vested_coins(address.as_ref(), None).await {
+                vested = coin.into();
+            }
+            if let Ok(coin) = self._vesting_coins(address.as_ref(), None).await {
+                vesting = coin.into();
+            }
+            if let Ok(coin) = self._spendable_coins(address.as_ref(), None).await {
+                spendable = coin.into();
+            }
+
+            // 4.combine into a response
+            Some(NymVestingAccount {
+                locked,
+                vested,
+                vesting,
+                spendable,
+            })
+        } else {
+            None
+        }
+    }
+
+    async fn _locked_coins(
         &self,
         addr: &str,
         block_time: Option<Timestamp>,
@@ -465,7 +502,7 @@ impl Client {
         nyxd_query!(self, locked_coins(addr.as_ref(), block_time).await)
     }
 
-    pub(crate) async fn vested_coins(
+    async fn _vested_coins(
         &self,
         addr: &str,
         block_time: Option<Timestamp>,
@@ -473,7 +510,7 @@ impl Client {
         nyxd_query!(self, vested_coins(addr.as_ref(), block_time).await)
     }
 
-    pub(crate) async fn vesting_coins(
+    async fn _vesting_coins(
         &self,
         addr: &str,
         block_time: Option<Timestamp>,
@@ -481,7 +518,7 @@ impl Client {
         nyxd_query!(self, vesting_coins(addr.as_ref(), block_time).await)
     }
 
-    pub(crate) async fn spendable_coins(
+    async fn _spendable_coins(
         &self,
         addr: &str,
         block_time: Option<Timestamp>,

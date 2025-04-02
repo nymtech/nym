@@ -15,12 +15,11 @@ use axum::{
     Json, Router,
 };
 use cosmwasm_std::Coin;
-use nym_mixnet_contract_common::Coin as CosmWasmCoin;
 use nym_topology::NodeId;
 use nym_validator_client::nyxd::AccountId;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr};
-use tracing::{debug, error, instrument};
+use tracing::{error, instrument};
 use utoipa::ToSchema;
 
 pub(crate) fn routes() -> Router<AppState> {
@@ -125,43 +124,8 @@ async fn address(
     }
 
     // 5. get vesting account details (if present)
-    let vesting_account = if state_client
-        .get_vesting_account(address.as_ref())
-        .await
-        // 1. is there a vesting account?
-        .is_ok()
-    {
-        // 2. there is vesting account, get all the coins
-        let mut locked = CosmWasmCoin::default();
-        let mut vested = CosmWasmCoin::default();
-        let mut vesting = CosmWasmCoin::default();
-        let mut spendable = CosmWasmCoin::default();
-
-        // 3. try to get each coin type
-        if let Ok(coin) = state_client.locked_coins(address.as_ref(), None).await {
-            locked = coin.into();
-        }
-        if let Ok(coin) = state_client.vested_coins(address.as_ref(), None).await {
-            vested = coin.into();
-        }
-        if let Ok(coin) = state_client.vesting_coins(address.as_ref(), None).await {
-            vesting = coin.into();
-        }
-        if let Ok(coin) = state_client.spendable_coins(address.as_ref(), None).await {
-            spendable = coin.into();
-        }
-
-        // 4.combine into a response
-        Some(NymVestingAccount {
-            locked,
-            vested,
-            vesting,
-            spendable,
-        })
-    } else {
-        debug!("No vesting account found");
-        None
-    };
+    // everyone has already fully vested
+    let vesting_account: Option<NymVestingAccount> = None;
 
     if let Some(vesting_account) = vesting_account.clone() {
         total_value += vesting_account.locked.amount.u128();

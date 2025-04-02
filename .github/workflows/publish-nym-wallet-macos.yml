@@ -86,7 +86,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nym-wallet.app.tar.gz
+          name: nym-wallet.dmg
           path: nym-wallet/target/release/bundle/dmg/*.dmg
           retention-days: 5
 

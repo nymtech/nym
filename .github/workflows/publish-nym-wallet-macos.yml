@@ -36,8 +36,10 @@ jobs:
         with:
           toolchain: stable
           targets: x86_64-apple-darwin
-          override: true
-          default: false
+      
+      - name: Set CARGO_BUILD_TARGET environment variable
+        run: echo "CARGO_BUILD_TARGET=x86_64-apple-darwin" >> $GITHUB_ENV
+        
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

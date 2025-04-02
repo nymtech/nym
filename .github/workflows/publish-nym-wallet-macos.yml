@@ -35,7 +35,7 @@ jobs:
         uses: brndnmtthws/rust-action-rustup@v1
         with:
           toolchain: stable
-          target: x86_64-apple-darwin
+          targets: x86_64-apple-darwin
           override: true
           default: false
       - name: Install the Apple developer certificate for code signing

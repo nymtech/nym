@@ -82,29 +82,29 @@ jobs:
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: Build for Apple Silicon (ARM64)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn tauri build --target aarch64-apple-darwin
+      # - name: Build for Apple Silicon (ARM64)
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: yarn tauri build --target aarch64-apple-darwin
 
       - name: Build for Intel (x86_64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: yarn tauri build --target x86_64-apple-darwin
 
-      - name: Create universal app
-        env:
-          ARM_APP_PATH: target/aarch64-apple-darwin/release/bundle/macos/nym-wallet.app
-          X86_APP_PATH: target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app
-          UNIVERSAL_APP_PATH: universal-app/nym-wallet.app
-        run: |
-          mkdir -p "${UNIVERSAL_APP_PATH}/Contents"
-          cp -R "${ARM_APP_PATH}/Contents/"* "${UNIVERSAL_APP_PATH}/Contents"
-
-          lipo -create \
-            "${ARM_APP_PATH}/Contents/MacOS/nym-wallet" \
-            "${X86_APP_PATH}/Contents/MacOS/nym-wallet" \
-            -output "${UNIVERSAL_APP_PATH}/Contents/MacOS/nym-wallet"
+      # - name: Create universal app
+      #   env:
+      #     ARM_APP_PATH: target/aarch64-apple-darwin/release/bundle/macos/nym-wallet.app
+      #     X86_APP_PATH: target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app
+      #     UNIVERSAL_APP_PATH: universal-app/nym-wallet.app
+      #   run: |
+      #     mkdir -p "${UNIVERSAL_APP_PATH}/Contents"
+      #     cp -R "${ARM_APP_PATH}/Contents/"* "${UNIVERSAL_APP_PATH}/Contents"
+      #
+      #     lipo -create \
+      #       "${ARM_APP_PATH}/Contents/MacOS/nym-wallet" \
+      #       "${X86_APP_PATH}/Contents/MacOS/nym-wallet" \
+      #       -output "${UNIVERSAL_APP_PATH}/Contents/MacOS/nym-wallet"
 
       - name: Compress universal app
         run: |

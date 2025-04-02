@@ -36,11 +36,10 @@ use std::{
 
 use hickory_resolver::{
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
-    error::ResolveError,
-    lookup_ip::LookupIpIntoIter,
+    error::{ResolveError, ResolveErrorKind},
+    lookup_ip::{LookupIp, LookupIpIntoIter},
     TokioAsyncResolver,
 };
-use hickory_resolver::{error::ResolveErrorKind, lookup_ip::LookupIp};
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tracing::warn;
@@ -214,10 +213,7 @@ impl HickoryDnsResolver {
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
 /// up for both IPv4 and IPv6 addresses to work with "happy eyeballs" algorithm.
 fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsError> {
-    let mut name_servers = NameServerConfigGroup::google_tls();
-    name_servers.merge(NameServerConfigGroup::google_https());
-    // name_servers.merge(NameServerConfigGroup::google_h3());
-    name_servers.merge(NameServerConfigGroup::quad9_tls());
+    let mut name_servers = NameServerConfigGroup::quad9_tls();
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());

@@ -27,7 +27,7 @@ pub(crate) fn issued_routes() -> Router<AppState> {
     Router::new()
         .route(
             "/issued-ticketbooks-count",
-            axum::routing::post(issued_ticketbooks_count),
+            axum::routing::get(issued_ticketbooks_count),
         )
         .route(
             "/issued-ticketbooks-for-count/:expiration_date",

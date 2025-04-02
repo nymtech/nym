@@ -4,6 +4,82 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.6-chuckles] (2025-03-31)
+
+- Remove Google public DNS ([#5660])
+- Revert using AsyncWrite sink in IPR ([#5656])
+- Add fd callback for initial authentication ([#5654])
+- Add concurrency limit to CI ([#5651])
+- Remove UNIQUE constraint on node pubkey ([#5649])
+- Add RUSTUP_PERMIT_COPY_RENAME in two workflows that we forgot about ([#5646])
+- Upgrade sha2 to workspace version for validator-client ([#5644])
+- Add max_retransmissions flag on each message ([#5642])
+- build(deps): bump zip from 2.2.2 to 2.4.1 ([#5639])
+- build(deps): bump dtolnay/rust-toolchain from 1.90.0 to 1.100.0 ([#5638])
+- / regenerated yarn.lock ([#5636])
+- Rework IPR codec to extract out timer and implement AsyncWrite ([#5632])
+- build(deps): bump tempfile from 3.18.0 to 3.19.0 ([#5631])
+- build(deps): bump zeroize from 1.6.0 to 1.8.1 ([#5630])
+- build(deps): bump once_cell from 1.20.3 to 1.21.1 ([#5629])
+- build(deps): bump uuid from 1.15.1 to 1.16.0 ([#5628])
+- build(deps): bump celes from 2.5.0 to 2.6.0 ([#5627])
+- build(deps): bump http from 1.2.0 to 1.3.1 ([#5626])
+- build(deps): bump humantime from 2.1.0 to 2.2.0 ([#5625])
+- build(deps): bump the patch-updates group with 8 updates ([#5624])
+- build(deps): bump @babel/runtime from 7.16.3 to 7.26.10 in /testnet-faucet ([#5621])
+- Feature/paginated ticketbooks challenge ([#5619])
+- build(deps-dev): bump webpack from 5.77.0 to 5.98.0 in /wasm/client/internal-dev ([#5615])
+- build(deps-dev): bump ws from 8.13.0 to 8.18.1 in /wasm/client/internal-dev ([#5614])
+- build(deps): bump golang.org/x/net from 0.23.0 to 0.36.0 in /wasm/mix-fetch/go-mix-conn ([#5613])
+- build(deps): bump braces from 3.0.2 to 3.0.3 in /sdk/typescript/packages/mix-fetch-node ([#5612])
+- Wireguard exit policies (and tests) ([#5557])
+- Explorer V2 ([#5548])
+- Clean stale partially received buffers ([#5536])
+- Corrected typos ([#5497])
+- build(deps): bump @octokit/plugin-paginate-rest and @actions/github in /.github/actions/nym-hash-releases/src ([#5488])
+- feature: upgrade cosmwasm to 2.2 ([#5479])
+- build(deps): bump store2 from 2.14.3 to 2.14.4 ([#5391])
+- build(deps): bump nanoid from 3.3.7 to 3.3.8 in /documentation/docs ([#5335])
+- build(deps): bump next from 13.5.7 to 14.2.15 in /documentation/docs ([#5281])
+- Bump http-proxy-middleware from 2.0.6 to 2.0.7 ([#5019])
+
+[#5660]: https://github.com/nymtech/nym/pull/5660
+[#5656]: https://github.com/nymtech/nym/pull/5656
+[#5654]: https://github.com/nymtech/nym/pull/5654
+[#5651]: https://github.com/nymtech/nym/pull/5651
+[#5649]: https://github.com/nymtech/nym/pull/5649
+[#5646]: https://github.com/nymtech/nym/pull/5646
+[#5644]: https://github.com/nymtech/nym/pull/5644
+[#5642]: https://github.com/nymtech/nym/pull/5642
+[#5639]: https://github.com/nymtech/nym/pull/5639
+[#5638]: https://github.com/nymtech/nym/pull/5638
+[#5636]: https://github.com/nymtech/nym/pull/5636
+[#5632]: https://github.com/nymtech/nym/pull/5632
+[#5631]: https://github.com/nymtech/nym/pull/5631
+[#5630]: https://github.com/nymtech/nym/pull/5630
+[#5629]: https://github.com/nymtech/nym/pull/5629
+[#5628]: https://github.com/nymtech/nym/pull/5628
+[#5627]: https://github.com/nymtech/nym/pull/5627
+[#5626]: https://github.com/nymtech/nym/pull/5626
+[#5625]: https://github.com/nymtech/nym/pull/5625
+[#5624]: https://github.com/nymtech/nym/pull/5624
+[#5621]: https://github.com/nymtech/nym/pull/5621
+[#5619]: https://github.com/nymtech/nym/pull/5619
+[#5615]: https://github.com/nymtech/nym/pull/5615
+[#5614]: https://github.com/nymtech/nym/pull/5614
+[#5613]: https://github.com/nymtech/nym/pull/5613
+[#5612]: https://github.com/nymtech/nym/pull/5612
+[#5557]: https://github.com/nymtech/nym/pull/5557
+[#5548]: https://github.com/nymtech/nym/pull/5548
+[#5536]: https://github.com/nymtech/nym/pull/5536
+[#5497]: https://github.com/nymtech/nym/pull/5497
+[#5488]: https://github.com/nymtech/nym/pull/5488
+[#5479]: https://github.com/nymtech/nym/pull/5479
+[#5391]: https://github.com/nymtech/nym/pull/5391
+[#5335]: https://github.com/nymtech/nym/pull/5335
+[#5281]: https://github.com/nymtech/nym/pull/5281
+[#5019]: https://github.com/nymtech/nym/pull/5019
+
 ## [2025.5-chokito] (2025-03-18)
 
 - build(deps): bump braces from 3.0.2 to 3.0.3 in /sdk/typescript/packages/nodejs-client ([#5611])

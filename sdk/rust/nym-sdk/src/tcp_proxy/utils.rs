@@ -13,7 +13,7 @@ const DEFAULT_DECAY: u64 = 6; // decay time in seconds
 // Keeps track of
 // - incoming and unsorted messages wrapped in DecayWrapper for keeping track of when they were received
 // - the expected next message ID (reset on .tick())
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MessageBuffer {
     buffer: Vec<DecayWrapper<ProxiedMessage>>,
     next_msg_id: u16,

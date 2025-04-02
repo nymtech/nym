@@ -38,7 +38,7 @@ jobs:
       - name: install npm
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

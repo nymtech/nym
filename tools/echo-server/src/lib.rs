@@ -3,17 +3,20 @@
 
 use anyhow::Result;
 use nym_crypto::asymmetric::ed25519;
-use nym_sdk::mixnet::Recipient;
-use nym_sdk::tcp_proxy;
-use nym_sdk::tcp_proxy::NymProxyServer;
-use std::fmt::Debug;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::broadcast;
-use tokio::sync::Mutex;
-use tokio::task;
+use nym_sdk::{mixnet::Recipient, tcp_proxy, tcp_proxy::NymProxyServer};
+use std::{
+    fmt::Debug,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+};
+use tokio::{
+    io::AsyncWriteExt,
+    net::{TcpListener, TcpStream},
+    sync::{broadcast, Mutex},
+    task,
+};
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info};
@@ -259,7 +262,6 @@ mod tests {
         Ok(())
     }
 
-    // TODO WHY IS THIS TEST HANGING
     #[tokio::test]
     async fn echoes_bytes() -> Result<()> {
         let config_dir = TempDir::new()?;

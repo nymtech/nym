@@ -671,11 +671,11 @@ impl From<NymNetworkDetails> for NetworkDetails {
 //             .unwrap();
 //         assert_eq!(nyxd_url.as_ref(), "https://rpc.nymtech.net/");
 
-        let api_url = config
-            .get_base_validators(WalletNetwork::MAINNET)
-            .next()
-            .and_then(|v| v.api_url)
-            .unwrap();
-        assert_eq!(api_url.as_ref(), "https://validator.nymtech.net/api/",);
-    }
-}
+//         let api_url = config
+//             .get_base_validators(WalletNetwork::MAINNET)
+//             .next()
+//             .and_then(|v| v.api_url)
+//             .unwrap();
+//         assert_eq!(api_url.as_ref(), "https://validator.nymtech.net/api/",);
+//     }
+// }

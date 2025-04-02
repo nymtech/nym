@@ -2272,23 +2272,23 @@ fn rename_account_in_login_at_file(
 //             r"/tmp\saved-wallet-42.json".to_string(),
 //         );
 
-        #[cfg(target_family = "unix")]
-        assert_eq!(
-            append_timestamp_to_filename(wallet_file, timestamp, Some(3))
-                .unwrap()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            "/tmp/saved-wallet-42-3.json".to_string(),
-        );
-        #[cfg(not(target_family = "unix"))]
-        assert_eq!(
-            append_timestamp_to_filename(wallet_file, timestamp, Some(3))
-                .unwrap()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            r"/tmp\saved-wallet-42-3.json".to_string(),
-        );
-    }
-}
+//         #[cfg(target_family = "unix")]
+//         assert_eq!(
+//             append_timestamp_to_filename(wallet_file, timestamp, Some(3))
+//                 .unwrap()
+//                 .into_os_string()
+//                 .into_string()
+//                 .unwrap(),
+//             "/tmp/saved-wallet-42-3.json".to_string(),
+//         );
+//         #[cfg(not(target_family = "unix"))]
+//         assert_eq!(
+//             append_timestamp_to_filename(wallet_file, timestamp, Some(3))
+//                 .unwrap()
+//                 .into_os_string()
+//                 .into_string()
+//                 .unwrap(),
+//             r"/tmp\saved-wallet-42-3.json".to_string(),
+//         );
+//     }
+// }

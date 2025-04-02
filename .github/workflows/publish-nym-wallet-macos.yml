@@ -17,6 +17,17 @@ jobs:
         platform: [macos-15]
     runs-on: ${{ matrix.platform }}
 
+    env:
+      ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
       release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
@@ -31,12 +42,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 21
+
       - name: Install Rust stable
         uses: brndnmtthws/rust-action-rustup@v1
         with:
           toolchain: stable
-          targets: x86_64-apple-darwin
-        
+          targets: x86_64-apple-darwin aarch64-apple-darwin
+
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -70,42 +82,52 @@ jobs:
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: Install app dependencies and build it
+      - name: Build for Apple Silicon (ARM64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY_ID }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: yarn tauri build --target aarch64-apple-darwin
+
+      - name: Build for Intel (x86_64)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: yarn tauri build --target x86_64-apple-darwin
+
+      - name: Create universal app
+        env:
+          ARM_APP_PATH: target/aarch64-apple-darwin/release/bundle/macos/nym-wallet.app
+          X86_APP_PATH: target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app
+          UNIVERSAL_APP_PATH: universal-app/nym-wallet.app
         run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
-          yarn
-          yarn tauri build
+          mkdir -p "${UNIVERSAL_APP_PATH}/Contents"
+          cp -R "${ARM_APP_PATH}/Contents/"* "${UNIVERSAL_APP_PATH}/Contents"
+
+          lipo -create \
+            "${ARM_APP_PATH}/Contents/MacOS/nym-wallet" \
+            "${X86_APP_PATH}/Contents/MacOS/nym-wallet" \
+            -output "${UNIVERSAL_APP_PATH}/Contents/MacOS/nym-wallet"
+
+      - name: Compress universal app
+        run: |
+          tar -czf nym-wallet.app.tar.gz -C universal-app nym-wallet.app
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: nym-wallet.app.tar.gz
-          path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz
+          path: nym-wallet.app.tar.gz
           retention-days: 5
 
       - name: Clean up keychain
         if: ${{ always() }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
-          files: |
-            nym-wallet/target/release/bundle/dmg/*.dmg
-            nym-wallet/target/release/bundle/macos/*.app.tar.gz*
+          files: nym-wallet.app.tar.gz
 
       - name: Deploy artifacts to CI www
         continue-on-error: true
@@ -113,7 +135,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz"
+          SOURCE: "nym-wallet.app.tar.gz"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet

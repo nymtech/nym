@@ -64,7 +64,7 @@ impl NymEchoServer {
         let listen_addr = format!("127.0.0.1:{}", listen_port);
 
         let client = Arc::new(Mutex::new(
-            tcp_proxy::NymProxyServer::new(&listen_addr, &config_path, env, gateway).await?,
+            tcp_proxy::NymProxyServer::new(&listen_addr, config_path, env, gateway).await?,
         ));
 
         let client_shutdown_tx = client.lock().await.disconnect_signal();
@@ -185,7 +185,7 @@ impl NymEchoServer {
     }
 
     pub async fn nym_address(&self) -> Recipient {
-        self.client.lock().await.nym_address().clone()
+        *self.client.lock().await.nym_address()
     }
 
     pub fn listen_addr(&self) -> String {

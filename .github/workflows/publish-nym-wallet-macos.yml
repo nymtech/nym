@@ -74,7 +74,17 @@ jobs:
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: Install app dependencies and build it
+      - name: Prebuild Rust 
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --release
+          if [ -f src-tauri/target/release/nym_wallet ]; then
+            mv src-tauri/target/release/nym_wallet src-tauri/target/release/nym-wallet
+          else
+            echo "nym_wallet not found.. build likely failed"
+            exit 1
+          fi
+
+      - name: Install dependencies and build it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
@@ -86,7 +96,9 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: yarn && yarn build
+        run: |
+          yarn build
+          yarn tauri build --no-cargo
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

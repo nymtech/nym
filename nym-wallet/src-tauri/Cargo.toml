@@ -1,5 +1,5 @@
 [package]
-name = "nym_wallet"
+name = "nym-wallet"
 version = "1.2.16"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]

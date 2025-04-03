@@ -189,7 +189,7 @@ impl ConnectionHandler {
                 .maximum_replay_detection_pending_packets;
 
         // time threshold is ignored if we currently have 0 packets queued up
-        if self.pending_packets.packets.len() == 0 {
+        if self.pending_packets.packets.is_empty() {
             return true;
         }
 
@@ -346,7 +346,7 @@ impl ConnectionHandler {
 
         // 1. attempt to unwrap the packet
         // if it's a sphinx packet attempt to do pre-processing and replay detection
-        if packet.is_sphinx() {
+        if packet.is_sphinx() && !self.shared.replay_protection_filter.disabled() {
             self.handle_received_packet_with_replay_detection(now, packet)
                 .await;
         } else {

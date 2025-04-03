@@ -29,6 +29,7 @@ use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::replay_protection::background_task::ReplayProtectionBackgroundTask;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::{CachedNetwork, CachedTopologyProvider, NetworkRefresher};
 use nym_bin_common::bin_info;
@@ -981,6 +982,29 @@ impl NymNode {
         events_sender
     }
 
+    pub(crate) async fn setup_replay_detection(
+        &self,
+    ) -> Result<ReplayProtectionBloomfilter, NymNodeError> {
+        if self.config.mixnet.replay_protection.debug.unsafe_disabled {
+            return Ok(ReplayProtectionBloomfilter::new_disabled());
+        }
+
+        // create the background task for the bloomfilter
+        // to reset it and flush it to disk
+        let mut replay_detection_background = ReplayProtectionBackgroundTask::new(
+            &self.config,
+            self.metrics.clone(),
+            self.shutdown_manager
+                .clone_token("replay-detection-background"),
+        )
+        .await?;
+
+        let replay_protection_bloomfilter = replay_detection_background.global_bloomfilter();
+        self.shutdown_manager
+            .spawn(async move { replay_detection_background.run().await });
+        Ok(replay_protection_bloomfilter)
+    }
+
     pub(crate) async fn start_mixnet_listener<F>(
         &self,
         active_clients_store: &ActiveClientsStore,
@@ -1014,18 +1038,7 @@ impl NymNode {
         );
         let active_connections = mixnet_client.active_connections();
 
-        // create the background task for the bloomfilter
-        let mut replay_detection_background = ReplayProtectionBackgroundTask::new(
-            &self.config,
-            self.metrics.clone(),
-            self.shutdown_manager
-                .clone_token("replay-detection-background"),
-        )
-        .await?;
-
-        let replay_protection_bloomfilter = replay_detection_background.global_bloomfilter();
-        tokio::spawn(async move { replay_detection_background.run().await });
-
+        let replay_protection_bloomfilter = self.setup_replay_detection().await?;
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
             routing_filter,

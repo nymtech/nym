@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet::FramedNymPacket;
-use log::{debug, error, info, trace};
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -15,6 +14,7 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
+use tracing::{debug, error, info, trace};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {

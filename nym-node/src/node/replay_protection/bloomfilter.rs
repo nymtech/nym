@@ -17,17 +17,35 @@ use tracing::{debug, info};
 // (tokio's async Mutex has too much overhead due to the number of access required)
 #[derive(Clone)]
 pub(crate) struct ReplayProtectionBloomfilter {
+    disabled: bool,
     inner: Arc<std::sync::Mutex<ReplayProtectionBloomfilterInner>>,
 }
 
 impl ReplayProtectionBloomfilter {
     pub(crate) fn new_empty(items_count: usize, fp_p: f64) -> Result<Self, NymNodeError> {
         Ok(ReplayProtectionBloomfilter {
+            disabled: false,
             inner: Arc::new(std::sync::Mutex::new(ReplayProtectionBloomfilterInner {
                 current_filter: Bloom::new_for_fp_rate(items_count, fp_p)
                     .map_err(NymNodeError::bloomfilter_failure)?,
             })),
         })
+    }
+
+    // SAFETY: the hardcoded values of 1,1 are valid
+    #[allow(clippy::unwrap_used)]
+    pub(crate) fn new_disabled() -> Self {
+        // well, technically it's not fully empty, but the memory footprint is negligible
+        ReplayProtectionBloomfilter {
+            disabled: true,
+            inner: Arc::new(std::sync::Mutex::new(ReplayProtectionBloomfilterInner {
+                current_filter: Bloom::new(1, 1).unwrap(),
+            })),
+        }
+    }
+
+    pub(crate) fn disabled(&self) -> bool {
+        self.disabled
     }
 
     pub(crate) fn reset(&self, items_count: usize, fp_p: f64) -> Result<(), NymNodeError> {
@@ -71,6 +89,7 @@ impl ReplayProtectionBloomfilter {
             })?;
 
         Ok(ReplayProtectionBloomfilter {
+            disabled: false,
             inner: Arc::new(std::sync::Mutex::new(ReplayProtectionBloomfilterInner {
                 current_filter: Bloom::from_bytes(buf)
                     .map_err(NymNodeError::bloomfilter_failure)?,
@@ -157,15 +176,15 @@ impl ReplayProtectionBloomfilter {
             Err(TryLockError::WouldBlock) => return None,
         };
 
-        let todo = "";
-
         let mut result = Vec::with_capacity(reply_tags.len());
         for tag in reply_tags {
             result.push(guard.current_filter.check_and_set(tag));
         }
-        return Some(Ok(vec![false; reply_tags.len()]));
 
-        // Ok(result)
+        // for testing throughput without disabling checks:
+        // return Some(Ok(vec![false; reply_tags.len()]));
+
+        Some(Ok(result))
     }
 
     pub(crate) fn batch_check_and_set(
@@ -176,15 +195,15 @@ impl ReplayProtectionBloomfilter {
             return Err(PoisonError::new(()));
         };
 
-        let todo = "";
-
         let mut result = Vec::with_capacity(reply_tags.len());
         for tag in reply_tags {
             result.push(guard.current_filter.check_and_set(tag));
         }
-        return Ok(vec![false; reply_tags.len()]);
 
-        // Ok(result)
+        // for testing throughput without disabling checks:
+        // return Ok(vec![false; reply_tags.len()]);
+
+        Ok(result)
     }
 
     #[allow(dead_code)]

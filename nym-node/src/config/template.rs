@@ -69,7 +69,7 @@ nyxd_urls = [
 
 [mixnet.replay_protection.storage_paths]
 # Path to the directory storing currently used bloomfilter(s).
-current_bloomfilters_directory = '{{ mixnet.replay_protection.current_bloomfilters_directory }}'
+current_bloomfilters_directory = '{{ mixnet.replay_protection.storage_paths.current_bloomfilters_directory }}'
 
 # Storage paths to persistent nym-node data, such as its long term keys.
 [storage_paths]

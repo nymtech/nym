@@ -101,14 +101,16 @@ impl ReplayProtectionBackgroundTask {
         let bloomfilter = if task_config.current_bloomfilter_path.exists() {
             ReplayProtectionBloomfilter::load(&task_config.current_bloomfilter_path).await?
         } else {
-            ReplayProtectionBloomfilter::new_empty(
+            let bf_items = items_in_bloomfilter(
+                task_config.filter_reset_rate,
                 config
                     .mixnet
                     .replay_protection
                     .debug
                     .initial_expected_packets_per_second,
-                task_config.false_positive_rate,
-            )?
+            );
+
+            ReplayProtectionBloomfilter::new_empty(bf_items, task_config.false_positive_rate)?
         };
 
         Ok(ReplayProtectionBackgroundTask {
@@ -128,6 +130,23 @@ impl ReplayProtectionBackgroundTask {
     }
 
     async fn flush_to_disk(&self) -> Result<(), NymNodeError> {
+        if let Some(temp_parent) = self.config.current_bloomfilter_temp_flush_path.parent() {
+            fs::create_dir_all(temp_parent).map_err(|source| {
+                NymNodeError::BloomfilterIoFailure {
+                    source,
+                    path: temp_parent.to_path_buf(),
+                }
+            })?
+        }
+        if let Some(current_parent) = self.config.current_bloomfilter_temp_flush_path.parent() {
+            fs::create_dir_all(current_parent).map_err(|source| {
+                NymNodeError::BloomfilterIoFailure {
+                    source,
+                    path: current_parent.to_path_buf(),
+                }
+            })?
+        }
+
         // because it takes a while to actually write the file to disk,
         // we first write bytes to temporary location,
         // and then we move it to the correct path

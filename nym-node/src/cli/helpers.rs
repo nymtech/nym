@@ -220,13 +220,20 @@ pub(crate) struct MixnetArgs {
         env = NYMNODE_UNSAFE_DISABLE_NOISE
     )]
     pub(crate) unsafe_disable_noise: bool,
+
+    /// Specifies whether this node should **NOT** be using replay protection
+    #[clap(
+        hide = true,
+        long,
+        env = NYMNODE_UNSAFE_DISABLE_REPLAY_PROTECTION
+    )]
+    pub(crate) unsafe_disable_replay_protection: bool,
 }
 
 impl MixnetArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
-    pub(crate) fn build_config_section(self) -> config::Mixnet {
-        todo!()
-        // self.override_config_section(config::Mixnet::default())
+    pub(crate) fn build_config_section<P: AsRef<Path>>(self, data_dir: P) -> config::Mixnet {
+        self.override_config_section(config::Mixnet::new_default(data_dir))
     }
 
     pub(crate) fn override_config_section(self, mut section: config::Mixnet) -> config::Mixnet {
@@ -244,6 +251,9 @@ impl MixnetArgs {
         }
         if self.unsafe_disable_noise {
             section.debug.unsafe_disable_noise = true
+        }
+        if self.unsafe_disable_replay_protection {
+            section.replay_protection.debug.unsafe_disabled = true
         }
         section
     }

@@ -9,10 +9,9 @@ pub(crate) mod bloomfilter;
 
 pub fn bitmap_size(false_positive_rate: f64, items_in_filter: usize) -> usize {
     /// Equivalent to ln(1 / 2^ln(2)) = −ln^2(2)
-    const NEG_LN_2_POW_2: f64 = -0.480453013918201424667102526326664972_f64;
+    const NEG_LN_2_POW_2: f64 = -0.48045301391820144f64;
 
     assert!(items_in_filter < f64::MAX.floor() as usize);
-    // TODO: should this be div by 8?
 
     ((items_in_filter as f64 * false_positive_rate.ln()) / NEG_LN_2_POW_2).ceil() as usize
 }

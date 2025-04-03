@@ -666,7 +666,7 @@ impl ReplayProtectionDebug {
 
     // we must have some reasonable balance between losing values and trashing the disk.
     // since on average HDD it would take ~30s to save a 2GB bloomfilter
-    pub const DEFAULT_BF_DISK_FLUSHING_RATE: Duration = Duration::from_secs(30 * 60);
+    pub const DEFAULT_BF_DISK_FLUSHING_RATE: Duration = Duration::from_secs(10 * 60);
 
     // this value will have to be adjusted in the future
     pub const DEFAULT_INITIAL_EXPECTED_PACKETS_PER_SECOND: usize = 2000;

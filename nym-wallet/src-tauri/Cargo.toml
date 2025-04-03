@@ -1,11 +1,11 @@
 [package]
-name = "nym-wallet"
+name = "nym_wallet"
 version = "1.2.16"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
-default-run = "nym-wallet"
+default-run = "nym_wallet"
 edition = "2021"
 build = "src/build.rs"
 rust-version = "1.76"

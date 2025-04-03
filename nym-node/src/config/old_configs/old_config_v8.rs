@@ -9,13 +9,10 @@ use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
 use crate::config::*;
-use crate::error::{EntryGatewayError, NymNodeError};
+use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
-use nym_client_core_config_types::{
-    disk_persistence::{ClientKeysPaths, CommonClientPaths},
-    DebugConfig as ClientDebugConfig,
-};
+use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::{mainnet, var_names};
 use nym_config::helpers::inaddr_any;
 use nym_config::{
@@ -25,15 +22,12 @@ use nym_config::{
 use nym_config::{parse_urls, read_config_from_toml_file};
 use persistence::*;
 use serde::{Deserialize, Serialize};
-use std::fs::create_dir_all;
+use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{env, fs, io};
-use tracing::info;
 use tracing::{debug, instrument};
 use url::Url;
-use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -118,54 +112,6 @@ pub struct NodeModesV8 {
     /// Specifies whether this node can operate in an exit mode.
     pub exit: bool,
     // TODO: would it make sense to also put WG here for completion?
-}
-
-impl From<&[NodeModeV8]> for NodeModesV8 {
-    fn from(modes: &[NodeModeV8]) -> Self {
-        let mut out = NodeModesV8::default();
-        for &mode in modes {
-            out.with_mode(mode);
-        }
-        out
-    }
-}
-
-impl NodeModesV8 {
-    pub fn any_enabled(&self) -> bool {
-        self.mixnode || self.entry || self.exit
-    }
-
-    pub fn standalone_exit(&self) -> bool {
-        !self.mixnode && !self.entry && self.exit
-    }
-
-    pub fn with_mode(&mut self, mode: NodeModeV8) -> &mut Self {
-        match mode {
-            NodeModeV8::Mixnode => self.with_mixnode(),
-            NodeModeV8::EntryGateway => self.with_entry(),
-            NodeModeV8::ExitGateway => self.with_entry().with_exit(),
-            NodeModeV8::ExitProvidersOnly => self.with_exit(),
-        }
-    }
-
-    pub fn expects_final_hop_traffic(&self) -> bool {
-        self.entry || self.exit
-    }
-
-    pub fn with_mixnode(&mut self) -> &mut Self {
-        self.mixnode = true;
-        self
-    }
-
-    pub fn with_entry(&mut self) -> &mut Self {
-        self.entry = true;
-        self
-    }
-
-    pub fn with_exit(&mut self) -> &mut Self {
-        self.exit = true;
-        self
-    }
 }
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
@@ -701,56 +647,6 @@ pub struct IpPacketRouterPathsV8 {
     // it's possible we might have to add credential storage here for return tickets
 }
 
-impl IpPacketRouterPathsV8 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        IpPacketRouterPathsV8 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_IPR_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_IPR_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_IPR_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_IPR_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_IPR_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_IPR_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthenticatorPathsV8 {
@@ -974,53 +870,6 @@ pub struct GatewayTasksPathsV8 {
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
-}
-
-impl GatewayTasksPathsV8 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksPathsV8 {
-            clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
-            stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
-            cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
-        }
-    }
-
-    pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
-        let stringified =
-            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
-                EntryGatewayError::MnemonicLoadFailure {
-                    path: self.cosmos_mnemonic.clone(),
-                    source,
-                }
-            })?);
-
-        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
-            stringified.as_ref(),
-        )?))
-    }
-
-    pub fn save_mnemonic_to_file(
-        &self,
-        mnemonic: &bip39::Mnemonic,
-    ) -> Result<(), EntryGatewayError> {
-        // wrapper for io errors
-        fn _save_to_file(path: &Path, mnemonic: &bip39::Mnemonic) -> io::Result<()> {
-            if let Some(parent) = path.parent() {
-                create_dir_all(parent)?;
-            }
-            info!("saving entry gateway mnemonic to '{}'", path.display());
-
-            let stringified = Zeroizing::new(mnemonic.to_string());
-            fs::write(path, &stringified)
-        }
-
-        _save_to_file(&self.cosmos_mnemonic, mnemonic).map_err(|source| {
-            EntryGatewayError::MnemonicSaveFailure {
-                path: self.cosmos_mnemonic.clone(),
-                source,
-            }
-        })
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

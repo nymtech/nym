@@ -6,7 +6,7 @@ use bloomfilter::Bloom;
 use human_repr::HumanDuration;
 use nym_sphinx_types::REPLAY_TAG_SIZE;
 use std::path::Path;
-use std::sync::{Arc, PoisonError, TryLockError, TryLockResult};
+use std::sync::{Arc, PoisonError, TryLockError};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::Instant;
@@ -30,7 +30,29 @@ impl ReplayProtectionBloomfilter {
         })
     }
 
+    pub(crate) fn reset(&self, items_count: usize, fp_p: f64) -> Result<(), NymNodeError> {
+        // 1. build the new filter
+        let new_inner = ReplayProtectionBloomfilterInner {
+            current_filter: Bloom::new_for_fp_rate(items_count, fp_p)
+                .map_err(NymNodeError::bloomfilter_failure)?,
+        };
+
+        // 2. swap it
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?;
+
+        *guard = new_inner;
+        Ok(())
+    }
+
+    // NOTE: with key rotations we'll have to check whether the file is still valid and which
+    // key it corresponds to, but that's a future problem
     pub(crate) async fn load<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
+        info!("attempting to load prior replay detection bloomfilter...");
         let path = path.as_ref();
         let mut file =
             File::open(path)
@@ -57,35 +79,38 @@ impl ReplayProtectionBloomfilter {
     }
 
     // average HDD has the write speed of ~80MB/s so a 2GB bloomfilter would take almost 30s to write...
+    // and this function is explicitly async and using tokio's async operations, because otherwise
+    // we'd have to go through the whole hassle of using spawn_blocking and awaiting that one instead
     pub(crate) async fn flush_to_disk<P: AsRef<Path>>(&self, path: P) -> Result<(), NymNodeError> {
         debug!("flushing replay protection bloomfilter to disk...");
         let start = Instant::now();
         let path = path.as_ref();
 
-        todo!()
-        // let mut file =
-        //     File::create(path)
-        //         .await
-        //         .map_err(|source| NymNodeError::BloomfilterIoFailure {
-        //             source,
-        //             path: path.to_path_buf(),
-        //         })?;
-        // let data = self.bytes();
-        // file.write_all(&data)
-        //     .await
-        //     .map_err(|source| NymNodeError::BloomfilterIoFailure {
-        //         source,
-        //         path: path.to_path_buf(),
-        //     })?;
-        //
-        // let elapsed = start.elapsed();
-        //
-        // info!(
-        //     "flushed replay protection bloomfilter to disk. it took: {}",
-        //     elapsed.human_duration()
-        // );
-        //
-        // Ok(())
+        let mut file =
+            File::create(path)
+                .await
+                .map_err(|source| NymNodeError::BloomfilterIoFailure {
+                    source,
+                    path: path.to_path_buf(),
+                })?;
+        let data = self.bytes().map_err(|_| NymNodeError::BloomfilterFailure {
+            message: "mutex got poisoned",
+        })?;
+        file.write_all(&data)
+            .await
+            .map_err(|source| NymNodeError::BloomfilterIoFailure {
+                source,
+                path: path.to_path_buf(),
+            })?;
+
+        let elapsed = start.elapsed();
+
+        info!(
+            "flushed replay protection bloomfilter to disk. it took: {}",
+            elapsed.human_duration()
+        );
+
+        Ok(())
     }
 }
 
@@ -96,6 +121,7 @@ struct ReplayProtectionBloomfilterInner {
 }
 
 impl ReplayProtectionBloomfilter {
+    #[allow(dead_code)]
     pub(crate) fn check_and_set(
         &self,
         replay_tag: &[u8; REPLAY_TAG_SIZE],
@@ -107,6 +133,7 @@ impl ReplayProtectionBloomfilter {
         Ok(guard.current_filter.check_and_set(replay_tag))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn try_check_and_set(
         &self,
         replay_tag: &[u8; REPLAY_TAG_SIZE],
@@ -160,6 +187,7 @@ impl ReplayProtectionBloomfilter {
         // Ok(result)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn clear(&self) -> Result<(), PoisonError<()>> {
         let mut guard = self.inner.lock().map_err(|_| PoisonError::new(()))?;
         guard.current_filter.clear();

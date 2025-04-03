@@ -11,7 +11,6 @@ use hkdf::Hkdf;
 use human_repr::{HumanCount, HumanDuration, HumanThroughput};
 use lioness::Lioness;
 use nym_crypto::asymmetric::x25519;
-use nym_pemstore::traits::PemStorableKeyPair;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;

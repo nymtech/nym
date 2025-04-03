@@ -28,7 +28,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::System;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 use url::Url;
 
 pub mod authenticator;
@@ -44,7 +44,7 @@ pub mod upgrade_helpers;
 pub use crate::config::gateway_tasks::GatewayTasksConfig;
 pub use crate::config::metrics::MetricsConfig;
 pub use crate::config::service_providers::ServiceProvidersConfig;
-use crate::node::replay_protection;
+use crate::node::replay_protection::{bitmap_size, items_in_bloomfilter};
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
@@ -629,11 +629,21 @@ pub struct ReplayProtectionDebug {
     /// As the node is running and BF are cleared, the value will be adjusted dynamically
     pub initial_expected_packets_per_second: usize,
 
+    /// Defines minimum expected number of packets this node will process a second
+    /// when used for calculating the BF size after reset.
+    /// This is to avoid degenerate cases where node receives 0 packets (because say it's misconfigured)
+    /// and it constructs an empty bloomfilter.
+    pub bloomfilter_minimum_packets_per_second_size: usize,
+
+    /// Specifies the amount the bloomfilter size is going to get multiplied by after each reset.
+    /// It's performed in case the traffic rates increase before the next bloomfilter update.
+    pub bloomfilter_size_multiplier: f64,
+
     // NOTE: this field is temporary until replay detection bloomfilter rotation is tied
     // to key rotation
     /// Specifies how often the bloomfilter is cleared
     #[serde(with = "humantime_serde")]
-    pub bloomfilter_clear_rate: Duration,
+    pub bloomfilter_reset_rate: Duration,
 
     /// Specifies how often the bloomfilter is flushed to disk for recovery in case of a crash
     #[serde(with = "humantime_serde")]
@@ -645,11 +655,14 @@ impl ReplayProtectionDebug {
 
     pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS: usize = 100;
 
+    // 12% (completely arbitrary)
+    pub const DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER: f64 = 1.12;
+
     // 10^-5
     pub const DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE: f64 = 1e-5;
 
     // 25h (key rotation will be happening every 24h + 1h of overlap)
-    pub const DEFAULT_REPLAY_DETECTION_BF_CLEAR_RATE: Duration = Duration::from_secs(25 * 60 * 60);
+    pub const DEFAULT_REPLAY_DETECTION_BF_RESET_RATE: Duration = Duration::from_secs(25 * 60 * 60);
 
     // we must have some reasonable balance between losing values and trashing the disk.
     // since on average HDD it would take ~30s to save a 2GB bloomfilter
@@ -658,6 +671,8 @@ impl ReplayProtectionDebug {
     // this value will have to be adjusted in the future
     pub const DEFAULT_INITIAL_EXPECTED_PACKETS_PER_SECOND: usize = 2000;
 
+    pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
+
     pub fn validate(&self) -> Result<(), NymNodeError> {
         if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
             return Err(NymNodeError::config_validation_failure(
@@ -665,27 +680,28 @@ impl ReplayProtectionDebug {
             ));
         }
 
-        let todo = "";
+        let items_in_filter = items_in_bloomfilter(
+            self.bloomfilter_reset_rate,
+            self.initial_expected_packets_per_second,
+        );
+        let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
+        let bloomfilter_size = bitmap_size / 8;
+
+        let mut sys_info = System::new();
+        sys_info.refresh_memory();
+
+        // we'll need 2x size of the bloomfilter
+        // as during key transition we'll have to simultaneously use two filters
+        // plus we also need to make a memcopy during disk flush
+        let required_memory = 2 * bloomfilter_size;
+
+        let memory = sys_info.available_memory();
+        if (memory as usize) < required_memory {
+            return Err(NymNodeError::config_validation_failure(
+                 format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
+        }
+
         Ok(())
-        // todo!()
-        // let replay_config = replay_protection::Config::from(*self);
-        // let bloomfilter_size = replay_config.byte_size();
-        //
-        // let mut sys_info = System::new();
-        // sys_info.refresh_memory();
-        //
-        // // we'll need 2x size of the bloomfilter
-        // // as during key transition we'll have to simultaneously use two filters
-        // // plus we also need to make a memcopy during disk flush
-        // let required_memory = 2 * bloomfilter_size;
-        //
-        // let memory = sys_info.available_memory();
-        // if (memory as usize) < required_memory {
-        //     return Err(NymNodeError::config_validation_failure(
-        //          format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
-        // }
-        //
-        // Ok(())
     }
 }
 
@@ -698,7 +714,10 @@ impl Default for ReplayProtectionDebug {
                 Self::DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS,
             false_positive_rate: Self::DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE,
             initial_expected_packets_per_second: Self::DEFAULT_INITIAL_EXPECTED_PACKETS_PER_SECOND,
-            bloomfilter_clear_rate: Self::DEFAULT_REPLAY_DETECTION_BF_CLEAR_RATE,
+            bloomfilter_minimum_packets_per_second_size:
+                Self::DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE,
+            bloomfilter_size_multiplier: Self::DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER,
+            bloomfilter_reset_rate: Self::DEFAULT_REPLAY_DETECTION_BF_RESET_RATE,
             bloomfilter_disk_flushing_rate: Self::DEFAULT_BF_DISK_FLUSHING_RATE,
         }
     }

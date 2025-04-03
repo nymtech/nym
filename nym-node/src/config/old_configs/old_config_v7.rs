@@ -1,8 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
-use crate::config::gateway_tasks::ZkNymTicketHandlerDebug;
 use crate::config::old_configs::old_config_v8::{
     AuthenticatorDebugV8, AuthenticatorPathsV8, AuthenticatorV8, ConfigV8,
     GatewayTasksConfigDebugV8, GatewayTasksConfigV8, GatewayTasksPathsV8, HostV8, HttpV8,
@@ -13,14 +11,10 @@ use crate::config::old_configs::old_config_v8::{
     ZkNymTicketHandlerDebugV8,
 };
 use crate::config::*;
-use crate::error::{EntryGatewayError, NymNodeError};
+use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
-use gateway_tasks::DEFAULT_WS_PORT;
-use nym_client_core_config_types::{
-    disk_persistence::{ClientKeysPaths, CommonClientPaths},
-    DebugConfig as ClientDebugConfig,
-};
+use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::{mainnet, var_names};
 use nym_config::helpers::inaddr_any;
 use nym_config::{
@@ -28,17 +22,13 @@ use nym_config::{
     serde_helpers::{de_maybe_port, de_maybe_stringified},
 };
 use nym_config::{parse_urls, read_config_from_toml_file};
-use persistence::*;
 use serde::{Deserialize, Serialize};
-use std::fs::create_dir_all;
+use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{env, fs, io};
-use tracing::info;
 use tracing::{debug, instrument};
 use url::Url;
-use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -136,14 +126,6 @@ impl From<&[NodeModeV7]> for NodeModesV7 {
 }
 
 impl NodeModesV7 {
-    pub fn any_enabled(&self) -> bool {
-        self.mixnode || self.entry || self.exit
-    }
-
-    pub fn standalone_exit(&self) -> bool {
-        !self.mixnode && !self.entry && self.exit
-    }
-
     pub fn with_mode(&mut self, mode: NodeModeV7) -> &mut Self {
         match mode {
             NodeModeV7::Mixnode => self.with_mixnode(),
@@ -151,10 +133,6 @@ impl NodeModesV7 {
             NodeModeV7::ExitGateway => self.with_entry().with_exit(),
             NodeModeV7::ExitProvidersOnly => self.with_exit(),
         }
-    }
-
-    pub fn expects_final_hop_traffic(&self) -> bool {
-        self.entry || self.exit
     }
 
     pub fn with_mixnode(&mut self) -> &mut Self {
@@ -322,45 +300,6 @@ pub struct KeysPathsV7 {
 
     /// Path to file containing x25519 noise public key.
     pub public_x25519_noise_key_file: PathBuf,
-}
-
-impl KeysPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-
-        KeysPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME),
-            public_x25519_sphinx_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME),
-            private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
-            public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_sphinx_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_sphinx_key_file,
-            &self.public_x25519_sphinx_key_file,
-        )
-    }
-
-    pub fn x25519_noise_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_noise_key_file,
-            &self.public_x25519_noise_key_file,
-        )
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -705,56 +644,6 @@ pub struct NetworkRequesterPathsV7 {
     // it's possible we might have to add credential storage here for return tickets
 }
 
-impl NetworkRequesterPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        NetworkRequesterPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_NR_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_NR_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_NR_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_NR_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_NR_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_NR_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_NR_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IpPacketRouterPathsV7 {
@@ -785,56 +674,6 @@ pub struct IpPacketRouterPathsV7 {
     // it's possible we might have to add credential storage here for return tickets
 }
 
-impl IpPacketRouterPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        IpPacketRouterPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_IPR_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_IPR_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_IPR_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_IPR_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_IPR_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_IPR_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthenticatorPathsV7 {
@@ -863,56 +702,6 @@ pub struct AuthenticatorPathsV7 {
     /// Due to how clients are started up, this file has to exist.
     pub gateway_registrations: PathBuf,
     // it's possible we might have to add credential storage here for return tickets
-}
-
-impl AuthenticatorPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        AuthenticatorPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_AUTH_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_AUTH_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_AUTH_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_AUTH_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_AUTH_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_AUTH_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_AUTH_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1110,53 +899,6 @@ pub struct GatewayTasksPathsV7 {
     pub cosmos_mnemonic: PathBuf,
 }
 
-impl GatewayTasksPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksPathsV7 {
-            clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
-            stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
-            cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
-        }
-    }
-
-    pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
-        let stringified =
-            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
-                EntryGatewayError::MnemonicLoadFailure {
-                    path: self.cosmos_mnemonic.clone(),
-                    source,
-                }
-            })?);
-
-        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
-            stringified.as_ref(),
-        )?))
-    }
-
-    pub fn save_mnemonic_to_file(
-        &self,
-        mnemonic: &bip39::Mnemonic,
-    ) -> Result<(), EntryGatewayError> {
-        // wrapper for io errors
-        fn _save_to_file(path: &Path, mnemonic: &bip39::Mnemonic) -> io::Result<()> {
-            if let Some(parent) = path.parent() {
-                create_dir_all(parent)?;
-            }
-            info!("saving entry gateway mnemonic to '{}'", path.display());
-
-            let stringified = Zeroizing::new(mnemonic.to_string());
-            fs::write(path, &stringified)
-        }
-
-        _save_to_file(&self.cosmos_mnemonic, mnemonic).map_err(|source| {
-            EntryGatewayError::MnemonicSaveFailure {
-                path: self.cosmos_mnemonic.clone(),
-                source,
-            }
-        })
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct StaleMessageDebugV7 {
     /// Specifies how often the clean-up task should check for stale data.
@@ -1262,19 +1004,6 @@ pub struct GatewayTasksConfigV7 {
     pub debug: GatewayTasksConfigDebugV7,
 }
 
-impl GatewayTasksConfigV7 {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksConfigV7 {
-            storage_paths: GatewayTasksPathsV7::new(data_dir),
-            enforce_zk_nyms: false,
-            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
-            announce_ws_port: None,
-            announce_wss_port: None,
-            debug: Default::default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServiceProvidersPathsV7 {
@@ -1290,19 +1019,6 @@ pub struct ServiceProvidersPathsV7 {
     pub ip_packet_router: IpPacketRouterPathsV7,
 
     pub authenticator: AuthenticatorPathsV7,
-}
-
-impl ServiceProvidersPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        ServiceProvidersPathsV7 {
-            clients_storage: data_dir.join(DEFAULT_CLIENTS_STORAGE_FILENAME),
-            stats_storage: data_dir.join(DEFAULT_STATS_STORAGE_FILENAME),
-            network_requester: NetworkRequesterPathsV7::new(data_dir),
-            ip_packet_router: IpPacketRouterPathsV7::new(data_dir),
-            authenticator: AuthenticatorPathsV7::new(data_dir),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1344,25 +1060,6 @@ pub struct ServiceProvidersConfigV7 {
 
     #[serde(default)]
     pub debug: ServiceProvidersConfigDebugV7,
-}
-
-impl ServiceProvidersConfigV7 {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        #[allow(clippy::expect_used)]
-        // SAFETY:
-        // we expect our default values to be well-formed
-        ServiceProvidersConfigV7 {
-            storage_paths: ServiceProvidersPathsV7::new(data_dir),
-            open_proxy: false,
-            upstream_exit_policy_url: mainnet::EXIT_POLICY_URL
-                .parse()
-                .expect("invalid default exit policy URL"),
-            network_requester: Default::default(),
-            ip_packet_router: Default::default(),
-            authenticator: Default::default(),
-            debug: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]

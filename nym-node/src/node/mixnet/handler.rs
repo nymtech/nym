@@ -8,9 +8,9 @@ use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_framing::processing::{
     process_framed_packet, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
-    PartialMixProcessingResult, PartiallyUnwrappedPacket, ProcessedFinalHop,
+    PartiallyUnwrappedPacket, ProcessedFinalHop,
 };
-use nym_sphinx_types::{Delay, NymPacket, REPLAY_TAG_SIZE};
+use nym_sphinx_types::{Delay, REPLAY_TAG_SIZE};
 use std::mem;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;

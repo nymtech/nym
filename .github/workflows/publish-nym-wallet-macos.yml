@@ -64,6 +64,9 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
+      - name: Add Rust target for x86_64-apple-darwin
+        run: rustup target add x86_64-apple-darwin
+
       - name: Set Cargo build target to x86_64
         run: echo "CARGO_BUILD_TARGET=x86_64-apple-darwin" >> $GITHUB_ENV
         

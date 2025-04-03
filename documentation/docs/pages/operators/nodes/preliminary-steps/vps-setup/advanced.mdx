@@ -23,13 +23,13 @@ This guide explains how to prepare your server in order to be able to host multi
 This guide is based on Ubuntu 22.04, in case you prefer another OS, you may have to do a bit of your own research to troubleshoot networking configuration and other parameters.
 </Callout>
 
-### Installing KVM on a Server with Ubuntu 22.04
+## Installing KVM on a Server with Ubuntu 22.04
 
 **KVM** stands for **Kernel-based Virtual Machine**. It is a virtualization technology for Linux that allows a user to run multiple virtual machines (VMs) on a single physical machine. KVM turns the Linux kernel into a hypervisor, enabling it to manage multiple virtualised systems.
 
 Follow the steps below to install KVM on Ubuntu 22.04 LTS.
 
-#### Prerequisites
+### Prerequisites
 
 <Callout type="warning">
 Operators aiming to run Nym node as mixnet [Exit Gateway](../../../community-counsel/exit-gateway) or with wireguard enabled should familiarize themselves with the challenges possibly coming along `nym-node` operation, described in our [community counsel](../../../community-counsel) and follow up with [legal suggestions](../../../community-counsel/legal). Particularly important is to [introduce yourself](../../../community-counsel/legal#introduce-nym-node-to-your-provider) and your intentions to run a Nym node to your provider.
@@ -510,11 +510,46 @@ Your KVM installation is now ready to deploy and manage VMs.
 
 </Steps>
 
-### Setting Up Virtual Machines
+## Setting Up Virtual Machines
 
-After finishing the [installation of KVM](#installing-kvm-on-a-server-with-ubuntu-2204), we can move to the virtualisation configuration.
+**After finishing the [installation of KVM](#installing-kvm-on-a-server-with-ubuntu-2204), we can move to the virtualisation configuration.**
 
-> **The steps below will guide you through a setup of one VM, therefore you will have to repeat this process for each VM**. That also means that you have to be mindful of space and memory allocation.
+> **This tutorial will guide you through a setup of one VM, therefore you will have to repeat this process for each VM**. That also means that you have to be mindful of space and memory allocation.
+
+
+You can choose in between using [bash scripts](#seting-up-vm-using-scripts) or [manual steps](#setting-up-vm-step-by-step) approach. While scripts may be faster, they give you much less flexibility. Therefore if you prefer to have room for customisation coming along installing software, do it step by step.
+
+Remember, that anytime you execute a script on your computer, make sure to read and understand the script first.
+
+### Seting up VM Using Scripts
+
+In case you want to initialise and configure your VMs manually - skip this chapter and go directly to the [*step-by-step* part](#setting-up-vm-step-by-step).
+
+Using the scripts is a two-step process. First, initialisation part is done from the host root using [`initialise-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/initialise-vm.sh) and second, configuration part is done from the VM itself using [`configure-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/configure-vm.sh).
+
+<Steps>
+##### 1. Initialise VM from the host machine
+- Log in to your host as `root`
+- Run this block and follow the prompts carefully:
+```bash
+wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/initialise-vm.sh"
+chmod +x ./initialise-vm.sh
+./initialise-vm.sh
+```
+
+##### 2. Configure VM from within
+- After logging into your VM run this block and follow the prompts carefully:
+```bash
+wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh"
+chmod +x ./configure-vm.sh
+./configure-vm.sh
+```
+</ Steps>
+
+
+### Setting up VM Step-by-step
+
+In case you did't use the scripts and prefer manual approach, follow the steps below carefully.
 
 <Steps>
 ##### 1. Install OS for VMs

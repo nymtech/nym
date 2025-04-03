@@ -88,10 +88,6 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: yarn && yarn build
 
-      - name: Rename binary to match expected Tauri binaryName
-        run: |
-          mv target/release/nym_wallet target/release/nym-wallet || true
-    
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

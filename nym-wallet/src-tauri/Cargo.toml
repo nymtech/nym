@@ -74,3 +74,7 @@ ts-rs = "10.0.0"
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 generate-ts = []
+
+[[bin]]
+name = "nym-wallet"
+path = "src/main.rs"

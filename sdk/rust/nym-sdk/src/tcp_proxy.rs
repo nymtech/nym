@@ -1,5 +1,8 @@
-//! The TcpProxy Module of the Nym SDK which exposes a socket interface for the Mixnet.
+//! The TcpProxy Module of the Nym SDK which exposes a socket interface for the Mixnet
 //!
+//! # Basic Example
+//!
+//! ```no_run
 //! use crate::client_pool::ClientPool;
 //! use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 //! use crate::tcp_proxy::utils::{MessageBuffer, Payload, ProxiedMessage};
@@ -267,6 +270,7 @@
 //!         Ok(())
 //!     }
 //! }
+//! ```
 
 mod tcp_proxy_client;
 mod tcp_proxy_server;

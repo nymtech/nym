@@ -85,7 +85,7 @@ jobs:
       - name: Build for Intel (x86_64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn tauri build --target x86_64-apple-darwin
+        run: yarn && yarn tauri build --target x86_64-apple-darwin
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

@@ -909,6 +909,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloomfilter"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f6d7f06817e48ea4e17532fa61bc4e8b9a101437f0623f69d2ea54284f3a817"
+dependencies = [
+ "getrandom 0.2.15",
+ "siphasher 1.0.1",
+]
+
+[[package]]
 name = "bls12_381"
 version = "0.8.0"
 source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
@@ -1564,6 +1574,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "futures",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -1576,6 +1587,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tinytemplate",
+ "tokio",
  "walkdir",
 ]
 
@@ -6115,12 +6127,14 @@ dependencies = [
  "axum 0.7.9",
  "bip39",
  "blake2 0.8.1",
+ "bloomfilter",
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",
  "chacha",
  "clap",
  "colored",
+ "criterion",
  "csv",
  "cupid",
  "futures",

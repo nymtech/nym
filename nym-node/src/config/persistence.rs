@@ -55,6 +55,10 @@ pub const DEFAULT_AUTH_GATEWAYS_DB_FILENAME: &str = "auth_gateways_info_store.sq
 pub const DEFAULT_X25519_WG_DH_KEY_FILENAME: &str = "x25519_wg_dh";
 pub const DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME: &str = "x25519_wg_dh.pub";
 
+// Replay Detection
+pub const DEFAULT_RD_BLOOMFILTER_SUBDIR: &str = "replay-detection";
+pub const DEFAULT_RD_BLOOMFILTER_FILE_EXT: &str = ".bloom";
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NymNodePaths {
@@ -488,5 +492,20 @@ impl WireguardPaths {
             &self.private_diffie_hellman_key_file,
             &self.public_diffie_hellman_key_file,
         )
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReplayProtectionPaths {
+    /// Path to the directory storing currently used bloomfilter(s).
+    pub current_bloomfilters_directory: PathBuf,
+}
+
+impl ReplayProtectionPaths {
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
+        ReplayProtectionPaths {
+            current_bloomfilters_directory: data_dir.as_ref().join(DEFAULT_RD_BLOOMFILTER_SUBDIR),
+        }
     }
 }

@@ -21,7 +21,7 @@ pub use nym_outfox::{
 pub use sphinx_packet::{
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
-        PAYLOAD_KEY_SIZE,
+        PAYLOAD_KEY_SIZE, REPLAY_TAG_SIZE,
     },
     crypto::{self, PrivateKey, PublicKey},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},

@@ -11,6 +11,7 @@ use hkdf::Hkdf;
 use human_repr::{HumanCount, HumanDuration, HumanThroughput};
 use lioness::Lioness;
 use nym_crypto::asymmetric::x25519;
+use nym_pemstore::traits::PemStorableKeyPair;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
@@ -99,8 +100,8 @@ pub(crate) struct ThroughputTestingClient {
     payload_key: PayloadKey,
 }
 
-fn rederive_lioness_payload_key(alpha: &[u8; 32]) -> PayloadKey {
-    let hkdf = Hkdf::<Sha256>::new(None, alpha);
+fn rederive_lioness_payload_key(shared_secret: &[u8; 32]) -> PayloadKey {
+    let hkdf = Hkdf::<Sha256>::new(None, shared_secret);
 
     // expanded shared secret
     let mut output = [0u8; EXPANDED_SHARED_SECRET_LENGTH];
@@ -165,7 +166,11 @@ impl ThroughputTestingClient {
 
         // derive the expanded shared secret for our node so we could tag the payload to figure out latency
         // by tagging the packet
-        let payload_key = rederive_lioness_payload_key(&header.shared_secret.as_bytes());
+        let shared_secret = node_keys
+            .private_key()
+            .as_ref()
+            .diffie_hellman(&header.shared_secret);
+        let payload_key = rederive_lioness_payload_key(shared_secret.as_bytes());
 
         let unwrapped_payload = sphinx_packet.payload.unwrap(&payload_key)?;
         let unwrapped_forward_payload_bytes = unwrapped_payload.into_bytes();

@@ -51,8 +51,6 @@ impl MixingStats {
             .replayed_packets_received
             .fetch_add(1, Ordering::Relaxed);
         self.ingress.senders.entry(source).or_default().replayed += 1;
-
-        todo!()
     }
 
     pub fn ingress_malformed_packet(&self, source: IpAddr) {

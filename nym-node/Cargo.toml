@@ -19,6 +19,7 @@ anyhow.workspace = true
 arc-swap = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
+bloomfilter = { workspace = true }
 celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
 csv = { workspace = true }
@@ -102,11 +103,17 @@ blake2 = "=0.8.1"
 sha2 = { workspace = true }
 hkdf = { workspace = true }
 
+[[bench]]
+name = "benchmarks"
+harness = false
 
 
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
 cargo_metadata = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
 
 
 [lints]

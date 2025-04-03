@@ -225,7 +225,8 @@ pub(crate) struct MixnetArgs {
 impl MixnetArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
     pub(crate) fn build_config_section(self) -> config::Mixnet {
-        self.override_config_section(config::Mixnet::default())
+        todo!()
+        // self.override_config_section(config::Mixnet::default())
     }
 
     pub(crate) fn override_config_section(self, mut section: config::Mixnet) -> config::Mixnet {

@@ -7,7 +7,7 @@ use crate::db::models::{
     NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
-use crate::monitor::geodata::{Location, NodeGeoData};
+use crate::monitor::geodata::{ExplorerPrettyBond, Location};
 use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
@@ -31,8 +31,8 @@ pub(crate) use geodata::IpInfoClient;
 mod geodata;
 
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
-
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
+pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
 struct Monitor {
     db_pool: DbPool,
@@ -40,7 +40,7 @@ struct Monitor {
     nym_api_client_timeout: Duration,
     nyxd_addr: Url,
     ipinfo: IpInfoClient,
-    geocache: Cache<NodeId, Location>,
+    geocache: NodeGeoCache,
 }
 
 // TODO dz: query many NYM APIs:
@@ -52,9 +52,8 @@ pub(crate) async fn spawn_in_background(
     nyxd_addr: Url,
     refresh_interval: Duration,
     ipinfo_api_token: String,
-    geodata_ttl: Duration,
+    geocache: NodeGeoCache,
 ) {
-    let geocache = Cache::builder().time_to_live(geodata_ttl).build();
     let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
     let mut monitor = Monitor {
         db_pool,
@@ -155,7 +154,7 @@ impl Monitor {
         for gateway in gateways.iter() {
             if let Some(node_details) = bonded_nym_nodes.get(&gateway.node_id) {
                 let bond_info = &node_details.bond_information;
-                let gw_geodata = NodeGeoData {
+                let gw_geodata = ExplorerPrettyBond {
                     identity_key: bond_info.node.identity_key.to_owned(),
                     owner: bond_info.owner.to_owned(),
                     pledge_amount: bond_info.original_pledge.to_owned(),
@@ -181,7 +180,6 @@ impl Monitor {
             .map(|elem| elem.identity_key().to_owned())
             .collect::<HashSet<_>>();
 
-        // TODO this assumes polyfilling of legacy mixnodes on Nym API
         let mixnodes_legacy = nym_nodes
             .iter()
             .filter(|node| {
@@ -360,7 +358,7 @@ impl Monitor {
     fn prepare_gateway_data(
         &self,
         described_gateways: &[&NymNodeDescription],
-        gateway_geodata: Vec<NodeGeoData>,
+        gateway_geodata: Vec<ExplorerPrettyBond>,
         skimmed_gateways: &[SkimmedNode],
         bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {

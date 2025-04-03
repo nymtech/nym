@@ -60,8 +60,23 @@ pub(crate) struct ExtendedNymNode {
     pub(crate) node_type: String,
     pub(crate) ip_address: String,
     pub(crate) accepted_tnc: bool,
-    pub(crate) description: serde_json::Value,
+    pub(crate) self_description: serde_json::Value,
     pub(crate) rewarding_details: serde_json::Value,
+    pub(crate) description: NodeDescription,
+    pub(crate) geoip: Option<NodeGeoData>,
+}
+
+#[derive(Clone, Debug, utoipa::ToSchema, Deserialize, Serialize)]
+pub(crate) struct NodeGeoData {
+    pub(crate) city: String,
+    pub(crate) country: String,
+    pub(crate) ip_address: String,
+    pub(crate) latitude: String,
+    pub(crate) longitude: String,
+    pub(crate) org: String,
+    pub(crate) postal: String,
+    pub(crate) region: String,
+    pub(crate) timezone: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

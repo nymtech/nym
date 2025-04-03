@@ -101,7 +101,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nym-wallet.app.tar.gz
-          path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz
+          path: nym-wallet/target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app.tar.gz
           retention-days: 5
 
       - name: Clean up keychain
@@ -114,8 +114,8 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-wallet/target/release/bundle/dmg/*.dmg
-            nym-wallet/target/release/bundle/macos/*.app.tar.gz*
+            nym-wallet/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            nym-wallet/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz*
 
       - name: Deploy artifacts to CI www
         continue-on-error: true
@@ -123,7 +123,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz"
+          SOURCE: "nym-wallet/target/x86_64-apple-darwin/release/macos/nym-wallet.app.tar.gz"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet

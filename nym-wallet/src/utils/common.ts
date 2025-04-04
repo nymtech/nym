@@ -14,7 +14,8 @@ import {
   userBalance,
 } from '../requests';
 import { Console } from './console';
-const appWindow = getCurrentWebviewWindow()
+
+const appWindow = getCurrentWebviewWindow();
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key

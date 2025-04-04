@@ -6,6 +6,7 @@
 use nym_mixnet_contract_common::{Gateway, MixNode};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
+use tauri_plugin_shell::init as init_shell;
 
 use crate::menu::SHOW_LOG_WINDOW;
 use crate::operations::app;
@@ -34,8 +35,10 @@ fn main() {
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
+        .plugin(init_shell())
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
+            app::link::open_url,
             app::version::check_version,
             mixnet::account::add_account_for_password,
             mixnet::account::archive_wallet_file,

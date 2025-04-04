@@ -1,7 +1,7 @@
 import React from 'react';
 import { Chip, TableCell, TableRow, Tooltip } from '@mui/material';
 import { WrappedDelegationEvent } from '@nymproject/types';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 
 export const PendingDelegationItem = ({ item, explorerUrl }: { item: WrappedDelegationEvent; explorerUrl: string }) => (
   <TableRow key={item.node_identity}>

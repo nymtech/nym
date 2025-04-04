@@ -2,7 +2,7 @@ import React, { FC, useContext, useEffect, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { Theme, useTheme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { TPoolOption } from 'src/components';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Stack, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { ConfirmationModal } from 'src/components';
 
 export type TTransactionDetails = { amount: string; url: string };

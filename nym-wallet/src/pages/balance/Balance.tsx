@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Grid, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
 import { Network } from 'src/types';
 import { Balance } from '@nymproject/types';
@@ -49,7 +49,7 @@ export const BalanceCard = ({
       {network && (
         <Grid item>
           <Link
-            href={`${urls(network).mixnetExplorer}/account/${clientAddress}`}
+            href={`${urls(network).mixnetExplorer}account/${clientAddress}`}
             target="_blank"
             text="Last transactions"
             fontSize={14}

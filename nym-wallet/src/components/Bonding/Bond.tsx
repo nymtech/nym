@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { Box, Button, Typography } from '@mui/material';
 import { NymCard } from '../NymCard';
 

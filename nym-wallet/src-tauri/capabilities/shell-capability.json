@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "shell-capability",
+  "description": "Shell operations capability for Nym Wallet",
+  "windows": ["main", "nymWalletApp"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": [
+    "shell:default",
+    "shell:allow-open"
+  ]
+}

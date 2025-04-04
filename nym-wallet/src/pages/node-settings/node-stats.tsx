@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Stack, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
+
 import { urls, AppContext } from '../../context/main';
 
 export const NodeStats = ({ mixnodeId }: { mixnodeId?: string }) => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
 import { LockOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { isDelegation, useDelegationContext } from 'src/context/delegations';

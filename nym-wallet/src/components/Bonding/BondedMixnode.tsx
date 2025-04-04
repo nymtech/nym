@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { Network } from 'src/types';
 import { urls } from 'src/context';
 import { NymCard } from 'src/components';

@@ -6677,6 +6677,13 @@
   dependencies:
     "@tauri-apps/api" "^2.0.0"
 
+"@tauri-apps/plugin-shell@^2.2.1":
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-shell/-/plugin-shell-2.2.1.tgz#586ab725ef622ba65a946bff1a3e166cee181903"
+  integrity sha512-G1GFYyWe/KlCsymuLiNImUgC8zGY0tI0Y3p8JgBCWduR5IEXlIJS+JuG1qtveitwYXlfJrsExt3enhv5l2/yhA==
+  dependencies:
+    "@tauri-apps/api" "^2.0.0"
+
 "@tauri-apps/plugin-updater@^2.0.0":
   version "2.7.0"
   resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-updater/-/plugin-updater-2.7.0.tgz#a4390bdfd858106bdc6cc3d05d52efc9e0528ea3"

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, SxProps, Stack } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';
 import { ErrorModal } from '../Modals/ErrorModal';

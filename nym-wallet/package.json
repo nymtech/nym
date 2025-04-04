@@ -6,6 +6,7 @@
   "scripts": {
     "build": "run-s webpack:prod tauri:build",
     "dev": "run-p tauri:dev webpack:dev",
+    "build-macx86": "run-s webpack:prod tauri:buildx86",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "prebuild": "yarn --cwd .. build",
@@ -14,6 +15,7 @@
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook",
     "tauri:build": "yarn tauri build",
+    "tauri:buildx86": "yarn tauri build --target x86_64-apple-darwin",
     "tauri:dev": "yarn tauri dev",
     "tsc": "tsc --noEmit true",
     "tsc:watch": "tsc --noEmit true --watch",

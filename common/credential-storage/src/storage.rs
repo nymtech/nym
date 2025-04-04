@@ -37,6 +37,11 @@ pub trait Storage: Clone + Send + Sync {
         ticketbook: &IssuedTicketBook,
     ) -> Result<(), Self::StorageError>;
 
+    async fn contains_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+    ) -> Result<bool, Self::StorageError>;
+
     async fn get_ticketbooks_info(
         &self,
     ) -> Result<Vec<BasicTicketbookInformation>, Self::StorageError>;

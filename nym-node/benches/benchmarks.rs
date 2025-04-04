@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// unwraps in tests/benches are fine...
+#![allow(clippy::unwrap_used)]
+
 use bloomfilter::Bloom;
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use nym_sphinx_types::REPLAY_TAG_SIZE;

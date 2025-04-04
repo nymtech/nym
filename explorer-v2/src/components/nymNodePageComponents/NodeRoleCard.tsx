@@ -5,16 +5,16 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchEpochRewards,
   fetchGatewayStatus,
-  fetchNodeInfo,
+  fetchObservatoryNodes,
 } from "../../app/api";
-import type { LastProbeResult, NodeDescription } from "../../app/api/types";
+import type { IObservatoryNode, LastProbeResult, NodeDescription } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
 
-interface INodeRoleCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
 type NodeDescriptionNotNull = NonNullable<NodeDescription>;
 type DeclaredRoleKey = keyof NodeDescriptionNotNull["declared_role"];
@@ -143,15 +143,21 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
   }
 }
 
-export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
+export const NodeRoleCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined
+
   // Fetch node info
   const {
-    data: nodeInfo,
+    data: nymNodes,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
   const {
     data: epochRewardsData,
@@ -160,9 +166,20 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+
   });
 
-  // Extract node roles once `nodeInfo` is available
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+
+  } else {
+    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+  }  // Extract node roles once `nodeInfo` is available
   const nodeRoles = nodeInfo
     ? getNodeRoles(nodeInfo.description.declared_role)
     : [];
@@ -172,11 +189,15 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
   );
 
+
   // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
     queryKey: ["gatewayStatus", nodeInfo?.identity_key],
     queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
     enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading || isEpochLoading) {
@@ -189,7 +210,7 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     );
   }
 
-  if (isError || !nodeInfo || !epochRewardsData || isEpochError) {
+  if (isError || !nymNodes || !epochRewardsData || isEpochError) {
     return (
       <ExplorerCard label="Node role & performance">
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -199,11 +220,15 @@ export const NodeRoleCard = ({ id }: INodeRoleCardProps) => {
     );
   }
 
+
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />
     </Stack>
   ));
+
+  if (!nodeInfo) return null;
+
 
   const qualityOfServiceStars = nodeInfo?.uptime
     ? calculateQualityOfServiceStars(nodeInfo.uptime)

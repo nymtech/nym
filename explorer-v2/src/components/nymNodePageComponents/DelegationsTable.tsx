@@ -9,6 +9,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import type { NodeRewardDetails } from "../../app/api/types";
+import { useQuery } from "@tanstack/react-query";
+import { fetchNodeDelegations } from "@/app/api";
 
 const ColumnHeading = ({
   children,
@@ -27,12 +29,27 @@ const getNymsFormated = (unyms: string) => {
   return balance.toFixed();
 };
 
-const DelegationsTable = ({
-  delegations,
-}: {
-  delegations: NodeRewardDetails[];
-}) => {
+type Props = {
+  id: number;
+};
+
+const DelegationsTable = ({ id }: Props) => {
   const router = useRouter();
+
+  const {
+    data: delegations = [],
+    isError,
+  } = useQuery({
+    queryKey: ["nodeDelegations", id],
+    queryFn: () => fetchNodeDelegations(id),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+
+
+
 
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [
@@ -138,6 +155,9 @@ const DelegationsTable = ({
       },
     }),
   });
+
+  if (isError) return null;
+
   return <MaterialReactTable table={table} />;
 };
 

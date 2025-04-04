@@ -1,10 +1,12 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useChain } from "@cosmos-kit/react";
+import { GasPrice } from "@cosmjs/stargate";
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
 import { fetchTotalStakerRewards } from "../../app/api";
 import type { NodeRewardDetails } from "../../app/api/types";
 import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
@@ -13,7 +15,6 @@ import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
 
-const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
 
 // Fetch delegations
 const fetchDelegations = async (
@@ -34,7 +35,7 @@ const SubHeaderRowActions = () => {
   });
 
   const { address, nymClient } = useNymClient();
-  const { getSigningCosmWasmClient } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { getSigningCosmWasmClient, getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
 
   const queryClient = useQueryClient();
 
@@ -59,6 +60,9 @@ const SubHeaderRowActions = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address is available
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const handleRefetch = useCallback(async () => {
@@ -75,6 +79,15 @@ const SubHeaderRowActions = () => {
         throw new Error("Wallet, client, or delegations not available.");
       }
 
+      const signer = await getOfflineSigner();
+      const gasPrice = GasPrice.fromString("0.025unym");
+
+      const client = await SigningCosmWasmClient.connectWithSigner(
+        "https://rpc.nymtech.net/", 
+        signer,
+        { gasPrice }
+      );
+
       const messages = delegations.map((delegation: NodeRewardDetails) => ({
         contractAddress: NYM_MIXNET_CONTRACT,
         funds: [],
@@ -85,12 +98,10 @@ const SubHeaderRowActions = () => {
         },
       }));
 
-      const cosmWasmSigningClient = await getSigningCosmWasmClient();
-
-      const result = await cosmWasmSigningClient.executeMultiple(
+      const result = await client.executeMultiple(
         address,
         messages,
-        fee,
+        "auto",
         "Redeeming all rewards",
       );
       // Success state
@@ -124,6 +135,7 @@ const SubHeaderRowActions = () => {
     delegations,
     getSigningCosmWasmClient,
     handleRefetch,
+    getOfflineSigner
   ]);
 
   const handleRedeemRewardsButtonClick = () => {

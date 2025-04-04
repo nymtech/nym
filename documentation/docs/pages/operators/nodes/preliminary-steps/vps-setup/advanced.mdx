@@ -514,16 +514,21 @@ Your KVM installation is now ready to deploy and manage VMs.
 
 **After finishing the [installation of KVM](#installing-kvm-on-a-server-with-ubuntu-2204), we can move to the virtualisation configuration.**
 
-> **This tutorial will guide you through a setup of one VM, therefore you will have to repeat this process for each VM**. That also means that you have to be mindful of space and memory allocation.
+> **This tutorial will guide you through a setup of one VM, therefore you will have to repeat this process for each VM**.
 
+<Callout>
+A good practice before initialising any VMs, is to calculate space and memory allocation for each of them and your host machine.
+</Callout>
 
-You can choose in between using [bash scripts](#seting-up-vm-using-scripts) or [manual steps](#setting-up-vm-step-by-step) approach. While scripts may be faster, they give you much less flexibility. Therefore if you prefer to have room for customisation coming along installing software, do it step by step.
+You can choose in between using [bash scripts](#setting-up-vm-using-scripts) or [manual steps](#setting-up-vm-step-by-step) approach. While scripts may be faster, they give you much less flexibility. Therefore if you prefer to have room for customisation coming along installing software, do it step by step.
 
 Remember, that anytime you execute a script on your computer, make sure to read and understand the script first.
 
 ### Seting up VM Using Scripts
 
+<Callout type="info" emoji="ℹ️">
 In case you want to initialise and configure your VMs manually - skip this chapter and go directly to the [*step-by-step* part](#setting-up-vm-step-by-step).
+</Callout>
 
 Using the scripts is a two-step process. First, initialisation part is done from the host root using [`initialise-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/initialise-vm.sh) and second, configuration part is done from the VM itself using [`configure-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/configure-vm.sh).
 
@@ -554,7 +559,7 @@ In case you did't use the scripts and prefer manual approach, follow the steps b
 <Steps>
 ##### 1. Install OS for VMs
 
-This is the OS on which the nodes themselves will run. You can chose any GNU/Linux of your preference.  For this guide we are going to be using Ubuntu 24.04 LTS (Noble Numbat) cloud image from [cloud-images.ubuntu.com](https://cloud-images.ubuntu.com/noble/current/).
+This is the OS on which the nodes themselves will run. You can chose any GNU/Linux of your preference. For this guide we are going to be using Ubuntu 24.04 LTS (Noble Numbat) cloud image from [cloud-images.ubuntu.com](https://cloud-images.ubuntu.com/noble/current/).
 
 - Download Ubuntu Cloud image:
 ```bash

@@ -28,7 +28,7 @@ async fn create_window(
     log::info!("Creating {} window...", new_window_label);
     match tauri::WebviewWindowBuilder::new(
         &app_handle,
-        "main",
+        new_window_label,
         tauri::WebviewUrl::App(new_window_url.into()),
     )
     .title("Nym Wallet")
@@ -36,14 +36,14 @@ async fn create_window(
     {
         Ok(window) => {
             if let Err(err) = window.set_focus() {
-                log::error!("Unable to focus log window: {err}");
+                log::error!("Unable to focus window: {err}");
             }
             if let Err(err) = window.maximize() {
                 log::error!("Could not maximize window: {err}");
             }
         }
         Err(err) => {
-            log::error!("Unable to create log window: {err}");
+            log::error!("Unable to create window: {err}");
             return Err(BackendError::NewWindowError);
         }
     }

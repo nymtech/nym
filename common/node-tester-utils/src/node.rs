@@ -64,7 +64,7 @@ pub enum NodeType {
 
 impl NodeType {
     pub fn is_mixnode(&self) -> bool {
-        matches!(self, NodeType::Mixnode { .. })
+        matches!(self, NodeType::Mixnode)
     }
 }
 

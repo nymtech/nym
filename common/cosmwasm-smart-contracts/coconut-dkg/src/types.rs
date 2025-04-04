@@ -219,7 +219,7 @@ impl Epoch {
                 EpochState::VerificationKeyFinalization { .. } => {
                     time_configuration.verification_key_finalization_time_secs
                 }
-                EpochState::InProgress { .. } => 0,
+                EpochState::InProgress => 0,
             };
             finish += adding;
         }

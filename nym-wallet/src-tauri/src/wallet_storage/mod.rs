@@ -38,7 +38,17 @@ pub(crate) const DEFAULT_LOGIN_ID: &str = "default";
 pub(crate) const DEFAULT_FIRST_ACCOUNT_NAME: &str = "Account 1";
 
 fn get_storage_directory() -> Result<PathBuf, BackendError> {
-    tauri::api::path::local_data_dir()
+    // tauri v1 (via `tauri::api::path::local_data_dir()`) was internally calling `dirs_next::data_local_dir()`
+    // which ultimately was getting resolved to
+    // - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
+    // - **macOS:** Resolves to `$HOME/Library/Application Support`.
+    // - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
+    //
+    // tauri v2 calls `dirs::data_local_dir().ok_or(Error::UnknownPath)` which ultimately does the same thing,
+    // however, it changed its API so that it's called on a `PathResolver`.
+    // but, to instantiate one here would be a hassle as we don't need those specific functionalities,
+    // so let's just recreate tauri's behaviour
+    dirs::data_local_dir()
         .map(|dir| dir.join(STORAGE_DIR_NAME))
         .ok_or(BackendError::UnknownStorageDirectory)
 }

@@ -105,7 +105,17 @@ impl NetworkConfig {
 
 impl Config {
     fn root_directory() -> PathBuf {
-        tauri::api::path::config_dir().expect("Failed to get config directory")
+        // tauri v1 (via `tauri::api::path::config_dir()`) was internally calling `dirs_next::config_dir()`
+        // which ultimately was getting resolved to
+        // - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
+        // - **macOS:** Resolves to `$HOME/Library/Application Support`.
+        // - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
+        //
+        // tauri v2 calls `dirs::config_dir().ok_or(Error::UnknownPath)` which ultimately does the same thing,
+        // however, it changed its API so that it's called on a `PathResolver`.
+        // but, to instantiate one here would be a hassle as we don't need those specific functionalities,
+        // so let's just recreate tauri's behaviour
+        dirs::config_dir().expect("Failed to get config directory")
     }
 
     fn config_directory() -> PathBuf {

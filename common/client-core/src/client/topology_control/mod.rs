@@ -19,11 +19,12 @@ use wasmtimer::tokio::sleep;
 mod accessor;
 pub mod geo_aware_provider;
 pub mod nym_api_provider;
+pub mod smart_api_provider;
 
 #[allow(deprecated)]
 pub use geo_aware_provider::GeoAwareTopologyProvider;
-pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
-pub use nym_topology::provider_trait::TopologyProvider;
+pub use nym_topology::providers::TopologyProvider;
+pub use smart_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

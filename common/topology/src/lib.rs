@@ -23,13 +23,13 @@ pub mod error;
 pub mod node;
 pub mod rewarded_set;
 
-#[cfg(feature = "provider-trait")]
-pub mod provider_trait;
 #[cfg(feature = "wasm-serde-types")]
 pub mod wasm_helpers;
 
-#[cfg(feature = "provider-trait")]
-pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
+#[cfg(feature = "providers")]
+pub mod providers;
+#[cfg(feature = "providers")]
+pub use providers::TopologyProvider;
 
 #[deprecated]
 #[derive(Debug, Clone)]
@@ -90,18 +90,6 @@ mod deprecated_network_address_impls {
 }
 
 pub type MixLayer = u8;
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct NymTopology {
-    // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
-    // so we use the same 'master' rewarded set information for that
-    //
-    // how do we solve the problem of "we have to go through a node that we want to filter out?"
-    // ¯\_(ツ)_/¯ that's a future problem
-    rewarded_set: CachedEpochRewardedSet,
-
-    node_details: HashMap<NodeId, RoutingNode>,
-}
 
 #[derive(Clone, Debug, Default)]
 pub struct NymRouteProvider {
@@ -187,6 +175,18 @@ impl NymRouteProvider {
         self.topology
             .random_path_to_egress(rng, egress_identity, self.ignore_egress_epoch_roles)
     }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct NymTopology {
+    // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
+    // so we use the same 'master' rewarded set information for that
+    //
+    // how do we solve the problem of "we have to go through a node that we want to filter out?"
+    // ¯\_(ツ)_/¯ that's a future problem
+    rewarded_set: CachedEpochRewardedSet,
+
+    node_details: HashMap<NodeId, RoutingNode>,
 }
 
 impl NymTopology {
@@ -545,5 +545,20 @@ impl NymTopology {
         self.node_details
             .values()
             .filter(|n| self.rewarded_set.is_active_mixnode(&n.node_id))
+    }
+
+    pub fn all_nodes(&self) -> impl Iterator<Item = &RoutingNode> {
+        self.node_details.values()
+    }
+
+    pub fn all_node_ids(&self) -> impl Iterator<Item = &NodeId> {
+        self.node_details.keys()
+    }
+
+    pub fn gateways(&self) -> impl Iterator<Item = &RoutingNode> {
+        self.node_details.values().filter(|n| {
+            self.rewarded_set.entry_gateways.contains(&n.node_id)
+                || self.rewarded_set.exit_gateways.contains(&n.node_id)
+        })
     }
 }

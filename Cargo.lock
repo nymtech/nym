@@ -6829,6 +6829,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "nym-api-requests",
+ "nym-client-core-config-types",
  "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -6840,6 +6841,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.12",
+ "time",
+ "tokio",
  "tracing",
  "tsify",
  "wasm-bindgen",

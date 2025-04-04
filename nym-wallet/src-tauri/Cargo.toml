@@ -48,6 +48,7 @@ url = "2.2"
 k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
 base64 = "0.13"
 zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
+plist = "1.6.0"
 
 cosmwasm-std = "2.2.1"
 cosmrs = { version = "0.21.0" }

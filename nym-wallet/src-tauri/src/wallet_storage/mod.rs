@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::doc_overindented_list_items)]
+
 /// The wallet storage file contains a set of logins, each with an associated login ID and an
 /// encrypted field. Once decrypted, each login contains either an account, or a set of accounts.
 /// One difference is that the latter have an associated account ID.
@@ -2151,7 +2153,7 @@ mod tests {
         assert!(matches!(acc2, StoredLogin::Mnemonic(_)));
 
         let expected_acc1 = bip39::Mnemonic::from_str("country mean universe text phone begin deputy reject result good cram illness common cluster proud swamp digital patrol spread bar face december base kick").unwrap();
-        let expected_acc2 =  bip39::Mnemonic::from_str("home mansion start quiz dress decide hint second dragon sunny juice always steak real minimum art rival skin draw total pulp foot goddess agent").unwrap();
+        let expected_acc2 = bip39::Mnemonic::from_str("home mansion start quiz dress decide hint second dragon sunny juice always steak real minimum art rival skin draw total pulp foot goddess agent").unwrap();
 
         assert_eq!(
             acc1.as_mnemonic_account().unwrap().mnemonic(),

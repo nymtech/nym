@@ -5,9 +5,9 @@ use crate::config::{NoiseConfig, NoisePattern};
 use crate::connection::Connection;
 use crate::error::NoiseError;
 use crate::stream::NoiseStream;
-use config::NoiseVersion;
 use log::*;
 use nym_crypto::asymmetric::x25519;
+use nym_noise_keys::NoiseVersion;
 use sha2::{Digest, Sha256};
 use snow::{error::Prerequisite, Builder, Error};
 use tokio::net::TcpStream;
@@ -71,10 +71,17 @@ pub async fn upgrade_noise_initiator(
                     conn,
                     config.pattern,
                     config.local_key.private_key(),
-                    &key.pub_key,
+                    &key.x25519_pubkey,
                     config.time_based_component,
                 )
                 .await
+            }
+            NoiseVersion::Unknown => {
+                error!(
+                    "{:?} is announcing an unknown version of Noise",
+                    responder_addr
+                );
+                Err(NoiseError::UnknownVersion)
             }
         },
         None => {
@@ -141,7 +148,8 @@ pub async fn upgrade_noise_responder(
             );
             Ok(Connection::Tcp(conn))
         }
-        Some(NoiseVersion::V1) => {
+        //responder's info on version is shaky, so initiator has to adapt. This behavior can change in the future
+        Some(_) => {
             //Existing node supporting Noise
             upgrade_noise_responder_v1(
                 conn,

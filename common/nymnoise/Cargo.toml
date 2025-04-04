@@ -20,3 +20,4 @@ tokio-util = { workspace = true, features = ["codec"] }
 
 # internal
 nym-crypto = { path = "../crypto" }
+nym-noise-keys = { path = "keys" }

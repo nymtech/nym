@@ -419,13 +419,13 @@ impl NetworkRefresher {
         //update noise Noise Nodes
         let noise_nodes = nodes
             .iter()
-            .filter(|n| n.x25519_noise_pubkey.is_some())
+            .filter(|n| n.x25519_noise_versioned_key.is_some())
             .flat_map(|n| {
                 n.basic.ip_addresses.iter().map(|ip_addr| {
                     (
                         SocketAddr::new(*ip_addr, n.basic.mix_port),
                         #[allow(clippy::unwrap_used)]
-                        n.x25519_noise_pubkey.unwrap().into(), // SAFETY : we filtered out nodes where this option can be None
+                        n.x25519_noise_versioned_key.unwrap(), // SAFETY : we filtered out nodes where this option can be None
                     )
                 })
             })

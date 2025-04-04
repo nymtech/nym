@@ -4,7 +4,7 @@
 use celes::Country;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
-use nym_noise::config::NoiseVersion;
+use nym_noise_keys::VersionedNoiseKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -102,18 +102,6 @@ impl From<LegacyHostInformationV2> for LegacyHostInformation {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, utoipa::ToSchema)]
-pub struct NoiseKey {
-    #[schemars(with = "Option<isize>")]
-    #[schema(value_type = Option<isize>)]
-    pub version: NoiseVersion,
-
-    #[schemars(with = "String")]
-    #[serde(with = "bs58_x25519_pubkey")]
-    #[schema(value_type = String)]
-    pub x25519_pubkey: x25519::PublicKey,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostKeys {
@@ -134,7 +122,7 @@ pub struct HostKeys {
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
-    pub x25519_noise: Option<NoiseKey>,
+    pub x25519_noise: Option<VersionedNoiseKey>,
 }
 
 #[derive(Serialize)]

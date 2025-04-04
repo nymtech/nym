@@ -3,7 +3,6 @@
 
 use snow::Error;
 use std::io;
-use std::num::TryFromIntError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -20,17 +19,11 @@ pub enum NoiseError {
     #[error("Incorrect state")]
     IncorrectStateError,
 
-    #[error("Handshake timeout")]
-    HandshakeTimeoutError(#[from] tokio::time::error::Elapsed),
-
     #[error("Handshake did not complete")]
     HandshakeError,
 
-    #[error(transparent)]
-    IntConversionError(#[from] TryFromIntError),
-
-    #[error("unable to extract public key - {0}")]
-    EncryptionKeyConversionError(#[from] nym_crypto::asymmetric::encryption::KeyRecoveryError),
+    #[error("Unknown noise version")]
+    UnknownVersion,
 }
 
 impl From<Error> for NoiseError {

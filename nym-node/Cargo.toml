@@ -19,7 +19,7 @@ anyhow.workspace = true
 arc-swap = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
-celes = { workspace = true }                                  # country codes
+celes = { workspace = true }                                                   # country codes
 colored = { workspace = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
@@ -54,7 +54,8 @@ nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
-nym-noise = { path = "../common/nymnoise"}
+nym-noise = { path = "../common/nymnoise" }
+nym-noise-keys = { path = "../common/nymnoise/keys" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
@@ -83,8 +84,12 @@ tower-http = { workspace = true, features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
-nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"] }
+nym-http-api-common = { path = "../common/http-api-common", features = [
+    "utoipa",
+] }
+nym-node-requests = { path = "nym-node-requests", default-features = false, features = [
+    "openapi",
+] }
 nym-node-metrics = { path = "nym-node-metrics" }
 
 # nodes:
@@ -107,7 +112,6 @@ version = "*"
 
 [dependencies.blake2]
 version = "*"
-
 
 
 [build-dependencies]

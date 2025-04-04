@@ -4788,7 +4788,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-requests",
- "nym-noise",
+ "nym-noise-keys",
  "nym-serde-helpers",
  "nym-ticketbooks-merkle",
  "rand_chacha 0.3.1",
@@ -6149,6 +6149,7 @@ dependencies = [
  "nym-node-metrics",
  "nym-node-requests",
  "nym-noise",
+ "nym-noise-keys",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx-acknowledgements",
@@ -6210,7 +6211,7 @@ dependencies = [
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
- "nym-noise",
+ "nym-noise-keys",
  "nym-wireguard-types",
  "rand_chacha 0.3.1",
  "schemars",
@@ -6354,6 +6355,7 @@ dependencies = [
  "futures",
  "log",
  "nym-crypto",
+ "nym-noise-keys",
  "pin-project",
  "serde",
  "sha2 0.10.8",
@@ -6361,6 +6363,16 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "nym-noise-keys"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "schemars",
+ "serde",
+ "utoipa",
 ]
 
 [[package]]

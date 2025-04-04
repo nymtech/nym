@@ -9,8 +9,7 @@ use std::{
 
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
-use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
-use serde::{Deserialize, Serialize};
+use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum NoisePattern {
@@ -39,18 +38,6 @@ impl NoisePattern {
             None => 0,
         }
     }
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub enum NoiseVersion {
-    V1 = 1isize,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct VersionedNoiseKey {
-    pub version: NoiseVersion,
-    #[serde(with = "bs58_x25519_pubkey")]
-    pub pub_key: x25519::PublicKey,
 }
 
 #[derive(Debug, Default)]

@@ -26,8 +26,7 @@ use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeRoles};
-use nym_noise::config::NoiseVersion;
-use nym_noise::config::VersionedNoiseKey;
+use nym_noise_keys::VersionedNoiseKey;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -473,7 +472,7 @@ impl MixNodeBondAnnotated {
         let skimmed_node = self.try_to_skimmed_node(role)?;
         Ok(SemiSkimmedNode {
             basic: skimmed_node,
-            x25519_noise_pubkey: None, // legacy node won't ever support Noise
+            x25519_noise_versioned_key: None, // legacy node won't ever support Noise
         })
     }
 }
@@ -549,7 +548,7 @@ impl GatewayBondAnnotated {
         let skimmed_node = self.try_to_skimmed_node(role)?;
         Ok(SemiSkimmedNode {
             basic: skimmed_node,
-            x25519_noise_pubkey: None, // legacy node won't ever support Noise
+            x25519_noise_versioned_key: None, // legacy node won't ever support Noise
         })
     }
 }
@@ -888,7 +887,7 @@ pub struct HostKeys {
     pub x25519: x25519::PublicKey,
 
     #[serde(default)]
-    pub x25519_noise: Option<NoiseKey>,
+    pub x25519_noise: Option<VersionedNoiseKey>,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
@@ -896,10 +895,7 @@ impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
         HostKeys {
             ed25519: value.ed25519_identity,
             x25519: value.x25519_sphinx,
-            x25519_noise: value.x25519_noise.map(|k| NoiseKey {
-                version: k.version,
-                x25519_pubkey: k.x25519_pubkey,
-            }),
+            x25519_noise: value.x25519_noise,
         }
     }
 }
@@ -1054,7 +1050,7 @@ impl NymNodeDescription {
 
         SemiSkimmedNode {
             basic: skimmed_node,
-            x25519_noise_pubkey: self.description.host_information.keys.x25519_noise,
+            x25519_noise_versioned_key: self.description.host_information.keys.x25519_noise,
         }
     }
 }
@@ -1342,34 +1338,12 @@ pub struct NetworkMonitorRunDetailsResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NoiseDetails {
-    pub key: NoiseKey,
+    pub key: VersionedNoiseKey,
 
     pub mixnet_port: u16,
 
     #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-pub struct NoiseKey {
-    #[schemars(with = "Option<isize>")]
-    #[schema(value_type = Option<isize>)]
-    pub version: NoiseVersion,
-
-    #[schemars(with = "String")]
-    #[serde(with = "bs58_x25519_pubkey")]
-    #[schema(value_type = String)]
-    pub x25519_pubkey: x25519::PublicKey,
-}
-
-//SW is there a way to not need that without bringing Schema dep into Noise?
-impl From<NoiseKey> for VersionedNoiseKey {
-    fn from(value: NoiseKey) -> Self {
-        VersionedNoiseKey {
-            version: value.version,
-            pub_key: value.x25519_pubkey,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]

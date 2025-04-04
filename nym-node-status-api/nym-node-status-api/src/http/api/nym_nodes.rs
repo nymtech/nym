@@ -34,10 +34,14 @@ async fn nym_nodes(
     let db = state.db_pool();
     let node_geocache = state.node_geocache();
 
-    let nodes = state.cache().get_nym_nodes_list(db, node_geocache).await.map_err(|e| {
-        tracing::error!("{e}");
-        HttpError::internal()
-    })?;
+    let nodes = state
+        .cache()
+        .get_nym_nodes_list(db, node_geocache)
+        .await
+        .map_err(|e| {
+            tracing::error!("{e}");
+            HttpError::internal()
+        })?;
 
     Ok(Json(PagedResult::paginate(pagination, nodes)))
 }

@@ -1,11 +1,12 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::NymNodePaths;
+use crate::config::persistence::{NymNodePaths, ReplayProtectionPaths};
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
+use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
@@ -26,6 +27,7 @@ use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use sysinfo::System;
 use tracing::{debug, error};
 use url::Url;
 
@@ -42,6 +44,7 @@ pub mod upgrade_helpers;
 pub use crate::config::gateway_tasks::GatewayTasksConfig;
 pub use crate::config::metrics::MetricsConfig;
 pub use crate::config::service_providers::ServiceProvidersConfig;
+use crate::node::replay_protection::{bitmap_size, items_in_bloomfilter};
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
@@ -264,7 +267,9 @@ impl ConfigBuilder {
             modes: self.modes,
             host: self.host.unwrap_or_default(),
             http: self.http.unwrap_or_default(),
-            mixnet: self.mixnet.unwrap_or_default(),
+            mixnet: self
+                .mixnet
+                .unwrap_or_else(|| Mixnet::new_default(&self.data_dir)),
             verloc: self.verloc.unwrap_or_default(),
             wireguard: self
                 .wireguard
@@ -417,6 +422,12 @@ impl Config {
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         Self::read_from_path(path)
     }
+
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        self.mixnet.validate()?;
+
+        Ok(())
+    }
 }
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
@@ -496,7 +507,6 @@ impl Default for Http {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct Mixnet {
     /// Address this node will bind to for listening for mixnet packets
@@ -516,13 +526,35 @@ pub struct Mixnet {
     /// Addresses to nyxd which the node uses to interact with the nyx chain.
     pub nyxd_urls: Vec<Url>,
 
+    /// Settings for controlling replay detection
+    pub replay_protection: ReplayProtection,
+
     #[serde(default)]
     pub debug: MixnetDebug,
 }
 
+impl Mixnet {
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.nym_api_urls.is_empty() {
+            return Err(NymNodeError::config_validation_failure(
+                "no nym api urls provided",
+            ));
+        }
+
+        if self.nyxd_urls.is_empty() {
+            return Err(NymNodeError::config_validation_failure(
+                "no nyxd urls provided",
+            ));
+        }
+
+        self.replay_protection.validate()?;
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-#[serde(deny_unknown_fields)]
 pub struct MixnetDebug {
     /// Specifies the duration of time this node is willing to delay a forward packet for.
     #[serde(with = "humantime_serde")]
@@ -547,6 +579,148 @@ pub struct MixnetDebug {
 
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     pub unsafe_disable_noise: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct ReplayProtection {
+    /// Paths for current bloomfilters
+    pub storage_paths: persistence::ReplayProtectionPaths,
+
+    #[serde(default)]
+    pub debug: ReplayProtectionDebug,
+}
+
+impl ReplayProtection {
+    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
+        ReplayProtection {
+            storage_paths: ReplayProtectionPaths::new(data_dir),
+            debug: Default::default(),
+        }
+    }
+}
+
+impl ReplayProtection {
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        self.debug.validate()?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct ReplayProtectionDebug {
+    /// Specifies whether this node should **NOT** use replay protection
+    pub unsafe_disabled: bool,
+
+    /// How long the processing task is willing to skip mutex acquisition before it will block the thread
+    /// until it actually obtains it
+    pub maximum_replay_detection_deferral: Duration,
+
+    /// How many packets the processing task is willing to queue before it will block the thread
+    /// until it obtains the mutex
+    pub maximum_replay_detection_pending_packets: usize,
+
+    /// Probability of false positives, fraction between 0 and 1 or a number indicating 1-in-p
+    pub false_positive_rate: f64,
+
+    /// Defines initial expected number of packets this node will process a second,
+    /// so that an initial bloomfilter could be established.
+    /// As the node is running and BF are cleared, the value will be adjusted dynamically
+    pub initial_expected_packets_per_second: usize,
+
+    /// Defines minimum expected number of packets this node will process a second
+    /// when used for calculating the BF size after reset.
+    /// This is to avoid degenerate cases where node receives 0 packets (because say it's misconfigured)
+    /// and it constructs an empty bloomfilter.
+    pub bloomfilter_minimum_packets_per_second_size: usize,
+
+    /// Specifies the amount the bloomfilter size is going to get multiplied by after each reset.
+    /// It's performed in case the traffic rates increase before the next bloomfilter update.
+    pub bloomfilter_size_multiplier: f64,
+
+    // NOTE: this field is temporary until replay detection bloomfilter rotation is tied
+    // to key rotation
+    /// Specifies how often the bloomfilter is cleared
+    #[serde(with = "humantime_serde")]
+    pub bloomfilter_reset_rate: Duration,
+
+    /// Specifies how often the bloomfilter is flushed to disk for recovery in case of a crash
+    #[serde(with = "humantime_serde")]
+    pub bloomfilter_disk_flushing_rate: Duration,
+}
+
+impl ReplayProtectionDebug {
+    pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_DEFERRAL: Duration = Duration::from_millis(50);
+
+    pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS: usize = 100;
+
+    // 12% (completely arbitrary)
+    pub const DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER: f64 = 1.12;
+
+    // 10^-5
+    pub const DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE: f64 = 1e-5;
+
+    // 25h (key rotation will be happening every 24h + 1h of overlap)
+    pub const DEFAULT_REPLAY_DETECTION_BF_RESET_RATE: Duration = Duration::from_secs(25 * 60 * 60);
+
+    // we must have some reasonable balance between losing values and trashing the disk.
+    // since on average HDD it would take ~30s to save a 2GB bloomfilter
+    pub const DEFAULT_BF_DISK_FLUSHING_RATE: Duration = Duration::from_secs(10 * 60);
+
+    // this value will have to be adjusted in the future
+    pub const DEFAULT_INITIAL_EXPECTED_PACKETS_PER_SECOND: usize = 2000;
+
+    pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
+
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
+            return Err(NymNodeError::config_validation_failure(
+                "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",
+            ));
+        }
+
+        let items_in_filter = items_in_bloomfilter(
+            self.bloomfilter_reset_rate,
+            self.initial_expected_packets_per_second,
+        );
+        let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
+        let bloomfilter_size = bitmap_size / 8;
+
+        let mut sys_info = System::new();
+        sys_info.refresh_memory();
+
+        // we'll need 2x size of the bloomfilter
+        // as during key transition we'll have to simultaneously use two filters
+        // plus we also need to make a memcopy during disk flush
+        let required_memory = 2 * bloomfilter_size;
+
+        let memory = sys_info.available_memory();
+        if (memory as usize) < required_memory {
+            return Err(NymNodeError::config_validation_failure(
+                 format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for ReplayProtectionDebug {
+    fn default() -> Self {
+        ReplayProtectionDebug {
+            unsafe_disabled: false,
+            maximum_replay_detection_deferral: Self::DEFAULT_MAXIMUM_REPLAY_DETECTION_DEFERRAL,
+            maximum_replay_detection_pending_packets:
+                Self::DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS,
+            false_positive_rate: Self::DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE,
+            initial_expected_packets_per_second: Self::DEFAULT_INITIAL_EXPECTED_PACKETS_PER_SECOND,
+            bloomfilter_minimum_packets_per_second_size:
+                Self::DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE,
+            bloomfilter_size_multiplier: Self::DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER,
+            bloomfilter_reset_rate: Self::DEFAULT_REPLAY_DETECTION_BF_RESET_RATE,
+            bloomfilter_disk_flushing_rate: Self::DEFAULT_BF_DISK_FLUSHING_RATE,
+        }
+    }
 }
 
 impl MixnetDebug {
@@ -574,8 +748,8 @@ impl Default for MixnetDebug {
     }
 }
 
-impl Default for Mixnet {
-    fn default() -> Self {
+impl Mixnet {
+    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         // SAFETY:
         // our hardcoded values should always be valid
         #[allow(clippy::expect_used)]
@@ -598,6 +772,7 @@ impl Default for Mixnet {
             announce_port: None,
             nym_api_urls,
             nyxd_urls,
+            replay_protection: ReplayProtection::new_default(data_dir),
             debug: Default::default(),
         }
     }

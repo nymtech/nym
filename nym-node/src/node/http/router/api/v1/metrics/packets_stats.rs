@@ -38,6 +38,7 @@ fn build_response(metrics: &NymNodeMetrics) -> PacketsStats {
             forward_hop_packets_received: metrics.mixnet.ingress.forward_hop_packets_received(),
             final_hop_packets_received: metrics.mixnet.ingress.final_hop_packets_received(),
             malformed_packets_received: metrics.mixnet.ingress.malformed_packets_received(),
+            replayed_packets_received: metrics.mixnet.ingress.replayed_packets_received(),
             excessive_delay_packets: metrics.mixnet.ingress.excessive_delay_packets(),
             forward_hop_packets_dropped: metrics.mixnet.ingress.forward_hop_packets_dropped(),
             final_hop_packets_dropped: metrics.mixnet.ingress.final_hop_packets_dropped(),

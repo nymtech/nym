@@ -19,6 +19,7 @@ anyhow.workspace = true
 arc-swap = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
+bloomfilter = { workspace = true }
 celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
 csv = { workspace = true }
@@ -95,23 +96,24 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # throughput tester to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
-[dependencies.lioness]
-version = "*"
+lioness = "*"
+chacha = "*"
+arrayref = "*"
+blake2 = "=0.8.1"
+sha2 = { workspace = true }
+hkdf = { workspace = true }
 
-[dependencies.chacha]
-version = "*"
-
-[dependencies.arrayref]
-version = "*"
-
-[dependencies.blake2]
-version = "*"
-
+[[bench]]
+name = "benchmarks"
+harness = false
 
 
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
 cargo_metadata = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
 
 
 [lints]

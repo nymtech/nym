@@ -27,11 +27,6 @@ pub enum PacketType {
     #[serde(alias = "sphinx")]
     Mix = 0,
 
-    /// Represents a packet that should be sent through the network as fast as possible.
-    #[deprecated]
-    #[serde(rename = "unsupported-mix-vpn")]
-    Vpn = 1,
-
     /// Abusing this to add Outfox support
     #[serde(rename = "outfox")]
     Outfox = 2,
@@ -41,8 +36,6 @@ impl fmt::Display for PacketType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             PacketType::Mix => write!(f, "Mix"),
-            #[allow(deprecated)]
-            PacketType::Vpn => write!(f, "Vpn"),
             PacketType::Outfox => write!(f, "Outfox"),
         }
     }

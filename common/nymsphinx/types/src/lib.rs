@@ -5,7 +5,7 @@ use std::{array::TryFromSliceError, fmt};
 use thiserror::Error;
 
 #[cfg(feature = "outfox")]
-use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
+pub use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
 
 #[cfg(feature = "sphinx")]
 pub use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
@@ -21,7 +21,7 @@ pub use nym_outfox::{
 pub use sphinx_packet::{
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
-        PAYLOAD_KEY_SIZE,
+        PAYLOAD_KEY_SIZE, REPLAY_TAG_SIZE,
     },
     crypto::{self, PrivateKey, PublicKey},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
@@ -176,10 +176,15 @@ impl NymPacket {
     }
 
     #[cfg(feature = "sphinx")]
-    pub fn as_sphinx_packet(self) -> Option<SphinxPacket> {
+    pub fn to_sphinx_packet(self) -> Option<SphinxPacket> {
         match self {
             NymPacket::Sphinx(packet) => Some(packet),
             _ => None,
         }
+    }
+
+    #[cfg(feature = "sphinx")]
+    pub fn is_sphinx(&self) -> bool {
+        matches!(self, NymPacket::Sphinx(_))
     }
 }

@@ -363,6 +363,7 @@ impl MetricsController {
         buffer
     }
 
+    #[inline(always)]
     pub fn to_writer(&self, writer: &mut dyn std::io::Write) {
         let metrics = self.gather();
         match writer.write_all(&metrics) {
@@ -371,6 +372,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn register_int_gauge<'a>(&self, name: &str, help: impl Into<Option<&'a str>>) {
         let Some(metric) = Metric::new_int_gauge(name, help.into().unwrap_or(name)) else {
             return;
@@ -378,6 +380,7 @@ impl MetricsController {
         self.register_metric(metric);
     }
 
+    #[inline(always)]
     pub fn register_float_gauge<'a>(&self, name: &str, help: impl Into<Option<&'a str>>) {
         let Some(metric) = Metric::new_float_gauge(name, help.into().unwrap_or(name)) else {
             return;
@@ -385,6 +388,7 @@ impl MetricsController {
         self.register_metric(metric);
     }
 
+    #[inline(always)]
     pub fn register_int_counter<'a>(&self, name: &str, help: impl Into<Option<&'a str>>) {
         let Some(metric) = Metric::new_int_counter(name, help.into().unwrap_or(name)) else {
             return;
@@ -392,6 +396,7 @@ impl MetricsController {
         self.register_metric(metric);
     }
 
+    #[inline(always)]
     pub fn register_histogram<'a>(
         &self,
         name: &str,
@@ -404,6 +409,7 @@ impl MetricsController {
         self.register_metric(metric);
     }
 
+    #[inline(always)]
     pub fn set(&self, name: &str, value: i64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.set(value);
@@ -413,6 +419,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn set_float(&self, name: &str, value: f64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.set_float(value);
@@ -422,6 +429,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn add_to_histogram(&self, name: &str, value: f64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.add_histogram_observation(value);
@@ -431,12 +439,14 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn start_timer(&self, name: &str) -> Option<HistogramTimer> {
         self.registry_index
             .get(name)
             .and_then(|metric| metric.start_timer())
     }
 
+    #[inline(always)]
     pub fn inc(&self, name: &str) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.inc();
@@ -446,6 +456,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn inc_by(&self, name: &str, value: i64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.inc_by(value);
@@ -455,6 +466,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn maybe_register_and_set<'a>(
         &self,
         name: &str,
@@ -468,6 +480,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn maybe_register_and_set_float<'a>(
         &self,
         name: &str,
@@ -481,6 +494,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn maybe_register_and_add_to_histogram<'a>(
         &self,
         name: &str,
@@ -495,6 +509,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn maybe_register_and_inc<'a>(&self, name: &str, help: impl Into<Option<&'a str>>) {
         if !self.inc(name) {
             let help = help.into();
@@ -503,6 +518,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn maybe_register_and_inc_by<'a>(
         &self,
         name: &str,
@@ -516,6 +532,7 @@ impl MetricsController {
         }
     }
 
+    #[inline(always)]
     pub fn register_metric(&self, metric: impl Into<Metric>) {
         let m = metric.into();
         let fq_name = m.fq_name();

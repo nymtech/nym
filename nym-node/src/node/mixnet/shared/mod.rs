@@ -4,6 +4,7 @@
 use crate::config::Config;
 use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::mixnet::SharedFinalHopData;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
 use nym_crypto::asymmetric::x25519;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
@@ -29,6 +30,13 @@ pub(crate) mod final_hop;
 #[derive(Clone, Copy)]
 pub(crate) struct ProcessingConfig {
     pub(crate) maximum_packet_delay: Duration,
+    /// how long the task is willing to skip mutex acquisition before it will block the thread
+    /// until it actually obtains it
+    pub(crate) maximum_replay_detection_deferral: Duration,
+
+    /// how many packets the task is willing to queue before it will block the thread
+    /// until it obtains the mutex
+    pub(crate) maximum_replay_detection_pending_packets: usize,
 
     pub(crate) forward_hop_processing_enabled: bool,
     pub(crate) final_hop_processing_enabled: bool,
@@ -38,6 +46,16 @@ impl ProcessingConfig {
     pub(crate) fn new(config: &Config) -> Self {
         ProcessingConfig {
             maximum_packet_delay: config.mixnet.debug.maximum_forward_packet_delay,
+            maximum_replay_detection_deferral: config
+                .mixnet
+                .replay_protection
+                .debug
+                .maximum_replay_detection_deferral,
+            maximum_replay_detection_pending_packets: config
+                .mixnet
+                .replay_protection
+                .debug
+                .maximum_replay_detection_pending_packets,
             forward_hop_processing_enabled: config.modes.mixnode,
             final_hop_processing_enabled: config.modes.expects_final_hop_traffic()
                 || config.wireguard.enabled,
@@ -49,6 +67,7 @@ impl ProcessingConfig {
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
     pub(super) sphinx_keys: Arc<x25519::KeyPair>,
+    pub(super) replay_protection_filter: ReplayProtectionBloomfilter,
 
     // used for FORWARD mix packets and FINAL ack packets
     pub(super) mixnet_forwarder: MixForwardingSender,
@@ -71,6 +90,7 @@ impl SharedData {
     pub(crate) fn new(
         processing_config: ProcessingConfig,
         x25519_keys: Arc<x25519::KeyPair>,
+        replay_protection_filter: ReplayProtectionBloomfilter,
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
         metrics: NymNodeMetrics,
@@ -79,6 +99,7 @@ impl SharedData {
         SharedData {
             processing_config,
             sphinx_keys: x25519_keys,
+            replay_protection_filter,
             mixnet_forwarder,
             final_hop,
             metrics,

@@ -40,6 +40,7 @@ pub mod vars {
     pub const NYMNODE_NYM_APIS_ARG: &str = "NYMNODE_NYM_APIS";
     pub const NYMNODE_NYXD_URLS_ARG: &str = "NYMNODE_NYXD";
     pub const NYMNODE_UNSAFE_DISABLE_NOISE: &str = "UNSAFE_DISABLE_NOISE";
+    pub const NYMNODE_UNSAFE_DISABLE_REPLAY_PROTECTION: &str = "UNSAFE_DISABLE_REPLAY_PROTECTION";
 
     // wireguard:
     pub const NYMNODE_WG_ENABLED_ARG: &str = "NYMNODE_WG_ENABLED";

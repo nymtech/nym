@@ -15,7 +15,8 @@ async fn try_upgrade_config(path: &Path) -> Result<(), NymNodeError> {
     let cfg = try_upgrade_config_v4(path, cfg).await.ok();
     let cfg = try_upgrade_config_v5(path, cfg).await.ok();
     let cfg = try_upgrade_config_v6(path, cfg).await.ok();
-    match try_upgrade_config_v7(path, cfg).await {
+    let cfg = try_upgrade_config_v7(path, cfg).await.ok();
+    match try_upgrade_config_v8(path, cfg).await {
         Ok(cfg) => cfg.save(),
         Err(e) => {
             tracing::error!("Failed to finish upgrade - {e}");
@@ -35,5 +36,7 @@ pub async fn try_load_current_config<P: AsRef<Path>>(
     }
 
     try_upgrade_config(config_path.as_ref()).await?;
-    Config::read_from_toml_file(config_path)
+    let loaded = Config::read_from_toml_file(config_path)?;
+    loaded.validate()?;
+    Ok(loaded)
 }

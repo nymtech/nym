@@ -28,9 +28,10 @@ use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgress
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::shared_network::{
-    CachedNetwork, CachedTopologyProvider, NetworkRefresher, OpenFilter, RoutingFilter,
-};
+use crate::node::replay_protection::background_task::ReplayProtectionBackgroundTask;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
+use crate::node::routing_filter::{OpenFilter, RoutingFilter};
+use crate::node::shared_network::{CachedNetwork, CachedTopologyProvider, NetworkRefresher};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
@@ -69,6 +70,8 @@ pub mod helpers;
 pub(crate) mod http;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
+pub(crate) mod replay_protection;
+mod routing_filter;
 mod shared_network;
 
 pub struct GatewayTasksData {
@@ -979,12 +982,35 @@ impl NymNode {
         events_sender
     }
 
-    pub(crate) fn start_mixnet_listener<F>(
+    pub(crate) async fn setup_replay_detection(
+        &self,
+    ) -> Result<ReplayProtectionBloomfilter, NymNodeError> {
+        if self.config.mixnet.replay_protection.debug.unsafe_disabled {
+            return Ok(ReplayProtectionBloomfilter::new_disabled());
+        }
+
+        // create the background task for the bloomfilter
+        // to reset it and flush it to disk
+        let mut replay_detection_background = ReplayProtectionBackgroundTask::new(
+            &self.config,
+            self.metrics.clone(),
+            self.shutdown_manager
+                .clone_token("replay-detection-background"),
+        )
+        .await?;
+
+        let replay_protection_bloomfilter = replay_detection_background.global_bloomfilter();
+        self.shutdown_manager
+            .spawn(async move { replay_detection_background.run().await });
+        Ok(replay_protection_bloomfilter)
+    }
+
+    pub(crate) async fn start_mixnet_listener<F>(
         &self,
         active_clients_store: &ActiveClientsStore,
         routing_filter: F,
         shutdown: ShutdownToken,
-    ) -> (MixForwardingSender, ActiveConnections)
+    ) -> Result<(MixForwardingSender, ActiveConnections), NymNodeError>
     where
         F: RoutingFilter + Send + Sync + 'static,
     {
@@ -1012,6 +1038,7 @@ impl NymNode {
         );
         let active_connections = mixnet_client.active_connections();
 
+        let replay_protection_bloomfilter = self.setup_replay_detection().await?;
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
             routing_filter,
@@ -1029,6 +1056,7 @@ impl NymNode {
         let shared = mixnet::SharedData::new(
             processing_config,
             self.x25519_sphinx_keys.clone(),
+            replay_protection_bloomfilter,
             mix_packet_sender.clone(),
             final_hop_data,
             self.metrics.clone(),
@@ -1036,7 +1064,7 @@ impl NymNode {
         );
 
         mixnet::Listener::new(self.config.mixnet.bind_address, shared).start();
-        (mix_packet_sender, active_connections)
+        Ok((mix_packet_sender, active_connections))
     }
 
     pub(crate) async fn run_minimal_mixnet_processing(self) -> Result<(), NymNodeError> {
@@ -1044,7 +1072,8 @@ impl NymNode {
             &ActiveClientsStore::new(),
             OpenFilter,
             self.shutdown_manager.clone_token("mixnet-traffic"),
-        );
+        )
+        .await?;
 
         self.shutdown_manager.close();
         self.shutdown_manager.wait_for_shutdown_signal().await;
@@ -1081,11 +1110,13 @@ impl NymNode {
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
 
-        let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
-            &active_clients_store,
-            network_refresher.routing_filter(),
-            self.shutdown_manager.clone_token("mixnet-traffic"),
-        );
+        let (mix_packet_sender, active_egress_mixnet_connections) = self
+            .start_mixnet_listener(
+                &active_clients_store,
+                network_refresher.routing_filter(),
+                self.shutdown_manager.clone_token("mixnet-traffic"),
+            )
+            .await?;
 
         let metrics_sender = self.setup_metrics_backend(
             active_clients_store.clone(),

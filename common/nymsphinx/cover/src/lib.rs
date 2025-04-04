@@ -132,14 +132,6 @@ where
             &destination,
             &delays,
         )?,
-        #[allow(deprecated)]
-        PacketType::Vpn => NymPacket::sphinx_build(
-            packet_size.payload_size(),
-            packet_payload,
-            &route,
-            &destination,
-            &delays,
-        )?,
         PacketType::Outfox => NymPacket::outfox_build(
             packet_payload,
             &route,

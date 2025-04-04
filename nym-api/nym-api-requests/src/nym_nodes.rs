@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{DeclaredRoles, NymNodeData, OffsetDateTimeJsonSchemaWrapper};
+use crate::models::{DeclaredRoles, NoiseKey, NymNodeData, OffsetDateTimeJsonSchemaWrapper};
 use crate::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
@@ -202,7 +202,9 @@ impl SkimmedNode {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SemiSkimmedNode {
     pub basic: SkimmedNode,
-    pub x25519_noise_pubkey: String,
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub x25519_noise_pubkey: Option<NoiseKey>,
     // pub location:
 }
 

@@ -2,56 +2,70 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
+use thiserror::Error;
 
-use crate::{PacketSize, CURRENT_PACKET_VERSION_NUMBER};
+// wait, wait, but why are we starting with version 7?
+// when packet header gets serialized, the following bytes (in that order) are put onto the wire:
+// - packet_version (starting with v1.1.0)
+// - packet_size indicator
+// - packet_type
+// it also just so happens that the only valid values for packet_size indicator include values 1-6
+// therefore if we receive byte `7` (or larger than that) we'll know we received a versioned packet,
+// otherwise we should treat it as legacy
+/// Increment it whenever we perform any breaking change in the wire format!
+pub const INITIAL_PACKET_VERSION_NUMBER: u8 = 7;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PacketVersion {
-    // this will allow updated mixnodes to still understand packets from before the update
-    Legacy,
-    Versioned(u8),
+pub const CURRENT_PACKET_VERSION_NUMBER: u8 = INITIAL_PACKET_VERSION_NUMBER;
+pub const CURRENT_PACKET_VERSION: PacketVersion =
+    PacketVersion::unchecked(CURRENT_PACKET_VERSION_NUMBER);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct PacketVersion(u8);
+
+impl Display for PacketVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
 }
+
+#[derive(Debug, Error)]
+#[error("attempted to use legacy packet version")]
+pub struct InvalidPacketVersion;
 
 impl PacketVersion {
     pub fn new() -> Self {
-        Self::new_versioned(CURRENT_PACKET_VERSION_NUMBER)
+        PacketVersion(CURRENT_PACKET_VERSION_NUMBER)
     }
 
-    pub fn new_legacy() -> Self {
-        PacketVersion::Legacy
+    const fn unchecked(version: u8) -> PacketVersion {
+        PacketVersion(version)
     }
 
-    pub fn new_versioned(version: u8) -> Self {
-        PacketVersion::Versioned(version)
-    }
-
-    pub fn is_legacy(&self) -> bool {
-        matches!(self, PacketVersion::Legacy)
-    }
-
-    pub fn as_u8(&self) -> Option<u8> {
-        match self {
-            PacketVersion::Legacy => None,
-            PacketVersion::Versioned(version) => Some(*version),
-        }
+    pub fn as_u8(&self) -> u8 {
+        (*self).into()
     }
 }
 
-impl From<u8> for PacketVersion {
-    fn from(v: u8) -> Self {
-        match v {
-            n if n == PacketSize::RegularPacket as u8 => PacketVersion::Legacy,
-            n if n == PacketSize::AckPacket as u8 => PacketVersion::Legacy,
-            n if n == PacketSize::ExtendedPacket8 as u8 => PacketVersion::Legacy,
-            n if n == PacketSize::ExtendedPacket16 as u8 => PacketVersion::Legacy,
-            n if n == PacketSize::ExtendedPacket32 as u8 => PacketVersion::Legacy,
-            n => PacketVersion::Versioned(n),
+impl TryFrom<u8> for PacketVersion {
+    type Error = InvalidPacketVersion;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value < INITIAL_PACKET_VERSION_NUMBER {
+            return Err(InvalidPacketVersion);
         }
+        Ok(PacketVersion(value))
+    }
+}
+
+impl From<PacketVersion> for u8 {
+    fn from(packet_version: PacketVersion) -> Self {
+        packet_version.0
     }
 }
 
 impl Default for PacketVersion {
     fn default() -> Self {
-        PacketVersion::Versioned(CURRENT_PACKET_VERSION_NUMBER)
+        PacketVersion::new()
     }
 }

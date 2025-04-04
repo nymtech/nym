@@ -5,6 +5,7 @@ use crate::packet::{FramedNymPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nym_sphinx_params::packet_types::InvalidPacketType;
+use nym_sphinx_params::packet_version::{InvalidPacketVersion, PacketVersion};
 use nym_sphinx_params::PacketType;
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use std::io;
@@ -13,16 +14,25 @@ use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Error, Debug)]
 pub enum NymCodecError {
-    #[error("the packet size information was malformed - {0}")]
+    #[error("the packet size information was malformed: {0}")]
     InvalidPacketSize(#[from] InvalidPacketSize),
 
-    #[error("the packet mode information was malformed - {0}")]
+    #[error("the packet mode information was malformed: {0}")]
     InvalidPacketType(#[from] InvalidPacketType),
 
-    #[error("encountered an IO error - {0}")]
+    #[error("the packet version information was malformed: {0}")]
+    InvalidPacketVersion(#[from] InvalidPacketVersion),
+
+    #[error("received unsupported packet version {received}. max supported is {max_supported}")]
+    UnsupportedPacketVersion {
+        received: PacketVersion,
+        max_supported: PacketVersion,
+    },
+
+    #[error("encountered an IO error: {0}")]
     IoError(#[from] io::Error),
 
-    #[error("encountered a packet error - {0}")]
+    #[error("encountered a packet error: {0}")]
     NymPacket(#[from] NymPacketError),
 
     #[error("could not convert to bytes")]
@@ -56,7 +66,7 @@ impl Decoder for NymCodec {
         if src.is_empty() {
             // can't do anything if we have no bytes, but let's reserve enough for the most
             // conservative case, i.e. receiving an ack packet
-            src.reserve(Header::LEGACY_SIZE + PacketSize::AckPacket.size());
+            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
             return Ok(None);
         }
 
@@ -68,7 +78,7 @@ impl Decoder for NymCodec {
         };
 
         let packet_size = header.packet_size.size();
-        let frame_len = header.size() + packet_size;
+        let frame_len = Header::SIZE + packet_size;
 
         if src.len() < frame_len {
             // we don't have enough bytes to read the rest of frame
@@ -77,7 +87,7 @@ impl Decoder for NymCodec {
         }
 
         // advance buffer past the header - at this point we have enough bytes
-        src.advance(header.size());
+        src.advance(Header::SIZE);
         let packet_bytes = src.split_to(packet_size);
         let packet = if let Some(slice) = packet_bytes.get(..) {
             // here it could be debatable whether stream is corrupt or not,
@@ -104,11 +114,11 @@ impl Decoder for NymCodec {
         // we also assume the next packet coming from the same client will use exactly the same versioning
         // as the current packet
 
-        let mut allocate_for_next_packet = header.size() + PacketSize::AckPacket.size();
+        let mut allocate_for_next_packet = Header::SIZE + PacketSize::AckPacket.size();
         if !src.is_empty() {
             match Header::decode(src) {
                 Ok(Some(next_header)) => {
-                    allocate_for_next_packet = next_header.size() + next_header.packet_size.size();
+                    allocate_for_next_packet = Header::SIZE + next_header.packet_size.size();
                 }
                 Ok(None) => {
                     // we don't have enough information to know how much to reserve, fallback to the ack case
@@ -252,32 +262,8 @@ mod packet_encoding {
             assert!(NymCodec.decode(&mut empty_bytes).unwrap().is_none());
             assert_eq!(
                 empty_bytes.capacity(),
-                Header::LEGACY_SIZE + PacketSize::AckPacket.size()
+                Header::SIZE + PacketSize::AckPacket.size()
             );
-        }
-
-        #[test]
-        fn for_bytes_with_legacy_header() {
-            // if header gets decoded there should be enough bytes for the entire frame
-            let packet_sizes = vec![
-                PacketSize::AckPacket,
-                PacketSize::RegularPacket,
-                PacketSize::ExtendedPacket8,
-                PacketSize::ExtendedPacket16,
-                PacketSize::ExtendedPacket32,
-            ];
-            for packet_size in packet_sizes {
-                let header = Header {
-                    packet_version: PacketVersion::Legacy,
-                    packet_size,
-                    ..Default::default()
-                };
-                let mut bytes = BytesMut::new();
-                header.encode(&mut bytes);
-                assert!(NymCodec.decode(&mut bytes).unwrap().is_none());
-
-                assert_eq!(bytes.capacity(), Header::LEGACY_SIZE + packet_size.size())
-            }
         }
 
         #[test]
@@ -292,7 +278,7 @@ mod packet_encoding {
             ];
             for packet_size in packet_sizes {
                 let header = Header {
-                    packet_version: PacketVersion::Versioned(123),
+                    packet_version: PacketVersion::new(),
                     packet_size,
                     ..Default::default()
                 };
@@ -300,31 +286,8 @@ mod packet_encoding {
                 header.encode(&mut bytes);
                 assert!(NymCodec.decode(&mut bytes).unwrap().is_none());
 
-                assert_eq!(
-                    bytes.capacity(),
-                    Header::VERSIONED_SIZE + packet_size.size()
-                )
+                assert_eq!(bytes.capacity(), Header::SIZE + packet_size.size())
             }
-        }
-
-        #[test]
-        fn for_full_frame_with_legacy_header() {
-            // if full frame is used exactly, there should be enough space for header + ack packet
-            let packet = FramedNymPacket {
-                header: Header {
-                    packet_version: PacketVersion::Legacy,
-                    ..Default::default()
-                },
-                packet: make_valid_sphinx_packet(Default::default()),
-            };
-
-            let mut bytes = BytesMut::new();
-            NymCodec.encode(packet, &mut bytes).unwrap();
-            assert!(NymCodec.decode(&mut bytes).unwrap().is_some());
-            assert_eq!(
-                bytes.capacity(),
-                Header::LEGACY_SIZE + PacketSize::AckPacket.size()
-            );
         }
 
         #[test]
@@ -340,38 +303,8 @@ mod packet_encoding {
             assert!(NymCodec.decode(&mut bytes).unwrap().is_some());
             assert_eq!(
                 bytes.capacity(),
-                Header::VERSIONED_SIZE + PacketSize::AckPacket.size()
+                Header::SIZE + PacketSize::AckPacket.size()
             );
-        }
-
-        #[test]
-        fn for_full_frame_with_extra_bytes_with_legacy_header() {
-            // if there was at least 2 byte left, there should be enough space for entire next frame
-            let packet_sizes = vec![
-                PacketSize::AckPacket,
-                PacketSize::RegularPacket,
-                PacketSize::ExtendedPacket8,
-                PacketSize::ExtendedPacket16,
-                PacketSize::ExtendedPacket32,
-            ];
-
-            for packet_size in packet_sizes {
-                let first_packet = FramedNymPacket {
-                    header: Header {
-                        packet_version: PacketVersion::Legacy,
-                        ..Default::default()
-                    },
-                    packet: make_valid_sphinx_packet(Default::default()),
-                };
-
-                let mut bytes = BytesMut::new();
-                NymCodec.encode(first_packet, &mut bytes).unwrap();
-                bytes.put_u8(packet_size as u8);
-                bytes.put_u8(PacketType::default() as u8);
-                assert!(NymCodec.decode(&mut bytes).unwrap().is_some());
-
-                assert!(bytes.capacity() >= Header::LEGACY_SIZE + packet_size.size())
-            }
         }
 
         #[test]
@@ -393,7 +326,7 @@ mod packet_encoding {
 
                 let mut bytes = BytesMut::new();
                 NymCodec.encode(first_packet, &mut bytes).unwrap();
-                bytes.put_u8(PacketVersion::new_versioned(123).as_u8().unwrap());
+                bytes.put_u8(PacketVersion::new().as_u8());
                 bytes.put_u8(packet_size as u8);
                 bytes.put_u8(PacketType::default() as u8);
                 assert!(NymCodec.decode(&mut bytes).unwrap().is_some());

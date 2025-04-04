@@ -1,7 +1,7 @@
 /* eslint-disable react/destructuring-assignment */
 import React from 'react';
 import { Button, Card, CardContent, TextField } from '@mui/material';
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
 
 interface DocEntryProps {
   function: FunctionDef;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { Check, ContentCopy } from '@mui/icons-material';
-import { clipboard } from '@tauri-apps/api';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { Console } from '../utils/console';
 
 export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; iconButton?: boolean }) => {
@@ -9,7 +9,7 @@ export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; icon
 
   const handleCopy = async (_text: string) => {
     try {
-      await clipboard.writeText(_text);
+      await writeText(_text);
       setCopied(true);
     } catch (e) {
       Console.error(`failed to copy: ${e}`);

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
-import { checkUpdate } from '@tauri-apps/api/updater';
+import { check } from '@tauri-apps/plugin-updater';
 import { AppContext } from '../../context';
 import { checkVersion } from '../../requests';
 import { Console } from '../../utils/console';
@@ -28,7 +28,7 @@ const AppVersion = () => {
     try {
       // despite the name, this will spawn an external native window with
       // an embedded "download and update the Wallet" flow
-      checkUpdate();
+      check();
     } catch (e) {
       Console.error(e);
     }

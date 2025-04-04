@@ -3,7 +3,7 @@ use tauri::Manager;
 
 #[tauri::command]
 pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), BackendError> {
-    if let Some(current_log_window) = app_handle.windows().get("log") {
+    if let Some(current_log_window) = app_handle.get_webview_window("log") {
         log::info!("Closing log window...");
         if let Err(err) = current_log_window.close() {
             log::error!("Unable to close log window: {err}");
@@ -12,9 +12,13 @@ pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), Backen
     }
 
     log::info!("Creating log window...");
-    match tauri::WindowBuilder::new(&app_handle, "log", tauri::WindowUrl::App("log.html".into()))
-        .title("Nym Wallet Logs")
-        .build()
+    match tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        "log",
+        tauri::WebviewUrl::App("log.html".into()),
+    )
+    .title("Nym Wallet Logs")
+    .build()
     {
         Ok(window) => {
             if let Err(err) = window.set_focus() {

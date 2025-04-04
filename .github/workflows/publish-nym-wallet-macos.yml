@@ -17,17 +17,6 @@ jobs:
         platform: [macos-15]
     runs-on: ${{ matrix.platform }}
 
-    env:
-      ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY_ID }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
       release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
@@ -42,13 +31,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 21
-
       - name: Install Rust stable
-        uses: brndnmtthws/rust-action-rustup@v1
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          targets: x86_64-apple-darwin
-
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -78,14 +64,38 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
+      - name: Add Rust target for x86_64-apple-darwin
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Set Cargo build target to x86_64
+        run: echo "CARGO_BUILD_TARGET=x86_64-apple-darwin" >> $GITHUB_ENV
+        
+      - name: yarn cache clean
+        shell: bash
+        run: cd .. && yarn cache clean
+
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: Build for Intel (x86_64)
+      - name: yarn build
+        shell: bash
+        run: cd .. && yarn build
+
+      - name: Install dependencies and build it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn && yarn tauri build --target x86_64-apple-darwin
+          ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          yarn build-macx86
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -98,7 +108,6 @@ jobs:
         if: ${{ always() }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2

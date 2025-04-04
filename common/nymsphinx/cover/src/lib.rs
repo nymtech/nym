@@ -171,6 +171,7 @@ pub fn is_cover(data: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::iter::repeat_n;
 
     #[test]
     fn is_cover_works_for_identical_input() {
@@ -182,7 +183,7 @@ mod tests {
         let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
             .iter()
             .cloned()
-            .chain(std::iter::repeat(42).take(100))
+            .chain(repeat_n(42, 100))
             .collect();
         assert!(is_cover(&input))
     }

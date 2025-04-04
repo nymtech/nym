@@ -64,11 +64,25 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
+      - name: Add Rust target for x86_64-apple-darwin
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Set Cargo build target to x86_64
+        run: echo "CARGO_BUILD_TARGET=x86_64-apple-darwin" >> $GITHUB_ENV
+        
+      - name: yarn cache clean
+        shell: bash
+        run: cd .. && yarn cache clean
+
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: Install app dependencies and build it
+      - name: yarn build
+        shell: bash
+        run: cd .. && yarn build
+
+      - name: Install dependencies and build it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
@@ -80,13 +94,14 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: yarn && yarn build
+        run: |
+          yarn build-macx86
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: nym-wallet.app.tar.gz
-          path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz
+          path: nym-wallet/target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app.tar.gz
           retention-days: 5
 
       - name: Clean up keychain
@@ -99,8 +114,8 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-wallet/target/release/bundle/dmg/*.dmg
-            nym-wallet/target/release/bundle/macos/*.app.tar.gz*
+            nym-wallet/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            nym-wallet/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz*
 
       - name: Deploy artifacts to CI www
         continue-on-error: true
@@ -108,7 +123,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz"
+          SOURCE: "nym-wallet/target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app.tar.gz"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet

@@ -31,10 +31,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 21
+          
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -70,7 +72,7 @@ jobs:
       - name: Set Cargo build target to x86_64
         run: echo "CARGO_BUILD_TARGET=x86_64-apple-darwin" >> $GITHUB_ENV
         
-      - name: yarn cache clean
+      - name: Yarn cache clean
         shell: bash
         run: cd .. && yarn cache clean
 
@@ -78,7 +80,7 @@ jobs:
         shell: bash
         run: cd .. && yarn --network-timeout 100000
 
-      - name: yarn build
+      - name: Yarn build
         shell: bash
         run: cd .. && yarn build
 
@@ -108,6 +110,7 @@ jobs:
         if: ${{ always() }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+          
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2

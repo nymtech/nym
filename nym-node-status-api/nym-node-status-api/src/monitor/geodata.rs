@@ -29,6 +29,8 @@ impl IpInfoClient {
                 }
                 anyhow::Error::from(err)
             })?;
+
+        // extracting text, then deserializing produces better error messages than response.json()
         let raw_response = response.text().await?;
         let response: LocationResponse =
             serde_json::from_str(&raw_response).inspect_err(|e| tracing::error!("{e}"))?;
@@ -61,8 +63,9 @@ impl IpInfoClient {
     }
 }
 
+// TODO dz: are fields other than location used?
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct NodeGeoData {
+pub(crate) struct ExplorerPrettyBond {
     pub(crate) identity_key: String,
     pub(crate) owner: Addr,
     pub(crate) pledge_amount: Coin,
@@ -74,6 +77,12 @@ pub(crate) struct Location {
     pub(crate) two_letter_iso_country_code: String,
     #[serde(flatten)]
     pub(crate) location: Coordinates,
+    pub(crate) ip_address: String,
+    pub(crate) city: String,
+    pub(crate) region: String,
+    pub(crate) org: String,
+    pub(crate) postal: String,
+    pub(crate) timezone: String,
 }
 
 impl From<LocationResponse> for Location {
@@ -81,6 +90,12 @@ impl From<LocationResponse> for Location {
         Self {
             two_letter_iso_country_code: value.two_letter_iso_country_code,
             location: value.loc,
+            ip_address: value.ip,
+            city: value.city,
+            region: value.region,
+            org: value.org,
+            postal: value.postal,
+            timezone: value.timezone,
         }
     }
 }
@@ -91,6 +106,19 @@ pub(crate) struct LocationResponse {
     pub(crate) two_letter_iso_country_code: String,
     #[serde(deserialize_with = "deserialize_loc")]
     pub(crate) loc: Coordinates,
+    // TODO dz consider making them optional?
+    #[serde(default = "String::default")]
+    pub(crate) ip: String,
+    #[serde(default = "String::default")]
+    pub(crate) city: String,
+    #[serde(default = "String::default")]
+    pub(crate) region: String,
+    #[serde(default = "String::default")]
+    pub(crate) org: String,
+    #[serde(default = "String::default")]
+    pub(crate) postal: String,
+    #[serde(default = "String::default")]
+    pub(crate) timezone: String,
 }
 
 fn deserialize_loc<'de, D>(deserializer: D) -> Result<Coordinates, D::Error>
@@ -115,10 +143,7 @@ pub(crate) struct Coordinates {
 
 impl Location {
     pub(crate) fn empty() -> Self {
-        Self {
-            two_letter_iso_country_code: String::new(),
-            location: Coordinates::default(),
-        }
+        Self::default()
     }
 }
 

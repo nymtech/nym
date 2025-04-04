@@ -7,7 +7,7 @@ use crate::db::models::{
     NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
-use crate::monitor::geodata::{Location, NodeGeoData};
+use crate::monitor::geodata::{ExplorerPrettyBond, Location};
 use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
@@ -31,8 +31,8 @@ pub(crate) use geodata::IpInfoClient;
 mod geodata;
 
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
-
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
+pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
 struct Monitor {
     db_pool: DbPool,
@@ -40,7 +40,7 @@ struct Monitor {
     nym_api_client_timeout: Duration,
     nyxd_addr: Url,
     ipinfo: IpInfoClient,
-    geocache: Cache<NodeId, Location>,
+    geocache: NodeGeoCache,
 }
 
 // TODO dz: query many NYM APIs:
@@ -52,9 +52,8 @@ pub(crate) async fn spawn_in_background(
     nyxd_addr: Url,
     refresh_interval: Duration,
     ipinfo_api_token: String,
-    geodata_ttl: Duration,
+    geocache: NodeGeoCache,
 ) {
-    let geocache = Cache::builder().time_to_live(geodata_ttl).build();
     let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
     let mut monitor = Monitor {
         db_pool,
@@ -151,18 +150,9 @@ impl Monitor {
                 tracing::debug!("{} nym nodes written to DB!", inserted);
             })?;
 
-        let mut gateway_geodata = Vec::new();
-        for gateway in gateways.iter() {
-            if let Some(node_details) = bonded_nym_nodes.get(&gateway.node_id) {
-                let bond_info = &node_details.bond_information;
-                let gw_geodata = NodeGeoData {
-                    identity_key: bond_info.node.identity_key.to_owned(),
-                    owner: bond_info.owner.to_owned(),
-                    pledge_amount: bond_info.original_pledge.to_owned(),
-                    location: self.location_cached(gateway).await,
-                };
-                gateway_geodata.push(gw_geodata);
-            }
+        // refresh geodata for all nodes
+        for (_, node_description) in described_nodes.iter() {
+            self.location_cached(node_description).await;
         }
 
         let mixnodes_detailed = api_client
@@ -181,7 +171,6 @@ impl Monitor {
             .map(|elem| elem.identity_key().to_owned())
             .collect::<HashSet<_>>();
 
-        // TODO this assumes polyfilling of legacy mixnodes on Nym API
         let mixnodes_legacy = nym_nodes
             .iter()
             .filter(|node| {
@@ -220,8 +209,9 @@ impl Monitor {
         let assigned_mixing_count = mixing_assigned_nodes.len();
         let count_legacy_mixnodes = mixnodes_legacy.len();
 
-        let gateway_records =
-            self.prepare_gateway_data(&gateways, gateway_geodata, &nym_nodes, &bonded_nym_nodes)?;
+        let gateway_records = self
+            .prepare_gateway_data(&gateways, &nym_nodes, &bonded_nym_nodes)
+            .await?;
 
         let pool = self.db_pool.clone();
         let gateways_count = gateway_records.len();
@@ -357,10 +347,9 @@ impl Monitor {
             .collect::<Vec<_>>()
     }
 
-    fn prepare_gateway_data(
-        &self,
+    async fn prepare_gateway_data(
+        &mut self,
         described_gateways: &[&NymNodeDescription],
-        gateway_geodata: Vec<NodeGeoData>,
         skimmed_gateways: &[SkimmedNode],
         bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
@@ -373,11 +362,19 @@ impl Monitor {
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
-            let explorer_pretty_bond = gateway_geodata
-                .iter()
-                .find(|g| g.identity_key.eq(&identity_key));
+            let explorer_pretty_bond = {
+                let location = self.location_cached(gateway).await;
+                bonded_nodes
+                    .get(&gateway.node_id)
+                    .map(|details| ExplorerPrettyBond {
+                        identity_key: gateway.ed25519_identity_key().to_base58_string(),
+                        owner: details.bond_information.owner.to_owned(),
+                        pledge_amount: details.bond_information.original_pledge.to_owned(),
+                        location,
+                    })
+            };
             let explorer_pretty_bond =
-                explorer_pretty_bond.and_then(|g| serde_json::to_string(g).ok());
+                explorer_pretty_bond.and_then(|g| serde_json::to_string(&g).ok());
 
             let performance = skimmed_gateways
                 .iter()

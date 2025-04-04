@@ -42,7 +42,8 @@ use nym_network_requester::{
 };
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
-use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
+use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription, NoiseKey};
+use nym_noise::config::{NoiseConfig, NoiseNodes};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, TaskClient};
@@ -697,7 +698,10 @@ impl NymNode {
         let host_details = sign_host_details(
             &self.config,
             self.x25519_sphinx_keys.public_key(),
-            self.x25519_noise_keys.public_key(),
+            &NoiseKey {
+                version: nym_noise::NOISE_VERSION,
+                x25519_pubkey: *self.x25519_noise_keys.public_key(),
+            },
             &self.ed25519_identity_keys,
         )?;
 
@@ -983,6 +987,7 @@ impl NymNode {
         &self,
         active_clients_store: &ActiveClientsStore,
         routing_filter: F,
+        noise_config: NoiseConfig,
         shutdown: ShutdownToken,
     ) -> (MixForwardingSender, ActiveConnections)
     where
@@ -1006,6 +1011,7 @@ impl NymNode {
         );
         let mixnet_client = nym_mixnet_client::Client::new(
             mixnet_client_config,
+            noise_config.clone(),
             self.metrics
                 .network
                 .active_egress_mixnet_connections_counter(),
@@ -1031,6 +1037,7 @@ impl NymNode {
             self.x25519_sphinx_keys.clone(),
             mix_packet_sender.clone(),
             final_hop_data,
+            noise_config,
             self.metrics.clone(),
             shutdown,
         );
@@ -1040,9 +1047,16 @@ impl NymNode {
     }
 
     pub(crate) async fn run_minimal_mixnet_processing(self) -> Result<(), NymNodeError> {
+        let noise_config = nym_noise::config::NoiseConfig::new(
+            self.x25519_noise_keys.clone(),
+            NoiseNodes::new_empty(),
+        )
+        .with_unsafe_disabled(true);
+
         self.start_mixnet_listener(
             &ActiveClientsStore::new(),
             OpenFilter,
+            noise_config,
             self.shutdown_manager.clone_token("mixnet-traffic"),
         );
 
@@ -1081,9 +1095,16 @@ impl NymNode {
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
 
+        let noise_config = nym_noise::config::NoiseConfig::new(
+            self.x25519_noise_keys.clone(),
+            network_refresher.noise_nodes(),
+        )
+        .with_unsafe_disabled(self.config.mixnet.debug.unsafe_disable_noise);
+
         let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
             network_refresher.routing_filter(),
+            noise_config,
             self.shutdown_manager.clone_token("mixnet-traffic"),
         );
 

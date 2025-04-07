@@ -7,6 +7,7 @@ use nym_mixnet_contract_common::{Gateway, MixNode};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
 use tauri_plugin_shell::init as init_shell;
+use tauri_plugin_updater::Builder as UpdaterBuilder;
 
 use crate::menu::SHOW_LOG_WINDOW;
 use crate::operations::app;
@@ -36,6 +37,7 @@ fn main() {
     let context = tauri::generate_context!();
     tauri::Builder::default()
         .plugin(init_shell())
+        .plugin(UpdaterBuilder::new().build())
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
             app::link::open_url,

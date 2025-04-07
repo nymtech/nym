@@ -47,11 +47,17 @@ impl SurbAck {
         average_delay: time::Duration,
         topology: &NymRouteProvider,
         packet_type: PacketType,
+        disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
     {
-        let route = topology.random_route_to_egress(rng, recipient.gateway())?;
+        let route = if disable_mix_hops {
+            topology.empty_route_to_egress(recipient.gateway())?
+        } else {
+            topology.random_route_to_egress(rng, recipient.gateway())?
+        };
+
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 

@@ -4,7 +4,8 @@
     "description": "Default capability for Nym Wallet main window",
     "windows": [
         "main",
-        "nymWalletApp"
+        "nymWalletApp",
+        "log"
     ],
     "platforms": [
         "linux",
@@ -24,6 +25,7 @@
         "core:window:allow-set-title",
         "core:app:allow-version",
         "clipboard-manager:allow-read-text",
-        "clipboard-manager:allow-write-text"
+        "clipboard-manager:allow-write-text",
+        "core:event:allow-listen"
     ]
 }

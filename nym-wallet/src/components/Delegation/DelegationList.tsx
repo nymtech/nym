@@ -1,16 +1,29 @@
 import React from 'react';
-import { Alert, AlertTitle, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Typography } from '@mui/material';
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  Typography,
+} from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { DelegationWithEverything } from '@nymproject/types';
 import { useSortDelegations } from 'src/hooks/useSortDelegations';
+import { useNavigate } from 'react-router-dom';
 import { DelegationListItemActions } from './DelegationActions';
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { isDelegation, isPendingDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
 import { ErrorModal } from '../Modals/ErrorModal';
-import { useNavigate } from 'react-router-dom';
 
 export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
@@ -86,11 +99,10 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
 
 const hasPruningError = (item: any): boolean => {
   if (!isDelegation(item) || !item.errors) return false;
-  
+
   return (
-    item.errors.includes("height") && 
-    item.errors.includes("not available") ||
-    item.errors.includes("Due to pruning strategies")
+    (item.errors.includes('height') && item.errors.includes('not available')) ||
+    item.errors.includes('Due to pruning strategies')
   );
 };
 
@@ -114,11 +126,9 @@ export const DelegationList: FCWithChildren<{
   };
 
   const sorted = useSortDelegations(items, order, orderBy);
-  
+
   // Check if any delegations have pruning errors
-  const hasPruningErrors = React.useMemo(() => {
-    return sorted?.some(item => hasPruningError(item));
-  }, [sorted]);
+  const hasPruningErrors = React.useMemo(() => sorted?.some((item) => hasPruningError(item)), [sorted]);
 
   // Navigate to settings page
   const navigateToSettings = () => {
@@ -127,8 +137,8 @@ export const DelegationList: FCWithChildren<{
 
   // Format error message for display
   const formatErrorMessage = (message: string) => {
-    if (message.includes("height") && message.includes("not available")) {
-      return "Due to pruning strategies from validators, please navigate to the Settings tab and change your RPC node for your validator to retrieve your delegations.";
+    if (message.includes('height') && message.includes('not available')) {
+      return 'Due to pruning strategies from validators, please navigate to the Settings tab and change your RPC node for your validator to retrieve your delegations.';
     }
     return message;
   };
@@ -137,8 +147,8 @@ export const DelegationList: FCWithChildren<{
     <>
       {/* Display pruning error alert at the top if needed */}
       {hasPruningErrors && (
-        <Alert 
-          severity="warning" 
+        <Alert
+          severity="warning"
           sx={{ mb: 2 }}
           action={
             <Button color="inherit" size="small" onClick={navigateToSettings}>
@@ -148,21 +158,19 @@ export const DelegationList: FCWithChildren<{
         >
           <AlertTitle>Data Pruning Detected</AlertTitle>
           <Typography>
-            Some delegation details cannot be retrieved because of data pruning on the validator.
-            Please navigate to the Settings tab and change your RPC node to fix this issue.
+            Some delegation details cannot be retrieved because of data pruning on the validator. Please navigate to the
+            Settings tab and change your RPC node to fix this issue.
           </Typography>
         </Alert>
       )}
-      
+
       <TableContainer>
         {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
         <ErrorModal
           open={Boolean(delegationItemErrors)}
           title={`Delegation errors for Node ID ${delegationItemErrors?.nodeId || 'unknown'}`}
           message={
-            delegationItemErrors?.errors 
-              ? formatErrorMessage(delegationItemErrors.errors) 
-              : 'An unknown error occurred'
+            delegationItemErrors?.errors ? formatErrorMessage(delegationItemErrors.errors) : 'An unknown error occurred'
           }
           onClose={() => setDelegationItemErrors(undefined)}
         />
@@ -172,7 +180,6 @@ export const DelegationList: FCWithChildren<{
             {sorted?.length
               ? sorted.map((item: any, index: number) => {
                   if (isPendingDelegation(item)) {
-                    // Use index for key instead of mix_id which might not be directly accessible
                     return <PendingDelegationItem key={`pending-${index}`} item={item} explorerUrl={explorerUrl} />;
                   }
                   if (isDelegation(item))

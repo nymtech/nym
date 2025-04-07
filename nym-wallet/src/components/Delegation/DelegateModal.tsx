@@ -1,7 +1,5 @@
 import React, { useCallback, useContext, useState } from 'react';
-import { Box, Typography, SxProps } from '@mui/material';
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
+import { Box, SxProps } from '@mui/material';
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
@@ -13,10 +11,10 @@ import { ModalListItem } from '../Modals/ModalListItem';
 import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
 import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
 import { ConfirmTx } from '../ConfirmTX';
-
 import { getMixnodeStakeSaturation } from '../../requests';
 import { ErrorModal } from '../Modals/ErrorModal';
 import { BalanceWarning } from '../FeeWarning';
+import { TextFieldWithPaste, CurrencyFormFieldWithPaste } from '../Clipboard/ClipboardFormFields';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -255,36 +253,24 @@ export const DelegateModal: FCWithChildren<{
       backdropProps={backdropProps}
     >
       <Box sx={{ mt: 3 }}>
-        <IdentityKeyFormField
-          required
-          fullWidth
+        <TextFieldWithPaste
           label="Node identity key"
-          onChanged={handleIdentityKeyChanged}
-          initialValue={identityKey}
-          readOnly={Boolean(initialIdentityKey)}
-          textFieldProps={{
-            autoFocus: !initialIdentityKey,
-          }}
-          showTickOnValid={false}
+          fullWidth
+          value={identityKey}
+          onChange={(e) => handleIdentityKeyChanged(e.target.value)}
+          onPasteValue={handleIdentityKeyChanged}
+          error={Boolean(errorIdentityKey)}
+          helperText={errorIdentityKey}
+          InputLabelProps={{ shrink: true }}
         />
       </Box>
-      <Typography
-        component="div"
-        textAlign="left"
-        variant="caption"
-        sx={{ color: 'error.main', mx: 2, mt: errorIdentityKey && 1 }}
-      >
-        {errorIdentityKey}
-      </Typography>
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
-        <CurrencyFormField
-          required
-          fullWidth
+        <CurrencyFormFieldWithPaste
           label="Amount"
-          initialValue={amount}
-          autoFocus={Boolean(initialIdentityKey)}
+          fullWidth
           onChanged={handleAmountChanged}
+          initialValue={amount}
           denom={denom}
           validationError={errorAmount}
         />

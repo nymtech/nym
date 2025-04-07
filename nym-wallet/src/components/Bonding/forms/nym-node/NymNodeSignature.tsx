@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import * as yup from 'yup';
-import { Stack, TextField, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
-import { CopyToClipboard } from 'src/components/CopyToClipboard';
+import { CopyToClipboard, TextFieldWithPaste } from 'src/components/Clipboard';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { useBondingContext } from 'src/context';
@@ -41,6 +41,7 @@ const NymNodeSignature = ({
     register,
     formState: { errors },
     handleSubmit,
+    setValue,
   } = useForm<Signature>({
     defaultValues: {
       signature,
@@ -73,6 +74,11 @@ const NymNodeSignature = ({
     handleSubmit(onNext)();
   };
 
+  const handleSignatureChange = (value: string) => {
+    setSignature(value);
+    setValue('signature', value, { shouldValidate: true });
+  };
+
   if (error) {
     return <ErrorModal open message={error} onClose={() => {}} />;
   }
@@ -98,14 +104,18 @@ const NymNodeSignature = ({
           <br />
           Then paste the signature in the next field.
         </Typography>
-        <TextField id="outlined-multiline-static" multiline rows={7} value={message} fullWidth disabled />
+
+        <TextFieldWithPaste id="outlined-multiline-static" multiline rows={7} value={message} fullWidth disabled />
+
         <Stack direction="row" alignItems="center" gap={1} justifyContent="end">
           <Typography fontWeight={600}>Copy Message</Typography>
           {message && <CopyToClipboard text={message} iconButton />}
         </Stack>
-        <TextField
+
+        <TextFieldWithPaste
           {...register('signature')}
-          onChange={(e) => setSignature(e.target.value)}
+          onPasteValue={handleSignatureChange}
+          onChange={(e) => handleSignatureChange(e.target.value)}
           id="outlined-multiline-static"
           name="signature"
           rows={3}
@@ -115,6 +125,7 @@ const NymNodeSignature = ({
           multiline
           fullWidth
           required
+          value={signature}
         />
       </Stack>
     </SimpleModal>

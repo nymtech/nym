@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
-import { isGateway, isMixnode, isNymNode } from 'src/types';
+import { isMixnode, isNymNode } from 'src/types';
 import { TBondedNode } from 'src/context/bonding';
 import { ParametersSettings } from './ParametersSettings';
 import { GeneralNymNodeSettings } from './GeneralNymNodeSettings';

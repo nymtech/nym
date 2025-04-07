@@ -130,12 +130,6 @@ export const CurrencyFormField: FCWithChildren<{
       InputProps={{
         readOnly,
         required,
-        endAdornment: showCoinMark && (
-          <InputAdornment position="end">
-            {denom === 'nym' && <CoinMark height="20px" />}
-            {denom !== 'nym' && <span>NYMT</span>}
-          </InputAdornment>
-        ),
         ...{
           min: MIN_VALUE,
           max: MAX_VALUE,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Typography } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { DelegationWithEverything } from '@nymproject/types';
@@ -10,6 +10,7 @@ import { PendingDelegationItem } from './PendingDelegationItem';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { isDelegation, isPendingDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
 import { ErrorModal } from '../Modals/ErrorModal';
+import { useNavigate } from 'react-router-dom';
 
 export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
@@ -83,7 +84,15 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
   );
 };
 
-// Pin delegations on unbonded nodes to the top of the list
+const hasPruningError = (item: any): boolean => {
+  if (!isDelegation(item) || !item.errors) return false;
+  
+  return (
+    item.errors.includes("height") && 
+    item.errors.includes("not available") ||
+    item.errors.includes("Due to pruning strategies")
+  );
+};
 
 export const DelegationList: FCWithChildren<{
   isLoading?: boolean;
@@ -94,6 +103,7 @@ export const DelegationList: FCWithChildren<{
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
   const [orderBy, setOrderBy] = React.useState<SortingKeys>('delegated_on_iso_datetime');
+  const navigate = useNavigate();
 
   const { delegationItemErrors, setDelegationItemErrors } = useDelegationContext();
 
@@ -104,36 +114,83 @@ export const DelegationList: FCWithChildren<{
   };
 
   const sorted = useSortDelegations(items, order, orderBy);
+  
+  // Check if any delegations have pruning errors
+  const hasPruningErrors = React.useMemo(() => {
+    return sorted?.some(item => hasPruningError(item));
+  }, [sorted]);
+
+  // Navigate to settings page
+  const navigateToSettings = () => {
+    navigate('/settings');
+  };
+
+  // Format error message for display
+  const formatErrorMessage = (message: string) => {
+    if (message.includes("height") && message.includes("not available")) {
+      return "Due to pruning strategies from validators, please navigate to the Settings tab and change your RPC node for your validator to retrieve your delegations.";
+    }
+    return message;
+  };
 
   return (
-    <TableContainer>
-      {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
-      <ErrorModal
-        open={Boolean(delegationItemErrors)}
-        title={`Delegation errors for Node ID ${delegationItemErrors?.nodeId || 'unknown'}`}
-        message={delegationItemErrors?.errors || 'oops'}
-        onClose={() => setDelegationItemErrors(undefined)}
-      />
-      <Table sx={{ width: '100%' }}>
-        <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
-        <TableBody>
-          {sorted?.length
-            ? sorted.map((item: any) => {
-                if (isPendingDelegation(item)) return <PendingDelegationItem item={item} explorerUrl={explorerUrl} />;
-                if (isDelegation(item))
-                  return (
-                    <DelegationItem
-                      item={item}
-                      explorerUrl={explorerUrl}
-                      nodeIsUnbonded={Boolean(!item.node_identity)}
-                      onItemActionClick={onItemActionClick}
-                    />
-                  );
-                return null;
-              })
-            : null}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <>
+      {/* Display pruning error alert at the top if needed */}
+      {hasPruningErrors && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={navigateToSettings}>
+              Go to Settings
+            </Button>
+          }
+        >
+          <AlertTitle>Data Pruning Detected</AlertTitle>
+          <Typography>
+            Some delegation details cannot be retrieved because of data pruning on the validator.
+            Please navigate to the Settings tab and change your RPC node to fix this issue.
+          </Typography>
+        </Alert>
+      )}
+      
+      <TableContainer>
+        {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
+        <ErrorModal
+          open={Boolean(delegationItemErrors)}
+          title={`Delegation errors for Node ID ${delegationItemErrors?.nodeId || 'unknown'}`}
+          message={
+            delegationItemErrors?.errors 
+              ? formatErrorMessage(delegationItemErrors.errors) 
+              : 'An unknown error occurred'
+          }
+          onClose={() => setDelegationItemErrors(undefined)}
+        />
+        <Table sx={{ width: '100%' }}>
+          <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
+          <TableBody>
+            {sorted?.length
+              ? sorted.map((item: any, index: number) => {
+                  if (isPendingDelegation(item)) {
+                    // Use index for key instead of mix_id which might not be directly accessible
+                    return <PendingDelegationItem key={`pending-${index}`} item={item} explorerUrl={explorerUrl} />;
+                  }
+                  if (isDelegation(item))
+                    return (
+                      <DelegationItem
+                        key={`delegation-${item.mix_id}`}
+                        item={item}
+                        explorerUrl={explorerUrl}
+                        nodeIsUnbonded={Boolean(!item.node_identity)}
+                        onItemActionClick={onItemActionClick}
+                      />
+                    );
+                  return null;
+                })
+              : null}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </>
   );
 };

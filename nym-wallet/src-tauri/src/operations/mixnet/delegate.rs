@@ -407,14 +407,22 @@ pub async fn get_all_mix_delegations(
             d.height
         );
         let timestamp = client
-            .nyxd
-            .get_block_timestamp(Some(d.height as u32))
-            .await
-            .tap_err(|err| {
+        .nyxd
+        .get_block_timestamp(Some(d.height as u32))
+        .await
+        .tap_err(|err| {
+            let error_message = err.to_string();
+            // Check if the error is related to height not being available (pruning)
+            if error_message.contains("height") && error_message.contains("not available") {
+                let str_err = "Due to pruning strategies from validators, please navigate to the Settings tab and change your RPC node for your validator to retrieve your delegations.";
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err.to_string());
+            } else {
                 let str_err = format!("Failed to get block timestamp for height = {} for delegation to mix_id = {}. Error: {}", d.height, d.mix_id, err);
                 log::error!("  <<< {}", str_err);
                 error_strings.push(str_err);
-            }).ok();
+            }
+        }).ok();
         let delegated_on_iso_datetime = timestamp.map(|ts| ts.to_rfc3339());
         log::trace!(
             "  <<< timestamp = {:?}, delegated_on_iso_datetime = {:?}",

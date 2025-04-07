@@ -3,7 +3,6 @@
 
 use crate::throughput_tester::stats::ClientStats;
 use anyhow::bail;
-use arrayref::array_ref;
 use blake2::VarBlake2b;
 use chacha::ChaCha;
 use futures::{stream, SinkExt, Stream, StreamExt};
@@ -230,11 +229,7 @@ impl ThroughputTestingClient {
     }
 
     fn lioness_encrypt(&self, block: &mut [u8]) -> anyhow::Result<()> {
-        let lioness_cipher = Lioness::<VarBlake2b, ChaCha>::new_raw(array_ref!(
-            self.payload_key,
-            0,
-            lioness::RAW_KEY_SIZE
-        ));
+        let lioness_cipher = Lioness::<VarBlake2b, ChaCha>::new_raw(&self.payload_key);
         lioness_cipher.encrypt(block)?;
         Ok(())
     }

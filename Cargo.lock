@@ -12144,3 +12144,7 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "sphinx-packet"
+version = "0.6.0"

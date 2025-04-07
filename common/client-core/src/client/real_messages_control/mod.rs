@@ -60,6 +60,12 @@ pub struct Config {
 
     /// Specifies all reply SURBs related configuration options.
     reply_surbs: config::ReplySurbs,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    disable_mix_hops: bool,
 }
 
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
@@ -103,6 +109,7 @@ impl<'a> From<&'a Config> for message_handler::Config {
         )
         .with_custom_primary_packet_size(cfg.traffic.primary_packet_size)
         .with_custom_secondary_packet_size(cfg.traffic.secondary_packet_size)
+        .disable_mix_hops(cfg.disable_mix_hops)
     }
 }
 
@@ -119,6 +126,7 @@ impl Config {
             cover_traffic: base_client_debug_config.cover_traffic,
             acks: base_client_debug_config.acknowledgements,
             reply_surbs: base_client_debug_config.reply_surbs,
+            disable_mix_hops: base_client_debug_config.disable_mix_hops,
         }
     }
 }

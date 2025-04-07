@@ -3,14 +3,16 @@
 
 use crate::error::NetworkTestingError;
 use crate::TestMessage;
+use nym_sphinx::acknowledgements::surb_ack::SurbAck;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
 use nym_sphinx_params::PacketType;
 use nym_topology::node::RoutingNode;
-use nym_topology::{NymRouteProvider, NymTopology, Role};
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError, Role};
 use rand::{CryptoRng, Rng};
 use serde::Serialize;
 use std::sync::Arc;
@@ -229,7 +231,6 @@ where
             topology,
             &ack_key,
             &address,
-            &address,
             PacketType::Mix,
         )?)
     }
@@ -273,5 +274,30 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
 
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
+    }
+
+    /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
+    fn generate_surb_ack(
+        &mut self,
+        fragment_id: FragmentIdentifier,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_type: PacketType,
+    ) -> Result<SurbAck, NymTopologyError> {
+        let sender = self.self_address.expect("self_address must be set");
+        let ack_delay = self.average_ack_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        SurbAck::construct(
+            self.rng(),
+            use_legacy_sphinx_format,
+            &sender,
+            ack_key,
+            fragment_id.to_bytes(),
+            ack_delay,
+            topology,
+            packet_type,
+            false,
+        )
     }
 }

@@ -17,7 +17,7 @@ use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, PacketType};
-use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
+use nym_sphinx::preparer::{FragmentPreparer, MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
@@ -98,6 +98,12 @@ pub(crate) struct Config {
     /// Specify whether route selection should be determined by the packet header.
     deterministic_route_selection: bool,
 
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    disable_mix_hops: bool,
+
     /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
 
@@ -133,6 +139,7 @@ impl Config {
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
             use_legacy_sphinx_format: use_legacy_reply_surb_format,
+            disable_mix_hops: false,
         }
     }
 
@@ -145,6 +152,12 @@ impl Config {
     /// Allows setting non-default size of the sphinx packets sent out.
     pub fn with_custom_secondary_packet_size(mut self, packet_size: Option<PacketSize>) -> Self {
         self.secondary_packet_size = packet_size;
+        self
+    }
+
+    /// Configure whether messages senders using this config should use mix hops or not when sending messages.
+    pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
+        self.disable_mix_hops = disable_mix_hops;
         self
     }
 }
@@ -193,6 +206,7 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
             config.use_legacy_sphinx_format,
+            config.disable_mix_hops,
         );
         MessageHandler {
             config,

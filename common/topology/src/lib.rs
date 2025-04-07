@@ -176,6 +176,18 @@ impl NymRouteProvider {
             .random_route_to_egress(rng, egress_identity, self.ignore_egress_epoch_roles)
     }
 
+    /// Tries to create a route to the egress point, such that it goes through mixnode on layer 1,
+    /// mixnode on layer2, .... mixnode on layer n and finally the target egress, which can be any known node
+    pub fn empty_route_to_egress(
+        &self,
+        egress_identity: NodeIdentity,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError> {
+        let egress = self
+            .topology
+            .egress_node_by_identity(egress_identity, self.ignore_egress_epoch_roles)?;
+        Ok(vec![egress])
+    }
+
     pub fn random_path_to_egress<R>(
         &self,
         rng: &mut R,

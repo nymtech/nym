@@ -17,8 +17,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
+use rand::{CryptoRng, Rng};
 
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
@@ -59,28 +58,38 @@ pub trait FragmentPreparer {
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
 
+    fn generate_reply_surbs(
+        &mut self,
+        amount: usize,
+        topology: &NymRouteProvider,
+        reply_recipient: &Recipient,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        let packet_delay = self.average_packet_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        for _ in 0..amount {
+            let reply_surb = ReplySurb::construct(
+                self.rng(),
+                reply_recipient,
+                packet_delay,
+                use_legacy_sphinx_format,
+                topology,
+                false,
+            )?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
+    }
+
     fn generate_surb_ack(
         &mut self,
-        recipient: &Recipient,
         fragment_id: FragmentIdentifier,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
         packet_type: PacketType,
-    ) -> Result<SurbAck, NymTopologyError> {
-        let ack_delay = self.average_ack_delay();
-        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
-
-        SurbAck::construct(
-            self.rng(),
-            use_legacy_sphinx_format,
-            recipient,
-            ack_key,
-            fragment_id.to_bytes(),
-            ack_delay,
-            topology,
-            packet_type,
-        )
-    }
+    ) -> Result<SurbAck, NymTopologyError>;
 
     /// The procedure is as follows:
     /// For each fragment:
@@ -98,7 +107,6 @@ pub trait FragmentPreparer {
         topology: &NymRouteProvider,
         ack_key: &AckKey,
         reply_surb: ReplySurb,
-        packet_sender: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         // each reply attaches the digest of the encryption key so that the recipient could
@@ -122,13 +130,8 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(
-            packet_sender,
-            fragment_identifier,
-            topology,
-            ack_key,
-            packet_type,
-        )?;
+        let surb_ack =
+            self.generate_surb_ack(fragment_identifier, topology, ack_key, packet_type)?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
@@ -177,7 +180,6 @@ pub trait FragmentPreparer {
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        packet_sender: &Recipient,
         packet_recipient: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
@@ -186,7 +188,7 @@ pub trait FragmentPreparer {
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
 
-        let fragment_header = fragment.header();
+        // let fragment_header = fragment.header();
         let destination = packet_recipient.gateway();
         monitoring::fragment_sent(&fragment, self.nonce(), destination);
 
@@ -206,13 +208,8 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(
-            packet_sender,
-            fragment_identifier,
-            topology,
-            ack_key,
-            packet_type,
-        )?;
+        let surb_ack =
+            self.generate_surb_ack(fragment_identifier, topology, ack_key, packet_type)?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
@@ -224,16 +221,7 @@ pub trait FragmentPreparer {
 
         // generate pseudorandom route for the packet
         log::trace!("Preparing chunk for sending");
-        let route = if self.deterministic_route_selection() {
-            log::trace!("using deterministic route selection");
-            let seed = fragment_header.seed().wrapping_mul(self.nonce());
-            let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-            topology.random_route_to_egress(&mut rng, destination)?
-        } else {
-            log::trace!("using pseudorandom route selection");
-            let mut rng = self.rng();
-            topology.random_route_to_egress(&mut rng, destination)?
-        };
+        let route = topology.empty_route_to_egress(destination)?;
 
         let destination = packet_recipient.as_sphinx_destination();
 
@@ -301,6 +289,12 @@ pub struct MessagePreparer<R> {
     /// Specify whether route selection should be determined by the packet header.
     deterministic_route_selection: bool,
 
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    pub disable_mix_hops: bool,
+
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
     sender_address: Recipient,
@@ -329,6 +323,7 @@ where
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         use_legacy_sphinx_format: bool,
+        disable_mix_hops: bool,
     ) -> Self {
         let mut rng = rng;
         let nonce = rng.gen();
@@ -340,6 +335,7 @@ where
             average_ack_delay,
             use_legacy_sphinx_format,
             nonce,
+            disable_mix_hops,
         }
     }
 
@@ -362,72 +358,12 @@ where
                 self.average_packet_delay,
                 use_legacy_reply_surb_format,
                 topology,
+                self.disable_mix_hops,
             )?;
             reply_surbs.push(reply_surb)
         }
 
         Ok(reply_surbs)
-    }
-
-    pub fn prepare_reply_chunk_for_sending(
-        &mut self,
-        fragment: Fragment,
-        topology: &NymRouteProvider,
-        ack_key: &AckKey,
-        reply_surb: ReplySurb,
-        packet_type: PacketType,
-    ) -> Result<PreparedFragment, NymTopologyError> {
-        let sender = self.sender_address;
-
-        <Self as FragmentPreparer>::prepare_reply_chunk_for_sending(
-            self,
-            fragment,
-            topology,
-            ack_key,
-            reply_surb,
-            &sender,
-            packet_type,
-        )
-    }
-
-    pub fn prepare_chunk_for_sending(
-        &mut self,
-        fragment: Fragment,
-        topology: &NymRouteProvider,
-        ack_key: &AckKey,
-        packet_recipient: &Recipient,
-        packet_type: PacketType,
-    ) -> Result<PreparedFragment, NymTopologyError> {
-        let sender = self.sender_address;
-
-        <Self as FragmentPreparer>::prepare_chunk_for_sending(
-            self,
-            fragment,
-            topology,
-            ack_key,
-            &sender,
-            packet_recipient,
-            packet_type,
-        )
-    }
-
-    /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    pub fn generate_surb_ack(
-        &mut self,
-        fragment_id: FragmentIdentifier,
-        topology: &NymRouteProvider,
-        ack_key: &AckKey,
-        packet_type: PacketType,
-    ) -> Result<SurbAck, NymTopologyError> {
-        let sender = self.sender_address;
-        <Self as FragmentPreparer>::generate_surb_ack(
-            self,
-            &sender,
-            fragment_id,
-            topology,
-            ack_key,
-            packet_type,
-        )
     }
 
     pub fn pad_and_split_message(
@@ -464,6 +400,60 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
 
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
+    }
+
+    /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
+    fn generate_surb_ack(
+        &mut self,
+        fragment_id: FragmentIdentifier,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_type: PacketType,
+    ) -> Result<SurbAck, NymTopologyError> {
+        let sender = self.sender_address;
+        let ack_delay = self.average_ack_delay();
+        let disable_mix_hops = self.disable_mix_hops;
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        debug!("constructing ACK with empty route: {disable_mix_hops}");
+
+        SurbAck::construct(
+            self.rng(),
+            use_legacy_sphinx_format,
+            &sender,
+            ack_key,
+            fragment_id.to_bytes(),
+            ack_delay,
+            topology,
+            packet_type,
+            disable_mix_hops,
+        )
+    }
+
+    fn generate_reply_surbs(
+        &mut self,
+        amount: usize,
+        topology: &NymRouteProvider,
+        reply_recipient: &Recipient,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        let packet_delay = self.average_packet_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        for _ in 0..amount {
+            // TODO: support SURBs with no mix hops after changes to surb format / construction
+            let reply_surb = ReplySurb::construct(
+                self.rng(),
+                reply_recipient,
+                packet_delay,
+                use_legacy_sphinx_format,
+                topology,
+                false,
+            )?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
     }
 }
 

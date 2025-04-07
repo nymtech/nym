@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Grid, Typography } from '@mui/material';
+import { Alert, Grid, Typography, Skeleton } from '@mui/material';
 import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
 import { Network } from 'src/types';
@@ -12,11 +12,13 @@ export const BalanceCard = ({
   userBalanceError,
   network,
   clientAddress,
+  isLoading,
 }: {
   userBalance?: Balance;
   userBalanceError?: string;
   network?: Network;
   clientAddress?: string;
+  isLoading?: boolean;
 }) => (
   <NymCard
     title="Balance"
@@ -31,19 +33,23 @@ export const BalanceCard = ({
             {userBalanceError}
           </Alert>
         )}
-        {!userBalanceError && (
-          <Typography
-            data-testid="refresh-success"
-            sx={{
-              color: 'text.primary',
-              textTransform: 'uppercase',
-              fontWeight: '600',
-              fontSize: 28,
-            }}
-            variant="h5"
-          >
-            {userBalance?.printable_balance}
-          </Typography>
+        {isLoading ? (
+          <Skeleton width={160} height={42} />
+        ) : (
+          !userBalanceError && (
+            <Typography
+              data-testid="refresh-success"
+              sx={{
+                color: 'text.primary',
+                textTransform: 'uppercase',
+                fontWeight: '600',
+                fontSize: 28,
+              }}
+              variant="h5"
+            >
+              {userBalance?.printable_balance || '—'}
+            </Typography>
+          )
         )}
       </Grid>
       {network && (

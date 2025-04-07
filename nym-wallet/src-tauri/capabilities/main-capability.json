@@ -22,6 +22,8 @@
         "core:tray:default",
         "shell:allow-open",
         "core:window:allow-set-title",
-        "core:app:allow-version"
+        "core:app:allow-version",
+        "clipboard-manager:allow-read-text",
+        "clipboard-manager:allow-write-text"
     ]
 }

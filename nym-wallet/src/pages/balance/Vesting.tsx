@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Refresh } from '@mui/icons-material';
-import { Grid, IconButton, Typography } from '@mui/material';
+import { Grid, IconButton, Typography, Skeleton } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { NymCard } from 'src/components';
 import { TokenTransfer } from 'src/components/Balance/cards/TokenTransfer';
@@ -15,6 +15,7 @@ export const VestingCard = ({
   onTransfer,
   fetchBalance,
   fetchTokenAllocation,
+  isLoading,
 }: {
   unlockedTokens?: string;
   unlockedRewards?: string;
@@ -23,6 +24,7 @@ export const VestingCard = ({
   fetchTokenAllocation: () => Promise<void>;
   fetchBalance: () => Promise<void>;
   onTransfer: () => Promise<void>;
+  isLoading?: boolean;
 }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
@@ -54,14 +56,15 @@ export const VestingCard = ({
             await refreshBalances();
             enqueueSnackbar('Balances updated', { variant: 'success', preventDuplicate: true });
           }}
+          disabled={isLoading}
         >
-          <Refresh />
+          {isLoading ? <Skeleton variant="circular" width={24} height={24} /> : <Refresh />}
         </IconButton>
       }
     >
       <Grid container spacing={3}>
         <Grid item xs={12} md={7} lg={8}>
-          <VestingSchedule />
+          <VestingSchedule isLoading={isLoading} />
         </Grid>
         <Grid item xs={12} md={5} lg={4}>
           <TokenTransfer
@@ -69,6 +72,7 @@ export const VestingCard = ({
             unlockedTokens={unlockedTokens}
             unlockedRewards={unlockedRewards}
             unlockedTransferable={unlockedTransferable}
+            isLoading={isLoading}
           />
         </Grid>
       </Grid>

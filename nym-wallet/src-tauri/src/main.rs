@@ -8,6 +8,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
 use tauri_plugin_shell::init as init_shell;
 use tauri_plugin_updater::Builder as UpdaterBuilder;
+use tauri_plugin_clipboard_manager::ClipboardManagerPlugin;
 
 use crate::menu::SHOW_LOG_WINDOW;
 use crate::operations::app;
@@ -38,6 +39,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(init_shell())
         .plugin(UpdaterBuilder::new().build())
+        .plugin(ClipboardManagerPlugin::new())
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
             app::link::open_url,

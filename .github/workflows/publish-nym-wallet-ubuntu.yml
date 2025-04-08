@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [custom-ubuntu-22.04]
+        platform: [arc-ubuntu-22.04]
     runs-on: ${{ matrix.platform }}
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}

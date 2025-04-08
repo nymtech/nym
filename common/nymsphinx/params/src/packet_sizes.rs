@@ -272,9 +272,6 @@ impl PacketSize {
         let overhead = match packet_type {
             #[cfg(feature = "sphinx")]
             PacketType::Mix => SPHINX_PACKET_OVERHEAD,
-            #[allow(deprecated)]
-            #[cfg(feature = "sphinx")]
-            PacketType::Vpn => SPHINX_PACKET_OVERHEAD,
             #[cfg(feature = "outfox")]
             PacketType::Outfox => OUTFOX_PACKET_OVERHEAD,
             _ => 0,

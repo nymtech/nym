@@ -270,14 +270,6 @@ pub trait FragmentPreparer {
                 &destination,
                 &delays,
             )?,
-            #[allow(deprecated)]
-            PacketType::Vpn => NymPacket::sphinx_build(
-                packet_size.payload_size(),
-                packet_payload,
-                &route,
-                &destination,
-                &delays,
-            )?,
         };
 
         // from the previously constructed route extract the first hop

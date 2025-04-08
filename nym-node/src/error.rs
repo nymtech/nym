@@ -82,6 +82,9 @@ pub enum NymNodeError {
         source: io::Error,
     },
 
+    #[error("failed to validate loaded config: {error}")]
+    ConfigValidationFailure { error: String },
+
     #[error("the node description file is malformed: {source}")]
     MalformedDescriptionFile {
         #[source]
@@ -148,6 +151,12 @@ pub enum NymNodeError {
     )]
     InitialTopologyQueryFailure { source: ValidatorClientError },
 
+    #[error("experienced critical failure with the replay detection bloomfilter: {message}")]
+    BloomfilterFailure { message: &'static str },
+
+    #[error("failed to save/load the bloomfilter: {source} using path: {}", path.display())]
+    BloomfilterIoFailure { source: io::Error, path: PathBuf },
+
     #[error(transparent)]
     GatewayFailure(#[from] nym_gateway::GatewayError),
 
@@ -166,6 +175,18 @@ pub enum NymNodeError {
 
     #[error("failed upgrade")]
     FailedUpgrade,
+}
+
+impl NymNodeError {
+    pub fn config_validation_failure<S: Into<String>>(error: S) -> Self {
+        NymNodeError::ConfigValidationFailure {
+            error: error.into(),
+        }
+    }
+
+    pub fn bloomfilter_failure(message: &'static str) -> Self {
+        NymNodeError::BloomfilterFailure { message }
+    }
 }
 
 #[derive(Debug, Error)]

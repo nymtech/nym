@@ -1,6 +1,12 @@
 name: publish-nym-wallet-win11
 on:
   workflow_dispatch:
+    inputs:
+      sign:
+        description: "Sign this build using SSL.com. Signing is billed per signature so be careful"
+        required: false
+        type: boolean
+        default: true
   release:
     types: [created]
 
@@ -35,26 +41,22 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Import signing certificate
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup MSBuild.exe
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install yq
         run: |
-          New-Item -ItemType directory -Path certificate
-          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
-          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
-          Remove-Item -path certificate -include tempCert.txt
-          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+          winget list MikeFarah.yq || winget install --disable-interactivity --id MikeFarah.yq
 
       - name: Node
         uses: actions/setup-node@v4
         with:
           node-version: 21
-
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
 
       - name: Create env file
         uses: timheuer/base64-to-file@v1.2
@@ -62,8 +64,57 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
-      - name: Install Yarn
-        run: npm install -g yarn
+      # # Standard certificate import (used when not using SSL.com)
+      # - name: Import signing certificate
+      #   if: ${{ !inputs.sign }}
+      #   env:
+      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      #     WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      #   run: |
+      #     New-Item -ItemType directory -Path certificate
+      #     Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
+      #     certutil -decode certificate/tempCert.txt certificate/certificate.pfx
+      #     Remove-Item -path certificate -include tempCert.txt
+      #     Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+
+      # SSL.com certificate handling (from VPN workflow)
+      - name: Download EV CodeSignTool from ssl.com
+        if: ${{ inputs.sign }}
+        shell: bash
+        run: |
+          curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
+          unzip codesigntool.zip
+
+      - name: Get EV certificate credential id
+        if: ${{ inputs.sign }}
+        id: get_credential_ids
+        shell: bash
+        run: |
+          echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
+
+      # Add custom sign command to tauri.conf.json for SSL.com signing
+      - name: Add custom sign command to tauri.conf.json
+        if: ${{ inputs.sign }}
+        shell: bash
+        run: |
+          yq eval --inplace '.bundle.windows +=
+          {
+            "signCommand": {
+              "cmd": "C:\Program Files\Git\bin\bash.EXE",
+              "args": [
+                "/c/actions-runner/_work/nym/nym/nym-wallet/CodeSignTool.sh",
+                "sign",
+                "-username ${{ secrets.SSL_COM_USERNAME }}",
+                "-password ${{ secrets.SSL_COM_PASSWORD }}",
+                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
+                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
+                "-program_name NymWallet",
+                "-input_file_path",
+                "%1",
+                "-override"
+              ]
+            }
+          }' tauri.conf.json
 
       - name: Install project dependencies
         shell: bash
@@ -77,18 +128,37 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # WINDOWS_CERTIFICATE: ${{ !inputs.sign && secrets.WINDOWS_CERTIFICATE }}
+          # WINDOWS_CERTIFICATE_PASSWORD: ${{ !inputs.sign && secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          # Tauri v2 signing variables
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
         run: yarn build
+
+      - name: Check bundle directory
+        run: |
+          echo "Checking bundle directory structure"
+          ls -la target/release/bundle || echo "Bundle directory not found"
+          if [ -d "target/release/bundle/msi" ]; then
+            echo "MSI bundle directory exists, checking contents:"
+            ls -la target/release/bundle/msi
+          else
+            echo "MSI bundle directory not found, checking alternatives:"
+            find target/release/bundle -type d -name "*msi*" -o -name "*MSI*" || echo "No MSI directories found"
+            find target/release/bundle -name "*.msi" || echo "No MSI files found"
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nym-wallet_1.0.0_x64_en-US.msi
-          path: nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi
+          name: nym-wallet.msi
+          path: |
+            nym-wallet/target/release/bundle/msi/*.msi
+            nym-wallet/target/release/bundle/*/nym-wallet*.msi
           retention-days: 30
 
       - id: create-release
@@ -99,6 +169,21 @@ jobs:
           files: |
             nym-wallet/target/release/bundle/msi/*.msi
             nym-wallet/target/release/bundle/msi/*.msi.zip*
+            nym-wallet/target/release/bundle/*/nym-wallet*.msi
+            nym-wallet/target/release/bundle/*/nym-wallet*.msi.zip*
+
+      - name: Find MSI path for deployment
+        id: find-msi
+        shell: bash
+        run: |
+          MSI_FILE=$(find target/release/bundle -name "*.msi" | head -n 1)
+          if [ -n "$MSI_FILE" ]; then
+            echo "Found MSI file: $MSI_FILE"
+            echo "msi_path=$MSI_FILE" >> $GITHUB_OUTPUT
+          else
+            echo "WARNING: No MSI file found for deployment!"
+            echo "msi_path=target/release/bundle/msi/nym-wallet_1.*.msi" >> $GITHUB_OUTPUT
+          fi
 
       - name: Deploy artifacts to CI www
         continue-on-error: true
@@ -106,7 +191,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi"
+          SOURCE: ${{ steps.find-msi.outputs.msi_path }}
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet

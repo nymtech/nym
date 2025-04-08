@@ -64,57 +64,92 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
-      # # Standard certificate import (used when not using SSL.com)
-      # - name: Import signing certificate
-      #   if: ${{ !inputs.sign }}
-      #   env:
-      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      #     WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      #   run: |
-      #     New-Item -ItemType directory -Path certificate
-      #     Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
-      #     certutil -decode certificate/tempCert.txt certificate/certificate.pfx
-      #     Remove-Item -path certificate -include tempCert.txt
-      #     Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+      # Find the location of tauri.conf.json for debugging
+      - name: Locate tauri.conf.json
+        shell: bash
+        run: |
+          echo "Looking for tauri.conf.json file..."
+          find . -name "tauri.conf.json" -type f
+          
+          if [ -f "src-tauri/tauri.conf.json" ]; then
+            echo "Found in src-tauri directory"
+            echo "TAURI_CONFIG_DIR=src-tauri" >> $GITHUB_ENV
+          else
+            echo "Not found in src-tauri, using root directory"
+            echo "TAURI_CONFIG_DIR=." >> $GITHUB_ENV
+          fi
 
-      # SSL.com certificate handling (from VPN workflow)
+      # SSL.com certificate handling
       - name: Download EV CodeSignTool from ssl.com
         if: ${{ inputs.sign }}
         shell: bash
         run: |
+          # Navigate to the directory with tauri.conf.json
+          cd ${{ env.TAURI_CONFIG_DIR }} || true
+          
+          # Download and unzip the tool
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
+          
+          # Make the tool executable
+          chmod +x CodeSignTool.sh
+          
+          # Show where the tool is located for debugging
+          pwd
+          ls -la CodeSignTool.sh || echo "CodeSignTool.sh not found!"
 
       - name: Get EV certificate credential id
         if: ${{ inputs.sign }}
         id: get_credential_ids
         shell: bash
         run: |
-          echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
+          # Navigate to the directory with tauri.conf.json
+          cd ${{ env.TAURI_CONFIG_DIR }} || true
+          
+          # Get the credential ID
+          CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')
+          echo "Credential ID: $CREDENTIAL_ID"
+          echo "SSL_COM_CREDENTIAL_ID=$CREDENTIAL_ID" >> "$GITHUB_OUTPUT"
 
       # Add custom sign command to tauri.conf.json for SSL.com signing
       - name: Add custom sign command to tauri.conf.json
         if: ${{ inputs.sign }}
         shell: bash
         run: |
-          yq eval --inplace '.bundle.windows +=
-          {
-            "signCommand": {
-              "cmd": "C:\Program Files\Git\bin\bash.EXE",
-              "args": [
-                "/c/actions-runner/_work/nym/nym/nym-wallet/CodeSignTool.sh",
-                "sign",
-                "-username ${{ secrets.SSL_COM_USERNAME }}",
-                "-password ${{ secrets.SSL_COM_PASSWORD }}",
-                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
-                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
-                "-program_name NymWallet",
-                "-input_file_path",
-                "%1",
-                "-override"
+          # Navigate to the directory with tauri.conf.json
+          cd ${{ env.TAURI_CONFIG_DIR }} || true
+          CONFIG_PATH="tauri.conf.json"
+          
+          # Get the absolute path to the CodeSignTool.sh
+          TOOL_PATH=$(pwd)/CodeSignTool.sh
+          
+          # Convert the tool path to Windows format
+          # Replace forward slashes with backslashes and add appropriate drive letter
+          WIN_PATH=$(echo "$TOOL_PATH" | sed 's|/c/|C:\\|g' | sed 's|/|\\|g')
+          
+          echo "Windows Tool Path: $WIN_PATH"
+          
+          # Update the tauri.conf.json file with the correct path
+          yq eval --inplace ".bundle.windows += {
+            \"signCommand\": {
+              \"cmd\": \"C:\\Program Files\\Git\\bin\\bash.EXE\",
+              \"args\": [
+                \"$WIN_PATH\",
+                \"sign\",
+                \"-username ${{ secrets.SSL_COM_USERNAME }}\",
+                \"-password ${{ secrets.SSL_COM_PASSWORD }}\",
+                \"-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}\",
+                \"-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}\",
+                \"-program_name NymWallet\",
+                \"-input_file_path\",
+                \"%1\",
+                \"-override\"
               ]
             }
-          }' tauri.conf.json
+          }" "$CONFIG_PATH"
+          
+          # Show the updated configuration (redacted sensitive info)
+          cat "$CONFIG_PATH" | grep -A 15 "signCommand" | sed 's/\-username.*/\-username REDACTED/g' | sed 's/\-password.*/\-password REDACTED/g' | sed 's/\-totp_secret.*/\-totp_secret REDACTED/g'
 
       - name: Install project dependencies
         shell: bash
@@ -128,8 +163,6 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # WINDOWS_CERTIFICATE: ${{ !inputs.sign && secrets.WINDOWS_CERTIFICATE }}
-          # WINDOWS_CERTIFICATE_PASSWORD: ${{ !inputs.sign && secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           # Tauri v2 signing variables
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
@@ -140,25 +173,39 @@ jobs:
         run: yarn build
 
       - name: Check bundle directory
+        shell: bash
         run: |
           echo "Checking bundle directory structure"
-          ls -la target/release/bundle || echo "Bundle directory not found"
-          if [ -d "target/release/bundle/msi" ]; then
-            echo "MSI bundle directory exists, checking contents:"
-            ls -la target/release/bundle/msi
-          else
-            echo "MSI bundle directory not found, checking alternatives:"
-            find target/release/bundle -type d -name "*msi*" -o -name "*MSI*" || echo "No MSI directories found"
-            find target/release/bundle -name "*.msi" || echo "No MSI files found"
+          
+          # Check standard location
+          if [ -d "target/release/bundle" ]; then
+            echo "Found bundle directory at standard location"
+            ls -la target/release/bundle || echo "Failed to list bundle directory"
           fi
+          
+          # Check src-tauri location
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "Found bundle directory in src-tauri"
+            ls -la src-tauri/target/release/bundle || echo "Failed to list src-tauri bundle directory"
+            
+            # Use this path for future steps
+            echo "BUNDLE_PATH=src-tauri/target/release/bundle" >> $GITHUB_ENV
+          else
+            echo "Using standard bundle path"
+            echo "BUNDLE_PATH=target/release/bundle" >> $GITHUB_ENV
+          fi
+          
+          # Check for MSI files in any location
+          find . -name "*.msi" -type f
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: nym-wallet.msi
           path: |
-            nym-wallet/target/release/bundle/msi/*.msi
-            nym-wallet/target/release/bundle/*/nym-wallet*.msi
+            nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi
+            nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
+            nym-wallet/src-tauri/target/release/bundle/msi/*.msi
           retention-days: 30
 
       - id: create-release
@@ -167,22 +214,22 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-wallet/target/release/bundle/msi/*.msi
-            nym-wallet/target/release/bundle/msi/*.msi.zip*
-            nym-wallet/target/release/bundle/*/nym-wallet*.msi
-            nym-wallet/target/release/bundle/*/nym-wallet*.msi.zip*
+            nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi
+            nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi.zip*
+            nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
+            nym-wallet/src-tauri/target/release/bundle/msi/*.msi
 
       - name: Find MSI path for deployment
         id: find-msi
         shell: bash
         run: |
-          MSI_FILE=$(find target/release/bundle -name "*.msi" | head -n 1)
+          MSI_FILE=$(find . -name "*.msi" -type f | head -n 1)
           if [ -n "$MSI_FILE" ]; then
             echo "Found MSI file: $MSI_FILE"
             echo "msi_path=$MSI_FILE" >> $GITHUB_OUTPUT
           else
             echo "WARNING: No MSI file found for deployment!"
-            echo "msi_path=target/release/bundle/msi/nym-wallet_1.*.msi" >> $GITHUB_OUTPUT
+            echo "msi_path=${{ env.BUNDLE_PATH }}/msi/nym-wallet*.msi" >> $GITHUB_OUTPUT
           fi
 
       - name: Deploy artifacts to CI www

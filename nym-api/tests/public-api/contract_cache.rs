@@ -1,11 +1,10 @@
 mod utils;
-use tokio;
 use utils::{base_url, test_client, validate_json_response};
 
 #[tokio::test]
 async fn test_get_current_epoch() {
     let url = format!("{}/v1/epoch/current", base_url());
-    let res = test_client().get(&url).send().await.unwrap();
+    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     assert!(json.get("id").is_some(), "Expected a value for 'id'");
@@ -22,7 +21,7 @@ async fn test_get_current_epoch() {
 #[tokio::test]
 async fn test_get_reward_params() {
     let url = format!("{}/v1/epoch/reward_params", base_url());
-    let res = test_client().get(&url).send().await.unwrap();
+    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     let interval = json

@@ -1,12 +1,11 @@
 mod utils;
 use serde_json::Value;
-use tokio;
 use utils::{base_url, test_client};
 
 #[tokio::test]
 async fn test_get_config_score_details() {
     let url = format!("{}/v1/status/config-score-details", base_url());
-    let res = test_client().get(&url).send().await.unwrap();
+    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 200 OK, got {}",

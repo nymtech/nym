@@ -3,7 +3,7 @@
 
 use crate::requests::InvalidReplyRequestError;
 use crate::ReplySurb;
-use log::warn;
+use log::{error, warn};
 use nym_sphinx_types::constants::PAYLOAD_KEY_SEED_SIZE;
 use std::fmt::Display;
 use std::iter::once;
@@ -24,6 +24,13 @@ fn reply_surbs_hops(reply_surbs: &[ReplySurb]) -> u8 {
 fn v2_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
     let num_surbs = surbs.len();
     let num_hops = reply_surbs_hops(surbs);
+
+    // sanity checks; this should probably be removed later on
+    if let Some(reply_surb) = surbs.first() {
+        if !reply_surb.surb.uses_key_seeds() {
+            error!("using v2 surbs encoding with legacy structure - the surbs will be unusable")
+        }
+    }
 
     // when serialising surbs are always prepended with u16-encoded count an u8-encoded number of hops
     3 + num_surbs * v2_reply_surb_serialised_len(num_hops)

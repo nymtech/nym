@@ -3,7 +3,7 @@
 
 use crate::requests::InvalidReplyRequestError;
 use crate::ReplySurb;
-use log::warn;
+use log::{error, warn};
 use nym_sphinx_types::PAYLOAD_KEY_SIZE;
 use std::fmt::Display;
 use std::mem;
@@ -14,7 +14,14 @@ const fn v1_reply_surb_serialised_len() -> usize {
     ReplySurb::BASE_OVERHEAD + 4 * PAYLOAD_KEY_SIZE
 }
 
-const fn v1_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
+fn v1_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
+    // sanity checks; this should probably be removed later on
+    if let Some(reply_surb) = surbs.first() {
+        if reply_surb.surb.uses_key_seeds() {
+            error!("using v1 surbs encoding with updated structure - the surbs will be unusable")
+        }
+    }
+
     // when serialising surbs are always prepended with u32-encoded count
     4 + surbs.len() * v1_reply_surb_serialised_len()
 }

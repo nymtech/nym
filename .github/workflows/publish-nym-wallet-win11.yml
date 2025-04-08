@@ -87,14 +87,11 @@ jobs:
           # Navigate to the directory with tauri.conf.json
           cd ${{ env.TAURI_CONFIG_DIR }} || true
           
-          # Download and unzip the tool
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
           
-          # Make the tool executable
           chmod +x CodeSignTool.sh
           
-          # Show where the tool is located for debugging
           pwd
           ls -la CodeSignTool.sh || echo "CodeSignTool.sh not found!"
 
@@ -116,11 +113,9 @@ jobs:
         if: ${{ inputs.sign }}
         shell: bash
         run: |
-          # Navigate to the directory with tauri.conf.json
           cd ${{ env.TAURI_CONFIG_DIR }} || true
           CONFIG_PATH="tauri.conf.json"
           
-          # Get the absolute path to the CodeSignTool.sh
           TOOL_PATH=$(pwd)/CodeSignTool.sh
           
           # Convert the tool path to Windows format

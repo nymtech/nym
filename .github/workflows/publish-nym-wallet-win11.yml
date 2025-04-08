@@ -32,14 +32,14 @@ jobs:
 
     steps:
       - name: Diagnostic Environment Check
-          shell: bash
-          run: |
-            echo "Current Directory: $(pwd)"
-            echo "Home Directory: $HOME"
-            echo "PATH: $PATH"
-            echo "Git Bash Executable:"
-            which bash || echo "Bash not found"
-            ls -l "/c/Program Files/Git/bin/bash.exe" || echo "Git Bash executable not found"
+        shell: bash
+        run: |
+          echo "Current Directory: $(pwd)"
+          echo "Home Directory: $HOME"
+          echo "PATH: $PATH"
+          echo "Git Bash Executable:"
+          which bash || echo "Bash not found"
+          ls -l "/c/Program Files/Git/bin/bash.exe" || echo "Git Bash executable not found"
 
       - name: Clean up first
         continue-on-error: true
@@ -94,7 +94,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p codesigntool
-          
+
           cd codesigntool
 
           wget -v https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -O codesigntool.zip

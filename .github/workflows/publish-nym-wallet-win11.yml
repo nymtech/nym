@@ -106,7 +106,7 @@ jobs:
           SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
         run: |
           echo "Starting build process..."
-          yarn build -v
+          yarn build
 
       - name: Check bundle directory
         shell: bash

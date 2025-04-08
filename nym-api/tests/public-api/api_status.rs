@@ -17,10 +17,13 @@ async fn test_build_information() {
     let res = test_client().get(&url).send().await.unwrap();
     let json = validate_json_response(res).await;
 
-    assert!(json.get("build_version").is_some(), "Expected a value for 'build_version'");
+    assert!(
+        json.get("build_version").is_some(),
+        "Expected a value for 'build_version'"
+    );
 }
 
-// ECASH API TEST 
+// ECASH API TEST
 // #[tokio::test]
 // async fn test_signer_information() {
 //     let url = format!("{}/v1/api-status/signer-information", base_url());

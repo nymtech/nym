@@ -1,7 +1,7 @@
 mod utils;
-use utils::{base_url, test_client, get_gateway_identity_key, get_mixnode_node_id};
 use serde_json::Value;
 use tokio;
+use utils::{base_url, get_gateway_identity_key, get_mixnode_node_id, test_client};
 
 #[tokio::test]
 async fn test_get_gateway_unstable_test_results() {
@@ -12,9 +12,16 @@ async fn test_get_gateway_unstable_test_results() {
         identity
     );
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
+    assert!(
+        res.status().is_success(),
+        "Expected 2xx but got {}",
+        res.status()
+    );
 
-    let json: Value = res.json().await.unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
     let data_array = json
         .get("data")
         .and_then(|v| v.as_array())
@@ -27,11 +34,15 @@ async fn test_get_gateway_unstable_test_results() {
         .and_then(|r| r.get("gateway"))
         .expect("Expected a value for 'test_routes.gateway'");
 
-    assert!(gateway.get("node_id").is_some(), "Expected a value for 'node_id' in gateway");
-    assert!(gateway.get("identity_key").is_some(), "Expected a value for 'identity_key' in gateway");
+    assert!(
+        gateway.get("node_id").is_some(),
+        "Expected a value for 'node_id' in gateway"
+    );
+    assert!(
+        gateway.get("identity_key").is_some(),
+        "Expected a value for 'identity_key' in gateway"
+    );
 }
-
-
 
 #[tokio::test]
 async fn test_get_mixnode_unstable_test_results() {
@@ -42,9 +53,16 @@ async fn test_get_mixnode_unstable_test_results() {
         mix_id
     );
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
+    assert!(
+        res.status().is_success(),
+        "Expected 2xx but got {}",
+        res.status()
+    );
 
-    let json: Value = res.json().await.unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
     let data_array = json
         .get("data")
         .and_then(|v| v.as_array())
@@ -57,8 +75,14 @@ async fn test_get_mixnode_unstable_test_results() {
         .and_then(|r| r.get("layer3"))
         .expect("Expected a value for 'test_routes.layer3'");
 
-    assert!(layer3.get("node_id").is_some(), "Expected a value for 'node_id' in layer3");
-    assert!(layer3.get("identity_key").is_some(), "Expected a value for 'identity_key' in layer3");
+    assert!(
+        layer3.get("node_id").is_some(),
+        "Expected a value for 'node_id' in layer3"
+    );
+    assert!(
+        layer3.get("identity_key").is_some(),
+        "Expected a value for 'identity_key' in layer3"
+    );
 }
 
 #[tokio::test]
@@ -68,7 +92,11 @@ async fn test_get_latest_network_monitor_run_details() {
         base_url()
     );
     let res = test_client().get(&url).send().await.unwrap();
-    assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
+    assert!(
+        res.status().is_success(),
+        "Expected 2xx but got {}",
+        res.status()
+    );
 
     let json: Value = res.json().await.unwrap();
     let monitor_run_id = json

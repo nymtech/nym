@@ -1,7 +1,7 @@
-use reqwest::Client;
-use serde_json::Value;
-use reqwest::Response;
 use dotenv::dotenv;
+use reqwest::Client;
+use reqwest::Response;
+use serde_json::Value;
 
 pub fn test_client() -> Client {
     Client::new()
@@ -11,9 +11,10 @@ pub fn base_url() -> String {
     dotenv().ok();
 
     std::env::var("NYM_API").unwrap_or_else(|err| {
-        std::env::var("NYM_API").unwrap_or_else(|_| panic!("Couldn't find NYM_API env var"))
-        .trim_end_matches('/')
-        .to_string()
+        std::env::var("NYM_API")
+            .unwrap_or_else(|_| panic!("Couldn't find NYM_API env var"))
+            .trim_end_matches('/')
+            .to_string()
     })
 }
 

@@ -1,6 +1,6 @@
 mod utils;
-use utils::{base_url, test_client, validate_json_response};
 use tokio;
+use utils::{base_url, test_client, validate_json_response};
 
 #[tokio::test]
 async fn test_get_circulating_supply() {
@@ -8,16 +8,25 @@ async fn test_get_circulating_supply() {
     let res = test_client().get(&url).send().await.unwrap();
     let json = validate_json_response(res).await;
 
-    assert!(json.get("circulating_supply").is_some(), "Expected a value for 'circulating_supply'");
+    assert!(
+        json.get("circulating_supply").is_some(),
+        "Expected a value for 'circulating_supply'"
+    );
 }
 
 #[tokio::test]
 async fn test_get_circulating_supply_value() {
-    let url = format!("{}/v1/circulating-supply/circulating-supply-value", base_url());
+    let url = format!(
+        "{}/v1/circulating-supply/circulating-supply-value",
+        base_url()
+    );
     let res = test_client().get(&url).send().await.unwrap();
     let json = validate_json_response(res).await;
 
-    assert!(json.is_number(), "Expected a number for the circulating supply value");
+    assert!(
+        json.is_number(),
+        "Expected a number for the circulating supply value"
+    );
     let number = json.as_f64().unwrap();
     assert!(number >= 0.0, "Circulating supply should not be negative");
 }

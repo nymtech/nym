@@ -24,11 +24,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
-      version: ${{ steps.release-info.outputs.version }}
-      filename: ${{ steps.release-info.outputs.filename }}
-      file_hash: ${{ steps.release-info.outputs.file_hash }}
+      release_tag: ${{ github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +49,6 @@ jobs:
         run: |
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
-
       - name: Get EV certificate credential id
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
@@ -61,7 +56,6 @@ jobs:
         shell: bash
         run: |
           echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
-
       - name: Add custom sign command to tauri.conf.json
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
@@ -85,7 +79,6 @@ jobs:
               ]
             }
           }' tauri.conf.json
-
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
@@ -154,7 +147,7 @@ jobs:
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi.zip*
             nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
             nym-wallet/src-tauri/target/release/bundle/msi/*.msi
-
+          
       - name: Find MSI path for deployment
         id: find-msi
         shell: bash
@@ -173,5 +166,5 @@ jobs:
     uses: ./.github/workflows/release-calculate-hash.yml
     needs: publish-tauri
     with:
-      release_tag: ${{ github.ref_name }}
+      release_tag: ${{ needs.publish-tauri.outputs.release_tag || github.ref_name }}
     secrets: inherit

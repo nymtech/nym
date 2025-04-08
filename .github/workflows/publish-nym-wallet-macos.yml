@@ -18,11 +18,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
-      version: ${{ steps.release-info.outputs.version }}
-      filename: ${{ steps.release-info.outputs.filename }}
-      file_hash: ${{ steps.release-info.outputs.file_hash }}
+      release_tag: ${{ github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
@@ -137,5 +133,5 @@ jobs:
     uses: ./.github/workflows/release-calculate-hash.yml
     needs: publish-tauri
     with:
-      release_tag: ${{ github.ref_name }}
+      release_tag: ${{ needs.publish-tauri.outputs.release_tag || github.ref_name }}
     secrets: inherit

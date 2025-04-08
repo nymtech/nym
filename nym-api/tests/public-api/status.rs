@@ -1,6 +1,6 @@
 mod utils;
+use crate::utils::{base_url, test_client};
 use serde_json::Value;
-use utils::{base_url, test_client};
 
 #[tokio::test]
 async fn test_get_config_score_details() {
@@ -16,7 +16,10 @@ async fn test_get_config_score_details() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
 
     let version_history = json
         .get("version_history")

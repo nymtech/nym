@@ -1,3 +1,6 @@
+#[path = "public-api/utils.rs"]
+mod utils;
+
 #[path = "public-api/api_status.rs"]
 mod api_status;
 

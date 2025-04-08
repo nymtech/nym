@@ -1,5 +1,5 @@
 mod utils;
-use utils::{base_url, test_client, validate_json_response};
+use crate::utils::{base_url, test_client, validate_json_response};
 
 #[tokio::test]
 async fn test_get_circulating_supply() {

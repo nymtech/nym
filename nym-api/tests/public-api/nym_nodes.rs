@@ -1,6 +1,6 @@
 mod utils;
+use crate::utils::{base_url, get_any_node_id, test_client, validate_json_response};
 use chrono::Utc;
-use utils::{base_url, get_any_node_id, test_client, validate_json_response};
 
 #[tokio::test]
 async fn test_get_bonded_nodes() {
@@ -15,7 +15,7 @@ async fn test_get_bonded_nodes() {
 
     assert!(data.is_array(), "Expected 'data' to be an array");
     assert!(
-        data.as_array().unwrap().len() > 0,
+        !data.as_array().unwrap().is_empty(),
         "Expected at least one bonded node"
     );
 }
@@ -33,7 +33,7 @@ async fn test_get_described_nodes() {
 
     assert!(data.is_array(), "Expected 'data' to be an array");
     assert!(
-        data.as_array().unwrap().len() > 0,
+        !data.as_array().unwrap().is_empty(),
         "Expected at least one node to appear"
     );
 }
@@ -126,7 +126,7 @@ async fn test_get_performance_history() {
 
     assert!(data.is_array(), "Expected 'history.data' to be an array");
     assert!(
-        data.as_array().unwrap().len() > 0,
+        !data.as_array().unwrap().is_empty(),
         "Expected at least one performance history entry"
     );
 }
@@ -168,7 +168,7 @@ async fn test_get_uptime_history() {
 
     assert!(data.is_array(), "Expected 'history.data' to be an array");
     assert!(
-        data.as_array().unwrap().len() > 0,
+        !data.as_array().unwrap().is_empty(),
         "Expected at least one performance history entry"
     );
 }

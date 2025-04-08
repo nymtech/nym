@@ -40,7 +40,10 @@ pub async fn get_any_node_id() -> String {
         .send()
         .await
         .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
 
     json.get("data")
         .and_then(|list| list.as_array())
@@ -61,7 +64,10 @@ pub async fn get_mixnode_node_id() -> u64 {
         .send()
         .await
         .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
 
     json.get("data")
         .and_then(|v| v.as_array())
@@ -88,7 +94,10 @@ pub async fn get_gateway_identity_key() -> String {
         .send()
         .await
         .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
 
     json.get("data")
         .and_then(|v| v.as_array())

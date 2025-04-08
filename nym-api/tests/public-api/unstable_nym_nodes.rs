@@ -1,6 +1,6 @@
 mod utils;
+use crate::utils::{base_url, test_client};
 use serde_json::Value;
-use utils::{base_url, test_client};
 
 #[tokio::test]
 async fn test_get_skimmed_nodes_active() {
@@ -16,7 +16,10 @@ async fn test_get_skimmed_nodes_active() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let data = json
         .get("nodes")
         .and_then(|r| r.get("data"))
@@ -24,7 +27,7 @@ async fn test_get_skimmed_nodes_active() {
 
     assert!(data.is_array(), "Expected 'data' to be an array");
     assert!(
-        data.as_array().unwrap().len() > 0,
+        !data.as_array().unwrap().is_empty(),
         "Expected at least one node to appear"
     );
 }
@@ -46,7 +49,10 @@ async fn test_get_skimmed_active_mixnodes() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let current_epoch_id = json
         .get("status")
         .and_then(|r| r.get("fresh"))
@@ -77,7 +83,10 @@ async fn test_get_skimmed_all_mixnodes() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let current_epoch_id = json
         .get("status")
         .and_then(|r| r.get("fresh"))
@@ -111,7 +120,10 @@ async fn test_get_skimmed_active_exit_gateways() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let current_epoch_id = json
         .get("status")
         .and_then(|r| r.get("fresh"))
@@ -145,7 +157,10 @@ async fn test_get_skimmed_all_exit_gateways() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let current_epoch_id = json
         .get("status")
         .and_then(|r| r.get("fresh"))
@@ -179,7 +194,10 @@ async fn test_get_skimmed_active_entry_gateways() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let current_epoch_id = json
         .get("status")
         .and_then(|r| r.get("fresh"))
@@ -213,7 +231,10 @@ async fn test_get_skimmed_all_entry_gateways() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let current_epoch_id = json
         .get("status")
         .and_then(|r| r.get("fresh"))

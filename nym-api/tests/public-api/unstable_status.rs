@@ -1,6 +1,6 @@
 mod utils;
+use crate::utils::{base_url, get_gateway_identity_key, get_mixnode_node_id, test_client};
 use serde_json::Value;
-use utils::{base_url, get_gateway_identity_key, get_mixnode_node_id, test_client};
 
 #[tokio::test]
 async fn test_get_gateway_unstable_test_results() {
@@ -109,7 +109,10 @@ async fn test_get_latest_network_monitor_run_details() {
         res.status()
     );
 
-    let json: Value = res.json().await.unwrap();
+    let json: Value = res
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
     let monitor_run_id = json
         .get("monitor_run_id")
         .and_then(|v| v.as_number())

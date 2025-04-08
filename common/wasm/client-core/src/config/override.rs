@@ -63,6 +63,7 @@ impl From<DebugWasmOverride> for DebugWasm {
             reply_surbs: value.reply_surbs.map(Into::into).unwrap_or_default(),
             stats_reporting: value.stats_reporting.map(Into::into).unwrap_or_default(),
             forget_me: value.forget_me.map(Into::into).unwrap_or_default(),
+            disable_mix_hops: false, // not configured from js config override yet
         }
     }
 }

@@ -31,24 +31,6 @@ jobs:
       file_hash: ${{ steps.release-info.outputs.file_hash }}
 
     steps:
-      - name: Diagnostic Environment Check
-        shell: bash
-        run: |
-          echo "Current Directory: $(pwd)"
-          echo "Home Directory: $HOME"
-          echo "PATH: $PATH"
-          echo "Git Bash Executable:"
-          which bash || echo "Bash not found"
-          ls -l "/c/Program Files/Git/bin/bash.exe" || echo "Git Bash executable not found"
-
-      - name: Clean up first
-        continue-on-error: true
-        working-directory: .
-        run: |
-          cd ..
-          del /s /q /A:H nym
-          rmdir /s /q nym
-
       - uses: actions/checkout@v4
 
       - name: Install Rust stable
@@ -59,105 +41,50 @@ jobs:
       - name: Setup MSBuild.exe
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install yq
-        run: |
-          winget list MikeFarah.yq || winget install --disable-interactivity --id MikeFarah.yq
-
       - name: Node
         uses: actions/setup-node@v4
         with:
           node-version: 21
 
-      - name: Create env file
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: '.env'
-          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
-
-      # Find the location of tauri.conf.json for debugging
-      - name: Locate tauri.conf.json
-        shell: bash
-        run: |
-          echo "Looking for tauri.conf.json file..."
-          find . -name "tauri.conf.json" -type f
-          
-          if [ -f "src-tauri/tauri.conf.json" ]; then
-            echo "Found in src-tauri directory"
-            echo "TAURI_CONFIG_DIR=src-tauri" >> $GITHUB_ENV
-          else
-            echo "Not found in src-tauri, using root directory"
-            echo "TAURI_CONFIG_DIR=." >> $GITHUB_ENV
-          fi
-
-      - name: Download and Setup SSL.com CodeSignTool
+      - name: Download EV CodeSignTool from ssl.com
+        working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
         shell: bash
         run: |
-          mkdir -p codesigntool
-
-          cd codesigntool
-
-          wget -v https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -O codesigntool.zip
-
-          7z x codesigntool.zip
-
-          ls -la
-
-          chmod +x CodeSignTool.sh || true
-          
-          cat CodeSignTool.sh || echo "Could not read CodeSignTool.sh"
-
-          mv CodeSignTool.sh /c/codesigntool/CodeSignTool.sh || true
+          curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
+          unzip codesigntool.zip
 
       - name: Get EV certificate credential id
+        working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
         id: get_credential_ids
         shell: bash
         run: |
-          # Navigate to the directory with tauri.conf.json
-          cd ${{ env.TAURI_CONFIG_DIR }} || true
-          
-          # Get the credential ID with verbose output
-          echo "Retrieving Credential ID..."
-          CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')
-          echo "Credential ID retrieved"
-          echo "SSL_COM_CREDENTIAL_ID=$CREDENTIAL_ID" >> "$GITHUB_OUTPUT"
+          echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
 
-      # Add custom sign command to tauri.conf.json for SSL.com signing
       - name: Add custom sign command to tauri.conf.json
+        working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
         shell: bash
         run: |
-          # Navigate to the directory with tauri.conf.json
-          cd ${{ env.TAURI_CONFIG_DIR }} || true
-          CONFIG_PATH="tauri.conf.json"
-          
-          # Get the absolute path to the CodeSignTool.sh
-          TOOL_PATH=$(pwd)/CodeSignTool.sh
-          
-          # Debug output
-          echo "CodeSignTool Path: $TOOL_PATH"
-          
-          # Update the tauri.conf.json file with signing configuration
-          yq eval --inplace ".bundle.windows += {
-            \"signCommand\": {
-              \"cmd\": \"./CodeSignTool.sh\",
-              \"args\": [
-                \"sign\",
-                \"-username\", \"${{ secrets.SSL_COM_USERNAME }}\",
-                \"-password\", \"${{ secrets.SSL_COM_PASSWORD }}\",
-                \"-credential_id\", \"${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}\",
-                \"-totp_secret\", \"${{ secrets.SSL_COM_TOTP_SECRET }}\",
-                \"-program_name\", \"NymWallet\",
-                \"-input_file_path\", \"%1\",
-                \"-override\"
+          yq eval --inplace '.bundle.windows +=
+          {
+            "signCommand": {
+              "cmd": "C:\Program Files\Git\bin\bash.EXE",
+              "args": [
+                "/c/actions-runner/_work/nym/nym/nym-wallet/src-tauri/CodeSignTool.sh",
+                "sign",
+                "-username ${{ secrets.SSL_COM_USERNAME }}",
+                "-password ${{ secrets.SSL_COM_PASSWORD }}",
+                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
+                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
+                "-program_name NymWallet",
+                "-input_file_path",
+                "%1",
+                "-override"
               ]
             }
-          }" "$CONFIG_PATH"
-          
-          # Show the updated configuration (redacted sensitive info)
-          echo "Updated tauri.conf.json signing configuration:"
-          cat "$CONFIG_PATH" | grep -A 15 "signCommand" | sed 's/\-username.*/\-username REDACTED/g' | sed 's/\-password.*/\-password REDACTED/g' | sed 's/\-totp_secret.*/\-totp_secret REDACTED/g'
+          }' tauri.conf.json
 
       - name: Install project dependencies
         shell: bash
@@ -171,7 +98,6 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Tauri v2 signing variables
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}

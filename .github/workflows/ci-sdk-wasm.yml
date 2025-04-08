@@ -11,7 +11,7 @@ on:
 
 jobs:
   wasm:
-    runs-on: arc-ubuntu-20.04
+    runs-on: arc-ubuntu-22.04
     env:
       CARGO_TERM_COLOR: always
       RUSTUP_PERMIT_COPY_RENAME: 1
@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - uses: actions-rs/toolchain@v1
         with:

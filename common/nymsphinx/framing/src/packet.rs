@@ -47,6 +47,14 @@ impl FramedNymPacket {
     pub fn into_inner(self) -> NymPacket {
         self.packet
     }
+
+    pub fn packet(&self) -> &NymPacket {
+        &self.packet
+    }
+
+    pub fn is_sphinx(&self) -> bool {
+        self.packet.is_sphinx()
+    }
 }
 
 // Contains any metadata that might be useful for sending between mix nodes.

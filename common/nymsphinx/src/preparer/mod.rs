@@ -100,7 +100,7 @@ pub trait FragmentPreparer {
     /// - compute SURB_ACK
     /// - generate (x, g^x)
     /// - obtain key k from the reply-surb which was computed as follows:
-    ///     k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    ///   k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
     /// - compute v_b = AES-128-CTR(k, serialized_fragment)
     /// - compute vk_b = H(k) || v_b
     /// - compute sphinx_plaintext = SURB_ACK || H(k) || v_b
@@ -264,14 +264,6 @@ pub trait FragmentPreparer {
                 Some(packet_size.plaintext_size()),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
-                packet_size.payload_size(),
-                packet_payload,
-                &route,
-                &destination,
-                &delays,
-            )?,
-            #[allow(deprecated)]
-            PacketType::Vpn => NymPacket::sphinx_build(
                 packet_size.payload_size(),
                 packet_payload,
                 &route,

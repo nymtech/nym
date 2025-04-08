@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     name: Build APK
-    runs-on: custom-ubuntu-20.04
+    runs-on: custom-ubuntu-22.04
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.2.9519653

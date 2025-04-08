@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: arc-ubuntu-20.04
+    runs-on: arc-ubuntu-22.04
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     defaults:
@@ -25,7 +25,7 @@ jobs:
       - name: Install Python3 modules
         run: sudo pip3 install pandas tabulate
       - name: Install rsync
-        run: sudo apt-get install rsync
+        run: sudo apt-get install -y rsync
       - uses: rlespinasse/github-slug-action@v3.x
       - name: Setup pnpm
         uses: pnpm/action-setup@v4.0.0

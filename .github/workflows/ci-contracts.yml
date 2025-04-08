@@ -17,7 +17,7 @@ jobs:
   build:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       CARGO_TERM_COLOR: always
     steps:

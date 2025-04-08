@@ -252,7 +252,7 @@ impl NymMessage {
         bytes
             .into_iter()
             .chain(std::iter::once(1u8))
-            .chain(std::iter::repeat(0u8).take(space_left))
+            .chain(std::iter::repeat_n(0u8, space_left))
             .collect::<Vec<_>>()
             .into()
     }

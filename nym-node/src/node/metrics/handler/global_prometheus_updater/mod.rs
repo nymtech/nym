@@ -65,6 +65,10 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             self.metrics.mixnet.ingress.malformed_packets_received() as i64,
         );
         self.prometheus_wrapper.set(
+            MixnetIngressReplayedPacketsReceived,
+            self.metrics.mixnet.ingress.replayed_packets_received() as i64,
+        );
+        self.prometheus_wrapper.set(
             MixnetIngressExcessiveDelayPacketsReceived,
             self.metrics.mixnet.ingress.excessive_delay_packets() as i64,
         );

@@ -3,24 +3,69 @@
 
 use crate::node::mixnet::shared::SharedData;
 use futures::StreamExt;
-use nym_metrics::nanos;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_framing::processing::{
-    process_framed_packet, MixProcessingResultData, ProcessedFinalHop,
+    process_framed_packet, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
+    PartiallyUnwrappedPacket, ProcessedFinalHop,
 };
-use nym_sphinx_types::Delay;
+use nym_sphinx_types::{Delay, REPLAY_TAG_SIZE};
+use std::mem;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, instrument, trace, warn};
+
+struct PendingReplayCheckPackets {
+    packets: Vec<PartiallyUnwrappedPacket>,
+    last_acquired_mutex: Instant,
+}
+
+impl PendingReplayCheckPackets {
+    fn new() -> PendingReplayCheckPackets {
+        PendingReplayCheckPackets {
+            packets: vec![],
+            last_acquired_mutex: Instant::now(),
+        }
+    }
+
+    fn reset(&mut self, now: Instant) -> Vec<PartiallyUnwrappedPacket> {
+        self.last_acquired_mutex = now;
+        mem::take(&mut self.packets)
+    }
+
+    fn push(&mut self, now: Instant, packet: PartiallyUnwrappedPacket) {
+        if self.packets.is_empty() {
+            self.last_acquired_mutex = now;
+        }
+        self.packets.push(packet);
+    }
+
+    fn replay_tags(&self) -> Vec<&[u8; REPLAY_TAG_SIZE]> {
+        let mut replay_tags = Vec::with_capacity(self.packets.len());
+        for packet in &self.packets {
+            let Some(replay_tag) = packet.replay_tag() else {
+                error!(
+                    "corrupted batch of {} packets - replay tag was missing",
+                    self.packets.len()
+                );
+                return Vec::new();
+            };
+            replay_tags.push(replay_tag);
+        }
+        replay_tags
+    }
+}
 
 pub(crate) struct ConnectionHandler {
     shared: SharedData,
     mixnet_connection: Framed<TcpStream, NymCodec>,
     remote_address: SocketAddr,
+
+    // packets pending for replay detection
+    pending_packets: PendingReplayCheckPackets,
 }
 
 impl Drop for ConnectionHandler {
@@ -45,6 +90,7 @@ impl ConnectionHandler {
             shared: SharedData {
                 processing_config: shared.processing_config,
                 sphinx_keys: shared.sphinx_keys.clone(),
+                replay_protection_filter: shared.replay_protection_filter.clone(),
                 mixnet_forwarder: shared.mixnet_forwarder.clone(),
                 final_hop: shared.final_hop.clone(),
                 metrics: shared.metrics.clone(),
@@ -52,6 +98,7 @@ impl ConnectionHandler {
             },
             remote_address,
             mixnet_connection: Framed::new(tcp_stream, NymCodec),
+            pending_packets: PendingReplayCheckPackets::new(),
         }
     }
 
@@ -60,9 +107,8 @@ impl ConnectionHandler {
     /// the skew caused by being stuck in the channel queue.
     /// This method also clamps the maximum allowed delay so that nobody could send a bunch of packets
     /// with, for example, delays of 1 year thus causing denial of service
-    fn create_delay_target(&self, delay: Option<Delay>) -> Option<Instant> {
+    fn create_delay_target(&self, now: Instant, delay: Option<Delay>) -> Option<Instant> {
         let delay = delay?.to_duration();
-        let now = Instant::now();
 
         let delay = if delay > self.shared.processing_config.maximum_packet_delay {
             self.shared.processing_config.maximum_packet_delay
@@ -77,14 +123,14 @@ impl ConnectionHandler {
         Some(now + delay)
     }
 
-    fn handle_forward_packet(&self, mix_packet: MixPacket, delay: Option<Delay>) {
+    fn handle_forward_packet(&self, now: Instant, mix_packet: MixPacket, delay: Option<Delay>) {
         if !self.shared.processing_config.forward_hop_processing_enabled {
             trace!("this nym-node does not support forward hop packets");
             self.shared.dropped_forward_packet(self.remote_address.ip());
             return;
         }
 
-        let forward_instant = self.create_delay_target(delay);
+        let forward_instant = self.create_delay_target(now, delay);
         self.shared.forward_mix_packet(mix_packet, forward_instant);
     }
 
@@ -128,33 +174,188 @@ impl ConnectionHandler {
         self.shared.forward_ack_packet(final_hop_data.forward_ack);
     }
 
-    #[instrument(skip(self, packet), level = "debug")]
-    async fn handle_received_nym_packet(&self, packet: FramedNymPacket) {
-        // TODO: here be replay attack detection with bloomfilters and all the fancy stuff
-        //
+    fn within_deferral_threshold(&self, now: Instant) -> bool {
+        let time_threshold = now
+            .saturating_duration_since(self.pending_packets.last_acquired_mutex)
+            <= self
+                .shared
+                .processing_config
+                .maximum_replay_detection_deferral;
 
-        nanos!("handle_received_nym_packet", {
-            // 1. attempt to unwrap the packet
+        let count_threshold = self.pending_packets.packets.len()
+            < self
+                .shared
+                .processing_config
+                .maximum_replay_detection_pending_packets;
+
+        // time threshold is ignored if we currently have 0 packets queued up
+        if self.pending_packets.packets.is_empty() {
+            return true;
+        }
+
+        trace!(
+            "within deferral time threshold: {time_threshold}, count threshold: {count_threshold}"
+        );
+
+        if !time_threshold {
+            warn!(
+                "{}: time failure - {}",
+                self.remote_address,
+                self.pending_packets.packets.len()
+            )
+        }
+
+        if !count_threshold {
+            warn!("{}, count failure", self.remote_address)
+        }
+
+        time_threshold && count_threshold
+    }
+
+    async fn handle_received_packet_with_replay_detection(
+        &mut self,
+        now: Instant,
+        packet: FramedNymPacket,
+    ) {
+        // 1. derive and expand shared secret
+        // also check the header integrity
+        let partially_unwrapped = match PartiallyUnwrappedPacket::new(
+            packet,
+            self.shared.sphinx_keys.private_key().as_ref(),
+        ) {
+            Ok(unwrapped) => unwrapped,
+            Err(err) => {
+                trace!("failed to process received mix packet: {err}");
+                self.shared
+                    .metrics
+                    .mixnet
+                    .ingress_malformed_packet(self.remote_address.ip());
+                return;
+            }
+        };
+
+        self.pending_packets.push(now, partially_unwrapped);
+
+        // 2. check for packet replay
+        // 2.1 first try it without locking
+        if self.handle_pending_packets_batch_no_locking(now).await {
+            return;
+        }
+
+        // 2.2 if we're within deferral threshold, just leave it queued up for another call
+        if self.within_deferral_threshold(now) {
+            return;
+        }
+
+        // 2.3. otherwise block until we obtain the lock and clear the whole batch
+        self.handle_pending_packets_batch(now).await;
+    }
+
+    async fn handle_unwrapped_packet(
+        &self,
+        now: Instant,
+        unwrapped_packet: Result<MixProcessingResult, PacketProcessingError>,
+    ) {
+        // 2. increment our favourite metrics stats
+        self.shared
+            .update_metrics(&unwrapped_packet, self.remote_address.ip());
+
+        // 3. forward the packet to the relevant sink (if enabled)
+        match unwrapped_packet {
+            Err(err) => trace!("failed to process received mix packet: {err}"),
+            Ok(processed_packet) => match processed_packet.processing_data {
+                MixProcessingResultData::ForwardHop { packet, delay } => {
+                    self.handle_forward_packet(now, packet, delay);
+                }
+                MixProcessingResultData::FinalHop { final_hop_data } => {
+                    self.handle_final_hop(final_hop_data).await;
+                }
+            },
+        }
+    }
+
+    async fn handle_post_replay_detection_packets(
+        &self,
+        now: Instant,
+        packets: Vec<PartiallyUnwrappedPacket>,
+        replay_check_results: Vec<bool>,
+    ) {
+        for (packet, replayed) in packets.into_iter().zip(replay_check_results) {
+            let unwrapped_packet = if replayed {
+                Err(PacketProcessingError::PacketReplay)
+            } else {
+                packet.finalise_unwrapping()
+            };
+
+            self.handle_unwrapped_packet(now, unwrapped_packet).await;
+        }
+    }
+
+    async fn handle_pending_packets_batch_no_locking(&mut self, now: Instant) -> bool {
+        let replay_tags = self.pending_packets.replay_tags();
+        if replay_tags.is_empty() {
+            return false;
+        }
+
+        let replay_check_results = match self
+            .shared
+            .replay_protection_filter
+            .batch_try_check_and_set(&replay_tags)
+        {
+            None => return false,
+            Some(Ok(replay_check_results)) => replay_check_results,
+            Some(Err(_)) => {
+                // our mutex got poisoned - we have to shut down
+                error!("CRITICAL FAILURE: replay bloomfilter mutex poisoning!");
+                self.shared.shutdown.cancel();
+                return false;
+            }
+        };
+
+        let batch = self.pending_packets.reset(now);
+        self.handle_post_replay_detection_packets(now, batch, replay_check_results)
+            .await;
+        true
+    }
+
+    async fn handle_pending_packets_batch(&mut self, now: Instant) {
+        let batch = self.pending_packets.reset(now);
+        let replay_tags = self.pending_packets.replay_tags();
+        if replay_tags.is_empty() {
+            return;
+        }
+
+        let Ok(replay_check_results) = self
+            .shared
+            .replay_protection_filter
+            .batch_check_and_set(&replay_tags)
+        else {
+            // our mutex got poisoned - we have to shut down
+            error!("CRITICAL FAILURE: replay bloomfilter mutex poisoning!");
+            self.shared.shutdown.cancel();
+            return;
+        };
+
+        self.handle_post_replay_detection_packets(now, batch, replay_check_results)
+            .await;
+    }
+
+    #[instrument(skip(self, packet), level = "debug")]
+    async fn handle_received_nym_packet(&mut self, packet: FramedNymPacket) {
+        let now = Instant::now();
+
+        // 1. attempt to unwrap the packet
+        // if it's a sphinx packet attempt to do pre-processing and replay detection
+        if packet.is_sphinx() && !self.shared.replay_protection_filter.disabled() {
+            self.handle_received_packet_with_replay_detection(now, packet)
+                .await;
+        } else {
+            // otherwise just skip that whole procedure and go straight to payload unwrapping
+            // (assuming the basic framing is valid)
             let unwrapped_packet =
                 process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
-
-            // 2. increment our favourite metrics stats
-            self.shared
-                .update_metrics(&unwrapped_packet, self.remote_address.ip());
-
-            // 3. forward the packet to the relevant sink (if enabled)
-            match unwrapped_packet {
-                Err(err) => trace!("failed to process received mix packet: {err}"),
-                Ok(processed_packet) => match processed_packet.processing_data {
-                    MixProcessingResultData::ForwardHop { packet, delay } => {
-                        self.handle_forward_packet(packet, delay);
-                    }
-                    MixProcessingResultData::FinalHop { final_hop_data } => {
-                        self.handle_final_hop(final_hop_data).await;
-                    }
-                },
-            }
-        })
+            self.handle_unwrapped_packet(now, unwrapped_packet).await;
+        };
     }
 
     #[instrument(

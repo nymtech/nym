@@ -909,6 +909,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloomfilter"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f6d7f06817e48ea4e17532fa61bc4e8b9a101437f0623f69d2ea54284f3a817"
+dependencies = [
+ "getrandom 0.2.15",
+ "siphasher 1.0.1",
+]
+
+[[package]]
 name = "bls12_381"
 version = "0.8.0"
 source = "git+https://github.com/jstuczyn/bls12_381?branch=temp/experimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
@@ -1564,6 +1574,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "futures",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -1576,6 +1587,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tinytemplate",
+ "tokio",
  "walkdir",
 ]
 
@@ -6115,15 +6127,18 @@ dependencies = [
  "axum 0.7.9",
  "bip39",
  "blake2 0.8.1",
+ "bloomfilter",
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",
  "chacha",
  "clap",
  "colored",
+ "criterion",
  "csv",
  "cupid",
  "futures",
+ "hkdf",
  "human-repr",
  "humantime-serde",
  "indicatif",
@@ -6163,6 +6178,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "sysinfo",
  "thiserror 2.0.12",
  "time",
@@ -6713,8 +6729,6 @@ name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "log",
- "nym-metrics",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -6723,6 +6737,7 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -9246,9 +9261,9 @@ dependencies = [
 
 [[package]]
 name = "sphinx-packet"
-version = "0.3.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c23047e0cf36ff6904603f499fd13153425cdf5ba47bfbaedbc999da0bd92f4e"
+checksum = "b63a72efe7dce8a546d5cb855e60699ae69203d0d7e4335a654eb87e93d7d141"
 dependencies = [
  "aes",
  "arrayref",
@@ -9267,6 +9282,7 @@ dependencies = [
  "sha2 0.10.8",
  "subtle 2.6.1",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
@@ -10061,9 +10077,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.44.1"
+version = "1.44.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f382da615b842244d4b8738c82ed1275e6c5dd90c459a30941cd07080b06c91a"
+checksum = "e6b88822cbe49de4185e3a4cbf8321dd487cf5fe0c5c65695fef6346371e9c48"
 dependencies = [
  "backtrace",
  "bytes",

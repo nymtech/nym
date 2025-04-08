@@ -5,7 +5,7 @@ on:
     - cron: '5 9 * * *'
 jobs:
   cargo-deny:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
       - name: install npm
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

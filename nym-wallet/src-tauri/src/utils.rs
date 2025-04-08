@@ -12,10 +12,7 @@ use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_wallet_types::app::AppEnv;
 
 fn get_env_as_option(key: &str) -> Option<String> {
-    match ::std::env::var(key) {
-        Ok(res) => Some(res),
-        Err(_e) => None,
-    }
+    ::std::env::var(key).ok()
 }
 
 #[tauri::command]

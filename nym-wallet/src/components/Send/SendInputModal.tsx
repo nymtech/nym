@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, Typography, SxProps, FormControlLabel, Checkbox } from '@mui/material';
+import { Stack, Typography, SxProps, FormControlLabel, Checkbox, Alert } from '@mui/material';
 import Big from 'big.js';
 import { CurrencyDenom, DecCoin, isValidRawCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
@@ -17,7 +17,7 @@ const validateNymAddress = (address: string): boolean => {
 
   if (!address.startsWith('n1')) return false;
 
-  if (address.length < 40 || address.length > 42) return false;
+  if (address.length !== 40) return false;
 
   const validCharsRegex = /^[a-z0-9]+$/;
   return validCharsRegex.test(address);
@@ -68,24 +68,60 @@ export const SendInputModal = ({
   const [addressIsValid, setAddressIsValid] = useState(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [errorFee, setErrorFee] = useState<string | undefined>();
+  const [noAccount, setNoAccount] = useState(false);
+
+  useEffect(() => {
+    if (!balance || balance === '0' || parseFloat(balance) === 0) {
+      setNoAccount(true);
+    } else {
+      setNoAccount(false);
+    }
+  }, [balance]);
 
   const validateSendAmount = async (value: DecCoin) => {
     let newValidatedValue = true;
     let errorAmountMessage;
 
+    if (noAccount) {
+      newValidatedValue = false;
+      errorAmountMessage = 'You need to acquire NYMs before sending. Try using the Buy section in the app.';
+      setIsValid(newValidatedValue);
+      setErrorAmount(errorAmountMessage);
+      return newValidatedValue;
+    }
+
     if (!value.amount) {
       newValidatedValue = false;
     } else {
-      // Validate amount format
+      // Skip validation for partial decimal inputs during typing
+      if (value.amount === '.' || value.amount.endsWith('.')) {
+        newValidatedValue = false;
+        setIsValid(newValidatedValue);
+        setErrorAmount(undefined);
+        return newValidatedValue;
+      }
+
       if (!(await validateAmount(value.amount, '0'))) {
         newValidatedValue = false;
         errorAmountMessage = 'Please enter a valid amount';
-      }
-
-      // Check minimum amount
-      if (Number(value.amount) < Number(MIN_AMOUNT_TO_SEND)) {
+      } else if (Number(value.amount) < Number(MIN_AMOUNT_TO_SEND)) {
         newValidatedValue = false;
         errorAmountMessage = `Min. send amount: ${MIN_AMOUNT_TO_SEND} ${denom?.toUpperCase()}`;
+      } else if (balance && value.amount) {
+        try {
+          const amountBig = new Big(value.amount);
+          const balanceBig = new Big(balance);
+
+          if (amountBig.gt(balanceBig)) {
+            newValidatedValue = false;
+            errorAmountMessage = `Make sure you have sufficient funds. Available: ${balance} ${denom?.toUpperCase()}`;
+          }
+        } catch (err) {
+          if (!/^\d*\.?\d*$/.test(value.amount)) {
+            newValidatedValue = false;
+            errorAmountMessage = 'Invalid number format';
+          }
+        }
       }
     }
 
@@ -95,31 +131,53 @@ export const SendInputModal = ({
   };
 
   const validateUserFees = (fees: DecCoin) => {
-    let isValid = true;
+    let feeValid = true;
     let errorFeeMessage;
 
+    if (noAccount) {
+      feeValid = false;
+      errorFeeMessage = 'You need to acquire NYMs before setting fees.';
+      setFeeAmountIsValid(feeValid);
+      setErrorFee(errorFeeMessage);
+      return feeValid;
+    }
+
+    // Skip validation for partial decimal inputs during typing
+    if (fees.amount === '.' || fees.amount.endsWith('.')) {
+      setFeeAmountIsValid(false);
+      setErrorFee(undefined);
+      return false;
+    }
+
     if (!isValidRawCoin(fees.amount) || !Number(fees.amount)) {
-      isValid = false;
+      feeValid = false;
       errorFeeMessage = 'Please enter a valid fee amount';
     } else {
-      const f = Big(fees.amount);
-      if (f.gt(maxUserFees)) {
-        isValid = false;
-        errorFeeMessage = `Max fee: ${maxUserFees} ${denom?.toUpperCase()}`;
-      } else if (f.lt(minUserFees)) {
-        isValid = false;
-        errorFeeMessage = `Min. fee: ${minUserFees} ${denom?.toUpperCase()}`;
+      try {
+        const f = Big(fees.amount);
+        if (f.gt(maxUserFees)) {
+          feeValid = false;
+          errorFeeMessage = `Max fee: ${maxUserFees} ${denom?.toUpperCase()}`;
+        } else if (f.lt(minUserFees)) {
+          feeValid = false;
+          errorFeeMessage = `Min. fee: ${minUserFees} ${denom?.toUpperCase()}`;
+        }
+      } catch (err) {
+        if (!/^\d*\.?\d*$/.test(fees.amount)) {
+          feeValid = false;
+          errorFeeMessage = 'Invalid fee format';
+        }
       }
     }
 
-    setFeeAmountIsValid(isValid);
+    setFeeAmountIsValid(feeValid);
     setErrorFee(errorFeeMessage);
-    return isValid;
+    return feeValid;
   };
 
   useEffect(() => {
     if (amount) validateSendAmount(amount);
-  }, [amount]);
+  }, [amount, balance, noAccount]);
 
   // Effect to validate address whenever it changes
   useEffect(() => {
@@ -140,7 +198,7 @@ export const SendInputModal = ({
     } else {
       setFeeAmountIsValid(true);
     }
-  }, [userFees]);
+  }, [userFees, noAccount]);
 
   return (
     <SimpleModal
@@ -149,10 +207,16 @@ export const SendInputModal = ({
       onClose={onClose}
       okLabel="Next"
       onOk={async () => onNext()}
-      okDisabled={!isValid || !memoIsValid || !feeAmountIsValid || !addressIsValid}
+      okDisabled={!isValid || !memoIsValid || !feeAmountIsValid || !addressIsValid || noAccount}
       sx={sx}
       backdropProps={backdropProps}
     >
+      {noAccount && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          To start staking, sending or operating the on the NYM network, you first need to get native NYM tokens.
+        </Alert>
+      )}
+
       <Stack gap={3}>
         <ModalListItem label="Your address" value={fromAddress} fontWeight="light" />
 
@@ -165,7 +229,7 @@ export const SendInputModal = ({
           error={toAddress !== '' && !addressIsValid}
           helperText={
             toAddress !== '' && !addressIsValid
-              ? 'Invalid NYM address. Must start with n1 and be 40-42 characters long.'
+              ? 'Invalid NYM address. Must start with n1 and be exactly 40 characters long.'
               : undefined
           }
           InputLabelProps={{ shrink: true }}
@@ -207,7 +271,7 @@ export const SendInputModal = ({
       </Stack>
 
       <Stack gap={0.5} sx={{ mt: 1 }}>
-        <ModalListItem label="Account balance" value={balance?.toUpperCase()} divider fontWeight={600} />
+        <ModalListItem label="Account balance" value={balance ? balance.toUpperCase() : '0'} divider fontWeight={600} />
         <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
           Est. fee for this transaction will be shown on the next page
         </Typography>

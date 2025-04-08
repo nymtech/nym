@@ -178,9 +178,10 @@ export const DelegationList: FCWithChildren<{
           <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
           <TableBody>
             {sorted?.length
-              ? sorted.map((item: any, index: number) => {
+              ? sorted.map((item: any, _index: number) => {
                   if (isPendingDelegation(item)) {
-                    return <PendingDelegationItem key={`pending-${index}`} item={item} explorerUrl={explorerUrl} />;
+                    const pendingKey = `pending-${item.event.mix_id}-${item.event.address}-${item.node_identity}`;
+                    return <PendingDelegationItem key={pendingKey} item={item} explorerUrl={explorerUrl} />;
                   }
                   if (isDelegation(item))
                     return (

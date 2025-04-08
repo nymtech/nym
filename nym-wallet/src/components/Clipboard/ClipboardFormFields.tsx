@@ -8,7 +8,8 @@ import { PasteFromClipboard } from './ClipboardActions';
 
 export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>) => {
   useEffect(() => {
-    if (!inputRef.current) return;
+    if (!inputRef.current) return undefined;
+
     const handleKeyDown = (e: Event) => {
       const keyEvent = e as KeyboardEvent;
 
@@ -33,7 +34,10 @@ export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElem
 
           if (selectedText) {
             keyEvent.preventDefault();
-            writeText(selectedText).catch((err) => console.error('Failed to copy text:', err));
+            writeText(selectedText).catch((err) => {
+              // eslint-disable-next-line no-console
+              console.error('Failed to copy text:', err);
+            });
           }
         }
       }
@@ -86,6 +90,11 @@ export const TextFieldWithPaste = React.forwardRef<
   );
 });
 
+// Add defaultProps to fix the "require-default-props" warning
+TextFieldWithPaste.defaultProps = {
+  onPasteValue: undefined,
+};
+
 export const CurrencyFormFieldWithPaste = ({
   label,
   fullWidth,
@@ -110,7 +119,7 @@ export const CurrencyFormFieldWithPaste = ({
 
   // Enable copy-all support for this field
   useEffect(() => {
-    if (!inputRef.current) return;
+    if (!inputRef.current) return undefined;
 
     const handleKeyDown = (e: Event) => {
       const keyEvent = e as KeyboardEvent;
@@ -133,7 +142,10 @@ export const CurrencyFormFieldWithPaste = ({
 
           if (selectedText) {
             keyEvent.preventDefault();
-            writeText(selectedText).catch((err) => console.error('Failed to copy text:', err));
+            writeText(selectedText).catch((err) => {
+              // eslint-disable-next-line no-console
+              console.error('Failed to copy text:', err);
+            });
           }
         }
       }
@@ -293,7 +305,7 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
 
   // Enable copy-all support for this field
   useEffect(() => {
-    if (!inputRef.current) return;
+    if (!inputRef.current) return undefined;
 
     const handleKeyDown = (e: Event) => {
       const keyEvent = e as KeyboardEvent;
@@ -316,7 +328,10 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
 
           if (selectedText) {
             keyEvent.preventDefault();
-            writeText(selectedText).catch((err) => console.error('Failed to copy text:', err));
+            writeText(selectedText).catch((err) => {
+              // eslint-disable-next-line no-console
+              console.error('Failed to copy text:', err);
+            });
           }
         }
       }

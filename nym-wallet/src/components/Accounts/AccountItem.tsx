@@ -29,9 +29,9 @@ export const AccountItem = ({
   const { selectedAccount, setDialogToDisplay, setAccountMnemonic, handleAccountToEdit } = useContext(AccountsContext);
   const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   const theme = useTheme();
-  
+
   const isSelected = selectedAccount?.id === name;
-  
+
   return (
     <ListItem
       disablePadding
@@ -45,23 +45,21 @@ export const AccountItem = ({
         bgcolor: isSelected
           ? alpha(theme.palette.nym.highlight, theme.palette.mode === 'dark' ? 0.15 : 0.08)
           : 'transparent',
-        borderLeft: isSelected 
-          ? `3px solid ${theme.palette.nym.highlight}` 
-          : '3px solid transparent',
+        borderLeft: isSelected ? `3px solid ${theme.palette.nym.highlight}` : '3px solid transparent',
       }}
       secondaryAction={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {isSelected && (
-            <CheckCircleIcon 
-              sx={{ 
+            <CheckCircleIcon
+              sx={{
                 color: theme.palette.nym.highlight,
                 fontSize: 18,
               }}
             />
           )}
           <IconButton
-            sx={{ 
-              mr: 1.5, 
+            sx={{
+              mr: 1.5,
               color: theme.palette.mode === 'dark' ? 'nym.text.dark' : theme.palette.text.primary,
               backgroundColor: alpha(theme.palette.text.primary, 0.05),
               '&:hover': {
@@ -80,39 +78,37 @@ export const AccountItem = ({
         </Box>
       }
     >
-      <ListItemButton 
-        disableRipple 
+      <ListItemButton
+        disableRipple
         onClick={onSelectAccount}
         sx={{
           py: 1,
           transition: 'background-color 0.2s',
           '&:hover': {
-            backgroundColor: isSelected 
+            backgroundColor: isSelected
               ? alpha(theme.palette.nym.highlight, theme.palette.mode === 'dark' ? 0.2 : 0.12)
               : alpha(theme.palette.nym.nymWallet.hover.background, 0.5),
           },
         }}
       >
         {/* Account avatar with box wrapper to apply styling */}
-        <ListItemAvatar 
-          sx={{ 
-            minWidth: 0, 
+        <ListItemAvatar
+          sx={{
+            minWidth: 0,
             mr: 2,
             '& .MuiAvatar-root': {
-              border: isSelected 
-                ? `2px solid ${theme.palette.nym.highlight}` 
-                : `2px solid transparent`,
+              border: isSelected ? `2px solid ${theme.palette.nym.highlight}` : '2px solid transparent',
               transition: 'all 0.2s',
-            }
+            },
           }}
         >
           <AccountAvatar name={name} />
         </ListItemAvatar>
         <ListItemText
           primary={
-            <Typography 
-              variant="subtitle1" 
-              sx={{ 
+            <Typography
+              variant="subtitle1"
+              sx={{
                 fontWeight: isSelected ? 600 : 400,
                 color: theme.palette.text.primary,
               }}
@@ -130,13 +126,14 @@ export const AccountItem = ({
                     e.stopPropagation();
                     copy(address);
                   }}
-                  sx={{ 
+                  sx={{
                     fontFamily: 'monospace',
                     cursor: 'pointer',
-                    color: theme.palette.mode === 'dark'
-                      ? theme.palette.nym.nymWallet.text.muted
-                      : alpha(theme.palette.text.primary, 0.7),
-                    '&:hover': { 
+                    color:
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.nym.nymWallet.text.muted
+                        : alpha(theme.palette.text.primary, 0.7),
+                    '&:hover': {
                       color: theme.palette.text.primary,
                       textDecoration: 'underline',
                     },
@@ -149,17 +146,18 @@ export const AccountItem = ({
                 <Typography
                   variant="body2"
                   component="span"
-                  sx={{ 
-                    textDecoration: 'underline', 
-                    mb: 0.5, 
+                  sx={{
+                    textDecoration: 'underline',
+                    mb: 0.5,
                     cursor: 'pointer',
-                    color: theme.palette.mode === 'dark'
-                      ? alpha(theme.palette.nym.highlight, 0.9)
-                      : theme.palette.nym.highlight,
-                    '&:hover': { 
+                    color:
+                      theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.nym.highlight, 0.9)
+                        : theme.palette.nym.highlight,
+                    '&:hover': {
                       color: theme.palette.nym.highlight,
                       fontWeight: 500,
-                    } 
+                    },
                   }}
                   onClick={(e: React.MouseEvent<HTMLElement>) => {
                     e.stopPropagation();

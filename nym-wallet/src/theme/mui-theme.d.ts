@@ -53,7 +53,7 @@ declare module '@mui/material/styles' {
       grey: string;
       greyStroke: string;
       elevated: string; // New property for more depth options
-      subtle: string;   // New property for subtle backgrounds
+      subtle: string; // New property for subtle backgrounds
     };
     text: {
       main: string;

@@ -127,6 +127,7 @@ export const ClipboardActions = ({
       fieldRef.current.addEventListener('blur', blurHandler);
     }
 
+    // eslint-disable-next-line consistent-return
     return () => {
       document.removeEventListener('keydown', keydownHandler);
       if (fieldRef.current) {

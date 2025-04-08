@@ -61,7 +61,6 @@ const NymNodeSignature = ({
         setMessage(msg);
       }
     } catch (e) {
-      console.error(e);
       setError('Something went wrong while generating the payload signature');
     }
   };

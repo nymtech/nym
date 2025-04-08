@@ -10,6 +10,7 @@ import { settingsValidationSchema } from './settingsValidationSchema';
 
 type NymNodeDataProps = {
   onClose: () => void;
+  // eslint-disable-next-line react/no-unused-prop-types
   onBack: () => void;
   onNext: () => Promise<void>;
   step: number;

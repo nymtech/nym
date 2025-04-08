@@ -23,12 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Tauri v2 dependencies
-        run: >
-          sudo apt-get update &&
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev \
-          libayatana-appindicator3-dev librsvg2-dev patchelf libxdo-dev \
-          webkit2gtk-driver xvfb
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libdbus-1-dev libmnl-dev libnftnl-dev \
+            libwebkit2gtk-4.1-dev build-essential curl wget libssl-dev jq \
+            libgtk-3-dev squashfs-tools libayatana-appindicator3-dev make libfuse2 unzip librsvg2-dev file \
+            libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       
       - name: Node
         uses: actions/setup-node@v4

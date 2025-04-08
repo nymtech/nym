@@ -7,6 +7,7 @@ pub fn test_client() -> Client {
     Client::new()
 }
 
+#[allow(clippy::panic)]
 pub fn base_url() -> String {
     dotenv().ok();
 
@@ -19,6 +20,7 @@ pub fn base_url() -> String {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::panic)]
 pub async fn validate_json_response(res: Response) -> Value {
     assert!(
         res.status().is_success(),
@@ -33,6 +35,7 @@ pub async fn validate_json_response(res: Response) -> Value {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::panic)]
 pub async fn get_any_node_id() -> String {
     let url = format!("{}/v1/nym-nodes/bonded", base_url());
     let res = test_client()
@@ -51,12 +54,12 @@ pub async fn get_any_node_id() -> String {
         .and_then(|node| node.get("bond_information"))
         .and_then(|n| n.get("node_id"))
         .and_then(|v| v.as_u64())
-        .map(|id| id.to_string())
-        .unwrap_or_else(|| "INVALID_ID".into())
+        .unwrap_or(0)
         .to_string()
 }
 
 #[allow(dead_code)]
+#[allow(clippy::panic)]
 pub async fn get_mixnode_node_id() -> u64 {
     let url = format!("{}/v1/nym-nodes/described", base_url());
     let res = test_client()
@@ -71,7 +74,7 @@ pub async fn get_mixnode_node_id() -> u64 {
 
     json.get("data")
         .and_then(|v| v.as_array())
-        .expect("Expected 'data' to be an array")
+        .unwrap_or_else(|| panic!("Expected 'data' to be an array"))
         .iter()
         .find(|entry| {
             entry
@@ -79,7 +82,6 @@ pub async fn get_mixnode_node_id() -> u64 {
                 .and_then(|d| d.get("declared_role"))
                 .and_then(|r| r.get("mixnode"))
                 .and_then(|m| m.as_bool())
-                .map(|is_mixnode| is_mixnode)
                 .unwrap_or(true)
         })
         .and_then(|node| node.get("node_id").and_then(|v| v.as_u64()))
@@ -87,6 +89,7 @@ pub async fn get_mixnode_node_id() -> u64 {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::panic)]
 pub async fn get_gateway_identity_key() -> String {
     let url = format!("{}/v1/nym-nodes/described", base_url());
     let res = test_client()
@@ -101,7 +104,7 @@ pub async fn get_gateway_identity_key() -> String {
 
     json.get("data")
         .and_then(|v| v.as_array())
-        .expect("Expected 'data' to be an array")
+        .unwrap_or_else(|| panic!("Expected 'data' to be an array"))
         .iter()
         .find(|entry| {
             entry

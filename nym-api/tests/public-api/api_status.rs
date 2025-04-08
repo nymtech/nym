@@ -1,4 +1,3 @@
-mod utils;
 use crate::utils::{base_url, test_client, validate_json_response};
 
 #[tokio::test]

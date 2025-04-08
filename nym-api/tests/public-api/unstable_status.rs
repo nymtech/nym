@@ -1,4 +1,3 @@
-mod utils;
 use crate::utils::{base_url, get_gateway_identity_key, get_mixnode_node_id, test_client};
 use serde_json::Value;
 

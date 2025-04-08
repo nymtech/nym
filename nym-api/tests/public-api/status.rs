@@ -1,4 +1,3 @@
-mod utils;
 use crate::utils::{base_url, test_client};
 use serde_json::Value;
 

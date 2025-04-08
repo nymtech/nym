@@ -1,4 +1,3 @@
-mod utils;
 use crate::utils::{base_url, get_any_node_id, test_client, validate_json_response};
 use chrono::Utc;
 

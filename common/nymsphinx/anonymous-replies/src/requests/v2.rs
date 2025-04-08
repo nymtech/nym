@@ -151,8 +151,9 @@ impl AdditionalSurbsV2 {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, InvalidReplyRequestError> {
         let (reply_surbs, n) = recover_reply_surbs_v2(bytes)?;
-        if n != 0 {
-            warn!("trailing {n} bytes after v2 additional surbs message");
+        if n != bytes.len() {
+            let trailing = bytes.len() - n;
+            warn!("trailing {trailing} bytes after v2 additional surbs message");
         }
 
         Ok(AdditionalSurbsV2 { reply_surbs })
@@ -170,8 +171,9 @@ impl HeartbeatV2 {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, InvalidReplyRequestError> {
         let (additional_reply_surbs, n) = recover_reply_surbs_v2(bytes)?;
-        if n != 0 {
-            warn!("trailing {n} bytes after v2 heartbeat message");
+        if n != bytes.len() {
+            let trailing = bytes.len() - n;
+            warn!("trailing {trailing} bytes after v2 heartbeat message");
         }
 
         Ok(HeartbeatV2 {

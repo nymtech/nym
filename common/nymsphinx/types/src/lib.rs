@@ -96,6 +96,7 @@ impl NymPacket {
         Ok(NymPacket::Sphinx(
             SphinxPacketBuilder::new()
                 .with_payload_size(size)
+                .with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
                 .build_packet(message, route, destination, delays)?,
         ))
     }

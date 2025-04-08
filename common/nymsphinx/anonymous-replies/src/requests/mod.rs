@@ -207,6 +207,7 @@ impl RepliableMessage {
     }
 }
 
+#[derive(Debug)]
 #[repr(u8)]
 enum RepliableMessageContentTag {
     Data = 0,

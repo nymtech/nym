@@ -192,7 +192,6 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
-            config.use_legacy_reply_surb_format,
         );
         MessageHandler {
             config,
@@ -261,9 +260,11 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let reply_surbs = self
-            .message_preparer
-            .generate_reply_surbs(amount, topology)?;
+        let reply_surbs = self.message_preparer.generate_reply_surbs(
+            self.config.use_legacy_reply_surb_format,
+            amount,
+            topology,
+        )?;
 
         let reply_keys = reply_surbs
             .iter()
@@ -529,6 +530,7 @@ where
             self.generate_reply_surbs_with_keys(amount as usize).await?;
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
+            self.config.use_legacy_reply_surb_format,
             sender_tag,
             reply_surbs,
         ));
@@ -566,8 +568,12 @@ where
             .generate_reply_surbs_with_keys(num_reply_surbs as usize)
             .await?;
 
-        let message =
-            NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
+        let message = NymMessage::new_repliable(RepliableMessage::new_data(
+            self.config.use_legacy_reply_surb_format,
+            message,
+            sender_tag,
+            reply_surbs,
+        ));
 
         self.try_split_and_send_non_reply_message(
             message,

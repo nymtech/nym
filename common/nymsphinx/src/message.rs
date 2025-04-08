@@ -92,7 +92,6 @@ impl NymMessage {
         NymMessage::Plain(msg)
     }
 
-    #[deprecated]
     pub fn new_repliable(msg: RepliableMessage) -> Self {
         NymMessage::Repliable(msg)
     }

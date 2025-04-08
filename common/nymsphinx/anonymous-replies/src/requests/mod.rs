@@ -133,26 +133,43 @@ impl Display for RepliableMessage {
 
 impl RepliableMessage {
     pub fn new_data(
+        use_legacy_surb_format: bool,
         data: Vec<u8>,
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
     ) -> Self {
-        RepliableMessage {
-            sender_tag,
-            content: RepliableMessageContent::Data(DataV1 {
+        let content = if use_legacy_surb_format {
+            RepliableMessageContent::Data(DataV1 {
                 message: data,
                 reply_surbs,
-            }),
+            })
+        } else {
+            RepliableMessageContent::DataV2(DataV2 {
+                message: data,
+                reply_surbs,
+            })
+        };
+
+        RepliableMessage {
+            sender_tag,
+            content,
         }
     }
 
     pub fn new_additional_surbs(
+        use_legacy_surb_format: bool,
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
     ) -> Self {
+        let content = if use_legacy_surb_format {
+            RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1 { reply_surbs })
+        } else {
+            RepliableMessageContent::AdditionalSurbsV2(AdditionalSurbsV2 { reply_surbs })
+        };
+
         RepliableMessage {
             sender_tag,
-            content: RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1 { reply_surbs }),
+            content,
         }
     }
 

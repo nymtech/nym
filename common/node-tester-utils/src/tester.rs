@@ -6,10 +6,11 @@ use crate::TestMessage;
 use nym_sphinx::acknowledgements::surb_ack::SurbAck;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::PacketSize;
-use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
+use nym_sphinx::preparer::{FragmentPreparer, MessagePreparer, PreparedFragment};
 use nym_sphinx_params::PacketType;
 use nym_topology::node::RoutingNode;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError, Role};
@@ -32,18 +33,7 @@ pub struct NodeTester<R> {
 
     packet_size: PacketSize,
 
-    /// Specify whether route selection should be determined by the packet header.
-    deterministic_route_selection: bool,
-
-    /// Average delay a data packet is going to get delay at a single mixnode.
-    average_packet_delay: Duration,
-
-    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
-    average_ack_delay: Duration,
-
-    /// Specify whether any constructed packets should use the legacy format,
-    /// where the payload keys are explicitly attached rather than using the seeds
-    use_legacy_sphinx_format: bool,
+    message_preparer: MessagePreparer<R>,
 
     // while acks are going to be ignored they still need to be constructed
     // so that the gateway would be able to correctly process and forward the message
@@ -52,7 +42,7 @@ pub struct NodeTester<R> {
 
 impl<R> NodeTester<R>
 where
-    R: Rng + CryptoRng,
+    R: Rng + CryptoRng + Clone,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -66,15 +56,21 @@ where
         use_legacy_sphinx_format: bool,
         ack_key: Arc<AckKey>,
     ) -> Self {
+        let message_preparer = MessagePreparer::new(
+            rng.clone(),
+            deterministic_route_selection,
+            self_address.expect("self_address must be set"),
+            average_packet_delay,
+            average_ack_delay,
+            use_legacy_sphinx_format,
+            false,
+        );
         Self {
             rng,
             base_topology,
             self_address,
             packet_size,
-            deterministic_route_selection,
-            average_packet_delay,
-            average_ack_delay,
-            use_legacy_sphinx_format,
+            message_preparer,
             ack_key,
         }
     }
@@ -253,11 +249,11 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
     type Rng = R;
 
     fn use_legacy_sphinx_format(&self) -> bool {
-        self.use_legacy_sphinx_format
+        self.message_preparer.use_legacy_sphinx_format()
     }
 
     fn deterministic_route_selection(&self) -> bool {
-        self.deterministic_route_selection
+        self.message_preparer.deterministic_route_selection()
     }
 
     fn rng(&mut self) -> &mut Self::Rng {
@@ -269,11 +265,11 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
     }
 
     fn average_packet_delay(&self) -> Duration {
-        self.average_packet_delay
+        self.message_preparer.average_packet_delay()
     }
 
     fn average_ack_delay(&self) -> Duration {
-        self.average_ack_delay
+        self.message_preparer.average_ack_delay()
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
@@ -284,20 +280,24 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
         ack_key: &AckKey,
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
-        let sender = self.self_address.expect("self_address must be set");
-        let ack_delay = self.average_ack_delay();
-        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+        self.message_preparer
+            .generate_surb_ack(fragment_id, topology, ack_key, packet_type)
+    }
 
-        SurbAck::construct(
-            self.rng(),
-            use_legacy_sphinx_format,
-            &sender,
-            ack_key,
-            fragment_id.to_bytes(),
-            ack_delay,
+    fn prepare_chunk_for_sending(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_recipient: &Recipient,
+        packet_type: PacketType,
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        self.message_preparer.prepare_chunk_for_sending(
+            fragment,
             topology,
+            ack_key,
+            packet_recipient,
             packet_type,
-            false,
         )
     }
 }

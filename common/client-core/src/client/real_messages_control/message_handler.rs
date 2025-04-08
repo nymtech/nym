@@ -9,7 +9,6 @@ use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
-use log::{debug, error, info, trace, warn};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
@@ -27,6 +26,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
+use tracing::{debug, error, info, trace, warn};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Error)]
@@ -298,7 +298,7 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         let msg = NymMessage::new_reply(message);
         let packet_size = self.optimal_packet_size(&msg);
-        debug!("Using {packet_size} packets for {msg}");
+        info!("Z Using {packet_size} packets for {msg}");
 
         let mut fragment = self
             .message_preparer
@@ -362,7 +362,7 @@ where
     pub(crate) fn split_reply_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
         let msg = NymMessage::new_reply(ReplyMessage::new_data_message(message));
         let packet_size = self.optimal_packet_size(&msg);
-        debug!("Using {packet_size} packets for {msg}");
+        info!("X Using {packet_size} packets for {msg}");
 
         self.message_preparer
             .pad_and_split_message(msg, packet_size)
@@ -495,7 +495,7 @@ where
         } else {
             self.optimal_packet_size(&message)
         };
-        debug!("Using {packet_size} packets for {message}");
+        info!("Y Using {packet_size} packets for {message}");
         let fragments = self
             .message_preparer
             .pad_and_split_message(message, packet_size);

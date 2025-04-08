@@ -3,7 +3,6 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
-use log::debug;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -18,6 +17,7 @@ use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
+use tracing::{debug, info, trace};
 
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
@@ -109,6 +109,8 @@ pub trait FragmentPreparer {
         reply_surb: ReplySurb,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!("Preparing reply chunk for sending");
+
         // each reply attaches the digest of the encryption key so that the recipient could
         // lookup correct key for decryption,
         let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
@@ -182,85 +184,7 @@ pub trait FragmentPreparer {
         ack_key: &AckKey,
         packet_recipient: &Recipient,
         packet_type: PacketType,
-    ) -> Result<PreparedFragment, NymTopologyError> {
-        debug!("Preparing chunk for sending");
-        // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
-        // could perform diffie-hellman with its own keys followed by a kdf to re-derive
-        // the packet encryption key
-
-        // let fragment_header = fragment.header();
-        let destination = packet_recipient.gateway();
-        monitoring::fragment_sent(&fragment, self.nonce(), destination);
-
-        let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
-        let expected_plaintext = match packet_type {
-            PacketType::Outfox => {
-                fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + non_reply_overhead
-            }
-            _ => fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead,
-        };
-
-        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
-        // more gracefully is that this error should never be reached as it implies incorrect chunking
-        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
-            .expect("the message has been incorrectly fragmented");
-
-        let fragment_identifier = fragment.fragment_identifier();
-
-        // create an ack
-        let surb_ack =
-            self.generate_surb_ack(fragment_identifier, topology, ack_key, packet_type)?;
-        let ack_delay = surb_ack.expected_total_delay();
-
-        let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
-            .build_regular(self.rng(), packet_recipient.encryption_key())
-        {
-            Ok(payload) => payload,
-            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
-        };
-
-        // generate pseudorandom route for the packet
-        log::trace!("Preparing chunk for sending");
-        let route = topology.empty_route_to_egress(destination)?;
-
-        let destination = packet_recipient.as_sphinx_destination();
-
-        // including set of delays
-        let delays =
-            nym_sphinx_routing::generate_hop_delays(self.average_packet_delay(), route.len());
-
-        // create the actual sphinx packet here. With valid route and correct payload size,
-        // there's absolutely no reason for this call to fail.
-        let packet = match packet_type {
-            PacketType::Outfox => NymPacket::outfox_build(
-                packet_payload,
-                route.as_slice(),
-                &destination,
-                Some(packet_size.plaintext_size()),
-            )?,
-            PacketType::Mix => NymPacket::sphinx_build(
-                self.use_legacy_sphinx_format(),
-                packet_size.payload_size(),
-                packet_payload,
-                &route,
-                &destination,
-                &delays,
-            )?,
-        };
-
-        // from the previously constructed route extract the first hop
-        let first_hop_address =
-            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
-
-        Ok(PreparedFragment {
-            // the round-trip delay is the sum of delays of all hops on the forward route as
-            // well as the total delay of the ack packet.
-            // note that the last hop of the packet is a gateway that does not do any delays
-            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
-            fragment_identifier,
-        })
-    }
+    ) -> Result<PreparedFragment, NymTopologyError>;
 
     fn pad_and_split_message(
         &mut self,
@@ -365,14 +289,6 @@ where
 
         Ok(reply_surbs)
     }
-
-    pub fn pad_and_split_message(
-        &mut self,
-        message: NymMessage,
-        packet_size: PacketSize,
-    ) -> Vec<Fragment> {
-        <Self as FragmentPreparer>::pad_and_split_message(self, message, packet_size)
-    }
 }
 
 impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
@@ -454,6 +370,97 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
         }
 
         Ok(reply_surbs)
+    }
+
+    fn prepare_chunk_for_sending(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_recipient: &Recipient,
+        packet_type: PacketType,
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!("Preparing chunk for sending");
+        // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
+        // could perform diffie-hellman with its own keys followed by a kdf to re-derive
+        // the packet encryption key
+
+        // let fragment_header = fragment.header();
+        let destination = packet_recipient.gateway();
+        monitoring::fragment_sent(&fragment, self.nonce(), destination);
+
+        let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
+        let expected_plaintext = match packet_type {
+            PacketType::Outfox => {
+                fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + non_reply_overhead
+            }
+            _ => fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead,
+        };
+
+        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
+        // more gracefully is that this error should never be reached as it implies incorrect chunking
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
+            .expect("the message has been incorrectly fragmented");
+
+        let fragment_identifier = fragment.fragment_identifier();
+
+        // create an ack
+        let surb_ack =
+            self.generate_surb_ack(fragment_identifier, topology, ack_key, packet_type)?;
+        let ack_delay = surb_ack.expected_total_delay();
+
+        let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
+            .build_regular(self.rng(), packet_recipient.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
+
+        trace!("Preparing chunk for sending");
+        let route = if self.disable_mix_hops {
+            topology.empty_route_to_egress(destination)?
+        } else {
+            // generate pseudorandom route for the packet
+            topology.random_route_to_egress(self.rng(), destination)?
+        };
+
+        let destination = packet_recipient.as_sphinx_destination();
+
+        // including set of delays
+        let delays =
+            nym_sphinx_routing::generate_hop_delays(self.average_packet_delay(), route.len());
+
+        // create the actual sphinx packet here. With valid route and correct payload size,
+        // there's absolutely no reason for this call to fail.
+        let packet = match packet_type {
+            PacketType::Outfox => NymPacket::outfox_build(
+                packet_payload,
+                route.as_slice(),
+                &destination,
+                Some(packet_size.plaintext_size()),
+            )?,
+            PacketType::Mix => NymPacket::sphinx_build(
+                self.use_legacy_sphinx_format(),
+                packet_size.payload_size(),
+                packet_payload,
+                &route,
+                &destination,
+                &delays,
+            )?,
+        };
+
+        // from the previously constructed route extract the first hop
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
+
+        Ok(PreparedFragment {
+            // the round-trip delay is the sum of delays of all hops on the forward route as
+            // well as the total delay of the ack packet.
+            // note that the last hop of the packet is a gateway that does not do any delays
+            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
+            mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
+            fragment_identifier,
+        })
     }
 }
 

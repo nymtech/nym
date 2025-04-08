@@ -8,7 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-log = { workspace = true }
+tracing = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_chacha = { workspace = true }

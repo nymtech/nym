@@ -401,7 +401,16 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
+      {/* Main container - make sure it constrains width properly */}
+      <Paper 
+        elevation={0} 
+        sx={{ 
+          p: 3, 
+          mt: 4,
+          maxWidth: '100%',
+          overflowX: 'hidden',
+        }}
+      >
         <Stack spacing={3}>
           <Box display="flex" justifyContent="space-between">
             {' '}
@@ -446,7 +455,11 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               )}
             </Box>
           )}
-          {delegationsComponent(delegations)}
+          
+          {/* Add a container to ensure delegations are constrained */}
+          <Box sx={{ width: '100%', overflowX: 'hidden' }}>
+            {delegationsComponent(delegations)}
+          </Box>
         </Stack>
       </Paper>
 

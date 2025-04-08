@@ -29,6 +29,37 @@ export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
 export type SortingKeys = keyof AdditionalTypes | keyof DelegationWithEverything;
 
+const shouldBeFiltered = (item: any): boolean => {
+  if (isDelegation(item)) {
+    // Check if node_identity is empty or just placeholders
+    if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
+      return true;
+    }
+    
+    const hasEmptyFields = 
+      !item.node_identity || 
+      item.node_identity === '' || 
+      item.node_identity === '-' || 
+      item.node_identity === '...';
+      
+    if (hasEmptyFields) {
+      return true;
+    }
+
+    if (typeof item.avg_uptime_percent === 'string' && item.avg_uptime_percent === '-') {
+      return true;
+    }
+  }
+  
+  if (isPendingDelegation(item)) {
+    if (!item.node_identity || item.node_identity === '') {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
 interface EnhancedTableProps {
   onRequestSort: (event: React.MouseEvent<unknown>, property: string) => void;
   order: Order;
@@ -41,23 +72,25 @@ interface HeadCell {
   sortable: boolean;
   disablePadding?: boolean;
   align: 'left' | 'center' | 'right';
+  width?: string;
 }
 
 const headCells: HeadCell[] = [
-  { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
-  { id: 'avg_uptime_percent', label: 'Routing score', sortable: true, align: 'left' },
-  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
-  { id: 'operating_cost', label: 'Operating Cost', sortable: true, align: 'left' },
-  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
+  { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left', width: '15%' },
+  { id: 'avg_uptime_percent', label: 'Routing score', sortable: true, align: 'left', width: '10%' },
+  { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left', width: '10%' },
+  { id: 'operating_cost', label: 'Operating Cost', sortable: true, align: 'left', width: '12%' },
+  { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left', width: '10%' },
   {
     id: 'delegated_on_iso_datetime',
     label: 'Delegated on',
     sortable: true,
     align: 'left',
+    width: '10%',
   },
-  { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
-  { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
-  { id: 'uses_locked_tokens', label: '', sortable: false, align: 'left' },
+  { id: 'amount', label: 'Delegation', sortable: true, align: 'left', width: '12%' },
+  { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left', width: '10%' },
+  { id: 'uses_locked_tokens', label: '', sortable: false, align: 'left', width: '8%' },
 ];
 
 const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
@@ -75,6 +108,13 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
             padding={headCell.disablePadding ? 'none' : 'normal'}
             sortDirection={orderBy === headCell.id ? order : false}
             color="secondary"
+            sx={{ 
+              width: headCell.width,
+              minWidth: headCell.id === 'node_identity' ? '120px' : '80px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
           >
             <TableSortLabel
               active={orderBy === headCell.id}
@@ -91,7 +131,18 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
             </TableSortLabel>
           </TableCell>
         ))}
-        <TableCell />
+        <TableCell 
+          sx={{ 
+            width: '10%', 
+            minWidth: '100px',
+            maxWidth: '120px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+        >
+          <Typography noWrap>Pending Events</Typography>
+        </TableCell>
       </TableRow>
     </TableHead>
   );
@@ -126,9 +177,16 @@ export const DelegationList: FCWithChildren<{
   };
 
   const sorted = useSortDelegations(items, order, orderBy);
+  
+  // Filter out empty placeholder rows
+  const filteredItems = React.useMemo(() => {
+    if (!sorted) return [];
+    const filtered = sorted.filter(item => !shouldBeFiltered(item));
+    return filtered;
+  }, [sorted]);
 
   // Check if any delegations have pruning errors
-  const hasPruningErrors = React.useMemo(() => sorted?.some((item) => hasPruningError(item)), [sorted]);
+  const hasPruningErrors = React.useMemo(() => filteredItems?.some((item) => hasPruningError(item)), [filteredItems]);
 
   // Navigate to settings page
   const navigateToSettings = () => {
@@ -164,7 +222,15 @@ export const DelegationList: FCWithChildren<{
         </Alert>
       )}
 
-      <TableContainer>
+      {/* Add horizontal scrolling to the table container */}
+      <TableContainer sx={{ 
+        width: '100%',
+        overflowX: 'auto',
+        '& .MuiTable-root': {
+          tableLayout: 'fixed',
+          minWidth: 650
+        }
+      }}>
         {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
         <ErrorModal
           open={Boolean(delegationItemErrors)}
@@ -174,16 +240,27 @@ export const DelegationList: FCWithChildren<{
           }
           onClose={() => setDelegationItemErrors(undefined)}
         />
-        <Table sx={{ width: '100%' }}>
+        <Table>
           <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
           <TableBody>
-            {sorted?.length
-              ? sorted.map((item: any, _index: number) => {
+            {filteredItems?.length
+              ? filteredItems.map((item: any, _index: number) => {
                   if (isPendingDelegation(item)) {
-                    const pendingKey = `pending-${item.event.mix_id}-${item.event.address}-${item.node_identity}`;
+                    // Skip rendering pending items with empty node_identity
+                    if (!item.node_identity || item.node_identity === '') {
+                      return null;
+                    }
+                    
+                    const pendingKey = `pending-${item.event.mix_id}-${item.event.address}-${item.node_identity || 'empty'}`;
                     return <PendingDelegationItem key={pendingKey} item={item} explorerUrl={explorerUrl} />;
                   }
-                  if (isDelegation(item))
+                  
+                  if (isDelegation(item)) {
+                    // Skip rendering delegation items with placeholder node_identity
+                    if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
+                      return null;
+                    }
+                    
                     return (
                       <DelegationItem
                         key={`delegation-${item.mix_id}`}
@@ -193,6 +270,8 @@ export const DelegationList: FCWithChildren<{
                         onItemActionClick={onItemActionClick}
                       />
                     );
+                  }
+                  
                   return null;
                 })
               : null}

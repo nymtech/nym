@@ -29,34 +29,33 @@ export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
 export type SortingKeys = keyof AdditionalTypes | keyof DelegationWithEverything;
 
+// Helper function to check if a delegation item should be filtered
 const shouldBeFiltered = (item: any): boolean => {
+  // For regular delegations, filter out placeholders
   if (isDelegation(item)) {
     // Check if node_identity is empty or just placeholders
     if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
       return true;
     }
-    
-    const hasEmptyFields = 
-      !item.node_identity || 
-      item.node_identity === '' || 
-      item.node_identity === '-' || 
-      item.node_identity === '...';
-      
-    if (hasEmptyFields) {
-      return true;
-    }
 
+    // Check if uptime is a placeholder dash
     if (typeof item.avg_uptime_percent === 'string' && item.avg_uptime_percent === '-') {
       return true;
     }
   }
-  
+
+  // For pending delegations, keep "Delegate" events but filter out "Undelegate" events with empty node_identity
   if (isPendingDelegation(item)) {
-    if (!item.node_identity || item.node_identity === '') {
+    // If it's an undelegate event with empty node_identity, filter it out
+    if ((!item.node_identity || item.node_identity === '') &&
+      item.event && item.event.kind === 'Undelegate') {
       return true;
     }
+
+    // Keep all other pending events (including new delegation events)
+    return false;
   }
-  
+
   return false;
 };
 
@@ -108,7 +107,7 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
             padding={headCell.disablePadding ? 'none' : 'normal'}
             sortDirection={orderBy === headCell.id ? order : false}
             color="secondary"
-            sx={{ 
+            sx={{
               width: headCell.width,
               minWidth: headCell.id === 'node_identity' ? '120px' : '80px',
               whiteSpace: 'nowrap',
@@ -131,9 +130,9 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
             </TableSortLabel>
           </TableCell>
         ))}
-        <TableCell 
-          sx={{ 
-            width: '10%', 
+        <TableCell
+          sx={{
+            width: '10%',
             minWidth: '100px',
             maxWidth: '120px',
             whiteSpace: 'nowrap',
@@ -176,13 +175,13 @@ export const DelegationList: FCWithChildren<{
     setOrderBy(property);
   };
 
+  // Get sorted items
   const sorted = useSortDelegations(items, order, orderBy);
-  
+
   // Filter out empty placeholder rows
   const filteredItems = React.useMemo(() => {
     if (!sorted) return [];
-    const filtered = sorted.filter(item => !shouldBeFiltered(item));
-    return filtered;
+    return sorted.filter(item => !shouldBeFiltered(item));
   }, [sorted]);
 
   // Check if any delegations have pruning errors
@@ -223,7 +222,7 @@ export const DelegationList: FCWithChildren<{
       )}
 
       {/* Add horizontal scrolling to the table container */}
-      <TableContainer sx={{ 
+      <TableContainer sx={{
         width: '100%',
         overflowX: 'auto',
         '& .MuiTable-root': {
@@ -245,35 +244,41 @@ export const DelegationList: FCWithChildren<{
           <TableBody>
             {filteredItems?.length
               ? filteredItems.map((item: any, _index: number) => {
-                  if (isPendingDelegation(item)) {
-                    // Skip rendering pending items with empty node_identity
-                    if (!item.node_identity || item.node_identity === '') {
-                      return null;
-                    }
-                    
-                    const pendingKey = `pending-${item.event.mix_id}-${item.event.address}-${item.node_identity || 'empty'}`;
-                    return <PendingDelegationItem key={pendingKey} item={item} explorerUrl={explorerUrl} />;
+                if (isPendingDelegation(item)) {
+                  const pendingKey = `pending-${item.event.mix_id}-${item.event.address}-${Date.now()}-${Math.random()}`;
+
+                  if (item.event && item.event.kind === 'Delegate' && (!item.node_identity || item.node_identity === '')) {
+                    return <PendingDelegationItem
+                      key={pendingKey}
+                      item={{
+                        ...item,
+                        node_identity: `Mix Identity Key ${item.event.mix_id}`
+                      }}
+                      explorerUrl={explorerUrl}
+                    />;
                   }
-                  
-                  if (isDelegation(item)) {
-                    // Skip rendering delegation items with placeholder node_identity
-                    if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
-                      return null;
-                    }
-                    
-                    return (
-                      <DelegationItem
-                        key={`delegation-${item.mix_id}`}
-                        item={item}
-                        explorerUrl={explorerUrl}
-                        nodeIsUnbonded={Boolean(!item.node_identity)}
-                        onItemActionClick={onItemActionClick}
-                      />
-                    );
+
+                  return <PendingDelegationItem key={pendingKey} item={item} explorerUrl={explorerUrl} />;
+                }
+
+                if (isDelegation(item)) {
+                  if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
+                    return null;
                   }
-                  
-                  return null;
-                })
+
+                  return (
+                    <DelegationItem
+                      key={`delegation-${item.mix_id}`}
+                      item={item}
+                      explorerUrl={explorerUrl}
+                      nodeIsUnbonded={Boolean(!item.node_identity)}
+                      onItemActionClick={onItemActionClick}
+                    />
+                  );
+                }
+
+                return null;
+              })
               : null}
           </TableBody>
         </Table>

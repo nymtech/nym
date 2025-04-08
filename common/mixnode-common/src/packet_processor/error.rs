@@ -10,9 +10,6 @@ pub enum MixProcessingError {
     #[error("failed to recover the expected SURB-Ack packet: {0}")]
     MalformedSurbAck(#[from] SurbAckRecoveryError),
 
-    #[error("the received packet was set to use the very old and very much deprecated 'VPN' mode")]
-    ReceivedOldTypeVpnPacket,
-
     #[error("failed to process received Nym packet: {0}")]
     NymPacketProcessingError(#[from] PacketProcessingError),
 }

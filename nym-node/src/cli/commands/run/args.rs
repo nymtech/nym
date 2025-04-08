@@ -167,7 +167,7 @@ impl Args {
             )
             .with_host(self.host.build_config_section())
             .with_http(self.http.build_config_section())
-            .with_mixnet(self.mixnet.build_config_section())
+            .with_mixnet(self.mixnet.build_config_section(&data_dir))
             .with_wireguard(self.wireguard.build_config_section(&data_dir))
             .with_storage_paths(NymNodePaths::new(&data_dir))
             .with_verloc(self.verloc.build_config_section())

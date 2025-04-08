@@ -57,8 +57,6 @@ impl SurbAck {
         let packet_size = match packet_type {
             PacketType::Outfox => surb_ack_payload.len().max(MIN_PACKET_SIZE),
             PacketType::Mix => PacketSize::AckPacket.payload_size(),
-            #[allow(deprecated)]
-            PacketType::Vpn => PacketSize::AckPacket.payload_size(),
         };
 
         let surb_ack_packet = match packet_type {
@@ -69,14 +67,6 @@ impl SurbAck {
                 Some(packet_size),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
-                packet_size,
-                surb_ack_payload,
-                &route,
-                &destination,
-                &delays,
-            )?,
-            #[allow(deprecated)]
-            PacketType::Vpn => NymPacket::sphinx_build(
                 packet_size,
                 surb_ack_payload,
                 &route,
@@ -106,8 +96,6 @@ impl SurbAck {
                 PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
             }
             PacketType::Mix => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
-            #[allow(deprecated)]
-            PacketType::Vpn => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
         }
     }
 
@@ -139,8 +127,6 @@ impl SurbAck {
         let packet = match packet_type {
             PacketType::Outfox => NymPacket::outfox_from_bytes(&b[address_offset..])?,
             PacketType::Mix => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
-            #[allow(deprecated)]
-            PacketType::Vpn => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
         };
 
         Ok((address, packet))

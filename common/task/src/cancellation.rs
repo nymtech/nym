@@ -209,7 +209,7 @@ impl ShutdownManager {
             legacy_task_manager: None,
             shutdown_signals: Default::default(),
             tracker: Default::default(),
-            max_shutdown_duration: Default::default(),
+            max_shutdown_duration: Duration::from_secs(10),
         };
 
         // we need to add an explicit watcher for the cancellation token being cancelled

@@ -31,19 +31,15 @@ jobs:
       file_hash: ${{ steps.release-info.outputs.file_hash }}
 
     steps:
-      - name: Extensive Environment Debug
-        shell: bash
-        run: |
-          echo "Current User: $(whoami)"
-          echo "Home Directory: $HOME"
-          echo "Working Directory: $(pwd)"
-          echo "PATH: $PATH"
-          echo "Git Bash Path:"
-          which bash || echo "Bash not found in PATH"
-          echo "Git Bash Executable Details:"
-          ls -l "/c/Program Files/Git/bin/bash.exe" || echo "Git Bash executable not found"
-          echo "Listing Git installation:"
-          ls -l "/c/Program Files/Git" || echo "Git directory not found"
+      - name: Diagnostic Environment Check
+          shell: bash
+          run: |
+            echo "Current Directory: $(pwd)"
+            echo "Home Directory: $HOME"
+            echo "PATH: $PATH"
+            echo "Git Bash Executable:"
+            which bash || echo "Bash not found"
+            ls -l "/c/Program Files/Git/bin/bash.exe" || echo "Git Bash executable not found"
 
       - name: Clean up first
         continue-on-error: true
@@ -93,30 +89,25 @@ jobs:
             echo "TAURI_CONFIG_DIR=." >> $GITHUB_ENV
           fi
 
-      # SSL.com certificate handling
-      - name: Download EV CodeSignTool from ssl.com
+      - name: Download and Setup SSL.com CodeSignTool
         if: ${{ inputs.sign }}
         shell: bash
         run: |
-          # Navigate to the directory with tauri.conf.json
-          cd ${{ env.TAURI_CONFIG_DIR }} || true
+          mkdir -p codesigntool
           
-          # Download with detailed logging
-          echo "Downloading CodeSignTool..."
-          curl -v -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
-          
-          # Unzip with verbose output
-          echo "Unzipping CodeSignTool..."
-          unzip -v codesigntool.zip
-          
-          # Make the tool executable
-          chmod +x CodeSignTool.sh
-          
-          # Verify tool location and permissions
-          echo "CodeSignTool Location and Permissions:"
-          ls -l CodeSignTool.sh
-          pwd
+          cd codesigntool
+
+          wget -v https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -O codesigntool.zip
+
+          7z x codesigntool.zip
+
           ls -la
+
+          chmod +x CodeSignTool.sh || true
+          
+          cat CodeSignTool.sh || echo "Could not read CodeSignTool.sh"
+
+          mv CodeSignTool.sh /c/codesigntool/CodeSignTool.sh || true
 
       - name: Get EV certificate credential id
         if: ${{ inputs.sign }}

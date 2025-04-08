@@ -42,4 +42,4 @@ jobs:
           done
 
       - name: Run integration tests
-        run: dotenv -f ../envs/canary.env -- cargo test --test public-api-tests -- --nocapture
+        run: dotenv -f ../../envs/sandbox.env -- cargo test --test public-api-tests -- --nocapture

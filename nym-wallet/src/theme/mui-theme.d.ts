@@ -52,6 +52,8 @@ declare module '@mui/material/styles' {
       warn: string;
       grey: string;
       greyStroke: string;
+      elevated: string; // New property for more depth options
+      subtle: string;   // New property for subtle backgrounds
     };
     text: {
       main: string;
@@ -60,6 +62,7 @@ declare module '@mui/material/styles' {
       contrast: string;
       grey: string;
       blue: string;
+      subdued: string; // New property for better text hierarchy
     };
     topNav: {
       background: string;
@@ -75,6 +78,16 @@ declare module '@mui/material/styles' {
     };
     chart: {
       grey: string;
+    };
+    // New modern properties
+    gradients: {
+      primary: string;
+      subtle: string;
+    };
+    shadows: {
+      light: string;
+      medium: string;
+      strong: string;
     };
   }
 

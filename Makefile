@@ -170,7 +170,7 @@ generate-typescript:
 
 # Run the integration tests for public nym-api endpoints
 run-api-tests:
-	dotenv -f ../envs/sandbox.env -- cargo test --test public-api-tests
+	dotenv -f envs/sandbox.env -- cargo test --test public-api-tests
 
 # Build debian package, and update PPA
 deb-cli: build-nym-cli

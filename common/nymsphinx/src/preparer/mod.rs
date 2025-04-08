@@ -17,7 +17,7 @@ use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
-use tracing::{debug, info, trace};
+use tracing::{debug, trace};
 
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
@@ -330,8 +330,6 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
         let ack_delay = self.average_ack_delay();
         let disable_mix_hops = self.disable_mix_hops;
         let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
-
-        debug!("constructing ACK with empty route: {disable_mix_hops}");
 
         SurbAck::construct(
             self.rng(),

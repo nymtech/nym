@@ -87,18 +87,25 @@ impl fmt::Debug for NymPacket {
 impl NymPacket {
     #[cfg(feature = "sphinx")]
     pub fn sphinx_build<M: AsRef<[u8]>>(
+        use_legacy_sphinx_format: bool,
         size: usize,
         message: M,
         route: &[Node],
         destination: &Destination,
         delays: &[Delay],
     ) -> Result<NymPacket, NymPacketError> {
-        Ok(NymPacket::Sphinx(
-            SphinxPacketBuilder::new()
-                .with_payload_size(size)
-                .with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
-                .build_packet(message, route, destination, delays)?,
-        ))
+        let mut builder = SphinxPacketBuilder::new().with_payload_size(size);
+
+        if use_legacy_sphinx_format {
+            builder = builder.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
+        };
+
+        Ok(NymPacket::Sphinx(builder.build_packet(
+            message,
+            route,
+            destination,
+            delays,
+        )?))
     }
     #[cfg(feature = "sphinx")]
     pub fn sphinx_from_bytes(bytes: &[u8]) -> Result<NymPacket, NymPacketError> {

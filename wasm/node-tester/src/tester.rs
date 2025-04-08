@@ -238,6 +238,7 @@ impl NymNodeTesterBuilder {
             false,
             Duration::from_millis(5),
             Duration::from_millis(5),
+            true,
             managed_keys.ack_key(),
         );
 

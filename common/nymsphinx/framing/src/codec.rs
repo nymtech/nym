@@ -209,8 +209,15 @@ mod packet_encoding {
             SphinxDelay::new_from_nanos(42),
             SphinxDelay::new_from_nanos(42),
         ];
-        NymPacket::sphinx_build(size.payload_size(), b"foomp", &route, &destination, &delays)
-            .unwrap()
+        NymPacket::sphinx_build(
+            false,
+            size.payload_size(),
+            b"foomp",
+            &route,
+            &destination,
+            &delays,
+        )
+        .unwrap()
     }
 
     #[test]

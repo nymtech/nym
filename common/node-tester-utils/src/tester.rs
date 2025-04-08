@@ -39,6 +39,10 @@ pub struct NodeTester<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
+    /// Specify whether any constructed packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_sphinx_format: bool,
+
     // while acks are going to be ignored they still need to be constructed
     // so that the gateway would be able to correctly process and forward the message
     ack_key: Arc<AckKey>,
@@ -57,6 +61,7 @@ where
         deterministic_route_selection: bool,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        use_legacy_sphinx_format: bool,
         ack_key: Arc<AckKey>,
     ) -> Self {
         Self {
@@ -67,6 +72,7 @@ where
             deterministic_route_selection,
             average_packet_delay,
             average_ack_delay,
+            use_legacy_sphinx_format,
             ack_key,
         }
     }
@@ -244,6 +250,10 @@ where
 
 impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
     type Rng = R;
+
+    fn use_legacy_sphinx_format(&self) -> bool {
+        self.use_legacy_sphinx_format
+    }
 
     fn deterministic_route_selection(&self) -> bool {
         self.deterministic_route_selection

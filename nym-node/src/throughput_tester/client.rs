@@ -159,7 +159,7 @@ impl ThroughputTestingClient {
         let payload = PacketSize::RegularPacket.payload_size();
 
         let forward_packet =
-            NymPacket::sphinx_build(payload, b"foomp", &route, &destination, &delays)?;
+            NymPacket::sphinx_build(true, payload, b"foomp", &route, &destination, &delays)?;
 
         // SAFETY: we constructed a sphinx packet...
         #[allow(clippy::unwrap_used)]

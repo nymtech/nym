@@ -34,6 +34,7 @@ pub enum CoverMessageError {
 
 pub fn generate_loop_cover_surb_ack<R>(
     rng: &mut R,
+    use_legacy_sphinx_format: bool,
     topology: &NymRouteProvider,
     ack_key: &AckKey,
     full_address: &Recipient,
@@ -45,6 +46,7 @@ where
 {
     Ok(SurbAck::construct(
         rng,
+        use_legacy_sphinx_format,
         full_address,
         ack_key,
         COVER_FRAG_ID.to_bytes(),
@@ -57,6 +59,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
+    use_legacy_sphinx_format: bool,
     topology: &NymRouteProvider,
     ack_key: &AckKey,
     full_address: &Recipient,
@@ -71,6 +74,7 @@ where
     // we don't care about total ack delay - we will not be retransmitting it anyway
     let (_, ack_bytes) = generate_loop_cover_surb_ack(
         rng,
+        use_legacy_sphinx_format,
         topology,
         ack_key,
         full_address,
@@ -126,6 +130,7 @@ where
     // once merged, that's an easy rng injection point for sphinx packets : )
     let packet = match packet_type {
         PacketType::Mix => NymPacket::sphinx_build(
+            use_legacy_sphinx_format,
             packet_size.payload_size(),
             packet_payload,
             &route,

@@ -415,9 +415,13 @@ pub struct Traffic {
     /// Do not set it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
 
-    /// Specify whether any constructed reply surbs should use the legacy format,
+    /// Specify whether any constructed sphinx packets should use the legacy format,
     /// where the payload keys are explicitly attached rather than using the seeds
-    pub use_legacy_reply_surb_format: bool,
+    /// this affects any forward packets, acks and reply surbs
+    /// this flag should remain disabled until sufficient number of nodes on the network has upgraded
+    /// and support updated format.
+    /// in the case of reply surbs, the recipient must also understand the new encoding
+    pub use_legacy_sphinx_format: bool,
 
     pub packet_type: PacketType,
 }
@@ -449,7 +453,7 @@ impl Default for Traffic {
 
             // we should use the legacy format until sufficient number of nodes understand the
             // improved encoding
-            use_legacy_reply_surb_format: true,
+            use_legacy_sphinx_format: true,
         }
     }
 }

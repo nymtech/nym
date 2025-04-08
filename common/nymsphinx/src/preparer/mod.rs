@@ -51,6 +51,8 @@ impl From<PreparedFragment> for MixPacket {
 pub trait FragmentPreparer {
     type Rng: CryptoRng + Rng;
 
+    fn use_legacy_sphinx_format(&self) -> bool;
+
     fn deterministic_route_selection(&self) -> bool;
     fn rng(&mut self) -> &mut Self::Rng;
     fn nonce(&self) -> i32;
@@ -66,9 +68,11 @@ pub trait FragmentPreparer {
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
         let ack_delay = self.average_ack_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
 
         SurbAck::construct(
             self.rng(),
+            use_legacy_sphinx_format,
             recipient,
             ack_key,
             fragment_id.to_bytes(),
@@ -247,6 +251,7 @@ pub trait FragmentPreparer {
                 Some(packet_size.plaintext_size()),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
+                self.use_legacy_sphinx_format(),
                 packet_size.payload_size(),
                 packet_payload,
                 &route,
@@ -306,6 +311,10 @@ pub struct MessagePreparer<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
+    /// Specify whether any constructed packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_sphinx_format: bool,
+
     nonce: i32,
 }
 
@@ -319,6 +328,7 @@ where
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        use_legacy_sphinx_format: bool,
     ) -> Self {
         let mut rng = rng;
         let nonce = rng.gen();
@@ -328,6 +338,7 @@ where
             sender_address,
             average_packet_delay,
             average_ack_delay,
+            use_legacy_sphinx_format,
             nonce,
         }
     }
@@ -430,6 +441,10 @@ where
 
 impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
     type Rng = R;
+
+    fn use_legacy_sphinx_format(&self) -> bool {
+        self.use_legacy_sphinx_format
+    }
 
     fn deterministic_route_selection(&self) -> bool {
         self.deterministic_route_selection

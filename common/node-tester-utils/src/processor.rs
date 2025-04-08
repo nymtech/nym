@@ -69,7 +69,6 @@ where
     where
         T: DeserializeOwned,
     {
-        println!("process_mixnet message");
         let plaintext = self
             .message_receiver
             .recover_plaintext_from_regular_packet(

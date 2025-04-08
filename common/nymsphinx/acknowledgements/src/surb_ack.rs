@@ -37,8 +37,10 @@ pub enum SurbAckRecoveryError {
 }
 
 impl SurbAck {
+    #[allow(clippy::too_many_arguments)]
     pub fn construct<R>(
         rng: &mut R,
+        use_legacy_sphinx_format: bool,
         recipient: &Recipient,
         ack_key: &AckKey,
         marshaled_fragment_id: [u8; 5],
@@ -67,6 +69,7 @@ impl SurbAck {
                 Some(packet_size),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
+                use_legacy_sphinx_format,
                 packet_size,
                 surb_ack_payload,
                 &route,

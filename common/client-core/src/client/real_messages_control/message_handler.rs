@@ -112,7 +112,7 @@ pub(crate) struct Config {
 
     /// Specify whether any constructed reply surbs should use the legacy format,
     /// where the payload keys are explicitly attached rather than using the seeds
-    use_legacy_reply_surb_format: bool,
+    use_legacy_sphinx_format: bool,
 }
 
 impl Config {
@@ -132,7 +132,7 @@ impl Config {
             average_ack_delay,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
-            use_legacy_reply_surb_format,
+            use_legacy_sphinx_format: use_legacy_reply_surb_format,
         }
     }
 
@@ -192,6 +192,7 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
+            config.use_legacy_sphinx_format,
         );
         MessageHandler {
             config,
@@ -261,7 +262,7 @@ where
         let topology = self.get_topology(&topology_permit)?;
 
         let reply_surbs = self.message_preparer.generate_reply_surbs(
-            self.config.use_legacy_reply_surb_format,
+            self.config.use_legacy_sphinx_format,
             amount,
             topology,
         )?;
@@ -530,7 +531,7 @@ where
             self.generate_reply_surbs_with_keys(amount as usize).await?;
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
-            self.config.use_legacy_reply_surb_format,
+            self.config.use_legacy_sphinx_format,
             sender_tag,
             reply_surbs,
         ));
@@ -569,7 +570,7 @@ where
             .await?;
 
         let message = NymMessage::new_repliable(RepliableMessage::new_data(
-            self.config.use_legacy_reply_surb_format,
+            self.config.use_legacy_sphinx_format,
             message,
             sender_tag,
             reply_surbs,

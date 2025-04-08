@@ -18,7 +18,7 @@ pub fn base_url() -> String {
     })
 }
 
- #[allow(dead_code)]
+#[allow(dead_code)]
 pub async fn validate_json_response(res: Response) -> Value {
     assert!(
         res.status().is_success(),
@@ -32,10 +32,14 @@ pub async fn validate_json_response(res: Response) -> Value {
     json
 }
 
- #[allow(dead_code)]
+#[allow(dead_code)]
 pub async fn get_any_node_id() -> String {
     let url = format!("{}/v1/nym-nodes/bonded", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json: Value = res.json().await.unwrap();
 
     json.get("data")
@@ -49,10 +53,14 @@ pub async fn get_any_node_id() -> String {
         .to_string()
 }
 
- #[allow(dead_code)]
+#[allow(dead_code)]
 pub async fn get_mixnode_node_id() -> u64 {
     let url = format!("{}/v1/nym-nodes/described", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json: Value = res.json().await.unwrap();
 
     json.get("data")
@@ -72,10 +80,14 @@ pub async fn get_mixnode_node_id() -> u64 {
         .expect("Unable to find mixnode node id")
 }
 
- #[allow(dead_code)]
+#[allow(dead_code)]
 pub async fn get_gateway_identity_key() -> String {
     let url = format!("{}/v1/nym-nodes/described", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json: Value = res.json().await.unwrap();
 
     json.get("data")

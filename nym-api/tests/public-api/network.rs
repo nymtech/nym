@@ -4,7 +4,11 @@ use utils::{base_url, test_client, validate_json_response};
 #[tokio::test]
 async fn test_get_chain_status() {
     let url = format!("{}/v1/network/chain-status", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     let block_header = json
@@ -27,7 +31,11 @@ async fn test_get_chain_status() {
 #[tokio::test]
 async fn test_get_network_details() {
     let url = format!("{}/v1/network/details", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     assert!(
@@ -47,7 +55,11 @@ async fn test_get_network_details() {
 #[tokio::test]
 async fn test_get_nym_contracts() {
     let url = format!("{}/v1/network/nym-contracts", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     assert!(
@@ -63,7 +75,11 @@ async fn test_get_nym_contracts() {
 #[tokio::test]
 async fn test_get_nym_contracts_detailed() {
     let url = format!("{}/v1/network/nym-contracts-detailed", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     let mixnet_contract = json

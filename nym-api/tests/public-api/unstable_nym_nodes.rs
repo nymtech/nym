@@ -5,7 +5,11 @@ use utils::{base_url, test_client};
 #[tokio::test]
 async fn test_get_skimmed_nodes_active() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/active", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -31,7 +35,11 @@ async fn test_get_skimmed_active_mixnodes() {
         "{}/v1/unstable/nym-nodes/skimmed/mixnodes/active",
         base_url()
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -58,7 +66,11 @@ async fn test_get_skimmed_active_mixnodes() {
 #[tokio::test]
 async fn test_get_skimmed_all_mixnodes() {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/mixnodes/all", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -88,7 +100,11 @@ async fn test_get_skimmed_active_exit_gateways() {
         "{}/v1/unstable/nym-nodes/skimmed/exit-gateways/active",
         base_url()
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -118,7 +134,11 @@ async fn test_get_skimmed_all_exit_gateways() {
         "{}/v1/unstable/nym-nodes/skimmed/exit-gateways/all",
         base_url()
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -148,7 +168,11 @@ async fn test_get_skimmed_active_entry_gateways() {
         "{}/v1/unstable/nym-nodes/skimmed/entry-gateways/active",
         base_url()
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -178,7 +202,11 @@ async fn test_get_skimmed_all_entry_gateways() {
         "{}/v1/unstable/nym-nodes/skimmed/entry-gateways/all",
         base_url()
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",

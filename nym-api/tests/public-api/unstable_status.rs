@@ -10,7 +10,11 @@ async fn test_get_gateway_unstable_test_results() {
         base_url(),
         identity
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -51,7 +55,11 @@ async fn test_get_mixnode_unstable_test_results() {
         base_url(),
         mix_id
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",
@@ -90,7 +98,11 @@ async fn test_get_latest_network_monitor_run_details() {
         "{}/v1/status/network-monitor/unstable/run/latest/details",
         base_url()
     );
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     assert!(
         res.status().is_success(),
         "Expected 2xx but got {}",

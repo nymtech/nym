@@ -4,7 +4,11 @@ use utils::{base_url, test_client, validate_json_response};
 #[tokio::test]
 async fn test_health() {
     let url = format!("{}/v1/api-status/health", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     assert_eq!(json["status"], "up", "Expected status is 'up'");
@@ -13,7 +17,11 @@ async fn test_health() {
 #[tokio::test]
 async fn test_build_information() {
     let url = format!("{}/v1/api-status/build-information", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
 
     assert!(

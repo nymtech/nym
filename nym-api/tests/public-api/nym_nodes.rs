@@ -5,7 +5,11 @@ use utils::{base_url, get_any_node_id, test_client, validate_json_response};
 #[tokio::test]
 async fn test_get_bonded_nodes() {
     let url = format!("{}/v1/nym-nodes/bonded", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     let data = json.get("data").expect("Expected a value for 'data' field");
 
@@ -19,7 +23,11 @@ async fn test_get_bonded_nodes() {
 #[tokio::test]
 async fn test_get_described_nodes() {
     let url = format!("{}/v1/nym-nodes/described", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     let data = json.get("data").expect("Expected a value for 'data' field");
 
@@ -41,7 +49,11 @@ async fn test_get_described_nodes() {
 #[tokio::test]
 async fn test_get_rewarded_set() {
     let url = format!("{}/v1/nym-nodes/rewarded-set", base_url());
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     let exit_gateways = json
         .get("exit_gateways")
@@ -62,7 +74,11 @@ async fn test_get_annotation_for_node() {
     let id = get_any_node_id().await;
     println!("Using node_id: {}", id);
     let url = format!("{}/v1/nym-nodes/annotation/{}", base_url(), id);
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     let annotation = json
         .get("annotation")
@@ -97,7 +113,11 @@ async fn test_get_historical_performance() {
 async fn test_get_performance_history() {
     let id = get_any_node_id().await;
     let url = format!("{}/v1/nym-nodes/performance-history/{}", base_url(), id);
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     let data = json
         .get("history")
@@ -115,7 +135,11 @@ async fn test_get_performance_history() {
 async fn test_get_performance() {
     let id = get_any_node_id().await;
     let url = format!("{}/v1/nym-nodes/performance/{}", base_url(), id);
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     assert!(
         json.get("node_id").is_some(),
@@ -131,7 +155,11 @@ async fn test_get_performance() {
 async fn test_get_uptime_history() {
     let id = get_any_node_id().await;
     let url = format!("{}/v1/nym-nodes/uptime-history/{}", base_url(), id);
-    let res = test_client().get(&url).send().await.unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+    let res = test_client()
+        .get(&url)
+        .send()
+        .await
+        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
     let json = validate_json_response(res).await;
     let data = json
         .get("history")

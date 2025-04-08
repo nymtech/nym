@@ -6,7 +6,6 @@ use tokio;
 #[tokio::test]
 async fn test_get_gateway_unstable_test_results() {
     let identity = get_gateway_identity_key().await;
-    print!("blaaaaaaa{}", identity);
     let url = format!(
         "{}/v1/status/gateways/unstable/{}/test-results",
         base_url(),
@@ -26,10 +25,10 @@ async fn test_get_gateway_unstable_test_results() {
     let gateway = data_array[0]
         .get("test_routes")
         .and_then(|r| r.get("gateway"))
-        .expect("Missing 'test_routes.gateway'");
+        .expect("Expected a value for 'test_routes.gateway'");
 
-    assert!(gateway.get("node_id").is_some(), "Missing 'node_id' in gateway");
-    assert!(gateway.get("identity_key").is_some(), "Missing 'identity_key' in gateway");
+    assert!(gateway.get("node_id").is_some(), "Expected a value for 'node_id' in gateway");
+    assert!(gateway.get("identity_key").is_some(), "Expected a value for 'identity_key' in gateway");
 }
 
 
@@ -56,10 +55,10 @@ async fn test_get_mixnode_unstable_test_results() {
     let layer3 = data_array[0]
         .get("test_routes")
         .and_then(|r| r.get("layer3"))
-        .expect("Missing 'test_routes.layer3'");
+        .expect("Expected a value for 'test_routes.layer3'");
 
-    assert!(layer3.get("node_id").is_some(), "Missing 'node_id' in layer3");
-    assert!(layer3.get("identity_key").is_some(), "Missing 'identity_key' in layer3");
+    assert!(layer3.get("node_id").is_some(), "Expected a value for 'node_id' in layer3");
+    assert!(layer3.get("identity_key").is_some(), "Expected a value for 'identity_key' in layer3");
 }
 
 #[tokio::test]

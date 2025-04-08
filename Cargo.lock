@@ -2174,6 +2174,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+
+[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4706,6 +4712,7 @@ dependencies = [
  "cw4",
  "dashmap",
  "dirs",
+ "dotenv",
  "futures",
  "getset",
  "humantime-serde",
@@ -6115,7 +6122,7 @@ dependencies = [
  "async-trait",
  "axum 0.7.9",
  "bip39",
- "blake2 0.8.1",
+ "blake2 0.10.6",
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",

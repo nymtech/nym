@@ -1,14 +1,20 @@
 use reqwest::Client;
 use serde_json::Value;
 use reqwest::Response;
+use dotenv::dotenv;
 
 pub fn test_client() -> Client {
     Client::new()
 }
 
 pub fn base_url() -> String {
-    std::env::var("API_BASE_URL")
-        .unwrap_or_else(|_| "https://sandbox-nym-api1.nymtech.net/api".into())
+    dotenv().ok();
+
+    std::env::var("NYM_API").unwrap_or_else(|err| {
+        std::env::var("NYM_API").unwrap_or_else(|_| panic!("Couldn't find NYM_API env var"))
+        .trim_end_matches('/')
+        .to_string()
+    })
 }
 
 pub async fn validate_json_response(res: Response) -> Value {

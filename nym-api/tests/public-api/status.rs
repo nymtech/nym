@@ -28,7 +28,7 @@ async fn test_get_config_score_details() {
         .and_then(|v| v.get("semver"))
         .and_then(|v| v.as_str());
 
-    assert!(semver.is_some(), "Missing 'semver' in highest id entry");
+    assert!(semver.is_some(), "Expected a value for 'semver' in the highest id entry");
 }
 
 // TODO add the POST request tests for: 

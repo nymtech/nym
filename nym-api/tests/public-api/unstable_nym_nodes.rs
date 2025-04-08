@@ -27,10 +27,10 @@ async fn test_get_skimmed_active_mixnodes() {
     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
-    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
+    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id'");
 
     assert!(current_epoch_id.is_number(), "Expected 'current_epoch_id' to be an array");
-    assert!(json.get("refreshed_at").is_some(), "Missing 'refreshed_at'");
+    assert!(json.get("refreshed_at").is_some(), "Expected a value for 'refreshed_at'");
 }
 
 #[tokio::test]
@@ -40,10 +40,10 @@ async fn test_get_skimmed_all_mixnodes() {
     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
-    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
+    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Expected a value for 'current_epoch_id'");
 
     assert!(current_epoch_id.is_number(), "Expected 'current_epoch_id' to be an array");
-    assert!(json.get("refreshed_at").is_some(), "Missing 'refreshed_at'");
+    assert!(json.get("refreshed_at").is_some(), "Expected a value for 'refreshed_at'");
 }
 
 #[tokio::test]
@@ -53,10 +53,10 @@ async fn test_get_skimmed_active_exit_gateways() {
     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
-    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
+    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Expected a value for 'current_epoch_id'");
 
     assert!(current_epoch_id.is_number(), "Expected 'current_epoch_id' to be an array");
-    assert!(json.get("refreshed_at").is_some(), "Missing 'refreshed_at'");
+    assert!(json.get("refreshed_at").is_some(), "Expected a value for 'refreshed_at'");
 }
 
 #[tokio::test]
@@ -66,10 +66,10 @@ async fn test_get_skimmed_all_exit_gateways() {
     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
-    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
+    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Expected a value for 'current_epoch_id'");
 
     assert!(current_epoch_id.is_number(), "Expected 'current_epoch_id' to be an array");
-    assert!(json.get("refreshed_at").is_some(), "Missing 'refreshed_at'");
+    assert!(json.get("refreshed_at").is_some(), "Expected a value for 'refreshed_at'");
 }
 
 #[tokio::test]
@@ -79,10 +79,10 @@ async fn test_get_skimmed_active_entry_gateways() {
     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
-    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
+    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Expected a value for 'current_epoch_id'");
 
     assert!(current_epoch_id.is_number(), "Expected 'current_epoch_id' to be an array");
-    assert!(json.get("refreshed_at").is_some(), "Missing 'refreshed_at'");
+    assert!(json.get("refreshed_at").is_some(), "Expected a value for 'refreshed_at'");
 }
 
 #[tokio::test]
@@ -92,10 +92,10 @@ async fn test_get_skimmed_all_entry_gateways() {
     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 
     let json: Value = res.json().await.unwrap();
-    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Missing 'current_epoch_id' field");
+    let current_epoch_id = json.get("status").and_then(|r| r.get("fresh")).and_then(|r| r.get("current_epoch_id")).expect("Expected a value for 'current_epoch_id'");
 
     assert!(current_epoch_id.is_number(), "Expected 'current_epoch_id' to be an array");
-    assert!(json.get("refreshed_at").is_some(), "Missing 'refreshed_at'");
+    assert!(json.get("refreshed_at").is_some(), "Expected a value for 'refreshed_at'");
 }
 
 // Add the remining tests as the endpoints become active

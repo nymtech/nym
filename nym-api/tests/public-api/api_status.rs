@@ -17,7 +17,7 @@ async fn test_build_information() {
     let res = test_client().get(&url).send().await.unwrap();
     let json = validate_json_response(res).await;
 
-    assert!(json.get("build_version").is_some(), "Missing 'build_version'");
+    assert!(json.get("build_version").is_some(), "Expected a value for 'build_version'");
 }
 
 // ECASH API TEST 
@@ -30,5 +30,5 @@ async fn test_build_information() {
 //     assert!(res.status().is_success(), "Expected 2xx but got {}", res.status());
 //     let json: Value = res.json().await.unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
 
-//     assert!(json.get("signer_address").is_some(), "Missing 'signer_address'");
+//     assert!(json.get("signer_address").is_some(), "Expected a value for 'signer_address'");
 // }

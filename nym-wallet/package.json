@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "run-s webpack:prod tauri:build",
+    "build-macx86": "run-s webpack:prod tauri:buildx86",
     "dev": "run-p tauri:dev webpack:dev",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
@@ -15,6 +16,7 @@
     "storybook:build": "build-storybook",
     "tauri:build": "yarn tauri build",
     "tauri:dev": "yarn tauri dev",
+    "tauri:buildx86": "yarn tauri build --target x86_64-apple-darwin",
     "tsc": "tsc --noEmit true",
     "tsc:watch": "tsc --noEmit true --watch",
     "webpack:dev": "yarn webpack serve --config webpack.dev.js",

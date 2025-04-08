@@ -31,6 +31,20 @@ jobs:
       file_hash: ${{ steps.release-info.outputs.file_hash }}
 
     steps:
+      - name: Extensive Environment Debug
+        shell: bash
+        run: |
+          echo "Current User: $(whoami)"
+          echo "Home Directory: $HOME"
+          echo "Working Directory: $(pwd)"
+          echo "PATH: $PATH"
+          echo "Git Bash Path:"
+          which bash || echo "Bash not found in PATH"
+          echo "Git Bash Executable Details:"
+          ls -l "/c/Program Files/Git/bin/bash.exe" || echo "Git Bash executable not found"
+          echo "Listing Git installation:"
+          ls -l "/c/Program Files/Git" || echo "Git directory not found"
+
       - name: Clean up first
         continue-on-error: true
         working-directory: .
@@ -64,120 +78,95 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
-      # Find the location of the src-tauri directory
-      - name: Locate src-tauri directory
+      # Find the location of tauri.conf.json for debugging
+      - name: Locate tauri.conf.json
         shell: bash
         run: |
-          echo "Looking for src-tauri directory..."
-          if [ -d "src-tauri" ]; then
-            echo "Found src-tauri directory"
-            echo "TAURI_SRC_DIR=src-tauri" >> $GITHUB_ENV
-            echo "TAURI_CONF_PATH=src-tauri/tauri.conf.json" >> $GITHUB_ENV
+          echo "Looking for tauri.conf.json file..."
+          find . -name "tauri.conf.json" -type f
+          
+          if [ -f "src-tauri/tauri.conf.json" ]; then
+            echo "Found in src-tauri directory"
+            echo "TAURI_CONFIG_DIR=src-tauri" >> $GITHUB_ENV
           else
-            echo "src-tauri directory not found, using current directory"
-            echo "TAURI_SRC_DIR=." >> $GITHUB_ENV
-            echo "TAURI_CONF_PATH=tauri.conf.json" >> $GITHUB_ENV
+            echo "Not found in src-tauri, using root directory"
+            echo "TAURI_CONFIG_DIR=." >> $GITHUB_ENV
           fi
 
-      # SSL.com certificate handling specifically for Windows
-      - name: Download EV CodeSignTool from ssl.com - Windows
+      # SSL.com certificate handling
+      - name: Download EV CodeSignTool from ssl.com
         if: ${{ inputs.sign }}
-        shell: powershell
+        shell: bash
         run: |
-          # Check and navigate to src-tauri directory if it exists
-          $srcTauriPath = "src-tauri"
-          if (Test-Path $srcTauriPath) {
-            Set-Location $srcTauriPath
-            Write-Output "Changed to src-tauri directory"
-          }
+          # Navigate to the directory with tauri.conf.json
+          cd ${{ env.TAURI_CONFIG_DIR }} || true
           
-          Write-Output "Downloading CodeSignTool..."
-          Invoke-WebRequest -Uri "https://www.ssl.com/download/codesigntool-for-windows/" -OutFile "codesigntool.zip"
+          # Download with detailed logging
+          echo "Downloading CodeSignTool..."
+          curl -v -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           
-          Write-Output "Extracting CodeSignTool..."
-          Expand-Archive -Path "codesigntool.zip" -DestinationPath "." -Force
+          # Unzip with verbose output
+          echo "Unzipping CodeSignTool..."
+          unzip -v codesigntool.zip
           
-          if (Test-Path "CodeSignTool.bat") {
-            Write-Output "CodeSignTool.bat found!"
-            Get-ChildItem -Path "CodeSignTool.bat"
-          } else {
-            Write-Output "CodeSignTool.bat not found! Listing directory contents:"
-            Get-ChildItem -Path "."
-          }
+          # Make the tool executable
+          chmod +x CodeSignTool.sh
           
-          $toolPath = Join-Path -Path (Get-Location) -ChildPath "CodeSignTool.bat"
-          Write-Output "Tool path: $toolPath"
-          $toolPath | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Verify tool location and permissions
+          echo "CodeSignTool Location and Permissions:"
+          ls -l CodeSignTool.sh
+          pwd
+          ls -la
 
       - name: Get EV certificate credential id
         if: ${{ inputs.sign }}
         id: get_credential_ids
-        shell: powershell
+        shell: bash
         run: |
-          $srcTauriPath = "src-tauri"
-          if (Test-Path $srcTauriPath) {
-            Set-Location $srcTauriPath
-            Write-Output "Changed to src-tauri directory"
-          }
+          # Navigate to the directory with tauri.conf.json
+          cd ${{ env.TAURI_CONFIG_DIR }} || true
           
-          Write-Output "Getting credential ID..."
-          $credentialOutput = & .\CodeSignTool.bat get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }}
-          Write-Output "Credential output: $credentialOutput"
-          
-          $credentialId = ($credentialOutput | Select-String -Pattern "- (.+)" | ForEach-Object { $_.Matches.Groups[1].Value }) -replace " ", ""
-          Write-Output "Credential ID: $credentialId"
-          
-          "SSL_COM_CREDENTIAL_ID=$credentialId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          
-          $toolPath = Join-Path -Path (Get-Location) -ChildPath "CodeSignTool.bat"
-          "CODESIGNTOOL_PATH=$toolPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          # Get the credential ID with verbose output
+          echo "Retrieving Credential ID..."
+          CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')
+          echo "Credential ID retrieved"
+          echo "SSL_COM_CREDENTIAL_ID=$CREDENTIAL_ID" >> "$GITHUB_OUTPUT"
 
       # Add custom sign command to tauri.conf.json for SSL.com signing
       - name: Add custom sign command to tauri.conf.json
         if: ${{ inputs.sign }}
-        shell: powershell
+        shell: bash
         run: |
-          # Find and update tauri.conf.json
-          $configPath = $env:TAURI_CONF_PATH
-          Write-Output "Config path: $configPath"
+          # Navigate to the directory with tauri.conf.json
+          cd ${{ env.TAURI_CONFIG_DIR }} || true
+          CONFIG_PATH="tauri.conf.json"
           
-          if (Test-Path $configPath) {
-            Write-Output "Found Tauri config file"
-          } else {
-            Write-Output "Tauri config file not found!"
-            Get-ChildItem -Recurse -Path "." -Filter "tauri.conf.json" | ForEach-Object { Write-Output $_.FullName }
-            exit 1
-          }
+          # Get the absolute path to the CodeSignTool.sh
+          TOOL_PATH=$(pwd)/CodeSignTool.sh
           
-          $toolPath = ${{ steps.get_credential_ids.outputs.CODESIGNTOOL_PATH }}
-          Write-Output "CodeSignTool path: $toolPath"
+          # Debug output
+          echo "CodeSignTool Path: $TOOL_PATH"
           
-          $escapedToolPath = $toolPath -replace '\\', '\\'
-          Write-Output "Escaped tool path: $escapedToolPath"
-          
-          yq eval --inplace '.bundle.windows += {
-            "signCommand": {
-              "cmd": "' + $escapedToolPath + '",
-              "args": [
-                "sign",
-                "-username", "${{ secrets.SSL_COM_USERNAME }}",
-                "-password", "${{ secrets.SSL_COM_PASSWORD }}",
-                "-credential_id", "${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
-                "-totp_secret", "${{ secrets.SSL_COM_TOTP_SECRET }}",
-                "-program_name", "NymWallet",
-                "-input_file_path", "%1",
-                "-override"
+          # Update the tauri.conf.json file with signing configuration
+          yq eval --inplace ".bundle.windows += {
+            \"signCommand\": {
+              \"cmd\": \"./CodeSignTool.sh\",
+              \"args\": [
+                \"sign\",
+                \"-username\", \"${{ secrets.SSL_COM_USERNAME }}\",
+                \"-password\", \"${{ secrets.SSL_COM_PASSWORD }}\",
+                \"-credential_id\", \"${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}\",
+                \"-totp_secret\", \"${{ secrets.SSL_COM_TOTP_SECRET }}\",
+                \"-program_name\", \"NymWallet\",
+                \"-input_file_path\", \"%1\",
+                \"-override\"
               ]
             }
-          }' $configPath
+          }" "$CONFIG_PATH"
           
-          $config = Get-Content $configPath
-          if ($config -match "signCommand") {
-            Write-Output "Successfully updated tauri.conf.json with signing command"
-          } else {
-            Write-Output "Failed to add signCommand to tauri.conf.json"
-            exit 1
-          }
+          # Show the updated configuration (redacted sensitive info)
+          echo "Updated tauri.conf.json signing configuration:"
+          cat "$CONFIG_PATH" | grep -A 15 "signCommand" | sed 's/\-username.*/\-username REDACTED/g' | sed 's/\-password.*/\-password REDACTED/g' | sed 's/\-totp_secret.*/\-totp_secret REDACTED/g'
 
       - name: Install project dependencies
         shell: bash
@@ -194,50 +183,39 @@ jobs:
           # Tauri v2 signing variables
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          # SSL.com signing variables
           SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
           SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
           SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
           SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
         run: |
-          yarn build
-          
-          # List build artifacts for debugging
-          find . -name "*.msi" -type f
-          find . -name "*.exe" -type f
+          echo "Starting build process..."
+          yarn build -v
 
       - name: Check bundle directory
         shell: bash
         run: |
           echo "Checking bundle directory structure"
           
-          find . -path "*/bundle" -type d | while read dir; do
-            echo "Found bundle directory: $dir"
-            ls -la "$dir" || echo "Failed to list bundle directory contents"
-            
-            find "$dir" -type d | while read subdir; do
-              echo "Subdirectory: $subdir"
-              ls -la "$subdir" || echo "Failed to list subdirectory contents"
-            done
-          done
-          
-          echo "Looking for MSI files:"
-          find . -name "*.msi" -type f
-          
-          if [ -d "src-tauri/target/release/bundle" ]; then
-            echo "BUNDLE_PATH=src-tauri/target/release/bundle" >> $GITHUB_ENV
-          elif [ -d "target/release/bundle" ]; then
-            echo "BUNDLE_PATH=target/release/bundle" >> $GITHUB_ENV
-          else
-            echo "Using dynamic bundle path detection"
-            BUNDLE_DIR=$(find . -path "*/bundle" -type d | head -n 1)
-            if [ -n "$BUNDLE_DIR" ]; then
-              echo "BUNDLE_PATH=$BUNDLE_DIR" >> $GITHUB_ENV
-            else
-              echo "WARNING: Could not find bundle directory!"
-              echo "BUNDLE_PATH=target/release/bundle" >> $GITHUB_ENV
-            fi
+          # Check standard location
+          if [ -d "target/release/bundle" ]; then
+            echo "Found bundle directory at standard location"
+            ls -la target/release/bundle || echo "Failed to list bundle directory"
           fi
+          
+          # Check src-tauri location
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "Found bundle directory in src-tauri"
+            ls -la src-tauri/target/release/bundle || echo "Failed to list src-tauri bundle directory"
+            
+            # Use this path for future steps
+            echo "BUNDLE_PATH=src-tauri/target/release/bundle" >> $GITHUB_ENV
+          else
+            echo "Using standard bundle path"
+            echo "BUNDLE_PATH=target/release/bundle" >> $GITHUB_ENV
+          fi
+          
+          # Check for MSI files in any location
+          find . -name "*.msi" -type f
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -246,8 +224,7 @@ jobs:
           path: |
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi
             nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
-            nym-wallet/**/bundle/**/msi/*.msi
-            nym-wallet/**/*.msi
+            nym-wallet/src-tauri/target/release/bundle/msi/*.msi
           retention-days: 30
 
       - id: create-release
@@ -259,8 +236,7 @@ jobs:
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi.zip*
             nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
-            nym-wallet/**/bundle/**/msi/*.msi
-            nym-wallet/**/*.msi
+            nym-wallet/src-tauri/target/release/bundle/msi/*.msi
 
       - name: Find MSI path for deployment
         id: find-msi

@@ -3,6 +3,7 @@
 
 use crate::throughput_tester::stats::ClientStats;
 use anyhow::bail;
+use arrayref::array_ref;
 use blake2::VarBlake2b;
 use chacha::ChaCha;
 use futures::{stream, SinkExt, Stream, StreamExt};
@@ -15,10 +16,12 @@ use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::PacketSize;
 use nym_sphinx_routing::generate_hop_delays;
-use nym_sphinx_types::constants::{EXPANDED_SHARED_SECRET_LENGTH, HKDF_INPUT_SEED};
-use nym_sphinx_types::header::keys::PayloadKey;
+use nym_sphinx_types::constants::{
+    EXPANDED_SHARED_SECRET_HKDF_INFO, EXPANDED_SHARED_SECRET_HKDF_SALT,
+    EXPANDED_SHARED_SECRET_LENGTH,
+};
 use nym_sphinx_types::{
-    Destination, DestinationAddressBytes, Node, NymPacket, DESTINATION_ADDRESS_LENGTH,
+    Destination, DestinationAddressBytes, Node, NymPacket, PayloadKey, DESTINATION_ADDRESS_LENGTH,
     IDENTIFIER_LENGTH,
 };
 use nym_task::ShutdownToken;
@@ -99,13 +102,14 @@ pub(crate) struct ThroughputTestingClient {
 }
 
 fn rederive_lioness_payload_key(shared_secret: &[u8; 32]) -> PayloadKey {
-    let hkdf = Hkdf::<Sha256>::new(None, shared_secret);
+    let hkdf = Hkdf::<Sha256>::new(Some(EXPANDED_SHARED_SECRET_HKDF_SALT), shared_secret);
 
     // expanded shared secret
     let mut output = [0u8; EXPANDED_SHARED_SECRET_LENGTH];
     // SAFETY: the length of the provided okm is within the allowed range
     #[allow(clippy::unwrap_used)]
-    hkdf.expand(HKDF_INPUT_SEED, &mut output).unwrap();
+    hkdf.expand(EXPANDED_SHARED_SECRET_HKDF_INFO, &mut output)
+        .unwrap();
 
     *array_ref!(&output, 32, 192)
 }

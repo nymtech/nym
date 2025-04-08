@@ -109,6 +109,10 @@ pub(crate) struct Config {
 
     /// Optional secondary predefined packet size used for the encapsulated messages.
     secondary_packet_size: Option<PacketSize>,
+
+    /// Specify whether any constructed reply surbs should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_reply_surb_format: bool,
 }
 
 impl Config {
@@ -118,6 +122,7 @@ impl Config {
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         deterministic_route_selection: bool,
+        use_legacy_reply_surb_format: bool,
     ) -> Self {
         Config {
             ack_key,
@@ -127,6 +132,7 @@ impl Config {
             average_ack_delay,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
+            use_legacy_reply_surb_format,
         }
     }
 
@@ -186,6 +192,7 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
+            config.use_legacy_reply_surb_format,
         );
         MessageHandler {
             config,

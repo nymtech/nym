@@ -92,6 +92,7 @@ impl NymMessage {
         NymMessage::Plain(msg)
     }
 
+    #[deprecated]
     pub fn new_repliable(msg: RepliableMessage) -> Self {
         NymMessage::Repliable(msg)
     }
@@ -113,7 +114,8 @@ impl NymMessage {
         match self {
             NymMessage::Plain(data) => data,
             NymMessage::Repliable(repliable) => match repliable.content {
-                RepliableMessageContent::Data { message, .. } => message,
+                RepliableMessageContent::Data(content) => content.message,
+                RepliableMessageContent::DataV2(content) => content.message,
                 _ => Vec::new(),
             },
             NymMessage::Reply(reply) => match reply.content {

@@ -199,7 +199,7 @@ impl TryFrom<NodeAddressBytes> for NymNodeRoutingAddress {
     type Error = NymNodeRoutingAddressError;
 
     fn try_from(value: NodeAddressBytes) -> Result<Self, Self::Error> {
-        Self::try_from_bytes(value.as_bytes_ref())
+        Self::try_from_bytes(value.as_bytes())
     }
 }
 

@@ -99,6 +99,7 @@ impl<'a> From<&'a Config> for message_handler::Config {
             cfg.traffic.average_packet_delay,
             cfg.acks.average_ack_delay,
             cfg.traffic.deterministic_route_selection,
+            cfg.traffic.use_legacy_reply_surb_format,
         )
         .with_custom_primary_packet_size(cfg.traffic.primary_packet_size)
         .with_custom_secondary_packet_size(cfg.traffic.secondary_packet_size)

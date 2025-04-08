@@ -65,7 +65,7 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 
 // stats reporting related
 
-/// Time interval between reporting statistics to the given provider if it exist
+/// Time interval between reporting statistics to the given provider if it exists
 const STATS_REPORT_INTERVAL_SECS: Duration = Duration::from_secs(300);
 
 use crate::error::InvalidTrafficModeFailure;
@@ -415,6 +415,10 @@ pub struct Traffic {
     /// Do not set it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
 
+    /// Specify whether any constructed reply surbs should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    pub use_legacy_reply_surb_format: bool,
+
     pub packet_type: PacketType,
 }
 
@@ -442,6 +446,10 @@ impl Default for Traffic {
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
             packet_type: PacketType::Mix,
+
+            // we should use the legacy format until sufficient number of nodes understand the
+            // improved encoding
+            use_legacy_reply_surb_format: true,
         }
     }
 }

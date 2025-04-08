@@ -6666,6 +6666,7 @@ name = "nym-sphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "log",
  "nym-crypto",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
@@ -9262,8 +9263,6 @@ dependencies = [
 [[package]]
 name = "sphinx-packet"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b63a72efe7dce8a546d5cb855e60699ae69203d0d7e4335a654eb87e93d7d141"
 dependencies = [
  "aes",
  "arrayref",
@@ -12144,7 +12143,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "sphinx-packet"
-version = "0.6.0"

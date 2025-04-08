@@ -26,10 +26,13 @@ pub use sphinx_packet::{
     crypto::{self, PrivateKey, PublicKey},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
     packet::builder::DEFAULT_PAYLOAD_SIZE,
-    payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
+    payload::{
+        key::{PayloadKey, PayloadKeySeed},
+        Payload, PAYLOAD_OVERHEAD_SIZE,
+    },
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
-    version::Version,
+    version::*,
     Error as SphinxError, ProcessedPacket, ProcessedPacketData,
 };
 

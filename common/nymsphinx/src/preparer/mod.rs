@@ -57,23 +57,6 @@ pub trait FragmentPreparer {
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
 
-    fn generate_reply_surbs(
-        &mut self,
-        amount: usize,
-        topology: &NymRouteProvider,
-        reply_recipient: &Recipient,
-    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
-        let mut reply_surbs = Vec::with_capacity(amount);
-        let packet_delay = self.average_packet_delay();
-        for _ in 0..amount {
-            let reply_surb =
-                ReplySurb::construct(self.rng(), reply_recipient, packet_delay, topology)?;
-            reply_surbs.push(reply_surb)
-        }
-
-        Ok(reply_surbs)
-    }
-
     fn generate_surb_ack(
         &mut self,
         recipient: &Recipient,
@@ -323,6 +306,10 @@ pub struct MessagePreparer<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
+    /// Specify whether any constructed reply surbs should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_reply_surb_format: bool,
+
     nonce: i32,
 }
 
@@ -336,6 +323,7 @@ where
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        use_legacy_reply_surb_format: bool,
     ) -> Self {
         let mut rng = rng;
         let nonce = rng.gen();
@@ -345,6 +333,7 @@ where
             sender_address,
             average_packet_delay,
             average_ack_delay,
+            use_legacy_reply_surb_format,
             nonce,
         }
     }
@@ -365,6 +354,7 @@ where
                 &mut self.rng,
                 &self.sender_address,
                 self.average_packet_delay,
+                self.use_legacy_reply_surb_format,
                 topology,
             )?;
             reply_surbs.push(reply_surb)

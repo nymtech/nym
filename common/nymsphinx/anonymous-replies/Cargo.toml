@@ -19,6 +19,7 @@ nym-sphinx-params = { path = "../params" }
 nym-sphinx-routing = { path = "../routing" }
 nym-sphinx-types = { path = "../types" }
 nym-topology = { path = "../../topology" }
+log = "0.4.27"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
 version = "0.2.95"

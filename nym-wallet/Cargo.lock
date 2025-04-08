@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "NymWallet"
-version = "2.0.0"
+version = "1.2.18"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -33,6 +33,7 @@ dependencies = [
  "nym-wallet-types",
  "once_cell",
  "open",
+ "plist",
  "pretty_env_logger",
  "rand_chacha 0.3.1",
  "reqwest 0.12.15",
@@ -3167,7 +3168,7 @@ dependencies = [
  "socket2",
  "widestring",
  "windows-sys 0.48.0",
- "winreg",
+ "winreg 0.50.0",
 ]
 
 [[package]]
@@ -5403,7 +5404,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "winreg",
+ "winreg 0.50.0",
 ]
 
 [[package]]
@@ -6311,12 +6312,9 @@ dependencies = [
 
 [[package]]
 name = "sync_wrapper"
-version = "1.0.2"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
-dependencies = [
- "futures-core",
-]
+checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 
 [[package]]
 name = "sync_wrapper"
@@ -8365,12 +8363,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "winres"
-version = "0.1.12"
+name = "winreg"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b68db261ef59e9e52806f688020631e987592bd83619edccda9c47d42cde4f6c"
+checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
- "toml 0.5.11",
+ "cfg-if",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

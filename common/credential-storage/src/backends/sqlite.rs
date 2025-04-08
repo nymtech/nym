@@ -98,7 +98,11 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn contains_ticketbook_data(&self, data: &[u8]) -> Result<bool, sqlx::Error> {
         let exists = sqlx::query(
             r#"
-                SELECT * FROM ecash_ticketbook WHERE ticketbook_data = ?
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM ecash_ticketbook
+                    WHERE ticketbook_data = ?
+                )
             "#,
         )
         .bind(data)

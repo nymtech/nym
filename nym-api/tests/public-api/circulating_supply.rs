@@ -1,53 +1,44 @@
-use crate::utils::{base_url, test_client, validate_json_response};
+use crate::utils::{base_url, make_request, validate_json_response};
 
 #[tokio::test]
-async fn test_get_circulating_supply() {
-    let url = format!("{}/v1/circulating-supply", base_url());
-    let res = test_client()
-        .get(&url)
-        .send()
-        .await
-        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
-    let json = validate_json_response(res).await;
+async fn test_get_circulating_supply() -> Result<(), String> {
+    let url = format!("{}/v1/circulating-supply", base_url()?);
+    let res = make_request(&url).await?;
+    let json = validate_json_response(res).await?;
 
     assert!(
         json.get("circulating_supply").is_some(),
         "Expected a value for 'circulating_supply'"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_circulating_supply_value() {
+async fn test_get_circulating_supply_value() -> Result<(), String> {
     let url = format!(
         "{}/v1/circulating-supply/circulating-supply-value",
-        base_url()
+        base_url()?
     );
-    let res = test_client()
-        .get(&url)
-        .send()
-        .await
-        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
-    let json = validate_json_response(res).await;
+    let res = make_request(&url).await?;
+    let json = validate_json_response(res).await?;
 
     assert!(
         json.is_number(),
         "Expected a number for the circulating supply value"
     );
-    let number = json.as_f64().unwrap();
+    let number = json.as_f64().unwrap_or(-1.0);
     assert!(number >= 0.0, "Circulating supply should not be negative");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_total_supply_value() {
-    let url = format!("{}/v1/circulating-supply/total-supply-value", base_url());
-    let res = test_client()
-        .get(&url)
-        .send()
-        .await
-        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
-    let json = validate_json_response(res).await;
+async fn test_get_total_supply_value() -> Result<(), String> {
+    let url = format!("{}/v1/circulating-supply/total-supply-value", base_url()?);
+    let res = make_request(&url).await?;
+    let json = validate_json_response(res).await?;
 
     assert!(json.is_number(), "Expected a number for total supply value");
-    let number = json.as_f64().unwrap();
-    assert!(number >= 0.0, "Total supply should not be negative");
+    let number = json.as_f64().unwrap_or(-1.0);
+    assert!(number >= 0.0, "Total supply shouldn't be negative");
+    Ok(())
 }

@@ -1,80 +1,94 @@
 use dotenv::dotenv;
-use reqwest::Client;
-use reqwest::Response;
+use reqwest::{Client, Response};
 use serde_json::Value;
 
+#[allow(dead_code)]
+#[allow(clippy::panic)]
 pub fn test_client() -> Client {
     Client::new()
 }
 
+#[allow(dead_code)]
 #[allow(clippy::panic)]
-pub fn base_url() -> String {
+pub fn base_url() -> Result<String, String> {
     dotenv().ok();
 
-    std::env::var("NYM_API").unwrap_or_else(|_err| {
-        std::env::var("NYM_API")
-            .unwrap_or_else(|_| panic!("Couldn't find NYM_API env var"))
-            .trim_end_matches('/')
-            .to_string()
-    })
+    std::env::var("NYM_API")
+        .map(|url| url.trim_end_matches('/').to_string())
+        .map_err(|_| "Couldn't find NYM_API env var".to_string())
 }
 
 #[allow(dead_code)]
 #[allow(clippy::panic)]
-pub async fn validate_json_response(res: Response) -> Value {
-    assert!(
-        res.status().is_success(),
-        "Expected 2xx but got {}",
-        res.status()
-    );
-    let json: Value = res
-        .json()
+pub async fn make_request(url: &str) -> Result<Response, String> {
+    let res = test_client()
+        .get(url)
+        .send()
         .await
-        .unwrap_or_else(|err| panic!("Invalid JSON response: {}", err));
-    json
+        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+
+    if res.status().is_success() {
+        Ok(res)
+    } else {
+        Err(format!("Expected 2xx but got {}", res.status()))
+    }
 }
 
 #[allow(dead_code)]
 #[allow(clippy::panic)]
-pub async fn get_any_node_id() -> String {
-    let url = format!("{}/v1/nym-nodes/bonded", base_url());
+pub async fn validate_json_response(res: Response) -> Result<Value, String> {
+    if !res.status().is_success() {
+        return Err(format!("Expected 2xx but got {}", res.status()));
+    }
+
+    res.json::<Value>()
+        .await
+        .map_err(|err| format!("Invalid JSON response: {}", err))
+}
+
+#[allow(dead_code)]
+#[allow(clippy::panic)]
+pub async fn get_any_node_id() -> Result<String, String> {
+    let url = format!("{}/v1/nym-nodes/bonded", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
     let json: Value = res
         .json()
         .await
-        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
+        .map_err(|err| format!("Failed to parse response as JSON: {}", err))?;
 
-    json.get("data")
+    let id = json
+        .get("data")
         .and_then(|list| list.as_array())
         .and_then(|arr| arr.first())
         .and_then(|node| node.get("bond_information"))
         .and_then(|n| n.get("node_id"))
         .and_then(|v| v.as_u64())
-        .unwrap_or(0)
-        .to_string()
+        .unwrap_or(0);
+
+    Ok(id.to_string())
 }
 
 #[allow(dead_code)]
 #[allow(clippy::panic)]
-pub async fn get_mixnode_node_id() -> u64 {
-    let url = format!("{}/v1/nym-nodes/described", base_url());
+pub async fn get_mixnode_node_id() -> Result<u64, String> {
+    let url = format!("{}/v1/nym-nodes/described", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
     let json: Value = res
         .json()
         .await
-        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
+        .map_err(|err| format!("Failed to parse response as JSON: {}", err))?;
 
     json.get("data")
         .and_then(|v| v.as_array())
-        .unwrap_or_else(|| panic!("Expected 'data' to be an array"))
+        .ok_or("Expected 'data' to be an array".to_string())?
         .iter()
         .find(|entry| {
             entry
@@ -85,26 +99,27 @@ pub async fn get_mixnode_node_id() -> u64 {
                 .unwrap_or(true)
         })
         .and_then(|node| node.get("node_id").and_then(|v| v.as_u64()))
-        .expect("Unable to find mixnode node id")
+        .ok_or("Unable to find mixnode node id".to_string())
 }
 
 #[allow(dead_code)]
 #[allow(clippy::panic)]
-pub async fn get_gateway_identity_key() -> String {
-    let url = format!("{}/v1/nym-nodes/described", base_url());
+pub async fn get_gateway_identity_key() -> Result<String, String> {
+    let url = format!("{}/v1/nym-nodes/described", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .unwrap_or_else(|err| panic!("Failed to send request to {}: {}", url, err));
+        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
     let json: Value = res
         .json()
         .await
-        .unwrap_or_else(|err| panic!("Failed to parse response as JSON: {}", err));
+        .map_err(|err| format!("Failed to parse response as JSON: {}", err))?;
 
-    json.get("data")
+    let key = json
+        .get("data")
         .and_then(|v| v.as_array())
-        .unwrap_or_else(|| panic!("Expected 'data' to be an array"))
+        .ok_or("Expected 'data' to be an array".to_string())?
         .iter()
         .find(|entry| {
             entry
@@ -112,7 +127,7 @@ pub async fn get_gateway_identity_key() -> String {
                 .and_then(|d| d.get("declared_role"))
                 .and_then(|r| r.get("mixnode"))
                 .and_then(|m| m.as_bool())
-                .map(|is_mixnode| !is_mixnode) // we want gateways, not mixnodes
+                .map(|is_mixnode| !is_mixnode)
                 .unwrap_or(false)
         })
         .and_then(|node| {
@@ -122,6 +137,7 @@ pub async fn get_gateway_identity_key() -> String {
                 .and_then(|k| k.get("ed25519"))
                 .and_then(|v| v.as_str())
         })
-        .expect("Unable to find gateway identity key with mixnode = false")
-        .to_string()
+        .ok_or("Unable to find gateway identity key with mixnode = false".to_string())?;
+
+    Ok(key.to_string())
 }

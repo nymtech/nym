@@ -131,18 +131,6 @@ jobs:
             echo "appimage_path=target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz" >> $GITHUB_OUTPUT
           fi
       
-      - name: Deploy artifacts to CI www
-        continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-avzr"
-          SOURCE: ${{ steps.find-appimage.outputs.appimage_path }}
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet
-          EXCLUDE: "/dist/, /node_modules/"               
-  
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/release-calculate-hash.yml

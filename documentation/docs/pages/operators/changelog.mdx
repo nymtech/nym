@@ -47,6 +47,166 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.6-chuckles`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.8-chuckles)
+- [`nym-node`](nodes/nym-node.mdx) version `1.8.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-04-01T09:55:02.982234741Z
+Build Version:      1.8.0
+Commit SHA:         a429d6528e99b878a310b71bdbe6d31923c52d84
+Commit Date:        2025-04-01T11:41:15.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.85.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**Nym Wallet v1.2.16**](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.16): Operators can change their parameters in the GUI interface again. Remember that while changing node settings will take effect in the next epoch (max 60 min), *Operator cost* and *Profit margin* will be updated with the change of interval (720 epochs). You can track the state of epochs and intervals [here](https://explorer.nym.spectredao.net/dashboard). Currently we are less than 24h from the end of interval, **if you were to change OC or PM, do it now!**
+
+- [**Nym Explorer v2.1.0**](https://nym.com/explorer) is out as a beta release
+
+- Since last release [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration). Make sure to apply it on the servers hosting `nym-node` in `exit-gateway` mode. 
+
+#### Community Tools
+
+Nym operators are coming with diverse backgrounds. While for some running a `nym-node` is an introduction to sys-administration, others are well seasoned builders and hackers. It's amazing to see the effort people put in order to lift each other by day-to-day mutual problem solving support in [Matrix channel](https://matrix.to/#/#operators:nymtech.chat). More and more people take it further and build tools to improve network monitoring and node administration. 
+
+While we are planning to make a page aggregating these tools together, here are some tools released lately by the technical community:
+
+- [SpectreDAO token dashboard](https://explorer.nym.spectredao.net/token): Including stats, distribution, alongside all fundamental stats
+
+- [SpectreDAO privacy check](https://explorer.nym.spectredao.net/privacy-check): Testing users browser, IP info, WebRTC leaks, fingerprinting, extensions and most importantly whether you access via [NymVPN](https://nym.com/)
+
+- Service status dashboards: Uptime dashboards showing status of Nym Nodes, either squads using self-hosted [Uptime Kuma](https://uptime.kuma.pet/) or a custom dashboard, like the one from [Oceanus](https://oceanus.p17o.com/)
+
+- [Nym Node Widget](https://github.com/koutakou/NymNodeWidget): A MacOS widget following status of your nodes by [koutakou](https://github.com/koutakou/)
+
+- [Nymesis](https://nymesis.vercel.app/): Beta version of an explorer tracking node rewards in a simple graph
+
+### Features
+
+- [Bump `http-proxy-middleware` from `2.0.6` to `2.0.7`](https://github.com/nymtech/nym/pull/5019): Bumps [`http-proxy-middleware`](https://github.com/chimurai/http-proxy-middleware)
+
+- [Bump `next` from `13.5.7` to `14.2.15` in `/documentation/docs`](https://github.com/nymtech/nym/pull/5281): Bumps [`next`](https://github.com/vercel/next.js)
+
+- [Bump `next` from `14.1.4` to `14.2.21` in `/explorer-nextjs`](https://github.com/nymtech/nym/pull/5308): Bumps [`next`](https://github.com/vercel/next.js)
+
+- [Bump `nanoid` from `3.3.7` to `3.3.8` in `/documentation/docs`](https://github.com/nymtech/nym/pull/5335): Bumps [`nanoid`](https://github.com/ai/nanoid)
+
+- [Bump `store2` from `2.14.3` to `2.14.4`](https://github.com/nymtech/nym/pull/5391): Bumps [`store2`](https://github.com/nbubna/store) 
+
+- [Bump `@octokit/plugin-paginate-rest` and `@actions/github` in `/.github/actions/nym-hash-releases/src`](https://github.com/nymtech/nym/pull/5488): Bumps [`@octokit/plugin-paginate-rest`](https://github.com/octokit/plugin-paginate-rest.js)
+
+- [Clean stale partially received buffers](https://github.com/nymtech/nym/pull/5536): Clean up old `ReconstructionBuffer`s that have not received fragments in a long time. The motivation is that we want to allow the client to cap the number of re-transmissions done, meaning we can't assume that these will eventually arrive
+
+- [Explorer V2](https://github.com/nymtech/nym/pull/5548)
+
+- [Bump `braces` from `3.0.2` to `3.0.3` in `/sdk/typescript/packages/mix-fetch-node`](https://github.com/nymtech/nym/pull/5612): Bumps [`braces`](https://github.com/micromatch/braces)
+
+- [Bump `golang.org/x/net` from `0.23.0` to `0.36.0` in `/wasm/mix-fetch/go-mix-conn`](https://github.com/nymtech/nym/pull/5613): Bumps [golang.org/x/net](https://github.com/golang/net)
+
+- [Bump `ws` from `8.13.0` to `8.18.1` in `/wasm/client/internal-dev`](https://github.com/nymtech/nym/pull/5614): Bumps [`ws`](https://github.com/websockets/ws)
+
+- [Bump webpack from `5.77.0` to `5.98.0` in `/wasm/client/internal-dev`](https://github.com/nymtech/nym/pull/5615): Bumps [`webpack`](https://github.com/webpack/webpack)
+
+- [Feature/paginated ticketbooks challenge](https://github.com/nymtech/nym/pull/5619): This PR makes changes to how ticketbook rewarding works and in particular the challenge portion of the exchange. Rather than requesting merkle proof alongside all binary data of the associated ticketbooks in a single `/issued-ticketbooks-challenge` query (that could have potentially lead to ddos of nym-apis as it made them load all of the data into the memory at once) the query got split into `/issued-ticketbooks-challenge-commitment` for obtaining the merkle proof and `/issued-ticketbooks-data` for obtaining the binary data. Note that the latter query might have to be called multiple times with different arguments due to the enforced limit on the maximum number of values returned at once.
+
+<AccordionTemplate name="nym-api routes">
+- added:
+  - `/issued-ticketbooks-count`
+  - `/issued-ticketbooks-for-count/:expiration_date`
+  - `/issued-ticketbooks-on-count/:issuance_date`
+  - `/issued-ticketbooks-challenge-commitment`
+  - `/issued-ticketbooks-data`
+ 
+- removed:
+  - `/issued-ticketbooks-challenge`
+</AccordionTemplate>
+
+<AccordionTemplate name={<TestingSteps/>}>
+Testing Steps Performed:
+New issue ticketbook related endpoints work -  tickets are issued and consumed as before. 
+Redeeming tickets is happening as normal on the gateway side.
+ 
+Notes (if any):
+Chuckles will not require the rewarder binary to be updated; as there will be additional changes to rewarding, this will be extensively tested in the future.
+</AccordionTemplate>
+
+- [Bump `@babel/runtime` from `7.16.3` to `7.26.10` in `/testnet-faucet`](https://github.com/nymtech/nym/pull/5621): Bumps [`@babel/runtime`](https://github.com/babel/babel/tree/HEAD/packages/babel-runtime)
+
+- [Bump the `patch-updates` group with 8 updates](https://github.com/nymtech/nym/pull/5624):
+
+| Package | From | To |
+| --- | --- | --- |
+| [`async-trait`](https://github.com/dtolnay/async-trait) | `0.1.87` | `0.1.88` |
+| [`clap`](https://github.com/clap-rs/clap) | `4.5.31` | `4.5.32` |
+| [`env_logger`](https://github.com/rust-cli/env_logger) | `0.11.6` | `0.11.7` |
+| [`http-body-util`](https://github.com/hyperium/http-body) | `0.1.2` | `0.1.3` |
+| [`quote`](https://github.com/dtolnay/quote) | `1.0.39` | `1.0.40` |
+| [`tokio`](https://github.com/tokio-rs/tokio) | `1.44.0` | `1.44.1` |
+| [`tokio-util`](https://github.com/tokio-rs/tokio) | `0.7.13` | `0.7.14` |
+| [`indexed_db_futures`](https://github.com/Alorel/rust-indexed-db) | `0.6.0` | `0.6.1` |
+
+- [Bump `humantime` from `2.1.0` to `2.2.0`](https://github.com/nymtech/nym/pull/5625): Bumps [`humantime`](https://github.com/chronotope/humantime)
+
+- [Bump `http` from `1.2.0` to `1.3.1`](https://github.com/nymtech/nym/pull/5626): Bumps [`http`](https://github.com/hyperium/http)
+
+- [Bump `celes` from `2.5.0` to `2.6.0`](https://github.com/nymtech/nym/pull/5627)
+
+- [Bump `uuid` from `1.15.1` to `1.16.0`](https://github.com/nymtech/nym/pull/5628): Bumps [`uuid`](https://github.com/uuid-rs/uuid)
+
+- [Bump `once_cell` from `1.20.3` to `1.21.1`](https://github.com/nymtech/nym/pull/5629): Bumps [`once_cell`](https://github.com/matklad/once_cell)
+
+- [Bump `zeroize` from `1.6.0` to `1.8.1`](https://github.com/nymtech/nym/pull/5630): Bumps [`zeroize`](https://github.com/RustCrypto/utils)
+
+- [Bump `tempfile` from `3.18.0` to `3.19.0`](https://github.com/nymtech/nym/pull/5631): Bumps [`tempfile`](https://github.com/Stebalien/tempfile)
+
+- [Rework IPR codec to extract out timer and implement AsyncWrite](https://github.com/nymtech/nym/pull/5632): The goal is to be able to handle back pressure in the vpn client. For that we need to extract out the timer from the codec since we want to move control over that to the mixnet processor. Once the timer is removed we can reformulate the mixnet sender as a `Sink` wrapped in a `FramedWrite`
+ 
+  - Extract out timer from IPR codec
+  - Implement AsyncWrite on mixnet client sender
+  - Add functions to wait for lanes to clear on `LaneQueueLenghts`
+  
+- [Remove `explorer-api` from the main workspace](https://github.com/nymtech/nym/pull/5635)
+
+- [Bump `dtolnay/rust-toolchain` from `1.90.0` to `1.100.0`](https://github.com/nymtech/nym/pull/5638): Bumps [`dtolnay/rust-toolchain`](https://github.com/dtolnay/rust-toolchain)
+ 
+- [Bump `zip` from `2.2.2` to `2.4.1`](https://github.com/nymtech/nym/pull/5639): Bumps [`zip`](https://github.com/zip-rs/zip2)
+
+- [Add `max_retransmissions` flag on each message](https://github.com/nymtech/nym/pull/5642): Add an optional `max_retransmissions` field on `InputMessage`, to be able to selectively disable or turn down the number of `retransmissions` done for specific packets
+
+- [Upgrade `sha2` to workspace version for validator-client](https://github.com/nymtech/nym/pull/5644)
+
+- [Add `RUSTUP_PERMIT_COPY_RENAME` in two workflows that we forgot about](https://github.com/nymtech/nym/pull/5646)
+
+- [Remove `UNIQUE` constraint on node pubkey](https://github.com/nymtech/nym/pull/5649): This accounts for the case when a node rebonds with the same key remove nodes that weren't updated in a week
+
+- [Add concurrency limit to CI](https://github.com/nymtech/nym/pull/5651): For `ci-build` workflow only
+
+- [Update wallet to include Interval Operator Cost and Profit Margin](https://github.com/nymtech/nym/pull/5652): Created a new modal for Interval Operator Cost and Profit Margin changes
+  - Uses existing update node operating cost functionality for old mixnodes (If it works it works)
+  - Prompts a warning that a user "Can send the request as many times as they want but it will only update the last message when the interval changes"
+ 
+- [Wallet-revamp to be in line with new nym-theming](https://github.com/nymtech/nym/pull/5653): Updating colour palette to match the [nym.com](https://nym.com) sites:
+  - Used the same font too
+  - Updated icons
+
+- [Add `fd` callback for initial authentication](https://github.com/nymtech/nym/pull/5654): One thing that was missed was the registration `ws` connection that happens before the actual connection, if it's the first time connecting to a gateway. This PR extends connection `fd` callback to that initial connection, so that it can also be allowed by firewalls.
+
+- [Revert using `AsyncWrite` sink in IPR](https://github.com/nymtech/nym/pull/5656): Revert the use of the `AsyncWrite` sink in the IPR until it's fully ready.
+
+- [Remove Google public DNS](https://github.com/nymtech/nym/pull/5660): We had a lot of complaints about Google, so we're removing this in VPN client, Nym should follow to avoid issues with firewall. 
+
+### Bugfix
+
+- [Corrected typos](https://github.com/nymtech/nym/pull/5497) in `CHANGELOG.md`
+
 ## `v2025.5-chokito`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.5-chokito)
@@ -67,17 +227,13 @@ cargo Profile:      release
 
 ### Release Summary
 
-1. WebSocket Connection Counter Fix (this is the fix for which we have a [pre-release branch](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-nym-node-patch) out already which will be replaced by this release)
-    - Prevents incorrect session tracking for WebSockets
+1. WebSocket Connection Counter Fix (this is the fix for which we have a [pre-release branch](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-nym-node-patch) out already which will be replaced by this release): Prevents incorrect session tracking for WebSockets
 
-2. Security Fixes in Dependencies
-    - Address known security vulnerabilities, making updating highly recommended
+2. Security Fixes in Dependencies: Address known security vulnerabilities, making updating highly recommended
 
-3. Authorisation & Timestamp Changes
-    - Modifies how timestamps are validated in Auth v2 - this is going to be what the clients use. For example: the clients will start to use v2 variants of everything (prepping the network for the breaking change to come on April 1st which will force clients to only use v2).
+3. Authorisation & Timestamp Changes: Modifies how timestamps are validated in Auth v2 - this is going to be what the clients use. For example: the clients will start to use v2 variants of everything (prepping the network for the breaking change to come on April 1st which will force clients to only use v2).
     
 4. Wireguard exit policy [scripts](https://github.com/nymtech/nym/tree/develop/scripts/wireguard-exit-policy)
-
 
 ### Operators Updates & Tools
 

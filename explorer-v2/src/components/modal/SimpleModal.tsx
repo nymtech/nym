@@ -27,12 +27,12 @@ type SimpleModalPropsOpen = {
 export type SimpleModalProps = SimpleModalPropsClosed | SimpleModalPropsOpen;
 
 const SimpleModal = (props: SimpleModalProps) => {
+  const theme = useTheme();
   if (!props.open) {
     return null;
   }
 
   const { title, children, Actions, onClose } = props;
-  const theme = useTheme();
 
   return (
     <Dialog open maxWidth="sm" fullWidth onClose={onClose}>

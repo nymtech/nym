@@ -105,8 +105,10 @@ impl Display for ErrorResponse {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use nym_crypto::asymmetric::{ed25519, x25519};
+    use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]
@@ -114,7 +116,10 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
-        let x25519_noise = x25519::KeyPair::new(&mut rng);
+        let x25519_noise = VersionedNoiseKey {
+            version: NoiseVersion::V1,
+            x25519_pubkey: *x25519::KeyPair::new(&mut rng).public_key(),
+        };
 
         let host_info = crate::api::v1::node::models::HostInformation {
             ip_address: vec!["1.1.1.1".parse().unwrap()],
@@ -136,7 +141,7 @@ mod tests {
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
                 x25519_sphinx: *x25519_sphinx.public_key(),
-                x25519_noise: Some(*x25519_noise.public_key()),
+                x25519_noise: Some(x25519_noise),
             },
         };
 
@@ -189,7 +194,10 @@ mod tests {
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info_noise.keys.ed25519_identity.parse().unwrap(),
                 x25519_sphinx: legacy_info_noise.keys.x25519_sphinx.parse().unwrap(),
-                x25519_noise: Some(legacy_info_noise.keys.x25519_noise.parse().unwrap()),
+                x25519_noise: Some(VersionedNoiseKey {
+                    version: NoiseVersion::V1,
+                    x25519_pubkey: legacy_info_noise.keys.x25519_noise.parse().unwrap(),
+                }),
             },
         };
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { DelegationWithEverything } from '@nymproject/types';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { DelegationList } from './DelegationList';
 import { DelegationListItemActions } from './DelegationActions';
 

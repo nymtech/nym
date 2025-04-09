@@ -109,18 +109,6 @@ pub async fn mixnode_stake_saturation(
         .await?)
 }
 
-// TODO: fix later (yeah...)
-#[allow(deprecated)]
-#[tauri::command]
-pub async fn mixnode_inclusion_probability(
-    mix_id: NodeId,
-    state: tauri::State<'_, WalletState>,
-) -> Result<nym_validator_client::models::InclusionProbabilityResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_inclusion_probability(mix_id)
-        .await?)
-}
-
 #[tauri::command]
 pub async fn get_nymnode_role(
     node_id: NodeId,

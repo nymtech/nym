@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
-import { isGateway, isMixnode, isNymNode } from 'src/types';
+import { isMixnode, isNymNode } from 'src/types';
 import { TBondedNode } from 'src/context/bonding';
-import { GeneralMixnodeSettings } from './GeneralMixnodeSettings';
 import { ParametersSettings } from './ParametersSettings';
-import { GeneralGatewaySettings } from './GeneralGatewaySettings';
 import { GeneralNymNodeSettings } from './GeneralNymNodeSettings';
 
 const makeGeneralNav = (bondedNode: TBondedNode) => {
@@ -22,8 +20,6 @@ export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedNode })
   const getSettings = () => {
     switch (navSelection) {
       case 0: {
-        if (isMixnode(bondedNode)) return <GeneralMixnodeSettings bondedNode={bondedNode} />;
-        if (isGateway(bondedNode)) return <GeneralGatewaySettings bondedNode={bondedNode} />;
         if (isNymNode(bondedNode)) return <GeneralNymNodeSettings bondedNode={bondedNode} />;
         break;
       }

@@ -14,7 +14,6 @@ import {
   getMixnodeUptime,
   getMixnodeStakeSaturation,
   getMixnodeRewardEstimation,
-  getInclusionProbability,
   getMixnodeAvgUptime,
   getMixNodeDescription as getNodeDescriptionRequest,
   getPendingOperatorRewards,
@@ -80,14 +79,6 @@ async function getAdditionalMixnodeDetails(mixId: number, host: string, port: nu
     },
   };
 
-  const inclusionReq: TauriReq<typeof getInclusionProbability> = {
-    name: 'getInclusionProbability',
-    request: () => getInclusionProbability(mixId),
-    onFulfilled: (value) => {
-      details.setProbability = value;
-    },
-  };
-
   const avgUptimeReq: TauriReq<typeof getMixnodeAvgUptime> = {
     name: 'getMixnodeAvgUptime',
     request: () => getMixnodeAvgUptime(),
@@ -117,7 +108,6 @@ async function getAdditionalMixnodeDetails(mixId: number, host: string, port: nu
     uptimeReq,
     stakeSaturationReq,
     rewardReq,
-    inclusionReq,
     avgUptimeReq,
     nodeDescReq,
     operatorRewardsReq,

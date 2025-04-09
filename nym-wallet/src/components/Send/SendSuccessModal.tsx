@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { Stack, Typography, SxProps } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { AppContext } from 'src/context';
 import { TTransactionDetails } from './types';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';

@@ -59,7 +59,6 @@ async function getGatewayDetails() {
       version: gateway.version,
     };
   } catch (error) {
-    console.error(error);
     return null;
   }
 }

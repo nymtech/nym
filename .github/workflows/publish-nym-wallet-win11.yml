@@ -1,6 +1,12 @@
 name: publish-nym-wallet-win11
 on:
   workflow_dispatch:
+    inputs:
+      sign:
+        description: "Sign this build using SSL.com. Signing is billed per signature so be careful"
+        required: false
+        type: boolean
+        default: true
   release:
     types: [created]
 
@@ -18,53 +24,61 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
-      version: ${{ steps.release-info.outputs.version }}
-      filename: ${{ steps.release-info.outputs.filename }}
-      file_hash: ${{ steps.release-info.outputs.file_hash }}
+      release_tag: ${{ github.ref_name }}
 
     steps:
-      - name: Clean up first
-        continue-on-error: true
-        working-directory: .
-        run: |
-          cd ..
-          del /s /q /A:H nym
-          rmdir /s /q nym
-
       - uses: actions/checkout@v4
 
-      - name: Import signing certificate
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: |
-          New-Item -ItemType directory -Path certificate
-          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
-          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
-          Remove-Item -path certificate -include tempCert.txt
-          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup MSBuild.exe
+        uses: microsoft/setup-msbuild@v2
 
       - name: Node
         uses: actions/setup-node@v4
         with:
           node-version: 21
 
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Create env file
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: '.env'
-          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
-
-      - name: Install Yarn
-        run: npm install -g yarn
-
+      - name: Download EV CodeSignTool from ssl.com
+        working-directory: nym-wallet/src-tauri
+        if: ${{ inputs.sign }}
+        shell: bash
+        run: |
+          curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
+          unzip codesigntool.zip
+      - name: Get EV certificate credential id
+        working-directory: nym-wallet/src-tauri
+        if: ${{ inputs.sign }}
+        id: get_credential_ids
+        shell: bash
+        run: |
+          echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
+      - name: Add custom sign command to tauri.conf.json
+        working-directory: nym-wallet/src-tauri
+        if: ${{ inputs.sign }}
+        shell: bash
+        run: |
+          yq eval --inplace '.bundle.windows +=
+          {
+            "signCommand": {
+              "cmd": "C:\Program Files\Git\bin\bash.EXE",
+              "args": [
+                "/c/actions-runner/_work/nym/nym/nym-wallet/src-tauri/CodeSignTool.sh",
+                "sign",
+                "-username ${{ secrets.SSL_COM_USERNAME }}",
+                "-password ${{ secrets.SSL_COM_PASSWORD }}",
+                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
+                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
+                "-program_name NymWallet",
+                "-input_file_path",
+                "%1",
+                "-override"
+              ]
+            }
+          }' tauri.conf.json
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
@@ -77,18 +91,50 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: yarn build
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
+        run: |
+          echo "Starting build process..."
+          yarn build
+
+      - name: Check bundle directory
+        shell: bash
+        run: |
+          echo "Checking bundle directory structure"
+          
+          # Check standard location
+          if [ -d "target/release/bundle" ]; then
+            echo "Found bundle directory at standard location"
+            ls -la target/release/bundle || echo "Failed to list bundle directory"
+          fi
+          
+          # Check src-tauri location
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "Found bundle directory in src-tauri"
+            ls -la src-tauri/target/release/bundle || echo "Failed to list src-tauri bundle directory"
+            
+            # Use this path for future steps
+            echo "BUNDLE_PATH=src-tauri/target/release/bundle" >> $GITHUB_ENV
+          else
+            echo "Using standard bundle path"
+            echo "BUNDLE_PATH=target/release/bundle" >> $GITHUB_ENV
+          fi
+          
+          # Check for MSI files in any location
+          find . -name "*.msi" -type f
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nym-wallet_1.0.0_x64_en-US.msi
-          path: nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi
+          name: nym-wallet.msi
+          path: |
+            nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi
+            nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
+            nym-wallet/src-tauri/target/release/bundle/msi/*.msi
           retention-days: 30
 
       - id: create-release
@@ -97,25 +143,28 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-wallet/target/release/bundle/msi/*.msi
-            nym-wallet/target/release/bundle/msi/*.msi.zip*
-
-      - name: Deploy artifacts to CI www
-        continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-avzr"
-          SOURCE: "nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi"
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet
-          EXCLUDE: "/dist/, /node_modules/"            
+            nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi
+            nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi.zip*
+            nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
+            nym-wallet/src-tauri/target/release/bundle/msi/*.msi
+          
+      - name: Find MSI path for deployment
+        id: find-msi
+        shell: bash
+        run: |
+          MSI_FILE=$(find . -name "*.msi" -type f | head -n 1)
+          if [ -n "$MSI_FILE" ]; then
+            echo "Found MSI file: $MSI_FILE"
+            echo "msi_path=$MSI_FILE" >> $GITHUB_OUTPUT
+          else
+            echo "WARNING: No MSI file found for deployment!"
+            echo "msi_path=${{ env.BUNDLE_PATH }}/msi/nym-wallet*.msi" >> $GITHUB_OUTPUT
+          fi
 
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/release-calculate-hash.yml
     needs: publish-tauri
     with:
-      release_tag: ${{ github.ref_name }}
+      release_tag: ${{ needs.publish-tauri.outputs.release_tag || github.ref_name }}
     secrets: inherit

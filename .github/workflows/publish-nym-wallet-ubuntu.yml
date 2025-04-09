@@ -3,71 +3,108 @@ on:
   workflow_dispatch:
   release:
     types: [created]
-
 defaults:
   run:
     working-directory: nym-wallet
-
 jobs:
   publish-tauri:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [custom-ubuntu-22.04]
+        platform: [ubuntu-22.04]
     runs-on: ${{ matrix.platform }}
-
     outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
-      version: ${{ steps.release-info.outputs.version }}
-      filename: ${{ steps.release-info.outputs.filename }}
-      file_hash: ${{ steps.release-info.outputs.file_hash }}
-
+      release_tag: ${{ github.ref_name }}
+      
     steps:
       - uses: actions/checkout@v4
-
-      - name: Tauri dependencies
-        run: >
-          sudo apt-get update &&
-          sudo apt-get install -y webkit2gtk-4.0
-        continue-on-error: true
-
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libdbus-1-dev libmnl-dev libnftnl-dev \
+            libwebkit2gtk-4.1-dev build-essential curl wget libssl-dev jq \
+            libgtk-3-dev squashfs-tools libayatana-appindicator3-dev make libfuse2 unzip librsvg2-dev file \
+            libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+      
       - name: Node
         uses: actions/setup-node@v4
         with:
           node-version: 21
-
+          cache: 'yarn'
+      
       - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-
+      
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
-
+      
       - name: Install app dependencies
         run: yarn
+      
       - name: Create env file
         uses: timheuer/base64-to-file@v1.2
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
-
+      
       - name: Build app
         run: yarn build
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+      
+      - name: Check bundle directory
+        run: |
+          echo "Checking bundle directory structure"
+          ls -la target/release/bundle || echo "Bundle directory not found"
+          if [ -d "target/release/bundle/appimage" ]; then
+            echo "AppImage bundle directory exists, checking contents:"
+            ls -la target/release/bundle/appimage
+          else
+            echo "AppImage bundle directory not found, checking alternatives:"
+            find target/release/bundle -type d -name "*appimage*" -o -name "*AppImage*" || echo "No AppImage directories found"
+            find target/release/bundle -name "*.AppImage" -o -name "*.appimage" || echo "No AppImage files found"
+          fi
+      
+      - name: Create AppImage tarball if needed
+        run: |
+          # Find the AppImage file
+          APPIMAGE_FILE=$(find target/release/bundle -name "*.AppImage" | head -n 1)
+          if [ -n "$APPIMAGE_FILE" ]; then
+            echo "Found AppImage file: $APPIMAGE_FILE"
+            APPIMAGE_DIR=$(dirname "$APPIMAGE_FILE")
+            APPIMAGE_NAME=$(basename "$APPIMAGE_FILE")
+            
+            # Create tarball if it doesn't exist
+            if [ ! -f "${APPIMAGE_FILE}.tar.gz" ]; then
+              echo "Creating tarball for $APPIMAGE_NAME"
+              cd "$APPIMAGE_DIR"
+              tar -czf "${APPIMAGE_NAME}.tar.gz" "$APPIMAGE_NAME"
+              cd -
+              echo "Created tarball: ${APPIMAGE_FILE}.tar.gz"
+            else
+              echo "Tarball already exists: ${APPIMAGE_FILE}.tar.gz"
+            fi
+          else
+            echo "WARNING: No AppImage file found!"
+          fi
+      
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nym-wallet_1.0.0_amd64.AppImage.tar.gz
-          path: nym-wallet/target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz
+          name: nym-wallet-appimage.tar.gz
+          path: |
+            nym-wallet/target/release/bundle/appimage/*.AppImage.tar.gz
+            nym-wallet/target/release/bundle/*/nym-wallet*.AppImage.tar.gz
           retention-days: 30
-
+      
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2
@@ -75,24 +112,26 @@ jobs:
         with:
           files: |
             nym-wallet/target/release/bundle/appimage/*.AppImage
-            nym-wallet/target/release/bundle/appimage/*.AppImage.tar.gz*
-
-      - name: Deploy artifacts to CI www
-        continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-avzr"
-          SOURCE: "nym-wallet/target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz"
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet
-          EXCLUDE: "/dist/, /node_modules/"               
-
+            nym-wallet/target/release/bundle/appimage/*.AppImage.tar.gz
+            nym-wallet/target/release/bundle/*/nym-wallet*.AppImage
+            nym-wallet/target/release/bundle/*/nym-wallet*.AppImage.tar.gz
+      
+      - name: Find AppImage tarball path for deployment
+        id: find-appimage
+        run: |
+          APPIMAGE_TARBALL=$(find target/release/bundle -name "*.AppImage.tar.gz" | head -n 1)
+          if [ -n "$APPIMAGE_TARBALL" ]; then
+            echo "Found AppImage tarball: $APPIMAGE_TARBALL"
+            echo "appimage_path=$APPIMAGE_TARBALL" >> $GITHUB_OUTPUT
+          else
+            echo "WARNING: No AppImage tarball found for deployment!"
+            echo "appimage_path=target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz" >> $GITHUB_OUTPUT
+          fi
+      
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/release-calculate-hash.yml
     needs: publish-tauri
     with:
-      release_tag: ${{ github.ref_name }}
+      release_tag: ${{ needs.publish-tauri.outputs.release_tag || github.ref_name }}
     secrets: inherit

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use fern::colors::{Color, ColoredLevelConfig};
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use tauri::Manager;
+use tauri::Emitter;
 use time::{format_description, OffsetDateTime};
 
 fn formatted_time() -> String {
@@ -61,7 +61,7 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 message: record.args().to_string(),
                 level: record.level().into(),
             };
-            app_handle.emit_all("log://log", msg).unwrap();
+            app_handle.emit("log://log", msg).unwrap();
         }));
 
     base_config

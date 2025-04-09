@@ -1,4 +1,4 @@
-import { appWindow } from '@tauri-apps/api/window';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import bs58 from 'bs58';
 import Big from 'big.js';
 import { valid } from 'semver';
@@ -14,6 +14,8 @@ import {
   userBalance,
 } from '../requests';
 import { Console } from './console';
+
+const appWindow = getCurrentWebviewWindow();
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -221,11 +223,10 @@ export const unymToNym = (unym: string | Big, dp = 4) => {
  */
 
 export const isBalanceEnough = (fee: string, tx: string = '0', balance: string = '0') => {
-  console.log('balance', balance, fee, tx);
   try {
     return Big(balance).gte(Big(fee).plus(Big(tx)));
   } catch (e) {
-    console.log(e);
+    // Error handling silenced to comply with no-console rule
     return false;
   }
 };

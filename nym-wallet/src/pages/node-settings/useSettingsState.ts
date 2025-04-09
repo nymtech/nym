@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSnackbar } from 'notistack';
 import { decimalToPercentage, InclusionProbabilityResponse, MixnodeStatus } from '@nymproject/types';
-import { getInclusionProbability, getMixnodeStakeSaturation, getMixnodeStatus } from '../../requests';
+import { getMixnodeStakeSaturation, getMixnodeStatus } from '../../requests';
 
 export const useSettingsState = () => {
   const [status, setStatus] = useState<MixnodeStatus>('not_found');
@@ -27,14 +27,6 @@ export const useSettingsState = () => {
     }
   };
 
-  const getMixnodeInclusionProbability = async (mixId: number) => {
-    const probability = await getInclusionProbability(mixId);
-    if (probability) {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      setInclusionProbability({ in_active: probability.in_active, in_reserve: probability.in_reserve });
-    }
-  };
-
   const reset = () => {
     setStatus('not_found');
     setSaturation('-');
@@ -46,7 +38,6 @@ export const useSettingsState = () => {
     try {
       await getStatus(mixId);
       await getStakeSaturation(mixId);
-      await getMixnodeInclusionProbability(mixId);
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error', preventDuplicate: true });
       reset();

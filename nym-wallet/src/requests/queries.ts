@@ -1,6 +1,5 @@
 import {
   DecCoin,
-  InclusionProbabilityResponse,
   MixnodeStatusResponse,
   PendingIntervalEvent,
   RewardEstimationResponse,
@@ -32,9 +31,6 @@ export const checkMixnodeOwnership = async () => invokeWrapper<boolean>('owns_mi
 export const checkGatewayOwnership = async () => invokeWrapper<boolean>('owns_gateway');
 
 export const checkNymNodeOwnership = async () => invokeWrapper<boolean>('owns_nym_node');
-
-export const getInclusionProbability = async (mixId: number) =>
-  invokeWrapper<InclusionProbabilityResponse>('mixnode_inclusion_probability', { mixId });
 
 export const getCurrentInterval = async () => invokeWrapper<Interval>('get_current_interval');
 

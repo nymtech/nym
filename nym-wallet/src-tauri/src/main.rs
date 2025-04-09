@@ -3,11 +3,14 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::{Manager, Menu};
-
 use nym_mixnet_contract_common::{Gateway, MixNode};
+use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::Manager;
+use tauri_plugin_opener::init as init_opener;
+use tauri_plugin_shell::init as init_shell;
+use tauri_plugin_updater::Builder as UpdaterBuilder;
 
-use crate::menu::AddDefaultSubmenus;
+use crate::menu::SHOW_LOG_WINDOW;
 use crate::operations::app;
 use crate::operations::help;
 use crate::operations::mixnet;
@@ -34,8 +37,13 @@ fn main() {
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
+        .plugin(init_shell())
+        .plugin(init_opener())
+        .plugin(UpdaterBuilder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
+            app::link::open_url,
             app::version::check_version,
             mixnet::account::add_account_for_password,
             mixnet::account::archive_wallet_file,
@@ -121,7 +129,6 @@ fn main() {
             nym_api::status::compute_mixnode_reward_estimation,
             nym_api::status::gateway_core_node_status,
             nym_api::status::mixnode_core_node_status,
-            nym_api::status::mixnode_inclusion_probability,
             nym_api::status::mixnode_reward_estimation,
             nym_api::status::mixnode_stake_saturation,
             nym_api::status::mixnode_status,
@@ -210,13 +217,31 @@ fn main() {
             app::react::set_react_state,
             app::react::get_react_state,
         ])
-        .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
-        .on_menu_event(|event| {
-            if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
-                let _r = help::log::help_log_toggle_window(event.window().app_handle());
+        .menu(|app| {
+            // Create a menu builder
+            let menu_builder = MenuBuilder::new(app);
+            if ::std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
+                let help_text = MenuItemBuilder::with_id(SHOW_LOG_WINDOW, "Show logs")
+                    .build(app)
+                    .expect("Failed to create menu item");
+
+                let submenu = SubmenuBuilder::new(app, "Help")
+                    .items(&[&help_text])
+                    .build()
+                    .expect("Failed to create help submenu");
+
+                menu_builder.item(&submenu).build()
+            } else {
+                // Build a default menu without the submenu
+                menu_builder.build()
             }
         })
-        .setup(|app| Ok(log::setup_logging(app.app_handle())?))
+        .on_menu_event(|app, event| {
+            if event.id() == SHOW_LOG_WINDOW {
+                let _r = help::log::help_log_toggle_window(app.app_handle().clone());
+            }
+        })
+        .setup(|app| Ok(log::setup_logging(app.app_handle().clone())?))
         .run(context)
         .expect("error while running tauri application");
 }

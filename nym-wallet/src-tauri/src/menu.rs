@@ -4,6 +4,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 pub const SHOW_LOG_WINDOW: &str = "show_log_window";
 
 pub trait AddDefaultSubmenus {
+    #[allow(dead_code)]
     fn add_default_app_submenus(self) -> Self;
 }
 

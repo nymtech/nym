@@ -129,7 +129,6 @@ fn main() {
             nym_api::status::compute_mixnode_reward_estimation,
             nym_api::status::gateway_core_node_status,
             nym_api::status::mixnode_core_node_status,
-            nym_api::status::mixnode_inclusion_probability,
             nym_api::status::mixnode_reward_estimation,
             nym_api::status::mixnode_stake_saturation,
             nym_api::status::mixnode_status,

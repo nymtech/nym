@@ -253,6 +253,7 @@ impl Config {
         }
     }
 
+    #[allow(clippy::to_string_in_format_args)]
     pub fn set_default_nyxd_url(&mut self, nyxd_url: Url, network: &WalletNetwork) {
         log::debug!(
             "set default nyxd URL for {network} {}",
@@ -310,7 +311,7 @@ impl Config {
         self.networks.get(&network.as_key()).and_then(|config| {
             log::debug!(
                 "get selected nyxd url for {} {:?}",
-                network.to_string(),
+                network,
                 config.selected_nyxd_url,
             );
             config.selected_nyxd_url.clone()
@@ -321,7 +322,7 @@ impl Config {
         self.networks.get(&network.as_key()).and_then(|config| {
             log::debug!(
                 "get default nyxd url for {} {:?}",
-                network.to_string(),
+                network,
                 config.default_nyxd_url,
             );
             config.default_nyxd_url.clone()

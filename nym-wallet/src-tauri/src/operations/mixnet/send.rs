@@ -32,7 +32,7 @@ pub async fn send(
         .nyxd
         .send(&to_address, vec![amount_base], memo, fee)
         .await?;
-    log::info!("<<< tx hash = {}", raw_res.hash.to_string());
+    log::info!("<<< tx hash = {}", raw_res.hash);
     let res = SendTxResult::new(
         raw_res,
         TransactionDetails::new(amount, from_address, to_address.to_string()),

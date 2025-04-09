@@ -3,10 +3,10 @@
 
 use crate::requests::InvalidReplyRequestError;
 use crate::ReplySurb;
-use log::{error, warn};
 use nym_sphinx_types::constants::PAYLOAD_KEY_SEED_SIZE;
 use std::fmt::Display;
 use std::iter::once;
+use tracing::{error, warn};
 
 const fn v2_reply_surb_serialised_len(num_hops: u8) -> usize {
     ReplySurb::BASE_OVERHEAD + num_hops as usize * PAYLOAD_KEY_SEED_SIZE

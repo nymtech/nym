@@ -6666,7 +6666,6 @@ name = "nym-sphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "log",
  "nym-crypto",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
@@ -6677,6 +6676,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "thiserror 2.0.12",
+ "tracing",
  "wasm-bindgen",
 ]
 

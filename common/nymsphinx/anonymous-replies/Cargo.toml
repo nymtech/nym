@@ -12,6 +12,7 @@ rand = { workspace = true }
 bs58 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 
 nym-crypto = { path = "../../crypto", features = ["stream_cipher", "rand"] }
 nym-sphinx-addressing = { path = "../addressing" }
@@ -19,7 +20,6 @@ nym-sphinx-params = { path = "../params" }
 nym-sphinx-routing = { path = "../routing" }
 nym-sphinx-types = { path = "../types" }
 nym-topology = { path = "../../topology" }
-log = "0.4.27"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
 version = "0.2.95"

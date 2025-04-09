@@ -32,6 +32,7 @@
         "updater:allow-download",
         "updater:allow-download-and-install",
         "updater:allow-install",
-        "core:event:allow-listen"
+        "core:event:allow-listen",
+        "shell:allow-open"
     ]
 }

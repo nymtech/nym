@@ -669,28 +669,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         cursor: "pointer",
       },
     }),
-    renderEmptyRowsFallback: () => (
-      <Stack
-        gap={3}
-        sx={{ p: 5 }}
-        justifyContent={isMobile ? "flex-start" : "center"}
-        alignItems={isMobile ? "flex-start" : "center"}
-      >
-        <Typography variant="body3" width={isMobile ? 300 : "unset"}>
-          You haven&apos;t staked on any nodes yet. Stake on a node to start
-          earning rewards.
-        </Typography>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Link href="/table" underline="none" color="inherit">
-            Stake
-          </Link>
-        </Button>
-      </Stack>
-    ),
   });
 
   if (!nymClient || !address) {

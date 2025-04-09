@@ -47,6 +47,7 @@ use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, TaskClient};
+use nym_topology::node::Performance;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NodeRefreshBody;
 use nym_validator_client::{NymApiClient, UserAgent};
@@ -591,6 +592,8 @@ impl NymNode {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
+            // Perf metrics are not meaningful in this context.
+            performance: Performance::hundred(),
         })
     }
 

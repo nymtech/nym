@@ -10,7 +10,7 @@ use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_topology::{providers::HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;

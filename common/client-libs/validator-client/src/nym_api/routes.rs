@@ -79,3 +79,7 @@ pub const SERVICE_PROVIDERS: &str = "services";
 pub const DETAILS: &str = "details";
 pub const CHAIN_STATUS: &str = "chain-status";
 pub const NETWORK: &str = "network";
+
+pub const UNSTABLE: &str = "unstable";
+pub const SKIMMED: &str = "skimmed";
+pub const BATCH: &str = "batch";

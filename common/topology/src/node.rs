@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
+pub use nym_mixnet_contract_common::reward_params::Performance;
 pub use nym_mixnet_contract_common::LegacyMixLayer;
 
 #[derive(Error, Debug)]
@@ -19,7 +20,7 @@ pub enum RoutingNodeError {
     NoIpAddressesProvided { node_id: NodeId, identity: String },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct EntryDetails {
     // to allow client to choose ipv6 preference, if available
     pub ip_addresses: Vec<IpAddr>,
@@ -28,7 +29,7 @@ pub struct EntryDetails {
     pub clients_wss_port: Option<u16>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct SupportedRoles {
     pub mixnode: bool,
     pub mixnet_entry: bool,
@@ -45,7 +46,7 @@ impl From<DeclaredRoles> for SupportedRoles {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RoutingNode {
     pub node_id: NodeId,
 
@@ -56,6 +57,7 @@ pub struct RoutingNode {
     pub sphinx_key: x25519::PublicKey,
 
     pub supported_roles: SupportedRoles,
+    pub performance: Performance,
 }
 
 impl RoutingNode {
@@ -109,6 +111,12 @@ impl<'a> From<&'a RoutingNode> for SphinxNode {
     }
 }
 
+impl<'a> From<&'a RoutingNode> for RoutingNode {
+    fn from(node: &'a RoutingNode) -> Self {
+        node.clone()
+    }
+}
+
 impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
     type Error = RoutingNodeError;
 
@@ -138,6 +146,7 @@ impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
+            performance: value.performance,
         })
     }
 }

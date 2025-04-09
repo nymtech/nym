@@ -6,6 +6,7 @@
 
 use crate::node::{EntryDetails, RoutingNode, RoutingNodeError, SupportedRoles};
 use crate::{CachedEpochRewardedSet, NymTopology};
+use nym_mixnet_contract_common::reward_params::Performance;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -105,6 +106,8 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
                 }
             })?,
             supported_roles: value.supported_roles,
+
+            performance: Performance::hundred(),
         })
     }
 }

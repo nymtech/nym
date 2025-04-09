@@ -25,6 +25,7 @@ use tracing::trace;
 use utoipa::ToSchema;
 
 pub type PaginatedSkimmedNodes = AxumResult<Json<PaginatedCachedNodesResponse<SkimmedNode>>>;
+type SkimmedNodes = AxumResult<Json<CachedNodesResponse<SkimmedNode>>>;
 
 /// Given all relevant caches, build part of response for JUST Nym Nodes
 fn build_nym_nodes_response<'a, NI>(
@@ -196,7 +197,7 @@ where
 pub(super) async fn deprecated_gateways_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
-) -> AxumResult<Json<CachedNodesResponse<SkimmedNode>>> {
+) -> SkimmedNodes {
     // 1. call '/v1/unstable/skimmed/entry-gateways/all'
     let all_gateways = entry_gateways_basic_all(state, query_params).await?;
 
@@ -223,7 +224,7 @@ pub(super) async fn deprecated_gateways_basic(
 pub(super) async fn deprecated_mixnodes_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
-) -> AxumResult<Json<CachedNodesResponse<SkimmedNode>>> {
+) -> SkimmedNodes {
     // 1. call '/v1/unstable/nym-nodes/skimmed/mixnodes/active'
     let active_mixnodes = mixnodes_basic_active(state, query_params).await?;
 
@@ -239,7 +240,7 @@ async fn nodes_basic(
     state: State<AppState>,
     Query(_query_params): Query<NodesParams>,
     active_only: bool,
-) -> PaginatedSkimmedNodes {
+) -> AxumResult<CachedNodesResponse<SkimmedNode>> {
     // unfortunately we have to build the response semi-manually here as we need to add two sources of legacy nodes
 
     // 1. grab all relevant described nym-nodes
@@ -281,10 +282,10 @@ async fn nodes_basic(
         legacy_gateways.timestamp(),
     ]);
 
-    Ok(Json(PaginatedCachedNodesResponse::new_full(
+    Ok(CachedNodesResponse {
         refreshed_at,
         nodes,
-    )))
+    })
 }
 
 #[allow(dead_code)] // not dead, used in OpenAPI docs
@@ -326,7 +327,47 @@ pub(super) async fn nodes_basic_all(
         };
     }
 
-    nodes_basic(state, Query(query_params.into()), false).await
+    let nodes = nodes_basic(state, Query(query_params.into()), false).await?;
+    // We are never using pagination (always one page) anyways so just build it here.
+    Ok(Json(PaginatedCachedNodesResponse::new_full(
+        nodes.refreshed_at,
+        nodes.nodes,
+    )))
+}
+
+/// Post request handler taking a json array of NodeId (u32) values and returning descriptors for
+/// the provided NodeId values. A successful response will contain descriptors for all nodes
+/// associated with those node IDs available in the current full topology.
+///
+/// If a provided node ID is not present in the current topology there will be no descriptor for
+/// that node in the response.
+///
+/// If no node IDs are provided the response will contain no descriptors.
+#[utoipa::path(
+    tag = "Unstable Nym Nodes batch by Node ID",
+    get,
+    params(NodesParamsWithRole),
+    path = "batch",
+    context_path = "/v1/unstable/nym-nodes/skimmed",
+    responses(
+        (status = 200, body = PaginatedCachedNodesResponseSchema)
+    )
+)]
+pub(super) async fn nodes_basic_batch(
+    state: State<AppState>,
+    Query(query_params): Query<NodesParamsWithRole>,
+    Json(ids): Json<Vec<u32>>,
+) -> SkimmedNodes {
+    let nodes = nodes_basic(state, Query(query_params.into()), false).await?;
+    let requested_nodes = nodes
+        .nodes
+        .into_iter()
+        .filter(|node| ids.contains(&node.node_id))
+        .collect();
+    Ok(Json(CachedNodesResponse {
+        nodes: requested_nodes,
+        refreshed_at: nodes.refreshed_at,
+    }))
 }
 
 /// Return Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
@@ -359,7 +400,12 @@ pub(super) async fn nodes_basic_active(
         };
     }
 
-    nodes_basic(state, Query(query_params.into()), true).await
+    let nodes = nodes_basic(state, Query(query_params.into()), true).await?;
+    // We are never using pagination (always one page) anyways so just build it here.
+    Ok(Json(PaginatedCachedNodesResponse::new_full(
+        nodes.refreshed_at,
+        nodes.nodes,
+    )))
 }
 
 async fn mixnodes_basic(

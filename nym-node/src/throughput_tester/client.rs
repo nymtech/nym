@@ -174,7 +174,7 @@ impl ThroughputTestingClient {
             .diffie_hellman(&header.shared_secret);
         let payload_key = rederive_lioness_payload_key(shared_secret.as_bytes());
 
-        let unwrapped_payload = sphinx_packet.payload.unwrap(&payload_key)?;
+        let unwrapped_payload = sphinx_packet.payload.unwrap(payload_key)?;
         let unwrapped_forward_payload_bytes = unwrapped_payload.into_bytes();
 
         let start = Instant::now();

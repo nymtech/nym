@@ -25,7 +25,7 @@ use nym_api_requests::models::{
     NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
-use nym_api_requests::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
+use nym_api_requests::nym_nodes::{NodesByAddressesResponse, SemiSkimmedNode, SkimmedNode};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
 use nym_mixnet_contract_common::EpochRewardedSet;
@@ -486,6 +486,31 @@ impl NymApiClient {
             let mut res = self
                 .nym_api
                 .get_basic_nodes(false, Some(page), None)
+                .await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(nodes)
+    }
+
+    /// retrieve expanded information for all bonded nodes on the network
+    pub async fn get_all_expanded_nodes(
+        &self,
+    ) -> Result<Vec<SemiSkimmedNode>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut nodes = Vec::new();
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_expanded_nodes(false, Some(page), None)
                 .await?;
 
             nodes.append(&mut res.nodes.data);

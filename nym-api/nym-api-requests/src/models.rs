@@ -8,15 +8,13 @@ use crate::helpers::PlaceholderJsonSchemaImpl;
 use crate::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
+use crate::nym_nodes::SemiSkimmedNode;
 use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
-use nym_crypto::asymmetric::x25519::{
-    self,
-    serde_helpers::{bs58_x25519_pubkey, option_bs58_x25519_pubkey},
-};
+use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
@@ -28,6 +26,7 @@ use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeRoles};
+use nym_noise_keys::VersionedNoiseKey;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -465,6 +464,17 @@ impl MixNodeBondAnnotated {
             performance: self.node_performance.last_24h,
         })
     }
+
+    pub fn try_to_semi_skimmed_node(
+        &self,
+        role: NodeRole,
+    ) -> Result<SemiSkimmedNode, MalformedNodeBond> {
+        let skimmed_node = self.try_to_skimmed_node(role)?;
+        Ok(SemiSkimmedNode {
+            basic: skimmed_node,
+            x25519_noise_versioned_key: None, // legacy node won't ever support Noise
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -528,6 +538,17 @@ impl GatewayBondAnnotated {
                 wss_port: None,
             }),
             performance: self.node_performance.last_24h,
+        })
+    }
+
+    pub fn try_to_semi_skimmed_node(
+        &self,
+        role: NodeRole,
+    ) -> Result<SemiSkimmedNode, MalformedNodeBond> {
+        let skimmed_node = self.try_to_skimmed_node(role)?;
+        Ok(SemiSkimmedNode {
+            basic: skimmed_node,
+            x25519_noise_versioned_key: None, // legacy node won't ever support Noise
         })
     }
 }
@@ -866,10 +887,7 @@ pub struct HostKeys {
     pub x25519: x25519::PublicKey,
 
     #[serde(default)]
-    #[serde(with = "option_bs58_x25519_pubkey")]
-    #[schemars(with = "Option<String>")]
-    #[schema(value_type = String)]
-    pub x25519_noise: Option<x25519::PublicKey>,
+    pub x25519_noise: Option<VersionedNoiseKey>,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
@@ -1020,6 +1038,19 @@ impl NymNodeDescription {
             supported_roles: self.description.declared_role,
             entry,
             performance,
+        }
+    }
+
+    pub fn to_semi_skimmed_node(
+        &self,
+        role: NodeRole,
+        performance: Performance,
+    ) -> SemiSkimmedNode {
+        let skimmed_node = self.to_skimmed_node(role, performance);
+
+        SemiSkimmedNode {
+            basic: skimmed_node,
+            x25519_noise_versioned_key: self.description.host_information.keys.x25519_noise,
         }
     }
 }
@@ -1307,10 +1338,7 @@ pub struct NetworkMonitorRunDetailsResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NoiseDetails {
-    #[schemars(with = "String")]
-    #[serde(with = "bs58_x25519_pubkey")]
-    #[schema(value_type = String)]
-    pub x25119_pubkey: x25519::PublicKey,
+    pub key: VersionedNoiseKey,
 
     pub mixnet_port: u16,
 

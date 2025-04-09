@@ -168,8 +168,9 @@ generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
 	yarn types:lint:fix
 
+# Run the integration tests for public nym-api endpoints
 run-api-tests:
-	cd nym-api/tests/functional_test && yarn test:qa
+	dotenv -f envs/sandbox.env -- cargo test --test public-api-tests
 
 # Build debian package, and update PPA
 deb-cli: build-nym-cli

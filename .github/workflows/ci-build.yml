@@ -102,6 +102,8 @@ jobs:
       - name: Run all tests
         if: contains(matrix.os, 'ubuntu')
         uses: actions-rs/cargo@v1
+        env:
+          NYM_API: https://sandbox-nym-api1.nymtech.net/api
         with:
           command: test
           args: --workspace

@@ -2186,6 +2186,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+
+[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4697,7 +4703,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.55"
+version = "1.1.56"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4708,6 +4714,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if",
+ "chrono",
  "clap",
  "console-subscriber",
  "cosmwasm-std",
@@ -4717,6 +4724,7 @@ dependencies = [
  "cw4",
  "dashmap",
  "dirs",
+ "dotenv",
  "futures",
  "getset",
  "humantime-serde",
@@ -4949,7 +4957,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.52"
+version = "1.1.53"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5032,7 +5040,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.52"
+version = "1.1.53"
 dependencies = [
  "bs58",
  "clap",
@@ -6067,7 +6075,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.53"
+version = "1.1.54"
 dependencies = [
  "addr",
  "anyhow",
@@ -6118,7 +6126,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.8.0"
+version = "1.9.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6513,7 +6521,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.52"
+version = "1.1.53"
 dependencies = [
  "bs58",
  "clap",
@@ -7116,7 +7124,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "anyhow",
  "bytes",

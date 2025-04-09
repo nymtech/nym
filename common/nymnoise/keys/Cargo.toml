@@ -11,4 +11,7 @@ serde = { workspace = true, features = ["derive"] }
 utoipa = { workspace = true }
 
 # internal
-nym-crypto = { path = "../../crypto" }
+nym-crypto = { path = "../../crypto", features = ["asymmetric", "serde"] }
+
+[lints]
+workspace = true

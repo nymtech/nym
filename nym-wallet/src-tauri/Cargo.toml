@@ -15,9 +15,6 @@ rust-version = "1.85"
 [build-dependencies]
 tauri-build = { version = "2.1.1", features = [] }
 
-tauri-codegen = "=2.1.1"
-tauri-macros = "2.1.1"
-
 [dependencies]
 async-trait = "0.1.68"
 tauri-plugin-updater = "2.7.0"
@@ -77,5 +74,4 @@ ts-rs = "10.0.0"
 
 [features]
 default = ["custom-protocol"]
-custom-protocol = ["tauri/custom-protocol"]
 generate-ts = []

@@ -44,8 +44,6 @@ dependencies = [
  "tap",
  "tauri",
  "tauri-build",
- "tauri-codegen",
- "tauri-macros",
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-process",
  "tauri-plugin-shell",

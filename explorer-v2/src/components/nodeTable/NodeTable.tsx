@@ -71,6 +71,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const queryClient = useQueryClient();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isDarkMode = theme.palette.mode === "dark";
 
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
@@ -99,7 +100,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           { nodeId },
           fee,
           "Delegation from Nym Explorer V2",
-          uNymFunds,
+          uNymFunds
         );
         setSelectedNodeForStaking(undefined);
         setInfoModalProps({
@@ -128,7 +129,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient, handleRefetch],
+    [nymClient, handleRefetch]
   );
 
   const handleOnSelectStake = useCallback(
@@ -157,7 +158,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         identityKey: node.identity_key,
       });
     },
-    [isWalletConnected],
+    [isWalletConnected]
   );
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
@@ -302,7 +303,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableSorting: false,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites],
+    [isWalletConnected, handleOnSelectStake, favorites]
   );
   const table = useMaterialReactTable({
     columns,
@@ -337,25 +338,75 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     muiTablePaperProps: {
       elevation: 0,
+      sx: {
+        bgcolor: isDarkMode ? "#0F1720" : "background.paper",
+      },
     },
     muiTableHeadRowProps: {
       sx: {
-        bgcolor: "background.paper",
+        bgcolor: isDarkMode ? "#374042" : "background.paper",
       },
     },
     muiTableHeadCellProps: {
       sx: {
         alignItems: "center",
         paddingRight: 0,
+        color: isDarkMode ? "#FFFFFF" : "inherit",
       },
     },
-
+    muiSearchTextFieldProps: {
+      InputProps: {
+        style: {
+          color: isDarkMode ? "#475569" : "inherit",
+        },
+      },
+      sx: {
+        backgroundColor: isDarkMode ? "#374042" : "white",
+        "& .MuiOutlinedInput-root": {
+          color: isDarkMode ? "#475569" : "inherit",
+          backgroundColor: isDarkMode ? "#374042" : "white",
+        },
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#334155" : "inherit",
+        },
+        "&:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#475569" : "inherit",
+        },
+      },
+      variant: "outlined",
+      size: "small",
+    },
+    muiFilterTextFieldProps: {
+      InputProps: {
+        sx: {
+          color: isDarkMode ? "#FFFFFF" : "inherit",
+        },
+      },
+      sx: {
+        "& .MuiInputBase-root": {
+          backgroundColor: isDarkMode ? "#1C2A2E" : "white",
+        },
+        "& .MuiInputBase-input::placeholder": {
+          color: isDarkMode ? "#94A3B8" : "inherit",
+          opacity: 1,
+        },
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#334155" : "inherit",
+        },
+        "&:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#475569" : "inherit",
+        },
+      },
+      variant: "outlined",
+      size: "small",
+    },
     muiTableBodyCellProps: {
       sx: {
         border: "none",
-        whiteSpace: "unset", // Allow text wrapping in body cells
-        wordBreak: "break-word", // Ensure long text breaks correctly
+        whiteSpace: "unset",
+        wordBreak: "break-word",
         paddingRight: 0,
+        color: isDarkMode ? "#FFFFFF" : "inherit",
       },
     },
     muiTableBodyRowProps: ({ row }) => ({
@@ -364,11 +415,16 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
       hover: true,
       sx: {
-        ":nth-child(odd)": {
-          bgcolor: "#F3F7FB !important",
-        },
-        ":nth-child(even)": {
-          bgcolor: "white !important",
+        backgroundColor: isDarkMode
+          ? row.index % 2 === 0
+            ? "#3E4A4C !important"
+            : "#374042 !important"
+          : row.index % 2 === 0
+            ? "#F3F7FB"
+            : "white",
+        "&:hover": {
+          backgroundColor: `${isDarkMode ? "#2A3436" : "#E5E7EB"} !important`,
+          transition: "background-color 0.2s ease",
         },
         cursor: "pointer",
       },

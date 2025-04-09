@@ -14,6 +14,7 @@ const BlogArticlesCards = async ({
   limit?: number;
   ids?: Array<number>;
 }) => {
+  // --- Data Fetching ---
   const blogsDir = path.join(process.cwd(), "/src/data");
   const blogsDirFilenames = await fs.readdir(blogsDir);
 
@@ -27,20 +28,21 @@ const BlogArticlesCards = async ({
         ...blogArticle,
         link: `/onboarding/${filename.replace(".json", "")}`,
       };
-    }),
+    })
   );
+  // --- End Data Fetching ---
 
   const limitedOrFilteredBlogArticles = (
     blogArticles: BlogArticleWithLink[],
     limit?: number,
-    ids?: number[],
+    ids?: number[]
   ): BlogArticleWithLink[] => {
     let filteredArticles = blogArticles;
 
     // Filter by IDs if provided
     if (ids && ids.length > 0) {
       filteredArticles = filteredArticles.filter((article) =>
-        ids.includes(article.id),
+        ids.includes(article.id)
       );
     }
 
@@ -62,6 +64,9 @@ const BlogArticlesCards = async ({
       );
     })
     .map((blogArticle) => {
+      const iconLightSrc = icons[blogArticle.iconLight as IconName]?.src;
+      const iconDarkSrc = icons[blogArticle.iconDark as IconName]?.src;
+
       return (
         <Grid
           size={{
@@ -74,7 +79,8 @@ const BlogArticlesCards = async ({
             label={blogArticle.label}
             title={blogArticle.title}
             description={blogArticle.description}
-            icon={icons[blogArticle.icon as IconName]?.src}
+            iconLightSrc={iconLightSrc}
+            iconDarkSrc={iconDarkSrc ?? iconLightSrc}
             link={blogArticle.link || ""}
             sx={{ height: "100%" }}
           />

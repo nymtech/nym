@@ -1,16 +1,10 @@
-import { Divider, Stack, type SxProps, Typography } from "@mui/material";
-
-const listItemLabelStyle: SxProps = {
-  color: "pine.600",
-  letterSpacing: 0.7,
-  flexGrow: 1,
-};
-
-const listItemValueStyle: SxProps = {
-  fontSize: "small",
-  fontWeight: 300,
-  color: "pine.950",
-};
+import {
+  Divider,
+  Stack,
+  type SxProps,
+  Typography,
+  useTheme,
+} from "@mui/material";
 
 const ExplorerListItem = ({
   label,
@@ -23,6 +17,21 @@ const ExplorerListItem = ({
   row?: boolean;
   divider?: boolean;
 }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
+  const listItemLabelStyle: SxProps = {
+    color: isDarkMode ? "pine.300" : "pine.600",
+    letterSpacing: 0.7,
+    flexGrow: 1,
+  };
+
+  const listItemValueStyle: SxProps = {
+    fontSize: "small",
+    fontWeight: 300,
+    color: isDarkMode ? "base.white" : "pine.950",
+  };
+
   return (
     <>
       <Stack

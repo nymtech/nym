@@ -1,4 +1,5 @@
 "use client";
+import { useTheme } from "@mui/material";
 import { ResponsiveLine } from "@nivo/line";
 
 export interface ILineChartData {
@@ -25,6 +26,9 @@ export const LineChart = ({
   color: string;
   label: string;
 }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
   const chartData: ILineAxes = {
     id: label,
     data: data.map((item) => ({
@@ -83,7 +87,7 @@ export const LineChart = ({
           },
           ticks: {
             text: {
-              fill: "#818386",
+              fill: isDarkMode ? "white" : "#818386",
             },
           },
           legend: {

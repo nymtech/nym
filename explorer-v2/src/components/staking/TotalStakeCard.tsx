@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBalances } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
@@ -9,6 +9,8 @@ import ExplorerCard from "../cards/ExplorerCard";
 
 const TotalStakeCard = () => {
   const { address } = useNymClient();
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
 
   // Use React Query to fetch total stake
   const {
@@ -39,7 +41,10 @@ const TotalStakeCard = () => {
   if (isError) {
     return (
       <ExplorerCard label="Total Stake">
-        <Typography variant="h3" color="error">
+        <Typography
+          variant="h3"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load total stake.
         </Typography>
       </ExplorerCard>
@@ -50,7 +55,11 @@ const TotalStakeCard = () => {
     <ExplorerCard label="Total Stake">
       <Typography
         variant="h3"
-        sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+        sx={{
+          color: isDarkMode ? "base.white" : "pine.950",
+          wordWrap: "break-word",
+          maxWidth: "95%",
+        }}
       >
         {`${formatBigNum(totalStake / 1_000_000)} NYM`}
       </Typography>

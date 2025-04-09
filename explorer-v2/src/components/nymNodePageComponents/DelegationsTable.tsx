@@ -1,6 +1,6 @@
 "use client";
 
-import { Stack, Typography } from "@mui/material";
+import { Stack, Typography, useTheme } from "@mui/material";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -35,11 +35,9 @@ type Props = {
 
 const DelegationsTable = ({ id }: Props) => {
   const router = useRouter();
+  const theme = useTheme();
 
-  const {
-    data: delegations = [],
-    isError,
-  } = useQuery({
+  const { data: delegations = [], isError } = useQuery({
     queryKey: ["nodeDelegations", id],
     queryFn: () => fetchNodeDelegations(id),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -47,9 +45,6 @@ const DelegationsTable = ({ id }: Props) => {
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
-
-
-
 
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [
@@ -91,7 +86,7 @@ const DelegationsTable = ({ id }: Props) => {
         ),
       },
     ],
-    [],
+    []
   );
   const table = useMaterialReactTable({
     columns,
@@ -130,7 +125,10 @@ const DelegationsTable = ({ id }: Props) => {
     },
     muiTableHeadRowProps: {
       sx: {
-        bgcolor: "background.paper",
+        bgcolor:
+          theme.palette.mode === "dark"
+            ? "rgba(255, 255, 255, 0.05)"
+            : "background.paper",
       },
     },
 
@@ -146,12 +144,24 @@ const DelegationsTable = ({ id }: Props) => {
       hover: true,
       sx: {
         ":nth-child(odd)": {
-          bgcolor: "#F3F7FB !important",
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "rgba(255, 255, 255, 0.05) !important"
+              : "#F3F7FB !important",
         },
         ":nth-child(even)": {
-          bgcolor: "white !important",
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "transparent !important"
+              : "white !important",
         },
         cursor: "pointer",
+        "&:hover": {
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "rgba(255, 255, 255, 0.1) !important"
+              : "rgba(0, 0, 0, 0.04) !important",
+        },
       },
     }),
   });

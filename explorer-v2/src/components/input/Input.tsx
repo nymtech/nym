@@ -24,6 +24,15 @@ const Input = ({
       value={value}
       onChange={onChange}
       onKeyDown={onKeyDown}
+      sx={{
+        "& .MuiInputBase-input": {
+          color: "#575D63 !important",
+          "&::placeholder": {
+            color: "#575D63 !important",
+            opacity: "1 !important",
+          },
+        },
+      }}
       slotProps={{
         input: {
           sx: {

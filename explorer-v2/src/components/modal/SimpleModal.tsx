@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Dialog,
   DialogActions,
@@ -5,8 +7,10 @@ import {
   IconButton,
   Stack,
   Typography,
+  useTheme,
 } from "@mui/material";
 import Cross from "../../components/icons/Cross";
+import CrossDark from "../../components/icons/CrossDark";
 
 type SimpleModalPropsClosed = {
   open: false;
@@ -28,6 +32,7 @@ const SimpleModal = (props: SimpleModalProps) => {
   }
 
   const { title, children, Actions, onClose } = props;
+  const theme = useTheme();
 
   return (
     <Dialog open maxWidth="sm" fullWidth onClose={onClose}>
@@ -41,7 +46,7 @@ const SimpleModal = (props: SimpleModalProps) => {
           {title}
         </Typography>
         <IconButton aria-label="close" size="large" onClick={onClose}>
-          <Cross />
+          {theme.palette.mode === "dark" ? <CrossDark /> : <Cross />}
         </IconButton>
       </Stack>
       <DialogContent sx={{ p: 4, pt: 0 }}>{children}</DialogContent>

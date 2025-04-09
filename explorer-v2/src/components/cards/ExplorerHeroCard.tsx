@@ -1,10 +1,13 @@
+"use client";
 import {
+  Box,
   Card,
   CardContent,
   CardHeader,
   Stack,
   type SxProps,
   Typography,
+  useTheme,
 } from "@mui/material";
 import Image from "next/image";
 import ArrowUpRight from "../../components/icons/ArrowUpRight";
@@ -14,7 +17,7 @@ const cardStyles = {
   p: 3,
   cursor: "pointer",
   "&:hover": {
-    bgcolor: "accent.main",
+    // Hover style adjusted based on theme mode below
   },
 };
 const cardContentStyles = {
@@ -28,40 +31,71 @@ const ExplorerHeroCard = ({
   title,
   label,
   description,
-  icon,
+  iconLightSrc,
+  iconDarkSrc,
   link,
   sx,
 }: {
   title: string;
   label: string;
   description: string;
-  icon: string;
+  iconLightSrc: string;
+  iconDarkSrc: string;
   link: string;
   sx?: SxProps;
 }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
+  const dynamicCardStyles = {
+    ...cardStyles,
+    bgcolor: isDarkMode ? "pine.300" : "background.paper",
+    "&:hover": {
+      bgcolor: isDarkMode ? "pine.600" : "accent.main",
+    },
+    ...sx,
+  };
+
+  const dynamicTitleStyles = {
+    ...titleStyles,
+    color: isDarkMode ? "pine.950" : "inherit",
+  };
+
+  const dynamicDescriptionStyles = {
+    color: isDarkMode ? "pine.950" : "inherit",
+  };
+
+  const iconSrc = isDarkMode ? iconDarkSrc : iconLightSrc;
+
   return (
     <Link href={link} sx={{ textDecoration: "none", height: "100%" }}>
-      <Card sx={{ ...cardStyles, ...sx }} elevation={0}>
+      <Card sx={dynamicCardStyles} elevation={0}>
         <CardHeader
           title={
             <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body4" sx={titleStyles}>
+              <Typography variant="body4" sx={dynamicTitleStyles}>
                 {label}
               </Typography>
-              <ArrowUpRight />
+              <Box sx={{ color: isDarkMode ? "pine.950" : "inherit" }}>
+                <ArrowUpRight />
+              </Box>
             </Stack>
           }
         />
         <CardContent sx={cardContentStyles}>
           <Stack spacing={4}>
             <Image
-              src={icon}
+              src={iconSrc}
               alt={"explorer-blog-image"}
               width={84}
               height={84}
             />
-            <Typography variant="h2">{title}</Typography>
-            <Typography variant="body3">{description}</Typography>
+            <Typography variant="h2" sx={dynamicTitleStyles}>
+              {title}
+            </Typography>
+            <Typography variant="body3" sx={dynamicDescriptionStyles}>
+              {description}
+            </Typography>
           </Stack>
         </CardContent>
       </Card>

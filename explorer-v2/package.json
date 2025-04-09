@@ -19,6 +19,7 @@
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
     "@interchain-ui/react": "^1.26.1",
+    "@keplr-wallet/types": "^0.12.211",
     "@mui/icons-material": "^5.16.11",
     "@mui/material": "^6.1.10",
     "@mui/material-nextjs": "^6.1.9",

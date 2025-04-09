@@ -82,7 +82,7 @@ const ColumnHeading = ({
 const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const { nymClient, address, nymQueryClient } = useNymClient();
   const [delegations, setDelegations] = useState<DelegationWithNodeDetails[]>(
-    [],
+    []
   );
   const [isDataLoading, setIsLoading] = useState(false);
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -98,12 +98,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
+  const isDarkMode = theme.palette.mode === "dark";
   const router = useRouter();
-
   const queryClient = useQueryClient();
-
-  // Custom Hook for fetching pending events
 
   const handleRefetch = useCallback(async () => {
     await queryClient.invalidateQueries();
@@ -124,13 +121,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     const combineDelegationsWithNodeAndPendingEvents = (
       delegations: Delegation[],
       nodes: MappedNymNode[],
-      pendingEvents: PendingEvent[] | undefined,
+      pendingEvents: PendingEvent[] | undefined
     ) => {
       // Combine delegations with node details
       const delegationsWithNodeDetails = delegations.map((delegation) => {
         const node = nodes.find((node) => node.nodeId === delegation.node_id);
         const pendingEvent = pendingEvents?.find(
-          (event) => event?.mixId === delegation.node_id,
+          (event) => event?.mixId === delegation.node_id
         );
 
         return {
@@ -148,7 +145,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             !delegationsWithNodeDetails.find(
               (item) =>
                 item.node?.nodeId === e.mixId ||
-                item.delegation.node_id === e.mixId,
+                item.delegation.node_id === e.mixId
             )
           ) {
             delegationsWithNodeDetails.push({
@@ -188,7 +185,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         combineDelegationsWithNodeAndPendingEvents(
           delegations,
           nodes,
-          pendingEvents,
+          pendingEvents
         );
 
       setDelegations(delegationsWithNodeDetails);
@@ -209,7 +206,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           { nodeId },
           fee,
           "Delegation from Nym Explorer V2",
-          uNymFunds,
+          uNymFunds
         );
         setSelectedNodeForStaking(undefined);
 
@@ -238,7 +235,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient, handleRefetch],
+    [nymClient, handleRefetch]
   );
 
   const handleOnSelectStake = useCallback(
@@ -269,7 +266,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         });
       }
     },
-    [isWalletConnected],
+    [isWalletConnected]
   );
 
   const handleUnstake = useCallback(
@@ -284,7 +281,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             nodeId,
           },
           fee,
-          `Explorer V2: Unstaking node ${nodeId}`,
+          `Explorer V2: Unstaking node ${nodeId}`
         );
         setIsLoading(false);
         await handleRefetch();
@@ -309,7 +306,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         setIsLoading(false);
       }
     },
-    [address, nymClient, handleRefetch],
+    [address, nymClient, handleRefetch]
   );
 
   const handleActionSelect = useCallback(
@@ -325,7 +322,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           break;
       }
     },
-    [handleUnstake, handleOnSelectStake],
+    [handleUnstake, handleOnSelectStake]
   );
 
   const getTooltipTitle = useCallback(
@@ -336,13 +333,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
       if (pending?.kind === "delegate") {
         return `You have a delegation pending worth ${formatBigNum(
-          +pending.amount.amount / 1_000_000,
+          +pending.amount.amount / 1_000_000
         )} NYM`;
       }
 
       return undefined;
     },
-    [], // Add dependencies if necessary
+    [] // Add dependencies if necessary
   );
 
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
@@ -421,10 +418,10 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
         sortingFn: (rowA, rowB) => {
           const stakeA = Number.parseFloat(
-            rowA.original.delegation.amount.amount,
+            rowA.original.delegation.amount.amount
           );
           const stakeB = Number.parseFloat(
-            rowB.original.delegation.amount.amount,
+            rowB.original.delegation.amount.amount
           );
           return stakeA - stakeB;
         },
@@ -469,10 +466,10 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ),
         sortingFn: (rowA, rowB) => {
           const isFavoriteA = favorites.includes(
-            rowA.original.node?.owner || "-",
+            rowA.original.node?.owner || "-"
           );
           const isFavoriteB = favorites.includes(
-            rowB.original.node?.owner || "-",
+            rowB.original.node?.owner || "-"
           );
 
           // Sort favorites first
@@ -512,7 +509,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
                     handleActionSelect(
                       action,
                       row.original.delegation?.node_id,
-                      row.original.node?.identity_key || undefined,
+                      row.original.node?.identity_key || undefined
                     );
                   }}
                 />
@@ -522,7 +519,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         },
       },
     ],
-    [handleActionSelect, favorites, getTooltipTitle],
+    [handleActionSelect, favorites, getTooltipTitle]
   );
 
   const table = useMaterialReactTable({
@@ -563,41 +560,93 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         sx: {
           fontFamily: "labGrotesqueMono",
           fontSize: "14px",
+          color: isDarkMode ? "#FFFFFF" : "inherit",
         },
       },
       color: "primary",
       shape: "circular",
     },
-
     initialState: {
-      columnPinning: isMobile ? {} : { right: ["Action", "Favorite"] }, // No pinning on mobile
+      columnPinning: isMobile ? {} : { right: ["Action", "Favorite"] },
     },
 
     muiColumnActionsButtonProps: {
       sx: {
-        color: "red",
+        color: isDarkMode ? "#FFFFFF" : "inherit",
       },
       size: "small",
     },
     muiTablePaperProps: {
       elevation: 0,
-    },
-    muiTableHeadCellProps: {
       sx: {
-        alignItems: "center",
+        bgcolor: isDarkMode ? "#0F1720" : "background.paper",
       },
     },
     muiTableHeadRowProps: {
       sx: {
-        bgcolor: "background.paper",
+        bgcolor: isDarkMode ? "#374042" : "background.paper",
       },
     },
-
+    muiTableHeadCellProps: {
+      sx: {
+        alignItems: "center",
+        paddingRight: 0,
+        color: isDarkMode ? "#FFFFFF" : "inherit",
+      },
+    },
+    muiSearchTextFieldProps: {
+      InputProps: {
+        style: {
+          color: isDarkMode ? "#475569" : "inherit",
+        },
+      },
+      sx: {
+        backgroundColor: isDarkMode ? "#374042" : "white",
+        "& .MuiOutlinedInput-root": {
+          color: isDarkMode ? "#475569" : "inherit",
+          backgroundColor: isDarkMode ? "#374042" : "white",
+        },
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#334155" : "inherit",
+        },
+        "&:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#475569" : "inherit",
+        },
+      },
+      variant: "outlined",
+      size: "small",
+    },
+    muiFilterTextFieldProps: {
+      InputProps: {
+        sx: {
+          color: isDarkMode ? "#FFFFFF" : "inherit",
+        },
+      },
+      sx: {
+        "& .MuiInputBase-root": {
+          backgroundColor: isDarkMode ? "#1C2A2E" : "white",
+        },
+        "& .MuiInputBase-input::placeholder": {
+          color: isDarkMode ? "#94A3B8" : "inherit",
+          opacity: 1,
+        },
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#334155" : "inherit",
+        },
+        "&:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDarkMode ? "#475569" : "inherit",
+        },
+      },
+      variant: "outlined",
+      size: "small",
+    },
     muiTableBodyCellProps: {
       sx: {
         border: "none",
-        whiteSpace: "unset", // Allow text wrapping in body cells
+        whiteSpace: "unset",
         wordBreak: "break-word",
+        paddingRight: 0,
+        color: isDarkMode ? "#FFFFFF" : "inherit",
       },
     },
     muiTableBodyRowProps: ({ row }) => ({
@@ -606,15 +655,42 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
       hover: true,
       sx: {
-        ":nth-child(odd)": {
-          bgcolor: "#F3F7FB !important",
-        },
-        ":nth-child(even)": {
-          bgcolor: "white !important",
+        backgroundColor: isDarkMode
+          ? row.index % 2 === 0
+            ? "#3E4A4C !important"
+            : "#374042 !important"
+          : row.index % 2 === 0
+            ? "#F3F7FB"
+            : "white",
+        "&:hover": {
+          backgroundColor: `${isDarkMode ? "#2A3436" : "#E5E7EB"} !important`,
+          transition: "background-color 0.2s ease",
         },
         cursor: "pointer",
       },
     }),
+    renderEmptyRowsFallback: () => (
+      <Stack
+        gap={3}
+        sx={{ p: 5 }}
+        justifyContent={isMobile ? "flex-start" : "center"}
+        alignItems={isMobile ? "flex-start" : "center"}
+      >
+        <Typography variant="body3" width={isMobile ? 300 : "unset"}>
+          You haven&apos;t staked on any nodes yet. Stake on a node to start
+          earning rewards.
+        </Typography>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Link href="/table" underline="none" color="inherit">
+            Stake
+          </Link>
+        </Button>
+      </Stack>
+    ),
   });
 
   if (!nymClient || !address) {
@@ -644,3 +720,4 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 };
 
 export default StakeTable;
+

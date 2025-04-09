@@ -1,6 +1,6 @@
 "use client";
 import { fetchNoise } from "@/app/api";
-import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
@@ -8,6 +8,8 @@ import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 
 export const NetworkStakeCard = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   const {
     data: packetsAndStaking,
     isLoading: isStakingLoading,
@@ -34,7 +36,13 @@ export const NetworkStakeCard = () => {
   if (isStakingError || !packetsAndStaking) {
     return (
       <ExplorerCard label="Current network stake">
-        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            color: isDarkMode ? "base.white" : "pine.950",
+            letterSpacing: 0.7,
+          }}
+        >
           Failed to load data
         </Typography>
         <Skeleton variant="text" height={238} />
@@ -48,7 +56,6 @@ export const NetworkStakeCard = () => {
   const lastTotalStake =
     packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1_000_000;
 
-
   const startDate = new Date("2025-02-26").getTime(); // Convert to timestamp
 
   const data = packetsAndStakingData
@@ -60,9 +67,8 @@ export const NetworkStakeCard = () => {
     .map((item: IPacketsAndStakingData) => ({
       date_utc: item.date_utc,
       numericData: item.total_stake / 1000000,
-    })).filter((item) => item.numericData >= 50_000_000)
-
-
+    }))
+    .filter((item) => item.numericData >= 50_000_000);
 
   const stakeLineGraphData = {
     color: "#00CA33",
@@ -77,7 +83,11 @@ export const NetworkStakeCard = () => {
       <Stack>
         <Typography
           variant="h3"
-          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+          sx={{
+            color: isDarkMode ? "base.white" : "pine.950",
+            wordWrap: "break-word",
+            maxWidth: "95%",
+          }}
         >
           {title}
         </Typography>

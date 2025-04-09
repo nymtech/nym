@@ -1,7 +1,14 @@
 "use client";
 
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Skeleton,
+  Stack,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
@@ -24,7 +31,8 @@ type Props = {
 };
 
 export const NodeProfileCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined
+  let nodeInfo: IObservatoryNode | undefined;
+  const theme = useTheme();
 
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { nymClient } = useNymClient();
@@ -51,13 +59,10 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     refetchOnMount: false,
   });
 
-
-
-  // get node info based on wether it's dentity_key or node_id 
+  // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
     nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
-
   } else {
     nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
   }
@@ -103,13 +108,17 @@ export const NodeProfileCard = ({ paramId }: Props) => {
   if (isError || !nymNodes) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
+        <Typography
+          variant="h3"
+          sx={{
+            color: theme.palette.mode === "dark" ? "base.white" : "pine.950",
+          }}
+        >
           Failed to load node data.
         </Typography>
       </ExplorerCard>
     );
   }
-
 
   const handleStakeOnNode = async ({
     nodeId,
@@ -128,7 +137,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
         { nodeId },
         fee,
         "Delegation from Nym Explorer V2",
-        uNymFunds,
+        uNymFunds
       );
       setSelectedNodeForStaking(undefined);
       setInfoModalProps({
@@ -153,16 +162,14 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     setIsLoading(false);
   };
 
-
-
   if (!nodeInfo) return null;
 
   const cleanMoniker = DOMPurify.sanitize(
-    nodeInfo?.self_description.moniker,
+    nodeInfo?.self_description.moniker
   ).replace(/&amp;/g, "&");
 
   const cleanDescription = DOMPurify.sanitize(
-    nodeInfo?.self_description.details,
+    nodeInfo?.self_description.details
   ).replace(/&amp;/g, "&");
 
   // get full country name
@@ -182,26 +189,43 @@ export const NodeProfileCard = ({ paramId }: Props) => {
           variant="h3"
           mt={3}
           mb={1}
-          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+          sx={{
+            color: theme.palette.mode === "dark" ? "base.white" : "pine.950",
+            wordWrap: "break-word",
+            maxWidth: "95%",
+          }}
         >
           {cleanMoniker || "Moniker"}
         </Typography>
         {nodeInfo.description.auxiliary_details.location && (
           <Box display={"flex"} gap={1}>
-            <Typography variant="h6">Location:</Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: theme.palette.mode === "dark" ? "base.white" : "inherit",
+              }}
+            >
+              Location:
+            </Typography>
 
             <Box>
               <CountryFlag
                 countryCode={nodeInfo.description.auxiliary_details.location}
                 countryName={countryName(
-                  nodeInfo.description.auxiliary_details.location,
+                  nodeInfo.description.auxiliary_details.location
                 )}
               />
             </Box>
           </Box>
         )}
         {nodeInfo && (
-          <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>
+          <Typography
+            variant="body4"
+            sx={{
+              color: theme.palette.mode === "dark" ? "base.white" : "pine.950",
+            }}
+            mt={2}
+          >
             {cleanDescription}
           </Typography>
         )}

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="15"
+  height="15"
+  viewBox="0 0 15 15"
+  fill="none"
+>
+  <g clip-path="url(#clip0_8428_65000)">
+    <rect
+      y="3"
+      width="3"
+      height="3"
+      transform="rotate(-90 0 3)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      y="15"
+      width="3"
+      height="3"
+      transform="rotate(-90 0 15)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="12"
+      y="3"
+      width="3"
+      height="3"
+      transform="rotate(-90 12 3)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="9"
+      y="12"
+      width="3"
+      height="3"
+      transform="rotate(-90 9 12)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="12"
+      y="15"
+      width="3"
+      height="3"
+      transform="rotate(-90 12 15)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="3"
+      y="6"
+      width="3"
+      height="3"
+      transform="rotate(-90 3 6)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="3"
+      y="12"
+      width="3"
+      height="3"
+      transform="rotate(-90 3 12)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+    <rect
+      x="9"
+      y="6"
+      width="3"
+      height="3"
+      transform="rotate(-90 9 6)"
+      fill="#FFFFFF"
+      style="
+        fill: #FFFFFF;
+        fill: color(display-p3 1 1 1);
+        fill-opacity: 1;
+      "
+    />
+  </g>
+  <defs>
+    <clipPath id="clip0_8428_65000">
+      <rect width="15" height="15" fill="white" />
+    </clipPath>
+  </defs>
+</svg>

@@ -6,7 +6,7 @@ import SectionHeading from "../components/headings/SectionHeading";
 import { CurrentEpochCard } from "../components/landingPageComponents/CurrentEpochCard";
 import { NetworkStakeCard } from "../components/landingPageComponents/NetworkStakeCard";
 import { NoiseCard } from "../components/landingPageComponents/NoiseCard";
-import { RewardsCard } from "../components/landingPageComponents/StakersNumberCard";
+import { StakersNumberCard } from "../components/landingPageComponents/StakersNumberCard";
 import { TokenomicsCard } from "../components/landingPageComponents/TokenomicsCard";
 import NodeTable from "../components/nodeTable/NodeTableWithAction";
 import NodeAndAddressSearch from "../components/search/NodeAndAddressSearch";
@@ -31,7 +31,7 @@ export default async function Home() {
           size={{ xs: 12, sm: 6, lg: 3 }}
         >
           <Grid size={12}>
-            <RewardsCard />
+            <StakersNumberCard />
           </Grid>
           <Grid size={12}>
             <CurrentEpochCard />

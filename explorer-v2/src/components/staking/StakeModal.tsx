@@ -99,6 +99,17 @@ const StakeModal = ({
             initialValue={identityKey}
             readOnly
             showTickOnValid={false}
+            sx={{
+              "& .MuiInputBase-input": {
+                color: "rgba(0, 0, 0, 0.87)",
+                "&::placeholder": {
+                  color: "rgba(0, 0, 0, 0.54)",
+                },
+              },
+              "& .Mui-disabled": {
+                color: "rgba(0, 0, 0, 0.38)",
+              },
+            }}
           />
         </Stack>
         <Stack spacing={0.5}>
@@ -113,6 +124,17 @@ const StakeModal = ({
             onChanged={setAmount}
             denom={"nym"}
             validationError={errorAmount}
+            sx={{
+              "& .MuiInputBase-input": {
+                color: "rgba(0, 0, 0, 0.87)",
+                "&::placeholder": {
+                  color: "rgba(0, 0, 0, 0.54)",
+                },
+              },
+              "& .Mui-disabled": {
+                color: "rgba(0, 0, 0, 0.38)",
+              },
+            }}
           />
         </Stack>
         <ExplorerListItem row label="Account balance" value={balance} divider />

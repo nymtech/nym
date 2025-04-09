@@ -30,7 +30,6 @@ const getStartEndTime = (start: string, end: string) => {
 
 export const CurrentEpochCard = () => {
   const { data, isError, isLoading, epochStatus } = useEpochContext();
-
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [progress, setProgress] = useState(0);
@@ -38,7 +37,7 @@ export const CurrentEpochCard = () => {
   const updateState = useCallback((data: NonNullable<EpochResponseData>) => {
     const { startTime, endTime } = getStartEndTime(
       data.current_epoch_start,
-      data.current_epoch_end,
+      data.current_epoch_end
     );
     const progress = calulateProgress(data.current_epoch_end);
 

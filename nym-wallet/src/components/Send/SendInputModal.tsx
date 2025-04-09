@@ -5,7 +5,8 @@ import { CurrencyDenom, DecCoin, isValidRawCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
-import { TextFieldWithPaste, CurrencyFormFieldWithPaste } from '../Clipboard/ClipboardFormFields';
+import { TextFieldWithPaste } from '../Clipboard/ClipboardFormFields';
+import { CurrencyFormFieldWithPaste } from '../CurrencyFormFieldWithPaste';
 
 const maxUserFees = '10.0';
 const minUserFees = '0.000001'; // aka 1 unym

@@ -3,14 +3,14 @@ import { TextField, InputAdornment, Box, TextFieldProps } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { UseFormRegister, UseFormSetValue, FieldValues, Path, FieldErrors } from 'react-hook-form';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 import { PasteFromClipboard } from './ClipboardActions';
 
-export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>) => {
+export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>, onPasteValue?: (value: string) => void) => {
   useEffect(() => {
     if (!inputRef.current) return undefined;
 
-    const handleKeyDown = (e: Event) => {
+    const handleKeyDown = async (e: Event) => {
       const keyEvent = e as KeyboardEvent;
 
       if (document.activeElement !== inputRef.current) return;
@@ -41,6 +41,20 @@ export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElem
           }
         }
       }
+
+      // Handle Cmd+V or Ctrl+V (Paste)
+      if ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key === 'v' && onPasteValue) {
+        try {
+          keyEvent.preventDefault();
+          const clipboardText = await readText();
+          if (clipboardText) {
+            onPasteValue(clipboardText);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to paste text:', err);
+        }
+      }
     };
 
     const input = inputRef.current;
@@ -51,7 +65,7 @@ export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElem
         input.removeEventListener('keydown', handleKeyDown);
       }
     };
-  }, [inputRef.current]);
+  }, [inputRef.current, onPasteValue]);
 };
 
 export const TextFieldWithPaste = React.forwardRef<
@@ -62,7 +76,7 @@ export const TextFieldWithPaste = React.forwardRef<
 >(({ onPasteValue, ...props }, ref) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useCopyAllSupport(inputRef);
+  useCopyAllSupport(inputRef, onPasteValue);
 
   const handlePaste = (pastedText: string) => {
     onPasteValue?.(pastedText);
@@ -117,11 +131,38 @@ export const CurrencyFormFieldWithPaste = ({
   const fieldRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Enable copy-all support for this field
+  // Process pasted text to clean the value
+  const processPastedText = (pastedText: string) => {
+    if (!pastedText) return;
+
+    let cleanedValue = pastedText.trim();
+
+    // Remove non-numeric characters except decimal point
+    cleanedValue = cleanedValue.replace(/[^\d.]/g, '');
+
+    // Ensure only one decimal point
+    const parts = cleanedValue.split('.');
+    if (parts.length > 2) {
+      cleanedValue = `${parts[0]}.${parts.slice(1).join('')}`;
+    }
+
+    const decCoin: DecCoin = {
+      amount: cleanedValue,
+      denom: denom as any,
+    };
+
+    onChanged(decCoin);
+
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Modified to pass the processPastedText function to useCopyAllSupport
   useEffect(() => {
     if (!inputRef.current) return undefined;
 
-    const handleKeyDown = (e: Event) => {
+    const handleKeyDown = async (e: Event) => {
       const keyEvent = e as KeyboardEvent;
       if (document.activeElement !== inputRef.current) return;
 
@@ -149,6 +190,20 @@ export const CurrencyFormFieldWithPaste = ({
           }
         }
       }
+
+      // Handle Cmd+V (Paste)
+      if ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key === 'v') {
+        try {
+          keyEvent.preventDefault();
+          const clipboardText = await readText();
+          if (clipboardText) {
+            processPastedText(clipboardText);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to paste text:', err);
+        }
+      }
     };
 
     const input = inputRef.current;
@@ -161,44 +216,17 @@ export const CurrencyFormFieldWithPaste = ({
         input.removeEventListener('keydown', handleKeyDown);
       }
     };
-  }, [inputRef.current]);
+  }, [inputRef.current, denom, onChanged]);
 
-  const handlePaste = (pastedText: string) => {
-    if (!pastedText) return;
-
-    let cleanedValue = pastedText.trim();
-
-    cleanedValue = cleanedValue.replace(/[^\d.]/g, '');
-
-    const parts = cleanedValue.split('.');
-    if (parts.length > 2) {
-      cleanedValue = `${parts[0]}.${parts.slice(1).join('')}`;
-    }
-
-    const decCoin: DecCoin = {
-      amount: cleanedValue,
-      denom: denom as any,
-    };
-
-    onChanged(decCoin);
-
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
+  // Find the input element
   useEffect(() => {
-    // Function to find the input element
     const findInputElement = () => {
       if (fieldRef.current) {
         inputRef.current = fieldRef.current.querySelector('input');
       }
     };
 
-    // Try immediately after mount
     findInputElement();
-
-    // Also try after a short delay to ensure component has fully rendered
     const timeoutId = setTimeout(findInputElement, 100);
 
     return () => clearTimeout(timeoutId);
@@ -225,7 +253,7 @@ export const CurrencyFormFieldWithPaste = ({
           zIndex: 1,
         }}
       >
-        <PasteFromClipboard onPaste={handlePaste} fieldRef={inputRef} />
+        <PasteFromClipboard onPaste={processPastedText} fieldRef={inputRef} />
       </Box>
     </Box>
   );
@@ -253,8 +281,6 @@ export const HookFormTextFieldWithPaste = <TFieldValues extends FieldValues>({
 } & Omit<TextFieldProps, 'name' | 'label'>) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useCopyAllSupport(inputRef);
-
   const handlePaste = (pastedText: string) => {
     setValue(name, pastedText as any, { shouldValidate: true });
 
@@ -262,6 +288,9 @@ export const HookFormTextFieldWithPaste = <TFieldValues extends FieldValues>({
       inputRef.current.focus();
     }
   };
+
+  // Pass handlePaste to useCopyAllSupport for Cmd+V handling
+  useCopyAllSupport(inputRef, handlePaste);
 
   return (
     <TextField
@@ -303,11 +332,31 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
   const fieldRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Enable copy-all support for this field
+  // Handle pasting with number formatting
+  const handlePaste = (pastedText: string) => {
+    if (!pastedText) return;
+
+    let cleanedValue = pastedText.trim();
+
+    cleanedValue = cleanedValue.replace(/[^\d.]/g, '');
+
+    const parts = cleanedValue.split('.');
+    if (parts.length > 2) {
+      cleanedValue = `${parts[0]}.${parts.slice(1).join('')}`;
+    }
+
+    setValue(`${String(name)}.amount` as Path<TFieldValues>, cleanedValue as any, { shouldValidate: true });
+
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Enable copy-all support for this field with Cmd+V handling
   useEffect(() => {
     if (!inputRef.current) return undefined;
 
-    const handleKeyDown = (e: Event) => {
+    const handleKeyDown = async (e: Event) => {
       const keyEvent = e as KeyboardEvent;
       if (document.activeElement !== inputRef.current) return;
 
@@ -335,6 +384,20 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
           }
         }
       }
+
+      // Handle Cmd+V (Paste)
+      if ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key === 'v') {
+        try {
+          keyEvent.preventDefault();
+          const clipboardText = await readText();
+          if (clipboardText) {
+            handlePaste(clipboardText);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to paste text:', err);
+        }
+      }
     };
 
     const input = inputRef.current;
@@ -347,27 +410,7 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
         input.removeEventListener('keydown', handleKeyDown);
       }
     };
-  }, [inputRef.current]);
-
-  // Handle pasting with number formatting
-  const handlePaste = (pastedText: string) => {
-    if (!pastedText) return;
-
-    let cleanedValue = pastedText.trim();
-
-    cleanedValue = cleanedValue.replace(/[^\d.]/g, '');
-
-    const parts = cleanedValue.split('.');
-    if (parts.length > 2) {
-      cleanedValue = `${parts[0]}.${parts.slice(1).join('')}`;
-    }
-
-    setValue(`${String(name)}.amount` as Path<TFieldValues>, cleanedValue as any, { shouldValidate: true });
-
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
+  }, [inputRef.current, name, setValue]);
 
   useEffect(() => {
     const findInputElement = () => {

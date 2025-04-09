@@ -109,6 +109,15 @@ pub struct TrafficWasmOverride {
     #[tsify(optional)]
     pub use_extended_packet_size: Option<bool>,
 
+    /// Specify whether any constructed sphinx packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    /// this affects any forward packets, acks and reply surbs
+    /// this flag should remain disabled until sufficient number of nodes on the network has upgraded
+    /// and support updated format.
+    /// in the case of reply surbs, the recipient must also understand the new encoding
+    #[tsify(optional)]
+    pub use_legacy_sphinx_format: Option<bool>,
+
     /// Controls whether the sent packets should use outfox as opposed to the default sphinx.
     #[tsify(optional)]
     pub use_outfox: Option<bool>,
@@ -132,6 +141,9 @@ impl From<TrafficWasmOverride> for TrafficWasm {
             disable_main_poisson_packet_distribution: value
                 .disable_main_poisson_packet_distribution
                 .unwrap_or(def.disable_main_poisson_packet_distribution),
+            use_legacy_sphinx_format: value
+                .use_legacy_sphinx_format
+                .unwrap_or(def.use_legacy_sphinx_format),
             use_extended_packet_size: value
                 .use_extended_packet_size
                 .unwrap_or(def.use_extended_packet_size),

@@ -43,48 +43,48 @@ export const CurrencyFormFieldWithPaste = ({
     };
 
     onChanged(decCoin);
-    
+
     if (inputRef.current) {
       inputRef.current.value = cleanedValue;
-      
+
       const inputEvent = new Event('input', { bubbles: true });
       inputRef.current.dispatchEvent(inputEvent);
-      
+
       const changeEvent = new Event('change', { bubbles: true });
       inputRef.current.dispatchEvent(changeEvent);
-      
+
       inputRef.current.focus();
     }
   };
 
   useEffect(() => {
+    const pasteEventHandler = (e: ClipboardEvent) => {
+      e.preventDefault();
+
+      const { clipboardData } = e;
+      if (!clipboardData) return;
+
+      const pastedText = clipboardData.getData('text');
+      if (!pastedText) return;
+
+      processPastedText(pastedText);
+    };
+
     const findInputElement = () => {
       if (fieldRef.current) {
         const input = fieldRef.current.querySelector('input');
         if (input) {
           inputRef.current = input;
-          
+
           // Set up paste event handler
           input.addEventListener('paste', pasteEventHandler as EventListener);
         }
       }
     };
 
-    const pasteEventHandler = (e: ClipboardEvent) => {
-      e.preventDefault();
-      
-      const clipboardData = e.clipboardData;
-      if (!clipboardData) return;
-      
-      const pastedText = clipboardData.getData('text');
-      if (!pastedText) return;
-      
-      processPastedText(pastedText);
-    };
-
     findInputElement();
     const timeoutId = setTimeout(findInputElement, 200);
-    
+
     return () => {
       clearTimeout(timeoutId);
       if (inputRef.current) {
@@ -98,7 +98,7 @@ export const CurrencyFormFieldWithPaste = ({
       if (inputRef.current && document.activeElement === inputRef.current) {
         if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
           e.preventDefault();
-          
+
           try {
             const clipboardText = await navigator.clipboard.readText();
             if (clipboardText) {
@@ -112,7 +112,7 @@ export const CurrencyFormFieldWithPaste = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };

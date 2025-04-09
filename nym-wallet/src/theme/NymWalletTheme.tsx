@@ -10,15 +10,18 @@ let interFontLink: HTMLLinkElement | null = null;
 const FontLoader = () => {
   useEffect(() => {
     // Skip if already initialized
-    if (fontsInitialized === true) { return; }
-    
+    if (fontsInitialized === true) {
+      return;
+    }
+
     fontsInitialized = true;
-    
+
     interFontLink = document.createElement('link');
     interFontLink.rel = 'stylesheet';
     interFontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
     document.head.appendChild(interFontLink);
 
+    // eslint-disable-next-line consistent-return
     return () => {
       // Only clean up if the component is truly being unmounted
       if (interFontLink && document.head.contains(interFontLink)) {

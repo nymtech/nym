@@ -69,7 +69,7 @@ export const SendInputModal = ({
   const [addressIsValid, setAddressIsValid] = useState(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [errorFee, setErrorFee] = useState<string | undefined>();
-  
+
   // Calculate noAccount at the component root level instead of using useEffect
   const noAccount = !balance || balance === '0' || parseFloat(balance) === 0;
 

@@ -20,9 +20,7 @@ export const PendingDelegationItem = ({ item, explorerUrl }: { item: WrappedDele
     <TableCell>-</TableCell>
     <TableCell>-</TableCell>
     <TableCell>
-      <Box sx={{ textAlign: 'left' }}>
-        {item.event.amount?.amount} NYM
-      </Box>
+      <Box sx={{ textAlign: 'left' }}>{item.event.amount?.amount} NYM</Box>
     </TableCell>
     <TableCell>-</TableCell>
     <TableCell sx={{ textAlign: 'center' }}>
@@ -30,18 +28,17 @@ export const PendingDelegationItem = ({ item, explorerUrl }: { item: WrappedDele
         <Tooltip
           title={
             <div style={{ textAlign: 'center', width: '100%' }}>
-              Your delegation of {item.event.amount?.amount} {item.event.amount?.denom} will take effect 
-              when the new epoch starts. There is a new
-              epoch every hour.
+              Your delegation of {item.event.amount?.amount} {item.event.amount?.denom} will take effect when the new
+              epoch starts. There is a new epoch every hour.
             </div>
           }
           arrow
           PopperProps={{
             sx: {
               '& .MuiTooltip-tooltip': {
-                textAlign: 'center'
-              }
-            }
+                textAlign: 'center',
+              },
+            },
           }}
         >
           <Chip label="Pending Events" />

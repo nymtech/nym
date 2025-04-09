@@ -6,7 +6,10 @@ import { UseFormRegister, UseFormSetValue, FieldValues, Path, FieldErrors } from
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 import { PasteFromClipboard } from './ClipboardActions';
 
-export const useCopyAllSupport = (inputRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>, onPasteValue?: (value: string) => void) => {
+export const useCopyAllSupport = (
+  inputRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>,
+  onPasteValue?: (value: string) => void,
+) => {
   useEffect(() => {
     if (!inputRef.current) return undefined;
 

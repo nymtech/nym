@@ -47,8 +47,7 @@ const shouldBeFiltered = (item: any): boolean => {
   // For pending delegations, keep "Delegate" events but filter out "Undelegate" events with empty node_identity
   if (isPendingDelegation(item)) {
     // If it's an undelegate event with empty node_identity, filter it out
-    if ((!item.node_identity || item.node_identity === '') &&
-      item.event && item.event.kind === 'Undelegate') {
+    if ((!item.node_identity || item.node_identity === '') && item.event && item.event.kind === 'Undelegate') {
       return true;
     }
 
@@ -112,7 +111,7 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
               minWidth: headCell.id === 'node_identity' ? '120px' : '80px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              textOverflow: 'ellipsis',
             }}
           >
             <TableSortLabel
@@ -138,10 +137,12 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
             maxWidth: '120px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            textAlign: 'center'
+            textAlign: 'center',
           }}
         >
-          <Typography noWrap align="center">Actions</Typography>
+          <Typography noWrap align="center">
+            Actions
+          </Typography>
         </TableCell>
       </TableRow>
     </TableHead>
@@ -182,7 +183,7 @@ export const DelegationList: FCWithChildren<{
   // Filter out empty placeholder rows
   const filteredItems = React.useMemo(() => {
     if (!sorted) return [];
-    return sorted.filter(item => !shouldBeFiltered(item));
+    return sorted.filter((item) => !shouldBeFiltered(item));
   }, [sorted]);
 
   // Check if any delegations have pruning errors
@@ -223,14 +224,16 @@ export const DelegationList: FCWithChildren<{
       )}
 
       {/* Add horizontal scrolling to the table container */}
-      <TableContainer sx={{
-        width: '100%',
-        overflowX: 'auto',
-        '& .MuiTable-root': {
-          tableLayout: 'fixed',
-          minWidth: 650
-        }
-      }}>
+      <TableContainer
+        sx={{
+          width: '100%',
+          overflowX: 'auto',
+          '& .MuiTable-root': {
+            tableLayout: 'fixed',
+            minWidth: 650,
+          },
+        }}
+      >
         {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
         <ErrorModal
           open={Boolean(delegationItemErrors)}
@@ -245,41 +248,49 @@ export const DelegationList: FCWithChildren<{
           <TableBody>
             {filteredItems?.length
               ? filteredItems.map((item: any, _index: number) => {
-                if (isPendingDelegation(item)) {
-                  const pendingKey = `pending-${item.event.mix_id}-${item.event.address}-${Date.now()}-${Math.random()}`;
+                  if (isPendingDelegation(item)) {
+                    const pendingKey = `pending-${item.event.mix_id}-${
+                      item.event.address
+                    }-${Date.now()}-${Math.random()}`;
 
-                  if (item.event && item.event.kind === 'Delegate' && (!item.node_identity || item.node_identity === '')) {
-                    return <PendingDelegationItem
-                      key={pendingKey}
-                      item={{
-                        ...item,
-                        node_identity: `Mix Identity Key ${item.event.mix_id}`
-                      }}
-                      explorerUrl={explorerUrl}
-                    />;
+                    if (
+                      item.event &&
+                      item.event.kind === 'Delegate' &&
+                      (!item.node_identity || item.node_identity === '')
+                    ) {
+                      return (
+                        <PendingDelegationItem
+                          key={pendingKey}
+                          item={{
+                            ...item,
+                            node_identity: `Mix Identity Key ${item.event.mix_id}`,
+                          }}
+                          explorerUrl={explorerUrl}
+                        />
+                      );
+                    }
+
+                    return <PendingDelegationItem key={pendingKey} item={item} explorerUrl={explorerUrl} />;
                   }
 
-                  return <PendingDelegationItem key={pendingKey} item={item} explorerUrl={explorerUrl} />;
-                }
+                  if (isDelegation(item)) {
+                    if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
+                      return null;
+                    }
 
-                if (isDelegation(item)) {
-                  if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
-                    return null;
+                    return (
+                      <DelegationItem
+                        key={`delegation-${item.mix_id}`}
+                        item={item}
+                        explorerUrl={explorerUrl}
+                        nodeIsUnbonded={Boolean(!item.node_identity)}
+                        onItemActionClick={onItemActionClick}
+                      />
+                    );
                   }
 
-                  return (
-                    <DelegationItem
-                      key={`delegation-${item.mix_id}`}
-                      item={item}
-                      explorerUrl={explorerUrl}
-                      nodeIsUnbonded={Boolean(!item.node_identity)}
-                      onItemActionClick={onItemActionClick}
-                    />
-                  );
-                }
-
-                return null;
-              })
+                  return null;
+                })
               : null}
           </TableBody>
         </Table>

@@ -131,16 +131,17 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
           </TableCell>
         ))}
         <TableCell
+          align="center"
           sx={{
             width: '10%',
             minWidth: '100px',
             maxWidth: '120px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            textOverflow: 'ellipsis'
+            textAlign: 'center'
           }}
         >
-          <Typography noWrap>Pending Events</Typography>
+          <Typography noWrap align="center">Actions</Typography>
         </TableCell>
       </TableRow>
     </TableHead>

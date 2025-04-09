@@ -4,18 +4,28 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { getDesignTokens } from './theme';
 import '@assets/fonts/non-variable/fonts.css';
 
-// Component that applies the Inter font for better typography
+let fontsInitialized = false;
+let interFontLink: HTMLLinkElement | null = null;
+
 const FontLoader = () => {
   useEffect(() => {
-    // Add Inter font for modern typography
-    const interFontLink = document.createElement('link');
+    // Skip if already initialized
+    if (fontsInitialized === true) { return; }
+    
+    fontsInitialized = true;
+    
+    interFontLink = document.createElement('link');
     interFontLink.rel = 'stylesheet';
     interFontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
     document.head.appendChild(interFontLink);
 
     return () => {
-      // Clean up
-      document.head.removeChild(interFontLink);
+      // Only clean up if the component is truly being unmounted
+      if (interFontLink && document.head.contains(interFontLink)) {
+        document.head.removeChild(interFontLink);
+        interFontLink = null;
+        fontsInitialized = false;
+      }
     };
   }, []);
 

@@ -21,6 +21,7 @@ tauri-plugin-updater = "2.7.0"
 tauri-plugin-clipboard-manager = "2.0.0"
 tauri-plugin-shell = "2.2.1"
 tauri-plugin-process = "2.2.1"
+tauri-plugin-opener = "2.2.6"
 bip39 = { version = "2.0.0", features = ["zeroize", "rand"] }
 cfg-if = "1.0.0"
 colored = "2.0"
@@ -74,4 +75,5 @@ ts-rs = "10.0.0"
 
 [features]
 default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
 generate-ts = []

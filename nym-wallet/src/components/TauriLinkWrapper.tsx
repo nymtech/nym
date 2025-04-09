@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, LinkProps } from '@nymproject/react/link/Link';
-import { openInBrowser } from '../utils/shellHelper';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 export const TauriLink: React.FC<LinkProps & any> = (props) => {
   const { href, onClick, ...restProps } = props;
@@ -13,7 +13,7 @@ export const TauriLink: React.FC<LinkProps & any> = (props) => {
     if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
       event.preventDefault();
       console.log('Opening link in browser:', href);
-      await openInBrowser(href);
+      await openUrl(href);
     }
   };
 

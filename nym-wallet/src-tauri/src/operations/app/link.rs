@@ -1,22 +1,11 @@
-use std::process::Command;
+use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
-pub async fn open_url(url: String) -> Result<(), String> {
+pub async fn open_url(url: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     println!("Opening URL: {}", url);
-
-    let status = match std::env::consts::OS {
-        "macos" => Command::new("open").arg(&url).status(),
-        "windows" => Command::new("cmd").args(["/c", "start", &url]).status(),
-        "linux" => Command::new("xdg-open").arg(&url).status(),
-        os => return Err(format!("Unsupported OS: {}", os)),
-    };
-
-    match status {
-        Ok(exit_status) if exit_status.success() => Ok(()),
-        Ok(exit_status) => Err(format!(
-            "Command failed with exit code: {:?}",
-            exit_status.code()
-        )),
-        Err(err) => Err(format!("Failed to execute command: {}", err)),
+    
+    match app_handle.opener().open_url(&url, None::<&str>) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(format!("Failed to open URL: {}", err))
     }
 }

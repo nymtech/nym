@@ -53,8 +53,7 @@
   "app": {
     "security": {
       "capabilities": [
-        "main-capability",
-        "shell-capability"
+        "main-capability"
       ],
       "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; connect-src ipc: http://ipc.localhost"
     },

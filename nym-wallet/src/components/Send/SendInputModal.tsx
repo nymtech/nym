@@ -68,15 +68,9 @@ export const SendInputModal = ({
   const [addressIsValid, setAddressIsValid] = useState(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [errorFee, setErrorFee] = useState<string | undefined>();
-  const [noAccount, setNoAccount] = useState(false);
-
-  useEffect(() => {
-    if (!balance || balance === '0' || parseFloat(balance) === 0) {
-      setNoAccount(true);
-    } else {
-      setNoAccount(false);
-    }
-  }, [balance]);
+  
+  // Calculate noAccount at the component root level instead of using useEffect
+  const noAccount = !balance || balance === '0' || parseFloat(balance) === 0;
 
   const validateSendAmount = async (value: DecCoin) => {
     let newValidatedValue = true;

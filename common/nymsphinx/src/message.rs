@@ -310,6 +310,7 @@ mod tests {
         // a single variant for each repliable and reply is enough as they are more thoroughly tested
         // internally
         let repliable = NymMessage::new_repliable(RepliableMessage::new_data(
+            true,
             vec![1, 2, 3, 4, 5],
             [42u8; 16].into(),
             vec![],

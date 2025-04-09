@@ -481,17 +481,21 @@ mod tests {
     use super::*;
 
     mod fixtures {
+        use crate::requests::v1::{AdditionalSurbsV1, DataV1, HeartbeatV1};
+        use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
         use crate::requests::{AnonymousSenderTag, RepliableMessageContent, ReplyMessageContent};
         use crate::{ReplySurb, SurbEncryptionKey};
         use nym_crypto::asymmetric::{encryption, identity};
         use nym_sphinx_addressing::clients::Recipient;
         use nym_sphinx_types::{
             Delay, Destination, DestinationAddressBytes, Node, NodeAddressBytes, PrivateKey,
-            SURBMaterial, NODE_ADDRESS_LENGTH,
+            SURBMaterial, NODE_ADDRESS_LENGTH, X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
         };
         use rand::{Rng, RngCore};
         use rand_chacha::rand_core::SeedableRng;
         use rand_chacha::ChaCha20Rng;
+
+        pub(crate) const LEGACY_HOPS: u8 = 4;
 
         pub(super) fn test_rng() -> ChaCha20Rng {
             let dummy_seed = [42u8; 32];
@@ -534,11 +538,9 @@ mod tests {
             }
         }
 
-        pub(super) fn reply_surb(rng: &mut ChaCha20Rng) -> ReplySurb {
-            // due to gateway
-            const HOPS: u8 = 4;
-            let route = (0..HOPS).map(|_| node(rng)).collect();
-            let delays = (0..HOPS)
+        pub(super) fn reply_surb(rng: &mut ChaCha20Rng, legacy: bool, hops: u8) -> ReplySurb {
+            let route = (0..hops).map(|_| node(rng)).collect();
+            let delays = (0..hops)
                 .map(|_| Delay::new_from_nanos(rng.next_u64()))
                 .collect();
             let mut destination_bytes = [0u8; 32];
@@ -552,19 +554,27 @@ mod tests {
                 identifier_bytes,
             );
 
-            let surb = SURBMaterial::new(route, delays, destination)
-                .construct_SURB()
-                .unwrap();
+            let mut surb_material = SURBMaterial::new(route, delays, destination);
+            if legacy {
+                surb_material =
+                    surb_material.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION);
+            }
+
             ReplySurb {
-                surb,
+                surb: surb_material.construct_SURB().unwrap(),
                 encryption_key: SurbEncryptionKey::new(rng),
             }
         }
 
-        pub(super) fn reply_surbs(rng: &mut ChaCha20Rng, n: usize) -> Vec<ReplySurb> {
+        pub(super) fn reply_surbs(
+            rng: &mut ChaCha20Rng,
+            n: usize,
+            legacy: bool,
+            hops: u8,
+        ) -> Vec<ReplySurb> {
             let mut surbs = Vec::with_capacity(n);
             for _ in 0..n {
-                surbs.push(reply_surb(rng))
+                surbs.push(reply_surb(rng, legacy, hops))
             }
             surbs
         }
@@ -574,31 +584,28 @@ mod tests {
             msg_len: usize,
             surbs: usize,
         ) -> RepliableMessageContent {
-            todo!()
-            // RepliableMessageContent::Data {
-            //     message: random_vec_u8(rng, msg_len),
-            //     reply_surbs: reply_surbs(rng, surbs),
-            // }
+            RepliableMessageContent::Data(DataV1 {
+                message: random_vec_u8(rng, msg_len),
+                reply_surbs: reply_surbs(rng, surbs, true, LEGACY_HOPS),
+            })
         }
 
         pub(super) fn repliable_content_surbs_v1(
             rng: &mut ChaCha20Rng,
             surbs: usize,
         ) -> RepliableMessageContent {
-            todo!()
-            // RepliableMessageContent::AdditionalSurbs {
-            //     reply_surbs: reply_surbs(rng, surbs),
-            // }
+            RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1 {
+                reply_surbs: reply_surbs(rng, surbs, true, LEGACY_HOPS),
+            })
         }
 
         pub(super) fn repliable_content_heartbeat_v1(
             rng: &mut ChaCha20Rng,
             surbs: usize,
         ) -> RepliableMessageContent {
-            todo!()
-            // RepliableMessageContent::Heartbeat {
-            //     additional_reply_surbs: reply_surbs(rng, surbs),
-            // }
+            RepliableMessageContent::Heartbeat(HeartbeatV1 {
+                additional_reply_surbs: reply_surbs(rng, surbs, true, LEGACY_HOPS),
+            })
         }
 
         pub(super) fn reply_content_data(
@@ -624,41 +631,42 @@ mod tests {
             rng: &mut ChaCha20Rng,
             msg_len: usize,
             surbs: usize,
+            surb_hops: u8,
         ) -> RepliableMessageContent {
-            todo!()
-            // RepliableMessageContent::Data {
-            //     message: random_vec_u8(rng, msg_len),
-            //     reply_surbs: reply_surbs(rng, surbs),
-            // }
+            RepliableMessageContent::DataV2(DataV2 {
+                message: random_vec_u8(rng, msg_len),
+                reply_surbs: reply_surbs(rng, surbs, false, surb_hops),
+            })
         }
 
         pub(super) fn repliable_content_surbs_v2(
             rng: &mut ChaCha20Rng,
             surbs: usize,
+            surb_hops: u8,
         ) -> RepliableMessageContent {
-            todo!()
-            // RepliableMessageContent::AdditionalSurbs {
-            //     reply_surbs: reply_surbs(rng, surbs),
-            // }
+            RepliableMessageContent::AdditionalSurbsV2(AdditionalSurbsV2 {
+                reply_surbs: reply_surbs(rng, surbs, false, surb_hops),
+            })
         }
 
         pub(super) fn repliable_content_heartbeat_v2(
             rng: &mut ChaCha20Rng,
             surbs: usize,
+            surb_hops: u8,
         ) -> RepliableMessageContent {
-            todo!()
-            // RepliableMessageContent::Heartbeat {
-            //     additional_reply_surbs: reply_surbs(rng, surbs),
-            // }
+            RepliableMessageContent::HeartbeatV2(HeartbeatV2 {
+                additional_reply_surbs: reply_surbs(rng, surbs, false, surb_hops),
+            })
         }
     }
 
     #[cfg(test)]
     mod repliable_message {
         use super::*;
+        use crate::requests::tests::fixtures::LEGACY_HOPS;
 
         #[test]
-        fn serialized_size_matches_actual_serialization() {
+        fn serialized_size_matches_actual_serialization_for_v1_messages() {
             let mut rng = fixtures::test_rng();
 
             let data1 = RepliableMessage {
@@ -709,14 +717,89 @@ mod tests {
             };
             assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
         }
+
+        #[test]
+        fn serialized_size_matches_actual_serialization_for_v2_messages() {
+            let mut rng = fixtures::test_rng();
+
+            let data1 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data_v2(&mut rng, 10000, 0, LEGACY_HOPS),
+            };
+            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
+
+            let data2 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data_v2(&mut rng, 10, 100, LEGACY_HOPS),
+            };
+            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
+
+            let data3 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data_v2(&mut rng, 100000, 1000, LEGACY_HOPS),
+            };
+            assert_eq!(data3.serialized_size(), data3.into_bytes().len());
+
+            let data4 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data_v2(&mut rng, 100000, 1000, 1),
+            };
+            assert_eq!(data4.serialized_size(), data4.into_bytes().len());
+
+            let additional_surbs1 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_surbs_v2(&mut rng, 1, LEGACY_HOPS),
+            };
+            assert_eq!(
+                additional_surbs1.serialized_size(),
+                additional_surbs1.into_bytes().len()
+            );
+
+            let additional_surbs2 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_surbs_v2(&mut rng, 1000, LEGACY_HOPS),
+            };
+            assert_eq!(
+                additional_surbs2.serialized_size(),
+                additional_surbs2.into_bytes().len()
+            );
+
+            let additional_surbs3 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_surbs_v2(&mut rng, 1000, 1),
+            };
+            assert_eq!(
+                additional_surbs3.serialized_size(),
+                additional_surbs3.into_bytes().len()
+            );
+
+            let heartbeat1 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_heartbeat_v2(&mut rng, 1, LEGACY_HOPS),
+            };
+            assert_eq!(heartbeat1.serialized_size(), heartbeat1.into_bytes().len());
+
+            let heartbeat2 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_heartbeat_v2(&mut rng, 1000, LEGACY_HOPS),
+            };
+            assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
+
+            let heartbeat3 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_heartbeat_v2(&mut rng, 1000, 1),
+            };
+            assert_eq!(heartbeat3.serialized_size(), heartbeat3.into_bytes().len());
+        }
     }
 
     #[cfg(test)]
     mod repliable_message_content {
         use super::*;
+        use crate::requests::tests::fixtures::LEGACY_HOPS;
 
         #[test]
-        fn serialized_size_matches_actual_serialization() {
+        fn serialized_size_matches_actual_serialization_for_v1_messages() {
             let mut rng = fixtures::test_rng();
 
             let data1 = fixtures::repliable_content_data_v1(&mut rng, 10000, 0);
@@ -745,6 +828,51 @@ mod tests {
 
             let heartbeat2 = fixtures::repliable_content_heartbeat_v1(&mut rng, 1000);
             assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
+        }
+
+        #[test]
+        fn serialized_size_matches_actual_serialization_for_v2_messages() {
+            let mut rng = fixtures::test_rng();
+
+            let data1 = fixtures::repliable_content_data_v2(&mut rng, 10000, 0, LEGACY_HOPS);
+            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
+
+            let data2 = fixtures::repliable_content_data_v2(&mut rng, 10, 100, LEGACY_HOPS);
+            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
+
+            let data3 = fixtures::repliable_content_data_v2(&mut rng, 100000, 1000, LEGACY_HOPS);
+            assert_eq!(data3.serialized_size(), data3.into_bytes().len());
+
+            let data4 = fixtures::repliable_content_data_v2(&mut rng, 100000, 1000, 1);
+            assert_eq!(data4.serialized_size(), data4.into_bytes().len());
+
+            let additional_surbs1 = fixtures::repliable_content_surbs_v2(&mut rng, 1, LEGACY_HOPS);
+            assert_eq!(
+                additional_surbs1.serialized_size(),
+                additional_surbs1.into_bytes().len()
+            );
+
+            let additional_surbs2 =
+                fixtures::repliable_content_surbs_v2(&mut rng, 1000, LEGACY_HOPS);
+            assert_eq!(
+                additional_surbs2.serialized_size(),
+                additional_surbs2.into_bytes().len()
+            );
+
+            let additional_surbs3 = fixtures::repliable_content_surbs_v2(&mut rng, 1000, 1);
+            assert_eq!(
+                additional_surbs3.serialized_size(),
+                additional_surbs3.into_bytes().len()
+            );
+
+            let heartbeat1 = fixtures::repliable_content_heartbeat_v2(&mut rng, 1, LEGACY_HOPS);
+            assert_eq!(heartbeat1.serialized_size(), heartbeat1.into_bytes().len());
+
+            let heartbeat2 = fixtures::repliable_content_heartbeat_v2(&mut rng, 1000, LEGACY_HOPS);
+            assert_eq!(heartbeat2.serialized_size(), heartbeat2.into_bytes().len());
+
+            let heartbeat3 = fixtures::repliable_content_heartbeat_v2(&mut rng, 1000, 1);
+            assert_eq!(heartbeat3.serialized_size(), heartbeat3.into_bytes().len());
         }
     }
 

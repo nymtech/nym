@@ -6,8 +6,8 @@
 use nym_mixnet_contract_common::{Gateway, MixNode};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
-use tauri_plugin_shell::init as init_shell;
 use tauri_plugin_opener::init as init_opener;
+use tauri_plugin_shell::init as init_shell;
 use tauri_plugin_updater::Builder as UpdaterBuilder;
 
 use crate::menu::SHOW_LOG_WINDOW;

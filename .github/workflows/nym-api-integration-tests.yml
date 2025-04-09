@@ -42,4 +42,6 @@ jobs:
           done
 
       - name: Run integration tests
-        run: dotenv -f ../../envs/sandbox.env -- cargo test --test public-api-tests -- --nocapture
+        env:
+          NYM_API: https://sandbox-nym-api1.nymtech.net/api
+        run: cargo test --test public-api-tests -- --nocapture

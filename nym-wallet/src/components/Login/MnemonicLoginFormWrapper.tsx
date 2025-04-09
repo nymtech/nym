@@ -67,6 +67,7 @@ export const EnhancedMnemonicInput: React.FC<EnhancedMnemonicInputProps> = ({
               onUpdateMnemonic(clipboardText.trim());
             }
           } catch (err) {
+            // eslint-disable-next-line no-console
             console.error('Failed to paste text:', err);
           }
         }
@@ -101,6 +102,7 @@ export const EnhancedMnemonicInput: React.FC<EnhancedMnemonicInputProps> = ({
         }
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Failed to paste from clipboard:', err);
     }
   };

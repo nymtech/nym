@@ -105,6 +105,7 @@ export const CurrencyFormFieldWithPaste = ({
               processPastedText(clipboardText);
             }
           } catch (err) {
+            // eslint-disable-next-line no-console
             console.error('Error accessing clipboard:', err);
           }
         }

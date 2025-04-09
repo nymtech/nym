@@ -61,6 +61,7 @@ export const EnhancedPasswordInput: React.FC<EnhancedPasswordInputProps> = ({
               onUpdatePassword(clipboardText);
             }
           } catch (err) {
+            // eslint-disable-next-line no-console
             console.error('Failed to paste text:', err);
           }
         }
@@ -94,6 +95,7 @@ export const EnhancedPasswordInput: React.FC<EnhancedPasswordInputProps> = ({
         }
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Failed to paste from clipboard:', err);
     }
   };

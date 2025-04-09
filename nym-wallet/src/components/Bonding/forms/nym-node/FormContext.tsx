@@ -57,6 +57,7 @@ const FormContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [signature, setSignature] = useState('');
 
   const onError = (e: string) => {
+    // eslint-disable-next-line no-console
     console.error(e);
   };
 

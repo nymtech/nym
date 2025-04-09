@@ -12,7 +12,6 @@ export const TauriLink: React.FC<LinkProps & any> = (props) => {
 
     if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
       event.preventDefault();
-      console.log('Opening link in browser:', href);
       await openUrl(href);
     }
   };

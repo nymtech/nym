@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
-import { PasswordInput } from '@nymproject/react/textfields/Password';
+import { EnhancedPasswordInput } from 'src/components/Login/LoginPasswordFormWrapper';
 import { Subtitle } from '../components';
 import { AppContext } from '../../../context/main';
 
@@ -21,10 +21,11 @@ export const SignInPassword = () => {
           }}
         >
           <Stack spacing={2}>
-            <PasswordInput
+            {/* Use the password wrapper input instead */}
+            <EnhancedPasswordInput
               label="Enter password"
               password={password}
-              onUpdatePassword={(pswd) => setPassword(pswd)}
+              onUpdatePassword={(pswd: any) => setPassword(pswd)}
               error={error}
               autoFocus
             />

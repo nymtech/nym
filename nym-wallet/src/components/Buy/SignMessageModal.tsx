@@ -21,6 +21,7 @@ export const SignMessageModal = ({ onClose }: { onClose: () => void }) => {
       const sig = await signMessage(message);
       setSignature(sig || '');
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Signing failed:', err);
       setSignature('');
     }

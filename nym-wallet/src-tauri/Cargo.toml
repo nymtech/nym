@@ -45,7 +45,7 @@ tauri = { version = "2", features = [] }
 #tendermint-rpc = "0.23.0"
 time = { version = "0.3.30", features = ["local-offset"] }
 thiserror = "1.0"
-tokio = { version = "1.10", features = ["full"] }
+tokio = { version = "1.44", features = ["full"] }
 toml = "0.5.8"
 url = "2.2"
 k256 = { version = "0.13", features = ["ecdsa", "sha256"] }

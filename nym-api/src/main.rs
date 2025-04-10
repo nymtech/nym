@@ -26,8 +26,8 @@ pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;
+mod unstable_routes;
 
-// TODO rocket: remove all such Todos once rocket is phased out completely
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {

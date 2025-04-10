@@ -46,7 +46,7 @@ pub(crate) mod semi_skimmed;
 pub(crate) mod skimmed;
 
 #[allow(deprecated)]
-pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
+pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .nest(
             "/skimmed",

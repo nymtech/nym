@@ -1,7 +1,6 @@
 "use client";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { useTheme } from "@mui/material";
-import { ResponsiveLine, Point, PointTooltipProps } from "@nivo/line";
+import { ResponsiveLine } from "@nivo/line";
 
 export interface ILineChartData {
   date_utc: string;

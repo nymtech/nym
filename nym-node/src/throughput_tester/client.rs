@@ -16,10 +16,12 @@ use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::PacketSize;
 use nym_sphinx_routing::generate_hop_delays;
-use nym_sphinx_types::constants::{EXPANDED_SHARED_SECRET_LENGTH, HKDF_INPUT_SEED};
-use nym_sphinx_types::header::keys::PayloadKey;
+use nym_sphinx_types::constants::{
+    EXPANDED_SHARED_SECRET_HKDF_INFO, EXPANDED_SHARED_SECRET_HKDF_SALT,
+    EXPANDED_SHARED_SECRET_LENGTH,
+};
 use nym_sphinx_types::{
-    Destination, DestinationAddressBytes, Node, NymPacket, DESTINATION_ADDRESS_LENGTH,
+    Destination, DestinationAddressBytes, Node, NymPacket, PayloadKey, DESTINATION_ADDRESS_LENGTH,
     IDENTIFIER_LENGTH,
 };
 use nym_task::ShutdownToken;
@@ -100,13 +102,14 @@ pub(crate) struct ThroughputTestingClient {
 }
 
 fn rederive_lioness_payload_key(shared_secret: &[u8; 32]) -> PayloadKey {
-    let hkdf = Hkdf::<Sha256>::new(None, shared_secret);
+    let hkdf = Hkdf::<Sha256>::new(Some(EXPANDED_SHARED_SECRET_HKDF_SALT), shared_secret);
 
     // expanded shared secret
     let mut output = [0u8; EXPANDED_SHARED_SECRET_LENGTH];
     // SAFETY: the length of the provided okm is within the allowed range
     #[allow(clippy::unwrap_used)]
-    hkdf.expand(HKDF_INPUT_SEED, &mut output).unwrap();
+    hkdf.expand(EXPANDED_SHARED_SECRET_HKDF_INFO, &mut output)
+        .unwrap();
 
     *array_ref!(&output, 32, 192)
 }
@@ -156,7 +159,7 @@ impl ThroughputTestingClient {
         let payload = PacketSize::RegularPacket.payload_size();
 
         let forward_packet =
-            NymPacket::sphinx_build(payload, b"foomp", &route, &destination, &delays)?;
+            NymPacket::sphinx_build(true, payload, b"foomp", &route, &destination, &delays)?;
 
         // SAFETY: we constructed a sphinx packet...
         #[allow(clippy::unwrap_used)]
@@ -171,7 +174,7 @@ impl ThroughputTestingClient {
             .diffie_hellman(&header.shared_secret);
         let payload_key = rederive_lioness_payload_key(shared_secret.as_bytes());
 
-        let unwrapped_payload = sphinx_packet.payload.unwrap(&payload_key)?;
+        let unwrapped_payload = sphinx_packet.payload.unwrap(payload_key)?;
         let unwrapped_forward_payload_bytes = unwrapped_payload.into_bytes();
 
         let start = Instant::now();
@@ -230,11 +233,7 @@ impl ThroughputTestingClient {
     }
 
     fn lioness_encrypt(&self, block: &mut [u8]) -> anyhow::Result<()> {
-        let lioness_cipher = Lioness::<VarBlake2b, ChaCha>::new_raw(array_ref!(
-            self.payload_key,
-            0,
-            lioness::RAW_KEY_SIZE
-        ));
+        let lioness_cipher = Lioness::<VarBlake2b, ChaCha>::new_raw(&self.payload_key);
         lioness_cipher.encrypt(block)?;
         Ok(())
     }

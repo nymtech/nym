@@ -138,11 +138,11 @@ mod tests {
         let mut packet = OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
 
         let next_address = packet.decode_next_layer(&node1_pk).unwrap();
-        assert_eq!(next_address, node2.address.as_bytes());
+        assert_eq!(&next_address, node2.address.as_bytes());
         let next_address = packet.decode_next_layer(&node2_pk).unwrap();
-        assert_eq!(next_address, node3.address.as_bytes());
+        assert_eq!(&next_address, node3.address.as_bytes());
         let next_address = packet.decode_next_layer(&node3_pk).unwrap();
-        assert_eq!(next_address, gateway.address.as_bytes());
+        assert_eq!(&next_address, gateway.address.as_bytes());
         let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
         assert_eq!(destination_address, destination.address.as_bytes());
 
@@ -194,11 +194,11 @@ mod tests {
         let mut packet = OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
 
         let next_address = packet.decode_next_layer(&node1_pk).unwrap();
-        assert_eq!(next_address, node2.address.as_bytes());
+        assert_eq!(&next_address, node2.address.as_bytes());
         let next_address = packet.decode_next_layer(&node2_pk).unwrap();
-        assert_eq!(next_address, node3.address.as_bytes());
+        assert_eq!(&next_address, node3.address.as_bytes());
         let next_address = packet.decode_next_layer(&node3_pk).unwrap();
-        assert_eq!(next_address, gateway.address.as_bytes());
+        assert_eq!(&next_address, gateway.address.as_bytes());
         let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
         assert_eq!(destination_address, destination.address.as_bytes());
 

@@ -131,7 +131,7 @@ impl OutfoxPacket {
                 &mut buffer[range],
                 &secret_key,
                 processing_node.pub_key,
-                destination_node.address.as_bytes_ref(),
+                destination_node.address.as_bytes(),
             )?;
         }
 

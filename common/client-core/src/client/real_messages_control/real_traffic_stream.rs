@@ -252,6 +252,7 @@ where
                 (
                     generate_loop_cover_packet(
                         &mut self.rng,
+                        self.config.traffic.use_legacy_sphinx_format,
                         topology_ref,
                         &self.config.ack_key,
                         &self.config.our_full_destination,

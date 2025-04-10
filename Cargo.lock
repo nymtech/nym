@@ -6645,6 +6645,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "thiserror 2.0.12",
+ "tracing",
  "wasm-bindgen",
 ]
 
@@ -9230,9 +9231,9 @@ dependencies = [
 
 [[package]]
 name = "sphinx-packet"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b63a72efe7dce8a546d5cb855e60699ae69203d0d7e4335a654eb87e93d7d141"
+checksum = "c26f0c20d909fdda1c5d0ece3973127ca421984d55b000215df365e93722fc6e"
 dependencies = [
  "aes",
  "arrayref",

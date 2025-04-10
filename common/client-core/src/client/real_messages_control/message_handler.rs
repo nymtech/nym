@@ -109,6 +109,10 @@ pub(crate) struct Config {
 
     /// Optional secondary predefined packet size used for the encapsulated messages.
     secondary_packet_size: Option<PacketSize>,
+
+    /// Specify whether any constructed reply surbs should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_sphinx_format: bool,
 }
 
 impl Config {
@@ -118,6 +122,7 @@ impl Config {
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         deterministic_route_selection: bool,
+        use_legacy_reply_surb_format: bool,
     ) -> Self {
         Config {
             ack_key,
@@ -127,6 +132,7 @@ impl Config {
             average_ack_delay,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
+            use_legacy_sphinx_format: use_legacy_reply_surb_format,
         }
     }
 
@@ -186,6 +192,7 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
+            config.use_legacy_sphinx_format,
         );
         MessageHandler {
             config,
@@ -254,9 +261,11 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let reply_surbs = self
-            .message_preparer
-            .generate_reply_surbs(amount, topology)?;
+        let reply_surbs = self.message_preparer.generate_reply_surbs(
+            self.config.use_legacy_sphinx_format,
+            amount,
+            topology,
+        )?;
 
         let reply_keys = reply_surbs
             .iter()
@@ -522,6 +531,7 @@ where
             self.generate_reply_surbs_with_keys(amount as usize).await?;
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
+            self.config.use_legacy_sphinx_format,
             sender_tag,
             reply_surbs,
         ));
@@ -559,8 +569,12 @@ where
             .generate_reply_surbs_with_keys(num_reply_surbs as usize)
             .await?;
 
-        let message =
-            NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
+        let message = NymMessage::new_repliable(RepliableMessage::new_data(
+            self.config.use_legacy_sphinx_format,
+            message,
+            sender_tag,
+            reply_surbs,
+        ));
 
         self.try_split_and_send_non_reply_message(
             message,

@@ -51,28 +51,13 @@ impl From<PreparedFragment> for MixPacket {
 pub trait FragmentPreparer {
     type Rng: CryptoRng + Rng;
 
+    fn use_legacy_sphinx_format(&self) -> bool;
+
     fn deterministic_route_selection(&self) -> bool;
     fn rng(&mut self) -> &mut Self::Rng;
     fn nonce(&self) -> i32;
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
-
-    fn generate_reply_surbs(
-        &mut self,
-        amount: usize,
-        topology: &NymRouteProvider,
-        reply_recipient: &Recipient,
-    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
-        let mut reply_surbs = Vec::with_capacity(amount);
-        let packet_delay = self.average_packet_delay();
-        for _ in 0..amount {
-            let reply_surb =
-                ReplySurb::construct(self.rng(), reply_recipient, packet_delay, topology)?;
-            reply_surbs.push(reply_surb)
-        }
-
-        Ok(reply_surbs)
-    }
 
     fn generate_surb_ack(
         &mut self,
@@ -83,9 +68,11 @@ pub trait FragmentPreparer {
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
         let ack_delay = self.average_ack_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
 
         SurbAck::construct(
             self.rng(),
+            use_legacy_sphinx_format,
             recipient,
             ack_key,
             fragment_id.to_bytes(),
@@ -264,6 +251,7 @@ pub trait FragmentPreparer {
                 Some(packet_size.plaintext_size()),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
+                self.use_legacy_sphinx_format(),
                 packet_size.payload_size(),
                 packet_payload,
                 &route,
@@ -323,6 +311,10 @@ pub struct MessagePreparer<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
+    /// Specify whether any constructed packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_sphinx_format: bool,
+
     nonce: i32,
 }
 
@@ -336,6 +328,7 @@ where
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        use_legacy_sphinx_format: bool,
     ) -> Self {
         let mut rng = rng;
         let nonce = rng.gen();
@@ -345,6 +338,7 @@ where
             sender_address,
             average_packet_delay,
             average_ack_delay,
+            use_legacy_sphinx_format,
             nonce,
         }
     }
@@ -356,6 +350,7 @@ where
 
     pub fn generate_reply_surbs(
         &mut self,
+        use_legacy_reply_surb_format: bool,
         amount: usize,
         topology: &NymRouteProvider,
     ) -> Result<Vec<ReplySurb>, NymTopologyError> {
@@ -365,6 +360,7 @@ where
                 &mut self.rng,
                 &self.sender_address,
                 self.average_packet_delay,
+                use_legacy_reply_surb_format,
                 topology,
             )?;
             reply_surbs.push(reply_surb)
@@ -445,6 +441,10 @@ where
 
 impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
     type Rng = R;
+
+    fn use_legacy_sphinx_format(&self) -> bool {
+        self.use_legacy_sphinx_format
+    }
 
     fn deterministic_route_selection(&self) -> bool {
         self.deterministic_route_selection

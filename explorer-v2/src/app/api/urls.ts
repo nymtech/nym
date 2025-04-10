@@ -1,4 +1,3 @@
-
 export const CURRENT_EPOCH =
   "https://validator.nymtech.net/api/v1/epoch/current";
 export const CURRENT_EPOCH_REWARDS =

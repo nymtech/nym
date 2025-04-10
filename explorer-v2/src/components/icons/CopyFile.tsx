@@ -1,6 +1,5 @@
-import Image from "next/image";
 import { icons } from "@/utils/getIconByName";
-
+import Image from "next/image";
 
 const CopyFile = ({ className }: { className?: string }) => (
   <Image

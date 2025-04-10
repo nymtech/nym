@@ -8,7 +8,8 @@
     "date": "Mon Jan 20 2025 10:26:09 GMT+0000 (Greenwich Mean Time)",
     "readingTime": 5
   },
-  "icon": "explorerCard",
+  "iconLight": "explorerCard",
+  "iconDark": "explorerCardDark",
   "image": "/explorer/images/Network.webp",
   "overview": {
     "content": [

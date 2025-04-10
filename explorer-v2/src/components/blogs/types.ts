@@ -6,7 +6,8 @@ type BlogArticle = {
   label: string;
   description: string;
   image: string;
-  icon: string;
+  iconLight: string;
+  iconDark: string;
   attributes: {
     blogAuthors: string[];
     date: Date;

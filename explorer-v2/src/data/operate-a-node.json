@@ -8,7 +8,8 @@
     "date": "Mon Jan 05 2025 10:26:09 GMT+0000 (Greenwich Mean Time)",
     "readingTime": 5
   },
-  "icon": "gateway",
+  "iconLight": "gateway",
+  "iconDark": "gatewayDark",
   "image": "/explorer/images/placeholder.webp",
   "overview": {
     "content": [

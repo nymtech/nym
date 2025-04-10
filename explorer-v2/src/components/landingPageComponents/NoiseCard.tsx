@@ -1,7 +1,14 @@
 "use client";
 import { fetchNoise } from "@/app/api";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Box, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
@@ -10,9 +17,14 @@ import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
 
 export const NoiseCard = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   const { data, isLoading, isError } = useQuery({
     queryKey: ["noise"],
     queryFn: fetchNoise,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading) {
@@ -29,7 +41,13 @@ export const NoiseCard = () => {
   if (isError || !data) {
     return (
       <ExplorerCard label="Mixnet traffic">
-        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            color: isDarkMode ? "base.white" : "pine.950",
+            letterSpacing: 0.7,
+          }}
+        >
           Failed to load data
         </Typography>
         <Skeleton variant="text" height={238} />
@@ -42,8 +60,6 @@ export const NoiseCard = () => {
 
   const noiseLast24H =
     todaysData.total_packets_sent + todaysData.total_packets_received;
-
-  
 
   const noisePrevious24H =
     yesterdaysData.total_packets_sent + yesterdaysData.total_packets_received;
@@ -91,15 +107,19 @@ export const NoiseCard = () => {
         date_utc: item.date_utc,
         numericData: item.total_packets_sent + item.total_packets_received,
       };
-    });
-
+    })
+    .filter((item) => item.numericData >= 2_500_000_000);
 
   return (
     <ExplorerCard label="Mixnet traffic" sx={{ height: "100%" }}>
       <Box display={"flex"} gap={2} flexDirection={{ xs: "column", sm: "row" }}>
         <Typography
           variant="h4"
-          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+          sx={{
+            color: isDarkMode ? "base.white" : "pine.950",
+            wordWrap: "break-word",
+            maxWidth: "95%",
+          }}
         >
           {noiseLast24HFormatted}
         </Typography>

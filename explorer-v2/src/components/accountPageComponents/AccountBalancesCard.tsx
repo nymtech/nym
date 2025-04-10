@@ -70,6 +70,9 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     queryKey: ["accountBalance", address],
     queryFn: () => fetchAccountBalance(address),
     enabled: !!address,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   const {
@@ -79,6 +82,9 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   } = useQuery({
     queryKey: ["nymPrice"],
     queryFn: fetchNymPrice,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading || isLoadingPrice) {

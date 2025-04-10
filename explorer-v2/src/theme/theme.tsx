@@ -2,6 +2,7 @@ import { labGrotesque } from "@/fonts";
 import { colours } from "@/theme/colours";
 import { body, headings, subtitles } from "@/theme/typography";
 import { type ThemeOptions, createTheme } from "@mui/material/styles";
+
 const lightMode = {
   mode: "light" as const,
   accent: colours.green[500],
@@ -9,6 +10,7 @@ const lightMode = {
   background: colours.gray[200],
   medium: colours.haze[200],
   light: colours.base.white,
+  paper: colours.base.white,
 };
 
 const darkMode = {
@@ -18,6 +20,7 @@ const darkMode = {
   background: colours.pine[950],
   medium: colours.pine[800],
   light: colours.pine[200],
+  paper: colours.pine[900],
 };
 
 // createDesignTokens function to generate design tokens based on mode
@@ -33,13 +36,13 @@ const createDesignTokens = (mode: "light" | "dark") => {
       background: {
         default: palette.background,
         main: palette.background,
-        paper: palette.light,
+        paper: palette.paper,
       },
       secondary: {
         main: palette.accent,
       },
       text: {
-        primary: palette.primary,
+        primary: mode === "dark" ? colours.base.white : palette.primary,
         secondary: palette.medium,
       },
       success: {

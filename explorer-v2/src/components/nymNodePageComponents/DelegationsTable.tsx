@@ -1,6 +1,8 @@
 "use client";
 
-import { Stack, Typography } from "@mui/material";
+import { fetchNodeDelegations } from "@/app/api";
+import { Stack, Typography, useTheme } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -27,12 +29,22 @@ const getNymsFormated = (unyms: string) => {
   return balance.toFixed();
 };
 
-const DelegationsTable = ({
-  delegations,
-}: {
-  delegations: NodeRewardDetails[];
-}) => {
+type Props = {
+  id: number;
+};
+
+const DelegationsTable = ({ id }: Props) => {
   const router = useRouter();
+  const theme = useTheme();
+
+  const { data: delegations = [], isError } = useQuery({
+    queryKey: ["nodeDelegations", id],
+    queryFn: () => fetchNodeDelegations(id),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
 
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [
@@ -113,7 +125,10 @@ const DelegationsTable = ({
     },
     muiTableHeadRowProps: {
       sx: {
-        bgcolor: "background.paper",
+        bgcolor:
+          theme.palette.mode === "dark"
+            ? "rgba(255, 255, 255, 0.05)"
+            : "background.paper",
       },
     },
 
@@ -129,15 +144,30 @@ const DelegationsTable = ({
       hover: true,
       sx: {
         ":nth-child(odd)": {
-          bgcolor: "#F3F7FB !important",
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "rgba(255, 255, 255, 0.05) !important"
+              : "#F3F7FB !important",
         },
         ":nth-child(even)": {
-          bgcolor: "white !important",
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "transparent !important"
+              : "white !important",
         },
         cursor: "pointer",
+        "&:hover": {
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "rgba(255, 255, 255, 0.1) !important"
+              : "rgba(0, 0, 0, 0.04) !important",
+        },
       },
     }),
   });
+
+  if (isError) return null;
+
   return <MaterialReactTable table={table} />;
 };
 

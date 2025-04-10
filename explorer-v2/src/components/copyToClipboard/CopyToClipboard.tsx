@@ -1,9 +1,10 @@
 "use client";
 
-import { IconButton, Typography } from "@mui/material";
+import { IconButton, Typography, useTheme } from "@mui/material";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { useEffect } from "react";
 import CopyFile from "../icons/CopyFile";
+import CopyFileDark from "../icons/CopyFileDark";
 
 const CLEAR_AFTER_MS = 10_000;
 
@@ -18,6 +19,7 @@ const CopyToClipboard = ({
 }) => {
   const [copiedText, setCopiedText] = useCopyToClipboard();
   const hasCopied = Boolean(copiedText);
+  const theme = useTheme();
 
   useEffect(() => {
     if (hasCopied) {
@@ -39,7 +41,8 @@ const CopyToClipboard = ({
 
   return (
     <IconButton size={size} onClick={() => setCopiedText(text)}>
-      {Icon || <CopyFile />}
+      {Icon ||
+        (theme.palette.mode === "dark" ? <CopyFileDark /> : <CopyFile />)}
     </IconButton>
   );
 };

@@ -1,18 +1,7 @@
-"use client";
-import { CssBaseline } from "@mui/material";
-import { ThemeProvider as MUIThemeProvider } from "@mui/material";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
-import { lightTheme } from "../theme/theme";
+import ClientThemeWrapper from "./ClientThemeWrapper";
 
 const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <AppRouterCacheProvider>
-      <MUIThemeProvider theme={lightTheme}>
-        <CssBaseline />
-        {children}
-      </MUIThemeProvider>
-    </AppRouterCacheProvider>
-  );
+  return <ClientThemeWrapper>{children}</ClientThemeWrapper>;
 };
 
 export default ThemeProvider;

@@ -7,9 +7,11 @@ import {
   type ButtonProps,
   IconButton,
   Typography,
+  useTheme,
 } from "@mui/material";
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import Cross from "../icons/Cross";
+import CrossDark from "../icons/CrossDark";
 import { WalletAddress } from "./WalletAddress";
 import { WalletBalance } from "./WalletBalance";
 
@@ -21,6 +23,7 @@ interface ButtonPropsWithOnClick extends ButtonProps {
 const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
   const { connect, disconnect, address, isWalletConnected } =
     useChain(COSMOS_KIT_USE_CHAIN);
+  const theme = useTheme();
 
   const handleConnectWallet = async () => {
     buttonProps.onClick?.();
@@ -58,7 +61,7 @@ const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
               >
                 Disconnect
               </Typography>
-              <Cross />
+              {theme.palette.mode === "dark" ? <CrossDark /> : <Cross />}
             </Box>
           </IconButton>
         </Box>

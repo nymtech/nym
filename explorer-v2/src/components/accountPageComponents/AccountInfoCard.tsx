@@ -18,6 +18,9 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
     queryKey: ["accountBalance", address],
     queryFn: () => fetchAccountBalance(address),
     enabled: !!address,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
   });
 
   if (isLoading) {

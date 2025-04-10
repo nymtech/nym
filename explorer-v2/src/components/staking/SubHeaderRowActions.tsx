@@ -34,8 +34,7 @@ const SubHeaderRowActions = () => {
   });
 
   const { address, nymClient } = useNymClient();
-  const { getSigningCosmWasmClient, getOfflineSigner } =
-    useChain(COSMOS_KIT_USE_CHAIN);
+  const { getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
 
   const queryClient = useQueryClient();
 

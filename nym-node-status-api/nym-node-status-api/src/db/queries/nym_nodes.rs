@@ -1,4 +1,5 @@
 use futures_util::TryStreamExt;
+use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::NymNodeDescription,
@@ -180,7 +181,7 @@ pub(crate) async fn get_described_node_bond_info(
     .map_err(From::from)
 }
 
-pub(crate) async fn get_node_descriptions(
+pub(crate) async fn get_node_self_description(
     pool: &DbPool,
 ) -> anyhow::Result<HashMap<NodeId, NymNodeDescription>> {
     let mut conn = pool.acquire().await?;
@@ -210,6 +211,48 @@ pub(crate) async fn get_node_descriptions(
                     .map(|res| (record.node_id as NodeId, res))
             })
             .collect::<HashMap<_, _>>()
+    })
+    .map_err(From::from)
+}
+
+pub(crate) async fn get_bonded_node_description(
+    pool: &DbPool,
+) -> anyhow::Result<HashMap<NodeId, NodeDescription>> {
+    let mut conn = pool.acquire().await?;
+
+    sqlx::query!(
+        r#"SELECT
+            nd.node_id,
+            moniker,
+            website,
+            security_contact,
+            details
+        FROM
+            nym_node_descriptions nd
+        INNER JOIN
+            nym_nodes
+        WHERE
+            bond_info IS NOT NULL
+        "#,
+    )
+    .fetch_all(&mut *conn)
+    .await
+    .map(|records| {
+        records
+            .into_iter()
+            .map(|elem| {
+                let node_id: NodeId = elem.node_id.try_into().unwrap_or_default();
+                (
+                    node_id,
+                    NodeDescription {
+                        moniker: elem.moniker.unwrap_or_default(),
+                        website: elem.website.unwrap_or_default(),
+                        security_contact: elem.security_contact.unwrap_or_default(),
+                        details: elem.details.unwrap_or_default(),
+                    },
+                )
+            })
+            .collect::<HashMap<NodeId, NodeDescription>>()
     })
     .map_err(From::from)
 }

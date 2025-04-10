@@ -1,19 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
+import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
-import { IObservatoryNode } from "@/app/api/types";
 
 type Props = {
   paramId: string;
 };
 
 export const NodeDataCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined
+  let nodeInfo: IObservatoryNode | undefined;
 
   const {
     data: epochRewardsData,
@@ -26,7 +26,6 @@ export const NodeDataCard = ({ paramId }: Props) => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   // Fetch node information
@@ -64,11 +63,10 @@ export const NodeDataCard = ({ paramId }: Props) => {
     );
   }
 
-  // get node info based on wether it's dentity_key or node_id 
+  // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
     nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
-
   } else {
     nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
   }

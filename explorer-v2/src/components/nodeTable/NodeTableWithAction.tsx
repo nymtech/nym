@@ -70,7 +70,6 @@ const NodeTableWithAction = () => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   // Use React Query to fetch Nym nodes
@@ -85,7 +84,6 @@ const NodeTableWithAction = () => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   // Handle loading state

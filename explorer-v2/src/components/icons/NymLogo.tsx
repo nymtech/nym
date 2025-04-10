@@ -1,8 +1,8 @@
 "use client";
-import Image from "next/image";
 import { icons } from "@/utils/getIconByName";
-import { PaletteMode } from "@mui/material";
+import type { PaletteMode } from "@mui/material";
 import { useLocalStorage } from "@uidotdev/usehooks";
+import Image from "next/image";
 
 const NymLogo = () => {
   const [mode] = useLocalStorage<PaletteMode>("mode", "dark");

@@ -13,7 +13,7 @@ type Props = {
 };
 
 export const NodeParametersCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined
+  let nodeInfo: IObservatoryNode | undefined;
 
   // Fetch epoch rewards
   const {
@@ -27,7 +27,6 @@ export const NodeParametersCard = ({ paramId }: Props) => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   // Fetch node information
@@ -64,11 +63,10 @@ export const NodeParametersCard = ({ paramId }: Props) => {
       </ExplorerCard>
     );
   }
-  // get node info based on wether it's dentity_key or node_id 
+  // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
     nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
-
   } else {
     nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
   }

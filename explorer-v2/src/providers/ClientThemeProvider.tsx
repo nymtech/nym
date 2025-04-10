@@ -1,11 +1,11 @@
 "use client";
 
-import { CssBaseline, PaletteMode } from "@mui/material";
+import { CssBaseline, type PaletteMode } from "@mui/material";
 import { ThemeProvider as MUIThemeProvider } from "@mui/material";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
-import { lightTheme, darkTheme } from "../theme/theme";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import { useEffect, useState } from "react";
+import { darkTheme, lightTheme } from "../theme/theme";
 
 const ClientThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [isMounted, setIsMounted] = useState(false);

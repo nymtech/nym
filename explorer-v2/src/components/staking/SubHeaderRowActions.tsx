@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useChain } from "@cosmos-kit/react";
-import { GasPrice } from "@cosmjs/stargate";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { GasPrice } from "@cosmjs/stargate";
+import { useChain } from "@cosmos-kit/react";
 import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { fetchTotalStakerRewards } from "../../app/api";
 import type { NodeRewardDetails } from "../../app/api/types";
 import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
@@ -14,7 +14,6 @@ import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
-
 
 // Fetch delegations
 const fetchDelegations = async (
@@ -35,7 +34,8 @@ const SubHeaderRowActions = () => {
   });
 
   const { address, nymClient } = useNymClient();
-  const { getSigningCosmWasmClient, getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { getSigningCosmWasmClient, getOfflineSigner } =
+    useChain(COSMOS_KIT_USE_CHAIN);
 
   const queryClient = useQueryClient();
 
@@ -83,9 +83,9 @@ const SubHeaderRowActions = () => {
       const gasPrice = GasPrice.fromString("0.025unym");
 
       const client = await SigningCosmWasmClient.connectWithSigner(
-        "https://rpc.nymtech.net/", 
+        "https://rpc.nymtech.net/",
         signer,
-        { gasPrice }
+        { gasPrice },
       );
 
       const messages = delegations.map((delegation: NodeRewardDetails) => ({
@@ -135,7 +135,7 @@ const SubHeaderRowActions = () => {
     delegations,
     getSigningCosmWasmClient,
     handleRefetch,
-    getOfflineSigner
+    getOfflineSigner,
   ]);
 
   const handleRedeemRewardsButtonClick = () => {

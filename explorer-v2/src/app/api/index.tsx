@@ -192,8 +192,6 @@ export const fetchAccountBalance = async (
   return data;
 };
 
-
-
 export const fetchObservatoryNodes = async (): Promise<IObservatoryNode[]> => {
   const allNodes: IObservatoryNode[] = [];
   let page = 1;

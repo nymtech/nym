@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { type IconName, icons } from "@/utils/getIconByName";
 import Grid from "@mui/material/Grid2";
 import ExplorerHeroCard from "../cards/ExplorerHeroCard";
 import type { BlogArticleWithLink } from "./types";
-import { icons, IconName } from "@/utils/getIconByName";
 
 // TODO: Articles should be sorted by date
 
@@ -28,21 +28,21 @@ const BlogArticlesCards = async ({
         ...blogArticle,
         link: `/onboarding/${filename.replace(".json", "")}`,
       };
-    })
+    }),
   );
   // --- End Data Fetching ---
 
   const limitedOrFilteredBlogArticles = (
     blogArticles: BlogArticleWithLink[],
     limit?: number,
-    ids?: number[]
+    ids?: number[],
   ): BlogArticleWithLink[] => {
     let filteredArticles = blogArticles;
 
     // Filter by IDs if provided
     if (ids && ids.length > 0) {
       filteredArticles = filteredArticles.filter((article) =>
-        ids.includes(article.id)
+        ids.includes(article.id),
       );
     }
 

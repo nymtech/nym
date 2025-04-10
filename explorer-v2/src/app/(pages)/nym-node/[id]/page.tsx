@@ -19,7 +19,6 @@ export default async function NymNode({
   try {
     const paramId = (await params).id;
 
-
     return (
       <ContentLayout>
         <Grid container columnSpacing={5} rowSpacing={5}>

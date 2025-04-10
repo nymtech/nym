@@ -100,7 +100,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           { nodeId },
           fee,
           "Delegation from Nym Explorer V2",
-          uNymFunds
+          uNymFunds,
         );
         setSelectedNodeForStaking(undefined);
         setInfoModalProps({
@@ -129,7 +129,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient, handleRefetch]
+    [nymClient, handleRefetch],
   );
 
   const handleOnSelectStake = useCallback(
@@ -158,7 +158,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         identityKey: node.identity_key,
       });
     },
-    [isWalletConnected]
+    [isWalletConnected],
   );
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
@@ -303,7 +303,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableSorting: false,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites]
+    [isWalletConnected, handleOnSelectStake, favorites],
   );
   const table = useMaterialReactTable({
     columns,

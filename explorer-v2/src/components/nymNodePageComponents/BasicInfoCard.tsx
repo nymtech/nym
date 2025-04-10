@@ -1,5 +1,6 @@
 "use client";
 
+import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchObservatoryNodes } from "../../app/api";
@@ -7,14 +8,13 @@ import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
-import { IObservatoryNode } from "@/app/api/types";
 
 type Props = {
   paramId: string;
 };
 
 export const BasicInfoCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined
+  let nodeInfo: IObservatoryNode | undefined;
 
   const {
     data: nymNodes,
@@ -28,7 +28,6 @@ export const BasicInfoCard = ({ paramId }: Props) => {
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
-
 
   if (isLoading) {
     return (
@@ -53,11 +52,10 @@ export const BasicInfoCard = ({ paramId }: Props) => {
     );
   }
 
-  // get node info based on wether it's dentity_key or node_id 
+  // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
     nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
-
   } else {
     nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
   }

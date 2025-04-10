@@ -126,9 +126,9 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   const spendableAllocation =
     accountInfo.balances.length > 0
       ? getAllocation(
-        Number(accountInfo.balances[0].amount),
-        Number(accountInfo.total_value.amount),
-      )
+          Number(accountInfo.balances[0].amount),
+          Number(accountInfo.total_value.amount),
+        )
       : 0;
 
   const delegationsNYM = getNymsFormated(

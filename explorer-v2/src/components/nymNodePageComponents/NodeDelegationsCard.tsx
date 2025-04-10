@@ -1,23 +1,23 @@
 "use client";
 
-import {  fetchObservatoryNodes } from "@/app/api";
+import { fetchObservatoryNodes } from "@/app/api";
+import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import DelegationsTable from "./DelegationsTable";
-import { IObservatoryNode } from "@/app/api/types";
 
 type Props = {
   paramId: string;
 };
 
 const NodeDelegationsCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined
+  let nodeInfo: IObservatoryNode | undefined;
 
   const {
     data: nymNodes,
     isError,
-    isLoading
+    isLoading,
   } = useQuery({
     queryKey: ["nymNodes"],
     queryFn: fetchObservatoryNodes,
@@ -27,18 +27,15 @@ const NodeDelegationsCard = ({ paramId }: Props) => {
     refetchOnMount: false,
   });
 
-
-
   if (paramId.length > 10) {
     nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
-
   } else {
     nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
   }
 
   if (!nodeInfo) return null;
 
-  const id = nodeInfo.node_id
+  const id = nodeInfo.node_id;
 
   if (isLoading) {
     return (

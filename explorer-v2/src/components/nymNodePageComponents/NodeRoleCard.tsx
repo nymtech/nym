@@ -7,7 +7,11 @@ import {
   fetchGatewayStatus,
   fetchObservatoryNodes,
 } from "../../app/api";
-import type { IObservatoryNode, LastProbeResult, NodeDescription } from "../../app/api/types";
+import type {
+  IObservatoryNode,
+  LastProbeResult,
+  NodeDescription,
+} from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
@@ -144,7 +148,7 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
 }
 
 export const NodeRoleCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined
+  let nodeInfo: IObservatoryNode | undefined;
 
   // Fetch node info
   const {
@@ -170,16 +174,13 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
-
 
   if (paramId.length > 10) {
     nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
-
   } else {
     nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
-  }  // Extract node roles once `nodeInfo` is available
+  } // Extract node roles once `nodeInfo` is available
   const nodeRoles = nodeInfo
     ? getNodeRoles(nodeInfo.description.declared_role)
     : [];
@@ -188,7 +189,6 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   const shouldFetchGatewayStatus = nodeRoles.some((role) =>
     ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
   );
-
 
   // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
@@ -220,7 +220,6 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     );
   }
 
-
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />
@@ -228,7 +227,6 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   ));
 
   if (!nodeInfo) return null;
-
 
   const qualityOfServiceStars = nodeInfo?.uptime
     ? calculateQualityOfServiceStars(nodeInfo.uptime)

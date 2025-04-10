@@ -46,7 +46,7 @@ export const StakersNumberCard = () => {
   const getActiveStakersNumber = (nodes: IObservatoryNode[]): number => {
     return nodes.reduce(
       (sum, node) => sum + node.rewarding_details.unique_delegations,
-      0
+      0,
     );
   };
   const allStakers = getActiveStakersNumber(nymNodes);

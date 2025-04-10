@@ -20,7 +20,6 @@ export const TokenomicsCard = () => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   const {
@@ -34,7 +33,6 @@ export const TokenomicsCard = () => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   const {
@@ -48,7 +46,6 @@ export const TokenomicsCard = () => {
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
-
   });
 
   if (isLoading || isEpochLoading || isStakingLoading) {

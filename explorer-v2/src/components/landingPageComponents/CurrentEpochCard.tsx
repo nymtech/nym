@@ -37,7 +37,7 @@ export const CurrentEpochCard = () => {
   const updateState = useCallback((data: NonNullable<EpochResponseData>) => {
     const { startTime, endTime } = getStartEndTime(
       data.current_epoch_start,
-      data.current_epoch_end
+      data.current_epoch_end,
     );
     const progress = calulateProgress(data.current_epoch_end);
 

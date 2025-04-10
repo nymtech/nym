@@ -4,8 +4,8 @@ import { Link } from "../../components/muiLink";
 import { Wrapper } from "../../components/wrapper";
 import ConnectWallet from "../wallet/ConnectWallet";
 import HeaderItem from "./HeaderItem";
-import MENU_DATA from "./menuItems";
 import { DarkLightSwitchDesktop } from "./Switch";
+import MENU_DATA from "./menuItems";
 
 export const DesktopHeader = () => {
   return (
@@ -52,7 +52,6 @@ export const DesktopHeader = () => {
         </Box>
         <ConnectWallet size="small" />
         <DarkLightSwitchDesktop defaultChecked />
-
       </Wrapper>
       <Divider variant="fullWidth" sx={{ width: "100%" }} />
     </Box>

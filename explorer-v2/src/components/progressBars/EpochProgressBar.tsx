@@ -16,7 +16,6 @@ const EpochProgressBar = ({
   endTime,
   progress,
 }: IDynamicProgressBarProps) => {
-
   return (
     <Box sx={{ width: "100%" }}>
       <ProgressBar value={progress} color="secondary" />

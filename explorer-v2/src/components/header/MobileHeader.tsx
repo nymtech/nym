@@ -1,14 +1,14 @@
 "use client";
 import { Close as CloseIcon, Menu as MenuIcon } from "@mui/icons-material";
 import { Box, Drawer, IconButton, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useState } from "react";
 import { Link } from "../../components/muiLink";
 import { Wrapper } from "../../components/wrapper";
 import NymLogo from "../icons/NymLogo";
 import ConnectWallet from "../wallet/ConnectWallet";
-import MENU_DATA from "./menuItems";
 import { DarkLightSwitchDesktop } from "./Switch";
-import { useTheme } from "@mui/material/styles";
+import MENU_DATA from "./menuItems";
 
 export const MobileHeader = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);

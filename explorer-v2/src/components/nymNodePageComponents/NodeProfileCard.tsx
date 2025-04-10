@@ -1,5 +1,6 @@
 "use client";
 
+import type { IObservatoryNode } from "@/app/api/types";
 import { useChain } from "@cosmos-kit/react";
 import {
   Box,
@@ -24,7 +25,6 @@ import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
-import { IObservatoryNode } from "@/app/api/types";
 
 type Props = {
   paramId: string;
@@ -137,7 +137,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
         { nodeId },
         fee,
         "Delegation from Nym Explorer V2",
-        uNymFunds
+        uNymFunds,
       );
       setSelectedNodeForStaking(undefined);
       setInfoModalProps({
@@ -165,11 +165,11 @@ export const NodeProfileCard = ({ paramId }: Props) => {
   if (!nodeInfo) return null;
 
   const cleanMoniker = DOMPurify.sanitize(
-    nodeInfo?.self_description.moniker
+    nodeInfo?.self_description.moniker,
   ).replace(/&amp;/g, "&");
 
   const cleanDescription = DOMPurify.sanitize(
-    nodeInfo?.self_description.details
+    nodeInfo?.self_description.details,
   ).replace(/&amp;/g, "&");
 
   // get full country name
@@ -212,7 +212,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
               <CountryFlag
                 countryCode={nodeInfo.description.auxiliary_details.location}
                 countryName={countryName(
-                  nodeInfo.description.auxiliary_details.location
+                  nodeInfo.description.auxiliary_details.location,
                 )}
               />
             </Box>

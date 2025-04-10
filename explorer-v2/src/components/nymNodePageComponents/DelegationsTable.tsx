@@ -1,6 +1,8 @@
 "use client";
 
+import { fetchNodeDelegations } from "@/app/api";
 import { Stack, Typography, useTheme } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -9,8 +11,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import type { NodeRewardDetails } from "../../app/api/types";
-import { useQuery } from "@tanstack/react-query";
-import { fetchNodeDelegations } from "@/app/api";
 
 const ColumnHeading = ({
   children,
@@ -86,7 +86,7 @@ const DelegationsTable = ({ id }: Props) => {
         ),
       },
     ],
-    []
+    [],
   );
   const table = useMaterialReactTable({
     columns,

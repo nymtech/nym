@@ -1,10 +1,10 @@
 "use client";
-import * as React from "react";
-import { styled } from "@mui/material/styles";
-import Switch from "@mui/material/Switch";
 import { Button } from "@mui/material";
-import { PaletteMode } from "@mui/material";
+import type { PaletteMode } from "@mui/material";
+import Switch from "@mui/material/Switch";
+import { styled } from "@mui/material/styles";
 import { useLocalStorage } from "@uidotdev/usehooks";
+import * as React from "react";
 
 export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
   width: 55,

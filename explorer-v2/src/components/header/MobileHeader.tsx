@@ -159,10 +159,10 @@ const MobileMenuHeader = ({
         <Box
           sx={{
             display: "flex",
-            gap: 2.5,
             alignItems: "center",
           }}
         >
+          {!drawerOpen && <DarkLightSwitchDesktop defaultChecked />}
           <IconButton sx={{}} onClick={() => toggleDrawer(!drawerOpen)}>
             {drawerOpen ? <CloseIcon /> : <MenuIcon />}
           </IconButton>
@@ -178,7 +178,6 @@ const MobileMenuHeader = ({
           width: "100%",
         }}
       >
-        {!drawerOpen && <DarkLightSwitchDesktop defaultChecked />}
         {!drawerOpen && <ConnectWallet size="small" />}
       </Box>
       <Box height={40} />

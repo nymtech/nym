@@ -44,26 +44,20 @@ pub use config::Config;
 pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 #[allow(deprecated)]
-pub use nym_client_core::{
-    client::{
-        base_client::storage::{
-            gateways_storage::{
-                ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore,
-            },
-            Ephemeral, MixnetClientStorage, OnDiskPersistent,
-        },
-        inbound_messages::InputMessage,
-        key_manager::{
-            persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},
-            ClientKeys,
-        },
-        replies::reply_storage::{
-            fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
-            ReplyStorageBackend,
-        },
-        topology_control::geo_aware_provider::{CountryGroup, GeoAwareTopologyProvider},
+pub use nym_client_core::client::{
+    base_client::storage::{
+        gateways_storage::{ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore},
+        Ephemeral, MixnetClientStorage, OnDiskPersistent,
     },
-    config::GroupBy,
+    inbound_messages::InputMessage,
+    key_manager::{
+        persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},
+        ClientKeys,
+    },
+    replies::reply_storage::{
+        fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
+        ReplyStorageBackend,
+    },
 };
 pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage,

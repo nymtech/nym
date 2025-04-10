@@ -1,4 +1,0 @@
-target
-explorer-api-state.json
-/geo_ip
-!.env.dev

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    Acknowledgements, Client, Config, CountryGroup, CoverTraffic, DebugConfig, GatewayConnection,
-    GroupBy, ReplySurbs, Topology, TopologyStructure, Traffic,
+    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, ReplySurbs,
+    Topology, Traffic,
 };
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
@@ -146,7 +146,6 @@ impl From<ConfigV5> for Config {
                         .debug
                         .topology
                         .max_startup_gateway_waiting_period,
-                    topology_structure: value.debug.topology.topology_structure.into(),
                     ..Default::default()
                 },
                 reply_surbs: ReplySurbs {
@@ -372,38 +371,22 @@ pub enum TopologyStructureV5 {
     GeoAware(GroupByV5),
 }
 
-impl From<TopologyStructureV5> for TopologyStructure {
-    fn from(value: TopologyStructureV5) -> Self {
-        match value {
-            TopologyStructureV5::NymApi => TopologyStructure::NymApi,
-            TopologyStructureV5::GeoAware(group_by) => TopologyStructure::GeoAware(group_by.into()),
-        }
-    }
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug)]
+pub enum CountryGroupV5 {
+    Europe,
+    NorthAmerica,
+    SouthAmerica,
+    Oceania,
+    Asia,
+    Africa,
+    Unknown,
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GroupByV5 {
-    CountryGroup(CountryGroup),
+    CountryGroup(CountryGroupV5),
     NymAddress(Recipient),
-}
-
-impl From<GroupByV5> for GroupBy {
-    fn from(value: GroupByV5) -> Self {
-        match value {
-            GroupByV5::CountryGroup(country) => GroupBy::CountryGroup(country),
-            GroupByV5::NymAddress(addr) => GroupBy::NymAddress(addr),
-        }
-    }
-}
-
-impl std::fmt::Display for GroupByV5 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupByV5::CountryGroup(group) => write!(f, "group: {}", group),
-            GroupByV5::NymAddress(address) => write!(f, "address: {}", address),
-        }
-    }
 }
 
 impl Default for TopologyV5 {

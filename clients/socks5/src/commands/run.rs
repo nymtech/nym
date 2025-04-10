@@ -6,7 +6,6 @@ use crate::commands::{override_config, OverrideConfig};
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
-use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
 use std::net::IpAddr;
@@ -37,10 +36,6 @@ pub(crate) struct Run {
     #[clap(long)]
     host: Option<IpAddr>,
 
-    /// Set geo-aware mixnode selection when sending mixnet traffic, for experiments only.
-    #[clap(long, hide = true, value_parser = validate_country_group, group="routing")]
-    geo_routing: Option<CountryGroup>,
-
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
     #[clap(long, hide = true)]
@@ -59,7 +54,6 @@ impl From<Run> for OverrideConfig {
             use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.common_args.fastmode,
             no_cover: run_config.common_args.no_cover,
-            geo_routing: run_config.geo_routing,
             medium_toggle: run_config.medium_toggle,
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
@@ -67,13 +61,6 @@ impl From<Run> for OverrideConfig {
             stats_reporting_address: run_config.common_args.stats_reporting_address,
             forget_me: run_config.common_args.forget_me.into(),
         }
-    }
-}
-
-fn validate_country_group(s: &str) -> Result<CountryGroup, String> {
-    match s.parse() {
-        Ok(cg) => Ok(cg),
-        Err(_) => Err(format!("failed to parse country group: {}", s)),
     }
 }
 

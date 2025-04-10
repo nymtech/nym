@@ -12,7 +12,6 @@ license.workspace = true
 async-trait = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
-cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
@@ -24,7 +23,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 si-scale = { workspace = true }
-tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
@@ -35,9 +33,7 @@ zeroize = { workspace = true }
 nym-id = { path = "../nym-id" }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-config = { path = "../config" }
-nym-country-group = { path = "../country-group" }
 nym-crypto = { path = "../crypto" }
-nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-http-api-client = { path = "../http-api-client" }

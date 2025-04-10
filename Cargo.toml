@@ -39,7 +39,6 @@ members = [
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
-    "common/country-group",
     "common/credential-storage",
     "common/credential-utils",
     "common/credential-verification",
@@ -97,9 +96,6 @@ members = [
     "common/wireguard",
     "common/wireguard-types",
     "documentation/autodoc",
-    # "explorer-api",
-    # "explorer-api/explorer-api-requests",
-    # "explorer-api/explorer-client",
     "gateway",
     "integrations/bity",
     "nym-api",
@@ -270,7 +266,6 @@ indicatif = "0.17.11"
 inquire = "0.6.2"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
-isocountry = "0.3.2"
 itertools = "0.14.0"
 k256 = "0.13"
 lazy_static = "1.5.0"

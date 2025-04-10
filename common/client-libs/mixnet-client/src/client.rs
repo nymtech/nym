@@ -3,6 +3,8 @@
 
 use dashmap::DashMap;
 use futures::StreamExt;
+use nym_noise::config::NoiseConfig;
+use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -59,6 +61,7 @@ pub trait SendWithoutResponse {
 
 pub struct Client {
     active_connections: ActiveConnections,
+    noise_config: NoiseConfig,
     connections_count: Arc<AtomicUsize>,
     config: Config,
 }
@@ -104,6 +107,7 @@ impl ConnectionSender {
 
 struct ManagedConnection {
     address: SocketAddr,
+    noise_config: NoiseConfig,
     message_receiver: ReceiverStream<FramedNymPacket>,
     connection_timeout: Duration,
     current_reconnection: Arc<AtomicU32>,
@@ -112,12 +116,14 @@ struct ManagedConnection {
 impl ManagedConnection {
     fn new(
         address: SocketAddr,
+        noise_config: NoiseConfig,
         message_receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: Arc<AtomicU32>,
     ) -> Self {
         ManagedConnection {
             address,
+            noise_config,
             message_receiver: ReceiverStream::new(message_receiver),
             connection_timeout,
             current_reconnection,
@@ -132,9 +138,21 @@ impl ManagedConnection {
             Ok(stream_res) => match stream_res {
                 Ok(stream) => {
                     debug!("Managed to establish connection to {}", self.address);
-                    // if we managed to connect, reset the reconnection count (whatever it might have been)
+
+                    let noise_stream =
+                        match upgrade_noise_initiator(stream, &self.noise_config).await {
+                            Ok(noise_stream) => noise_stream,
+                            Err(err) => {
+                                error!("Failed to perform Noise handshake with {address} - {err}");
+                                // we failed to finish the noise handshake - increase reconnection attempt
+                                self.current_reconnection.fetch_add(1, Ordering::SeqCst);
+                                return;
+                            }
+                        };
+                    // if we managed to connect AND do the noise handshake, reset the reconnection count (whatever it might have been)
                     self.current_reconnection.store(0, Ordering::Release);
-                    Framed::new(stream, NymCodec)
+                    debug!("Noise initiator handshake completed for {:?}", address);
+                    Framed::new(noise_stream, NymCodec)
                 }
                 Err(err) => {
                     debug!("failed to establish connection to {address} (err: {err})",);
@@ -167,9 +185,14 @@ impl ManagedConnection {
 }
 
 impl Client {
-    pub fn new(config: Config, connections_count: Arc<AtomicUsize>) -> Client {
+    pub fn new(
+        config: Config,
+        noise_config: NoiseConfig,
+        connections_count: Arc<AtomicUsize>,
+    ) -> Client {
         Client {
             active_connections: Default::default(),
+            noise_config,
             connections_count,
             config,
         }
@@ -224,6 +247,7 @@ impl Client {
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
         let connections_count = self.connections_count.clone();
+        let noise_config = self.noise_config.clone();
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -234,6 +258,7 @@ impl Client {
             connections_count.fetch_add(1, Ordering::SeqCst);
             ManagedConnection::new(
                 address.into(),
+                noise_config,
                 receiver,
                 initial_connection_timeout,
                 current_reconnection_attempt,
@@ -302,8 +327,12 @@ impl SendWithoutResponse for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_crypto::asymmetric::x25519;
+    use nym_noise::config::NoiseNetworkView;
+    use rand::rngs::OsRng;
 
     fn dummy_client() -> Client {
+        let mut rng = OsRng; //for test only, so we don't care if rng source isn't crypto grade
         Client::new(
             Config {
                 initial_reconnection_backoff: Duration::from_millis(10_000),
@@ -311,6 +340,10 @@ mod tests {
                 initial_connection_timeout: Duration::from_millis(1_500),
                 maximum_connection_buffer_size: 128,
             },
+            NoiseConfig::new(
+                Arc::new(x25519::KeyPair::new(&mut rng)),
+                NoiseNetworkView::new_empty(),
+            ),
             Default::default(),
         )
     }

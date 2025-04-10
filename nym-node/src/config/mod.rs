@@ -742,8 +742,7 @@ impl Default for MixnetDebug {
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            // to be changed by @SW once the implementation is there
-            unsafe_disable_noise: true,
+            unsafe_disable_noise: false,
         }
     }
 }

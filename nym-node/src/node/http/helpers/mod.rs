@@ -7,13 +7,14 @@ use crate::node::http::api::api_requests;
 use crate::node::http::error::NymNodeHttpError;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_node_requests::api::SignedHostInformation;
+use nym_noise_keys::VersionedNoiseKey;
 
 pub mod system_info;
 
 pub(crate) fn sign_host_details(
     config: &Config,
     x22519_sphinx: &x25519::PublicKey,
-    x25519_noise: &x25519::PublicKey,
+    x25519_noise: &VersionedNoiseKey,
     ed22519_identity: &ed25519::KeyPair,
 ) -> Result<SignedHostInformation, NymNodeError> {
     let x25519_noise = if config.mixnet.debug.unsafe_disable_noise {

@@ -33,9 +33,8 @@ use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
     ConfigScoreParams, CurrentIntervalResponse, Delegation, EpochRewardedSet, EpochStatus,
     ExecuteMsg, GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails,
-    PendingRewardResponse, RewardedSet, RoleAssignment,
+    RewardedSet, RoleAssignment,
 };
-use nym_topology::NodeId;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{PagedDkgQueryClient, VestingQueryClient};
@@ -420,25 +419,6 @@ impl Client {
         delegation_owner: &AccountId,
     ) -> Result<Vec<Delegation>, NyxdError> {
         nyxd_query!(self, get_all_delegator_delegations(delegation_owner).await)
-    }
-
-    pub(crate) async fn get_pending_delegator_reward(
-        &self,
-        delegator: &AccountId,
-        node_id: NodeId,
-        proxy: Option<String>,
-    ) -> Result<PendingRewardResponse, NyxdError> {
-        nyxd_query!(
-            self,
-            get_pending_delegator_reward(delegator, node_id, proxy).await
-        )
-    }
-
-    pub(crate) async fn get_pending_operator_reward(
-        &self,
-        operator: &AccountId,
-    ) -> Result<PendingRewardResponse, NyxdError> {
-        nyxd_query!(self, get_pending_operator_reward(operator).await)
     }
 
     async fn _get_vesting_account(&self, address: &str) -> Result<Account, NyxdError> {

@@ -1156,29 +1156,7 @@
   dependencies:
     regenerator-runtime "^0.13.2"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-"@babel/runtime@^7.0.0", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.15.4", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3", "@babel/runtime@^7.21.0", "@babel/runtime@^7.23.9", "@babel/runtime@^7.24.0", "@babel/runtime@^7.25.7", "@babel/runtime@^7.26.0", "@babel/runtime@^7.3.1", "@babel/runtime@^7.5.0", "@babel/runtime@^7.5.5", "@babel/runtime@^7.7.6", "@babel/runtime@^7.8.3", "@babel/runtime@^7.8.4", "@babel/runtime@^7.8.7", "@babel/runtime@^7.9.2":
-  version "7.26.10"
-  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.26.10.tgz#a07b4d8fa27af131a633d7b3524db803eb4764c2"
-  integrity sha512-2WJMeRQPHKSPemqk/awGrAiuFfzBmOIPXKizAsVhWH9YJqLZ0H+HS4c8loHGgW6utJ3E/ejXQUsiGaQy2NZ9Fw==
-=======
-"@babel/runtime@^7.0.0", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.15.4", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3", "@babel/runtime@^7.18.9", "@babel/runtime@^7.21.0", "@babel/runtime@^7.23.2", "@babel/runtime@^7.23.9", "@babel/runtime@^7.24.0", "@babel/runtime@^7.25.0", "@babel/runtime@^7.25.7", "@babel/runtime@^7.26.0", "@babel/runtime@^7.26.10", "@babel/runtime@^7.3.1", "@babel/runtime@^7.5.0", "@babel/runtime@^7.5.5", "@babel/runtime@^7.7.6", "@babel/runtime@^7.8.3", "@babel/runtime@^7.8.4", "@babel/runtime@^7.8.7", "@babel/runtime@^7.9.2":
-=======
-"@babel/runtime@^7.0.0", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.15.4", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3", "@babel/runtime@^7.21.0", "@babel/runtime@^7.23.2", "@babel/runtime@^7.23.9", "@babel/runtime@^7.24.0", "@babel/runtime@^7.25.0", "@babel/runtime@^7.25.7", "@babel/runtime@^7.26.0", "@babel/runtime@^7.26.10", "@babel/runtime@^7.3.1", "@babel/runtime@^7.5.0", "@babel/runtime@^7.5.5", "@babel/runtime@^7.7.6", "@babel/runtime@^7.8.3", "@babel/runtime@^7.8.4", "@babel/runtime@^7.8.7", "@babel/runtime@^7.9.2":
->>>>>>> b5a25aa15 (Dark theme)
-  version "7.27.0"
-  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.27.0.tgz#fbee7cf97c709518ecc1f590984481d5460d4762"
-  integrity sha512-VtPOkrdPHZsKc/clNqyi9WUA8TINkZ4cGk63UUE3u4pmB2k+ZMQRDuIOagv8UVd6j7k0T3+RRIb7beKTebNbcw==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-  dependencies:
-    regenerator-runtime "^0.14.0"
-
-"@babel/runtime@^7.23.2", "@babel/runtime@^7.25.0", "@babel/runtime@^7.26.10":
-=======
 "@babel/runtime@^7.0.0", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.15.4", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3", "@babel/runtime@^7.21.0", "@babel/runtime@^7.23.2", "@babel/runtime@^7.23.9", "@babel/runtime@^7.24.0", "@babel/runtime@^7.25.0", "@babel/runtime@^7.25.7", "@babel/runtime@^7.26.0", "@babel/runtime@^7.26.10", "@babel/runtime@^7.27.0", "@babel/runtime@^7.3.1", "@babel/runtime@^7.5.0", "@babel/runtime@^7.5.5", "@babel/runtime@^7.7.6", "@babel/runtime@^7.8.3", "@babel/runtime@^7.8.4", "@babel/runtime@^7.8.7", "@babel/runtime@^7.9.2":
->>>>>>> ca1e7d716 (add fixes)
   version "7.27.0"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.27.0.tgz#fbee7cf97c709518ecc1f590984481d5460d4762"
   integrity sha512-VtPOkrdPHZsKc/clNqyi9WUA8TINkZ4cGk63UUE3u4pmB2k+ZMQRDuIOagv8UVd6j7k0T3+RRIb7beKTebNbcw==
@@ -1311,36 +1289,10 @@
   resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.46.15.tgz#f4c0219fb7060d97cb224b55f349adb1d436aac9"
   integrity sha512-gzf+pkAbEZ7fKuTuwmrEAEcx1K/BNrKuCnB9s+WwSo9Ad/3s+GV5LOXcOOxjjHh9Mrs9kvnxKvzKjOwWu8gDJw==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-"@chain-registry/types@^0.50.107", "@chain-registry/types@^0.50.36":
-  version "0.50.107"
-  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.107.tgz#460bac6486ac609702accd3f2ad619b523c5b9fa"
-  integrity sha512-9J88lyxWAgWgjAcV8LhYwhCGXnZmSnxH0WWbHY5JHJ05BDWuWRcWV4NE+9p085tfDKeOo56ua+gTG1hfeMUXsA==
-
-"@chain-registry/types@^0.50.94":
-  version "0.50.94"
-  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.94.tgz#9c9cdeb45b122dae116f19ba04418ad6a183e154"
-  integrity sha512-D9PvO09UTjdKD+MmHFNSP//vfWXVEt1ILXOBGvZfi9kBy1a5xM4tCLuH/DH6kX5hjZHGxFmcBUwvYwh1kUJc7w==
-=======
-"@chain-registry/types@^0.50.100", "@chain-registry/types@^0.50.36":
-  version "0.50.100"
-  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.100.tgz#c08319adf6789ea5b82ce88e65671f9d4cf8c116"
-  integrity sha512-ZaEtpC6Qkt6y1MJjRbGifSLt4UjSnLPknJbzx6TLeC+N3EVavcaR0ionz+1HozTlb0SMKdO1/zt/N6X4NJlDkw==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-"@chain-registry/types@^0.50.108", "@chain-registry/types@^0.50.36":
-  version "0.50.108"
-  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.108.tgz#6980e9b169bb75d644a99587bb31f7654cbf49e8"
-  integrity sha512-FRSQZI6e1tVJ6OvEI2HFTa0RcrJjGATEJ0EBr3asPFEln4Yjpj67vjI9MjhOZwhf1HI2DYfjqUTWeZrvqLu8+g==
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@chain-registry/types@^0.50.111", "@chain-registry/types@^0.50.36":
   version "0.50.111"
   resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.111.tgz#d2cf7f537420e8532b342d6ff099847774f6caaa"
   integrity sha512-Z6gAqAx4fM0C9/dYpjUeKGi2q05QqWDzH+NvXRVYbZ101VvJoucW9EzJNXykEJ5G/3RUBm6cJSx8pFs9355R8g==
->>>>>>> ca1e7d716 (add fixes)
 
 "@chain-registry/utils@^1.51.111":
   version "1.51.111"
@@ -1382,58 +1334,7 @@
     "@cosmjs/math" "^0.32.4"
     "@cosmjs/utils" "^0.32.4"
 
-<<<<<<< HEAD
-"@cosmjs/cosmwasm-launchpad@^0.25.6":
-  version "0.25.6"
-  resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-launchpad/-/cosmwasm-launchpad-0.25.6.tgz#b03a96c8d5b5b4742ec4c56b4a01b1f4f33f7f57"
-  integrity sha512-rzpYg/A8tvXbY6p89LabPB1mqCtTUv+33nN+s+VWMH0oOl0LSIgLE0yIT61kwTaf2dWQvRVeFaiRLFC72/w/zw==
-  dependencies:
-    "@cosmjs/crypto" "^0.25.6"
-    "@cosmjs/encoding" "^0.25.6"
-    "@cosmjs/launchpad" "^0.25.6"
-    "@cosmjs/math" "^0.25.6"
-    "@cosmjs/utils" "^0.25.6"
-    pako "^2.0.2"
-
-"@cosmjs/cosmwasm-stargate@^0.25.5":
-  version "0.25.6"
-  resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.25.6.tgz#26a788213833aaffc4bc1a87df650741e0b8fd63"
-  integrity sha512-STaxur5Xk5hqndLEztpa1TqvpdQyg2xD//2ZNFw2fgxf1JQtP0RfFbA3bnBkYwbGARx5cnng8QeZmSUcXnTVxA==
-  dependencies:
-    "@cosmjs/amino" "^0.25.6"
-    "@cosmjs/cosmwasm-launchpad" "^0.25.6"
-    "@cosmjs/crypto" "^0.25.6"
-    "@cosmjs/encoding" "^0.25.6"
-    "@cosmjs/math" "^0.25.6"
-    "@cosmjs/proto-signing" "^0.25.6"
-    "@cosmjs/stargate" "^0.25.6"
-    "@cosmjs/tendermint-rpc" "^0.25.6"
-    "@cosmjs/utils" "^0.25.6"
-    long "^4.0.0"
-    pako "^2.0.2"
-    protobufjs "~6.10.2"
-
-"@cosmjs/cosmwasm-stargate@^0.29.5":
-  version "0.29.5"
-  resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.29.5.tgz#3f257da682658833e0f4eb9e8ff758e4d927663a"
-  integrity sha512-TNdSvm2tEE3XMCuxHxquzls56t40hC8qnLeYJWHsY2ECZmRK3KrnpRReEr7N7bLtODToK7X/riYrV0JaYxjrYA==
-  dependencies:
-    "@cosmjs/amino" "^0.29.5"
-    "@cosmjs/crypto" "^0.29.5"
-    "@cosmjs/encoding" "^0.29.5"
-    "@cosmjs/math" "^0.29.5"
-    "@cosmjs/proto-signing" "^0.29.5"
-    "@cosmjs/stargate" "^0.29.5"
-    "@cosmjs/tendermint-rpc" "^0.29.5"
-    "@cosmjs/utils" "^0.29.5"
-    cosmjs-types "^0.5.2"
-    long "^4.0.0"
-    pako "^2.0.2"
-
-"@cosmjs/cosmwasm-stargate@^0.32.3":
-=======
 "@cosmjs/cosmwasm-stargate@^0.25.5", "@cosmjs/cosmwasm-stargate@^0.29.5", "@cosmjs/cosmwasm-stargate@^0.32.3", "@cosmjs/cosmwasm-stargate@^0.32.4":
->>>>>>> b5a25aa15 (Dark theme)
   version "0.32.4"
   resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.32.4.tgz#2ee93f2cc0b1c146ac369b2bf8ef9ee2e159fd50"
   integrity sha512-Fuo9BGEiB+POJ5WeRyBGuhyKR1ordvxZGLPuPosFJOH9U0gKMgcjwKMCgAlWFkMlHaTB+tNdA8AifWiHrI7VgA==
@@ -1562,45 +1463,7 @@
     ws "^7"
     xstream "^11.14.0"
 
-<<<<<<< HEAD
-"@cosmjs/stargate@^0.25.5", "@cosmjs/stargate@^0.25.6":
-  version "0.25.6"
-  resolved "https://registry.yarnpkg.com/@cosmjs/stargate/-/stargate-0.25.6.tgz#ed7428aafd8fe1c12dc4b86f7967deb88117f61a"
-  integrity sha512-+LM1sK6vGuotJF9fBCBlaDL/yJhfzCV6KbsaWt3teHAKZhKYOd/9mKGiB4H9bfg4h3r+e+FZGiNkH/mdXkcgEw==
-  dependencies:
-    "@confio/ics23" "^0.6.3"
-    "@cosmjs/amino" "^0.25.6"
-    "@cosmjs/encoding" "^0.25.6"
-    "@cosmjs/math" "^0.25.6"
-    "@cosmjs/proto-signing" "^0.25.6"
-    "@cosmjs/stream" "^0.25.6"
-    "@cosmjs/tendermint-rpc" "^0.25.6"
-    "@cosmjs/utils" "^0.25.6"
-    long "^4.0.0"
-    protobufjs "~6.10.2"
-
-"@cosmjs/stargate@^0.29.5":
-  version "0.29.5"
-  resolved "https://registry.yarnpkg.com/@cosmjs/stargate/-/stargate-0.29.5.tgz#d597af1c85a3c2af7b5bdbec34d5d40692cc09e4"
-  integrity sha512-hjEv8UUlJruLrYGJcUZXM/CziaINOKwfVm2BoSdUnNTMxGvY/jC1ABHKeZUYt9oXHxEJ1n9+pDqzbKc8pT0nBw==
-  dependencies:
-    "@confio/ics23" "^0.6.8"
-    "@cosmjs/amino" "^0.29.5"
-    "@cosmjs/encoding" "^0.29.5"
-    "@cosmjs/math" "^0.29.5"
-    "@cosmjs/proto-signing" "^0.29.5"
-    "@cosmjs/stream" "^0.29.5"
-    "@cosmjs/tendermint-rpc" "^0.29.5"
-    "@cosmjs/utils" "^0.29.5"
-    cosmjs-types "^0.5.2"
-    long "^4.0.0"
-    protobufjs "~6.11.3"
-    xstream "^11.14.0"
-
-"@cosmjs/stargate@^0.32.3", "@cosmjs/stargate@^0.32.4":
-=======
 "@cosmjs/stargate@^0.25.5", "@cosmjs/stargate@^0.29.5", "@cosmjs/stargate@^0.32.3", "@cosmjs/stargate@^0.32.4":
->>>>>>> b5a25aa15 (Dark theme)
   version "0.32.4"
   resolved "https://registry.yarnpkg.com/@cosmjs/stargate/-/stargate-0.32.4.tgz#bd0e4d3bf613b629addbf5f875d3d3b50f640af1"
   integrity sha512-usj08LxBSsPRq9sbpCeVdyLx2guEcOHfJS9mHGCLCXpdAPEIEQEtWLDpEUc0LEhWOx6+k/ChXTc5NpFkdrtGUQ==
@@ -1672,15 +1535,7 @@
   resolved "https://registry.yarnpkg.com/@cosmjs/utils/-/utils-0.32.4.tgz#a9a717c9fd7b1984d9cefdd0ef6c6f254060c671"
   integrity sha512-D1Yc+Zy8oL/hkUkFUL/bwxvuDBzRGpc4cF7/SkdhxX4iHpSLgdOuTt1mhCh9+kl6NQREy9t7SYZ6xeW5gFe60w==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 "@cosmos-kit/core@^2.16.0":
-=======
-"@cosmos-kit/core@^2.16.0", "@cosmos-kit/core@^2.8.9":
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-"@cosmos-kit/core@^2.16.0":
->>>>>>> b5a25aa15 (Dark theme)
   version "2.16.0"
   resolved "https://registry.yarnpkg.com/@cosmos-kit/core/-/core-2.16.0.tgz#19a393cad477183014e919690ce409ce32c7decf"
   integrity sha512-bhN3Fs4TcAoasdYMVaYHbpJWo8ZUhmCRc49t1Nc5UJHHu9VGs9NSnSk2NoprLA+kciIt+Y+RUXZLnt588nkG3Q==
@@ -1700,15 +1555,7 @@
     nock "13.5.4"
     uuid "^9.0.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 "@cosmos-kit/keplr-extension@^2.14.0":
-=======
-"@cosmos-kit/keplr-extension@^2.14.0", "@cosmos-kit/keplr-extension@^2.7.9":
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-"@cosmos-kit/keplr-extension@^2.14.0":
->>>>>>> b5a25aa15 (Dark theme)
   version "2.15.0"
   resolved "https://registry.yarnpkg.com/@cosmos-kit/keplr-extension/-/keplr-extension-2.15.0.tgz#a674d8a657a182ef1227498db89c93d52a9c13dc"
   integrity sha512-jaB2mEfy4bamnZL+RYonfrsAecoVNrk1e+PsTxPNNJh8EFAohRTY6OG4Q6ZZGy8zIQuUNTGdFTIt2T03o7o0ig==
@@ -1727,15 +1574,7 @@
     "@cosmos-kit/core" "^2.16.0"
     "@dao-dao/cosmiframe" "^1.0.0-rc.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 "@cosmos-kit/react@^2.20.1":
-=======
-"@cosmos-kit/react@^2.10.11", "@cosmos-kit/react@^2.20.1":
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-"@cosmos-kit/react@^2.20.1":
->>>>>>> b5a25aa15 (Dark theme)
   version "2.22.0"
   resolved "https://registry.yarnpkg.com/@cosmos-kit/react/-/react-2.22.0.tgz#831980d3322e121c64f88c80b9e4593c0c5a9d93"
   integrity sha512-boTQT4hMUYlcfCk9BqlbGA52T+OXU9djFlIYFyp6vryOWLpy53Jx0sTwsvViOzrMtcpSJGBnw1Zil1cneexu+A==
@@ -2443,23 +2282,12 @@
   resolved "https://registry.yarnpkg.com/@img/sharp-win32-x64/-/sharp-win32-x64-0.33.5.tgz#56f00962ff0c4e0eb93d34a047d29fa995e3e342"
   integrity sha512-MpY/o8/8kj+EcnxwvrP4aTJSWw/aZ7JIGR4aBeZkZw5B7/Jn+tY9/VNwtcoGmdT7GfggGIU4kygOMSbYnOrAbg==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 "@img/sharp-win32-x64@0.34.1":
   version "0.34.1"
   resolved "https://registry.yarnpkg.com/@img/sharp-win32-x64/-/sharp-win32-x64-0.34.1.tgz#8a7922fec949f037c204c79f6b83238d2482384b"
   integrity sha512-hw1iIAHpNE8q3uMIRCgGOeDoz9KtFNarFLQclLxr/LK1VBkj8nby18RjFvr6aP7USRYAjTZW6yisnBWMX571Tw==
 
->>>>>>> ca1e7d716 (add fixes)
 "@interchain-ui/react@^1.26.1":
-=======
-"@interchain-ui/react@^1.14.2", "@interchain-ui/react@^1.26.1":
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-"@interchain-ui/react@^1.26.1":
->>>>>>> b5a25aa15 (Dark theme)
   version "1.26.3"
   resolved "https://registry.yarnpkg.com/@interchain-ui/react/-/react-1.26.3.tgz#71c18d95a43eb57b2b3b2ecc256a24e4edc73cd9"
   integrity sha512-kvGOZaSDJLNxtxieiyPMHOzxBGkpHR/BCpg/UEMDl2l7nLoPrygB/Oux1QEv/cwkw8GvepOBM7pzfJf8xk1IbQ==
@@ -3095,47 +2923,15 @@
   resolved "https://registry.yarnpkg.com/@mui/core-downloads-tracker/-/core-downloads-tracker-5.17.1.tgz#49b88ecb68b800431b5c2f2bfb71372d1f1478fa"
   integrity sha512-OcZj+cs6EfUD39IoPBOgN61zf1XFVY+imsGoBDwXeSq2UHJZE3N59zzBOVjclck91Ne3e9gudONOeILvHCIhUA==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@mui/core-downloads-tracker@^6.4.10":
-  version "6.4.10"
-  resolved "https://registry.yarnpkg.com/@mui/core-downloads-tracker/-/core-downloads-tracker-6.4.10.tgz#d01f0beda966f7a7d31400274b693d4ceb55747b"
-  integrity sha512-cblGjlM6+xsptwyaALw8RbRIUoqmKxOqLxlk2LkTDhxqUuql1YSOKKLH3w+Yd2QLz28b7MR65sx1OjsRZUfOSQ==
-<<<<<<< HEAD
-
-"@mui/icons-material@^5.16.11":
-  version "5.17.1"
-  resolved "https://registry.yarnpkg.com/@mui/icons-material/-/icons-material-5.17.1.tgz#2b14832473d4d3738d8194665af359377eb91752"
-  integrity sha512-CN86LocjkunFGG0yPlO4bgqHkNGgaEOEc3X/jG5Bzm401qYw79/SaLrofA7yAKCCXAGdIGnLoMHohc3+ubs95A==
-  dependencies:
-    "@babel/runtime" "^7.23.9"
-
-"@mui/icons-material@^5.2.0":
-  version "5.16.14"
-  resolved "https://registry.yarnpkg.com/@mui/icons-material/-/icons-material-5.16.14.tgz#4fdecb05c15b1696f6f668fc29d549875544c892"
-  integrity sha512-heL4S+EawrP61xMXBm59QH6HODsu0gxtZi5JtnXF2r+rghzyU/3Uftlt1ij8rmJh+cFdKTQug1L9KkZB5JgpMQ==
-=======
-"@mui/core-downloads-tracker@^6.4.9":
-  version "6.4.9"
-  resolved "https://registry.yarnpkg.com/@mui/core-downloads-tracker/-/core-downloads-tracker-6.4.9.tgz#6f9f6a220b22ee24a70bbe73e5ec6cb7222a0713"
-  integrity sha512-3UvsvOjqZJcokHKSzA1lskj2XMM/G5GBgge6ykwmAij2pGGxydGxAXirQlLaeoMwTKDS6BcrLqPZyPVwzri20A==
-=======
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@mui/core-downloads-tracker@^6.4.11":
   version "6.4.11"
   resolved "https://registry.yarnpkg.com/@mui/core-downloads-tracker/-/core-downloads-tracker-6.4.11.tgz#0752eea024d8ff0f120b0f26aee4342c79112847"
   integrity sha512-CzAQs9CTzlwbsF9ZYB4o4lLwBv1/qNE264NjuYao+ctAXsmlPtYa8RtER4UsUXSMxNN9Qi+aQdYcKl2sUpnmAw==
->>>>>>> ca1e7d716 (add fixes)
 
 "@mui/icons-material@^5.16.11", "@mui/icons-material@^5.2.0":
   version "5.17.1"
   resolved "https://registry.yarnpkg.com/@mui/icons-material/-/icons-material-5.17.1.tgz#2b14832473d4d3738d8194665af359377eb91752"
   integrity sha512-CN86LocjkunFGG0yPlO4bgqHkNGgaEOEc3X/jG5Bzm401qYw79/SaLrofA7yAKCCXAGdIGnLoMHohc3+ubs95A==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
   dependencies:
     "@babel/runtime" "^7.23.9"
 
@@ -3159,21 +2955,10 @@
   dependencies:
     "@babel/runtime" "^7.26.0"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 "@mui/material@^5.2.2":
-  version "5.16.14"
-  resolved "https://registry.yarnpkg.com/@mui/material/-/material-5.16.14.tgz#da8a75822f039d8c1b0ab7fb4146d767c2f9248a"
-  integrity sha512-eSXQVCMKU2xc7EcTxe/X/rC9QsV2jUe8eLM3MUCPYbo6V52eCE436akRIvELq/AqZpxx2bwkq7HC0cRhLB+yaw==
-=======
-"@mui/material@^5.0.1", "@mui/material@^5.2.2":
-=======
-"@mui/material@^5.2.2":
->>>>>>> b5a25aa15 (Dark theme)
   version "5.17.1"
   resolved "https://registry.yarnpkg.com/@mui/material/-/material-5.17.1.tgz#596f542a51fc74db75da2df66565b4874ce4049d"
   integrity sha512-2B33kQf+GmPnrvXXweWAx+crbiUEsxCdCN979QDYnlH9ox4pd+0/IBriWLV+l6ORoBF60w39cWjFnJYGFdzXcw==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
   dependencies:
     "@babel/runtime" "^7.23.9"
     "@mui/core-downloads-tracker" "^5.17.1"
@@ -3189,35 +2974,6 @@
     react-transition-group "^4.4.5"
 
 "@mui/material@^6.1.10":
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  version "6.4.10"
-  resolved "https://registry.yarnpkg.com/@mui/material/-/material-6.4.10.tgz#9b9093cfd547f57e41862cdbd92636a22db07664"
-  integrity sha512-L1B0+Vg9NFjo3NcfODH3bohl6fIkzjyDBHBHb3Al4QI7owaJrFm2sSDyfz++iatzICug6U6q5tHLQrCLO71xkg==
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/core-downloads-tracker" "^6.4.10"
-    "@mui/system" "^6.4.10"
-=======
-  version "6.4.9"
-  resolved "https://registry.yarnpkg.com/@mui/material/-/material-6.4.9.tgz#06e07dd13ddf6d4fa1ecc2a1c6f9338f6dff0b2a"
-  integrity sha512-+5dExw9xUUFujIW889gB3qrfjeNo3YjYW7aWVZ6BlBIJnKpJ0jNcYZJpBUFoXt/FUV5Wy1V+/+XzR3Is2mXX2w==
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/core-downloads-tracker" "^6.4.9"
-    "@mui/system" "^6.4.9"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  version "6.4.10"
-  resolved "https://registry.yarnpkg.com/@mui/material/-/material-6.4.10.tgz#9b9093cfd547f57e41862cdbd92636a22db07664"
-  integrity sha512-L1B0+Vg9NFjo3NcfODH3bohl6fIkzjyDBHBHb3Al4QI7owaJrFm2sSDyfz++iatzICug6U6q5tHLQrCLO71xkg==
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/core-downloads-tracker" "^6.4.10"
-    "@mui/system" "^6.4.10"
->>>>>>> b5a25aa15 (Dark theme)
-=======
   version "6.4.11"
   resolved "https://registry.yarnpkg.com/@mui/material/-/material-6.4.11.tgz#ac5c42c25fc807545eef4de0e88a47b52de8ed75"
   integrity sha512-k2D3FLJS+/qD0qnd6ZlAjGFvaaxe1Dl10NyvpeDzIebMuYdn8VqYe6XBgGueEAtnzSJM4V03VD9kb5Fi24dnTA==
@@ -3225,7 +2981,6 @@
     "@babel/runtime" "^7.26.0"
     "@mui/core-downloads-tracker" "^6.4.11"
     "@mui/system" "^6.4.11"
->>>>>>> ca1e7d716 (add fixes)
     "@mui/types" "~7.2.24"
     "@mui/utils" "^6.4.9"
     "@popperjs/core" "^2.11.8"
@@ -3276,21 +3031,10 @@
     csstype "^3.1.3"
     prop-types "^15.8.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 "@mui/styles@^5.2.2":
-  version "5.16.14"
-  resolved "https://registry.yarnpkg.com/@mui/styles/-/styles-5.16.14.tgz#a9482d0287ae83636c146817ba99f7dde6fcdaca"
-  integrity sha512-J3iE718GbU06mnD9qu57/Fx+TosuBlhzs8nk1Q87QRQ76xo6qzLc3ek9n3dUPourGXWVenTxv1YX8lTOAnbHBA==
-=======
-"@mui/styles@^5.0.1", "@mui/styles@^5.2.2":
-=======
-"@mui/styles@^5.2.2":
->>>>>>> b5a25aa15 (Dark theme)
   version "5.17.1"
   resolved "https://registry.yarnpkg.com/@mui/styles/-/styles-5.17.1.tgz#1d51a6eee7fdb396979199e6b08a2d0b3ca9e6f8"
   integrity sha512-GxNtcD1jXjj1i81vyuaeNxCpph/ApxSxgJ+G8A2jUY5/bMOxXSmgUdupbB0JLexsDIqmaSqTePVN0jnMZc1iZQ==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
   dependencies:
     "@babel/runtime" "^7.23.9"
     "@emotion/hash" "^0.9.1"
@@ -3310,21 +3054,10 @@
     jss-plugin-vendor-prefixer "^10.10.0"
     prop-types "^15.8.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-"@mui/system@^5.15.14", "@mui/system@^5.15.15", "@mui/system@^5.16.14":
-  version "5.16.14"
-  resolved "https://registry.yarnpkg.com/@mui/system/-/system-5.16.14.tgz#92765ba01a3d1f8ee4967248cb00077d7aed225b"
-  integrity sha512-KBxMwCb8mSIABnKvoGbvM33XHyT+sN0BzEBG+rsSc0lLQGzs7127KWkCA6/H8h6LZ00XpBEME5MAj8mZLiQ1tw==
-=======
-"@mui/system@^5.0.1", "@mui/system@^5.15.14", "@mui/system@^5.15.15", "@mui/system@^5.17.1":
-=======
 "@mui/system@^5.15.14", "@mui/system@^5.15.15", "@mui/system@^5.17.1":
->>>>>>> b5a25aa15 (Dark theme)
   version "5.17.1"
   resolved "https://registry.yarnpkg.com/@mui/system/-/system-5.17.1.tgz#1f987cce91bf738545a8cf5f99152cd2728e6077"
   integrity sha512-aJrmGfQpyF0U4D4xYwA6ueVtQcEMebET43CUmKMP7e7iFh3sMIF3sBR0l8Urb4pqx1CBjHAaWgB0ojpND4Q3Jg==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
   dependencies:
     "@babel/runtime" "^7.23.9"
     "@mui/private-theming" "^5.17.1"
@@ -3335,35 +3068,6 @@
     csstype "^3.1.3"
     prop-types "^15.8.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@mui/system@^6.4.10":
-  version "6.4.10"
-  resolved "https://registry.yarnpkg.com/@mui/system/-/system-6.4.10.tgz#622eb2b73d94137e34abcd105d7708d67e80e70b"
-  integrity sha512-RyBGQwP3tgo4JEibK+RwVu1a6nQ6y8urMCNsb2aiN/nvTxxumq6P26aoG4GTUf8L4O1sthC4lMXlP4r8ixDkMg==
-<<<<<<< HEAD
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/private-theming" "^6.4.9"
-=======
-"@mui/system@^6.4.9":
-  version "6.4.9"
-  resolved "https://registry.yarnpkg.com/@mui/system/-/system-6.4.9.tgz#19575feb3fc7b465b082c65c9c737e1a40ed06ef"
-  integrity sha512-JOj7efXGtZn+NIzX8KDyMpO1QKc0DhilPBsxvci1xAvI1e5AtAtfzrEuV5ZvN+lz2BDuzngCWlllnqQ/cg40RQ==
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/private-theming" "^6.4.8"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/private-theming" "^6.4.9"
->>>>>>> b5a25aa15 (Dark theme)
-    "@mui/styled-engine" "^6.4.9"
-=======
 "@mui/system@^6.4.11":
   version "6.4.11"
   resolved "https://registry.yarnpkg.com/@mui/system/-/system-6.4.11.tgz#f209e0792d008be2f75af41fada2ee9e06adeef2"
@@ -3372,7 +3076,6 @@
     "@babel/runtime" "^7.26.0"
     "@mui/private-theming" "^6.4.9"
     "@mui/styled-engine" "^6.4.11"
->>>>>>> ca1e7d716 (add fixes)
     "@mui/types" "~7.2.24"
     "@mui/utils" "^6.4.9"
     clsx "^2.1.1"
@@ -3391,21 +3094,10 @@
   resolved "https://registry.yarnpkg.com/@mui/types/-/types-7.2.24.tgz#5eff63129d9c29d80bbf2d2e561bd0690314dec2"
   integrity sha512-3c8tRt/CbWZ+pEg7QpSwbdxOk36EfmhbKf6AGZsD1EcLDLTSZoxxJ86FVtcjxvjuhdyBiWKSTGZFaXCnidO2kw==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-"@mui/utils@^5.15.14", "@mui/utils@^5.16.14", "@mui/utils@^5.7.0":
-  version "5.16.14"
-  resolved "https://registry.yarnpkg.com/@mui/utils/-/utils-5.16.14.tgz#7217e876a5092cd04c184b34bca348e0befaef8c"
-  integrity sha512-wn1QZkRzSmeXD1IguBVvJJHV3s6rxJrfb6YuC9Kk6Noh9f8Fb54nUs5JRkKm+BOerRhj5fLg05Dhx/H3Ofb8Mg==
-=======
-"@mui/utils@^5.10.3", "@mui/utils@^5.15.14", "@mui/utils@^5.17.1", "@mui/utils@^5.7.0":
-=======
 "@mui/utils@^5.15.14", "@mui/utils@^5.17.1", "@mui/utils@^5.7.0":
->>>>>>> b5a25aa15 (Dark theme)
   version "5.17.1"
   resolved "https://registry.yarnpkg.com/@mui/utils/-/utils-5.17.1.tgz#72ba4ffa79f7bdf69d67458139390f18484b6e6b"
   integrity sha512-jEZ8FTqInt2WzxDV8bhImWBqeQRD99c/id/fq83H0ER9tFl+sfZlaAoCdznGvbSQQ9ividMxqSV2c7cC1vBcQg==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
   dependencies:
     "@babel/runtime" "^7.23.9"
     "@mui/types" "~7.2.15"
@@ -3427,18 +3119,6 @@
     react-is "^19.1.0"
 
 "@mui/utils@^6.4.8", "@mui/utils@^6.4.9":
-  version "6.4.9"
-  resolved "https://registry.yarnpkg.com/@mui/utils/-/utils-6.4.9.tgz#b0df01daa254c7c32a1a30b30a5179e19ef071a7"
-  integrity sha512-Y12Q9hbK9g+ZY0T3Rxrx9m2m10gaphDuUMgWxyV5kNJevVxXYCLclYUCC9vXaIk1/NdNDTcW2Yfr2OGvNFNmHg==
-  dependencies:
-    "@babel/runtime" "^7.26.0"
-    "@mui/types" "~7.2.24"
-    "@types/prop-types" "^15.7.14"
-    clsx "^2.1.1"
-    prop-types "^15.8.1"
-    react-is "^19.0.0"
-
-"@mui/utils@^6.4.9":
   version "6.4.9"
   resolved "https://registry.yarnpkg.com/@mui/utils/-/utils-6.4.9.tgz#b0df01daa254c7c32a1a30b30a5179e19ef071a7"
   integrity sha512-Y12Q9hbK9g+ZY0T3Rxrx9m2m10gaphDuUMgWxyV5kNJevVxXYCLclYUCC9vXaIk1/NdNDTcW2Yfr2OGvNFNmHg==
@@ -6601,65 +6281,10 @@
   dependencies:
     remove-accents "0.5.0"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-"@tanstack/query-core@5.71.5":
-  version "5.71.5"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.71.5.tgz#bb373ffca396fa70edb0bc9ef5722add6ba6f0b9"
-  integrity sha512-XOQ5SyjCdwhxyLksGKWSL5poqyEXYPDnsrZAzJm2LgrMm4Yh6VOrfC+IFosXreDw9HNqC11YAMY3HlfHjNzuaA==
-=======
-"@tanstack/query-core@5.69.0":
-  version "5.69.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.69.0.tgz#c434505987ade936dc53e6e27aa1406b0295516f"
-  integrity sha512-Kn410jq6vs1P8Nm+ZsRj9H+U3C0kjuEkYLxbiCyn3MDEiYor1j2DGVULqAz62SLZtUZ/e9Xt6xMXiJ3NJ65WyQ==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-
-"@tanstack/query-devtools@5.71.5":
-  version "5.71.5"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-devtools/-/query-devtools-5.71.5.tgz#65ba36c1589a88707a4985b8b0e7742171ba72e3"
-  integrity sha512-Fq1JeAp+I52Md/KnyeFxzG7G0RpdHgeOfDNhSPkZQs/JqqXuAfpUf+wFHDz+vP0GZbSnla2JmcLSQebOkIb1yA==
-
-"@tanstack/react-query-devtools@^5.64.2":
-<<<<<<< HEAD
-  version "5.71.5"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query-devtools/-/react-query-devtools-5.71.5.tgz#9d34b9e7e5622bc5b0aafbe9149031ef87d7977f"
-  integrity sha512-VErQ29hgwmLrZjMmHp83iv+UdeCbqAyj/JR1mZjDbf+ghyJT+Hmh8jfbh6WYzKh8Fnej7uwl3nHbCsqd3VjoWw==
-=======
-  version "5.69.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query-devtools/-/react-query-devtools-5.69.0.tgz#2cb8083028aab591b9a82caf68cd7a383a0c8b1a"
-  integrity sha512-sYklnou3IKAemqB5wJeBwjmG5bUGDKAL5/I4pVA+aqSnsNibVLt8/pAU976uuJ5K71w71bHtI/AMxiIs3gtkEA==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-  dependencies:
-    "@tanstack/query-devtools" "5.71.5"
-
-"@tanstack/react-query-next-experimental@^5.66.0":
-<<<<<<< HEAD
-  version "5.71.8"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query-next-experimental/-/react-query-next-experimental-5.71.8.tgz#d7f390a5edce5bfc586a0badd1019f51a1a2840b"
-  integrity sha512-9Onh/EfSTk1p2EXpkX+G2dqhsMA89FGO3/5g4aX2EmBstZun582TSbEH2hyje1GTyEKPAnGDNdj5OCALWkTWUg==
-
-"@tanstack/react-query@^5.64.2":
-  version "5.71.5"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.71.5.tgz#1018f083945ba5e2b91997eec9b9c767efce1e1b"
-  integrity sha512-WpxZWy4fDASjY+iAaXB+aY+LC95PQ34W6EWVkjJ0hdzWWbczFnr9nHvHkVDpwdR18I1NO8igNGQJFrLrgyzI8Q==
-  dependencies:
-    "@tanstack/query-core" "5.71.5"
-=======
-  version "5.69.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query-next-experimental/-/react-query-next-experimental-5.69.0.tgz#6416caac068ba3042946db3f9a37c97949fffd48"
-  integrity sha512-V4HgEUFndacuy/aLVbmb+jWIUY/x9l5rTMuVfyxc0NMF60KXw6OOmkf8EuZgnI6F6UTl3Z+tG7em0/cDZcYe7g==
-=======
-"@tanstack/query-core@5.72.0":
-  version "5.72.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.72.0.tgz#a3f35ff0ca290b2626e9b008d4a3f652ff022b7d"
-  integrity sha512-aa3p6Mou++JLLxxxVX9AB9uGeRIGc0JWkw96GASXuMG8K3D+JpYbSFcqXbkGFJ1eX2jKHPurmCBoO43RjjXJCA==
-=======
 "@tanstack/query-core@5.72.2":
   version "5.72.2"
   resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.72.2.tgz#448dbdc68c6c836d7b202eafdd1b89fb9379f3d4"
   integrity sha512-fxl9/0yk3mD/FwTmVEf1/H6N5B975H0luT+icKyX566w6uJG0x6o+Yl+I38wJRCaogiMkstByt+seXfDbWDAcA==
->>>>>>> ca1e7d716 (add fixes)
 
 "@tanstack/query-devtools@5.72.2":
   version "5.72.2"
@@ -6674,32 +6299,16 @@
     "@tanstack/query-devtools" "5.72.2"
 
 "@tanstack/react-query-next-experimental@^5.66.0":
-<<<<<<< HEAD
-  version "5.72.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query-next-experimental/-/react-query-next-experimental-5.72.0.tgz#b9fa48bc53f063c6c91a42362dad91f401c2db84"
-  integrity sha512-rwtjE2LtLfX2nYDRYwRnNLC2iLd3TXp3kpNvJbKJjXYaGmNaJ5weBn8u15rYtIfzmkQVgSazeM4LGGTcH+BwSQ==
->>>>>>> b5a25aa15 (Dark theme)
-=======
   version "5.72.2"
   resolved "https://registry.yarnpkg.com/@tanstack/react-query-next-experimental/-/react-query-next-experimental-5.72.2.tgz#746d27a483172be3fd74094135fc4386bf1aeb8c"
   integrity sha512-s53o3ZKpja2v5Bdga+rxUY+/NzXrNbxRj/JyL7FNgruOmqurF8sJgeQxG7eMV9AHp1iN3Fk12Zezjfv5w3NjMg==
->>>>>>> ca1e7d716 (add fixes)
 
 "@tanstack/react-query@^5.64.2":
   version "5.72.2"
   resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.72.2.tgz#677a2b239bfee2dbeb75c3f4dc541a8fffa33d6d"
   integrity sha512-SVNHzyBUYiis+XiCl+8yiPZmMYei2AKYY94wM/zpvB5l1jxqOo82FQTziSJ4pBi96jtYqvYrTMxWynmbQh3XKw==
   dependencies:
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "@tanstack/query-core" "5.69.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-    "@tanstack/query-core" "5.72.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
     "@tanstack/query-core" "5.72.2"
->>>>>>> ca1e7d716 (add fixes)
 
 "@tanstack/react-table@8.20.5":
   version "8.20.5"
@@ -6768,89 +6377,82 @@
   resolved "https://registry.yarnpkg.com/@tanstack/virtual-core/-/virtual-core-3.13.6.tgz#329f962f1596b3280736c266a982897ed2112157"
   integrity sha512-cnQUeWnhNP8tJ4WsGcYiX24Gjkc9ALstLbHcBj1t3E7EimN6n6kHH+DPV4PpDnuw00NApQp+ViojMj1GRdwYQg==
 
-<<<<<<< HEAD
 "@tauri-apps/api@^2.0.0", "@tauri-apps/api@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.4.0.tgz#1b93976a129383ad914e979402431a63045c6329"
-  integrity sha512-F1zXTsmwcCp+ocg6fbzD/YL0OHeSG1eynCag1UNlX2tD5+dlXy7eRbTu9cAcscPjcR7Nix7by2wiv/+VfWUieg==
-=======
-"@tauri-apps/api@^1.2.0":
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-1.6.0.tgz#745b7e4e26782c3b2ad9510d558fa5bb2cf29186"
-  integrity sha512-rqI++FWClU5I2UBp4HXFvl+sBWkdigBkxnpJDQUWttNyG7IZP4FwQGhTNL5EOw0vI8i6eSAJ5frLqO7n7jbJdg==
->>>>>>> b5a25aa15 (Dark theme)
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.4.1.tgz#33b681a6fdb83f73fd8cb03bf94e71a5603ede1c"
+  integrity sha512-5sYwZCSJb6PBGbBL4kt7CnE5HHbBqwH+ovmOW6ZVju3nX4E3JX6tt2kRklFEH7xMOIwR0btRkZktuLhKvyEQYg==
 
-"@tauri-apps/cli-darwin-arm64@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-2.4.0.tgz#f727421a1a41538ba046faf98fb24e7703418e0b"
-  integrity sha512-MVzYrahJBgDyzUJ2gNEU8H+0oCVEucN115+CVorFnidHcJ6DtDRMCaKLkpjOZNfJyag1WQ25fu7imvZSe0mz/g==
+"@tauri-apps/cli-darwin-arm64@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-2.4.1.tgz#f2cff2c8d6efce9f78875cca603861aa8fb10dd1"
+  integrity sha512-QME7s8XQwy3LWClTVlIlwXVSLKkeJ/z88pr917Mtn9spYOjnBfsgHAgGdmpWD3NfJxjg7CtLbhH49DxoFL+hLg==
 
-"@tauri-apps/cli-darwin-x64@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-x64/-/cli-darwin-x64-2.4.0.tgz#0fd659ed5a34dc7077bcea66c4cc00808bc2f58d"
-  integrity sha512-/4IdbWv6IWSuBn0WVe5JkiSIP1gZhXCZRcumSsYq3ZmOlq4BqXeXT36Oig5mlDnS/2/UpNS94kd8gOA1DNdIeQ==
+"@tauri-apps/cli-darwin-x64@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-x64/-/cli-darwin-x64-2.4.1.tgz#8afb9f5edd51383b51c0bcedb1a71181e5a7ebf8"
+  integrity sha512-/r89IcW6Ya1sEsFUEH7wLNruDTj7WmDWKGpPy7gATFtQr5JEY4heernqE82isjTUimnHZD8SCr0jA3NceI4ybw==
 
-"@tauri-apps/cli-linux-arm-gnueabihf@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm-gnueabihf/-/cli-linux-arm-gnueabihf-2.4.0.tgz#b7fa0bf87184caa751d1f92db5d320586f918291"
-  integrity sha512-rOjlk3Vd6R847LXds4pOAFKUL5NVdSWlaiQvr4H9WDUwIWWoxnj7SQfpryTtElDb2wV7a0BNaOCXCpyFEAXjkw==
+"@tauri-apps/cli-linux-arm-gnueabihf@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm-gnueabihf/-/cli-linux-arm-gnueabihf-2.4.1.tgz#51b691f3c96566ef93d519b990b170c1435a03e7"
+  integrity sha512-9tDijkRB+CchAGjXxYdY9l/XzFpLp1yihUtGXJz9eh+3qIoRI043n3e+6xmU8ZURr7XPnu+R4sCmXs6HD+NCEQ==
 
-"@tauri-apps/cli-linux-arm64-gnu@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-gnu/-/cli-linux-arm64-gnu-2.4.0.tgz#12cea428829a635de446c6695da4b2ce7e5f5ea9"
-  integrity sha512-X/uCwao6R/weWT2y4f3JKJMeUsujo9H4nBMAv9RZhRsz93n9Amw9ETavAOP11pyhl57YkasvKTCRQN6FwsaoXg==
+"@tauri-apps/cli-linux-arm64-gnu@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-gnu/-/cli-linux-arm64-gnu-2.4.1.tgz#51fdfbace0bb935a8548d8faa1a1e4bbd2b47871"
+  integrity sha512-pnFGDEXBAzS4iDYAVxTRhAzNu3K2XPGflYyBc0czfHDBXopqRgMyj5Q9Wj7HAwv6cM8BqzXINxnb2ZJFGmbSgA==
 
-"@tauri-apps/cli-linux-arm64-musl@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-musl/-/cli-linux-arm64-musl-2.4.0.tgz#4c9e3826c5254b2c70192f8560c5064c65e741c2"
-  integrity sha512-GhvQtrTjadW3eLSmfrSfybSqgJMZzUXC+0WqDzFovLug3a1a1go0m9QK9YGvYLkyEpTY5zRxLtwv+tbZXN4tZw==
+"@tauri-apps/cli-linux-arm64-musl@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-arm64-musl/-/cli-linux-arm64-musl-2.4.1.tgz#181605badc4f346ee9f8a3e21eb9ea85b96571d1"
+  integrity sha512-Hp0zXgeZNKmT+eoJSCxSBUm2QndNuRxR55tmIeNm3vbyUMJN/49uW7nurZ5fBPsacN4Pzwlx1dIMK+Gnr9A69w==
 
-"@tauri-apps/cli-linux-riscv64-gnu@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-riscv64-gnu/-/cli-linux-riscv64-gnu-2.4.0.tgz#39a8fed2f60cd34d55695a1583e9a8dfa33f98f0"
-  integrity sha512-NgeNihQ9uHS/ibMWLge5VA/BgsS/g8VPSVtCp8DSPyub3bBuCy79A8V+bzNKlMOiDVrqK4vQ//FS9kSxoJOtXw==
+"@tauri-apps/cli-linux-riscv64-gnu@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-riscv64-gnu/-/cli-linux-riscv64-gnu-2.4.1.tgz#6c14dcb34d49d7b6135e47bba3e3a0200e0f805b"
+  integrity sha512-3T3bo2E4fdYRvzcXheWUeQOVB+LunEEi92iPRgOyuSVexVE4cmHYl+MPJF+EUV28Et0hIVTsHibmDO0/04lAFg==
 
-"@tauri-apps/cli-linux-x64-gnu@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-gnu/-/cli-linux-x64-gnu-2.4.0.tgz#e4fc5751fe578cd14cff172791d2839bd2b5f970"
-  integrity sha512-ebRmV2HLIVms1KlNNueQCp3OrXBv6cimU3mYEh5NbZ8dH88f2sF46dFCyPq8Qr/Zti4qPEaAArVG7RYFjfECPw==
+"@tauri-apps/cli-linux-x64-gnu@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-gnu/-/cli-linux-x64-gnu-2.4.1.tgz#2cb71b1295031697dd1429ef4c33372ecbbef3d9"
+  integrity sha512-kLN0FdNONO+2i+OpU9+mm6oTGufRC00e197TtwjpC0N6K2K8130w7Q3FeODIM2CMyg0ov3tH+QWqKW7GNhHFzg==
 
-"@tauri-apps/cli-linux-x64-musl@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-musl/-/cli-linux-x64-musl-2.4.0.tgz#b136eb34dbfeddf078d3a2023086da9a0b39499e"
-  integrity sha512-FOp2cBFyq5LnUr3he95Z99PQm3nCSJv2GZNeH7UqmUpeHwdcYuhBERU7C+8VDJJPR98Q5fkcoV00Pc4nw0v5KQ==
+"@tauri-apps/cli-linux-x64-musl@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-linux-x64-musl/-/cli-linux-x64-musl-2.4.1.tgz#3dfcea3c4f869570f0c32ff4c0ea7a9d88a36d3b"
+  integrity sha512-a8exvA5Ub9eg66a6hsMQKJIkf63QAf9OdiuFKOsEnKZkNN2x0NLgfvEcqdw88VY0UMs9dBoZ1AGbWMeYnLrLwQ==
 
-"@tauri-apps/cli-win32-arm64-msvc@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-arm64-msvc/-/cli-win32-arm64-msvc-2.4.0.tgz#18bba98ba67690a1fb76c540a9df01c7f220d68a"
-  integrity sha512-SVf1wDagYsaFM+mpUYKmjNveKodcUSGPEM27WmMW4Enh6aXGzTJi4IYOE3GEFOJF1BpRNscslwE1Rd064kfpcg==
+"@tauri-apps/cli-win32-arm64-msvc@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-arm64-msvc/-/cli-win32-arm64-msvc-2.4.1.tgz#4deaf5e509c240730226202300538b5b8d4176ff"
+  integrity sha512-4JFrslsMCJQG1c573T9uqQSAbF3j/tMKkMWzsIssv8jvPiP++OG61A2/F+y9te9/Q/O95cKhDK63kaiO5xQaeg==
 
-"@tauri-apps/cli-win32-ia32-msvc@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-ia32-msvc/-/cli-win32-ia32-msvc-2.4.0.tgz#cd5b3a1d3fda1dae254922cece455e394afaf43d"
-  integrity sha512-j+fOFVeSSejk9hrUePY7bJuaYr+80xr+ftjXzxCj0CS0d2oSbq+lT8/zS514WemJk9e9yxUus+2ke/Ng17wkkQ==
+"@tauri-apps/cli-win32-ia32-msvc@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-ia32-msvc/-/cli-win32-ia32-msvc-2.4.1.tgz#cd8267ad44685b070ff98c9c075b195b4fb41f96"
+  integrity sha512-9eXfFORehYSCRwxg2KodfmX/mhr50CI7wyBYGbPLePCjr5z0jK/9IyW6r0tC+ZVjwpX48dkk7hKiUgI25jHjzA==
 
-"@tauri-apps/cli-win32-x64-msvc@2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-2.4.0.tgz#d509a54c6cdf1436978dcf853f8ec3d903573799"
-  integrity sha512-nv84b3a8eI5Y7ksTLBKjjvtr9NOlAGGGo7OJbjKT+xZLdiPOZ0nJ2cT+4IdfnNAZ33pKJugAfuj1fBvQKeTy0w==
+"@tauri-apps/cli-win32-x64-msvc@2.4.1":
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-2.4.1.tgz#66d2a5dcb8d829e3d0ff4b0b8e0e28c4c2058301"
+  integrity sha512-60a4Ov7Jrwqz2hzDltlS7301dhSAmM9dxo+IRBD3xz7yobKrgaHXYpWvnRomYItHcDd51VaKc9292H8/eE/gsw==
 
 "@tauri-apps/cli@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/cli/-/cli-2.4.0.tgz#d1174ee62f5d982a2c6e65101c53e6763e40b2d6"
-  integrity sha512-Esg7s20tuSULd2YF3lmtMa1vF7yr5eh/TlBHXjEyrC+XSD9aBxHVoXb6oz7oKybDY9Jf9OiBa0bf2PbybcmOLA==
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/cli/-/cli-2.4.1.tgz#8114d293c1d021e0ea20927544e0ae54d370fc48"
+  integrity sha512-9Ta81jx9+57FhtU/mPIckDcOBtPTUdKM75t4+aA0X84b8Sclb0jy1xA8NplmcRzp2fsfIHNngU2NiRxsW5+yOQ==
   optionalDependencies:
-    "@tauri-apps/cli-darwin-arm64" "2.4.0"
-    "@tauri-apps/cli-darwin-x64" "2.4.0"
-    "@tauri-apps/cli-linux-arm-gnueabihf" "2.4.0"
-    "@tauri-apps/cli-linux-arm64-gnu" "2.4.0"
-    "@tauri-apps/cli-linux-arm64-musl" "2.4.0"
-    "@tauri-apps/cli-linux-riscv64-gnu" "2.4.0"
-    "@tauri-apps/cli-linux-x64-gnu" "2.4.0"
-    "@tauri-apps/cli-linux-x64-musl" "2.4.0"
-    "@tauri-apps/cli-win32-arm64-msvc" "2.4.0"
-    "@tauri-apps/cli-win32-ia32-msvc" "2.4.0"
-    "@tauri-apps/cli-win32-x64-msvc" "2.4.0"
+    "@tauri-apps/cli-darwin-arm64" "2.4.1"
+    "@tauri-apps/cli-darwin-x64" "2.4.1"
+    "@tauri-apps/cli-linux-arm-gnueabihf" "2.4.1"
+    "@tauri-apps/cli-linux-arm64-gnu" "2.4.1"
+    "@tauri-apps/cli-linux-arm64-musl" "2.4.1"
+    "@tauri-apps/cli-linux-riscv64-gnu" "2.4.1"
+    "@tauri-apps/cli-linux-x64-gnu" "2.4.1"
+    "@tauri-apps/cli-linux-x64-musl" "2.4.1"
+    "@tauri-apps/cli-win32-arm64-msvc" "2.4.1"
+    "@tauri-apps/cli-win32-ia32-msvc" "2.4.1"
+    "@tauri-apps/cli-win32-x64-msvc" "2.4.1"
 
 "@tauri-apps/plugin-clipboard-manager@^2.2.2":
   version "2.2.2"
@@ -7500,15 +7102,9 @@
   integrity sha512-Z+2VcYXJwOqQ79HreLU/1fyQ88eXSSFh6I3JdrEHQIfYSI0kCQpTGvOrbE6jFGGYXKsHuwY9tBa/w5Uo6KzrEg==
 
 "@types/react-dom@^18", "@types/react-dom@^18.0.10":
-<<<<<<< HEAD
-  version "18.3.5"
-  resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-18.3.5.tgz#45f9f87398c5dcea085b715c58ddcf1faf65f716"
-  integrity sha512-P4t6saawp+b/dFrUr2cvkVsfvPguwsxtH6dNIYRllMsefqFzkZk5UIjzyDOv5g1dXIPdG4Sp1yCR4Z6RCUsG/Q==
-=======
   version "18.3.6"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-18.3.6.tgz#fa59a5e9a33499a792af6c1130f55921ef49d268"
   integrity sha512-nf22//wEbKXusP6E9pfOCDwFdHAX4u172eaJI4YkDRQEZiorm6KfYnSC2SWLDMVWUOWPERmJnN0ujeAfTBLvrw==
->>>>>>> b5a25aa15 (Dark theme)
 
 "@types/react-transition-group@^4.4.10", "@types/react-transition-group@^4.4.11", "@types/react-transition-group@^4.4.12":
   version "4.4.12"
@@ -7706,41 +7302,6 @@
     tsutils "^3.21.0"
 
 "@typescript-eslint/eslint-plugin@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0":
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.29.0.tgz#151c4878700a5ad229ce6713d2674d58b626b3d9"
-  integrity sha512-PAIpk/U7NIS6H7TEtN45SPGLQaHNgB7wSjsQV/8+KYokAb2T/gloOA/Bee2yd4/yKVhPKe5LlaUGhAZk5zmSaQ==
-  dependencies:
-    "@eslint-community/regexpp" "^4.10.0"
-    "@typescript-eslint/scope-manager" "8.29.0"
-    "@typescript-eslint/type-utils" "8.29.0"
-    "@typescript-eslint/utils" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
-=======
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.28.0.tgz#ad1465aa6fe7e937801c291648dec951c4dc38e6"
-  integrity sha512-lvFK3TCGAHsItNdWZ/1FkvpzCxTHUVuFrdnOGLMa0GGCFIbCgQWVk3CzCGdA7kM3qGVc+dfW9tr0Z/sHnGDFyg==
-  dependencies:
-    "@eslint-community/regexpp" "^4.10.0"
-    "@typescript-eslint/scope-manager" "8.28.0"
-    "@typescript-eslint/type-utils" "8.28.0"
-    "@typescript-eslint/utils" "8.28.0"
-    "@typescript-eslint/visitor-keys" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.29.0.tgz#151c4878700a5ad229ce6713d2674d58b626b3d9"
-  integrity sha512-PAIpk/U7NIS6H7TEtN45SPGLQaHNgB7wSjsQV/8+KYokAb2T/gloOA/Bee2yd4/yKVhPKe5LlaUGhAZk5zmSaQ==
-  dependencies:
-    "@eslint-community/regexpp" "^4.10.0"
-    "@typescript-eslint/scope-manager" "8.29.0"
-    "@typescript-eslint/type-utils" "8.29.0"
-    "@typescript-eslint/utils" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.29.1.tgz#593639d9bb5239b2d877d65757b7e2c9100a2e84"
   integrity sha512-ba0rr4Wfvg23vERs3eB+P3lfj2E+2g3lhWcCVukUuhtcdUx5lSIFZlGFEBHKr+3zizDa/TvZTptdNHVZWAkSBg==
@@ -7750,7 +7311,6 @@
     "@typescript-eslint/type-utils" "8.29.1"
     "@typescript-eslint/utils" "8.29.1"
     "@typescript-eslint/visitor-keys" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
     graphemer "^1.4.0"
     ignore "^5.3.1"
     natural-compare "^1.4.0"
@@ -7785,38 +7345,6 @@
     debug "^4.3.4"
 
 "@typescript-eslint/parser@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0":
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-8.29.0.tgz#b98841e0a8099728cb8583da92326fcb7f5be1d2"
-  integrity sha512-8C0+jlNJOwQso2GapCVWWfW/rzaq7Lbme+vGUFKE31djwNncIpgXD7Cd4weEsDdkoZDjH0lwwr3QDQFuyrMg9g==
-  dependencies:
-    "@typescript-eslint/scope-manager" "8.29.0"
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/typescript-estree" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
-=======
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-8.28.0.tgz#85321707e8711c0e66a949ea228224af35f45c98"
-  integrity sha512-LPcw1yHD3ToaDEoljFEfQ9j2xShY367h7FZ1sq5NJT9I3yj4LHer1Xd1yRSOdYy9BpsrxU7R+eoDokChYM53lQ==
-  dependencies:
-    "@typescript-eslint/scope-manager" "8.28.0"
-    "@typescript-eslint/types" "8.28.0"
-    "@typescript-eslint/typescript-estree" "8.28.0"
-    "@typescript-eslint/visitor-keys" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-8.29.0.tgz#b98841e0a8099728cb8583da92326fcb7f5be1d2"
-  integrity sha512-8C0+jlNJOwQso2GapCVWWfW/rzaq7Lbme+vGUFKE31djwNncIpgXD7Cd4weEsDdkoZDjH0lwwr3QDQFuyrMg9g==
-  dependencies:
-    "@typescript-eslint/scope-manager" "8.29.0"
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/typescript-estree" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-8.29.1.tgz#10bf37411be0a199c27b6515726e22fe8d3df8d0"
   integrity sha512-zczrHVEqEaTwh12gWBIJWj8nx+ayDcCJs06yoNMY0kwjMWDM6+kppljY+BxWI06d2Ja+h4+WdufDcwMnnMEWmg==
@@ -7825,7 +7353,6 @@
     "@typescript-eslint/types" "8.29.1"
     "@typescript-eslint/typescript-estree" "8.29.1"
     "@typescript-eslint/visitor-keys" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
     debug "^4.3.4"
 
 "@typescript-eslint/scope-manager@5.62.0":
@@ -7844,34 +7371,6 @@
     "@typescript-eslint/types" "6.21.0"
     "@typescript-eslint/visitor-keys" "6.21.0"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@typescript-eslint/scope-manager@8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/scope-manager/-/scope-manager-8.29.0.tgz#8fd9872823aef65ff71d3f6d1ec9316ace0b6bf3"
-  integrity sha512-aO1PVsq7Gm+tcghabUpzEnVSFMCU4/nYIgC2GOatJcllvWfnhrgW0ZEbnTxm36QsikmCN1K/6ZgM7fok2I7xNw==
-<<<<<<< HEAD
-  dependencies:
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
-=======
-"@typescript-eslint/scope-manager@8.28.0":
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/scope-manager/-/scope-manager-8.28.0.tgz#e495b20438a3787e00498774d5625e620d68f9fe"
-  integrity sha512-u2oITX3BJwzWCapoZ/pXw6BCOl8rJP4Ij/3wPoGvY8XwvXflOzd1kLrDUUUAIEdJSFh+ASwdTHqtan9xSg8buw==
-  dependencies:
-    "@typescript-eslint/types" "8.28.0"
-    "@typescript-eslint/visitor-keys" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  dependencies:
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@typescript-eslint/scope-manager@8.29.1":
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/scope-manager/-/scope-manager-8.29.1.tgz#cfdfd4144f20c38b9d3e430efd6480e297ef52f6"
@@ -7879,7 +7378,6 @@
   dependencies:
     "@typescript-eslint/types" "8.29.1"
     "@typescript-eslint/visitor-keys" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
 
 "@typescript-eslint/type-utils@5.62.0":
   version "5.62.0"
@@ -7891,34 +7389,6 @@
     debug "^4.3.4"
     tsutils "^3.21.0"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@typescript-eslint/type-utils@8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/type-utils/-/type-utils-8.29.0.tgz#98dcfd1193cb4e2b2d0294a8656ce5eb58c443a9"
-  integrity sha512-ahaWQ42JAOx+NKEf5++WC/ua17q5l+j1GFrbbpVKzFL/tKVc0aYY8rVSYUpUvt2hUP1YBr7mwXzx+E/DfUWI9Q==
-<<<<<<< HEAD
-  dependencies:
-    "@typescript-eslint/typescript-estree" "8.29.0"
-    "@typescript-eslint/utils" "8.29.0"
-=======
-"@typescript-eslint/type-utils@8.28.0":
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/type-utils/-/type-utils-8.28.0.tgz#fc565414ebc16de1fc65e0dd8652ce02c78ca61f"
-  integrity sha512-oRoXu2v0Rsy/VoOGhtWrOKDiIehvI+YNrDk5Oqj40Mwm0Yt01FC/Q7nFqg088d3yAsR1ZcZFVfPCTTFCe/KPwg==
-  dependencies:
-    "@typescript-eslint/typescript-estree" "8.28.0"
-    "@typescript-eslint/utils" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  dependencies:
-    "@typescript-eslint/typescript-estree" "8.29.0"
-    "@typescript-eslint/utils" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@typescript-eslint/type-utils@8.29.1":
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/type-utils/-/type-utils-8.29.1.tgz#653dfff5c1711bc920a6a46a5a2c274899f00179"
@@ -7926,7 +7396,6 @@
   dependencies:
     "@typescript-eslint/typescript-estree" "8.29.1"
     "@typescript-eslint/utils" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
     debug "^4.3.4"
     ts-api-utils "^2.0.1"
 
@@ -7940,30 +7409,10 @@
   resolved "https://registry.yarnpkg.com/@typescript-eslint/types/-/types-6.21.0.tgz#205724c5123a8fef7ecd195075fa6e85bac3436d"
   integrity sha512-1kFmZ1rOm5epu9NZEZm1kckCDGj5UJEf7P1kliH4LKu/RkwpsfqqGmY2OOcUs18lSlQBKLDYBOGxRVtrMN5lpg==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@typescript-eslint/types@8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/types/-/types-8.29.0.tgz#65add70ab4ef66beaa42a5addf87dab2b05b1f33"
-  integrity sha512-wcJL/+cOXV+RE3gjCyl/V2G877+2faqvlgtso/ZRbTCnZazh0gXhe+7gbAnfubzN2bNsBtZjDvlh7ero8uIbzg==
-<<<<<<< HEAD
-=======
-"@typescript-eslint/types@8.28.0":
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/types/-/types-8.28.0.tgz#7c73878385edfd9674c7aa10975e6c484b4f896e"
-  integrity sha512-bn4WS1bkKEjx7HqiwG2JNB3YJdC1q6Ue7GyGlwPHyt0TnVq6TtD/hiOdTZt71sq0s7UzqBFXD8t8o2e63tXgwA==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@typescript-eslint/types@8.29.1":
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/types/-/types-8.29.1.tgz#984ed1283fedbfb41d3993a9abdcb7b299971500"
   integrity sha512-VT7T1PuJF1hpYC3AGm2rCgJBjHL3nc+A/bhOp9sGMKfi5v0WufsX/sHCFBfNTx2F+zA6qBc/PD0/kLRLjdt8mQ==
->>>>>>> ca1e7d716 (add fixes)
 
 "@typescript-eslint/typescript-estree@5.62.0":
   version "5.62.0"
@@ -7992,34 +7441,6 @@
     semver "^7.5.4"
     ts-api-utils "^1.0.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@typescript-eslint/typescript-estree@8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/typescript-estree/-/typescript-estree-8.29.0.tgz#d201a4f115327ec90496307c9958262285065b00"
-  integrity sha512-yOfen3jE9ISZR/hHpU/bmNvTtBW1NjRbkSFdZOksL1N+ybPEE7UVGMwqvS6CP022Rp00Sb0tdiIkhSCe6NI8ow==
-<<<<<<< HEAD
-  dependencies:
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
-=======
-"@typescript-eslint/typescript-estree@8.28.0":
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/typescript-estree/-/typescript-estree-8.28.0.tgz#56b999f26f7ca67b9d75d6a67af5c8b8e4e80114"
-  integrity sha512-H74nHEeBGeklctAVUvmDkxB1mk+PAZ9FiOMPFncdqeRBXxk1lWSYraHw8V12b7aa6Sg9HOBNbGdSHobBPuQSuA==
-  dependencies:
-    "@typescript-eslint/types" "8.28.0"
-    "@typescript-eslint/visitor-keys" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  dependencies:
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/visitor-keys" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@typescript-eslint/typescript-estree@8.29.1":
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/typescript-estree/-/typescript-estree-8.29.1.tgz#4ac085665ed5390d11c0e3426427978570e3b747"
@@ -8027,7 +7448,6 @@
   dependencies:
     "@typescript-eslint/types" "8.29.1"
     "@typescript-eslint/visitor-keys" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
     debug "^4.3.4"
     fast-glob "^3.3.2"
     is-glob "^4.0.3"
@@ -8049,40 +7469,6 @@
     eslint-scope "^5.1.1"
     semver "^7.3.7"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@typescript-eslint/utils@8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/utils/-/utils-8.29.0.tgz#d6d22b19c8c4812a874f00341f686b45b9fe895f"
-  integrity sha512-gX/A0Mz9Bskm8avSWFcK0gP7cZpbY4AIo6B0hWYFCaIsz750oaiWR4Jr2CI+PQhfW1CpcQr9OlfPS+kMFegjXA==
-<<<<<<< HEAD
-  dependencies:
-    "@eslint-community/eslint-utils" "^4.4.0"
-    "@typescript-eslint/scope-manager" "8.29.0"
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/typescript-estree" "8.29.0"
-=======
-"@typescript-eslint/utils@8.28.0":
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/utils/-/utils-8.28.0.tgz#7850856620a896b7ac621ac12d49c282aefbb528"
-  integrity sha512-OELa9hbTYciYITqgurT1u/SzpQVtDLmQMFzy/N8pQE+tefOyCWT79jHsav294aTqV1q1u+VzqDGbuujvRYaeSQ==
-  dependencies:
-    "@eslint-community/eslint-utils" "^4.4.0"
-    "@typescript-eslint/scope-manager" "8.28.0"
-    "@typescript-eslint/types" "8.28.0"
-    "@typescript-eslint/typescript-estree" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  dependencies:
-    "@eslint-community/eslint-utils" "^4.4.0"
-    "@typescript-eslint/scope-manager" "8.29.0"
-    "@typescript-eslint/types" "8.29.0"
-    "@typescript-eslint/typescript-estree" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@typescript-eslint/utils@8.29.1":
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/utils/-/utils-8.29.1.tgz#3d206c8c8def3527a8eb0588e94e3e60f7e167c9"
@@ -8092,7 +7478,6 @@
     "@typescript-eslint/scope-manager" "8.29.1"
     "@typescript-eslint/types" "8.29.1"
     "@typescript-eslint/typescript-estree" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
 
 "@typescript-eslint/visitor-keys@5.62.0":
   version "5.62.0"
@@ -8110,38 +7495,12 @@
     "@typescript-eslint/types" "6.21.0"
     eslint-visitor-keys "^3.4.1"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b5a25aa15 (Dark theme)
-"@typescript-eslint/visitor-keys@8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/visitor-keys/-/visitor-keys-8.29.0.tgz#2356336c9efdc3597ffcd2aa1ce95432852b743d"
-  integrity sha512-Sne/pVz8ryR03NFK21VpN88dZ2FdQXOlq3VIklbrTYEt8yXtRFr9tvUhqvCeKjqYk5FSim37sHbooT6vzBTZcg==
-<<<<<<< HEAD
-  dependencies:
-    "@typescript-eslint/types" "8.29.0"
-=======
-"@typescript-eslint/visitor-keys@8.28.0":
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/visitor-keys/-/visitor-keys-8.28.0.tgz#18eb9a25cc9dadb027835c58efe93a5c4ee81969"
-  integrity sha512-hbn8SZ8w4u2pRwgQ1GlUrPKE+t2XvcCW5tTRF7j6SMYIuYG37XuzIW44JCZPa36evi0Oy2SnM664BlIaAuQcvg==
-  dependencies:
-    "@typescript-eslint/types" "8.28.0"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-  dependencies:
-    "@typescript-eslint/types" "8.29.0"
->>>>>>> b5a25aa15 (Dark theme)
-=======
 "@typescript-eslint/visitor-keys@8.29.1":
   version "8.29.1"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/visitor-keys/-/visitor-keys-8.29.1.tgz#9b74e5098c71138d42bbf2178fbe4dfad45d6b9a"
   integrity sha512-RGLh5CRaUEf02viP5c1Vh1cMGffQscyHe7HPAzGpfmfflFg1wUz2rYxd+OZqwpeypYvZ8UxSxuIpF++fmOzEcg==
   dependencies:
     "@typescript-eslint/types" "8.29.1"
->>>>>>> ca1e7d716 (add fixes)
     eslint-visitor-keys "^4.2.0"
 
 "@uidotdev/usehooks@^2.4.1":
@@ -10148,34 +9507,12 @@ ccount@^2.0.0:
   resolved "https://registry.yarnpkg.com/ccount/-/ccount-2.0.1.tgz#17a3bf82302e0870d6da43a01311a8bc02a3ecf5"
   integrity sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-chain-registry@^1.69.64:
-  version "1.69.173"
-  resolved "https://registry.yarnpkg.com/chain-registry/-/chain-registry-1.69.173.tgz#21baa0aa8900b3a76c837f09482ebba4765f5c4c"
-  integrity sha512-OLWL2yPvh/UUZ5U3KSC9eePG5HdTLku2Wv5wUNBowXcgtUk0dAY1Pz/ACnqQ5NH8bhzS9+Sb9RkDpehogOukow==
-  dependencies:
-    "@chain-registry/types" "^0.50.107"
-=======
-chain-registry@^1.29.1, chain-registry@^1.69.64:
-  version "1.69.164"
-  resolved "https://registry.yarnpkg.com/chain-registry/-/chain-registry-1.69.164.tgz#cfd066d19e36d5c5ac30d4968077aede75b64a26"
-  integrity sha512-UliV0jyFJPbzrc6bdJtgR5TqZzgO6y902v10/4O/eDetd+1pgpbSJzrZUstdMprBfZkoIljkbiOuNLHRdrT9wQ==
-  dependencies:
-    "@chain-registry/types" "^0.50.100"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
 chain-registry@^1.69.64:
   version "1.69.179"
   resolved "https://registry.yarnpkg.com/chain-registry/-/chain-registry-1.69.179.tgz#23e36a3ae9cfbad298148dd3f665d0df3e62ef6a"
   integrity sha512-hZSam9WHpdxktZEh4GjZeNnWYfj0ye0F0Ok5yHxPDhl96hOR1IVnOBhj8LoDzpvUV87czuJn6AeSrotrw4s15A==
   dependencies:
-<<<<<<< HEAD
-    "@chain-registry/types" "^0.50.108"
->>>>>>> b5a25aa15 (Dark theme)
-=======
     "@chain-registry/types" "^0.50.111"
->>>>>>> ca1e7d716 (add fixes)
 
 chalk@4.1.0:
   version "4.1.0"
@@ -11896,11 +11233,7 @@ domhandler@^5.0.2, domhandler@^5.0.3:
   dependencies:
     domelementtype "^2.3.0"
 
-<<<<<<< HEAD
-dompurify@^3.2.4:
-=======
 dompurify@^3.2.5:
->>>>>>> b5a25aa15 (Dark theme)
   version "3.2.5"
   resolved "https://registry.yarnpkg.com/dompurify/-/dompurify-3.2.5.tgz#11b108656a5fb72b24d916df17a1421663d7129c"
   integrity sha512-mLPd29uoRe9HpvwP2TxClGQBzGXeEC/we/q+bFlmPPmj2p2Ugl3r6ATu/UU1v77DXNcehiBg9zsr1dREyA/dJQ==
@@ -12560,38 +11893,7 @@ eslint-plugin-react-hooks@^5.0.0:
   resolved "https://registry.yarnpkg.com/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-5.2.0.tgz#1be0080901e6ac31ce7971beed3d3ec0a423d9e3"
   integrity sha512-+f15FfK64YQwZdJNELETdn5ibXEUQmW1DZL6KXhNnc2heoy/sg9VJJeT7n8TlMWouzWqSWavFkIhHyIbIAEapg==
 
-<<<<<<< HEAD
-eslint-plugin-react@^7.29.2, eslint-plugin-react@^7.33.2:
-  version "7.37.4"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-react/-/eslint-plugin-react-7.37.4.tgz#1b6c80b6175b6ae4b26055ae4d55d04c414c7181"
-  integrity sha512-BGP0jRmfYyvOyvMoRX/uoUeW+GqNj9y16bPQzqAHf3AYII/tDs+jMN0dBVkl88/OZwNGwrVFxE7riHsXVfy/LQ==
-=======
 eslint-plugin-react@^7.29.2, eslint-plugin-react@^7.33.2, eslint-plugin-react@^7.35.0:
-  version "7.37.5"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-react/-/eslint-plugin-react-7.37.5.tgz#2975511472bdda1b272b34d779335c9b0e877065"
-  integrity sha512-Qteup0SqU15kdocexFNAJMvCJEfa2xUKNV4CC1xsVMrIIqEy3SQ/rqyxCWNzfrd3/ldy6HMlD2e0JDVpDg2qIA==
->>>>>>> b5a25aa15 (Dark theme)
-  dependencies:
-    array-includes "^3.1.8"
-    array.prototype.findlast "^1.2.5"
-    array.prototype.flatmap "^1.3.3"
-    array.prototype.tosorted "^1.1.4"
-    doctrine "^2.1.0"
-    es-iterator-helpers "^1.2.1"
-    estraverse "^5.3.0"
-    hasown "^2.0.2"
-    jsx-ast-utils "^2.4.1 || ^3.0.0"
-    minimatch "^3.1.2"
-    object.entries "^1.1.9"
-    object.fromentries "^2.0.8"
-    object.values "^1.2.1"
-    prop-types "^15.8.1"
-    resolve "^2.0.0-next.5"
-    semver "^6.3.1"
-    string.prototype.matchall "^4.0.12"
-    string.prototype.repeat "^1.0.0"
-
-eslint-plugin-react@^7.35.0:
   version "7.37.5"
   resolved "https://registry.yarnpkg.com/eslint-plugin-react/-/eslint-plugin-react-7.37.5.tgz#2975511472bdda1b272b34d779335c9b0e877065"
   integrity sha512-Qteup0SqU15kdocexFNAJMvCJEfa2xUKNV4CC1xsVMrIIqEy3SQ/rqyxCWNzfrd3/ldy6HMlD2e0JDVpDg2qIA==
@@ -16390,91 +15692,10 @@ lazy-universal-dotenv@^3.0.1:
     dotenv "^8.0.0"
     dotenv-expand "^5.1.0"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-lefthook-darwin-arm64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-darwin-arm64/-/lefthook-darwin-arm64-1.11.6.tgz#bffd9f18a8119b07c5a8d6d671ceb012a66d796c"
-  integrity sha512-gWgdWrKgZgX+bKc6Vs/x7JkO+58lLOpRzpteLx//82D0MKVPlNZwjd4zz4AbIBXtM4Hcj+6gSsOzQ7QDXxjVvQ==
-
-lefthook-darwin-x64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-darwin-x64/-/lefthook-darwin-x64-1.11.6.tgz#52a1d5e2a9aa7dea8175dfbf7b8932f856287605"
-  integrity sha512-Ia0TjTKuYcSaDTuoCnbWtpPZ2VEoKzgn33OB90VjNaSVs4ooE0PIdpO+w00x1elqIaf1pbrpq6HgeB26Du8KbQ==
-
-lefthook-freebsd-arm64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-freebsd-arm64/-/lefthook-freebsd-arm64-1.11.6.tgz#6aae629dbcaf188b3518388c204c0766685cdda3"
-  integrity sha512-PxIwj+hmjLahyzEmcIfalIBDhgklAQCavwM4sGCgbzDi4/+VQX+4aEs4pQqtd7v3aohmjtO/4n2emzTI8donww==
-
-lefthook-freebsd-x64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-freebsd-x64/-/lefthook-freebsd-x64-1.11.6.tgz#ffff50541c31c15a44ec923a8d6772e21558249a"
-  integrity sha512-3o1lMKxz1VtWaP/o117wgUn3ZOpefMoSf+8LuiTzI3/PDprIuzgyw2nXKlBZAMDpNPHMNnJeQNts9XLMRmkldg==
-
-lefthook-linux-arm64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-linux-arm64/-/lefthook-linux-arm64-1.11.6.tgz#01a51d0bc84ee3cc04ba4b4ec20a2ac8fa766b68"
-  integrity sha512-nKPFZ5cA9f5tVn0ybDVqcXXlpTHZqo05N4KQRhWTj5Nem+JoD2YzJIlvZhdJhUrldERqj6deDMXChH5T3z4Rrw==
-
-lefthook-linux-x64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-linux-x64/-/lefthook-linux-x64-1.11.6.tgz#382da328f510c7ce4c64ddce7cc2b1d5bf5b54e4"
-  integrity sha512-naN8dllLCOEeP+wznLnq+oXrs1dvt/iMLkcl+pOPWLqFccPfDiHzr8V8GslaTa+rSFsAnvjR7SJIOi5C29xedA==
-
-lefthook-openbsd-arm64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-openbsd-arm64/-/lefthook-openbsd-arm64-1.11.6.tgz#febf8dfec0d49ccc0307f590f06c71dc8344ba52"
-  integrity sha512-dPxhJfYQ667T+U3pz1+O3mTRNHzXH/BvPlXSH+oy8uiSry4AtVNRXkVvXPUcpLlrAy6HuFYodsrpCIlWFeYwiQ==
-
-lefthook-openbsd-x64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-openbsd-x64/-/lefthook-openbsd-x64-1.11.6.tgz#49fd7242f0ea2cb7f98223de034263ab5fa044e9"
-  integrity sha512-9D26kcSsjiW4D0AuVDdi+0ZqrsOzRWOpMS/kcUbLfrU99yCvma0rMTqKbbDMkVur/znS7qL53oGahXCXDNA+IQ==
-
-lefthook-windows-arm64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-windows-arm64/-/lefthook-windows-arm64-1.11.6.tgz#705b7c3c3e35a9795496e4251950ff5aaae59e46"
-  integrity sha512-xdCenr4+BFnfBEhiXj6GJp02EPmcwTAGa7NYm6hVTfDwGXw24tuLv7lpnGjgK3kovN6EukgLH1FYkeyDOBEMnA==
-
-lefthook-windows-x64@1.11.6:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook-windows-x64/-/lefthook-windows-x64-1.11.6.tgz#71d92d874a7885645eb34c6c7712a91ebfb43dda"
-  integrity sha512-Fg2GzLhzeDV/GX8+ydrI0wBOytQWpPkNdngx+a8B/feCDbwjAiFklDG5oV4ytuWrtg1JPEEWLJd6nHefj4wtHA==
-
-lefthook@^1.8.5:
-  version "1.11.6"
-  resolved "https://registry.yarnpkg.com/lefthook/-/lefthook-1.11.6.tgz#e13c23a83095c5de258b0702280b097dcba1b029"
-  integrity sha512-j0VmMM50WlPDassmgvapRum9po29Tv1BXzBNFpzGkk9E91CEG9jKik/OHyH/r/na+q8qNIUUyPL6QQuTN/UhQQ==
-  optionalDependencies:
-    lefthook-darwin-arm64 "1.11.6"
-    lefthook-darwin-x64 "1.11.6"
-    lefthook-freebsd-arm64 "1.11.6"
-    lefthook-freebsd-x64 "1.11.6"
-    lefthook-linux-arm64 "1.11.6"
-    lefthook-linux-x64 "1.11.6"
-    lefthook-openbsd-arm64 "1.11.6"
-    lefthook-openbsd-x64 "1.11.6"
-    lefthook-windows-arm64 "1.11.6"
-    lefthook-windows-x64 "1.11.6"
-=======
-lefthook-darwin-arm64@1.11.5:
-  version "1.11.5"
-  resolved "https://registry.yarnpkg.com/lefthook-darwin-arm64/-/lefthook-darwin-arm64-1.11.5.tgz#6baac5ca7e31e9f17566a7cda438015e999125d6"
-  integrity sha512-58VgfpwVZou3OcELAo673gwT1Y2iE0W/zdh9sI7/ZJHjjPNGuxHqroI/woB/SzhRjndwKsa2YUaYntb2ZqgyMw==
-=======
-lefthook-darwin-arm64@1.11.7:
-  version "1.11.7"
-  resolved "https://registry.yarnpkg.com/lefthook-darwin-arm64/-/lefthook-darwin-arm64-1.11.7.tgz#267157a7cbc9fcfc3e15d249f6b5eeb752291e3c"
-  integrity sha512-tLIyaYhgKowZMBMC3acuIE4WpeevOtI4M/KPGCoY5HR4uekD66nF+MicQqI+HHyT538powOFENE85XEW5YBa5A==
->>>>>>> b5a25aa15 (Dark theme)
-=======
 lefthook-darwin-arm64@1.11.8:
   version "1.11.8"
   resolved "https://registry.yarnpkg.com/lefthook-darwin-arm64/-/lefthook-darwin-arm64-1.11.8.tgz#243704d45e41e7ad41ff71c3248741feccaeb53b"
   integrity sha512-myew7k1hz00Uyrdh4a7gQkzlRDKALb4pHmh1GDH0ZMBoy3348qlN3HegAnvwcx2tlWSxqfwkBj+xmBS2c7ujAw==
->>>>>>> ca1e7d716 (add fixes)
 
 lefthook-darwin-x64@1.11.8:
   version "1.11.8"
@@ -16526,32 +15747,6 @@ lefthook@^1.8.5:
   resolved "https://registry.yarnpkg.com/lefthook/-/lefthook-1.11.8.tgz#07b0b3edbff7ed0127b0c17a188265bb7271f037"
   integrity sha512-U+x49i83GWjRigejsiEnGMsH34SjUFtSGd4VuEUWDFzDc2uerzTx5oqFv0GMwCIXTxsecoPqop+e+1gop8DDXA==
   optionalDependencies:
-<<<<<<< HEAD
-<<<<<<< HEAD
-    lefthook-darwin-arm64 "1.11.5"
-    lefthook-darwin-x64 "1.11.5"
-    lefthook-freebsd-arm64 "1.11.5"
-    lefthook-freebsd-x64 "1.11.5"
-    lefthook-linux-arm64 "1.11.5"
-    lefthook-linux-x64 "1.11.5"
-    lefthook-openbsd-arm64 "1.11.5"
-    lefthook-openbsd-x64 "1.11.5"
-    lefthook-windows-arm64 "1.11.5"
-    lefthook-windows-x64 "1.11.5"
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-=======
-    lefthook-darwin-arm64 "1.11.7"
-    lefthook-darwin-x64 "1.11.7"
-    lefthook-freebsd-arm64 "1.11.7"
-    lefthook-freebsd-x64 "1.11.7"
-    lefthook-linux-arm64 "1.11.7"
-    lefthook-linux-x64 "1.11.7"
-    lefthook-openbsd-arm64 "1.11.7"
-    lefthook-openbsd-x64 "1.11.7"
-    lefthook-windows-arm64 "1.11.7"
-    lefthook-windows-x64 "1.11.7"
->>>>>>> b5a25aa15 (Dark theme)
-=======
     lefthook-darwin-arm64 "1.11.8"
     lefthook-darwin-x64 "1.11.8"
     lefthook-freebsd-arm64 "1.11.8"
@@ -16562,7 +15757,6 @@ lefthook@^1.8.5:
     lefthook-openbsd-x64 "1.11.8"
     lefthook-windows-arm64 "1.11.8"
     lefthook-windows-x64 "1.11.8"
->>>>>>> ca1e7d716 (add fixes)
 
 lerna@^7.3.0:
   version "7.4.2"
@@ -18464,22 +17658,7 @@ num2fraction@^1.2.2:
   resolved "https://registry.yarnpkg.com/num2fraction/-/num2fraction-1.2.2.tgz#6f682b6a027a4e9ddfa4564cd2589d1d4e669ede"
   integrity sha512-Y1wZESM7VUThYY+4W+X4ySH2maqcA+p7UR+w8VWNWVAd6lwuXXWz/w/Cz43J/dI2I+PS6wD5N+bJUF+gjWvIqg==
 
-<<<<<<< HEAD
-nwsapi@^2.2.0:
-  version "2.2.18"
-  resolved "https://registry.yarnpkg.com/nwsapi/-/nwsapi-2.2.18.tgz#3c4d7927e1ef4d042d319438ecfda6cd81b7ee41"
-  integrity sha512-p1TRH/edngVEHVbwqWnxUViEmq5znDvyB+Sik5cmuLpGOIfDf/39zLiq3swPF8Vakqn+gvNiOQAZu8djYlQILA==
-=======
 nwsapi@^2.2.0, nwsapi@^2.2.16:
-<<<<<<< HEAD
-  version "2.2.19"
-  resolved "https://registry.yarnpkg.com/nwsapi/-/nwsapi-2.2.19.tgz#586660f7c24c34691907002309a8dc28064c9c0b"
-  integrity sha512-94bcyI3RsqiZufXjkr3ltkI86iEl+I7uiHVDtcq9wJUTwYQJ5odHDeSzkkrRzi80jJ8MaeZgqKjH1bAWAFw9bA==
->>>>>>> e7c9f1bed (Refactor Node page to accept identity_key in params)
-
-nwsapi@^2.2.16:
-=======
->>>>>>> b5a25aa15 (Dark theme)
   version "2.2.20"
   resolved "https://registry.yarnpkg.com/nwsapi/-/nwsapi-2.2.20.tgz#22e53253c61e7b0e7e93cef42c891154bcca11ef"
   integrity sha512-/ieB+mDe4MrrKMT8z+mQL8klXydZWGR5Dowt4RAGKbJ3kIGEx3X4ljUo+6V73IXtUPWgfOlU5B9MlGxFO5T+cA==
@@ -18588,11 +17767,7 @@ object.assign@^4.1.2, object.assign@^4.1.4, object.assign@^4.1.7:
     has-symbols "^1.1.0"
     object-keys "^1.1.1"
 
-<<<<<<< HEAD
-object.entries@^1.1.0, object.entries@^1.1.5, object.entries@^1.1.8, object.entries@^1.1.9:
-=======
 object.entries@^1.1.0, object.entries@^1.1.5, object.entries@^1.1.9:
->>>>>>> b5a25aa15 (Dark theme)
   version "1.1.9"
   resolved "https://registry.yarnpkg.com/object.entries/-/object.entries-1.1.9.tgz#e4770a6a1444afb61bd39f984018b5bede25f8b3"
   integrity sha512-8u/hfXFRBD1O0hPUjioLhoWFHRmt6tKA4/vZPyckBr18l1KE9uHrFaFaUi8MDRTpi4uak2goyPTSNJLXX2k2Hw==
@@ -20210,20 +19385,10 @@ react-is@^18.0.0, react-is@^18.3.1:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-18.3.1.tgz#e83557dc12eae63a99e003a46388b1dcbb44db7e"
   integrity sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==
 
-<<<<<<< HEAD
-react-is@^19.0.0:
-<<<<<<< HEAD
-  version "19.0.0"
-  resolved "https://registry.yarnpkg.com/react-is/-/react-is-19.0.0.tgz#d6669fd389ff022a9684f708cf6fa4962d1fea7a"
-  integrity sha512-H91OHcwjZsbq3ClIDHMzBShc1rotbfACdWENsmEf0IFvZ3FgGPtdHMcsv45bQ1hAbgdfiA8SnxTKfDS+x/8m2g==
-=======
-=======
 react-is@^19.0.0, react-is@^19.1.0:
->>>>>>> ca1e7d716 (add fixes)
   version "19.1.0"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-19.1.0.tgz#805bce321546b7e14c084989c77022351bbdd11b"
   integrity sha512-Oe56aUPnkHyyDxxkvqtd7KkdQP5uIUfHxd5XTb3wE9d/kRnZLmKbDB0GWk919tdQ+mxxPtG6EAs6RMT6i1qtHg==
->>>>>>> b5a25aa15 (Dark theme)
 
 react-markdown@^9.0.3:
   version "9.1.0"
@@ -21160,11 +20325,7 @@ semver@7.5.3:
   dependencies:
     lru-cache "^6.0.0"
 
-<<<<<<< HEAD
-semver@7.x, semver@^7.0.0, semver@^7.1.1, semver@^7.2.1, semver@^7.3.2, semver@^7.3.4, semver@^7.3.5, semver@^7.3.7, semver@^7.3.8, semver@^7.5.0, semver@^7.5.3, semver@^7.5.4, semver@^7.6.0, semver@^7.6.3:
-=======
-semver@7.x, semver@>=7.5.2, semver@^7.0.0, semver@^7.1.1, semver@^7.2.1, semver@^7.3.2, semver@^7.3.4, semver@^7.3.5, semver@^7.3.7, semver@^7.3.8, semver@^7.5.0, semver@^7.5.3, semver@^7.5.4, semver@^7.6.0, semver@^7.6.3, semver@^7.7.1:
->>>>>>> b5a25aa15 (Dark theme)
+semver@7.x, semver@^7.0.0, semver@^7.1.1, semver@^7.2.1, semver@^7.3.2, semver@^7.3.4, semver@^7.3.5, semver@^7.3.7, semver@^7.3.8, semver@^7.5.0, semver@^7.5.3, semver@^7.5.4, semver@^7.6.0, semver@^7.6.3, semver@^7.7.1:
   version "7.7.1"
   resolved "https://registry.yarnpkg.com/semver/-/semver-7.7.1.tgz#abd5098d82b18c6c81f6074ff2647fd3e7220c9f"
   integrity sha512-hlq8tAfn0m/61p4BVRcPzIGr6LKiMwo4VM6dGi6pt4qcRkmNzTcWq6eCEjEh+qXjkMDvPlOFFSGwQjoEa6gyMA==

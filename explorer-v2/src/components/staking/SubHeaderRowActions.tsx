@@ -129,14 +129,7 @@ const SubHeaderRowActions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [
-    address,
-    nymClient,
-    delegations,
-    getSigningCosmWasmClient,
-    handleRefetch,
-    getOfflineSigner,
-  ]);
+  }, [address, nymClient, delegations, handleRefetch, getOfflineSigner]);
 
   const handleRedeemRewardsButtonClick = () => {
     setOpenRedeemRewardsModal(true);

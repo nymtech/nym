@@ -145,6 +145,16 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn contains_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+    ) -> Result<bool, Self::StorageError> {
+        let ser = ticketbook.pack();
+        let data = Zeroizing::new(ser.data);
+
+        Ok(self.storage_manager.contains_ticketbook_data(&data).await?)
+    }
+
     async fn get_ticketbooks_info(
         &self,
     ) -> Result<Vec<BasicTicketbookInformation>, Self::StorageError> {

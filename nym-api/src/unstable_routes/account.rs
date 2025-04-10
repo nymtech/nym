@@ -96,10 +96,10 @@ async fn address(
     for delegation in og_delegations.iter() {
         let node_id = &delegation.node_id;
 
-        if let Some(nym_node_details) = nym_nodes.get(&node_id) {
+        if let Some(nym_node_details) = nym_nodes.get(node_id) {
             match nym_node_details
                 .rewarding_details
-                .determine_delegation_reward(&delegation)
+                .determine_delegation_reward(delegation)
             {
                 Ok(delegation_reward) => {
                     rewards_map.insert(

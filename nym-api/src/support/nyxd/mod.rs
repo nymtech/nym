@@ -4,10 +4,8 @@
 use crate::ecash::error::EcashError;
 use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
-use crate::unstable_routes::models::NymVestingAccount;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
@@ -37,7 +35,7 @@ use nym_mixnet_contract_common::{
 };
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
-use nym_validator_client::nyxd::contract_traits::{PagedDkgQueryClient, VestingQueryClient};
+use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
@@ -56,7 +54,7 @@ use nym_validator_client::nyxd::{
 use nym_validator_client::{
     nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient, QueryHttpRpcNyxdClient,
 };
-use nym_vesting_contract_common::{Account, AccountVestingCoins};
+use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;
 use tendermint::abci::response::Info;

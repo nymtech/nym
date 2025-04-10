@@ -63,7 +63,6 @@ impl IpInfoClient {
     }
 }
 
-// TODO dz: are fields other than location used?
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ExplorerPrettyBond {
     pub(crate) identity_key: String,
@@ -106,7 +105,6 @@ pub(crate) struct LocationResponse {
     pub(crate) two_letter_iso_country_code: String,
     #[serde(deserialize_with = "deserialize_loc")]
     pub(crate) loc: Coordinates,
-    // TODO dz consider making them optional?
     #[serde(default = "String::default")]
     pub(crate) ip: String,
     #[serde(default = "String::default")]

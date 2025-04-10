@@ -52,17 +52,14 @@ export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
   },
 }));
 
-
-export const DarkLightSwitchDesktop: FCWithChildren<{
-  defaultChecked: boolean;
-}> = ({ defaultChecked }) => {
-  const [_, setMode] = useLocalStorage<PaletteMode>("mode", "dark");
+export const DarkLightSwitchDesktop: FCWithChildren<{}> = () => {
+  const [mode, setMode] = useLocalStorage<PaletteMode>("mode", "dark");
 
   const toggleMode = () => setMode((m) => (m !== "light" ? "light" : "dark"));
 
   return (
     <Button onClick={() => toggleMode()} data-testid="switch-button">
-      <DarkLightSwitch defaultChecked={defaultChecked} />
+      <DarkLightSwitch checked={mode === "dark"} />
     </Button>
   );
 };

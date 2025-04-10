@@ -1,6 +1,7 @@
 "use client";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { useTheme } from "@mui/material";
-import { ResponsiveLine } from "@nivo/line";
+import { ResponsiveLine, Point, PointTooltipProps } from "@nivo/line";
 
 export interface ILineChartData {
   date_utc: string;
@@ -59,6 +60,7 @@ export const LineChart = ({
 
   return (
     <ResponsiveLine
+      key={`line-chart-${label}`}
       curve="basis"
       colors={[color]}
       data={[chartData]}
@@ -75,10 +77,14 @@ export const LineChart = ({
         grid: { line: { strokeWidth: 0 } },
         tooltip: {
           container: {
-            color: "black",
+            color: isDarkMode ? "white" : "black",
             fontSize: 10,
-            maxWidth: 250,
+            maxWidth: 200,
             lineHeight: 1,
+            background: isDarkMode ? "#1E1E1E" : "white",
+            padding: "9px 12px",
+            border: `1px solid ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "#E5E7EB"}`,
+            borderRadius: "4px",
           },
         },
         axis: {
@@ -117,6 +123,33 @@ export const LineChart = ({
         format: "%b %d",
         legendOffset: -12,
         tickValues: chartData.data.length > 7 ? "every 6 days" : "every 2 days",
+      }}
+      sliceTooltip={(slice) => {
+        const point = slice.slice.points[0];
+        const value = point.data.y as number;
+        const date = point.data.x as Date;
+
+        return (
+          <div
+            style={{
+              background: isDarkMode ? "#1E1E1E" : "white",
+              color: isDarkMode ? "white" : "black",
+              padding: "9px 12px",
+              border: `1px solid ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "#E5E7EB"}`,
+              borderRadius: "4px",
+              fontSize: "10px",
+              lineHeight: 1,
+              maxWidth: "170px",
+            }}
+          >
+            <div>
+              <strong>{date.toLocaleDateString()}</strong>
+            </div>
+            <div>
+              {label}: {yformat(value)}
+            </div>
+          </div>
+        );
       }}
     />
   );

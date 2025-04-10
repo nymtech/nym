@@ -69,7 +69,6 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 const STATS_REPORT_INTERVAL_SECS: Duration = Duration::from_secs(300);
 
 use crate::error::InvalidTrafficModeFailure;
-pub use nym_country_group::CountryGroup;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -256,15 +255,6 @@ impl Config {
     pub fn with_disabled_topology_refresh(mut self, disable_topology_refresh: bool) -> Self {
         self.debug.topology.disable_refreshing = disable_topology_refresh;
         self
-    }
-
-    pub fn with_topology_structure(mut self, topology_structure: TopologyStructure) -> Self {
-        self.set_topology_structure(topology_structure);
-        self
-    }
-
-    pub fn set_topology_structure(&mut self, topology_structure: TopologyStructure) {
-        self.debug.topology.topology_structure = topology_structure;
     }
 
     pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
@@ -546,9 +536,6 @@ pub struct Topology {
     #[serde(with = "humantime_serde")]
     pub max_startup_gateway_waiting_period: Duration,
 
-    /// Specifies the mixnode topology to be used for sending packets.
-    pub topology_structure: TopologyStructure,
-
     /// Specifies a minimum performance of a mixnode that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_mixnode_performance: u8,
@@ -570,30 +557,6 @@ pub struct Topology {
     pub ignore_ingress_epoch_role: bool,
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum TopologyStructure {
-    #[default]
-    NymApi,
-    GeoAware(GroupBy),
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum GroupBy {
-    CountryGroup(CountryGroup),
-    NymAddress(Recipient),
-}
-
-impl std::fmt::Display for GroupBy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupBy::CountryGroup(group) => write!(f, "group: {group}"),
-            GroupBy::NymAddress(address) => write!(f, "address: {address}"),
-        }
-    }
-}
-
 impl Default for Topology {
     fn default() -> Self {
         Topology {
@@ -601,7 +564,6 @@ impl Default for Topology {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
             max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
-            topology_structure: TopologyStructure::default(),
             minimum_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             minimum_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
             use_extended_topology: false,

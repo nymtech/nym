@@ -552,18 +552,12 @@ where
         user_agent: Option<UserAgent>,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
-        custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
-            config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
+        custom_provider.unwrap_or_else(|| {
+            Box::new(NymApiTopologyProvider::new(
                 config_topology,
                 nym_api_urls,
                 user_agent,
-            )),
-            config::TopologyStructure::GeoAware(group_by) => {
-                warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");
-
-                #[allow(deprecated)]
-                Box::new(crate::client::topology_control::GeoAwareTopologyProvider::new(nym_api_urls, group_by))
-            }
+            ))
         })
     }
 

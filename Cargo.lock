@@ -5082,7 +5082,6 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bs58",
- "cfg-if",
  "clap",
  "comfy-table",
  "futures",
@@ -5097,12 +5096,10 @@ dependencies = [
  "nym-client-core-gateways-storage",
  "nym-client-core-surb-storage",
  "nym-config",
- "nym-country-group",
  "nym-credential-storage",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
- "nym-explorer-client",
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-http-api-client",
@@ -5123,7 +5120,6 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "si-scale",
- "tap",
  "tempfile",
  "thiserror 2.0.12",
  "time",
@@ -5145,7 +5141,6 @@ version = "0.1.0"
 dependencies = [
  "humantime-serde",
  "nym-config",
- "nym-country-group",
  "nym-pemstore",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
@@ -5285,14 +5280,6 @@ dependencies = [
  "thiserror 2.0.12",
  "utoipa",
  "vergen",
-]
-
-[[package]]
-name = "nym-country-group"
-version = "0.1.0"
-dependencies = [
- "serde",
- "tracing",
 ]
 
 [[package]]
@@ -5569,31 +5556,6 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "utoipa",
-]
-
-[[package]]
-name = "nym-explorer-api-requests"
-version = "0.1.0"
-dependencies = [
- "nym-api-requests",
- "nym-contracts-common",
- "nym-mixnet-contract-common",
- "schemars",
- "serde",
- "ts-rs",
-]
-
-[[package]]
-name = "nym-explorer-client"
-version = "0.1.0"
-dependencies = [
- "nym-explorer-api-requests",
- "reqwest 0.12.15",
- "serde",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
- "url",
 ]
 
 [[package]]
@@ -6275,7 +6237,6 @@ dependencies = [
  "nym-bin-common",
  "nym-contracts-common",
  "nym-crypto",
- "nym-explorer-client",
  "nym-http-api-client",
  "nym-network-defaults",
  "nym-node-metrics",

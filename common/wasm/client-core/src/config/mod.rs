@@ -423,7 +423,6 @@ impl From<TopologyWasm> for ConfigTopology {
             max_startup_gateway_waiting_period: Duration::from_millis(
                 topology.max_startup_gateway_waiting_period_ms as u64,
             ),
-            topology_structure: Default::default(),
             minimum_mixnode_performance: topology.minimum_mixnode_performance,
             minimum_gateway_performance: topology.minimum_gateway_performance,
             use_extended_topology: topology.use_extended_topology,

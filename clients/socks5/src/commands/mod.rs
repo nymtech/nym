@@ -16,8 +16,7 @@ use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
-use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
-use nym_client_core::config::{ForgetMe, GroupBy, TopologyStructure};
+use nym_client_core::config::ForgetMe;
 use nym_config::OptionalSet;
 use nym_sphinx::addressing::Recipient;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -107,7 +106,6 @@ pub(crate) struct OverrideConfig {
     use_anonymous_replies: Option<bool>,
     fastmode: bool,
     no_cover: bool,
-    geo_routing: Option<CountryGroup>,
     medium_toggle: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
@@ -138,21 +136,6 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
     let no_per_hop_delays = args.medium_toggle;
 
-    let topology_structure = if args.medium_toggle {
-        // Use the location of the network-requester
-        let address = config
-            .core
-            .socks5
-            .provider_mix_address
-            .parse()
-            .expect("failed to parse provider mix address");
-        TopologyStructure::GeoAware(GroupBy::NymAddress(address))
-    } else if let Some(code) = args.geo_routing {
-        TopologyStructure::GeoAware(GroupBy::CountryGroup(code))
-    } else {
-        TopologyStructure::default()
-    };
-
     let packet_type = if args.outfox {
         PacketType::Outfox
     } else {
@@ -176,10 +159,6 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         // NOTE: see comment above about the order of the other disble cover traffic config
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_base(BaseClientConfig::with_packet_type, packet_type)
-        .with_base(
-            BaseClientConfig::with_topology_structure,
-            topology_structure,
-        )
         .with_base(BaseClientConfig::with_forget_me, args.forget_me)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)

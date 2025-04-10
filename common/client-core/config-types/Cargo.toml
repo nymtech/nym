@@ -14,7 +14,6 @@ url = { workspace = true, features = ["serde"] }
 
 nym-config = { path = "../../config" }
 
-nym-country-group = { path = "../../country-group" }
 nym-pemstore = { path = "../../pemstore", optional = true }
 
 # those are pulling so many deps T.T

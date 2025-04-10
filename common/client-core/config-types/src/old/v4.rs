@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::old::v5::{
-    AcknowledgementsV5, ClientV5, ConfigV5, CoverTrafficV5, DebugConfigV5, GatewayConnectionV5,
-    GroupByV5, ReplySurbsV5, TopologyStructureV5, TopologyV5, TrafficV5,
+    AcknowledgementsV5, ClientV5, ConfigV5, CountryGroupV5, CoverTrafficV5, DebugConfigV5,
+    GatewayConnectionV5, GroupByV5, ReplySurbsV5, TopologyStructureV5, TopologyV5, TrafficV5,
 };
-use crate::CountryGroup;
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
@@ -369,27 +368,43 @@ impl From<TopologyStructureV4> for TopologyStructureV5 {
     }
 }
 
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug)]
+pub enum CountryGroupV4 {
+    Europe,
+    NorthAmerica,
+    SouthAmerica,
+    Oceania,
+    Asia,
+    Africa,
+    Unknown,
+}
+
+impl From<CountryGroupV4> for CountryGroupV5 {
+    fn from(value: CountryGroupV4) -> Self {
+        match value {
+            CountryGroupV4::Europe => CountryGroupV5::Europe,
+            CountryGroupV4::NorthAmerica => CountryGroupV5::NorthAmerica,
+            CountryGroupV4::SouthAmerica => CountryGroupV5::SouthAmerica,
+            CountryGroupV4::Oceania => CountryGroupV5::Oceania,
+            CountryGroupV4::Asia => CountryGroupV5::Asia,
+            CountryGroupV4::Africa => CountryGroupV5::Africa,
+            CountryGroupV4::Unknown => CountryGroupV5::Unknown,
+        }
+    }
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GroupByV4 {
-    CountryGroup(CountryGroup),
+    CountryGroup(CountryGroupV4),
     NymAddress(Recipient),
 }
 
 impl From<GroupByV4> for GroupByV5 {
     fn from(value: GroupByV4) -> Self {
         match value {
-            GroupByV4::CountryGroup(country) => GroupByV5::CountryGroup(country),
+            GroupByV4::CountryGroup(country) => GroupByV5::CountryGroup(country.into()),
             GroupByV4::NymAddress(addr) => GroupByV5::NymAddress(addr),
-        }
-    }
-}
-
-impl std::fmt::Display for GroupByV4 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupByV4::CountryGroup(group) => write!(f, "group: {}", group),
-            GroupByV4::NymAddress(address) => write!(f, "address: {}", address),
         }
     }
 }

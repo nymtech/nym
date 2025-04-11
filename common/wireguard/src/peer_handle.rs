@@ -130,7 +130,7 @@ impl PeerHandle {
         Ok(true)
     }
 
-    async fn continue_checking(&self) -> Result<bool, Error> {
+    async fn continue_checking(&mut self) -> Result<bool, Error> {
         let Some(kernel_peer) = self
             .host_information
             .read()
@@ -195,6 +195,5 @@ impl PeerHandle {
                 }
             }
         }
-        Ok(())
     }
 }

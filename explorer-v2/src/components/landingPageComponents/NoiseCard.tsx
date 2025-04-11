@@ -10,6 +10,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import type { IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -19,6 +20,8 @@ import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
 export const NoiseCard = () => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["noise"],
     queryFn: fetchNoise,
@@ -110,6 +113,14 @@ export const NoiseCard = () => {
     })
     .filter((item) => item.numericData >= 2_500_000_000);
 
+  const handleTooltipOpen = () => {
+    setTooltipOpen(true);
+  };
+
+  const handleTooltipClose = () => {
+    setTooltipOpen(false);
+  };
+
   return (
     <ExplorerCard label="Mixnet traffic" sx={{ height: "100%" }}>
       <Box display={"flex"} gap={2} flexDirection={{ xs: "column", sm: "row" }}>
@@ -124,11 +135,22 @@ export const NoiseCard = () => {
           {noiseLast24HFormatted}
         </Typography>
         <Tooltip
-          placement="left"
+          placement="bottom"
           title={"Self reported noise volume"}
+          open={tooltipOpen}
+          onClose={handleTooltipClose}
           onClick={(e) => e.stopPropagation()}
+          enterNextDelay={300}
+          leaveDelay={200}
         >
-          <Typography variant="h4" sx={{ color: "#8482FD", cursor: "pointer" }}>
+          <Typography
+            variant="h4"
+            sx={{ color: "#8482FD", cursor: "pointer" }}
+            onClick={handleTooltipOpen}
+            onTouchStart={handleTooltipOpen}
+            onMouseEnter={handleTooltipOpen}
+            onMouseLeave={handleTooltipClose}
+          >
             ({formatedNoiseVolume})
             <InfoOutlinedIcon sx={{ fontSize: 16 }} />
           </Typography>

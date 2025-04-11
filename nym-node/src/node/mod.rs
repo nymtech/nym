@@ -73,6 +73,7 @@ pub(crate) mod mixnet;
 pub(crate) mod replay_protection;
 mod routing_filter;
 mod shared_network;
+mod sphinx_key_manager;
 
 pub struct GatewayTasksData {
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,

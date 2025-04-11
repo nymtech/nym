@@ -20,6 +20,7 @@ const CopyToClipboard = ({
   const [copiedText, setCopiedText] = useCopyToClipboard();
   const hasCopied = Boolean(copiedText);
   const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
 
   useEffect(() => {
     if (hasCopied) {
@@ -33,7 +34,11 @@ const CopyToClipboard = ({
 
   if (hasCopied) {
     return (
-      <Typography sx={{ color: "pine.950" }} variant="h6" color="textSecondary">
+      <Typography
+        sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        variant="h6"
+        color="textSecondary"
+      >
         Copied
       </Typography>
     );
@@ -41,8 +46,7 @@ const CopyToClipboard = ({
 
   return (
     <IconButton size={size} onClick={() => setCopiedText(text)}>
-      {Icon ||
-        (theme.palette.mode === "dark" ? <CopyFileDark /> : <CopyFile />)}
+      {Icon || (isDarkMode ? <CopyFileDark /> : <CopyFile />)}
     </IconButton>
   );
 };

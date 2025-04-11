@@ -217,38 +217,40 @@ impl ConnectionHandler {
         now: Instant,
         packet: FramedNymPacket,
     ) {
-        // 1. derive and expand shared secret
-        // also check the header integrity
-        let partially_unwrapped = match PartiallyUnwrappedPacket::new(
-            packet,
-            self.shared.sphinx_keys.private_key().as_ref(),
-        ) {
-            Ok(unwrapped) => unwrapped,
-            Err(err) => {
-                trace!("failed to process received mix packet: {err}");
-                self.shared
-                    .metrics
-                    .mixnet
-                    .ingress_malformed_packet(self.remote_address.ip());
-                return;
-            }
-        };
-
-        self.pending_packets.push(now, partially_unwrapped);
-
-        // 2. check for packet replay
-        // 2.1 first try it without locking
-        if self.handle_pending_packets_batch_no_locking(now).await {
-            return;
-        }
-
-        // 2.2 if we're within deferral threshold, just leave it queued up for another call
-        if self.within_deferral_threshold(now) {
-            return;
-        }
-
-        // 2.3. otherwise block until we obtain the lock and clear the whole batch
-        self.handle_pending_packets_batch(now).await;
+        todo!()
+        //
+        // // 1. derive and expand shared secret
+        // // also check the header integrity
+        // let partially_unwrapped = match PartiallyUnwrappedPacket::new(
+        //     packet,
+        //     self.shared.sphinx_keys.private_key().as_ref(),
+        // ) {
+        //     Ok(unwrapped) => unwrapped,
+        //     Err(err) => {
+        //         trace!("failed to process received mix packet: {err}");
+        //         self.shared
+        //             .metrics
+        //             .mixnet
+        //             .ingress_malformed_packet(self.remote_address.ip());
+        //         return;
+        //     }
+        // };
+        //
+        // self.pending_packets.push(now, partially_unwrapped);
+        //
+        // // 2. check for packet replay
+        // // 2.1 first try it without locking
+        // if self.handle_pending_packets_batch_no_locking(now).await {
+        //     return;
+        // }
+        //
+        // // 2.2 if we're within deferral threshold, just leave it queued up for another call
+        // if self.within_deferral_threshold(now) {
+        //     return;
+        // }
+        //
+        // // 2.3. otherwise block until we obtain the lock and clear the whole batch
+        // self.handle_pending_packets_batch(now).await;
     }
 
     async fn handle_unwrapped_packet(
@@ -350,11 +352,13 @@ impl ConnectionHandler {
             self.handle_received_packet_with_replay_detection(now, packet)
                 .await;
         } else {
-            // otherwise just skip that whole procedure and go straight to payload unwrapping
-            // (assuming the basic framing is valid)
-            let unwrapped_packet =
-                process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
-            self.handle_unwrapped_packet(now, unwrapped_packet).await;
+            todo!()
+            //
+            // // otherwise just skip that whole procedure and go straight to payload unwrapping
+            // // (assuming the basic framing is valid)
+            // let unwrapped_packet =
+            //     process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
+            // self.handle_unwrapped_packet(now, unwrapped_packet).await;
         };
     }
 

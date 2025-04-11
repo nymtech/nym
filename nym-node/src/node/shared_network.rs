@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use async_trait::async_trait;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::UserAgent;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
-use nym_topology::{EpochRewardedSet, NymTopology, Role, TopologyProvider};
+use nym_topology::{EntryDetails, EpochRewardedSet, NodeId, NymTopology, Role, TopologyProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
 use nym_validator_client::{NymApiClient, ValidatorClientError};
 use std::collections::HashSet;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -21,6 +24,8 @@ use tokio::time::interval;
 use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
+
+const LOCAL_NODE_ID: NodeId = 1234567890;
 
 struct NodesQuerier {
     client: NymApiClient,
@@ -84,16 +89,40 @@ impl NodesQuerier {
     }
 }
 
+pub(crate) struct LocalGatewayNode {
+    pub(crate) active_sphinx_keys: ActiveSphinxKeys,
+    pub(crate) mix_host: SocketAddr,
+    pub(crate) identity_key: ed25519::PublicKey,
+    pub(crate) entry: EntryDetails,
+}
+
+impl LocalGatewayNode {
+    pub(crate) fn to_routing_node(&self) -> RoutingNode {
+        RoutingNode {
+            node_id: LOCAL_NODE_ID,
+            mix_host: self.mix_host,
+            entry: Some(self.entry.clone()),
+            identity_key: self.identity_key,
+            sphinx_key: self.active_sphinx_keys.primary().deref().x25519_pubkey(),
+            supported_roles: nym_topology::SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct CachedTopologyProvider {
-    gateway_node: Arc<RoutingNode>,
+    gateway_node: Arc<LocalGatewayNode>,
     cached_network: CachedNetwork,
     min_mix_performance: u8,
 }
 
 impl CachedTopologyProvider {
     pub(crate) fn new(
-        gateway_node: RoutingNode,
+        gateway_node: LocalGatewayNode,
         cached_network: CachedNetwork,
         min_mix_performance: u8,
     ) -> Self {
@@ -120,11 +149,11 @@ impl TopologyProvider for CachedTopologyProvider {
                 }
             }));
 
-        if !topology.has_node_details(self.gateway_node.node_id) {
+        if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
-            topology.insert_node_details(self.gateway_node.as_ref().clone());
+            topology.insert_node_details(self.gateway_node.to_routing_node());
         }
-        topology.force_set_active(self.gateway_node.node_id, Role::EntryGateway);
+        topology.force_set_active(LOCAL_NODE_ID, Role::EntryGateway);
 
         Some(topology)
     }

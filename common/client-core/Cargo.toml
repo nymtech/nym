@@ -27,6 +27,7 @@ thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
 time = { workspace = true }
+tracing = { workspace = true }
 zeroize = { workspace = true }
 
 # internal

@@ -106,6 +106,7 @@ impl ReplySurb {
         average_delay: Duration,
         use_legacy_surb_format: bool,
         topology: &NymRouteProvider,
+        _disable_mix_hops: bool, // TODO: support SURBs with no mix hops after changes to surb format / construction
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,

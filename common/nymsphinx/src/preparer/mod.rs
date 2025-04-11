@@ -3,7 +3,6 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
-use log::debug;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -17,8 +16,8 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
+use rand::{CryptoRng, Rng};
+use tracing::{debug, trace};
 
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
@@ -59,28 +58,38 @@ pub trait FragmentPreparer {
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
 
+    fn generate_reply_surbs(
+        &mut self,
+        amount: usize,
+        topology: &NymRouteProvider,
+        reply_recipient: &Recipient,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        let packet_delay = self.average_packet_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        for _ in 0..amount {
+            let reply_surb = ReplySurb::construct(
+                self.rng(),
+                reply_recipient,
+                packet_delay,
+                use_legacy_sphinx_format,
+                topology,
+                false,
+            )?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
+    }
+
     fn generate_surb_ack(
         &mut self,
-        recipient: &Recipient,
         fragment_id: FragmentIdentifier,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
         packet_type: PacketType,
-    ) -> Result<SurbAck, NymTopologyError> {
-        let ack_delay = self.average_ack_delay();
-        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
-
-        SurbAck::construct(
-            self.rng(),
-            use_legacy_sphinx_format,
-            recipient,
-            ack_key,
-            fragment_id.to_bytes(),
-            ack_delay,
-            topology,
-            packet_type,
-        )
-    }
+    ) -> Result<SurbAck, NymTopologyError>;
 
     /// The procedure is as follows:
     /// For each fragment:
@@ -98,9 +107,10 @@ pub trait FragmentPreparer {
         topology: &NymRouteProvider,
         ack_key: &AckKey,
         reply_surb: ReplySurb,
-        packet_sender: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!("Preparing reply chunk for sending");
+
         // each reply attaches the digest of the encryption key so that the recipient could
         // lookup correct key for decryption,
         let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
@@ -122,13 +132,8 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(
-            packet_sender,
-            fragment_identifier,
-            topology,
-            ack_key,
-            packet_type,
-        )?;
+        let surb_ack =
+            self.generate_surb_ack(fragment_identifier, topology, ack_key, packet_type)?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
@@ -177,7 +182,199 @@ pub trait FragmentPreparer {
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        packet_sender: &Recipient,
+        packet_recipient: &Recipient,
+        packet_type: PacketType,
+    ) -> Result<PreparedFragment, NymTopologyError>;
+
+    fn pad_and_split_message(
+        &mut self,
+        message: NymMessage,
+        packet_size: PacketSize,
+    ) -> Vec<Fragment> {
+        let plaintext_per_packet = message.available_sphinx_plaintext_per_packet(packet_size);
+
+        message
+            .pad_to_full_packet_lengths(plaintext_per_packet)
+            .split_into_fragments(self.rng(), plaintext_per_packet)
+    }
+}
+
+/// Prepares the message that is to be sent through the mix network.
+///
+/// Prepares the message that is to be sent through the mix network by attaching
+/// an optional reply-SURB, padding it to appropriate length, encrypting its content,
+/// and chunking into appropriate size [`Fragment`]s.
+#[derive(Clone)]
+#[must_use]
+pub struct MessagePreparer<R> {
+    /// Instance of a cryptographically secure random number generator.
+    rng: R,
+
+    /// Specify whether route selection should be determined by the packet header.
+    deterministic_route_selection: bool,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    pub disable_mix_hops: bool,
+
+    /// Address of this client which also represent an address to which all acknowledgements
+    /// and surb-based are going to be sent.
+    sender_address: Recipient,
+
+    /// Average delay a data packet is going to get delay at a single mixnode.
+    average_packet_delay: Duration,
+
+    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Specify whether any constructed packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_sphinx_format: bool,
+
+    nonce: i32,
+}
+
+impl<R> MessagePreparer<R>
+where
+    R: CryptoRng + Rng,
+{
+    pub fn new(
+        rng: R,
+        deterministic_route_selection: bool,
+        sender_address: Recipient,
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
+        use_legacy_sphinx_format: bool,
+        disable_mix_hops: bool,
+    ) -> Self {
+        let mut rng = rng;
+        let nonce = rng.gen();
+        MessagePreparer {
+            rng,
+            deterministic_route_selection,
+            sender_address,
+            average_packet_delay,
+            average_ack_delay,
+            use_legacy_sphinx_format,
+            nonce,
+            disable_mix_hops,
+        }
+    }
+
+    /// Overwrites existing sender address with the provided value.
+    pub fn set_sender_address(&mut self, sender_address: Recipient) {
+        self.sender_address = sender_address;
+    }
+
+    pub fn generate_reply_surbs(
+        &mut self,
+        use_legacy_reply_surb_format: bool,
+        amount: usize,
+        topology: &NymRouteProvider,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        for _ in 0..amount {
+            let reply_surb = ReplySurb::construct(
+                &mut self.rng,
+                &self.sender_address,
+                self.average_packet_delay,
+                use_legacy_reply_surb_format,
+                topology,
+                self.disable_mix_hops,
+            )?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
+    }
+}
+
+impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
+    type Rng = R;
+
+    fn use_legacy_sphinx_format(&self) -> bool {
+        self.use_legacy_sphinx_format
+    }
+
+    fn deterministic_route_selection(&self) -> bool {
+        self.deterministic_route_selection
+    }
+
+    fn rng(&mut self) -> &mut Self::Rng {
+        &mut self.rng
+    }
+
+    fn nonce(&self) -> i32 {
+        self.nonce
+    }
+
+    fn average_packet_delay(&self) -> Duration {
+        self.average_packet_delay
+    }
+
+    fn average_ack_delay(&self) -> Duration {
+        self.average_ack_delay
+    }
+
+    /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
+    fn generate_surb_ack(
+        &mut self,
+        fragment_id: FragmentIdentifier,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_type: PacketType,
+    ) -> Result<SurbAck, NymTopologyError> {
+        let sender = self.sender_address;
+        let ack_delay = self.average_ack_delay();
+        let disable_mix_hops = self.disable_mix_hops;
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        SurbAck::construct(
+            self.rng(),
+            use_legacy_sphinx_format,
+            &sender,
+            ack_key,
+            fragment_id.to_bytes(),
+            ack_delay,
+            topology,
+            packet_type,
+            disable_mix_hops,
+        )
+    }
+
+    fn generate_reply_surbs(
+        &mut self,
+        amount: usize,
+        topology: &NymRouteProvider,
+        reply_recipient: &Recipient,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        let packet_delay = self.average_packet_delay();
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+
+        for _ in 0..amount {
+            // TODO: support SURBs with no mix hops after changes to surb format / construction
+            let reply_surb = ReplySurb::construct(
+                self.rng(),
+                reply_recipient,
+                packet_delay,
+                use_legacy_sphinx_format,
+                topology,
+                false,
+            )?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
+    }
+
+    fn prepare_chunk_for_sending(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
         packet_recipient: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
@@ -186,7 +383,7 @@ pub trait FragmentPreparer {
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
 
-        let fragment_header = fragment.header();
+        // let fragment_header = fragment.header();
         let destination = packet_recipient.gateway();
         monitoring::fragment_sent(&fragment, self.nonce(), destination);
 
@@ -206,13 +403,8 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(
-            packet_sender,
-            fragment_identifier,
-            topology,
-            ack_key,
-            packet_type,
-        )?;
+        let surb_ack =
+            self.generate_surb_ack(fragment_identifier, topology, ack_key, packet_type)?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
@@ -222,17 +414,12 @@ pub trait FragmentPreparer {
             Err(_e) => return Err(NymTopologyError::PayloadBuilder),
         };
 
-        // generate pseudorandom route for the packet
-        log::trace!("Preparing chunk for sending");
-        let route = if self.deterministic_route_selection() {
-            log::trace!("using deterministic route selection");
-            let seed = fragment_header.seed().wrapping_mul(self.nonce());
-            let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-            topology.random_route_to_egress(&mut rng, destination)?
+        trace!("Preparing chunk for sending");
+        let route = if self.disable_mix_hops {
+            topology.empty_route_to_egress(destination)?
         } else {
-            log::trace!("using pseudorandom route selection");
-            let mut rng = self.rng();
-            topology.random_route_to_egress(&mut rng, destination)?
+            // generate pseudorandom route for the packet
+            topology.random_route_to_egress(self.rng(), destination)?
         };
 
         let destination = packet_recipient.as_sphinx_destination();
@@ -272,198 +459,6 @@ pub trait FragmentPreparer {
             mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
             fragment_identifier,
         })
-    }
-
-    fn pad_and_split_message(
-        &mut self,
-        message: NymMessage,
-        packet_size: PacketSize,
-    ) -> Vec<Fragment> {
-        let plaintext_per_packet = message.available_sphinx_plaintext_per_packet(packet_size);
-
-        message
-            .pad_to_full_packet_lengths(plaintext_per_packet)
-            .split_into_fragments(self.rng(), plaintext_per_packet)
-    }
-}
-
-/// Prepares the message that is to be sent through the mix network.
-///
-/// Prepares the message that is to be sent through the mix network by attaching
-/// an optional reply-SURB, padding it to appropriate length, encrypting its content,
-/// and chunking into appropriate size [`Fragment`]s.
-#[derive(Clone)]
-#[must_use]
-pub struct MessagePreparer<R> {
-    /// Instance of a cryptographically secure random number generator.
-    rng: R,
-
-    /// Specify whether route selection should be determined by the packet header.
-    deterministic_route_selection: bool,
-
-    /// Address of this client which also represent an address to which all acknowledgements
-    /// and surb-based are going to be sent.
-    sender_address: Recipient,
-
-    /// Average delay a data packet is going to get delay at a single mixnode.
-    average_packet_delay: Duration,
-
-    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
-    average_ack_delay: Duration,
-
-    /// Specify whether any constructed packets should use the legacy format,
-    /// where the payload keys are explicitly attached rather than using the seeds
-    use_legacy_sphinx_format: bool,
-
-    nonce: i32,
-}
-
-impl<R> MessagePreparer<R>
-where
-    R: CryptoRng + Rng,
-{
-    pub fn new(
-        rng: R,
-        deterministic_route_selection: bool,
-        sender_address: Recipient,
-        average_packet_delay: Duration,
-        average_ack_delay: Duration,
-        use_legacy_sphinx_format: bool,
-    ) -> Self {
-        let mut rng = rng;
-        let nonce = rng.gen();
-        MessagePreparer {
-            rng,
-            deterministic_route_selection,
-            sender_address,
-            average_packet_delay,
-            average_ack_delay,
-            use_legacy_sphinx_format,
-            nonce,
-        }
-    }
-
-    /// Overwrites existing sender address with the provided value.
-    pub fn set_sender_address(&mut self, sender_address: Recipient) {
-        self.sender_address = sender_address;
-    }
-
-    pub fn generate_reply_surbs(
-        &mut self,
-        use_legacy_reply_surb_format: bool,
-        amount: usize,
-        topology: &NymRouteProvider,
-    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
-        let mut reply_surbs = Vec::with_capacity(amount);
-        for _ in 0..amount {
-            let reply_surb = ReplySurb::construct(
-                &mut self.rng,
-                &self.sender_address,
-                self.average_packet_delay,
-                use_legacy_reply_surb_format,
-                topology,
-            )?;
-            reply_surbs.push(reply_surb)
-        }
-
-        Ok(reply_surbs)
-    }
-
-    pub fn prepare_reply_chunk_for_sending(
-        &mut self,
-        fragment: Fragment,
-        topology: &NymRouteProvider,
-        ack_key: &AckKey,
-        reply_surb: ReplySurb,
-        packet_type: PacketType,
-    ) -> Result<PreparedFragment, NymTopologyError> {
-        let sender = self.sender_address;
-
-        <Self as FragmentPreparer>::prepare_reply_chunk_for_sending(
-            self,
-            fragment,
-            topology,
-            ack_key,
-            reply_surb,
-            &sender,
-            packet_type,
-        )
-    }
-
-    pub fn prepare_chunk_for_sending(
-        &mut self,
-        fragment: Fragment,
-        topology: &NymRouteProvider,
-        ack_key: &AckKey,
-        packet_recipient: &Recipient,
-        packet_type: PacketType,
-    ) -> Result<PreparedFragment, NymTopologyError> {
-        let sender = self.sender_address;
-
-        <Self as FragmentPreparer>::prepare_chunk_for_sending(
-            self,
-            fragment,
-            topology,
-            ack_key,
-            &sender,
-            packet_recipient,
-            packet_type,
-        )
-    }
-
-    /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    pub fn generate_surb_ack(
-        &mut self,
-        fragment_id: FragmentIdentifier,
-        topology: &NymRouteProvider,
-        ack_key: &AckKey,
-        packet_type: PacketType,
-    ) -> Result<SurbAck, NymTopologyError> {
-        let sender = self.sender_address;
-        <Self as FragmentPreparer>::generate_surb_ack(
-            self,
-            &sender,
-            fragment_id,
-            topology,
-            ack_key,
-            packet_type,
-        )
-    }
-
-    pub fn pad_and_split_message(
-        &mut self,
-        message: NymMessage,
-        packet_size: PacketSize,
-    ) -> Vec<Fragment> {
-        <Self as FragmentPreparer>::pad_and_split_message(self, message, packet_size)
-    }
-}
-
-impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
-    type Rng = R;
-
-    fn use_legacy_sphinx_format(&self) -> bool {
-        self.use_legacy_sphinx_format
-    }
-
-    fn deterministic_route_selection(&self) -> bool {
-        self.deterministic_route_selection
-    }
-
-    fn rng(&mut self) -> &mut Self::Rng {
-        &mut self.rng
-    }
-
-    fn nonce(&self) -> i32 {
-        self.nonce
-    }
-
-    fn average_packet_delay(&self) -> Duration {
-        self.average_packet_delay
-    }
-
-    fn average_ack_delay(&self) -> Duration {
-        self.average_ack_delay
     }
 }
 

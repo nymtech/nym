@@ -148,6 +148,7 @@ impl From<TrafficWasmOverride> for TrafficWasm {
                 .use_extended_packet_size
                 .unwrap_or(def.use_extended_packet_size),
             use_outfox: value.use_outfox.unwrap_or(def.use_outfox),
+            disable_mix_hops: false, // not configured from js config override yet
         }
     }
 }

@@ -414,6 +414,12 @@ pub struct Traffic {
     pub use_legacy_sphinx_format: bool,
 
     pub packet_type: PacketType,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    pub disable_mix_hops: bool,
 }
 
 impl Traffic {
@@ -444,6 +450,7 @@ impl Default for Traffic {
             // we should use the legacy format until sufficient number of nodes understand the
             // improved encoding
             use_legacy_sphinx_format: true,
+            disable_mix_hops: false,
         }
     }
 }

@@ -93,7 +93,16 @@ impl PeerHandle {
             }
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
                 .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
-                .ok_or(Error::InconsistentConsumedBytes)?
+                .unwrap_or_else(|| {
+                    // if gateway restarted, the kernel values restart from 0
+                    // and we should restart from 0 in storage as well
+                    if let Some(peer_information) =
+                        self.peer_storage_manager.peer_information.as_mut()
+                    {
+                        peer_information.force_sync = true;
+                    }
+                    kernel_peer.rx_bytes + kernel_peer.tx_bytes
+                })
                 .try_into()
                 .map_err(|_| Error::InconsistentConsumedBytes)?;
             if spent_bandwidth > 0 {

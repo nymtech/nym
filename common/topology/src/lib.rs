@@ -15,6 +15,7 @@ use tracing::{debug, trace, warn};
 
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
+use nym_crypto::asymmetric::ed25519;
 pub use nym_mixnet_contract_common::nym_node::Role;
 pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId};
 pub use rewarded_set::CachedEpochRewardedSet;
@@ -276,6 +277,12 @@ impl NymTopology {
 
     pub fn has_node_details(&self, node_id: NodeId) -> bool {
         self.node_details.contains_key(&node_id)
+    }
+
+    pub fn has_node(&self, identity: ed25519::PublicKey) -> bool {
+        self.node_details
+            .values()
+            .any(|node_details| node_details.identity_key == identity)
     }
 
     pub fn insert_node_details(&mut self, node_details: RoutingNode) {

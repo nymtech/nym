@@ -203,23 +203,6 @@ pub struct KeysPathsV3 {
 }
 
 impl KeysPathsV3 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-
-        KeysPathsV3 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_PRIMARY_X25519_PRIVATE_SPHINX_KEY_FILENAME),
-            public_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_PRIMARY_X25519_PUBLIC_SPHINX_KEY_FILENAME),
-            private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
-            public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
-        }
-    }
-
     pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(
             &self.private_ed25519_identity_key_file,

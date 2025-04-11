@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::throughput_tester::stats::ClientStats;
 use anyhow::bail;
 use arrayref::array_ref;
@@ -28,6 +29,7 @@ use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
 use sha2::Sha256;
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
@@ -119,7 +121,7 @@ impl ThroughputTestingClient {
         initial_sending_delay: Duration,
         initial_batch_size: usize,
         latency_threshold: Duration,
-        node_keys: &x25519::KeyPair,
+        node_keys: ActiveSphinxKeys,
         node_listener: SocketAddr,
         stats: ClientStats,
         cancellation_token: ShutdownToken,
@@ -137,10 +139,14 @@ impl ThroughputTestingClient {
         // keys of this client
         let ephemeral_keys = x25519::KeyPair::new(&mut rng);
 
+        let loaded_private = node_keys.primary();
+        let private = loaded_private.deref();
+        let public = private.x25519_pubkey();
+
         let route = [
             Node::new(
                 NymNodeRoutingAddress::from(node_listener).try_into()?,
-                (*node_keys.public_key()).into(),
+                public.into(),
             ),
             Node::new(
                 NymNodeRoutingAddress::from(local_address).try_into()?,
@@ -168,8 +174,8 @@ impl ThroughputTestingClient {
 
         // derive the expanded shared secret for our node so we could tag the payload to figure out latency
         // by tagging the packet
-        let shared_secret = node_keys
-            .private_key()
+        let shared_secret = private
+            .as_ref()
             .as_ref()
             .diffie_hellman(&header.shared_secret);
         let payload_key = rederive_lioness_payload_key(shared_secret.as_bytes());

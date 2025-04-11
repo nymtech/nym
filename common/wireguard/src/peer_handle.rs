@@ -137,30 +137,57 @@ impl PeerHandle {
         Ok(true)
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
+    async fn continue_checking(&self) -> Result<bool, Error> {
+        let Some(kernel_peer) = self
+            .host_information
+            .read()
+            .await
+            .peers
+            .get(&self.public_key)
+            .cloned()
+        else {
+            // the host information hasn't beed updated yet
+            return Ok(true);
+        };
+        let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
+            log::debug!(
+                "Peer {:?} not in storage anymore, shutting down handle",
+                self.public_key
+            );
+            return Ok(false);
+        };
+        if !self.active_peer(&storage_peer, &kernel_peer).await? {
+            log::debug!(
+                "Peer {:?} is not active anymore, shutting down handle",
+                self.public_key
+            );
+            Ok(false)
+        } else {
+            // Update storage values
+            self.peer_storage_manager.sync_storage_peer().await?;
+            Ok(true)
+        }
+    }
+
+    pub async fn run(&mut self) {
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    let Some(kernel_peer) = self
-                        .host_information
-                        .read()
-                        .await
-                        .peers
-                        .get(&self.public_key)
-                        .cloned() else {
-                            // the host information hasn't beed updated yet
-                            continue;
-                        };
-                    let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
-                        log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
-                        return Ok(());
-                    };
-                    if !self.active_peer(&storage_peer, &kernel_peer).await? {
-                        log::debug!("Peer {:?} is not active anymore, shutting down handle", self.public_key);
-                        return Ok(());
-                    } else {
-                        // Update storage values
-                        self.peer_storage_manager.sync_storage_peer().await?;
+                    match self.continue_checking().await {
+                        Ok(true) => continue,
+                        Ok(false) => return,
+                        Err(err) => {
+                            match self.remove_peer().await {
+                                Ok(true) => {
+                                    tracing::debug!("Removed peer due to error {err}");
+                                    return;
+                                }
+                                _ => {
+                                    tracing::debug!("Could not remove peer yet, we'll try again later");
+                                    continue;
+                                }
+                            }
+                        },
                     }
                 }
 

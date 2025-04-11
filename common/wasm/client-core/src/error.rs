@@ -5,7 +5,7 @@ use crate::storage::wasm_client_traits::WasmClientStorageError;
 use crate::topology::WasmTopologyError;
 use nym_client_core::client::base_client::storage::gateways_storage::BadGateway;
 use nym_client_core::error::ClientCoreError;
-use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_sphinx::addressing::clients::RecipientFormattingError;
 use nym_sphinx::anonymous_replies::requests::InvalidAnonymousSenderTagRepresentation;

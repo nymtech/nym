@@ -485,7 +485,7 @@ mod tests {
         use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
         use crate::requests::{AnonymousSenderTag, RepliableMessageContent, ReplyMessageContent};
         use crate::{ReplySurb, SurbEncryptionKey};
-        use nym_crypto::asymmetric::{encryption, identity};
+        use nym_crypto::asymmetric::{ed25519, x25519};
         use nym_sphinx_addressing::clients::Recipient;
         use nym_sphinx_types::{
             Delay, Destination, DestinationAddressBytes, Node, NodeAddressBytes, PrivateKey,
@@ -515,9 +515,9 @@ mod tests {
         }
 
         pub(super) fn recipient(rng: &mut ChaCha20Rng) -> Recipient {
-            let client_id = identity::KeyPair::new(rng);
-            let client_enc = encryption::KeyPair::new(rng);
-            let gateway_id = identity::KeyPair::new(rng);
+            let client_id = ed25519::KeyPair::new(rng);
+            let client_enc = x25519::KeyPair::new(rng);
+            let gateway_id = ed25519::KeyPair::new(rng);
 
             Recipient::new(
                 *client_id.public_key(),

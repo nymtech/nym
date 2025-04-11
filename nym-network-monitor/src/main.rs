@@ -143,7 +143,7 @@ struct Args {
 
 fn generate_key_pair() -> Result<()> {
     let mut rng = rand::thread_rng();
-    let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+    let keypair = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng);
 
     let mut public_key_file = File::create("network-monitor-public")?;
     public_key_file.write_all(keypair.public_key().to_base58_string().as_bytes())?;

@@ -39,7 +39,7 @@ use nym_compact_ecash::{
 };
 use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{aggregate_verification_keys, CredentialSpendingData};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
@@ -123,7 +123,7 @@ impl EcashState {
         global_config: &Config,
         contract_address: AccountId,
         client: C,
-        identity_keypair: identity::KeyPair,
+        identity_keypair: ed25519::KeyPair,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,

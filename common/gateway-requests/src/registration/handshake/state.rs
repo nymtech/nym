@@ -14,11 +14,7 @@ use crate::{
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
-use nym_crypto::{
-    asymmetric::{encryption, identity},
-    generic_array::typenum::Unsigned,
-    hkdf,
-};
+use nym_crypto::{generic_array::typenum::Unsigned, hkdf};
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{thread_rng, CryptoRng, RngCore};
 use std::any::{type_name, Any};
@@ -74,14 +70,14 @@ impl<'a, S, R> State<'a, S, R> {
     pub(crate) fn new(
         rng: &'a mut R,
         ws_stream: &'a mut S,
-        identity: &'a identity::KeyPair,
-        remote_pubkey: Option<identity::PublicKey>,
+        identity: &'a ed25519::KeyPair,
+        remote_pubkey: Option<ed25519::PublicKey>,
         #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
     ) -> Self
     where
         R: CryptoRng + RngCore,
     {
-        let ephemeral_keypair = encryption::KeyPair::new(rng);
+        let ephemeral_keypair = x25519::KeyPair::new(rng);
         State {
             ws_stream,
             rng,
@@ -113,7 +109,7 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn local_ephemeral_key(&self) -> &encryption::PublicKey {
+    pub(crate) fn local_ephemeral_key(&self) -> &x25519::PublicKey {
         self.ephemeral_keypair.public_key()
     }
 
@@ -150,7 +146,7 @@ impl<'a, S, R> State<'a, S, R> {
 
     pub(crate) fn derive_shared_key(
         &mut self,
-        remote_ephemeral_key: &encryption::PublicKey,
+        remote_ephemeral_key: &x25519::PublicKey,
         initiator_salt: Option<&[u8]>,
     ) {
         let dh_result = self
@@ -189,7 +185,7 @@ impl<'a, S, R> State<'a, S, R> {
     // assuming x is local and y is remote
     pub(crate) fn prepare_key_material_sig(
         &self,
-        remote_ephemeral_key: &encryption::PublicKey,
+        remote_ephemeral_key: &x25519::PublicKey,
     ) -> Result<MaterialExchange, HandshakeError> {
         let plaintext: Vec<_> = self
             .ephemeral_keypair
@@ -243,7 +239,7 @@ impl<'a, S, R> State<'a, S, R> {
         )?;
 
         // now verify signature itself
-        let signature = identity::Signature::from_bytes(&decrypted_signature)
+        let signature = ed25519::Signature::from_bytes(&decrypted_signature)
             .map_err(|_| HandshakeError::InvalidSignature)?;
 
         // g^y || g^x, if y is remote and x is local
@@ -261,7 +257,7 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn update_remote_identity(&mut self, remote_pubkey: identity::PublicKey) {
+    pub(crate) fn update_remote_identity(&mut self, remote_pubkey: ed25519::PublicKey) {
         self.remote_pubkey = Some(remote_pubkey)
     }
 

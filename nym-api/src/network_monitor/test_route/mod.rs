@@ -3,7 +3,7 @@
 
 use crate::network_monitor::test_packet::NymApiTestMessageExt;
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{EpochId, EpochRewardedSet, RewardedSet};
 use nym_topology::node::RoutingNode;
@@ -80,7 +80,7 @@ impl TestRoute {
         self.gateway().ws_entry_address(false)
     }
 
-    pub(crate) fn gateway_identity(&self) -> identity::PublicKey {
+    pub(crate) fn gateway_identity(&self) -> ed25519::PublicKey {
         self.gateway().identity_key
     }
 

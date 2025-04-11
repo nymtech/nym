@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_requests::shared_key::SharedKeyConversionError;
 use thiserror::Error;
 

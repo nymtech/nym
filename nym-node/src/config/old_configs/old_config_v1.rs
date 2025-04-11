@@ -6,7 +6,7 @@ use crate::config::*;
 use crate::error::KeyIOFailure;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::encryption::KeyPair;
+use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_pemstore::store_keypair;
 use old_configs::old_config_v2::*;
 use rand::rngs::OsRng;

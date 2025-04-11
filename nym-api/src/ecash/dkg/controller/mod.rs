@@ -9,7 +9,7 @@ use crate::nyxd;
 use crate::support::config;
 use anyhow::{bail, Result};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
@@ -37,7 +37,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         dkg_keypair: DkgKeyPair,
-        identity_key: identity::PublicKey,
+        identity_key: ed25519::PublicKey,
         rng: R,
     ) -> Result<Self> {
         let Some(announce_address) = &config.announce_address else {
@@ -312,7 +312,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         dkg_bte_keypair: DkgKeyPair,
-        identity_key: identity::PublicKey,
+        identity_key: ed25519::PublicKey,
         rng: R,
         shutdown: &TaskManager,
     ) -> Result<()>

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
@@ -67,7 +67,7 @@ impl NymPayloadBuilder {
     pub fn build_regular<R>(
         self,
         rng: &mut R,
-        recipient_encryption_key: &encryption::PublicKey,
+        recipient_encryption_key: &x25519::PublicKey,
     ) -> Result<NymPayload, SurbAckRecoveryError>
     where
         R: RngCore + CryptoRng,

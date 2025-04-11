@@ -4,7 +4,7 @@ use tracing::info;
 pub(crate) fn generate_key_pair(path: impl AsRef<Path>) -> anyhow::Result<()> {
     let priv_key_path = path.as_ref();
     let mut rng = rand::thread_rng();
-    let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+    let keypair = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng);
     info!("Generated keypair as Base58-encoded string");
 
     let mut private_key_file = File::create(priv_key_path)?;

@@ -5,7 +5,7 @@ use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::GatewayClient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKeyRef;
@@ -52,7 +52,7 @@ const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 // The abstraction that some of these helpers use
 pub trait ConnectableGateway {
     fn node_id(&self) -> NodeId;
-    fn identity(&self) -> identity::PublicKey;
+    fn identity(&self) -> ed25519::PublicKey;
     fn clients_address(&self, prefer_ipv6: bool) -> Option<String>;
     fn is_wss(&self) -> bool;
 }
@@ -62,7 +62,7 @@ impl ConnectableGateway for RoutingNode {
         self.node_id
     }
 
-    fn identity(&self) -> identity::PublicKey {
+    fn identity(&self) -> ed25519::PublicKey {
         self.identity_key
     }
 
@@ -287,7 +287,7 @@ pub(super) fn get_specified_gateway(
     must_use_tls: bool,
 ) -> Result<RoutingNode, ClientCoreError> {
     log::debug!("Requesting specified gateway: {}", gateway_identity);
-    let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
+    let user_gateway = ed25519::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
     let gateway = gateways
@@ -312,9 +312,9 @@ pub(super) fn get_specified_gateway(
 }
 
 pub(super) async fn register_with_gateway(
-    gateway_id: identity::PublicKey,
+    gateway_id: ed25519::PublicKey,
     gateway_listener: Url,
-    our_identity: Arc<identity::KeyPair>,
+    our_identity: Arc<ed25519::KeyPair>,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<RegistrationResult, ClientCoreError> {
     let mut gateway_client = GatewayClient::new_init(

@@ -15,7 +15,7 @@ use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
@@ -83,7 +83,7 @@ async fn issue_client_ticketbook(
     );
 
     let persistent_storage = initialise_persistent_storage(credentials_store).await;
-    let private_id_key: identity::PrivateKey = nym_pemstore::load_key(private_id_key)?;
+    let private_id_key: ed25519::PrivateKey = nym_pemstore::load_key(private_id_key)?;
     utils::issue_credential(
         &client,
         &persistent_storage,

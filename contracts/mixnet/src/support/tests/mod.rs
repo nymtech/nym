@@ -85,8 +85,8 @@ pub mod test_helpers {
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
     };
-    use nym_crypto::asymmetric::identity;
-    use nym_crypto::asymmetric::identity::KeyPair;
+    use nym_crypto::asymmetric::ed25519;
+    use nym_crypto::asymmetric::ed25519::KeyPair;
     use rand::distributions::WeightedIndex;
     use rand::prelude::*;
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
@@ -701,7 +701,7 @@ pub mod test_helpers {
             &mut self,
             owner: &Addr,
             stake: Option<Uint128>,
-        ) -> (NodeId, identity::KeyPair) {
+        ) -> (NodeId, ed25519::KeyPair) {
             let (bond, _, keypair) = self.add_nymnode(owner, stake);
             (bond.node_id, keypair)
         }
@@ -764,14 +764,14 @@ pub mod test_helpers {
             &mut self,
             owner: &Addr,
             stake: Option<Uint128>,
-        ) -> (NodeId, identity::KeyPair) {
+        ) -> (NodeId, ed25519::KeyPair) {
             let pledge = self.make_mix_pledge(stake).pop().unwrap();
 
             let proxy = self.vesting_contract();
 
-            let keypair = identity::KeyPair::new(&mut self.rng);
+            let keypair = ed25519::KeyPair::new(&mut self.rng);
             let identity_key = keypair.public_key().to_base58_string();
-            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let legit_sphinx_keys = nym_crypto::asymmetric::x25519::KeyPair::new(&mut self.rng);
 
             let mixnode = MixNode {
                 identity_key,
@@ -910,7 +910,7 @@ pub mod test_helpers {
 
         pub fn mixnode_bonding_signature(
             &mut self,
-            key: &identity::PrivateKey,
+            key: &ed25519::PrivateKey,
             owner: &Addr,
             mixnode: MixNode,
             stake: Option<Uint128>,
@@ -924,7 +924,7 @@ pub mod test_helpers {
             &mut self,
             owner: &Addr,
             stake: Option<Uint128>,
-        ) -> (NodeId, identity::KeyPair) {
+        ) -> (NodeId, ed25519::KeyPair) {
             let stake = self.make_mix_pledge(stake);
             let (mixnode, _, keypair) = self.mixnode_with_signature(owner, Some(stake.clone()));
 
@@ -954,7 +954,7 @@ pub mod test_helpers {
         ) -> (NymNode, MessageSignature, KeyPair) {
             let stake = stake.unwrap_or(good_node_plegge());
 
-            let keypair = identity::KeyPair::new(&mut self.rng);
+            let keypair = ed25519::KeyPair::new(&mut self.rng);
             let identity_key = keypair.public_key().to_base58_string();
 
             let node = NymNode {
@@ -975,9 +975,9 @@ pub mod test_helpers {
         ) -> (MixNode, MessageSignature, KeyPair) {
             let stake = stake.unwrap_or(good_mixnode_pledge());
 
-            let keypair = identity::KeyPair::new(&mut self.rng);
+            let keypair = ed25519::KeyPair::new(&mut self.rng);
             let identity_key = keypair.public_key().to_base58_string();
-            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let legit_sphinx_keys = nym_crypto::asymmetric::x25519::KeyPair::new(&mut self.rng);
 
             let mixnode = MixNode {
                 identity_key,
@@ -997,9 +997,9 @@ pub mod test_helpers {
         ) -> (Gateway, MessageSignature) {
             let stake = stake.unwrap_or(good_gateway_pledge());
 
-            let keypair = identity::KeyPair::new(&mut self.rng);
+            let keypair = ed25519::KeyPair::new(&mut self.rng);
             let identity_key = keypair.public_key().to_base58_string();
-            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let legit_sphinx_keys = nym_crypto::asymmetric::x25519::KeyPair::new(&mut self.rng);
 
             let gateway = Gateway {
                 identity_key,
@@ -1530,7 +1530,7 @@ pub mod test_helpers {
 
     pub fn ed25519_sign_message<T: Serialize + SigningPurpose>(
         message: SignableMessage<T>,
-        private_key: &identity::PrivateKey,
+        private_key: &ed25519::PrivateKey,
     ) -> MessageSignature {
         match message.algorithm {
             SigningAlgorithm::Ed25519 => {

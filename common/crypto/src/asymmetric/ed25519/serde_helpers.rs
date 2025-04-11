@@ -18,7 +18,7 @@ pub mod bs58_ed25519_pubkey {
 }
 
 pub mod bs58_ed25519_signature {
-    use crate::asymmetric::identity::Signature;
+    use crate::asymmetric::ed25519::Signature;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(

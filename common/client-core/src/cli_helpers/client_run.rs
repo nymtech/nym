@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::addressing::Recipient;
 use std::path::PathBuf;
 
@@ -15,7 +15,7 @@ pub struct CommonClientRunArgs {
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
     #[cfg_attr(feature = "cli", clap(long))]
-    pub gateway: Option<identity::PublicKey>,
+    pub gateway: Option<ed25519::PublicKey>,
 
     /// Comma separated list of rest endpoints of the nyxd validators
     #[cfg_attr(

@@ -5,7 +5,7 @@
 #![warn(clippy::unwrap_used)]
 
 use async_trait::async_trait;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::SharedSymmetricKey;
 use std::error::Error;
 
@@ -36,9 +36,7 @@ pub trait GatewaysDetailsStore {
     async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError>;
 
     /// Return identity keys of all registered gateways.
-    async fn all_gateways_identities(
-        &self,
-    ) -> Result<Vec<identity::PublicKey>, Self::StorageError> {
+    async fn all_gateways_identities(&self) -> Result<Vec<ed25519::PublicKey>, Self::StorageError> {
         Ok(self
             .all_gateways()
             .await?
@@ -64,7 +62,7 @@ pub trait GatewaysDetailsStore {
 
     async fn upgrade_stored_remote_gateway_key(
         &self,
-        gateway_id: identity::PublicKey,
+        gateway_id: ed25519::PublicKey,
         updated_key: &SharedSymmetricKey,
     ) -> Result<(), Self::StorageError>;
 

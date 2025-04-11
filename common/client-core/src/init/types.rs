@@ -9,7 +9,7 @@ use crate::init::{setup_gateway, use_loaded_gateway_details};
 use nym_client_core_gateways_storage::{
     GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -26,14 +26,14 @@ use url::Url;
 
 pub enum SelectedGateway {
     Remote {
-        gateway_id: identity::PublicKey,
+        gateway_id: ed25519::PublicKey,
 
         gateway_owner_address: Option<AccountId>,
 
         gateway_listener: Url,
     },
     Custom {
-        gateway_id: identity::PublicKey,
+        gateway_id: ed25519::PublicKey,
         additional_data: Option<Vec<u8>>,
     },
 }
@@ -77,7 +77,7 @@ impl SelectedGateway {
         gateway_id: String,
         additional_data: Option<Vec<u8>>,
     ) -> Result<Self, ClientCoreError> {
-        let gateway_id = identity::PublicKey::from_base58_string(&gateway_id)
+        let gateway_id = ed25519::PublicKey::from_base58_string(&gateway_id)
             .map_err(|source| ClientCoreError::MalformedGatewayIdentity { gateway_id, source })?;
 
         Ok(SelectedGateway::Custom {
@@ -86,7 +86,7 @@ impl SelectedGateway {
         })
     }
 
-    pub fn gateway_id(&self) -> &identity::PublicKey {
+    pub fn gateway_id(&self) -> &ed25519::PublicKey {
         match self {
             SelectedGateway::Remote { gateway_id, .. } => gateway_id,
             SelectedGateway::Custom { gateway_id, .. } => gateway_id,
@@ -142,7 +142,7 @@ impl InitialisationResult {
         )
     }
 
-    pub fn gateway_id(&self) -> identity::PublicKey {
+    pub fn gateway_id(&self) -> ed25519::PublicKey {
         self.gateway_registration.details.gateway_id()
     }
 }
@@ -271,7 +271,7 @@ impl GatewaySetup {
     }
 
     /// new gateway setup performed by each client that's inbuilt in a gateway (like NR or IPR)
-    pub fn new_inbuilt(identity: identity::PublicKey) -> Self {
+    pub fn new_inbuilt(identity: ed25519::PublicKey) -> Self {
         GatewaySetup::New {
             specification: GatewaySelectionSpecification::Custom {
                 gateway_identity: identity.to_base58_string(),

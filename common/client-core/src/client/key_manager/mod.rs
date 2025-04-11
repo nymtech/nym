@@ -3,7 +3,7 @@
 
 use crate::client::key_manager::persistence::KeyStore;
 use nym_crypto::{
-    asymmetric::{encryption, identity},
+    asymmetric::{ed25519, x25519},
     hkdf::{DerivationMaterial, InvalidLength},
 };
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
@@ -25,10 +25,10 @@ mod test;
 #[derive(Clone)]
 pub struct ClientKeys {
     /// identity key associated with the client instance.
-    identity_keypair: Arc<identity::KeyPair>,
+    identity_keypair: Arc<ed25519::KeyPair>,
 
     /// encryption key associated with the client instance.
-    encryption_keypair: Arc<encryption::KeyPair>,
+    encryption_keypair: Arc<x25519::KeyPair>,
 
     /// key used for producing and processing acknowledgement packets.
     ack_key: Arc<AckKey>,
@@ -41,8 +41,8 @@ impl ClientKeys {
         R: RngCore + CryptoRng,
     {
         ClientKeys {
-            identity_keypair: Arc::new(identity::KeyPair::new(rng)),
-            encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
+            identity_keypair: Arc::new(ed25519::KeyPair::new(rng)),
+            encryption_keypair: Arc::new(x25519::KeyPair::new(rng)),
             ack_key: Arc::new(AckKey::new(rng)),
         }
     }
@@ -56,18 +56,18 @@ impl ClientKeys {
     {
         let secret = derivation_material.derive_secret()?;
         Ok(ClientKeys {
-            identity_keypair: Arc::new(identity::KeyPair::from_secret(
+            identity_keypair: Arc::new(ed25519::KeyPair::from_secret(
                 secret,
                 derivation_material.index(),
             )),
-            encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
+            encryption_keypair: Arc::new(x25519::KeyPair::new(rng)),
             ack_key: Arc::new(AckKey::new(rng)),
         })
     }
 
     pub fn from_keys(
-        id_keypair: identity::KeyPair,
-        enc_keypair: encryption::KeyPair,
+        id_keypair: ed25519::KeyPair,
+        enc_keypair: x25519::KeyPair,
         ack_key: AckKey,
     ) -> Self {
         Self {
@@ -85,13 +85,13 @@ impl ClientKeys {
         store.store_keys(self).await
     }
 
-    /// Gets an atomically reference counted pointer to [`identity::KeyPair`].
-    pub fn identity_keypair(&self) -> Arc<identity::KeyPair> {
+    /// Gets an atomically reference counted pointer to [`ed25519::KeyPair`].
+    pub fn identity_keypair(&self) -> Arc<ed25519::KeyPair> {
         Arc::clone(&self.identity_keypair)
     }
 
-    /// Gets an atomically reference counted pointer to [`encryption::KeyPair`].
-    pub fn encryption_keypair(&self) -> Arc<encryption::KeyPair> {
+    /// Gets an atomically reference counted pointer to [`x25519::KeyPair`].
+    pub fn encryption_keypair(&self) -> Arc<x25519::KeyPair> {
         Arc::clone(&self.encryption_keypair)
     }
     /// Gets an atomically reference counted pointer to [`AckKey`].
@@ -103,8 +103,8 @@ impl ClientKeys {
 fn _assert_keys_zeroize_on_drop() {
     fn _assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
 
-    _assert_zeroize_on_drop::<identity::KeyPair>();
-    _assert_zeroize_on_drop::<encryption::KeyPair>();
+    _assert_zeroize_on_drop::<ed25519::KeyPair>();
+    _assert_zeroize_on_drop::<x25519::KeyPair>();
     _assert_zeroize_on_drop::<AckKey>();
     _assert_zeroize_on_drop::<LegacySharedKeys>();
     _assert_zeroize_on_drop::<SharedSymmetricKey>();

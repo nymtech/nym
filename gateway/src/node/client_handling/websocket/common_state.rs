@@ -3,7 +3,7 @@
 
 use crate::node::ActiveClientsStore;
 use nym_credential_verification::{ecash::EcashManager, BandwidthFlushingBehaviourConfig};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::events::MetricEventsSender;
@@ -24,7 +24,7 @@ pub(crate) struct CommonHandlerState {
     pub(crate) cfg: Config,
     pub(crate) ecash_verifier: Arc<EcashManager>,
     pub(crate) storage: GatewayStorage,
-    pub(crate) local_identity: Arc<identity::KeyPair>,
+    pub(crate) local_identity: Arc<ed25519::KeyPair>,
     pub(crate) metrics: NymNodeMetrics,
     pub(crate) metrics_sender: MetricEventsSender,
     pub(crate) outbound_mix_sender: MixForwardingSender,

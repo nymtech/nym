@@ -12,7 +12,7 @@ use nym_credentials_interface::{
     BlindedSignature, KeyPairUser, PartialWallet, TicketType, VerificationKeyAuth,
     WalletSignatures, WithdrawalRequest,
 };
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_time::{ecash_default_expiration_date, ecash_today, EcashTime};
 use nym_validator_client::nym_api::EpochId;
@@ -27,7 +27,7 @@ pub struct IssuanceTicketBook {
     deposit_id: DepositId,
 
     /// base58 encoded private key ensuring the depositer requested these attributes
-    signing_key: identity::PrivateKey,
+    signing_key: ed25519::PrivateKey,
 
     /// ecash keypair related to the credential
     ecash_keypair: KeyPairUser,
@@ -43,7 +43,7 @@ impl IssuanceTicketBook {
     pub fn new<M: AsRef<[u8]>>(
         deposit_id: DepositId,
         identifier: M,
-        signing_key: identity::PrivateKey,
+        signing_key: ed25519::PrivateKey,
         ticketbook_type: TicketType,
     ) -> Self {
         //this expiration date will get fed to the ecash library, force midnight to be set
@@ -59,7 +59,7 @@ impl IssuanceTicketBook {
     pub fn new_with_expiration<M: AsRef<[u8]>>(
         deposit_id: DepositId,
         identifier: M,
-        signing_key: identity::PrivateKey,
+        signing_key: ed25519::PrivateKey,
         ticketbook_type: TicketType,
         expiration_date: Date,
     ) -> Self {
@@ -93,7 +93,7 @@ impl IssuanceTicketBook {
         message
     }
 
-    fn request_signature(&self, signing_request: &CredentialSigningData) -> identity::Signature {
+    fn request_signature(&self, signing_request: &CredentialSigningData) -> ed25519::Signature {
         let message = Self::request_plaintext(&signing_request.withdrawal_request, self.deposit_id);
         self.signing_key.sign(message)
     }
@@ -127,7 +127,7 @@ impl IssuanceTicketBook {
         self.deposit_id
     }
 
-    pub fn identity_key(&self) -> &identity::PrivateKey {
+    pub fn identity_key(&self) -> &ed25519::PrivateKey {
         &self.signing_key
     }
 

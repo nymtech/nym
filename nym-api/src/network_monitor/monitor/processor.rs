@@ -7,7 +7,7 @@ use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_node_tester_utils::error::NetworkTestingError;
 use nym_node_tester_utils::processor::TestPacketProcessor;
 use nym_sphinx::acknowledgements::AckKey;
@@ -145,7 +145,7 @@ where
 {
     pub(crate) fn new(
         packets_receiver: ReceivedProcessorReceiver,
-        client_encryption_keypair: Arc<encryption::KeyPair>,
+        client_encryption_keypair: Arc<x25519::KeyPair>,
         ack_key: Arc<AckKey>,
     ) -> Self {
         let shared_data = SharedProcessorData {

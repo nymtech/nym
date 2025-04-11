@@ -51,7 +51,7 @@ use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::{ed25519, identity};
+use nym_crypto::asymmetric::ed25519;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
@@ -1191,7 +1191,7 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
 #[allow(dead_code)]
 pub fn deposit_fixture() -> Deposit {
     let mut rng = OsRng;
-    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let identity_keypair = ed25519::KeyPair::new(&mut rng);
 
     Deposit {
         bs58_encoded_ed25519_pubkey: identity_keypair.public_key().to_base58_string(),
@@ -1239,17 +1239,17 @@ pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceTicketBook {
     let mut rng = OsRng;
     let deposit_id = deposit_id.unwrap_or(69);
 
-    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let identity_keypair = ed25519::KeyPair::new(&mut rng);
 
     let id_priv =
-        identity::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
+        ed25519::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
     let identifier = [44u8; 32];
     // (voucher, request)
     IssuanceTicketBook::new(deposit_id, identifier, id_priv, TicketType::V1MixnetEntry)
 }
 
 #[allow(unused)]
-fn dummy_signature() -> identity::Signature {
+fn dummy_signature() -> ed25519::Signature {
     "3vUCc6MCN5AC2LNgDYjRB1QeErZSN1S8f6K14JHjpUcKWXbjGYFExA8DbwQQBki9gyUqrpBF94Drttb4eMcGQXkp"
         .parse()
         .unwrap()
@@ -1293,7 +1293,7 @@ impl TestFixture {
     async fn new() -> Self {
         let mut rng = crate::ecash::tests::fixtures::test_rng([69u8; 32]);
         let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
-        let identity = identity::KeyPair::new(&mut rng);
+        let identity = ed25519::KeyPair::new(&mut rng);
         let epoch = Arc::new(AtomicU64::new(1));
         let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
         let comm_channel = DummyCommunicationChannel::new_single_dummy(
@@ -1534,7 +1534,7 @@ mod credential_tests {
     #[tokio::test]
     async fn state_functions() {
         let mut rng = OsRng;
-        let identity = identity::KeyPair::new(&mut rng);
+        let identity = ed25519::KeyPair::new(&mut rng);
         let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
 
         let nyxd_client = DummyClient::new(address.clone(), Default::default());
@@ -1672,12 +1672,12 @@ mod credential_tests {
         let deposit_id = 42;
 
         let mut rng = OsRng;
-        let identity_keypair = identity::KeyPair::new(&mut rng);
+        let identity_keypair = ed25519::KeyPair::new(&mut rng);
         let identifier = [42u8; 32];
         let voucher = IssuanceTicketBook::new(
             deposit_id,
             identifier,
-            identity::PrivateKey::from_base58_string(
+            ed25519::PrivateKey::from_base58_string(
                 identity_keypair.private_key().to_base58_string(),
             )
             .unwrap(),

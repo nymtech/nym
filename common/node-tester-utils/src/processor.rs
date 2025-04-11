@@ -3,7 +3,7 @@
 
 use crate::error::NetworkTestingError;
 use crate::TestMessage;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_sphinx::acknowledgements::identifier::recover_identifier;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
@@ -31,7 +31,7 @@ impl<T> From<FragmentIdentifier> for Received<T> {
 }
 
 pub struct TestPacketProcessor<T, R: MessageReceiver = SphinxMessageReceiver> {
-    local_encryption_keypair: Arc<encryption::KeyPair>,
+    local_encryption_keypair: Arc<x25519::KeyPair>,
     ack_key: Arc<AckKey>,
 
     /// Structure responsible for decrypting and recovering plaintext message from received ciphertexts.
@@ -42,7 +42,7 @@ pub struct TestPacketProcessor<T, R: MessageReceiver = SphinxMessageReceiver> {
 
 impl<T> TestPacketProcessor<T, SphinxMessageReceiver> {
     pub fn new_sphinx_processor(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         ack_key: Arc<AckKey>,
     ) -> Self {
         Self::new(local_encryption_keypair, ack_key)
@@ -53,7 +53,7 @@ impl<T, R> TestPacketProcessor<T, R>
 where
     R: MessageReceiver,
 {
-    pub fn new(local_encryption_keypair: Arc<encryption::KeyPair>, ack_key: Arc<AckKey>) -> Self {
+    pub fn new(local_encryption_keypair: Arc<x25519::KeyPair>, ack_key: Arc<AckKey>) -> Self {
         TestPacketProcessor {
             local_encryption_keypair,
             ack_key,

@@ -4,8 +4,8 @@
 use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialsError;
 use nym_credentials_interface::CompactEcashError;
-use nym_crypto::asymmetric::encryption::KeyRecoveryError;
-use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
+use nym_crypto::asymmetric::x25519::KeyRecoveryError;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::error::ValidatorClientError;
 use thiserror::Error;

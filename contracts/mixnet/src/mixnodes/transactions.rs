@@ -724,8 +724,8 @@ pub mod tests {
         let mut test = TestSetup::new();
         let env = test.env();
 
-        let keypair1 = nym_crypto::asymmetric::identity::KeyPair::new(&mut test.rng);
-        let keypair2 = nym_crypto::asymmetric::identity::KeyPair::new(&mut test.rng);
+        let keypair1 = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut test.rng);
+        let keypair2 = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut test.rng);
 
         let cost_params = fixtures::node_cost_params_fixture();
         let mixnode1 = MixNode {
@@ -733,7 +733,7 @@ pub mod tests {
             mix_port: 1234,
             verloc_port: 1234,
             http_api_port: 1234,
-            sphinx_key: nym_crypto::asymmetric::encryption::KeyPair::new(&mut test.rng)
+            sphinx_key: nym_crypto::asymmetric::x25519::KeyPair::new(&mut test.rng)
                 .public_key()
                 .to_base58_string(),
             identity_key: keypair1.public_key().to_base58_string(),
@@ -742,7 +742,7 @@ pub mod tests {
 
         // change identity but reuse sphinx key
         let mut mixnode2 = mixnode1.clone();
-        mixnode2.sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut test.rng)
+        mixnode2.sphinx_key = nym_crypto::asymmetric::x25519::KeyPair::new(&mut test.rng)
             .public_key()
             .to_base58_string();
 

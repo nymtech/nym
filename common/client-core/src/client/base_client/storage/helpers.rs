@@ -5,7 +5,7 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
 use nym_client_core_gateways_storage::{ActiveGateway, GatewayRegistration, GatewaysDetailsStore};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 
 // helpers for error wrapping
 pub async fn set_active_gateway<D>(
@@ -26,7 +26,7 @@ where
 
 pub async fn get_active_gateway_identity<D>(
     details_store: &D,
-) -> Result<Option<identity::PublicKey>, ClientCoreError>
+) -> Result<Option<ed25519::PublicKey>, ClientCoreError>
 where
     D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
@@ -42,7 +42,7 @@ where
 
 pub async fn get_all_registered_identities<D>(
     details_store: &D,
-) -> Result<Vec<identity::PublicKey>, ClientCoreError>
+) -> Result<Vec<ed25519::PublicKey>, ClientCoreError>
 where
     D: GatewaysDetailsStore + Sync,
     D::StorageError: Send + Sync + 'static,

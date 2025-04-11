@@ -14,7 +14,7 @@ pub enum Error {
     TomlDeserializationError(#[from] toml::de::Error),
 
     #[error("Ed25519 error: {0}")]
-    Ed25519RecoveryError(#[from] nym_crypto::asymmetric::identity::Ed25519RecoveryError),
+    Ed25519RecoveryError(#[from] nym_crypto::asymmetric::ed25519::Ed25519RecoveryError),
 
     #[error(transparent)]
     ClientCoreError(#[from] nym_client_core::error::ClientCoreError),

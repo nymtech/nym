@@ -147,7 +147,7 @@ const NodeAndAddressSearch = () => {
           renderInput={(params) => (
             <TextField
               {...params}
-              placeholder="Search by Node Moniker, Identity Key, or Nym Address"
+              placeholder="Search by Node Name, Identity Key, or Nym Address"
               fullWidth
               onChange={handleSearchInputChange}
               onKeyDown={(e) => {

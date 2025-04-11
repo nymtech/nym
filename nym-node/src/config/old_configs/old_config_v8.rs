@@ -1249,11 +1249,11 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                     .storage_paths
                     .keys
                     .public_ed25519_identity_key_file,
-                private_x25519_sphinx_key_file: old_cfg
+                primary_private_x25519_sphinx_key_file: old_cfg
                     .storage_paths
                     .keys
                     .private_x25519_sphinx_key_file,
-                public_x25519_sphinx_key_file: old_cfg
+                primary_public_x25519_sphinx_key_file: old_cfg
                     .storage_paths
                     .keys
                     .public_x25519_sphinx_key_file,

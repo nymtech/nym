@@ -6238,6 +6238,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -6477,6 +6478,7 @@ version = "0.3.0"
 dependencies = [
  "pem",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]

@@ -212,46 +212,6 @@ pub struct KeysPathsV5 {
     pub public_x25519_noise_key_file: PathBuf,
 }
 
-impl KeysPathsV5 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-
-        KeysPathsV5 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_PRIMARY_X25519_PRIVATE_SPHINX_KEY_FILENAME),
-            public_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_PRIMARY_X25519_PUBLIC_SPHINX_KEY_FILENAME),
-            private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
-            public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_sphinx_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_sphinx_key_file,
-            &self.public_x25519_sphinx_key_file,
-        )
-    }
-
-    pub fn x25519_noise_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_noise_key_file,
-            &self.public_x25519_noise_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NymNodePathsV5 {

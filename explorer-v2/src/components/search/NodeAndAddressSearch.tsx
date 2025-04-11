@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fetchObservatoryNodes } from "../../app/api";
-import { NYM_NODE_BONDED } from "../../app/api/urls";
+import { NYM_ACCOUNT_ADDRESS } from "@/app/api/urls";
 
 const NodeAndAddressSearch = () => {
   const router = useRouter();
@@ -23,7 +23,7 @@ const NodeAndAddressSearch = () => {
   const [searchOptions, setSearchOptions] = useState<IObservatoryNode[]>([]);
 
   // Use React Query to fetch nodes
-  const { data: nodes = [], isLoading: isLoadingNodes } = useQuery({
+  const { data: nymNodes = [], isLoading: isLoadingNodes } = useQuery({
     queryKey: ["nymNodes"],
     queryFn: fetchObservatoryNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -39,9 +39,7 @@ const NodeAndAddressSearch = () => {
     try {
       if (inputValue.startsWith("n1")) {
         // Fetch Nym Address data
-        const response = await fetch(
-          `https://explorer.nymtech.net/api/v1/tmp/unstable/account/${inputValue}`,
-        );
+        const response = await fetch(`${NYM_ACCOUNT_ADDRESS}/${inputValue}`);
 
         if (response.ok) {
           try {
@@ -52,7 +50,7 @@ const NodeAndAddressSearch = () => {
             }
           } catch {
             setErrorText(
-              "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+              "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address."
             );
             setIsLoading(false); // Stop loading
 
@@ -60,36 +58,28 @@ const NodeAndAddressSearch = () => {
           }
         } else {
           setErrorText(
-            "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+            "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address."
           );
           setIsLoading(false); // Stop loading
 
           return;
         }
       } else {
-        // Fetch Nym Nodes data
-        const response = await fetch(NYM_NODE_BONDED);
-
-        if (response.ok) {
-          const nodes = await response.json();
-          const matchingNode = nodes.data.find(
-            (node: NodeData) =>
-              node.bond_information.node.identity_key === inputValue,
+        // Check if it's a node identity key
+        if (nymNodes) {
+          const matchingNode = nymNodes.find(
+            (node) => node.identity_key === inputValue
           );
 
           if (matchingNode) {
-            router.push(`/nym-node/${matchingNode.bond_information.node_id}`);
+            router.push(`/nym-node/${matchingNode.identity_key}`);
             return;
           }
         }
-        setErrorText(
-          "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
-        );
-        setIsLoading(false); // Stop loading
       }
     } catch (error) {
       setErrorText(
-        "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
+        "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address."
       );
       console.error(error);
       setIsLoading(false); // Stop loading
@@ -98,17 +88,17 @@ const NodeAndAddressSearch = () => {
 
   // Handle search input change
   const handleSearchInputChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = event.target.value;
     setInputValue(value);
 
     // Filter nodes by moniker if input is not empty
     if (value.trim() !== "") {
-      const filteredNodes = nodes.filter((node) =>
+      const filteredNodes = nymNodes.filter((node) =>
         node.self_description?.moniker
           ?.toLowerCase()
-          .includes(value.toLowerCase()),
+          .includes(value.toLowerCase())
       );
       setSearchOptions(filteredNodes);
     } else {
@@ -119,7 +109,7 @@ const NodeAndAddressSearch = () => {
   // Handle node selection from dropdown
   const handleNodeSelect = (
     event: React.SyntheticEvent,
-    value: string | IObservatoryNode | null,
+    value: string | IObservatoryNode | null
   ) => {
     if (value && typeof value !== "string") {
       setIsLoading(true); // Show loading spinner

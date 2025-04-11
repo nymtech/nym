@@ -52,7 +52,7 @@ export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
   },
 }));
 
-export const DarkLightSwitchDesktop: FCWithChildren<{}> = () => {
+export const DarkLightSwitchDesktop = (): JSX.Element => {
   const [mode, setMode] = useLocalStorage<PaletteMode>("mode", "dark");
 
   const toggleMode = () => setMode((m) => (m !== "light" ? "light" : "dark"));

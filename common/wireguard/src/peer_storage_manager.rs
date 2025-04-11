@@ -95,6 +95,7 @@ pub(crate) struct PeerInformation {
     pub(crate) last_synced: OffsetDateTime,
 
     pub(crate) bytes_delta_since_sync: u64,
+    pub(crate) force_sync: bool,
 }
 
 impl PeerInformation {
@@ -103,10 +104,14 @@ impl PeerInformation {
             peer,
             last_synced: OffsetDateTime::now_utc(),
             bytes_delta_since_sync: 0,
+            force_sync: false,
         }
     }
 
     pub(crate) fn should_sync(&self, cfg: PeerFlushingBehaviourConfig) -> bool {
+        if self.force_sync {
+            return true;
+        }
         if self.bytes_delta_since_sync >= cfg.peer_max_delta_flushing_amount {
             return true;
         }
@@ -134,5 +139,6 @@ impl PeerInformation {
     pub(crate) fn resync_peer_with_storage(&mut self) {
         self.bytes_delta_since_sync = 0;
         self.last_synced = OffsetDateTime::now_utc();
+        self.force_sync = false;
     }
 }

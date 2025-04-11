@@ -113,12 +113,6 @@ pub struct DebugWasm {
     pub stats_reporting: StatsReportingWasm,
 
     pub forget_me: ForgetMeWasm,
-
-    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
-    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
-    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
-    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
-    pub disable_mix_hops: bool,
 }
 
 impl Default for DebugWasm {
@@ -138,7 +132,6 @@ impl From<DebugWasm> for ConfigDebug {
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
             forget_me: debug.forget_me.into(),
-            disable_mix_hops: debug.disable_mix_hops,
         }
     }
 }
@@ -154,7 +147,6 @@ impl From<ConfigDebug> for DebugWasm {
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
             forget_me: ForgetMeWasm::from(debug.forget_me),
-            disable_mix_hops: debug.disable_mix_hops,
         }
     }
 }
@@ -199,6 +191,12 @@ pub struct TrafficWasm {
 
     /// Controls whether the sent packets should use outfox as opposed to the default sphinx.
     pub use_outfox: bool,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    pub disable_mix_hops: bool,
 }
 
 impl Default for TrafficWasm {
@@ -232,6 +230,7 @@ impl From<TrafficWasm> for ConfigTraffic {
             secondary_packet_size: use_extended_packet_size,
             use_legacy_sphinx_format: traffic.use_legacy_sphinx_format,
             packet_type,
+            disable_mix_hops: traffic.disable_mix_hops,
         }
     }
 }
@@ -249,6 +248,7 @@ impl From<ConfigTraffic> for TrafficWasm {
             use_legacy_sphinx_format: traffic.use_legacy_sphinx_format,
             use_extended_packet_size: traffic.secondary_packet_size.is_some(),
             use_outfox: traffic.packet_type == PacketType::Outfox,
+            disable_mix_hops: traffic.disable_mix_hops,
         }
     }
 }

@@ -63,7 +63,6 @@ impl From<DebugWasmOverride> for DebugWasm {
             reply_surbs: value.reply_surbs.map(Into::into).unwrap_or_default(),
             stats_reporting: value.stats_reporting.map(Into::into).unwrap_or_default(),
             forget_me: value.forget_me.map(Into::into).unwrap_or_default(),
-            disable_mix_hops: false, // not configured from js config override yet
         }
     }
 }
@@ -149,6 +148,7 @@ impl From<TrafficWasmOverride> for TrafficWasm {
                 .use_extended_packet_size
                 .unwrap_or(def.use_extended_packet_size),
             use_outfox: value.use_outfox.unwrap_or(def.use_outfox),
+            disable_mix_hops: false, // not configured from js config override yet
         }
     }
 }

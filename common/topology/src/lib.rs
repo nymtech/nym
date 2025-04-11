@@ -176,8 +176,7 @@ impl NymRouteProvider {
             .random_route_to_egress(rng, egress_identity, self.ignore_egress_epoch_roles)
     }
 
-    /// Tries to create a route to the egress point, such that it goes through mixnode on layer 1,
-    /// mixnode on layer2, .... mixnode on layer n and finally the target egress, which can be any known node
+    /// Returns a route directly to the egress point, which can be any known node
     pub fn empty_route_to_egress(
         &self,
         egress_identity: NodeIdentity,

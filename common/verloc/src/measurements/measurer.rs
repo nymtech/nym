@@ -7,7 +7,7 @@ use crate::measurements::{Config, PacketListener, PacketSender};
 use crate::models::VerlocNodeResult;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
 use nym_validator_client::models::NymNodeDescription;
 use nym_validator_client::NymApiClient;
@@ -30,7 +30,7 @@ pub struct VerlocMeasurer {
 impl VerlocMeasurer {
     pub fn new(
         config: Config,
-        identity: Arc<identity::KeyPair>,
+        identity: Arc<ed25519::KeyPair>,
         shutdown_token: ShutdownToken,
     ) -> Self {
         VerlocMeasurer {

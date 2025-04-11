@@ -5,7 +5,7 @@ use crate::error::VerlocError;
 use crate::measurements::packet::{EchoPacket, ReplyPacket};
 use bytes::{BufMut, BytesMut};
 use futures::StreamExt;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -25,7 +25,7 @@ pub struct PacketListener {
 impl PacketListener {
     pub fn new(
         address: SocketAddr,
-        identity: Arc<identity::KeyPair>,
+        identity: Arc<ed25519::KeyPair>,
         shutdown_token: ShutdownToken,
     ) -> Self {
         PacketListener {
@@ -75,7 +75,7 @@ impl PacketListener {
 }
 
 struct ConnectionHandler {
-    identity: Arc<identity::KeyPair>,
+    identity: Arc<ed25519::KeyPair>,
 }
 
 impl ConnectionHandler {

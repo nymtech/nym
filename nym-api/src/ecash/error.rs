@@ -5,8 +5,8 @@ use crate::node_status_api::models::NymApiStorageError;
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
 use nym_credentials_interface::UnknownTicketType;
 use nym_crypto::asymmetric::{
-    encryption::KeyRecoveryError,
-    identity::{Ed25519RecoveryError, SignatureError},
+    ed25519::{Ed25519RecoveryError, SignatureError},
+    x25519::KeyRecoveryError,
 };
 use nym_dkg::error::DkgError;
 use nym_dkg::Threshold;

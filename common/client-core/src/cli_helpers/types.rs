@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use time::OffsetDateTime;
@@ -10,7 +10,7 @@ use url::Url;
 #[derive(Serialize, Deserialize)]
 pub struct GatewayInfo {
     pub registration: OffsetDateTime,
-    pub identity: identity::PublicKey,
+    pub identity: ed25519::PublicKey,
     pub active: bool,
 
     pub typ: String,

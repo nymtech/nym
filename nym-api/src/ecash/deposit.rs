@@ -49,7 +49,7 @@ mod test {
         assert!(matches!(
             err,
             EcashError::Ed25519ParseError(
-                nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
+                nym_crypto::asymmetric::ed25519::Ed25519RecoveryError::MalformedPublicKeyString { .. }
             )
         ));
 

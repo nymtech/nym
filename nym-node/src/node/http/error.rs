@@ -23,7 +23,7 @@ pub enum NymNodeHttpError {
     #[error(transparent)]
     KeyRecoveryError {
         #[from]
-        source: nym_crypto::asymmetric::encryption::KeyRecoveryError,
+        source: nym_crypto::asymmetric::x25519::KeyRecoveryError,
     },
 
     #[error("error building or using HTTP client: {source}")]

@@ -1,4 +1,4 @@
-use nym_crypto::asymmetric::identity::{PrivateKey, PublicKey, Signature};
+use nym_crypto::asymmetric::ed25519::{PrivateKey, PublicKey, Signature};
 use nym_mixnet_contract_common::NodeId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

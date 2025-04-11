@@ -1,6 +1,6 @@
 use std::fmt;
 
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -200,7 +200,7 @@ impl fmt::Display for IpPacketRequestData {
 }
 
 impl IpPacketRequestData {
-    pub fn add_signature(&mut self, signature: identity::Signature) -> Option<identity::Signature> {
+    pub fn add_signature(&mut self, signature: ed25519::Signature) -> Option<ed25519::Signature> {
         match self {
             IpPacketRequestData::StaticConnect(request) => {
                 request.signature = Some(signature);
@@ -269,11 +269,11 @@ impl StaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedStaticConnectRequest {
     pub request: StaticConnectRequest,
-    pub signature: Option<identity::Signature>,
+    pub signature: Option<ed25519::Signature>,
 }
 
 impl SignedRequest for SignedStaticConnectRequest {
-    fn identity(&self) -> Option<&identity::PublicKey> {
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
         Some(self.request.reply_to.identity())
     }
 
@@ -286,7 +286,7 @@ impl SignedRequest for SignedStaticConnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&identity::Signature> {
+    fn signature(&self) -> Option<&ed25519::Signature> {
         self.signature.as_ref()
     }
 
@@ -333,11 +333,11 @@ impl DynamicConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDynamicConnectRequest {
     pub request: DynamicConnectRequest,
-    pub signature: Option<identity::Signature>,
+    pub signature: Option<ed25519::Signature>,
 }
 
 impl SignedRequest for SignedDynamicConnectRequest {
-    fn identity(&self) -> Option<&identity::PublicKey> {
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
         Some(self.request.reply_to.identity())
     }
 
@@ -350,7 +350,7 @@ impl SignedRequest for SignedDynamicConnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&identity::Signature> {
+    fn signature(&self) -> Option<&ed25519::Signature> {
         self.signature.as_ref()
     }
 
@@ -382,11 +382,11 @@ impl DisconnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDisconnectRequest {
     pub request: DisconnectRequest,
-    pub signature: Option<identity::Signature>,
+    pub signature: Option<ed25519::Signature>,
 }
 
 impl SignedRequest for SignedDisconnectRequest {
-    fn identity(&self) -> Option<&identity::PublicKey> {
+    fn identity(&self) -> Option<&ed25519::PublicKey> {
         Some(self.request.reply_to.identity())
     }
 
@@ -399,7 +399,7 @@ impl SignedRequest for SignedDisconnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&identity::Signature> {
+    fn signature(&self) -> Option<&ed25519::Signature> {
         self.signature.as_ref()
     }
 

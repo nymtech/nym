@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::config::disk_persistence::ClientKeysPaths;
 #[cfg(not(target_arch = "wasm32"))]
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(not(target_arch = "wasm32"))]
@@ -86,13 +86,13 @@ impl OnDiskKeys {
     }
 
     #[doc(hidden)]
-    pub fn load_encryption_keypair(&self) -> Result<encryption::KeyPair, OnDiskKeysError> {
+    pub fn load_encryption_keypair(&self) -> Result<x25519::KeyPair, OnDiskKeysError> {
         let encryption_paths = self.paths.encryption_key_pair_path();
         self.load_keypair(encryption_paths, "encryption")
     }
 
     #[doc(hidden)]
-    pub fn load_identity_keypair(&self) -> Result<identity::KeyPair, OnDiskKeysError> {
+    pub fn load_identity_keypair(&self) -> Result<ed25519::KeyPair, OnDiskKeysError> {
         let identity_paths = self.paths.identity_key_pair_path();
         self.load_keypair(identity_paths, "identity")
     }

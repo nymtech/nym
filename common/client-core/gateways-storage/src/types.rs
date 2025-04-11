@@ -3,7 +3,7 @@
 
 use crate::BadGateway;
 use cosmrs::AccountId;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -29,7 +29,7 @@ pub struct GatewayRegistration {
 }
 
 impl GatewayRegistration {
-    pub fn gateway_id(&self) -> identity::PublicKey {
+    pub fn gateway_id(&self) -> ed25519::PublicKey {
         self.details.gateway_id()
     }
 }
@@ -64,7 +64,7 @@ impl From<GatewayDetails> for GatewayRegistration {
 
 impl GatewayDetails {
     pub fn new_remote(
-        gateway_id: identity::PublicKey,
+        gateway_id: ed25519::PublicKey,
         shared_key: Arc<SharedGatewayKey>,
         gateway_owner_address: Option<AccountId>,
         gateway_listener: Url,
@@ -77,11 +77,11 @@ impl GatewayDetails {
         })
     }
 
-    pub fn new_custom(gateway_id: identity::PublicKey, data: Option<Vec<u8>>) -> Self {
+    pub fn new_custom(gateway_id: ed25519::PublicKey, data: Option<Vec<u8>>) -> Self {
         GatewayDetails::Custom(CustomGatewayDetails { gateway_id, data })
     }
 
-    pub fn gateway_id(&self) -> identity::PublicKey {
+    pub fn gateway_id(&self) -> ed25519::PublicKey {
         match self {
             GatewayDetails::Remote(details) => details.gateway_id,
             GatewayDetails::Custom(details) => details.gateway_id,
@@ -157,7 +157,7 @@ pub struct RawRegisteredGateway {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RegisteredGateway {
-    pub gateway_id: identity::PublicKey,
+    pub gateway_id: ed25519::PublicKey,
 
     pub registration_timestamp: OffsetDateTime,
 
@@ -179,7 +179,7 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
 
     fn try_from(value: RawRemoteGatewayDetails) -> Result<Self, Self::Error> {
         let gateway_id =
-            identity::PublicKey::from_base58_string(&value.gateway_id_bs58).map_err(|source| {
+            ed25519::PublicKey::from_base58_string(&value.gateway_id_bs58).map_err(|source| {
                 BadGateway::MalformedGatewayIdentity {
                     gateway_id: value.gateway_id_bs58.clone(),
                     source,
@@ -267,7 +267,7 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
 
 #[derive(Debug, Clone)]
 pub struct RemoteGatewayDetails {
-    pub gateway_id: identity::PublicKey,
+    pub gateway_id: ed25519::PublicKey,
 
     pub shared_key: Arc<SharedGatewayKey>,
 
@@ -288,7 +288,7 @@ impl TryFrom<RawCustomGatewayDetails> for CustomGatewayDetails {
 
     fn try_from(value: RawCustomGatewayDetails) -> Result<Self, Self::Error> {
         let gateway_id =
-            identity::PublicKey::from_base58_string(&value.gateway_id_bs58).map_err(|source| {
+            ed25519::PublicKey::from_base58_string(&value.gateway_id_bs58).map_err(|source| {
                 BadGateway::MalformedGatewayIdentity {
                     gateway_id: value.gateway_id_bs58.clone(),
                     source,
@@ -314,12 +314,12 @@ impl<'a> From<&'a CustomGatewayDetails> for RawCustomGatewayDetails {
 
 #[derive(Debug, Clone)]
 pub struct CustomGatewayDetails {
-    pub gateway_id: identity::PublicKey,
+    pub gateway_id: ed25519::PublicKey,
     pub data: Option<Vec<u8>>,
 }
 
 impl CustomGatewayDetails {
-    pub fn new(gateway_id: identity::PublicKey) -> CustomGatewayDetails {
+    pub fn new(gateway_id: ed25519::PublicKey) -> CustomGatewayDetails {
         Self {
             gateway_id,
             data: None,

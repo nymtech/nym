@@ -6,7 +6,7 @@ use crate::processor::{Received, TestPacketProcessor};
 use crate::{log_err, log_info, log_warn};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::receiver::{MessageReceiver, SphinxMessageReceiver};
 use nym_task::TaskClient;
@@ -29,7 +29,7 @@ pub struct SimpleMessageReceiver<T, R: MessageReceiver = SphinxMessageReceiver> 
 
 impl<T> SimpleMessageReceiver<T, SphinxMessageReceiver> {
     pub fn new_sphinx_receiver(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         ack_key: Arc<AckKey>,
         mixnet_message_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
         acks_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
@@ -49,7 +49,7 @@ impl<T> SimpleMessageReceiver<T, SphinxMessageReceiver> {
 
 impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
     pub fn new(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         ack_key: Arc<AckKey>,
         mixnet_message_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
         acks_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,

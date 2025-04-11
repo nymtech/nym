@@ -5,7 +5,7 @@ use crate::network_monitor::gateways_reader::{GatewayMessages, GatewaysReader};
 use crate::network_monitor::monitor::processor::ReceivedProcessorSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use nym_task::TaskClient;
 use tracing::{error, trace};
@@ -14,9 +14,9 @@ pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientU
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;
 
 pub(crate) enum GatewayClientUpdate {
-    Disconnect(identity::PublicKey),
+    Disconnect(ed25519::PublicKey),
     New(
-        identity::PublicKey,
+        ed25519::PublicKey,
         (MixnetMessageReceiver, AcknowledgementReceiver),
     ),
 }

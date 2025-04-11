@@ -714,7 +714,7 @@ impl ConfigV2 {
 
 pub async fn initialise(
     paths: &AuthenticatorPathsV3,
-    public_key: nym_crypto::asymmetric::identity::PublicKey,
+    public_key: nym_crypto::asymmetric::ed25519::PublicKey,
 ) -> Result<(), NymNodeError> {
     let mut rng = OsRng;
     let ed25519_keys = ed25519::KeyPair::new(&mut rng);

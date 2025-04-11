@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use futures::Stream;
-use nym_crypto::asymmetric::{ed25519, identity};
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -28,7 +28,7 @@ impl GatewaysReader {
 
     pub fn add_receivers(
         &mut self,
-        id: identity::PublicKey,
+        id: ed25519::PublicKey,
         message_receiver: MixnetMessageReceiver,
         ack_receiver: AcknowledgementReceiver,
     ) {

@@ -11,7 +11,7 @@ use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
 use nym_credentials::ecash::utils::obtain_aggregate_wallet;
 use nym_credentials::IssuedTicketBook;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_default_expiration_date, Date};
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
@@ -31,7 +31,7 @@ where
     C: EcashSigningClient + EcashQueryClient + Sync,
 {
     let mut rng = OsRng;
-    let signing_key = identity::PrivateKey::new(&mut rng);
+    let signing_key = ed25519::PrivateKey::new(&mut rng);
     let expiration = expiration.unwrap_or_else(ecash_default_expiration_date);
 
     let deposit_amount = client.get_required_deposit_amount().await?;

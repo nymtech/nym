@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_gateway_client::MixnetMessageReceiver;
 use nym_sphinx::anonymous_replies::requests::{
@@ -39,7 +39,7 @@ pub type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<Reconstruct
 
 struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     messages: Vec<ReconstructedMessage>,
-    local_encryption_keypair: Arc<encryption::KeyPair>,
+    local_encryption_keypair: Arc<x25519::KeyPair>,
 
     // TODO: looking how it 'looks' here, perhaps `MessageReceiver` should be renamed to something
     // else instead.
@@ -176,7 +176,7 @@ struct ReceivedMessagesBuffer<R: MessageReceiver> {
 
 impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
     fn new(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
@@ -566,7 +566,7 @@ pub(crate) struct ReceivedMessagesBufferController<R: MessageReceiver> {
 
 impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferController<R> {
     pub(crate) fn new(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,

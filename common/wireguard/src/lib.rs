@@ -7,7 +7,7 @@
 // #![warn(clippy::unwrap_used)]
 
 use defguard_wireguard_rs::WGApi;
-use nym_crypto::asymmetric::encryption::KeyPair;
+use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;

@@ -306,7 +306,7 @@ mod tests {
     };
 
     use nym_credentials_interface::CredentialSpendingData;
-    use nym_crypto::asymmetric::encryption::PrivateKey;
+    use nym_crypto::asymmetric::x25519::PrivateKey;
     use nym_sphinx::addressing::Recipient;
     use nym_wireguard_types::PeerPublicKey;
     use x25519_dalek::PublicKey;

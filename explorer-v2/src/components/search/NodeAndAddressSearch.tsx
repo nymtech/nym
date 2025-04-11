@@ -1,5 +1,5 @@
 "use client";
-import type { IObservatoryNode, NodeData } from "@/app/api/types";
+import type { IObservatoryNode } from "@/app/api/types";
 import { Search } from "@mui/icons-material";
 import {
   Autocomplete,

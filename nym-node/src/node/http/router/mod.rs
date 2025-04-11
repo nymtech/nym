@@ -34,14 +34,13 @@ pub struct HttpServerConfig {
 }
 
 impl HttpServerConfig {
-    pub fn new(host_information: SignedHostInformation) -> Self {
+    pub fn new() -> Self {
         HttpServerConfig {
             landing: Default::default(),
             api: api::Config {
                 v1_config: api::v1::Config {
                     node: api::v1::node::Config {
                         build_information: bin_info_owned!(),
-                        host_information,
                         system_info: None,
                         roles: Default::default(),
                         description: Default::default(),
@@ -118,6 +117,7 @@ impl HttpServerConfig {
         self
     }
 
+    #[must_use]
     pub fn with_prometheus_bearer_token(mut self, bearer_token: Option<String>) -> Self {
         self.api.v1_config.metrics.bearer_token = bearer_token.map(|b| Arc::new(Zeroizing::new(b)));
         self

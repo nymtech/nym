@@ -115,6 +115,7 @@ cargo_metadata = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rand_chacha = { workspace = true }
 
 
 [lints]

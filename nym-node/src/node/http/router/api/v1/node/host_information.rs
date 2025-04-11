@@ -1,7 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use axum::extract::Query;
+use crate::node::http::api::api_requests;
+use crate::node::http::state::AppState;
+use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::{v1::node::models::SignedHostInformation, SignedDataHostInfo};
 
@@ -20,11 +22,31 @@ use nym_node_requests::api::{v1::node::models::SignedHostInformation, SignedData
     params(OutputParams)
 )]
 pub(crate) async fn host_information(
-    host_information: SignedHostInformation,
     Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
 ) -> HostInformationResponse {
     let output = output.output.unwrap_or_default();
-    output.to_response(host_information)
+
+    let host_info = api_requests::v1::node::models::HostInformation {
+        ip_address: state.static_information.ip_addresses.clone(),
+        hostname: state.static_information.hostname.clone(),
+        keys: api_requests::v1::node::models::HostKeys {
+            ed25519_identity: *state.static_information.ed25519_identity_keys.public_key(),
+            x25519_sphinx: state.x25519_sphinx_keys.primary().x25519_pubkey(),
+            x25519_noise: state.static_information.x25519_noise_key,
+        },
+    };
+
+    // SAFETY: the only way for this call to fail is if serialisation of HostInformation fails.
+    // however, that conversion is stable and infallible
+    #[allow(clippy::unwrap_used)]
+    let signed_info = SignedHostInformation::new(
+        host_info,
+        state.static_information.ed25519_identity_keys.private_key(),
+    )
+    .unwrap();
+
+    output.to_response(signed_info)
 }
 
 pub type HostInformationResponse = FormattedResponse<SignedHostInformation>;

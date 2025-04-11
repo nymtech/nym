@@ -112,6 +112,7 @@ impl PeerController {
                 request_tx.clone(),
                 &task_client,
             );
+            let public_key = public_key.clone();
             tokio::spawn(async move {
                 handle.run().await;
                 log::debug!("Peer handle shut down for {public_key}");

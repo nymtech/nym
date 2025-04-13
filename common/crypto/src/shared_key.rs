@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::asymmetric::encryption;
+use crate::asymmetric::x25519;
 use crate::hkdf;
 use cipher::{Key, KeyIvInit, StreamCipher};
 use digest::crypto_common::BlockSizeUser;
@@ -15,14 +15,14 @@ use rand::{CryptoRng, RngCore};
 #[cfg(feature = "rand")]
 pub fn new_ephemeral_shared_key<C, D, R>(
     rng: &mut R,
-    remote_key: &encryption::PublicKey,
-) -> (encryption::KeyPair, Key<C>)
+    remote_key: &x25519::PublicKey,
+) -> (x25519::KeyPair, Key<C>)
 where
     C: StreamCipher + KeyIvInit,
     D: Digest + BlockSizeUser + Clone,
     R: RngCore + CryptoRng,
 {
-    let ephemeral_keypair = encryption::KeyPair::new(rng);
+    let ephemeral_keypair = x25519::KeyPair::new(rng);
 
     // after performing diffie-hellman we don't care about the private component anymore
     let dh_result = ephemeral_keypair.private_key().diffie_hellman(remote_key);
@@ -43,8 +43,8 @@ where
 
 /// Recompute shared key using remote public key and local private key.
 pub fn recompute_shared_key<C, D>(
-    remote_key: &encryption::PublicKey,
-    local_key: &encryption::PrivateKey,
+    remote_key: &x25519::PublicKey,
+    local_key: &x25519::PrivateKey,
 ) -> Key<C>
 where
     C: StreamCipher + KeyIvInit,

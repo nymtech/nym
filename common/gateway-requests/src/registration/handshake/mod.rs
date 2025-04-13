@@ -6,7 +6,7 @@ use crate::registration::handshake::state::State;
 use crate::SharedGatewayKey;
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use rand::{CryptoRng, RngCore};
 use std::future::Future;
 use std::pin::Pin;
@@ -48,8 +48,8 @@ impl Future for GatewayHandshake<'_> {
 pub fn client_handshake<'a, S, R>(
     rng: &'a mut R,
     ws_stream: &'a mut S,
-    identity: &'a identity::KeyPair,
-    gateway_pubkey: identity::PublicKey,
+    identity: &'a ed25519::KeyPair,
+    gateway_pubkey: ed25519::PublicKey,
     expects_credential_usage: bool,
     derive_aes256_gcm_siv_key: bool,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
@@ -78,7 +78,7 @@ where
 pub fn gateway_handshake<'a, S, R>(
     rng: &'a mut R,
     ws_stream: &'a mut S,
-    identity: &'a identity::KeyPair,
+    identity: &'a ed25519::KeyPair,
     received_init_payload: Vec<u8>,
     shutdown: TaskClient,
 ) -> GatewayHandshake<'a>

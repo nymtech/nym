@@ -14,7 +14,7 @@ use crate::{
 };
 use log::info;
 use nym_client_core_gateways_storage::GatewayDetails;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ pub struct CommonClientAddGatewayArgs {
     /// Explicitly specify id of the gateway to register with.
     /// If unspecified, a random gateway will be chosen instead.
     #[cfg_attr(feature = "cli", clap(long, alias = "gateway"))]
-    pub gateway_id: Option<identity::PublicKey>,
+    pub gateway_id: Option<ed25519::PublicKey>,
 
     /// Specifies whether the client will attempt to enforce tls connection to the desired gateway.
     #[cfg_attr(feature = "cli", clap(long))]

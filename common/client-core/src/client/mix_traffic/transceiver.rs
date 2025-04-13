@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use log::{debug, error};
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
@@ -30,7 +30,7 @@ fn erase_err<E: std::error::Error + Send + Sync + 'static>(err: E) -> ErasedGate
 /// This combines combines the functionalities of being able to send and receive mix packets.
 #[async_trait]
 pub trait GatewayTransceiver: GatewaySender + GatewayReceiver {
-    fn gateway_identity(&self) -> identity::PublicKey;
+    fn gateway_identity(&self) -> ed25519::PublicKey;
     fn ws_fd(&self) -> Option<RawFd>;
     async fn send_client_request(
         &mut self,
@@ -75,7 +75,7 @@ pub trait GatewayReceiver {
 #[async_trait]
 impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
     #[inline]
-    fn gateway_identity(&self) -> identity::PublicKey {
+    fn gateway_identity(&self) -> ed25519::PublicKey {
         (**self).gateway_identity()
     }
     fn ws_fd(&self) -> Option<RawFd> {
@@ -134,7 +134,7 @@ where
     St: CredentialStorage,
     <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
-    fn gateway_identity(&self) -> identity::PublicKey {
+    fn gateway_identity(&self) -> ed25519::PublicKey {
         self.gateway_client.gateway_identity()
     }
     fn ws_fd(&self) -> Option<RawFd> {
@@ -190,7 +190,7 @@ pub enum LocalGatewayError {
 #[cfg(not(target_arch = "wasm32"))]
 pub struct LocalGateway {
     /// Identity of the locally managed gateway
-    local_identity: identity::PublicKey,
+    local_identity: ed25519::PublicKey,
 
     // 'sender' part
     /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
@@ -203,7 +203,7 @@ pub struct LocalGateway {
 #[cfg(not(target_arch = "wasm32"))]
 impl LocalGateway {
     pub fn new(
-        local_identity: identity::PublicKey,
+        local_identity: ed25519::PublicKey,
         packet_forwarder: nym_mixnet_client::forwarder::MixForwardingSender,
         packet_router_tx: oneshot::Sender<PacketRouter>,
     ) -> Self {
@@ -221,7 +221,7 @@ mod nonwasm_sealed {
 
     #[async_trait]
     impl GatewayTransceiver for LocalGateway {
-        fn gateway_identity(&self) -> identity::PublicKey {
+        fn gateway_identity(&self) -> ed25519::PublicKey {
             self.local_identity
         }
         fn ws_fd(&self) -> Option<RawFd> {
@@ -263,7 +263,7 @@ mod nonwasm_sealed {
 
 // if we ever decided to start writing unit tests... : )
 pub struct MockGateway {
-    dummy_identity: identity::PublicKey,
+    dummy_identity: ed25519::PublicKey,
     packet_router: Option<PacketRouter>,
     sent: Vec<MixPacket>,
 }
@@ -303,7 +303,7 @@ impl GatewaySender for MockGateway {
 
 #[async_trait]
 impl GatewayTransceiver for MockGateway {
-    fn gateway_identity(&self) -> identity::PublicKey {
+    fn gateway_identity(&self) -> ed25519::PublicKey {
         self.dummy_identity
     }
     fn ws_fd(&self) -> Option<RawFd> {

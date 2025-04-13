@@ -4,7 +4,7 @@
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
 use log::debug;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_acknowledgements::AckKey;
@@ -190,7 +190,7 @@ pub trait FragmentPreparer {
         let destination = packet_recipient.gateway();
         monitoring::fragment_sent(&fragment, self.nonce(), destination);
 
-        let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
+        let non_reply_overhead = x25519::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {
             PacketType::Outfox => {
                 fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + non_reply_overhead

@@ -4,7 +4,7 @@
 use crate::cli_helpers::{CliClient, CliClientConfig};
 use crate::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
 use crate::client::base_client::storage::helpers::set_active_gateway;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct CommonClientSwitchGatewaysArgs {
 
     /// Id of the gateway we want to switch to.
     #[cfg_attr(feature = "cli", clap(long))]
-    pub gateway_id: identity::PublicKey,
+    pub gateway_id: ed25519::PublicKey,
 }
 
 pub async fn switch_gateway<C, A>(args: A) -> Result<(), C::Error>

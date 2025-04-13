@@ -5,7 +5,7 @@
 // it's already destructed).
 
 use crate::nodes::{NodeIdentity, NODE_IDENTITY_SIZE};
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::Destination;
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,11 +15,11 @@ use thiserror::Error;
 
 // Not entirely sure whether this is the correct place for those, but let's see how it's going
 // to work out
-pub type ClientEncryptionKey = encryption::PublicKey;
-const CLIENT_ENCRYPTION_KEY_SIZE: usize = encryption::PUBLIC_KEY_SIZE;
+pub type ClientEncryptionKey = x25519::PublicKey;
+const CLIENT_ENCRYPTION_KEY_SIZE: usize = x25519::PUBLIC_KEY_SIZE;
 
-pub type ClientIdentity = identity::PublicKey;
-const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
+pub type ClientIdentity = ed25519::PublicKey;
+const CLIENT_IDENTITY_SIZE: usize = ed25519::PUBLIC_KEY_LENGTH;
 
 pub type RecipientBytes = [u8; Recipient::LEN];
 
@@ -29,13 +29,13 @@ pub enum RecipientFormattingError {
     MalformedRecipientError { reason: String },
 
     #[error("recipient's identity key is malformed: {0}")]
-    MalformedIdentityError(identity::Ed25519RecoveryError),
+    MalformedIdentityError(ed25519::Ed25519RecoveryError),
 
     #[error("recipient's encryption key is malformed: {0}")]
-    MalformedEncryptionKeyError(#[from] encryption::KeyRecoveryError),
+    MalformedEncryptionKeyError(#[from] x25519::KeyRecoveryError),
 
     #[error("recipient gateway's identity key is malformed: {0}")]
-    MalformedGatewayError(identity::Ed25519RecoveryError),
+    MalformedGatewayError(ed25519::Ed25519RecoveryError),
 }
 
 // TODO: this should a different home... somewhere, but where?
@@ -249,9 +249,9 @@ mod tests {
     fn string_conversion_works() {
         let mut rng = rand::thread_rng();
 
-        let client_id_pair = identity::KeyPair::new(&mut rng);
-        let client_enc_pair = encryption::KeyPair::new(&mut rng);
-        let gateway_id_pair = identity::KeyPair::new(&mut rng);
+        let client_id_pair = ed25519::KeyPair::new(&mut rng);
+        let client_enc_pair = x25519::KeyPair::new(&mut rng);
+        let gateway_id_pair = ed25519::KeyPair::new(&mut rng);
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
@@ -281,9 +281,9 @@ mod tests {
     fn bytes_conversion_works() {
         let mut rng = rand::thread_rng();
 
-        let client_id_pair = identity::KeyPair::new(&mut rng);
-        let client_enc_pair = encryption::KeyPair::new(&mut rng);
-        let gateway_id_pair = identity::KeyPair::new(&mut rng);
+        let client_id_pair = ed25519::KeyPair::new(&mut rng);
+        let client_enc_pair = x25519::KeyPair::new(&mut rng);
+        let gateway_id_pair = ed25519::KeyPair::new(&mut rng);
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),

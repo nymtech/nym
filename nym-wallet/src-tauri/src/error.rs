@@ -1,5 +1,5 @@
 use nym_contracts_common::signing::SigningAlgorithm;
-use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_node_requests::api::client::NymNodeApiClientError;
 use nym_types::error::TypesError;
 use nym_validator_client::nym_api::error::NymAPIError;

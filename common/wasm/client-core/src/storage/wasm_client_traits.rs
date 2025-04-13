@@ -4,7 +4,7 @@
 use crate::storage::types::WasmRawRegisteredGateway;
 use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::gateways_storage::RawActiveGateway;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_acknowledgements::AckKey;
 use std::error::Error;
 use thiserror::Error;
@@ -60,7 +60,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
 
     async fn may_read_identity_keypair(
         &self,
-    ) -> Result<Option<identity::KeyPair>, <Self as WasmClientStorage>::StorageError> {
+    ) -> Result<Option<ed25519::KeyPair>, <Self as WasmClientStorage>::StorageError> {
         self.read_value(
             v1::KEYS_STORE,
             JsValue::from_str(v1::ED25519_IDENTITY_KEYPAIR),
@@ -71,7 +71,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
 
     async fn may_read_encryption_keypair(
         &self,
-    ) -> Result<Option<encryption::KeyPair>, <Self as WasmClientStorage>::StorageError> {
+    ) -> Result<Option<x25519::KeyPair>, <Self as WasmClientStorage>::StorageError> {
         self.read_value(
             v1::KEYS_STORE,
             JsValue::from_str(v1::X25519_ENCRYPTION_KEYPAIR),
@@ -90,7 +90,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
 
     async fn must_read_identity_keypair(
         &self,
-    ) -> Result<identity::KeyPair, <Self as WasmClientStorage>::StorageError> {
+    ) -> Result<ed25519::KeyPair, <Self as WasmClientStorage>::StorageError> {
         self.may_read_identity_keypair()
             .await?
             .ok_or(WasmClientStorageError::CryptoKeyNotInStorage {
@@ -101,7 +101,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
 
     async fn must_read_encryption_keypair(
         &self,
-    ) -> Result<encryption::KeyPair, <Self as WasmClientStorage>::StorageError> {
+    ) -> Result<x25519::KeyPair, <Self as WasmClientStorage>::StorageError> {
         self.may_read_encryption_keypair()
             .await?
             .ok_or(WasmClientStorageError::CryptoKeyNotInStorage {
@@ -130,7 +130,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
 
     async fn store_identity_keypair(
         &self,
-        keypair: &identity::KeyPair,
+        keypair: &ed25519::KeyPair,
     ) -> Result<(), <Self as WasmClientStorage>::StorageError> {
         self.store_value(
             v1::KEYS_STORE,
@@ -143,7 +143,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
 
     async fn store_encryption_keypair(
         &self,
-        keypair: &encryption::KeyPair,
+        keypair: &x25519::KeyPair,
     ) -> Result<(), <Self as WasmClientStorage>::StorageError> {
         self.store_value(
             v1::KEYS_STORE,

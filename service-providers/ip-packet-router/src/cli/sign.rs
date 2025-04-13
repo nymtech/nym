@@ -3,7 +3,7 @@ use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::error::ClientCoreError;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_types::helpers::ConsoleSigningOutput;
 
@@ -22,7 +22,7 @@ pub(crate) struct Sign {
 }
 
 fn print_signed_contract_msg(
-    private_key: &identity::PrivateKey,
+    private_key: &ed25519::PrivateKey,
     raw_msg: &str,
     output: OutputFormat,
 ) {

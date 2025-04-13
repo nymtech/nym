@@ -12,7 +12,7 @@ use crate::ecash::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EpochId;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{bte, NodeIndex, Threshold};
 use serde::{Deserialize, Serialize};
@@ -108,7 +108,7 @@ pub(crate) struct State {
 
     announce_address: Url,
 
-    identity_key: identity::PublicKey,
+    identity_key: ed25519::PublicKey,
 
     dkg_keypair: DkgKeyPair,
 
@@ -121,7 +121,7 @@ impl State {
         persistent_state: PersistentState,
         announce_address: Url,
         dkg_keypair: DkgKeyPair,
-        identity_key: identity::PublicKey,
+        identity_key: ed25519::PublicKey,
         coconut_keypair: CoconutKeyPair,
     ) -> Self {
         State {
@@ -339,7 +339,7 @@ impl State {
         &self.announce_address
     }
 
-    pub fn identity_key(&self) -> identity::PublicKey {
+    pub fn identity_key(&self) -> ed25519::PublicKey {
         self.identity_key
     }
 

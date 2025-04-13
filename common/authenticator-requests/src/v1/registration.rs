@@ -13,7 +13,7 @@ use std::{fmt, ops::Deref, str::FromStr};
 #[cfg(feature = "verify")]
 use hmac::{Hmac, Mac};
 #[cfg(feature = "verify")]
-use nym_crypto::asymmetric::encryption::{PrivateKey, PublicKey};
+use nym_crypto::asymmetric::x25519::{PrivateKey, PublicKey};
 #[cfg(feature = "verify")]
 use sha2::Sha256;
 
@@ -190,15 +190,15 @@ impl<'de> Deserialize<'de> for ClientMac {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::encryption;
+    use nym_crypto::asymmetric::x25519;
 
     #[test]
     #[cfg(feature = "verify")]
     fn client_request_roundtrip() {
         let mut rng = rand::thread_rng();
 
-        let gateway_key_pair = encryption::KeyPair::new(&mut rng);
-        let client_key_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_key_pair = x25519::KeyPair::new(&mut rng);
+        let client_key_pair = x25519::KeyPair::new(&mut rng);
 
         let nonce = 1234567890;
 

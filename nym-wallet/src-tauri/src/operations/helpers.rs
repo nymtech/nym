@@ -7,7 +7,7 @@ use cosmwasm_std::Addr;
 use nym_contracts_common::signing::{
     ContractMessageContent, MessageSignature, Nonce, SignableMessage, SigningAlgorithm,
 };
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
     construct_legacy_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
     NodeCostParams, NymNode, NymNodeBondingPayload, SignableGatewayBondingMsg,
@@ -70,8 +70,8 @@ pub(crate) async fn verify_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     if vesting {
         return Err(BackendError::UnsupportedVestingOperation);
     }
-    let identity_key = identity::PublicKey::from_base58_string(&mix_node.identity_key)?;
-    let signature = identity::Signature::from_bytes(msg_signature.as_ref())?;
+    let identity_key = ed25519::PublicKey::from_base58_string(&mix_node.identity_key)?;
+    let signature = ed25519::Signature::from_bytes(msg_signature.as_ref())?;
 
     // recreate the plaintext
     let msg = create_mixnode_bonding_sign_payload(
@@ -124,8 +124,8 @@ pub(crate) async fn verify_gateway_bonding_sign_payload<P: AddressAndNonceProvid
     if vesting {
         return Err(BackendError::UnsupportedVestingOperation);
     }
-    let identity_key = identity::PublicKey::from_base58_string(&gateway.identity_key)?;
-    let signature = identity::Signature::from_bytes(msg_signature.as_ref())?;
+    let identity_key = ed25519::PublicKey::from_base58_string(&gateway.identity_key)?;
+    let signature = ed25519::Signature::from_bytes(msg_signature.as_ref())?;
 
     // recreate the plaintext
     let msg = create_gateway_bonding_sign_payload(client, gateway.clone(), pledge.clone(), vesting)
@@ -165,8 +165,8 @@ pub(crate) async fn verify_nym_node_bonding_sign_payload<P: AddressAndNonceProvi
     pledge: &Coin,
     msg_signature: &MessageSignature,
 ) -> Result<(), BackendError> {
-    let identity_key = identity::PublicKey::from_base58_string(&nym_node.identity_key)?;
-    let signature = identity::Signature::from_bytes(msg_signature.as_ref())?;
+    let identity_key = ed25519::PublicKey::from_base58_string(&nym_node.identity_key)?;
+    let signature = ed25519::Signature::from_bytes(msg_signature.as_ref())?;
 
     // recreate the plaintext
     let msg = create_nym_node_bonding_sign_payload(
@@ -224,7 +224,7 @@ mod tests {
     #[tokio::test]
     async fn dummy_mix_bonding_signature_verification() {
         let mut rng = test_rng();
-        let identity_keypair = identity::KeyPair::new(&mut rng);
+        let identity_keypair = ed25519::KeyPair::new(&mut rng);
         let dummy_mixnode = MixNode {
             host: "1.2.3.4".to_string(),
             mix_port: 1234,
@@ -300,7 +300,7 @@ mod tests {
     #[tokio::test]
     async fn dummy_gateway_bonding_signature_verification() {
         let mut rng = test_rng();
-        let identity_keypair = identity::KeyPair::new(&mut rng);
+        let identity_keypair = ed25519::KeyPair::new(&mut rng);
         let dummy_gateway = Gateway {
             host: "1.2.3.4".to_string(),
             mix_port: 1234,

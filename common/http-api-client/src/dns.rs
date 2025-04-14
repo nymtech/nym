@@ -35,10 +35,10 @@ use std::{
 };
 
 use hickory_resolver::{
-    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
-    error::{ResolveError, ResolveErrorKind},
+    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
     lookup_ip::{LookupIp, LookupIpIntoIter},
-    TokioAsyncResolver,
+    name_server::TokioConnectionProvider,
+    ResolveError, ResolveErrorKind, TokioResolver,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
@@ -92,8 +92,8 @@ pub struct HickoryDnsResolver {
     // Since we might not have been called in the context of a
     // Tokio Runtime in initialization, so we must delay the actual
     // construction of the resolver.
-    state: Arc<OnceCell<TokioAsyncResolver>>,
-    fallback: Arc<OnceCell<TokioAsyncResolver>>,
+    state: Arc<OnceCell<TokioResolver>>,
+    fallback: Arc<OnceCell<TokioResolver>>,
     dont_use_shared: bool,
 }
 
@@ -119,7 +119,7 @@ impl Resolve for HickoryDnsResolver {
                 Err(e) => {
                     // on failure use the fall back system configured DNS resolver
                     match e.kind() {
-                        ResolveErrorKind::NoRecordsFound { .. } => {}
+                        ResolveErrorKind::Proto(e_proto) if e_proto.is_no_records_found() => {}
                         _ => {
                             warn!("primary DNS failed w/ error {e}: using system fallback");
                         }
@@ -167,7 +167,7 @@ impl HickoryDnsResolver {
             Err(e) => {
                 // on failure use the fall back system configured DNS resolver
                 match e.kind() {
-                    ResolveErrorKind::NoRecordsFound { .. } => {}
+                    ResolveErrorKind::Proto(e_proto) if e_proto.is_no_records_found() => {}
                     _ => {
                         warn!("primary DNS failed w/ error {e}: using system fallback");
                     }
@@ -190,7 +190,7 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(&self) -> Result<TokioAsyncResolver, HickoryDnsError> {
+    fn new_resolver(&self) -> Result<TokioResolver, HickoryDnsError> {
         if self.dont_use_shared {
             new_resolver()
         } else {
@@ -198,7 +198,7 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver_system(&self) -> Result<TokioAsyncResolver, HickoryDnsError> {
+    fn new_resolver_system(&self) -> Result<TokioResolver, HickoryDnsError> {
         if self.dont_use_shared {
             new_resolver_system()
         } else {
@@ -212,29 +212,30 @@ impl HickoryDnsResolver {
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
 /// up for both IPv4 and IPv6 addresses to work with "happy eyeballs" algorithm.
-fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsError> {
+fn new_resolver() -> Result<TokioResolver, HickoryDnsError> {
     let mut name_servers = NameServerConfigGroup::quad9_tls();
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());
 
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
+    let mut resolver_builder =
+        TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
 
-    let mut opts = ResolverOpts::default();
-    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
-    // Would like to enable this when 0.25 stabilizes
-    // opts.server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
+    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+    resolver_builder.options_mut().server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
 
-    Ok(TokioAsyncResolver::tokio(config, opts))
+    Ok(resolver_builder.build())
 }
 
 /// Create a new resolver with the default configuration, which reads from the system DNS config
 /// (i.e. `/etc/resolve.conf` in unix). The options are overridden to look up for both IPv4 and IPv6
 /// addresses to work with "happy eyeballs" algorithm.
-fn new_resolver_system() -> Result<TokioAsyncResolver, HickoryDnsError> {
-    let (config, mut opts) = hickory_resolver::system_conf::read_system_conf()?;
-    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
-    Ok(TokioAsyncResolver::tokio(config, opts))
+fn new_resolver_system() -> Result<TokioResolver, HickoryDnsError> {
+    let mut resolver_builder = TokioResolver::builder_tokio()?;
+    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+
+    Ok(resolver_builder.build())
 }
 
 #[cfg(test)]

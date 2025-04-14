@@ -68,7 +68,7 @@ export const BasicInfoCard = ({ paramId }: Props) => {
   const selfBondFormatted = `${selfBond} NYM`;
 
   return (
-    <ExplorerCard label="Basic info">
+    <ExplorerCard label="Basic info" sx={{ height: "100%" }}>
       <Stack gap={1}>
         <ExplorerListItem
           divider

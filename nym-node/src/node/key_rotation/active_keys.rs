@@ -28,11 +28,26 @@ impl ActiveSphinxKeys {
         }
     }
 
+    pub(crate) fn even(&self) -> Option<impl Deref<Target = SphinxPrivateKey>> {
+        let primary = self.inner.primary_key.load();
+        if primary.is_even_rotation() {
+            return Some(primary);
+        }
+        self.secondary()
+    }
+
+    pub(crate) fn odd(&self) -> Option<impl Deref<Target = SphinxPrivateKey>> {
+        let primary = self.inner.primary_key.load();
+        if !primary.is_even_rotation() {
+            return Some(primary);
+        }
+        self.secondary()
+    }
+
     pub(crate) fn primary(&self) -> impl Deref<Target = SphinxPrivateKey> {
         self.inner.primary_key.map(|k: &SphinxPrivateKey| k).load()
     }
 
-    // can't do the same trait bounds due to required borrow on the option
     pub(crate) fn secondary(&self) -> Option<impl Deref<Target = SphinxPrivateKey>> {
         let guard = self.inner.secondary_key.load();
         if guard.is_none() {

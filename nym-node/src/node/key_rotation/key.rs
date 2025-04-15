@@ -31,6 +31,10 @@ impl SphinxPrivateKey {
     pub(crate) fn x25519_pubkey(&self) -> x25519::PublicKey {
         self.inner.public_key()
     }
+
+    pub(crate) fn is_even_rotation(&self) -> bool {
+        self.rotation_id & 1 == 0
+    }
 }
 
 impl From<&SphinxPrivateKey> for SphinxPublicKey {

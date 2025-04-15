@@ -10,6 +10,7 @@ use nym_sphinx_framing::processing::{
     process_framed_packet, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
     PartiallyUnwrappedPacket, ProcessedFinalHop,
 };
+use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::{Delay, REPLAY_TAG_SIZE};
 use std::mem;
 use std::net::SocketAddr;
@@ -212,45 +213,76 @@ impl ConnectionHandler {
         time_threshold && count_threshold
     }
 
+    fn try_partially_unwrap_packet(
+        &self,
+        packet: FramedNymPacket,
+    ) -> Result<PartiallyUnwrappedPacket, PacketProcessingError> {
+        // based on the received sphinx key rotation information,
+        // attempt to choose appropriate key for processing the packet
+        match packet.header().key_rotation {
+            SphinxKeyRotation::Unknown => {
+                // we have to try both keys, start with the primary as it has higher likelihood of being correct
+                // if let Ok(partially_unwrapped) = PartiallyUnwrappedPacket::new()
+                match PartiallyUnwrappedPacket::new(packet, self.shared.sphinx_keys.primary()) {
+                    Ok(unwrapped_packet) => Ok(unwrapped_packet),
+                    Err((packet, err)) => {
+                        if let Some(secondary) = self.shared.sphinx_keys.secondary() {
+                            PartiallyUnwrappedPacket::new(packet, secondary).map_err(|(_, err)| err)
+                        } else {
+                            Err(err)
+                        }
+                    }
+                }
+            }
+            SphinxKeyRotation::OddRotation => {
+                let Some(odd_key) = self.shared.sphinx_keys.odd() else {
+                    return Err(PacketProcessingError::ExpiredKey);
+                };
+                PartiallyUnwrappedPacket::new(packet, odd_key).map_err(|(_, err)| err)
+            }
+            SphinxKeyRotation::EvenRotation => {
+                let Some(even_key) = self.shared.sphinx_keys.even() else {
+                    return Err(PacketProcessingError::ExpiredKey);
+                };
+                PartiallyUnwrappedPacket::new(packet, even_key).map_err(|(_, err)| err)
+            }
+        }
+    }
+
     async fn handle_received_packet_with_replay_detection(
         &mut self,
         now: Instant,
         packet: FramedNymPacket,
     ) {
-        todo!()
-        //
-        // // 1. derive and expand shared secret
-        // // also check the header integrity
-        // let partially_unwrapped = match PartiallyUnwrappedPacket::new(
-        //     packet,
-        //     self.shared.sphinx_keys.private_key().as_ref(),
-        // ) {
-        //     Ok(unwrapped) => unwrapped,
-        //     Err(err) => {
-        //         trace!("failed to process received mix packet: {err}");
-        //         self.shared
-        //             .metrics
-        //             .mixnet
-        //             .ingress_malformed_packet(self.remote_address.ip());
-        //         return;
-        //     }
-        // };
-        //
-        // self.pending_packets.push(now, partially_unwrapped);
-        //
-        // // 2. check for packet replay
-        // // 2.1 first try it without locking
-        // if self.handle_pending_packets_batch_no_locking(now).await {
-        //     return;
-        // }
-        //
-        // // 2.2 if we're within deferral threshold, just leave it queued up for another call
-        // if self.within_deferral_threshold(now) {
-        //     return;
-        // }
-        //
-        // // 2.3. otherwise block until we obtain the lock and clear the whole batch
-        // self.handle_pending_packets_batch(now).await;
+        // 1. derive and expand shared secret
+        // also check the header integrity
+        let partially_unwrapped = match self.try_partially_unwrap_packet(packet) {
+            Ok(unwrapped) => unwrapped,
+            Err(err) => {
+                trace!("failed to process received mix packet: {err}");
+                self.shared
+                    .metrics
+                    .mixnet
+                    .ingress_malformed_packet(self.remote_address.ip());
+                return;
+            }
+        };
+
+        self.pending_packets.push(now, partially_unwrapped);
+
+        // 2. check for packet replay
+        // 2.1 first try it without locking
+        if self.handle_pending_packets_batch_no_locking(now).await {
+            return;
+        }
+
+        // 2.2 if we're within deferral threshold, just leave it queued up for another call
+        if self.within_deferral_threshold(now) {
+            return;
+        }
+
+        // 2.3. otherwise block until we obtain the lock and clear the whole batch
+        self.handle_pending_packets_batch(now).await;
     }
 
     async fn handle_unwrapped_packet(
@@ -342,6 +374,43 @@ impl ConnectionHandler {
             .await;
     }
 
+    fn try_full_unwrap_packet(
+        &self,
+        packet: FramedNymPacket,
+    ) -> Result<MixProcessingResult, PacketProcessingError> {
+        // based on the received sphinx key rotation information,
+        // attempt to choose appropriate key for processing the packet
+        // NOTE: due to the function signatures, outfox packets will **only** attempt primary key
+        // if no rotation information is available (but that's fine given outfox is not really in use,
+        // and by the time we need it, the rotation info should be present)
+        match packet.header().key_rotation {
+            SphinxKeyRotation::Unknown => {
+                process_framed_packet(packet, self.shared.sphinx_keys.primary())
+            }
+            SphinxKeyRotation::OddRotation => {
+                let Some(odd_key) = self.shared.sphinx_keys.odd() else {
+                    return Err(PacketProcessingError::ExpiredKey);
+                };
+                process_framed_packet(packet, odd_key)
+            }
+            SphinxKeyRotation::EvenRotation => {
+                let Some(even_key) = self.shared.sphinx_keys.even() else {
+                    return Err(PacketProcessingError::ExpiredKey);
+                };
+                process_framed_packet(packet, even_key)
+            }
+        }
+    }
+
+    async fn handle_received_packet_with_no_replay_detection(
+        &mut self,
+        now: Instant,
+        packet: FramedNymPacket,
+    ) {
+        let unwrapped_packet = self.try_full_unwrap_packet(packet);
+        self.handle_unwrapped_packet(now, unwrapped_packet).await;
+    }
+
     #[instrument(skip(self, packet), level = "debug")]
     async fn handle_received_nym_packet(&mut self, packet: FramedNymPacket) {
         let now = Instant::now();
@@ -352,13 +421,10 @@ impl ConnectionHandler {
             self.handle_received_packet_with_replay_detection(now, packet)
                 .await;
         } else {
-            todo!()
-            //
-            // // otherwise just skip that whole procedure and go straight to payload unwrapping
-            // // (assuming the basic framing is valid)
-            // let unwrapped_packet =
-            //     process_framed_packet(packet, self.shared.sphinx_keys.private_key().as_ref());
-            // self.handle_unwrapped_packet(now, unwrapped_packet).await;
+            // otherwise just skip that whole procedure and go straight to payload unwrapping
+            // (assuming the basic framing is valid)
+            self.handle_received_packet_with_no_replay_detection(now, packet)
+                .await;
         };
     }
 

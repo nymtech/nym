@@ -40,7 +40,7 @@
     "i18next-resources-to-backend": "^1.2.1",
     "isomorphic-dompurify": "^2.21.0",
     "material-react-table": "^3.0.3",
-    "next": "^15.2.0",
+    "next": "^14.2.26",
     "openapi-fetch": "^0.13.4",
     "qrcode.react": "^4.1.0",
     "qs": "^6.14.0",

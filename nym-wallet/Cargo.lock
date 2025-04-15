@@ -4668,9 +4668,9 @@ dependencies = [
 
 [[package]]
 name = "openssl"
-version = "0.10.71"
+version = "0.10.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e14130c6a98cd258fdcb0fb6d744152343ff729cbfcb28c656a9d12b999fbcd"
+checksum = "fedfea7d58a1f73118430a55da6a286e7b044961736ce96a16a17068ea25e5da"
 dependencies = [
  "bitflags 2.9.0",
  "cfg-if",
@@ -4700,9 +4700,9 @@ checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.106"
+version = "0.9.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bb61ea9811cc39e3c2069f40b8b8e2e70d8569b361f879786cc7ed48b777cdd"
+checksum = "8288979acd84749c744a9014b4382d42b8f7b2592847b5afb2ed29e5d16ede07"
 dependencies = [
  "cc",
  "libc",
@@ -7079,9 +7079,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint"
-version = "0.40.2"
+version = "0.40.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bed57bd840305efef8e83b752dd63dde3bb0fc1c35b6490f0a4de3a0ffd8dd9"
+checksum = "ab2972a56891bc9173eaebdd51290bc848e448aa281881f3a4712bd8fe1899b3"
 dependencies = [
  "bytes",
  "digest 0.10.7",
@@ -7109,9 +7109,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-config"
-version = "0.40.2"
+version = "0.40.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38aeb44e9e275b3afe31a4f3302dfc5aa1e0aa488a22abb7577634b22b144a22"
+checksum = "651cb680d41e586bb688cc17ab0b6dfe2e62a959c5742d1351fe0b084cd75d59"
 dependencies = [
  "flex-error",
  "serde",
@@ -7123,9 +7123,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-proto"
-version = "0.40.2"
+version = "0.40.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a218320a6e92ac731ac094169cb742e3203a3ab24d30417b72cfdaab5d50c67"
+checksum = "ca44b9eaaa98e8440fbafe5593b8a32a1c395c094ac566b3eb50497f8bd2bee0"
 dependencies = [
  "bytes",
  "flex-error",
@@ -7138,9 +7138,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-rpc"
-version = "0.40.2"
+version = "0.40.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ffcf862b519894f8afa79e5be73e376c3367cbd2bbe0eaf9c653ab01cd8b20"
+checksum = "9367678af1a9fc6c064fab8b5d05f03c0fc243fe411581c00c7eed83f8ced380"
 dependencies = [
  "async-trait",
  "bytes",

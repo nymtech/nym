@@ -15,9 +15,13 @@ import { WorldMap } from "@/components/worldMap/WorldMap";
 export default async function Home() {
   return (
     <ContentLayout>
-      <Stack gap={5}>
+      <Grid container columnSpacing={5} rowSpacing={5}>
+        <Grid size={12}>
+          <SectionHeading title="Nym Nodes in the world" />
+        </Grid>
         <WorldMap />
-      </Stack>
+      </Grid>
+
       <Stack gap={5}>
         <NodeAndAddressSearch />
       </Stack>

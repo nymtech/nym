@@ -103,6 +103,9 @@ pub enum PacketProcessingError {
     #[error("attempted to partially process an outfox packet")]
     PartialOutfoxProcessing,
 
+    #[error("the key needed for unwrapping this packet has already expired")]
+    ExpiredKey,
+
     #[error("this packet has already been processed before")]
     PacketReplay,
 }
@@ -119,16 +122,19 @@ impl PartiallyUnwrappedPacket {
     pub fn new(
         received_data: FramedNymPacket,
         sphinx_key: &PrivateKey,
-    ) -> Result<Self, PacketProcessingError> {
+    ) -> Result<Self, (FramedNymPacket, PacketProcessingError)> {
         let partial_result = match received_data.packet() {
             NymPacket::Sphinx(packet) => {
                 let expanded_shared_secret =
                     packet.header.compute_expanded_shared_secret(sphinx_key);
 
                 // don't continue if the header is malformed
-                packet
+                if let Err(err) = packet
                     .header
-                    .ensure_header_integrity(&expanded_shared_secret)?;
+                    .ensure_header_integrity(&expanded_shared_secret)
+                {
+                    return Err((received_data, err.into()));
+                }
 
                 PartialMixProcessingResult::Sphinx {
                     expanded_shared_secret,

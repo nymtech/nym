@@ -1,6 +1,5 @@
 use sqlx::{Connection, FromRow, SqliteConnection};
-use std::{env, fs::Permissions, os::unix::fs::PermissionsExt};
-use tokio::{fs::File, io::AsyncWriteExt};
+use std::env;
 
 const SQLITE_DB_FILENAME: &str = "nym-api-example.sqlite";
 
@@ -12,9 +11,10 @@ async fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let database_path = format!("{}/{}", out_dir, SQLITE_DB_FILENAME);
 
+    #[cfg(target_family = "unix")]
     write_db_path_to_file(&out_dir, SQLITE_DB_FILENAME)
         .await
-        .expect("Failed to write DB path to file");
+        .ok();
 
     let mut conn = SqliteConnection::connect(&format!("sqlite://{}?mode=rwc", database_path))
         .await
@@ -71,7 +71,14 @@ async fn main() {
 }
 
 /// use `./enter_db.sh` to inspect DB
+#[cfg(target_family = "unix")]
 async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    use tokio::{fs::File, io::AsyncWriteExt};
+
+    if env::var("CI").is_ok() {
+        return Ok(());
+    }
     let mut file = File::create("settings.sql").await?;
     let settings = ".mode columns
 .headers on";
@@ -79,14 +86,13 @@ async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Resu
 
     let mut file = File::create("enter_db.sh").await?;
     let contents = format!(
-        "#!/bin/bash\n\
+        "#!/bin/sh\n\
         sqlite3 -init settings.sql {}/{}",
         out_dir, db_filename,
     );
     file.write_all(contents.as_bytes()).await?;
 
-    #[cfg(target_family = "unix")]
-    file.set_permissions(Permissions::from_mode(0o755))
+    file.set_permissions(std::fs::Permissions::from_mode(0o755))
         .await
         .map_err(anyhow::Error::from)?;
 

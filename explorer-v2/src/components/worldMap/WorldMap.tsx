@@ -19,6 +19,7 @@ import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";
 import MAP_TOPOJSON from "../../assets/world-110m.json";
+import ExplorerCard from "../cards/ExplorerCard";
 
 export const WorldMap = (): JSX.Element => {
   const theme = useTheme();
@@ -53,7 +54,7 @@ export const WorldMap = (): JSX.Element => {
   const colorScale = React.useMemo(() => {
     if (countries) {
       const heighestNumberOfNodes = Math.max(
-        ...Object.values(countries).map((country) => country.nodes),
+        ...Object.values(countries).map((country) => country.nodes)
       );
       return scaleLinear<string, string>()
         .domain([
@@ -78,7 +79,7 @@ export const WorldMap = (): JSX.Element => {
                 "#147A3D", // Medium green
                 "#1A994C", // Light green
                 theme.palette.accent.main,
-              ],
+              ]
         )
         .unknown(isDarkMode ? theme.palette.pine[950] : theme.palette.pine[25]);
     }
@@ -112,7 +113,7 @@ export const WorldMap = (): JSX.Element => {
   }
 
   return (
-    <>
+    <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
       <div
         style={{
           position: "relative",
@@ -128,10 +129,10 @@ export const WorldMap = (): JSX.Element => {
             width: "100%",
             height: "auto",
           }}
-          viewBox="50, 80, 800, 400"
-          projection="geoEqualEarth"
+          viewBox="0, 50, 800, 350"
+          projection="geoMercator"
           projectionConfig={{
-            scale: 150,
+            scale: 100,
           }}
         >
           <ZoomableGroup
@@ -306,6 +307,6 @@ export const WorldMap = (): JSX.Element => {
           zIndex: 9999,
         }}
       />
-    </>
+    </ExplorerCard>
   );
 };

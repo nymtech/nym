@@ -16,9 +16,6 @@ export default async function Home() {
   return (
     <ContentLayout>
       <Grid container columnSpacing={5} rowSpacing={5}>
-        <Grid size={12}>
-          <SectionHeading title="Nym Nodes in the world" />
-        </Grid>
         <WorldMap />
       </Grid>
 

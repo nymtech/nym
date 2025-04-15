@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { scaleLinear } from "d3-scale";
+import * as React from "react";
 import {
   ComposableMap,
   Geographies,
@@ -10,18 +10,17 @@ import {
 } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
-import { Skeleton, Stack, Typography, IconButton } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import { CountryDataResponse } from "../../app/api/types";
-import MAP_TOPOJSON from "../../assets/world-110m.json";
-import { useQuery } from "@tanstack/react-query";
 import { fetchWorldMapCountries } from "@/app/api";
-import ExplorerCard from "../cards/ExplorerCard";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import { IconButton, Skeleton, Stack, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { useQuery } from "@tanstack/react-query";
+import type { CountryDataResponse } from "../../app/api/types";
+import MAP_TOPOJSON from "../../assets/world-110m.json";
 
-export const WorldMap = ({}): JSX.Element => {
+export const WorldMap = (): JSX.Element => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
   const [position, setPosition] = React.useState<{
@@ -42,14 +41,19 @@ export const WorldMap = ({}): JSX.Element => {
     refetchOnMount: false,
   });
 
-  const [tooltipContent, setTooltipContent] = React.useState<string | null>(
-    null
-  );
+  const [tooltipContent, setTooltipContent] = React.useState<string>("");
+
+  React.useEffect(() => {
+    const handleMouseLeave = () => setTooltipContent("");
+    return () => {
+      handleMouseLeave();
+    };
+  }, []);
 
   const colorScale = React.useMemo(() => {
     if (countries) {
       const heighestNumberOfNodes = Math.max(
-        ...Object.values(countries).map((country) => country.nodes)
+        ...Object.values(countries).map((country) => country.nodes),
       );
       return scaleLinear<string, string>()
         .domain([
@@ -74,34 +78,25 @@ export const WorldMap = ({}): JSX.Element => {
                 "#147A3D", // Medium green
                 "#1A994C", // Light green
                 theme.palette.accent.main,
-              ]
+              ],
         )
         .unknown(isDarkMode ? theme.palette.pine[950] : theme.palette.pine[25]);
     }
     return () =>
       isDarkMode ? theme.palette.pine[950] : theme.palette.pine[25];
-  }, [
-    countries,
-    theme.palette.mode,
-    theme.palette.pine,
-    theme.palette.accent,
-    isDarkMode,
-  ]);
+  }, [countries, theme.palette.pine, theme.palette.accent, isDarkMode]);
 
   if (isLoadingCountries) {
     return (
-      <ExplorerCard label="Nym Nodes in the world">
-        <Stack gap={1}>
-          <Skeleton variant="text" />
-          <Skeleton variant="text" height={238} />
-        </Stack>
-      </ExplorerCard>
+      <Stack gap={1} width="100%">
+        <Skeleton variant="text" height={238} />
+      </Stack>
     );
   }
 
   if (isCountriesError) {
     return (
-      <ExplorerCard label="Nym Nodes in the world">
+      <Stack gap={1}>
         <Typography
           variant="h5"
           sx={{
@@ -112,12 +107,11 @@ export const WorldMap = ({}): JSX.Element => {
           Failed to load data
         </Typography>
         <Skeleton variant="text" height={238} />
-      </ExplorerCard>
+      </Stack>
     );
   }
 
   return (
-    // <ExplorerCard label="Nym Nodes in the world">
     <>
       <div
         style={{
@@ -127,9 +121,7 @@ export const WorldMap = ({}): JSX.Element => {
           margin: "0 auto",
         }}
       >
-        {/* <div style={{ width: "90%", margin: "0 auto" }}> */}
         <ComposableMap
-          {...({} as any)}
           data-tip=""
           style={{
             backgroundColor: isDarkMode ? "#000000" : theme.palette.pine[25],
@@ -160,6 +152,10 @@ export const WorldMap = ({}): JSX.Element => {
             }) => {
               setPosition({ coordinates, zoom });
             }}
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
           >
             <Geographies geography={MAP_TOPOJSON}>
               {({ geographies }: { geographies: GeoJSON.Feature[] }) =>
@@ -171,7 +167,9 @@ export const WorldMap = ({}): JSX.Element => {
                       ] || { nodes: 0 };
                   return (
                     <Geography
-                      key={`${geo.properties?.ISO_A3 || ""}-${geo.id}-${geo.properties?.NAME_LONG || ""}`}
+                      key={`${geo.properties?.ISO_A3 || ""}-${geo.id}-${
+                        geo.properties?.NAME_LONG || ""
+                      }`}
                       geography={geo}
                       fill={colorScale(d?.nodes || 0)}
                       stroke={
@@ -185,7 +183,6 @@ export const WorldMap = ({}): JSX.Element => {
                         const { NAME_LONG } = geo.properties as {
                           NAME_LONG: string;
                         };
-
                         setTooltipContent(`${NAME_LONG} | ${d?.nodes || 0}`);
                       }}
                       onMouseLeave={() => {
@@ -196,8 +193,15 @@ export const WorldMap = ({}): JSX.Element => {
                           ? {
                               fill: theme.palette.accent.main,
                               outline: "white",
+                              cursor: "pointer",
                             }
                           : undefined,
+                        default: {
+                          outline: "none",
+                        },
+                        pressed: {
+                          outline: "none",
+                        },
                       }}
                     />
                   );
@@ -206,7 +210,6 @@ export const WorldMap = ({}): JSX.Element => {
             </Geographies>
           </ZoomableGroup>
         </ComposableMap>
-        {/* </div> */}
 
         <div
           style={{
@@ -286,7 +289,8 @@ export const WorldMap = ({}): JSX.Element => {
       </div>
       <Tooltip
         id="map-tooltip"
-        content={tooltipContent || ""}
+        content={tooltipContent}
+        float={true}
         style={{
           fontSize: "12px",
           padding: "4px 8px",
@@ -299,10 +303,9 @@ export const WorldMap = ({}): JSX.Element => {
               ? theme.palette.base.white
               : theme.palette.pine[950],
           borderRadius: "4px",
-          zIndex: 1000,
+          zIndex: 9999,
         }}
       />
-      {/* // </ExplorerCard> */}
     </>
   );
 };

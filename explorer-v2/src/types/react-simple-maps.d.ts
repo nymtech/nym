@@ -1,6 +1,6 @@
 declare module "react-simple-maps" {
-  import { FunctionComponent, ReactNode } from "react";
-  import { Feature, Geometry, GeoJsonProperties } from "geojson";
+  import type { FunctionComponent, ReactNode } from "react";
+  import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 
   export interface ComposableMapProps {
     children?: ReactNode;
@@ -13,6 +13,7 @@ declare module "react-simple-maps" {
   }
 
   export interface GeographiesProps {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     geography: any;
     children?: (props: {
       geographies: Feature<Geometry, GeoJsonProperties>[];
@@ -21,6 +22,7 @@ declare module "react-simple-maps" {
 
   export interface GeographyProps {
     geography: Feature<Geometry, GeoJsonProperties>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }
 

@@ -38,7 +38,7 @@ use hickory_resolver::{
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
     lookup_ip::{LookupIp, LookupIpIntoIter},
     name_server::TokioConnectionProvider,
-    ResolveError, ResolveErrorKind, TokioResolver,
+    ResolveError, TokioResolver,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
@@ -118,11 +118,8 @@ impl Resolve for HickoryDnsResolver {
                 Ok(res) => res,
                 Err(e) => {
                     // on failure use the fall back system configured DNS resolver
-                    match e.kind() {
-                        ResolveErrorKind::Proto(e_proto) if e_proto.is_no_records_found() => {}
-                        _ => {
-                            warn!("primary DNS failed w/ error {e}: using system fallback");
-                        }
+                    if !e.is_no_records_found() {
+                        warn!("primary DNS failed w/ error {e}: using system fallback");
                     }
                     let resolver = fallback.get_or_try_init(|| {
                         // using a closure here is slightly gross, but this makes sure that if the
@@ -166,11 +163,8 @@ impl HickoryDnsResolver {
             Ok(res) => res,
             Err(e) => {
                 // on failure use the fall back system configured DNS resolver
-                match e.kind() {
-                    ResolveErrorKind::Proto(e_proto) if e_proto.is_no_records_found() => {}
-                    _ => {
-                        warn!("primary DNS failed w/ error {e}: using system fallback");
-                    }
+                if !e.is_no_records_found() {
+                    warn!("primary DNS failed w/ error {e}: using system fallback");
                 }
                 let resolver = self
                     .fallback

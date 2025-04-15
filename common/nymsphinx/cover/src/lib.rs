@@ -53,6 +53,7 @@ where
         average_ack_delay,
         topology,
         packet_type,
+        false, // make sure mix hops are enabled
     )?)
 }
 

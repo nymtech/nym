@@ -216,7 +216,7 @@ impl NymMessage {
             chunking::number_of_required_fragments(serialized_len, plaintext_per_packet);
 
         // by chunking I mean that currently the fragments hold variable amount of plaintext in them (I wish I had time to rewrite it...)
-        log::trace!(
+        tracing::trace!(
             "this message will use {serialized_len} bytes of PLAINTEXT (This does not account for Ack or chunking overhead). \
             With {packet_size:?} PacketSize ({plaintext_per_packet} of usable plaintext available) it will require {num_fragments} packet(s).",
         );
@@ -242,7 +242,7 @@ impl NymMessage {
 
         let wasted_space_percentage =
             (space_left as f32 / (bytes.len() + 1 + space_left) as f32) * 100.0;
-        log::trace!(
+        tracing::trace!(
             "Padding {self_display}: {} of raw plaintext bytes are required. \
             They're going to be put into {packets_used} sphinx packets with {space_left} bytes \
             of leftover space. {wasted_space_percentage:.1}% of packet capacity is going to \

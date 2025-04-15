@@ -9,7 +9,6 @@ use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
-use log::{debug, error, info, trace, warn};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
@@ -27,6 +26,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
+use tracing::{debug, error, info, trace, warn};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Error)]
@@ -98,6 +98,12 @@ pub(crate) struct Config {
     /// Specify whether route selection should be determined by the packet header.
     deterministic_route_selection: bool,
 
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    disable_mix_hops: bool,
+
     /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
 
@@ -133,6 +139,7 @@ impl Config {
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
             use_legacy_sphinx_format: use_legacy_reply_surb_format,
+            disable_mix_hops: false,
         }
     }
 
@@ -145,6 +152,12 @@ impl Config {
     /// Allows setting non-default size of the sphinx packets sent out.
     pub fn with_custom_secondary_packet_size(mut self, packet_size: Option<PacketSize>) -> Self {
         self.secondary_packet_size = packet_size;
+        self
+    }
+
+    /// Configure whether messages senders using this config should use mix hops or not when sending messages.
+    pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
+        self.disable_mix_hops = disable_mix_hops;
         self
     }
 }
@@ -193,6 +206,7 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
             config.use_legacy_sphinx_format,
+            config.disable_mix_hops,
         );
         MessageHandler {
             config,
@@ -284,7 +298,7 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         let msg = NymMessage::new_reply(message);
         let packet_size = self.optimal_packet_size(&msg);
-        debug!("Using {packet_size} packets for {msg}");
+        trace!("Using {packet_size} packets for {msg}");
 
         let mut fragment = self
             .message_preparer
@@ -348,7 +362,7 @@ where
     pub(crate) fn split_reply_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
         let msg = NymMessage::new_reply(ReplyMessage::new_data_message(message));
         let packet_size = self.optimal_packet_size(&msg);
-        debug!("Using {packet_size} packets for {msg}");
+        trace!("Using {packet_size} packets for {msg}");
 
         self.message_preparer
             .pad_and_split_message(msg, packet_size)
@@ -481,7 +495,7 @@ where
         } else {
             self.optimal_packet_size(&message)
         };
-        debug!("Using {packet_size} packets for {message}");
+        trace!("Using {packet_size} packets for {message}");
         let fragments = self
             .message_preparer
             .pad_and_split_message(message, packet_size);

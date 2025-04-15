@@ -5156,6 +5156,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tracing",
  "tungstenite 0.20.1",
  "url",
  "wasm-bindgen",
@@ -6609,7 +6610,6 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
- "log",
  "nym-crypto",
  "nym-metrics",
  "nym-mixnet-contract-common",
@@ -6629,6 +6629,7 @@ dependencies = [
  "rand_distr",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

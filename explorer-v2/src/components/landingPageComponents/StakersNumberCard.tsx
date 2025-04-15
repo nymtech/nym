@@ -1,5 +1,5 @@
 "use client";
-import { fetchObservatoryNodes } from "@/app/api";
+import { fetchNSApiNodes, fetchObservatoryNodes } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,21 @@ export const StakersNumberCard = () => {
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
+
+  const {
+    data: nsNodes,
+    isLoading: loadingNsNodes,
+    isError: errorNsNodes,
+  } = useQuery({
+    queryKey: ["nsNodes"],
+    queryFn: () => fetchNSApiNodes(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+
+  console.log("nsNodes", nsNodes);
 
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
@@ -46,7 +61,7 @@ export const StakersNumberCard = () => {
   const getActiveStakersNumber = (nodes: IObservatoryNode[]): number => {
     return nodes.reduce(
       (sum, node) => sum + node.rewarding_details.unique_delegations,
-      0,
+      0
     );
   };
   const allStakers = getActiveStakersNumber(nymNodes);

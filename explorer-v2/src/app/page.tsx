@@ -10,10 +10,14 @@ import { StakersNumberCard } from "../components/landingPageComponents/StakersNu
 import { TokenomicsCard } from "../components/landingPageComponents/TokenomicsCard";
 import NodeTable from "../components/nodeTable/NodeTableWithAction";
 import NodeAndAddressSearch from "../components/search/NodeAndAddressSearch";
+import { WorldMap } from "@/components/worldMap/WorldMap";
 
 export default async function Home() {
   return (
     <ContentLayout>
+      <Stack gap={5}>
+        <WorldMap />
+      </Stack>
       <Stack gap={5}>
         <NodeAndAddressSearch />
       </Stack>

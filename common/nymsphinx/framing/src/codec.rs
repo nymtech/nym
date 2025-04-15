@@ -3,6 +3,7 @@
 
 use crate::packet::{FramedNymPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
+use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nym_sphinx_params::packet_types::InvalidPacketType;
 use nym_sphinx_params::packet_version::{InvalidPacketVersion, PacketVersion};
@@ -22,6 +23,9 @@ pub enum NymCodecError {
 
     #[error("the packet version information was malformed: {0}")]
     InvalidPacketVersion(#[from] InvalidPacketVersion),
+
+    #[error("the sphinx key rotation information was malformed: {0}")]
+    InvalidSphinxKeyRotation(#[from] InvalidSphinxKeyRotation),
 
     #[error("received unsupported packet version {received}. max supported is {max_supported}")]
     UnsupportedPacketVersion {
@@ -65,72 +69,74 @@ impl Decoder for NymCodec {
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if src.is_empty() {
             // can't do anything if we have no bytes, but let's reserve enough for the most
-            // conservative case, i.e. receiving an ack packet
-            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
+            // conservative case, i.e. receiving a legacy ack packet
+            src.reserve(Header::INITIAL_SIZE + PacketSize::AckPacket.size());
             return Ok(None);
         }
 
-        // because header is so small and simple it makes no point in trying to cache
-        // this result. It will be just simpler to re-decode it
-        let header = match Header::decode(src)? {
-            Some(header) => header,
-            None => return Ok(None), // we have some data but not enough to get header back
-        };
-
-        let packet_size = header.packet_size.size();
-        let frame_len = Header::SIZE + packet_size;
-
-        if src.len() < frame_len {
-            // we don't have enough bytes to read the rest of frame
-            src.reserve(packet_size);
-            return Ok(None);
-        }
-
-        // advance buffer past the header - at this point we have enough bytes
-        src.advance(Header::SIZE);
-        let packet_bytes = src.split_to(packet_size);
-        let packet = if let Some(slice) = packet_bytes.get(..) {
-            // here it could be debatable whether stream is corrupt or not,
-            // but let's go with the safer approach and assume it is.
-            match header.packet_type {
-                PacketType::Outfox => NymPacket::outfox_from_bytes(slice)?,
-                PacketType::Mix => NymPacket::sphinx_from_bytes(slice)?,
-            }
-        } else {
-            return Ok(None);
-        };
-
-        // let packet = SphinxPacket::from_bytes(&sphinx_packet_bytes)?;
-        let nymsphinx_packet = FramedNymPacket { header, packet };
-
-        // As per docs:
-        // Before returning from the function, implementations should ensure that the buffer
-        // has appropriate capacity in anticipation of future calls to decode.
-        // Failing to do so leads to inefficiency.
-
-        // if we have enough bytes to decode the header of the next packet, we can reserve enough bytes for
-        // the entire next frame, if not, we assume the next frame is an ack packet and
-        // reserve for that.
-        // we also assume the next packet coming from the same client will use exactly the same versioning
-        // as the current packet
-
-        let mut allocate_for_next_packet = Header::SIZE + PacketSize::AckPacket.size();
-        if !src.is_empty() {
-            match Header::decode(src) {
-                Ok(Some(next_header)) => {
-                    allocate_for_next_packet = Header::SIZE + next_header.packet_size.size();
-                }
-                Ok(None) => {
-                    // we don't have enough information to know how much to reserve, fallback to the ack case
-                }
-
-                // the next frame will be malformed but let's leave handling the error to the next
-                // call to 'decode', as presumably, the current sphinx packet is still valid
-                Err(_) => return Ok(Some(nymsphinx_packet)),
-            };
-        }
-        src.reserve(allocate_for_next_packet);
-        Ok(Some(nymsphinx_packet))
+        todo!()
+        //
+        // // because header is so small and simple it makes no point in trying to cache
+        // // this result. It will be just simpler to re-decode it
+        // let header = match Header::decode(src)? {
+        //     Some(header) => header,
+        //     None => return Ok(None), // we have some data but not enough to get header back
+        // };
+        //
+        // let packet_size = header.packet_size.size();
+        // let frame_len = Header::SIZE + packet_size;
+        //
+        // if src.len() < frame_len {
+        //     // we don't have enough bytes to read the rest of frame
+        //     src.reserve(packet_size);
+        //     return Ok(None);
+        // }
+        //
+        // // advance buffer past the header - at this point we have enough bytes
+        // src.advance(Header::SIZE);
+        // let packet_bytes = src.split_to(packet_size);
+        // let packet = if let Some(slice) = packet_bytes.get(..) {
+        //     // here it could be debatable whether stream is corrupt or not,
+        //     // but let's go with the safer approach and assume it is.
+        //     match header.packet_type {
+        //         PacketType::Outfox => NymPacket::outfox_from_bytes(slice)?,
+        //         PacketType::Mix => NymPacket::sphinx_from_bytes(slice)?,
+        //     }
+        // } else {
+        //     return Ok(None);
+        // };
+        //
+        // // let packet = SphinxPacket::from_bytes(&sphinx_packet_bytes)?;
+        // let nymsphinx_packet = FramedNymPacket { header, packet };
+        //
+        // // As per docs:
+        // // Before returning from the function, implementations should ensure that the buffer
+        // // has appropriate capacity in anticipation of future calls to decode.
+        // // Failing to do so leads to inefficiency.
+        //
+        // // if we have enough bytes to decode the header of the next packet, we can reserve enough bytes for
+        // // the entire next frame, if not, we assume the next frame is an ack packet and
+        // // reserve for that.
+        // // we also assume the next packet coming from the same client will use exactly the same versioning
+        // // as the current packet
+        //
+        // let mut allocate_for_next_packet = Header::SIZE + PacketSize::AckPacket.size();
+        // if !src.is_empty() {
+        //     match Header::decode(src) {
+        //         Ok(Some(next_header)) => {
+        //             allocate_for_next_packet = Header::SIZE + next_header.packet_size.size();
+        //         }
+        //         Ok(None) => {
+        //             // we don't have enough information to know how much to reserve, fallback to the ack case
+        //         }
+        //
+        //         // the next frame will be malformed but let's leave handling the error to the next
+        //         // call to 'decode', as presumably, the current sphinx packet is still valid
+        //         Err(_) => return Ok(Some(nymsphinx_packet)),
+        //     };
+        // }
+        // src.reserve(allocate_for_next_packet);
+        // Ok(Some(nymsphinx_packet))
     }
 }
 

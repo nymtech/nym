@@ -9,9 +9,12 @@ use nym_crypto::Aes256GcmSiv;
 type Aes128Ctr = ctr::Ctr64BE<Aes128>;
 
 // Re-export for ease of use
+pub use key_rotation::SphinxKeyRotation;
 pub use packet_sizes::PacketSize;
 pub use packet_types::PacketType;
+pub use packet_version::PacketVersion;
 
+pub mod key_rotation;
 pub mod packet_sizes;
 pub mod packet_types;
 pub mod packet_version;

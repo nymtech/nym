@@ -4,11 +4,13 @@ declare module "react-simple-maps" {
 
   export interface ComposableMapProps {
     children?: ReactNode;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }
 
   export interface ZoomableGroupProps {
     children?: ReactNode;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }
 

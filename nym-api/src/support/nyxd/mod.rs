@@ -405,18 +405,19 @@ impl Client {
         Ok(())
     }
 
-    pub(crate) async fn get_all_balances(
-        &self,
-        address: &AccountId,
-    ) -> Result<Vec<Coin>, NyxdError> {
-        nyxd_query!(self, get_all_balances(address).await)
-    }
-
     pub(crate) async fn get_all_delegator_delegations(
         &self,
         delegation_owner: &AccountId,
     ) -> Result<Vec<Delegation>, NyxdError> {
         nyxd_query!(self, get_all_delegator_delegations(delegation_owner).await)
+    }
+
+    pub(crate) async fn get_address_balance(
+        &self,
+        address: &AccountId,
+        denom: impl Into<String>,
+    ) -> Result<Option<Coin>, NyxdError> {
+        nyxd_query!(self, get_balance(&address, denom.into()).await)
     }
 }
 

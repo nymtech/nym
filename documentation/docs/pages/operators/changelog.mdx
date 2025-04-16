@@ -47,6 +47,83 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.7-tex`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.9-tex)
+- [`nym-node`](nodes/nym-node.mdx) version `1.9.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-04-15T14:36:52.729991996Z
+Build Version:      1.9.0
+Commit SHA:         08b6be93c49e8c225e74ffabb5529493bd4b13b6
+Commit Date:        2025-04-15T15:29:46.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- **[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions Debian bullseye/sid (11) / Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) / Ubuntu 22.04 (and newer)!** Alternatively compile the binaries from source. 
+
+- The Nym Squad League Winter Season has concluded. Changes are coming to NSL, including the new NSL council, monthly payments for contributions, revamped reports, and more. Details available in the [Winter Season report](https://forum.nym.com/t/nym-squad-league-winter-season-report/1265).
+
+- [New scripts to inititialise and configure multiple VMs](nodes/preliminary-steps/vps-setup/advanced#setting-up-virtual-machines): KVM setup for virtualising nodes proved to be a good approach for admins orchestrating multiple nodes on a dedicated or bare metal machines. Now there is an option of running bash scripts speeding up the process of VM initialisation and configuration, while leaving some flexibility via interactive prompts.
+
+### Features
+
+- [Move all workflows on ubuntu-20 to ubuntu-22](https://github.com/nymtech/nym/pull/5455): Ubuntu 20.04 runners are scheduled to be removed from set of github hosted runners. Now is as good a time as any to finally take the plunge to switch away from ubuntu-20.04 to the shiny oh so modern ubuntu-22.04 runners
+
+- [Bump `elliptic` from `6.5.5` to `6.6.1`](https://github.com/nymtech/nym/pull/5483): Bumps [`elliptic`](https://github.com/indutny/elliptic)
+
+- [Bump `blake3` from `1.6.1` to `1.7.0`](https://github.com/nymtech/nym/pull/5658): Bumps [`blake3`](https://github.com/BLAKE3-team/BLAKE3)
+
+- [Mix throughput tester](https://github.com/nymtech/nym/pull/5661): A utility to measure mixing throughput of a node. Especially since there are some design choices with non-obvious performance penalties. For example 1 bloomfilter per connection vs 1 global bloomfilter with additional locking for replay protection.
+
+- [Update log crate](https://github.com/nymtech/nym/pull/5667): Update `log crate` to latest, fix `format_in_format_args`, fix `to_string_in_format_args` 
+
+- [Bump the patch-updates group across 1 directory with 7 updates](https://github.com/nymtech/nym/pull/5668):
+
+| Package | From | To |
+| --- | --- | --- |
+| [`clap`](https://github.com/clap-rs/clap) | `4.5.32` | `4.5.34` |
+| [`clap_complete`](https://github.com/clap-rs/clap) | `4.5.46` | `4.5.47` |
+| [`once_cell`](https://github.com/matklad/once_cell) | `1.21.1` | `1.21.3` |
+| [`reqwest`](https://github.com/seanmonstar/reqwest) | `0.12.4` | `0.12.15` |
+| [`tempfile`](https://github.com/Stebalien/tempfile) | `3.19.0` | `3.19.1` |
+| [`time`](https://github.com/time-rs/time) | `0.3.39` | `0.3.41` |
+| [`uniffi`](https://github.com/mozilla/uniffi-rs) | `0.29.0` | `0.29.1` |
+
+- [Improve explorer caching](https://github.com/nymtech/nym/pull/5669): Fix:
+    - `tanstack` caching
+    - graphs data bug 
+    - "auto" gas fee for redeem rewards 
+
+- [Update node versions in CI](https://github.com/nymtech/nym/pull/5677)
+
+- [Bash scripts to init and configure VMs conveniently and update docs](https://github.com/nymtech/nym/pull/5681): KVM setup for virtualising nodes proved to be a good approach for admins orchestrating multiple nodes on a dedicated/bare machines. This PR adds an option of running bash scripts speeding up the process of VM initialisation and configuration, while leaving some flexibility to the users via interactive prompts.
+    - Script to initialise new VM on host machine and prompting user for needed vars
+    - Script to config the VM from within and prompting user for needed vars
+    - Documentation of the above
+    - Lift headers so the main chapters come out in the side menu for easier navigation
+
+- [`clippy` for `1.86`](https://github.com/nymtech/nym/pull/5685)
+
+- [Expand `/v3/nym-nodes` with geodata](https://github.com/nymtech/nym/pull/5686): Includes node description and geodata.  
+
+### Bugfix
+
+- [Minor fixes involving key cloning and hashing](https://github.com/nymtech/nym/pull/5664): Adds fixes for several minor key related issues:
+    - Copying a private keys to perform a DH
+    - Perform DH against the reference to the static key to prevent memory copy of secret key material
+    - Hashing an `x25519` public key without first converting to a canonical representation
+    - Use derived `Hash` implementation which internally [converts to a canonical representation](https://github.com/dalek-cryptography/curve25519-dalek/blob/fbf1fb5339b22eaf9925e520c90f1821f79ef5db/curve25519-dalek/src/montgomery.rs#L103) before hashing
+
+- [Fix the mac build of the wallet](https://github.com/nymtech/nym/pull/5684)
+
 ## `v2025.6-chuckles`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.8-chuckles)

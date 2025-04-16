@@ -91,6 +91,7 @@ fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
 }
 
 impl SharedData {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         processing_config: ProcessingConfig,
         x25519_keys: Arc<x25519::KeyPair>,

@@ -28,6 +28,8 @@ pub struct NyxAccountDelegationRewardDetails {
     pub node_id: NodeId,
     #[schema(value_type = CoinSchema)]
     pub rewards: Coin,
+    #[schema(value_type = String)]
+    pub amount_staked: Coin,
     pub node_still_fully_bonded: bool,
 }
 
@@ -52,6 +54,8 @@ pub struct NyxAccountDetails {
     pub total_value: Coin,
     pub delegations: Vec<NyxAccountDelegationDetails>,
     pub accumulated_rewards: Vec<NyxAccountDelegationRewardDetails>,
+    #[schema(value_type = String)]
+    pub total_delegations: Coin,
     #[schema(value_type = CoinSchema)]
     pub claimable_rewards: Coin,
     pub vesting_account: Option<NymVestingAccount>,

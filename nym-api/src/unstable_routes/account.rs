@@ -104,6 +104,7 @@ async fn address(
     // 3. get the current reward for each active delegation
     // calculate rewards from nodes this delegator delegated to
     let mut claimable_rewards = 0u128;
+    let mut total_delegations = 0u128;
 
     let mut accumulated_rewards = Vec::new();
     for delegation in og_delegations.iter() {
@@ -118,11 +119,14 @@ async fn address(
                     let reward = NyxAccountDelegationRewardDetails {
                         node_id: delegation.node_id,
                         rewards: decimal_to_coin(delegation_reward, base_denom),
+                        amount_staked: delegation.amount.clone(),
                         node_still_fully_bonded: !nym_node_details.is_unbonding(),
                     };
                     // 4. sum the rewards and delegations
-                    claimable_rewards += reward.rewards.amount.u128();
+                    total_delegations += delegation.amount.amount.u128();
+                    total_value += delegation.amount.amount.u128();
                     total_value += reward.rewards.amount.u128();
+                    claimable_rewards += reward.rewards.amount.u128();
 
                     accumulated_rewards.push(reward);
                 }
@@ -147,6 +151,7 @@ async fn address(
     // 6. convert totals
     let claimable_rewards = Coin::new(claimable_rewards, base_denom);
     let total_value = Coin::new(total_value, base_denom);
+    let total_delegations = Coin::new(total_delegations, base_denom);
     let operator_rewards = if operator_rewards > 0 {
         Some(Coin::new(operator_rewards, base_denom))
     } else {
@@ -166,6 +171,7 @@ async fn address(
             })
             .collect(),
         accumulated_rewards,
+        total_delegations,
         claimable_rewards,
         total_value,
         vesting_account,

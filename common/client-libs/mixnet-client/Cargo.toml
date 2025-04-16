@@ -16,9 +16,14 @@ tokio-util = { workspace = true, features = ["codec"], optional = true }
 tokio-stream = { workspace = true }
 
 # internal
+nym-noise = { path = "../../nymnoise" }
 nym-sphinx = { path = "../../nymsphinx" }
 nym-task = { path = "../../task", optional = true }
 
 [features]
 default = ["client"]
 client = ["tokio-util", "nym-task", "tokio/net", "tokio/rt"]
+
+[dev-dependencies]
+nym-crypto = { path = "../../crypto" }
+rand = { workspace = true }

@@ -94,7 +94,14 @@ async fn address(
                 total_value += pending_operator_reward;
             }
             if delegated_to_nodes.contains(&node_details.node_id()) {
-                Some((node_details.node_id(), node_details.clone()))
+                Some((
+                    node_details.node_id(),
+                    // avoid cloning node data which we don't need
+                    (
+                        node_details.rewarding_details.clone(),
+                        node_details.is_unbonding(),
+                    ),
+                ))
             } else {
                 None
             }
@@ -110,17 +117,14 @@ async fn address(
     for delegation in og_delegations.iter() {
         let node_id = &delegation.node_id;
 
-        if let Some(nym_node_details) = nym_nodes.get(node_id) {
-            match nym_node_details
-                .rewarding_details
-                .determine_delegation_reward(delegation)
-            {
+        if let Some((rewarding_details, is_unbonding)) = nym_nodes.get(node_id) {
+            match rewarding_details.determine_delegation_reward(delegation) {
                 Ok(delegation_reward) => {
                     let reward = NyxAccountDelegationRewardDetails {
                         node_id: delegation.node_id,
                         rewards: decimal_to_coin(delegation_reward, base_denom),
                         amount_staked: delegation.amount.clone(),
-                        node_still_fully_bonded: !nym_node_details.is_unbonding(),
+                        node_still_fully_bonded: !is_unbonding,
                     };
                     // 4. sum the rewards and delegations
                     total_delegations += delegation.amount.amount.u128();
@@ -139,6 +143,7 @@ async fn address(
             }
         }
     }
+    drop(nym_nodes);
 
     // 5. get vesting account details (if any): none because everyone has already fully vested
     let vesting_account: Option<NymVestingAccount> = None;

@@ -5,11 +5,11 @@ use nym_crypto::asymmetric::x25519;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(from = "u8", into = "u8")]
 pub enum NoiseVersion {
     V1 = 1,
-    Unknown,
+    Unknown, //Implies a newer version we don't know
 }
 
 impl From<u8> for NoiseVersion {

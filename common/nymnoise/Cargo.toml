@@ -13,10 +13,10 @@ tracing = { workspace = true }
 pin-project = { workspace = true }
 sha2 = { workspace = true }
 snow = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util", "time"] }
 tokio-util = { workspace = true, features = ["codec"] }
-zeroize = { workspace = true }
 
 # internal
 nym-crypto = { path = "../crypto" }

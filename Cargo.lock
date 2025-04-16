@@ -6374,11 +6374,11 @@ dependencies = [
  "pin-project",
  "sha2 0.10.8",
  "snow",
+ "strum 0.26.3",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "tracing",
- "zeroize",
 ]
 
 [[package]]

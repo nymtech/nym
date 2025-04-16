@@ -9,7 +9,6 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
-import "react-tooltip/dist/react-tooltip.css";
 import { fetchWorldMapCountries } from "@/app/api";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -36,10 +35,9 @@ export const WorldMap = (): JSX.Element => {
   } = useQuery({
     queryKey: ["nymNodesCountries"],
     queryFn: fetchWorldMapCountries,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: false,
   });
 
   const [tooltipContent, setTooltipContent] = React.useState<string>("");

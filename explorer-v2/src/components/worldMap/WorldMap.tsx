@@ -35,7 +35,7 @@ export const WorldMap = (): JSX.Element => {
   } = useQuery({
     queryKey: ["nymNodesCountries"],
     queryFn: fetchWorldMapCountries,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1 hour
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -87,15 +87,15 @@ export const WorldMap = (): JSX.Element => {
 
   if (isLoadingCountries) {
     return (
-      <Stack gap={1} width="100%">
-        <Skeleton variant="text" height={238} />
-      </Stack>
+      <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
+        <Skeleton variant="text" height={500} />
+      </ExplorerCard>
     );
   }
 
   if (isCountriesError) {
     return (
-      <Stack gap={1}>
+      <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
         <Typography
           variant="h5"
           sx={{
@@ -105,12 +105,11 @@ export const WorldMap = (): JSX.Element => {
         >
           Failed to load data
         </Typography>
-        <Skeleton variant="text" height={238} />
-      </Stack>
+        <Skeleton variant="text" height={500} />
+      </ExplorerCard>
     );
   }
 
-  console.log("countries", countries);
 
   return (
     <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>

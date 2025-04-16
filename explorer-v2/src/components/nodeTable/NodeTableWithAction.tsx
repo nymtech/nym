@@ -29,37 +29,6 @@ function getNodeSaturationPoint(
 }
 
 // Map nodes with rewards data
-const mappedNymNodes = (
-  nodes: IObservatoryNode[],
-  epochRewardsData: ExplorerData["currentEpochRewardsData"]
-) =>
-  nodes.map((node) => {
-    const nodeSaturationPoint = getNodeSaturationPoint(
-      node.total_stake,
-      epochRewardsData.interval.stake_saturation_point
-    );
-
-    const cleanMoniker = DOMPurify.sanitize(
-      node.self_description.moniker
-    ).replace(/&amp;/g, "&");
-
-    return {
-      name: cleanMoniker,
-      nodeId: node.node_id,
-      identity_key: node.identity_key,
-      countryCode: node.description.auxiliary_details.location || null,
-      countryName:
-        countryName(node.description.auxiliary_details.location) || null,
-      profitMarginPercentage:
-        +node.rewarding_details.cost_params.profit_margin_percent * 100,
-      owner: node.bonding_address,
-      stakeSaturation: nodeSaturationPoint,
-      qualityOfService: +node.uptime * 100,
-    };
-  });
-
-export type MappedNymNodes = ReturnType<typeof mappedNymNodes>;
-export type MappedNymNode = MappedNymNodes[0];
 
 const mappedNSApiNodes = (
   nodes: NS_NODE[],
@@ -90,6 +59,9 @@ const mappedNSApiNodes = (
       qualityOfService: +node.uptime * 100,
     };
   });
+
+  export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
+  export type MappedNymNode = MappedNymNodes[0];
 
 const NodeTableWithAction = () => {
   // Use React Query to fetch epoch rewards

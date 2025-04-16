@@ -1,7 +1,7 @@
 "use client";
 
-import { fetchObservatoryNodes } from "@/app/api";
-import type { IObservatoryNode } from "@/app/api/types";
+import { fetchNSApiNodes } from "@/app/api";
+import type { NS_NODE } from "@/app/api/types";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -12,15 +12,15 @@ type Props = {
 };
 
 const NodeDelegationsCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined;
+  let nodeInfo: NS_NODE | undefined;
 
   const {
-    data: nymNodes,
-    isError,
-    isLoading,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -28,16 +28,20 @@ const NodeDelegationsCard = ({ paramId }: Props) => {
   });
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.identity_key === paramId
+    );
   } else {
-    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.node_id === Number(paramId)
+    );
   }
 
   if (!nodeInfo) return null;
 
   const id = nodeInfo.node_id;
 
-  if (isLoading) {
+  if (isNSApiNodesLoading) {
     return (
       <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
@@ -48,7 +52,7 @@ const NodeDelegationsCard = ({ paramId }: Props) => {
     );
   }
 
-  if (isError) {
+  if (isNSApiNodesError) {
     return (
       <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>

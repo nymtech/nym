@@ -1,7 +1,7 @@
 "use client";
 
-import { fetchObservatoryNodes } from "@/app/api";
-import type { IObservatoryNode } from "@/app/api/types";
+import { fetchNSApiNodes } from "@/app/api";
+import type { NS_NODE } from "@/app/api/types";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { useQuery } from "@tanstack/react-query";
 
@@ -10,26 +10,31 @@ type Props = {
 };
 
 export default function NodePageButtonGroup({ paramId }: Props) {
-  let nodeInfo: IObservatoryNode | undefined;
+  let nodeInfo: NS_NODE | undefined;
 
-  const { data: nymNodes, isError } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+  const { data: nsApiNodes = [], isError: isNSApiNodesError } = useQuery({
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
 
-  if (!nymNodes || isError) return null;
+  if (!nsApiNodes || isNSApiNodesError) return null;
 
   // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.identity_key === paramId
+    );
   } else {
-    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.node_id === Number(paramId)
+    );
   }
+
 
   if (!nodeInfo) return null;
 

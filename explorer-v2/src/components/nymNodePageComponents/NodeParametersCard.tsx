@@ -3,8 +3,8 @@
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
-import type { IObservatoryNode, RewardingDetails } from "../../app/api/types";
+import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
+import type { NS_NODE } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export const NodeParametersCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined;
+  let nodeInfo: NS_NODE | undefined;
 
   // Fetch epoch rewards
   const {
@@ -31,19 +31,19 @@ export const NodeParametersCard = ({ paramId }: Props) => {
 
   // Fetch node information
   const {
-    data: nymNodes,
-    isLoading,
-    isError,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
 
-  if (isEpochLoading || isLoading) {
+  if (isEpochLoading || isNSApiNodesLoading) {
     return (
       <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
@@ -54,7 +54,7 @@ export const NodeParametersCard = ({ paramId }: Props) => {
     );
   }
 
-  if (isEpochError || isError || !nymNodes || !epochRewardsData) {
+  if (isEpochError || isNSApiNodesError || !nsApiNodes || !epochRewardsData) {
     return (
       <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -66,9 +66,13 @@ export const NodeParametersCard = ({ paramId }: Props) => {
   // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.identity_key === paramId
+    );
   } else {
-    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.node_id === Number(paramId)
+    );
   }
 
   if (!nodeInfo) return null;
@@ -77,22 +81,25 @@ export const NodeParametersCard = ({ paramId }: Props) => {
   const totalStakeFormatted = `${totalStake} NYM`;
 
   // Extract reward details
-  const rewardDetails: RewardingDetails = nodeInfo.rewarding_details;
 
-  const profitMarginPercent =
-    Number(rewardDetails.cost_params.profit_margin_percent) * 100;
+  const profitMarginPercent = nodeInfo.rewarding_details
+    ? Number(nodeInfo.rewarding_details.cost_params.profit_margin_percent) * 100
+    : 0;
   const profitMarginPercentFormated = `${profitMarginPercent}%`;
 
-  const operatingCosts =
-    Number(rewardDetails.cost_params.interval_operating_cost.amount) /
-    1_000_000;
+  const operatingCosts = nodeInfo.rewarding_details
+    ? Number(
+        nodeInfo.rewarding_details.cost_params.interval_operating_cost.amount
+      ) / 1_000_000
+    : 0;
   const operatingCostsFormated = `${operatingCosts.toString()} NYM`;
 
   const getNodeSaturationPoint = (
-    totalStake: number,
-    stakeSaturationPoint: string,
+    nodeTotalStake: string,
+    stakeSaturationPoint: string
   ): string => {
     const saturation = Number.parseFloat(stakeSaturationPoint);
+    const totalStake = Number.parseFloat(nodeTotalStake);
 
     if (Number.isNaN(saturation) || saturation <= 0) {
       throw new Error("Invalid stake saturation point provided");
@@ -105,7 +112,7 @@ export const NodeParametersCard = ({ paramId }: Props) => {
 
   const nodeSaturationPoint = getNodeSaturationPoint(
     nodeInfo.total_stake,
-    epochRewardsData.interval.stake_saturation_point,
+    epochRewardsData.interval.stake_saturation_point
   );
 
   return (

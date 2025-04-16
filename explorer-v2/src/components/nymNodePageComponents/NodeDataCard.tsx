@@ -1,10 +1,10 @@
 "use client";
 
-import type { IObservatoryNode } from "@/app/api/types";
-import { Skeleton, Typography } from "@mui/material";
+import type { NS_NODE } from "@/app/api/types";
+import { Skeleton, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
+import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export const NodeDataCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined;
+  let nodeInfo: NS_NODE | undefined;
 
   const {
     data: epochRewardsData,
@@ -30,19 +30,22 @@ export const NodeDataCard = ({ paramId }: Props) => {
 
   // Fetch node information
   const {
-    data: nymNodes,
-    isLoading,
-    isError,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
 
-  if (isEpochLoading || isLoading) {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
+  if (isEpochLoading || isNSApiNodesLoading) {
     return (
       <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
@@ -53,10 +56,13 @@ export const NodeDataCard = ({ paramId }: Props) => {
     );
   }
 
-  if (isEpochError || isError || !nymNodes || !epochRewardsData) {
+  if (isEpochError || isNSApiNodesError || !nsApiNodes || !epochRewardsData) {
     return (
       <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
+        <Typography
+          variant="h3"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load node data.
         </Typography>
       </ExplorerCard>
@@ -66,17 +72,23 @@ export const NodeDataCard = ({ paramId }: Props) => {
   // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.identity_key === paramId
+    );
   } else {
-    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.node_id === Number(paramId)
+    );
   }
 
   if (!nodeInfo) return null;
 
-  const softwareUpdateTime = format(
-    new Date(nodeInfo.description.build_information.build_timestamp),
-    "dd/MM/yyyy",
-  );
+  const softwareUpdateTime = nodeInfo.self_description
+    ? format(
+        new Date(nodeInfo.self_description.build_information.build_timestamp),
+        "dd/MM/yyyy"
+      )
+    : "N/A";
 
   return (
     <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
@@ -90,13 +102,21 @@ export const NodeDataCard = ({ paramId }: Props) => {
         row
         divider
         label="Host"
-        value={nodeInfo.description.host_information.ip_address.toString()}
+        value={
+          nodeInfo.self_description
+            ? nodeInfo.self_description.host_information.ip_address.toString()
+            : "N/A"
+        }
       />
       <ExplorerListItem
         row
         divider
         label="Version"
-        value={nodeInfo.description.build_information.build_version}
+        value={
+          nodeInfo.self_description
+            ? nodeInfo.self_description.build_information.build_version
+            : "N/A"
+        }
       />
       <ExplorerListItem
         row

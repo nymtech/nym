@@ -1,6 +1,6 @@
 "use client";
 
-import type { IObservatoryNode } from "@/app/api/types";
+import type { NS_NODE } from "@/app/api/types";
 import { useChain } from "@cosmos-kit/react";
 import {
   Box,
@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
-import { fetchObservatoryNodes } from "../../app/api";
+import { fetchNSApiNodes } from "../../app/api";
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -31,7 +31,7 @@ type Props = {
 };
 
 export const NodeProfileCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined;
+  let nodeInfo: NS_NODE | undefined;
   const theme = useTheme();
 
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
@@ -47,12 +47,12 @@ export const NodeProfileCard = ({ paramId }: Props) => {
 
   // Fetch node info
   const {
-    data: nymNodes,
-    isLoading: isLoadingNymNodes,
-    isError,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -62,9 +62,13 @@ export const NodeProfileCard = ({ paramId }: Props) => {
   // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.identity_key === paramId
+    );
   } else {
-    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.node_id === Number(paramId)
+    );
   }
 
   const handleOnSelectStake = useCallback(() => {
@@ -96,7 +100,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     }
   }, [isWalletConnected, nodeInfo]);
 
-  if (isLoadingNymNodes) {
+  if (isNSApiNodesLoading) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
         <Skeleton variant="rectangular" height={80} width={80} />
@@ -105,7 +109,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
       </ExplorerCard>
     );
   }
-  if (isError || !nymNodes) {
+  if (isNSApiNodesError || !nsApiNodes) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
         <Typography
@@ -137,7 +141,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
         { nodeId },
         fee,
         "Delegation from Nym Explorer V2",
-        uNymFunds,
+        uNymFunds
       );
       setSelectedNodeForStaking(undefined);
       setInfoModalProps({
@@ -164,12 +168,13 @@ export const NodeProfileCard = ({ paramId }: Props) => {
 
   if (!nodeInfo) return null;
 
-  const cleanMoniker = DOMPurify.sanitize(
-    nodeInfo?.self_description.moniker,
-  ).replace(/&amp;/g, "&");
+  const cleanMoniker = DOMPurify.sanitize(nodeInfo.description.moniker).replace(
+    /&amp;/g,
+    "&"
+  );
 
   const cleanDescription = DOMPurify.sanitize(
-    nodeInfo?.self_description.details,
+    nodeInfo.description.details
   ).replace(/&amp;/g, "&");
 
   // get full country name
@@ -197,7 +202,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
         >
           {cleanMoniker || "Moniker"}
         </Typography>
-        {nodeInfo.description.auxiliary_details.location && (
+        {nodeInfo.geoip.country && (
           <Box display={"flex"} gap={1}>
             <Typography
               variant="h6"
@@ -210,10 +215,8 @@ export const NodeProfileCard = ({ paramId }: Props) => {
 
             <Box>
               <CountryFlag
-                countryCode={nodeInfo.description.auxiliary_details.location}
-                countryName={countryName(
-                  nodeInfo.description.auxiliary_details.location,
-                )}
+                countryCode={nodeInfo.geoip.country}
+                countryName={countryName(nodeInfo.geoip.country)}
               />
             </Box>
           </Box>

@@ -1,16 +1,16 @@
 "use client";
 
-import { Chip, Skeleton, Stack, Typography } from "@mui/material";
+import { Chip, Skeleton, Stack, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchEpochRewards,
   fetchGatewayStatus,
-  fetchObservatoryNodes,
+  fetchNSApiNodes,
 } from "../../app/api";
 import type {
-  IObservatoryNode,
   LastProbeResult,
   NodeDescription,
+  NS_NODE,
 } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
@@ -32,7 +32,7 @@ const roleMapping: Record<DeclaredRoleKey, RoleString> = {
 };
 
 const getNodeRoles = (
-  declaredRoles: NodeDescriptionNotNull["declared_role"],
+  declaredRoles: NodeDescriptionNotNull["declared_role"]
 ): RoleString[] => {
   return Object.entries(declaredRoles)
     .filter(([, isActive]) => isActive)
@@ -81,7 +81,7 @@ function calculateConfigScoreStars(probeResult: LastProbeResult): number {
 
   if (as_entry) {
     const entryScore = [as_entry.can_connect, as_entry.can_route].filter(
-      Boolean,
+      Boolean
     ).length;
 
     return entryScore === 2 ? 4 : entryScore === 1 ? 2 : 1;
@@ -148,21 +148,23 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
 }
 
 export const NodeRoleCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined;
-
+  let nodeInfo: NS_NODE | undefined;
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   // Fetch node info
   const {
-    data: nymNodes,
-    isLoading,
-    isError,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
+
   const {
     data: epochRewardsData,
     isLoading: isEpochLoading,
@@ -177,19 +179,19 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   });
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find((node) => node.identity_key === paramId);
   } else {
-    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find((node) => node.node_id === Number(paramId));
   } // Extract node roles once `nodeInfo` is available
-  const nodeRoles = nodeInfo
-    ? getNodeRoles(nodeInfo.description.declared_role)
+
+  const nodeRoles = nodeInfo?.self_description
+    ? getNodeRoles(nodeInfo.self_description.declared_role)
     : [];
 
   // Define whether to fetch gateway status
   const shouldFetchGatewayStatus = nodeRoles.some((role) =>
-    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
+    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role)
   );
-
   // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
     queryKey: ["gatewayStatus", nodeInfo?.identity_key],
@@ -200,7 +202,7 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     refetchOnReconnect: false,
   });
 
-  if (isLoading || isEpochLoading) {
+  if (isNSApiNodesLoading || isEpochLoading) {
     return (
       <ExplorerCard label="Node role & performance">
         <Skeleton variant="text" height={70} />
@@ -210,23 +212,25 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     );
   }
 
-  if (isError || !nymNodes || !epochRewardsData || isEpochError) {
+  if (isNSApiNodesError || !nsApiNodes || !epochRewardsData || isEpochError) {
     return (
       <ExplorerCard label="Node role & performance">
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
+        <Typography
+          variant="h3"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load node data.
         </Typography>
       </ExplorerCard>
     );
   }
+  if (!nodeInfo) return null;
 
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />
     </Stack>
   ));
-
-  if (!nodeInfo) return null;
 
   const qualityOfServiceStars = nodeInfo?.uptime
     ? calculateQualityOfServiceStars(nodeInfo.uptime)
@@ -247,9 +251,10 @@ export const NodeRoleCard = ({ paramId }: Props) => {
 
   // Function to calculate active set probability
   const getActiveSetProbability = (
-    totalStake: number,
-    stakeSaturationPoint: string,
+    nodeTotalStake: string,
+    stakeSaturationPoint: string
   ): string => {
+    const totalStake = Number.parseFloat(nodeTotalStake);
     const saturation = Number.parseFloat(stakeSaturationPoint);
 
     if (Number.isNaN(saturation) || saturation <= 0) {
@@ -268,7 +273,7 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   };
   const activeSetProb = getActiveSetProbability(
     nodeInfo.total_stake,
-    epochRewardsData.interval.stake_saturation_point,
+    epochRewardsData.interval.stake_saturation_point
   );
 
   return (

@@ -3,15 +3,23 @@
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
-import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
-import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
+import {
+  fetchEpochRewards,
+  fetchNSApiNodes,
+  fetchObservatoryNodes,
+} from "../../app/api";
+import type {
+  ExplorerData,
+  IObservatoryNode,
+  NS_NODE,
+} from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
   totalStake: number,
-  stakeSaturationPoint: string,
+  stakeSaturationPoint: string
 ): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
 
@@ -27,16 +35,16 @@ function getNodeSaturationPoint(
 // Map nodes with rewards data
 const mappedNymNodes = (
   nodes: IObservatoryNode[],
-  epochRewardsData: ExplorerData["currentEpochRewardsData"],
+  epochRewardsData: ExplorerData["currentEpochRewardsData"]
 ) =>
   nodes.map((node) => {
     const nodeSaturationPoint = getNodeSaturationPoint(
       node.total_stake,
-      epochRewardsData.interval.stake_saturation_point,
+      epochRewardsData.interval.stake_saturation_point
     );
 
     const cleanMoniker = DOMPurify.sanitize(
-      node.self_description.moniker,
+      node.self_description.moniker
     ).replace(/&amp;/g, "&");
 
     return {
@@ -56,6 +64,36 @@ const mappedNymNodes = (
 
 export type MappedNymNodes = ReturnType<typeof mappedNymNodes>;
 export type MappedNymNode = MappedNymNodes[0];
+
+const mappedNSApiNodes = (
+  nodes: NS_NODE[],
+  epochRewardsData: ExplorerData["currentEpochRewardsData"]
+) =>
+  nodes.map((node) => {
+    const nodeSaturationPoint = getNodeSaturationPoint(
+      +node.total_stake,
+      epochRewardsData.interval.stake_saturation_point
+    );
+
+    const cleanMoniker = DOMPurify.sanitize(node.description.moniker).replace(
+      /&amp;/g,
+      "&"
+    );
+
+    return {
+      name: cleanMoniker,
+      nodeId: node.node_id,
+      identity_key: node.identity_key,
+      countryCode: node.geoip.country || null,
+      countryName: countryName(node.geoip.country) || null,
+      profitMarginPercentage: node.rewarding_details
+        ? +node.rewarding_details.cost_params.profit_margin_percent * 100
+        : 0,
+      owner: node.bonding_address,
+      stakeSaturation: nodeSaturationPoint,
+      qualityOfService: +node.uptime * 100,
+    };
+  });
 
 const NodeTableWithAction = () => {
   // Use React Query to fetch epoch rewards
@@ -86,8 +124,21 @@ const NodeTableWithAction = () => {
     refetchOnMount: false,
   });
 
+  const {
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
+  } = useQuery({
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  });
+
   // Handle loading state
-  if (isEpochLoading || isNodesLoading) {
+  if (isEpochLoading || isNodesLoading || isNSApiNodesLoading) {
     return (
       <Card sx={{ height: "100%", mt: 5 }}>
         <CardContent>
@@ -101,7 +152,7 @@ const NodeTableWithAction = () => {
   }
 
   // Handle error state
-  if (isEpochError || isNodesError) {
+  if (isEpochError || isNodesError || isNSApiNodesError) {
     return (
       <Stack direction="row" spacing={1}>
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
@@ -119,7 +170,8 @@ const NodeTableWithAction = () => {
 
   const data = mappedNymNodes(nymNodes || [], epochRewardsData);
 
-  return <NodeTable nodes={data} />;
+  const nsApiNodesData = mappedNSApiNodes(nsApiNodes || [], epochRewardsData);
+  return <NodeTable nodes={nsApiNodesData} />;
 };
 
 export default NodeTableWithAction;

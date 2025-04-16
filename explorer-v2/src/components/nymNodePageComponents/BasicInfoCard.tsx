@@ -1,9 +1,9 @@
 "use client";
 
-import type { IObservatoryNode } from "@/app/api/types";
-import { Skeleton, Stack, Typography } from "@mui/material";
+import type { NS_NODE } from "@/app/api/types";
+import { Skeleton, Stack, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { fetchObservatoryNodes } from "../../app/api";
+import { fetchNSApiNodes } from "../../app/api";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
@@ -14,22 +14,25 @@ type Props = {
 };
 
 export const BasicInfoCard = ({ paramId }: Props) => {
-  let nodeInfo: IObservatoryNode | undefined;
+  let nodeInfo: NS_NODE | undefined;
 
   const {
-    data: nymNodes,
-    isLoading,
-    isError,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
 
-  if (isLoading) {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
+  if (isNSApiNodesLoading) {
     return (
       <ExplorerCard label="Basic info">
         <Skeleton variant="text" height={90} />
@@ -42,10 +45,13 @@ export const BasicInfoCard = ({ paramId }: Props) => {
     );
   }
 
-  if (isError || !nymNodes) {
+  if (!nsApiNodes || isNSApiNodesError) {
     return (
       <ExplorerCard label="Basic info">
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
+        <Typography
+          variant="h3"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load node data.
         </Typography>
       </ExplorerCard>
@@ -55,16 +61,20 @@ export const BasicInfoCard = ({ paramId }: Props) => {
   // get node info based on wether it's dentity_key or node_id
 
   if (paramId.length > 10) {
-    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.identity_key === paramId
+    );
   } else {
-    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+    nodeInfo = nsApiNodes.find(
+      (node: NS_NODE) => node.node_id === Number(paramId)
+    );
   }
 
   if (!nodeInfo) return null;
 
-  const selfBond = formatBigNum(
-    Number(nodeInfo.rewarding_details.operator) / 1_000_000,
-  );
+  const selfBond = nodeInfo.rewarding_details
+    ? formatBigNum(Number(nodeInfo.rewarding_details.operator) / 1_000_000)
+    : 0;
   const selfBondFormatted = `${selfBond} NYM`;
 
   return (
@@ -85,9 +95,13 @@ export const BasicInfoCard = ({ paramId }: Props) => {
                 variant="body4"
                 sx={{ wordWrap: "break-word", maxWidth: "90%" }}
               >
-                {nodeInfo.bonding_address}
+                {nodeInfo.bonding_address
+                  ? nodeInfo.bonding_address
+                  : "Node not bonded"}
               </Typography>
-              <CopyToClipboard text={nodeInfo.bonding_address} />
+              {nodeInfo.bonding_address && (
+                <CopyToClipboard text={nodeInfo.bonding_address} />
+              )}
             </Stack>
           }
         />
@@ -113,12 +127,14 @@ export const BasicInfoCard = ({ paramId }: Props) => {
           }
         />
 
-        <ExplorerListItem
-          row
-          divider
-          label="Nr. of stakers"
-          value={nodeInfo.rewarding_details.unique_delegations.toString()}
-        />
+        {nodeInfo.rewarding_details && (
+          <ExplorerListItem
+            row
+            divider
+            label="Nr. of stakers"
+            value={nodeInfo.rewarding_details.unique_delegations.toString()}
+          />
+        )}
         <ExplorerListItem row label="Self bonded" value={selfBondFormatted} />
       </Stack>
     </ExplorerCard>

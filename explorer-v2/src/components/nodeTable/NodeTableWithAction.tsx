@@ -4,11 +4,7 @@ import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
-import type {
-  ExplorerData,
-  IObservatoryNode,
-  NS_NODE,
-} from "../../app/api/types";
+import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 

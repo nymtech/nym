@@ -110,6 +110,8 @@ export const WorldMap = (): JSX.Element => {
     );
   }
 
+  console.log("countries", countries);
+
   return (
     <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
       <div

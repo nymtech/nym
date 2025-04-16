@@ -257,13 +257,13 @@ export const fetchNSApiNodes = async (): Promise<NS_NODE[]> => {
 
   while (hasMoreData) {
     const response = await fetch(
-      `${NS_API_NODES}?page=${page}&limit=${PAGE_SIZE}`,
+      `${NS_API_NODES}?page=${page}&size=${PAGE_SIZE}`,
       {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json; charset=utf-8",
         },
-      },
+      }
     );
 
     if (!response.ok) {

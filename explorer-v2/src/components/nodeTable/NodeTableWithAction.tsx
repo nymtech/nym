@@ -3,11 +3,7 @@
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
-import {
-  fetchEpochRewards,
-  fetchNSApiNodes,
-  fetchObservatoryNodes,
-} from "../../app/api";
+import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type {
   ExplorerData,
   IObservatoryNode,
@@ -111,18 +107,6 @@ const NodeTableWithAction = () => {
   });
 
   // Use React Query to fetch Nym nodes
-  const {
-    data: nymNodes = [],
-    isLoading: isNodesLoading,
-    isError: isNodesError,
-  } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false, // Prevents unnecessary refetching
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-  });
 
   const {
     data: nsApiNodes = [],
@@ -138,7 +122,7 @@ const NodeTableWithAction = () => {
   });
 
   // Handle loading state
-  if (isEpochLoading || isNodesLoading || isNSApiNodesLoading) {
+  if (isEpochLoading || isNSApiNodesLoading) {
     return (
       <Card sx={{ height: "100%", mt: 5 }}>
         <CardContent>
@@ -152,7 +136,7 @@ const NodeTableWithAction = () => {
   }
 
   // Handle error state
-  if (isEpochError || isNodesError || isNSApiNodesError) {
+  if (isEpochError || isNSApiNodesError) {
     return (
       <Stack direction="row" spacing={1}>
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
@@ -167,8 +151,6 @@ const NodeTableWithAction = () => {
   if (!epochRewardsData) {
     return null;
   }
-
-  const data = mappedNymNodes(nymNodes || [], epochRewardsData);
 
   const nsApiNodesData = mappedNSApiNodes(nsApiNodes || [], epochRewardsData);
   return <NodeTable nodes={nsApiNodesData} />;

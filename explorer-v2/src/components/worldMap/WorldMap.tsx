@@ -13,7 +13,7 @@ import { fetchWorldMapCountries } from "@/app/api";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import { IconButton, Skeleton, Stack, Typography } from "@mui/material";
+import { IconButton, Skeleton, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";

@@ -4,7 +4,7 @@ import {
   type EpochResponseData,
   useEpochContext,
 } from "@/providers/EpochProvider";
-import { Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography, useTheme } from "@mui/material";
 import { differenceInMinutes, format } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -34,10 +34,13 @@ export const CurrentEpochCard = () => {
   const [endTime, setEndTime] = useState("");
   const [progress, setProgress] = useState(0);
 
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
+
   const updateState = useCallback((data: NonNullable<EpochResponseData>) => {
     const { startTime, endTime } = getStartEndTime(
       data.current_epoch_start,
-      data.current_epoch_end,
+      data.current_epoch_end
     );
     const progress = calulateProgress(data.current_epoch_end);
 
@@ -65,21 +68,14 @@ export const CurrentEpochCard = () => {
     );
   }
 
-  if (isError) {
+  if (isError || !data) {
     return (
       <ExplorerCard label="Current mixnet epoch">
-        <Typography variant="body3" fontWeight="light">
+        <Typography
+          variant="h5"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load data
-        </Typography>
-      </ExplorerCard>
-    );
-  }
-
-  if (!data) {
-    return (
-      <ExplorerCard label="Current mixnet epoch">
-        <Typography variant="body3" fontWeight="light">
-          No data available
         </Typography>
       </ExplorerCard>
     );
@@ -88,7 +84,12 @@ export const CurrentEpochCard = () => {
   if (epochStatus === "pending") {
     return (
       <ExplorerCard label="Current mixnet epoch">
-        <Typography variant="body3" fontWeight="light" height={80}>
+        <Typography
+          variant="body3"
+          fontWeight="light"
+          height={80}
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Waiting for next epoch to start...
         </Typography>
       </ExplorerCard>

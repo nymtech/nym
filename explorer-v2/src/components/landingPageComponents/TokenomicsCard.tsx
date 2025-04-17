@@ -1,7 +1,7 @@
 "use client";
 import { fetchEpochRewards, fetchNoise, fetchNymPrice } from "@/app/api";
 import { formatBigNum } from "@/utils/formatBigNumbers";
-import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { ExplorerData, NymTokenomics } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -9,6 +9,8 @@ import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
 
 export const TokenomicsCard = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   const {
     data: nymPrice,
     isLoading,
@@ -69,7 +71,10 @@ export const TokenomicsCard = () => {
   ) {
     return (
       <ExplorerCard label="Tokenomics overview">
-        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+        <Typography
+          variant="h5"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load tokenomics overview.
         </Typography>
         <Skeleton variant="text" height={80} />
@@ -98,7 +103,7 @@ export const TokenomicsCard = () => {
   function calculateTVL(
     epochRewards: ExplorerData["currentEpochRewardsData"],
     nymPriceData: NymTokenomics,
-    packetsAndStaking: ExplorerData["packetsAndStakingData"],
+    packetsAndStaking: ExplorerData["packetsAndStakingData"]
   ): number {
     const lastTotalStake =
       packetsAndStaking[packetsAndStaking.length - 1]?.total_stake || 0;
@@ -109,7 +114,7 @@ export const TokenomicsCard = () => {
     );
   }
   const TVL = formatBigNum(
-    calculateTVL(epochRewardsData, nymPrice, packetsAndStakingData),
+    calculateTVL(epochRewardsData, nymPrice, packetsAndStakingData)
   );
 
   const dataRows = [

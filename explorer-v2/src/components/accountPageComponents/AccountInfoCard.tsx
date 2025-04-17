@@ -1,6 +1,6 @@
 "use client";
 import { fetchAccountBalance } from "@/app/api";
-import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
@@ -13,6 +13,8 @@ interface IAccountInfoCardProps {
 
 export const AccountInfoCard = (props: IAccountInfoCardProps) => {
   const { address } = props;
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["accountBalance", address],
@@ -38,7 +40,10 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
   if (isError || !data) {
     return (
       <ExplorerCard label="Total NYM">
-        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+        <Typography
+          variant="h5"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to account data.
         </Typography>
         <Skeleton variant="text" height={238} />

@@ -60,7 +60,7 @@ export const NodeParametersCard = ({ paramId }: Props) => {
     return (
       <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
         <Typography
-          variant="h3"
+          variant="h5"
           sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
         >
           Failed to load node data.

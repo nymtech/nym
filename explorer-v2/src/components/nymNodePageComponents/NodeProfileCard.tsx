@@ -113,7 +113,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
         <Typography
-          variant="h3"
+          variant="h5"
           sx={{
             color: theme.palette.mode === "dark" ? "base.white" : "pine.950",
           }}

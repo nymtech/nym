@@ -34,7 +34,7 @@ export const StakersNumberCard = () => {
     return (
       <ExplorerCard label="Number of delegations">
         <Typography
-          variant="h3"
+          variant="h5"
           sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
         >
           Failed to load node data.

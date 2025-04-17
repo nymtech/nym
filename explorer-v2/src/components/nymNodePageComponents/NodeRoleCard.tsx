@@ -216,7 +216,7 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     return (
       <ExplorerCard label="Node role & performance">
         <Typography
-          variant="h3"
+          variant="h5"
           sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
         >
           Failed to load node data.

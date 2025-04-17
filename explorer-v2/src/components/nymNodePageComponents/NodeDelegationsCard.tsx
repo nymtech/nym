@@ -2,7 +2,7 @@
 
 import { fetchNSApiNodes } from "@/app/api";
 import type { NS_NODE } from "@/app/api/types";
-import { Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import DelegationsTable from "./DelegationsTable";
@@ -12,6 +12,8 @@ type Props = {
 };
 
 const NodeDelegationsCard = ({ paramId }: Props) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   let nodeInfo: NS_NODE | undefined;
 
   const {
@@ -55,7 +57,10 @@ const NodeDelegationsCard = ({ paramId }: Props) => {
   if (isNSApiNodesError) {
     return (
       <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
+        <Typography
+          variant="h3"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load delegations. Please try again later.
         </Typography>
       </ExplorerCard>

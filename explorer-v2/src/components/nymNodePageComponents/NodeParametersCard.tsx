@@ -1,7 +1,7 @@
 "use client";
 
 import { formatBigNum } from "@/utils/formatBigNumbers";
-import { Skeleton, Typography } from "@mui/material";
+import { Skeleton, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type { NS_NODE } from "../../app/api/types";
@@ -13,6 +13,8 @@ type Props = {
 };
 
 export const NodeParametersCard = ({ paramId }: Props) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
   let nodeInfo: NS_NODE | undefined;
 
   // Fetch epoch rewards
@@ -57,7 +59,10 @@ export const NodeParametersCard = ({ paramId }: Props) => {
   if (isEpochError || isNSApiNodesError || !nsApiNodes || !epochRewardsData) {
     return (
       <ExplorerCard label="Node parameters" sx={{ height: "100%" }}>
-        <Typography variant="h3" sx={{ color: "pine.950" }}>
+        <Typography
+          variant="h3"
+          sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
+        >
           Failed to load node data.
         </Typography>
       </ExplorerCard>

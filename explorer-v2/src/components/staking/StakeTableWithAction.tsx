@@ -3,15 +3,15 @@
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
-import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
-import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
+import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
+import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import StakeTable from "./StakeTable";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
   totalStake: number,
-  stakeSaturationPoint: string,
+  stakeSaturationPoint: string
 ): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
 
@@ -24,35 +24,36 @@ function getNodeSaturationPoint(
 }
 
 // Map nodes with rewards data
-const mappedNymNodes = (
-  nodes: IObservatoryNode[],
-  epochRewardsData: ExplorerData["currentEpochRewardsData"],
+const mappedNSApiNodes = (
+  nodes: NS_NODE[],
+  epochRewardsData: ExplorerData["currentEpochRewardsData"]
 ) =>
   nodes.map((node) => {
     const nodeSaturationPoint = getNodeSaturationPoint(
-      node.total_stake,
-      epochRewardsData.interval.stake_saturation_point,
+      +node.total_stake,
+      epochRewardsData.interval.stake_saturation_point
     );
 
-    const cleanMoniker = DOMPurify.sanitize(
-      node.self_description.moniker,
-    ).replace(/&amp;/g, "&");
+    const cleanMoniker = DOMPurify.sanitize(node.description.moniker).replace(
+      /&amp;/g,
+      "&"
+    );
 
     return {
       name: cleanMoniker,
       nodeId: node.node_id,
       identity_key: node.identity_key,
-      countryCode: node.description.auxiliary_details.location || null,
-      countryName:
-        countryName(node.description.auxiliary_details.location) || null,
-      profitMarginPercentage:
-        +node.rewarding_details.cost_params.profit_margin_percent * 100,
+      countryCode: node.geoip.country || null,
+      countryName: countryName(node.geoip.country) || null,
+      profitMarginPercentage: node.rewarding_details
+        ? +node.rewarding_details.cost_params.profit_margin_percent * 100
+        : 0,
       owner: node.bonding_address,
       stakeSaturation: +nodeSaturationPoint || 0,
     };
   });
 
-export type MappedNymNodes = ReturnType<typeof mappedNymNodes>;
+export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
 export type MappedNymNode = MappedNymNodes[0];
 
 const StakeTableWithAction = () => {
@@ -72,12 +73,12 @@ const StakeTableWithAction = () => {
 
   // Use React Query to fetch Nym nodes
   const {
-    data: nymNodes = [],
-    isLoading: isNodesLoading,
-    isError: isNodesError,
+    data: nsApiNodes = [],
+    isLoading: isNSApiNodesLoading,
+    isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -85,7 +86,7 @@ const StakeTableWithAction = () => {
   });
 
   // Handle loading state
-  if (isEpochLoading || isNodesLoading) {
+  if (isEpochLoading || isNSApiNodesLoading) {
     return (
       <Card sx={{ height: "100%", mt: 5 }}>
         <CardContent>
@@ -99,7 +100,7 @@ const StakeTableWithAction = () => {
   }
 
   // Handle error state
-  if (isEpochError || isNodesError) {
+  if (isEpochError || isNSApiNodesError) {
     return (
       <Stack direction="row" spacing={1}>
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
@@ -115,9 +116,9 @@ const StakeTableWithAction = () => {
     return null;
   }
 
-  const data = mappedNymNodes(nymNodes || [], epochRewardsData);
+  const nsApiNodesData = mappedNSApiNodes(nsApiNodes || [], epochRewardsData);
 
-  return <StakeTable nodes={data} />;
+  return <StakeTable nodes={nsApiNodesData} />;
 };
 
 export default StakeTableWithAction;

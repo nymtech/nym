@@ -27,6 +27,7 @@ humantime-serde = { workspace = true }
 k256 = { workspace = true, features = [
     "ecdsa-core",
 ] } # needed for the Verifier trait; pull whatever version is used by other dependencies
+moka = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }

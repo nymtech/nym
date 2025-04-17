@@ -1,5 +1,5 @@
 "use client";
-import type { IObservatoryNode } from "@/app/api/types";
+import type { NS_NODE } from "@/app/api/types";
 import { NYM_ACCOUNT_ADDRESS } from "@/app/api/urls";
 import { Search } from "@mui/icons-material";
 import {
@@ -13,21 +13,22 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { fetchObservatoryNodes } from "../../app/api";
+import { fetchNSApiNodes } from "../../app/api";
 
 const NodeAndAddressSearch = () => {
   const router = useRouter();
   const [inputValue, setInputValue] = useState("");
   const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [searchOptions, setSearchOptions] = useState<IObservatoryNode[]>([]);
+  const [searchOptions, setSearchOptions] = useState<NS_NODE[]>([]);
 
   // Use React Query to fetch nodes
-  const { data: nymNodes = [], isLoading: isLoadingNodes } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+
+  const { data: nsApiNodes = [], isLoading: isNSApiNodesLoading } = useQuery({
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
@@ -50,7 +51,7 @@ const NodeAndAddressSearch = () => {
             }
           } catch {
             setErrorText(
-              "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
+              "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
             );
             setIsLoading(false); // Stop loading
 
@@ -58,7 +59,7 @@ const NodeAndAddressSearch = () => {
           }
         } else {
           setErrorText(
-            "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
+            "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
           );
           setIsLoading(false); // Stop loading
 
@@ -66,9 +67,9 @@ const NodeAndAddressSearch = () => {
         }
       } else {
         // Check if it's a node identity key
-        if (nymNodes) {
-          const matchingNode = nymNodes.find(
-            (node) => node.identity_key === inputValue,
+        if (nsApiNodes) {
+          const matchingNode = nsApiNodes.find(
+            (node: NS_NODE) => node.identity_key === inputValue
           );
 
           if (matchingNode) {
@@ -77,13 +78,13 @@ const NodeAndAddressSearch = () => {
           }
         }
         setErrorText(
-          "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
+          "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
         );
         setIsLoading(false);
       }
     } catch (error) {
       setErrorText(
-        "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
+        "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
       );
       console.error(error);
       setIsLoading(false); // Stop loading
@@ -92,7 +93,7 @@ const NodeAndAddressSearch = () => {
 
   // Handle search input change
   const handleSearchInputChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = event.target.value;
     setInputValue(value);
@@ -104,10 +105,8 @@ const NodeAndAddressSearch = () => {
 
     // Filter nodes by moniker if input is not empty
     if (value.trim() !== "") {
-      const filteredNodes = nymNodes.filter((node) =>
-        node.self_description?.moniker
-          ?.toLowerCase()
-          .includes(value.toLowerCase()),
+      const filteredNodes = nsApiNodes.filter((node: NS_NODE) =>
+        node.description.moniker?.toLowerCase().includes(value.toLowerCase())
       );
       setSearchOptions(filteredNodes);
     } else {
@@ -118,7 +117,7 @@ const NodeAndAddressSearch = () => {
   // Handle node selection from dropdown
   const handleNodeSelect = (
     event: React.SyntheticEvent,
-    value: string | IObservatoryNode | null,
+    value: string | NS_NODE | null
   ) => {
     if (value && typeof value !== "string") {
       setIsLoading(true); // Show loading spinner
@@ -132,9 +131,9 @@ const NodeAndAddressSearch = () => {
         <Autocomplete
           freeSolo
           options={searchOptions}
-          getOptionLabel={(option: string | IObservatoryNode) => {
+          getOptionLabel={(option: string | NS_NODE) => {
             if (typeof option === "string") return option;
-            return option.self_description?.moniker || "";
+            return option.description.moniker || "";
           }}
           isOptionEqualToValue={(option, value) => {
             if (typeof option === "string" || typeof value === "string")
@@ -146,10 +145,10 @@ const NodeAndAddressSearch = () => {
             return (
               <li
                 {...props}
-                key={`${option.node_id}-${option.self_description?.moniker || ""}`}
+                key={`${option.node_id}-${option.description.moniker || ""}`}
                 style={{ fontSize: "0.875rem" }}
               >
-                {option.self_description?.moniker || "Unnamed Node"}
+                {option.description.moniker || "Unnamed Node"}
               </li>
             );
           }}
@@ -182,7 +181,7 @@ const NodeAndAddressSearch = () => {
             />
           )}
           onChange={handleNodeSelect}
-          loading={isLoadingNodes}
+          loading={isNSApiNodesLoading}
           loadingText="Loading nodes..."
           noOptionsText="No nodes found"
           slotProps={{

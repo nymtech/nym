@@ -29,14 +29,15 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, CurrentIntervalResponse, EpochRewardedSet, EpochStatus, ExecuteMsg,
-    GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails, RewardedSet,
-    RoleAssignment,
+    ConfigScoreParams, CurrentIntervalResponse, Delegation, EpochRewardedSet, EpochStatus,
+    ExecuteMsg, GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails,
+    RewardedSet, RoleAssignment,
 };
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
         DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MixnetQueryClient,
@@ -48,7 +49,7 @@ use nym_validator_client::nyxd::{
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    AccountId, Coin, TendermintTime,
+    AccountId, TendermintTime,
 };
 use nym_validator_client::{
     nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient, QueryHttpRpcNyxdClient,
@@ -402,6 +403,21 @@ impl Client {
     pub(crate) async fn reconcile_epoch_events(&self, limit: Option<u32>) -> Result<(), NyxdError> {
         nyxd_signing!(self, reconcile_epoch_events(limit, None).await?);
         Ok(())
+    }
+
+    pub(crate) async fn get_all_delegator_delegations(
+        &self,
+        delegation_owner: &AccountId,
+    ) -> Result<Vec<Delegation>, NyxdError> {
+        nyxd_query!(self, get_all_delegator_delegations(delegation_owner).await)
+    }
+
+    pub(crate) async fn get_address_balance(
+        &self,
+        address: &AccountId,
+        denom: impl Into<String>,
+    ) -> Result<Option<Coin>, NyxdError> {
+        nyxd_query!(self, get_balance(&address, denom.into()).await)
     }
 }
 

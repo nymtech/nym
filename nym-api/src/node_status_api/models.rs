@@ -327,7 +327,6 @@ pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
 // #[schema(title = "ErrorResponse")]
 pub(crate) struct AxumErrorResponse {
     message: RequestError,
-    // #[schema(value_type = u16)]
     status: StatusCode,
 }
 

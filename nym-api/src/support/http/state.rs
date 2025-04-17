@@ -14,6 +14,8 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::nyxd::Client;
 use crate::support::storage;
+use crate::unstable_routes::account::cache::AddressInfoCache;
+use crate::unstable_routes::models::NyxAccountDetails;
 use axum::extract::FromRef;
 use nym_api_requests::models::{
     DetailedChainStatus, GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation,
@@ -85,6 +87,7 @@ pub(crate) struct AppState {
     pub(crate) nyxd_client: Client,
     pub(crate) chain_status_cache: ChainStatusCache,
 
+    pub(crate) address_info_cache: AddressInfoCache,
     pub(crate) forced_refresh: ForcedRefresh,
     pub(crate) nym_contract_cache: NymContractCache,
     pub(crate) node_status_cache: NodeStatusCache,
@@ -291,5 +294,14 @@ impl AppState {
             .annotated_legacy_gateways()
             .await
             .ok_or_else(AxumErrorResponse::internal)
+    }
+
+    pub(crate) async fn get_address_info(
+        &self,
+        account_id: nym_validator_client::nyxd::AccountId,
+    ) -> Result<NyxAccountDetails, AxumErrorResponse> {
+        self.address_info_cache
+            .get_address_info(self, account_id)
+            .await
     }
 }

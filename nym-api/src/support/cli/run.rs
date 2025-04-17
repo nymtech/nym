@@ -27,6 +27,7 @@ use crate::support::http::RouterBuilder;
 use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
+use crate::unstable_routes::account::cache::AddressInfoCache;
 use crate::{
     circulating_supply_api, ecash, epoch_operations, network_monitor, node_describe_cache,
     node_status_api, nym_contract_cache,
@@ -193,6 +194,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     let router = router.with_state(AppState {
         nyxd_client: nyxd_client.clone(),
         chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+        address_info_cache: AddressInfoCache::new(),
         forced_refresh: ForcedRefresh::new(
             config.topology_cacher.debug.node_describe_allow_illegal_ips,
         ),

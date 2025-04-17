@@ -4,97 +4,16 @@
 use crate::{
     node_status_api::models::{AxumErrorResponse, AxumResult},
     support::http::state::AppState,
-    unstable_routes::models::{
-        NyxAccountDelegationDetails, NyxAccountDelegationRewardDetails, NyxAccountDetails,
-    },
-};
-use axum::{
-    extract::{Path, State},
-    routing::get,
-    Json, Router,
+    unstable_routes::models::NyxAccountDelegationRewardDetails,
 };
 use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;
 use nym_topology::NodeId;
 use nym_validator_client::nyxd::AccountId;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
-use tracing::{error, instrument, warn};
-use utoipa::ToSchema;
+use std::collections::{HashMap, HashSet};
+use tracing::warn;
 
-pub(crate) fn routes() -> Router<AppState> {
-    Router::new().route("/:address", get(address))
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
-pub struct AddressQueryParam {
-    #[serde(default)]
-    pub address: String,
-}
-
-#[utoipa::path(
-    tag = "Unstable",
-    get,
-    path = "/{address}",
-    context_path = "/v1/unstable/account",
-    responses(
-        (status = 200, body = NyxAccountDetails)
-    ),
-    params(AddressQueryParam)
-)]
-#[instrument(level = "info", skip_all, fields(address=address))]
-async fn address(
-    Path(AddressQueryParam { address }): Path<AddressQueryParam>,
-    State(state): State<AppState>,
-) -> AxumResult<Json<NyxAccountDetails>> {
-    let account_id = AccountId::from_str(&address).map_err(|err| {
-        error!("{err}");
-        AxumErrorResponse::not_found(&address)
-    })?;
-
-    let mut collector = AddressDataCollector::new(state, account_id.clone());
-
-    // ==> get balances of chain tokens <==
-    let balance = collector.get_address_balance().await?;
-
-    // ==> get list of delegations (history) <==
-    let delegation_data = collector.get_delegations().await?;
-
-    // ==> get the current reward for each active delegation <==
-    // calculate rewards from nodes this delegator delegated to
-    let accumulated_rewards = collector.calculate_rewards(&delegation_data).await?;
-
-    // ==> convert totals <==
-    let claimable_rewards = collector.claimable_rewards();
-    let total_value = collector.total_value();
-    let total_delegations = collector.total_delegations();
-    let operator_rewards = collector.operator_rewards();
-
-    Ok(Json(NyxAccountDetails {
-        address: account_id.to_string(),
-        balance: balance.into(),
-        delegations: delegation_data
-            .delegations
-            .into_iter()
-            .map(|d| NyxAccountDelegationDetails {
-                delegated: d.amount,
-                height: d.height,
-                node_id: d.node_id,
-                proxy: d.proxy,
-            })
-            .collect(),
-        accumulated_rewards,
-        total_delegations,
-        claimable_rewards,
-        total_value,
-        operator_rewards,
-    }))
-}
-
-struct AddressDataCollector {
+pub(crate) struct AddressDataCollector {
     app_state: AppState,
     account_id: AccountId,
     total_value: u128,
@@ -105,7 +24,7 @@ struct AddressDataCollector {
 }
 
 impl AddressDataCollector {
-    fn new(app_state: AppState, account_id: AccountId) -> Self {
+    pub(crate) fn new(app_state: AppState, account_id: AccountId) -> Self {
         let base_denom = app_state
             .network_details()
             .network
@@ -124,7 +43,9 @@ impl AddressDataCollector {
         }
     }
 
-    async fn get_address_balance(&mut self) -> AxumResult<nym_validator_client::nyxd::Coin> {
+    pub(crate) async fn get_address_balance(
+        &mut self,
+    ) -> AxumResult<nym_validator_client::nyxd::Coin> {
         let balance = self
             .app_state
             .nyxd_client
@@ -136,7 +57,7 @@ impl AddressDataCollector {
         Ok(balance)
     }
 
-    async fn get_delegations(&mut self) -> AxumResult<AddressDelegationInfo> {
+    pub(crate) async fn get_delegations(&mut self) -> AxumResult<AddressDelegationInfo> {
         let state = self.app_state.clone();
         let og_delegations = state
             .nyxd_client
@@ -187,7 +108,7 @@ impl AddressDataCollector {
         })
     }
 
-    async fn calculate_rewards(
+    pub(crate) async fn calculate_rewards(
         &mut self,
         delegation_data: &AddressDelegationInfo,
     ) -> AxumResult<Vec<NyxAccountDelegationRewardDetails>> {
@@ -227,19 +148,19 @@ impl AddressDataCollector {
         Ok(accumulated_rewards)
     }
 
-    fn claimable_rewards(&self) -> Coin {
+    pub(crate) fn claimable_rewards(&self) -> Coin {
         Coin::new(self.claimable_rewards, self.base_denom.to_string())
     }
 
-    fn total_value(&self) -> Coin {
+    pub(crate) fn total_value(&self) -> Coin {
         Coin::new(self.total_value, self.base_denom.to_string())
     }
 
-    fn total_delegations(&self) -> Coin {
+    pub(crate) fn total_delegations(&self) -> Coin {
         Coin::new(self.total_delegations, self.base_denom.to_string())
     }
 
-    fn operator_rewards(&self) -> Option<Coin> {
+    pub(crate) fn operator_rewards(&self) -> Option<Coin> {
         if self.operator_rewards > 0 {
             Some(Coin::new(
                 self.operator_rewards,
@@ -251,9 +172,15 @@ impl AddressDataCollector {
     }
 }
 
-struct AddressDelegationInfo {
+pub(crate) struct AddressDelegationInfo {
     delegations: Vec<nym_mixnet_contract_common::Delegation>,
     delegated_to_nodes: HashMap<NodeId, RewardAndBondInfo>,
+}
+
+impl AddressDelegationInfo {
+    pub(crate) fn delegations(self) -> Vec<nym_mixnet_contract_common::Delegation> {
+        self.delegations
+    }
 }
 
 type RewardAndBondInfo = (NodeRewarding, bool);

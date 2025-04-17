@@ -1,6 +1,7 @@
 "use client";
 
-import { fetchObservatoryNodes } from "@/app/api";
+import { fetchNSApiNodes } from "@/app/api";
+import type { NS_NODE } from "@/app/api/types";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { useQuery } from "@tanstack/react-query";
 
@@ -9,18 +10,20 @@ type Props = {
 };
 
 export default function AccountPageButtonGroup({ address }: Props) {
-  const { data: nymNodes, isError } = useQuery({
-    queryKey: ["nymNodes"],
-    queryFn: fetchObservatoryNodes,
+  const { data: nsApiNodes = [], isError: isNSApiNodesError } = useQuery({
+    queryKey: ["nsApiNodes"],
+    queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
 
-  if (!nymNodes || isError) return null;
+  if (!nsApiNodes || isNSApiNodesError) return null;
 
-  const nymNode = nymNodes.find((node) => node.bonding_address === address);
+  const nymNode = nsApiNodes.find(
+    (node: NS_NODE) => node.bonding_address === address
+  );
 
   if (!nymNode) return null;
 

@@ -18,7 +18,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
-const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
+const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60); // 1 hour
 
 pub struct PeerHandle {
     public_key: Key,
@@ -79,6 +79,18 @@ impl PeerHandle {
         kernel_peer: &Peer,
     ) -> Result<bool, Error> {
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
+            if kernel_peer.last_handshake.is_none()
+                && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
+            {
+                let success = self.remove_peer().await?;
+                self.peer_storage_manager.remove_peer();
+                tracing::debug!(
+                    "Peer {} has not been active for more then {} seconds, removing it",
+                    kernel_peer.public_key.to_string(),
+                    AUTO_REMOVE_AFTER.as_secs()
+                );
+                return Ok(!success);
+            }
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
                 .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
                 .ok_or(Error::InconsistentConsumedBytes)?
@@ -93,6 +105,10 @@ impl PeerHandle {
                     .await
                     .is_err()
                 {
+                    tracing::debug!(
+                        "Peer {} is out of bandwidth, removing it",
+                        kernel_peer.public_key.to_string()
+                    );
                     let success = self.remove_peer().await?;
                     self.peer_storage_manager.remove_peer();
                     return Ok(!success);
@@ -140,7 +156,7 @@ impl PeerHandle {
                         return Ok(());
                     };
                     if !self.active_peer(&storage_peer, &kernel_peer).await? {
-                        log::debug!("Peer {:?} doesn't have bandwidth anymore, shutting down handle", self.public_key);
+                        log::debug!("Peer {:?} is not active anymore, shutting down handle", self.public_key);
                         return Ok(());
                     } else {
                         // Update storage values

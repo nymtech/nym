@@ -34,18 +34,6 @@ pub struct NyxAccountDelegationRewardDetails {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
-pub struct NymVestingAccount {
-    #[schema(value_type = CoinSchema)]
-    pub locked: Coin,
-    #[schema(value_type = CoinSchema)]
-    pub vested: Coin,
-    #[schema(value_type = CoinSchema)]
-    pub vesting: Coin,
-    #[schema(value_type = CoinSchema)]
-    pub spendable: Coin,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
 pub struct NyxAccountDetails {
     pub address: String,
     #[schema(value_type = CoinSchema)]
@@ -58,7 +46,6 @@ pub struct NyxAccountDetails {
     pub total_delegations: Coin,
     #[schema(value_type = CoinSchema)]
     pub claimable_rewards: Coin,
-    pub vesting_account: Option<NymVestingAccount>,
     #[schema(value_type = Option<CoinSchema>)]
     pub operator_rewards: Option<Coin>,
 }

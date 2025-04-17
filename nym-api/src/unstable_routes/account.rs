@@ -5,8 +5,7 @@ use crate::{
     node_status_api::models::{AxumErrorResponse, AxumResult},
     support::http::state::AppState,
     unstable_routes::models::{
-        NymVestingAccount, NyxAccountDelegationDetails, NyxAccountDelegationRewardDetails,
-        NyxAccountDetails,
+        NyxAccountDelegationDetails, NyxAccountDelegationRewardDetails, NyxAccountDetails,
     },
 };
 use axum::{
@@ -68,15 +67,6 @@ async fn address(
     // calculate rewards from nodes this delegator delegated to
     let accumulated_rewards = collector.calculate_rewards(&delegation_data).await?;
 
-    // ==> get vesting account details (if any) <==
-    // (none because everyone has already fully vested)
-    let vesting_account: Option<NymVestingAccount> = None;
-
-    // if let Some(vesting_account) = &vesting_account {
-    //     total_value += vesting_account.locked.amount.u128();
-    //     total_value += vesting_account.spendable.amount.u128();
-    // }
-
     // ==> convert totals <==
     let claimable_rewards = collector.claimable_rewards();
     let total_value = collector.total_value();
@@ -100,7 +90,6 @@ async fn address(
         total_delegations,
         claimable_rewards,
         total_value,
-        vesting_account,
         operator_rewards,
     }))
 }

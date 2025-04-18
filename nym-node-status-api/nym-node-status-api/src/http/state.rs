@@ -4,7 +4,7 @@ use cosmwasm_std::Decimal;
 use moka::{future::Cache, Entry};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_validator_client::{models::DescribedNodeType, nym_api::SkimmedNode};
+use nym_validator_client::nym_api::SkimmedNode;
 use tokio::sync::RwLock;
 use tracing::instrument;
 

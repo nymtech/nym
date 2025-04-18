@@ -159,7 +159,7 @@ impl NymNodeRouter {
                 )
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
                 .nest(routes::API, api::routes(config.api))
-                .layer(axum::middleware::from_fn(logging::logger))
+                .layer(axum::middleware::from_fn(logging::log_request_info))
                 .with_state(state),
         }
     }

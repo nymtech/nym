@@ -9,13 +9,35 @@ use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;
 use colored::Colorize;
 use std::time::Instant;
-use tracing::info;
+use tracing::{debug, info};
+
+enum LogLevel {
+    Debug,
+    Info,
+}
+
+pub async fn log_request_info(
+    insecure_client_ip: InsecureClientIp,
+    request: Request,
+    next: Next,
+) -> impl IntoResponse {
+    log_request(insecure_client_ip, request, next, LogLevel::Info).await
+}
+
+pub async fn log_request_debug(
+    insecure_client_ip: InsecureClientIp,
+    request: Request,
+    next: Next,
+) -> impl IntoResponse {
+    log_request(insecure_client_ip, request, next, LogLevel::Debug).await
+}
 
 /// Simple logger for requests
-pub async fn logger(
+async fn log_request(
     InsecureClientIp(addr): InsecureClientIp,
     request: Request,
     next: Next,
+    level: LogLevel,
 ) -> impl IntoResponse {
     // TODO dz use `OriginalUri` extractor to get full URI even for nested
     // routers if routes aren't logged correctly in handlers
@@ -58,7 +80,14 @@ pub async fn logger(
 
     let agent_str = "agent".bold();
 
-    info!("[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent}");
+    match level {
+        LogLevel::Debug => debug!(
+            "[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent}"
+        ),
+        LogLevel::Info => info!(
+            "[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent}"
+        ),
+    }
 
     res
 }

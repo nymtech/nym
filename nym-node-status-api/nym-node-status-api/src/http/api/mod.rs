@@ -1,7 +1,8 @@
 use anyhow::anyhow;
 use axum::{response::Redirect, Router};
+use nym_http_api_common::middleware::logging::log_request_debug;
 use tokio::net::ToSocketAddrs;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -62,7 +63,7 @@ impl RouterBuilder {
             // CORS layer needs to wrap other API layers
             .layer(setup_cors())
             // logger should be outermost layer
-            .layer(TraceLayer::new_for_http())
+            .layer(axum::middleware::from_fn(log_request_debug))
     }
 }
 

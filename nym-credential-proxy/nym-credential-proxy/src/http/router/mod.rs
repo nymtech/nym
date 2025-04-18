@@ -31,7 +31,7 @@ pub fn build_router(state: ApiState, auth_token: String) -> Router {
         .nest(routes::API, api::routes(auth_middleware))
         // we don't have to be using middleware, but we already had that code
         // we might want something like: https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs#L44 instead
-        .layer(axum::middleware::from_fn(logging::logger))
+        .layer(axum::middleware::from_fn(logging::log_request_info))
         .with_state(state);
 
     cfg_if::cfg_if! {

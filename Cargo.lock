@@ -6269,6 +6269,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-http-api-common",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-metrics",

@@ -1,7 +1,11 @@
 use crate::{
     db::{
         models::{ScrapeNodeKind, ScraperNodeInfo},
-        queries, DbPool,
+        queries::{
+            self, gateways::insert_gateway_description, mixnodes::insert_mixnode_description,
+            nym_nodes::insert_nym_node_description,
+        },
+        DbPool,
     },
     mixnet_scraper::helpers::NodeDescriptionResponse,
 };
@@ -125,78 +129,18 @@ pub(crate) async fn insert_scraped_node_description(
 
     match node_kind {
         ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            sqlx::query!(
-                r#"
-                INSERT INTO mixnode_description (
-                    mix_id, moniker, website, security_contact, details, last_updated_utc
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (mix_id) DO UPDATE SET
-                    moniker = excluded.moniker,
-                    website = excluded.website,
-                    security_contact = excluded.security_contact,
-                    details = excluded.details,
-                    last_updated_utc = excluded.last_updated_utc
-                "#,
-                mix_id,
-                description.moniker,
-                description.website,
-                description.security_contact,
-                description.details,
-                timestamp,
-            )
-            .execute(&mut *conn)
-            .await?;
+            insert_mixnode_description(&mut conn, mix_id, description, timestamp).await?;
         }
         ScrapeNodeKind::MixingNymNode { node_id } => {
-            sqlx::query!(
-                r#"
-                INSERT INTO nym_node_descriptions (
-                    node_id, moniker, website, security_contact, details, last_updated_utc
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (node_id) DO UPDATE SET
-                    moniker = excluded.moniker,
-                    website = excluded.website,
-                    security_contact = excluded.security_contact,
-                    details = excluded.details,
-                    last_updated_utc = excluded.last_updated_utc
-                "#,
-                node_id,
-                description.moniker,
-                description.website,
-                description.security_contact,
-                description.details,
-                timestamp,
-            )
-            .execute(&mut *conn)
-            .await?;
+            insert_nym_node_description(&mut conn, node_id, description, timestamp).await?;
         }
-        ScrapeNodeKind::EntryExitNymNode { identity_key, .. } => {
-            sqlx::query!(
-                r#"
-            INSERT INTO gateway_description (
-                gateway_identity_key,
-                moniker,
-                website,
-                security_contact,
-                details,
-                last_updated_utc
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT (gateway_identity_key) DO UPDATE SET
-                moniker = excluded.moniker,
-                website = excluded.website,
-                security_contact = excluded.security_contact,
-                details = excluded.details,
-                last_updated_utc = excluded.last_updated_utc
-            "#,
-                identity_key,
-                description.moniker,
-                description.website,
-                description.security_contact,
-                description.details,
-                timestamp,
-            )
-            .execute(&mut *conn)
-            .await?;
+        ScrapeNodeKind::EntryExitNymNode {
+            node_id,
+            identity_key,
+        } => {
+            insert_nym_node_description(&mut conn, node_id, description, timestamp).await?;
+            // for historic reasons (/gateways API), store this info into gateways table as well
+            insert_gateway_description(&mut conn, identity_key, description, timestamp).await?;
         }
     }
 

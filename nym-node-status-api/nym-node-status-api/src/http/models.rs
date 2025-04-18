@@ -55,13 +55,13 @@ pub(crate) struct ExtendedNymNode {
     #[schema(value_type = String)]
     pub(crate) total_stake: Decimal,
     pub(crate) original_pledge: u128,
-    pub(crate) bonding_address: String,
+    pub(crate) bonding_address: Option<String>,
     pub(crate) bonded: bool,
-    pub(crate) node_type: String,
+    pub(crate) node_type: nym_validator_client::models::DescribedNodeType,
     pub(crate) ip_address: String,
     pub(crate) accepted_tnc: bool,
-    pub(crate) self_description: serde_json::Value,
-    pub(crate) rewarding_details: serde_json::Value,
+    pub(crate) self_description: nym_validator_client::models::NymNodeData,
+    pub(crate) rewarding_details: Option<nym_mixnet_contract_common::NodeRewarding>,
     pub(crate) description: NodeDescription,
     pub(crate) geoip: Option<NodeGeoData>,
 }

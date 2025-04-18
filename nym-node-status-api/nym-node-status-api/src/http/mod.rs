@@ -18,7 +18,7 @@ pub struct PagedResult<T: ToSchema> {
 impl<T: Clone + ToSchema> PagedResult<T> {
     pub fn paginate(pagination: Pagination, res: Vec<T>) -> Self {
         let total = res.len();
-        let (size, mut page) = pagination.intoto_inner_values();
+        let (size, mut page) = pagination.into_inner_values();
 
         if page * size > total {
             page = total / size;
@@ -42,14 +42,25 @@ pub(crate) struct Pagination {
     page: Option<usize>,
 }
 
+const SIZE_DEFAULT: usize = 10;
+const SIZE_MAX: usize = 200;
+const PAGE_DEFAULT: usize = 0;
+
+impl Default for Pagination {
+    fn default() -> Self {
+        Self {
+            size: Some(SIZE_DEFAULT),
+            page: Some(PAGE_DEFAULT),
+        }
+    }
+}
+
 impl Pagination {
-    // unwrap stored values or use predefined defaults
-    pub(crate) fn intoto_inner_values(self) -> (usize, usize) {
-        const SIZE_DEFAULT: usize = 10;
-        const SIZE_MAX: usize = 200;
+    pub(crate) fn new(size: Option<usize>, page: Option<usize>) -> Self {
+        Self { size, page }
+    }
 
-        const PAGE_DEFAULT: usize = 0;
-
+    pub(crate) fn into_inner_values(self) -> (usize, usize) {
         (
             self.size.unwrap_or(SIZE_DEFAULT).min(SIZE_MAX),
             self.page.unwrap_or(PAGE_DEFAULT),

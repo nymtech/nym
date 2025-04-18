@@ -104,7 +104,10 @@ async fn mixnodes(
         .map(|(s, _)| s)
         .collect();
 
-    Ok(Json(PagedResult::paginate(Pagination { size, page }, res)))
+    Ok(Json(PagedResult::paginate(
+        Pagination::new(size, page),
+        res,
+    )))
 }
 
 struct ServiceFilter {

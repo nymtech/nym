@@ -194,6 +194,8 @@ pub(crate) async fn get_node_self_description(
             nym_nodes
         WHERE
             self_described IS NOT NULL
+        ORDER BY
+            node_id
         "#,
     )
     .fetch_all(&mut *conn)

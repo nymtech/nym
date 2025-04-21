@@ -199,7 +199,7 @@ bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 bit-vec = "0.7.0"                                     # can we unify those?
 bitvec = "1.0.0"
-blake3 = "1.7.0"
+blake3 = "1.8.2"
 bloomfilter = "3.0.1"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"

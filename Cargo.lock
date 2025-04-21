@@ -6127,7 +6127,7 @@ dependencies = [
  "async-trait",
  "axum 0.7.9",
  "bip39",
- "blake2 0.8.1",
+ "blake2 0.10.6",
  "bloomfilter",
  "bs58",
  "cargo_metadata 0.18.1",

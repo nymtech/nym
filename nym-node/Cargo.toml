@@ -99,7 +99,7 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 lioness = "*"
 chacha = "*"
 arrayref = "*"
-blake2 = "=0.8.1"
+blake2 = "=0.10.6"
 sha2 = { workspace = true }
 hkdf = { workspace = true }
 

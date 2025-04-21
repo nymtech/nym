@@ -2007,8 +2007,8 @@ checksum = "575f75dfd25738df5b91b8e43e14d44bda14637a58fae779fd2b064f8bf3e010"
 
 [[package]]
 name = "defguard_wireguard_rs"
-version = "0.4.7"
-source = "git+https://github.com/DefGuard/wireguard-rs.git?rev=v0.4.7#ef1cf3714629bf5016fb38cbb7320451dc69fb09"
+version = "0.7.2"
+source = "git+https://github.com/DefGuard/wireguard-rs.git?rev=v0.7.2#6538ef726645604e7d466a4f7c5365a1b4629f86"
 dependencies = [
  "base64 0.22.1",
  "libc",
@@ -2021,7 +2021,8 @@ dependencies = [
  "netlink-sys",
  "nix 0.29.0",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -4495,9 +4496,9 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-route"
-version = "0.20.1"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55e5bda7ca0f9ac5e75b5debac3b75e29a8ac8e2171106a2c3bb466389a8dd83"
+checksum = "fc0e7987b28514adf555dc1f9a5c30dfc3e50750bbaffb1aec41ca7b23dcd8e4"
 dependencies = [
  "anyhow",
  "bitflags 2.8.0",

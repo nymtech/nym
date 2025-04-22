@@ -19,6 +19,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";
 import MAP_TOPOJSON from "../../assets/world-110m.json";
 import ExplorerCard from "../cards/ExplorerCard";
+import mapPlaceholderDark from "../../assets/map-placeholder-dark.png";
+import mapPlaceholderLight from "../../assets/map-placeholder-light.png";
+import Image from "next/image";
 
 export const WorldMap = (): JSX.Element => {
   const theme = useTheme();
@@ -87,15 +90,29 @@ export const WorldMap = (): JSX.Element => {
 
   if (isLoadingCountries) {
     return (
-      <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
-        <Skeleton variant="text" height={500} />
+      <ExplorerCard label="Nym server locations" sx={{ width: "100%" }}>
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            aspectRatio: "16/7",
+          }}
+        >
+          <Image
+            src={isDarkMode ? mapPlaceholderDark : mapPlaceholderLight}
+            alt="World Map Placeholder"
+            fill
+            style={{ objectFit: "contain" }}
+            priority
+          />
+        </div>
       </ExplorerCard>
     );
   }
 
   if (isCountriesError) {
     return (
-      <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
+      <ExplorerCard label="Nym server locations" sx={{ width: "100%" }}>
         <Typography
           variant="h5"
           sx={{
@@ -110,9 +127,11 @@ export const WorldMap = (): JSX.Element => {
     );
   }
 
-
   return (
-    <ExplorerCard label="Nym Nodes in the World" sx={{ width: "100%" }}>
+    <ExplorerCard
+      label="Nym server locations"
+      sx={{ width: "100%", position: "relative", aspectRatio: "16/9" }}
+    >
       <div
         style={{
           position: "relative",

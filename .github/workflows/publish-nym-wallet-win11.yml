@@ -44,21 +44,24 @@ jobs:
 
       - name: Download EV CodeSignTool from ssl.com
         working-directory: nym-wallet/src-tauri
-        if: ${{ inputs.sign }}
+        if: ${{ inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-') }}
         shell: bash
         run: |
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
+          chmod +x ./CodeSignTool.sh
+
       - name: Get EV certificate credential id
         working-directory: nym-wallet/src-tauri
-        if: ${{ inputs.sign }}
+        if: ${{ inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-') }}
         id: get_credential_ids
         shell: bash
         run: |
           echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
+
       - name: Add custom sign command to tauri.conf.json
         working-directory: nym-wallet/src-tauri
-        if: ${{ inputs.sign }}
+        if: ${{ inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-') }}
         shell: bash
         run: |
           yq eval --inplace '.bundle.windows +=
@@ -79,6 +82,7 @@ jobs:
               ]
             }
           }' tauri.conf.json
+
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
@@ -93,10 +97,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
-          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
-          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
-          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
+          SSL_COM_USERNAME: ${{ (inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-')) && secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ (inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-')) && secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ (inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-')) && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ (inputs.sign || startsWith(github.ref, 'refs/tags/nym-wallet-')) && secrets.SSL_COM_TOTP_SECRET }}
         run: |
           echo "Starting build process..."
           yarn build
@@ -140,7 +144,7 @@ jobs:
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release'
+        if: ${{ startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release' }}
         with:
           files: |
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi

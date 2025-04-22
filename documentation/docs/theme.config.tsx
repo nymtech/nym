@@ -34,7 +34,7 @@ const config: DocsThemeConfig = {
       bookDescriptions[topLevel] ||
       defaultDescription;
 
-    const title = config.title + (route === "/" ? "" : " - Nym docs");
+    const title = (route === "/" ? "Nym docs" : config.title + " - Nym docs");
 
     return (
       <>

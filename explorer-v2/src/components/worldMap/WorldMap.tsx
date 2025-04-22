@@ -2,6 +2,7 @@
 
 import { scaleLinear } from "d3-scale";
 import * as React from "react";
+import Image from "next/image";
 import {
   ComposableMap,
   Geographies,
@@ -13,13 +14,12 @@ import { fetchWorldMapCountries } from "@/app/api";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import { IconButton, Skeleton, Typography } from "@mui/material";
+import { IconButton, Skeleton, Typography, Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";
 import MAP_TOPOJSON from "../../assets/world-110m.json";
 import ExplorerCard from "../cards/ExplorerCard";
-import Image from "next/image";
 
 const mapPlaceholderDark = "/explorer/map-placeholder-dark.png";
 const mapPlaceholderLight = "/explorer/map-placeholder-light.png";
@@ -131,14 +131,32 @@ export const WorldMap = (): JSX.Element => {
   return (
     <ExplorerCard
       label="Nym server locations"
-      sx={{ width: "100%", position: "relative", aspectRatio: "16/9" }}
+      sx={{
+        width: "100%",
+        position: "relative",
+        p: { xs: 2, sm: 3 },
+        "& > .MuiCardContent-root": {
+          height: {
+            xs: "200px",
+            sm: "auto",
+          },
+          aspectRatio: {
+            xs: "unset",
+            sm: "16/7",
+          },
+        },
+      }}
     >
-      <div
-        style={{
+      <Box
+        sx={{
           position: "relative",
           width: "100%",
+          height: "100%",
           overflow: "hidden",
           margin: "0 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <ComposableMap
@@ -146,12 +164,12 @@ export const WorldMap = (): JSX.Element => {
           style={{
             backgroundColor: isDarkMode ? "#000000" : theme.palette.pine[25],
             width: "100%",
-            height: "auto",
+            height: "100%",
           }}
-          viewBox="0, 50, 800, 350"
+          viewBox="0 0 800 400"
           projection="geoMercator"
           projectionConfig={{
-            scale: 100,
+            scale: 130,
           }}
         >
           <ZoomableGroup
@@ -306,7 +324,7 @@ export const WorldMap = (): JSX.Element => {
             <RestartAltIcon fontSize="small" />
           </IconButton>
         </div>
-      </div>
+      </Box>
       <Tooltip
         id="map-tooltip"
         content={tooltipContent}

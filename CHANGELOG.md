@@ -4,6 +4,32 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.7-tex] (2025-04-14)
+
+- Expand /v3/nym-nodes with geodata ([#5686])
+- chore: clippy for 1.86 ([#5685])
+- Featrure: Bash scripts to init and configure VMs conveniently and update docs ([#5681])
+- Update node versions in CI ([#5677])
+- build(deps): bump the patch-updates group across 1 directory with 8 updates ([#5668])
+- Update log crate ([#5667])
+- Minor fixes involving key cloning and hashing ([#5664])
+- mix throughput tester ([#5661])
+- build(deps): bump blake3 from 1.6.1 to 1.7.0 ([#5658])
+- build(deps): bump elliptic from 6.5.5 to 6.6.1 ([#5483])
+- Move all workflows on ubuntu-20 to ubuntu-22 ([#5455])
+
+[#5686]: https://github.com/nymtech/nym/pull/5686
+[#5685]: https://github.com/nymtech/nym/pull/5685
+[#5681]: https://github.com/nymtech/nym/pull/5681
+[#5677]: https://github.com/nymtech/nym/pull/5677
+[#5668]: https://github.com/nymtech/nym/pull/5668
+[#5667]: https://github.com/nymtech/nym/pull/5667
+[#5664]: https://github.com/nymtech/nym/pull/5664
+[#5661]: https://github.com/nymtech/nym/pull/5661
+[#5658]: https://github.com/nymtech/nym/pull/5658
+[#5483]: https://github.com/nymtech/nym/pull/5483
+[#5455]: https://github.com/nymtech/nym/pull/5455
+
 ## [2025.6-chuckles] (2025-03-31)
 
 - Remove Google public DNS ([#5660])

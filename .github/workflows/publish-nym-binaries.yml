@@ -19,9 +19,7 @@ jobs:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
-      matrix:
-        platform: [custom-ubuntu-22.04]
-    runs-on: ${{ matrix.platform }}
+    runs-on: arc-ubuntu-22.04
 
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}

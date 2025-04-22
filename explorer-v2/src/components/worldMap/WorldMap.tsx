@@ -19,9 +19,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";
 import MAP_TOPOJSON from "../../assets/world-110m.json";
 import ExplorerCard from "../cards/ExplorerCard";
-import mapPlaceholderDark from "../../assets/map-placeholder-dark.png";
-import mapPlaceholderLight from "../../assets/map-placeholder-light.png";
 import Image from "next/image";
+
+const mapPlaceholderDark = "/explorer/map-placeholder-dark.png";
+const mapPlaceholderLight = "/explorer/map-placeholder-light.png";
 
 export const WorldMap = (): JSX.Element => {
   const theme = useTheme();

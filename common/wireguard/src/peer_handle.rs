@@ -93,7 +93,16 @@ impl PeerHandle {
             }
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
                 .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
-                .ok_or(Error::InconsistentConsumedBytes)?
+                .unwrap_or_else(|| {
+                    // if gateway restarted, the kernel values restart from 0
+                    // and we should restart from 0 in storage as well
+                    if let Some(peer_information) =
+                        self.peer_storage_manager.peer_information.as_mut()
+                    {
+                        peer_information.force_sync = true;
+                    }
+                    kernel_peer.rx_bytes + kernel_peer.tx_bytes
+                })
                 .try_into()
                 .map_err(|_| Error::InconsistentConsumedBytes)?;
             if spent_bandwidth > 0 {
@@ -137,30 +146,57 @@ impl PeerHandle {
         Ok(true)
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
+    async fn continue_checking(&mut self) -> Result<bool, Error> {
+        let Some(kernel_peer) = self
+            .host_information
+            .read()
+            .await
+            .peers
+            .get(&self.public_key)
+            .cloned()
+        else {
+            // the host information hasn't beed updated yet
+            return Ok(true);
+        };
+        let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
+            log::debug!(
+                "Peer {:?} not in storage anymore, shutting down handle",
+                self.public_key
+            );
+            return Ok(false);
+        };
+        if !self.active_peer(&storage_peer, &kernel_peer).await? {
+            log::debug!(
+                "Peer {:?} is not active anymore, shutting down handle",
+                self.public_key
+            );
+            Ok(false)
+        } else {
+            // Update storage values
+            self.peer_storage_manager.sync_storage_peer().await?;
+            Ok(true)
+        }
+    }
+
+    pub async fn run(&mut self) {
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    let Some(kernel_peer) = self
-                        .host_information
-                        .read()
-                        .await
-                        .peers
-                        .get(&self.public_key)
-                        .cloned() else {
-                            // the host information hasn't beed updated yet
-                            continue;
-                        };
-                    let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
-                        log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
-                        return Ok(());
-                    };
-                    if !self.active_peer(&storage_peer, &kernel_peer).await? {
-                        log::debug!("Peer {:?} is not active anymore, shutting down handle", self.public_key);
-                        return Ok(());
-                    } else {
-                        // Update storage values
-                        self.peer_storage_manager.sync_storage_peer().await?;
+                    match self.continue_checking().await {
+                        Ok(true) => continue,
+                        Ok(false) => return,
+                        Err(err) => {
+                            match self.remove_peer().await {
+                                Ok(true) => {
+                                    tracing::debug!("Removed peer due to error {err}");
+                                    return;
+                                }
+                                _ => {
+                                    tracing::warn!("Could not remove peer yet, we'll try again later. If this message persists, the gateway might need to be restarted");
+                                    continue;
+                                }
+                            }
+                        },
                     }
                 }
 
@@ -175,6 +211,5 @@ impl PeerHandle {
                 }
             }
         }
-        Ok(())
     }
 }

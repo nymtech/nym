@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2025.7-tex] (2025-04-14)
+
+- Fix the mac build of the wallet ([#5684])
+- Allow copy and paste on logins fields for the wallet ([#5699])
+- Tauri V2 - Wallet Migration ([#5687])
+
+[#5684]: https://github.com/nymtech/nym/pull/5684
+[#5699]: https://github.com/nymtech/nym/pull/5699
+[#5687]: https://github.com/nymtech/nym/pull/5687
+
 ## [2025.6-chuckles] (2025-04-01)
 
 - Wallet-revamp to be in line with new nym-theming ([#5653])

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.8.0"
+version = "1.9.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -21,27 +21,25 @@ bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
+csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
-dashmap = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }
+indicatif = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-si-scale = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
+tracing-indicatif = { workspace = true }
 tracing-subscriber.workspace = true
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true, features = ["codec"] }
 toml = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
-
-# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
-semver = { workspace = true }
 
 # system info:
 cupid = { workspace = true }
@@ -62,6 +60,8 @@ nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
 nym-sphinx-framing = { path = "../common/nymsphinx/framing" }
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-forwarding = { path = "../common/nymsphinx/forwarding" }
+nym-sphinx-routing = { path = "../common/nymsphinx/routing" }
+nym-sphinx-params = { path = "../common/nymsphinx/params" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
@@ -77,8 +77,6 @@ nym-http-api-client = { path = "../common/http-api-client" }
 # useful for `#[axum_macros::debug_handler]`
 #axum-macros = "0.3.8"
 axum.workspace = true
-axum-extra = { workspace = true, features = ["typed-header"] }
-headers.workspace = true
 time = { workspace = true, features = ["serde"] }
 tower-http = { workspace = true, features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
@@ -93,6 +91,22 @@ nym-gateway = { path = "../gateway" }
 nym-authenticator = { path = "../service-providers/authenticator" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
+
+# throughput tester to recreate lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+[dependencies.lioness]
+version = "*"
+
+[dependencies.chacha]
+version = "*"
+
+[dependencies.arrayref]
+version = "*"
+
+[dependencies.blake2]
+version = "*"
+
 
 
 [build-dependencies]

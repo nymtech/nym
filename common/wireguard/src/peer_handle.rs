@@ -102,7 +102,7 @@ impl PeerHandle {
             if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
                 log::debug!(
                     "Peer {} has been present for 30 days, removing it",
-                    self.public_key.to_string()
+                    self.public_key
                 );
                 let success = self.remove_peer().await?;
                 return Ok(!success);
@@ -111,7 +111,7 @@ impl PeerHandle {
             if spent_bandwidth >= BANDWIDTH_CAP_PER_DAY {
                 log::debug!(
                     "Peer {} doesn't have bandwidth anymore, removing it",
-                    self.public_key.to_string()
+                    self.public_key
                 );
                 let success = self.remove_peer().await?;
                 return Ok(!success);

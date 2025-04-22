@@ -8,7 +8,7 @@ use thiserror::Error;
 use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
 
 #[cfg(feature = "sphinx")]
-use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
+pub use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
 
 #[cfg(feature = "outfox")]
 pub use nym_outfox::{
@@ -164,6 +164,22 @@ impl NymPacket {
                     next_address,
                 )))
             }
+        }
+    }
+
+    #[cfg(feature = "sphinx")]
+    pub fn sphinx_packet_ref(&self) -> Option<&SphinxPacket> {
+        match self {
+            NymPacket::Sphinx(packet) => Some(packet),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "sphinx")]
+    pub fn as_sphinx_packet(self) -> Option<SphinxPacket> {
+        match self {
+            NymPacket::Sphinx(packet) => Some(packet),
+            _ => None,
         }
     }
 }

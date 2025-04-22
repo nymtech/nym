@@ -403,7 +403,7 @@ pub fn issue(
 /// * `sk_user` - Secret key of the user.
 /// * `blind_signature` - Blinded signature received from the authority.
 /// * `req_info` - Information associated with the request, including the joined commitment hash,
-///                private attributes openings, v, and expiration date.
+///   private attributes openings, v, and expiration date.
 ///
 /// # Returns
 ///

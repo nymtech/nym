@@ -192,7 +192,7 @@ impl PeerHandle {
                                     return;
                                 }
                                 _ => {
-                                    tracing::debug!("Could not remove peer yet, we'll try again later");
+                                    tracing::warn!("Could not remove peer yet, we'll try again later. If this message persists, the gateway might need to be restarted");
                                     continue;
                                 }
                             }

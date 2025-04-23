@@ -16,12 +16,13 @@ pub(crate) fn routes() -> Router<AppState> {
 }
 
 #[utoipa::path(
-    tag = "Nym Nodes",
+    tag = "Nym Explorer",
     get,
     params(
         Pagination
     ),
-    path = "/v3/nym-nodes",
+    path = "/nym-nodes",
+    context_path = "/explorer/v3",
     responses(
         (status = 200, body = PagedResult<ExtendedNymNode>)
     )

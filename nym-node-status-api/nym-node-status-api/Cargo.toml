@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "2.1.0"
+version = "2.2.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -25,10 +25,12 @@ futures-util = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
 nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-http-api-client = { path = "../../common/http-api-client" }
+nym-http-api-common = { path = "../../common/http-api-common" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-serde-helpers = { path = "../../common/serde-helpers" }
 nym-statistics-common = { path = "../../common/statistics" }

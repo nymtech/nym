@@ -6,6 +6,7 @@ use crate::{
         DbPool,
     },
     http::models::Gateway,
+    mixnet_scraper::helpers::NodeDescriptionResponse,
 };
 use futures_util::TryStreamExt;
 use sqlx::{pool::PoolConnection, Sqlite};
@@ -130,4 +131,40 @@ pub(crate) async fn get_bonded_gateway_id_keys(pool: &DbPool) -> anyhow::Result<
     .collect::<HashSet<_>>();
 
     Ok(items)
+}
+
+pub(crate) async fn insert_gateway_description(
+    conn: &mut PoolConnection<Sqlite>,
+    identity_key: &str,
+    description: &NodeDescriptionResponse,
+    timestamp: i64,
+) -> anyhow::Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO gateway_description (
+            gateway_identity_key,
+            moniker,
+            website,
+            security_contact,
+            details,
+            last_updated_utc
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (gateway_identity_key) DO UPDATE SET
+            moniker = excluded.moniker,
+            website = excluded.website,
+            security_contact = excluded.security_contact,
+            details = excluded.details,
+            last_updated_utc = excluded.last_updated_utc
+        "#,
+        identity_key,
+        description.moniker,
+        description.website,
+        description.security_contact,
+        description.details,
+        timestamp,
+    )
+    .execute(conn.as_mut())
+    .await
+    .map(drop)
+    .map_err(From::from)
 }

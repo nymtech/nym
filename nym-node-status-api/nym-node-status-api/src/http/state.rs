@@ -4,7 +4,7 @@ use cosmwasm_std::Decimal;
 use moka::{future::Cache, Entry};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_validator_client::{models::DescribedNodeType, nym_api::SkimmedNode};
+use nym_validator_client::nym_api::SkimmedNode;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
@@ -401,11 +401,7 @@ async fn aggregate_node_info_from_db(
             .get(&node_id)
             .map(|node| node.performance.naive_to_f64())
             .unwrap_or(0.0);
-        let node_type = match described_node.contract_node_type {
-            DescribedNodeType::NymNode => "nym_node".to_string(),
-            DescribedNodeType::LegacyMixnode => "legacy_mixnode".to_string(),
-            DescribedNodeType::LegacyGateway => "legacy_gateway".to_string(),
-        };
+        let node_type = described_node.contract_node_type;
         let ip_address = described_node
             .description
             .host_information
@@ -417,11 +413,10 @@ async fn aggregate_node_info_from_db(
             .description
             .auxiliary_details
             .accepted_operator_terms_and_conditions;
-        let description = described_node.description;
+        let self_described = described_node.description;
 
-        let bonding_address = bond_details
-            .map(|details| details.bond_information.owner.to_string())
-            .unwrap_or_default();
+        let bonding_address =
+            bond_details.map(|details| details.bond_information.owner.to_string());
 
         let node_description = node_descriptions.get(&node_id).cloned().unwrap_or_default();
         let geoip = {
@@ -449,8 +444,8 @@ async fn aggregate_node_info_from_db(
             bonded,
             node_type,
             accepted_tnc,
-            self_description: serde_json::to_value(description).unwrap_or_default(),
-            rewarding_details: serde_json::to_value(rewarding_details).unwrap_or_default(),
+            self_description: self_described,
+            rewarding_details: rewarding_details.to_owned(),
             description: node_description,
             geoip,
         });

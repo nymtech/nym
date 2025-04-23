@@ -151,7 +151,7 @@ impl Monitor {
             })?;
 
         // refresh geodata for all nodes
-        for (_, node_description) in described_nodes.iter() {
+        for node_description in described_nodes.values() {
             self.location_cached(node_description).await;
         }
 
@@ -295,7 +295,7 @@ impl Monitor {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "info", skip_all)]
     async fn location_cached(&mut self, node: &NymNodeDescription) -> Location {
         let node_id = node.node_id;
 

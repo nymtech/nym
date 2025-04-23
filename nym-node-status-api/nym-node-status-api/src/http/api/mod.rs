@@ -40,7 +40,10 @@ impl RouterBuilder {
                     .nest("/summary", summary::routes())
                     .nest("/metrics", metrics::routes()),
             )
-            .nest("/v3", Router::new().nest("/nym-nodes", nym_nodes::routes()))
+            .nest(
+                "/explorer/v3",
+                Router::new().nest("/nym-nodes", nym_nodes::routes()),
+            )
             .nest(
                 "/internal",
                 Router::new().nest("/testruns", testruns::routes()),

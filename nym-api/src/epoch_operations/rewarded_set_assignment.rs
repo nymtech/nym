@@ -6,7 +6,9 @@ use crate::epoch_operations::helpers::stake_to_f64;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
-use nym_mixnet_contract_common::{EpochState, NodeId, NymNodeDetails, RewardedSet};
+use nym_mixnet_contract_common::{
+    EpochState, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
+};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
@@ -25,14 +27,14 @@ enum AvailableRole {
 }
 
 #[derive(Debug, Clone)]
-struct NodeWithStakeAndPerformance {
+struct NodeWithSaturationAndPerformance {
     node_id: NodeId,
     available_roles: Vec<AvailableRole>,
-    total_stake: Decimal,
+    saturation: Decimal,
     performance: Performance,
 }
 
-impl NodeWithStakeAndPerformance {
+impl NodeWithSaturationAndPerformance {
     fn to_selection_weight(&self) -> f64 {
         let scaled_performance = match self.performance.checked_pow(20) {
             Ok(perf) => perf,
@@ -42,7 +44,7 @@ impl NodeWithStakeAndPerformance {
             }
         };
 
-        let scaled_stake = self.total_stake * scaled_performance;
+        let scaled_stake = self.saturation * scaled_performance;
         stake_to_f64(scaled_stake)
     }
 
@@ -62,7 +64,7 @@ impl NodeWithStakeAndPerformance {
 impl EpochAdvancer {
     fn determine_rewarded_set(
         &self,
-        nodes: Vec<NodeWithStakeAndPerformance>,
+        nodes: Vec<NodeWithSaturationAndPerformance>,
         spec: RewardedSetParams,
     ) -> Result<RewardedSet, RewardingError> {
         if nodes.is_empty() {
@@ -204,7 +206,8 @@ impl EpochAdvancer {
     async fn attach_performance_to_eligible_nodes(
         &self,
         nym_nodes: &[NymNodeDetails],
-    ) -> Vec<NodeWithStakeAndPerformance> {
+        reward_params: &RewardingParams,
+    ) -> Vec<NodeWithSaturationAndPerformance> {
         let mut with_performance = Vec::new();
 
         // SAFETY: the cache MUST HAVE been initialised before now
@@ -218,7 +221,7 @@ impl EpochAdvancer {
 
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
-            let total_stake = nym_node.total_stake();
+            let saturation = nym_node.rewarding_details.bond_saturation(reward_params);
 
             let Some(self_described) = described_cache.get_description(&node_id) else {
                 continue;
@@ -230,7 +233,7 @@ impl EpochAdvancer {
             };
 
             let performance = annotation.detailed_performance.to_rewarding_performance();
-            debug!("nym-node {node_id}: stake: {total_stake}, performance: {performance}");
+            debug!("nym-node {node_id}: saturation: {saturation}, performance: {performance}");
 
             let mut available_roles = Vec::new();
             if self_described.declared_role.mixnode {
@@ -248,10 +251,10 @@ impl EpochAdvancer {
                 continue;
             }
 
-            with_performance.push(NodeWithStakeAndPerformance {
+            with_performance.push(NodeWithSaturationAndPerformance {
                 node_id: nym_node.node_id(),
                 available_roles,
-                total_stake,
+                saturation,
                 performance,
             })
         }
@@ -273,13 +276,8 @@ impl EpochAdvancer {
                 }
 
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
-                let nodes_with_performance =
-                    self.attach_performance_to_eligible_nodes(nym_nodes).await;
 
-                if let Err(err) = self
-                    ._update_rewarded_set_and_advance_epoch(nodes_with_performance)
-                    .await
-                {
+                if let Err(err) = self._update_rewarded_set_and_advance_epoch(nym_nodes).await {
                     error!("FAILED to assign the rewarded set... - {err}");
                     Err(err)
                 } else {
@@ -300,15 +298,19 @@ impl EpochAdvancer {
 
     async fn _update_rewarded_set_and_advance_epoch(
         &self,
-        all_nodes: Vec<NodeWithStakeAndPerformance>,
+        nym_nodes: &[NymNodeDetails],
     ) -> Result<(), RewardingError> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;
 
         debug!("Rewarding parameters: {rewarding_parameters:?}");
 
+        let nodes_with_performance = self
+            .attach_performance_to_eligible_nodes(nym_nodes, &rewarding_parameters)
+            .await;
+
         let new_rewarded_set =
-            self.determine_rewarded_set(all_nodes, rewarding_parameters.rewarded_set)?;
+            self.determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;
 
         debug!("New rewarded set: {:?}", new_rewarded_set);
 

@@ -28,33 +28,33 @@ impl ActiveSphinxKeys {
         }
     }
 
-    pub(crate) fn even(&self) -> Option<impl Deref<Target = SphinxPrivateKey>> {
+    pub(crate) fn even(&self) -> Option<SphinxKeyGuard> {
         let primary = self.inner.primary_key.load();
         if primary.is_even_rotation() {
-            return Some(primary);
+            return Some(SphinxKeyGuard::Primary(primary));
         }
         self.secondary()
     }
 
-    pub(crate) fn odd(&self) -> Option<impl Deref<Target = SphinxPrivateKey>> {
+    pub(crate) fn odd(&self) -> Option<SphinxKeyGuard> {
         let primary = self.inner.primary_key.load();
         if !primary.is_even_rotation() {
-            return Some(primary);
+            return Some(SphinxKeyGuard::Primary(primary));
         }
         self.secondary()
     }
 
-    pub(crate) fn primary(&self) -> impl Deref<Target = SphinxPrivateKey> {
-        self.inner.primary_key.map(|k: &SphinxPrivateKey| k).load()
+    pub(crate) fn primary(&self) -> SphinxKeyGuard {
+        SphinxKeyGuard::Primary(self.inner.primary_key.load())
     }
 
-    pub(crate) fn secondary(&self) -> Option<impl Deref<Target = SphinxPrivateKey>> {
+    pub(crate) fn secondary(&self) -> Option<SphinxKeyGuard> {
         let guard = self.inner.secondary_key.load();
         if guard.is_none() {
             return None;
         }
 
-        Some(SecondaryKeyGuard { guard })
+        Some(SphinxKeyGuard::Secondary(SecondaryKeyGuard { guard }))
     }
 
     // 1. generate new key
@@ -84,6 +84,23 @@ impl ActiveSphinxKeys {
 
     fn deactivate_secondary(&self) {
         self.inner.secondary_key.store(None);
+    }
+}
+
+pub(crate) enum SphinxKeyGuard {
+    // Primary(Guard<Arc<SphinxPrivateKey>>),
+    Primary(Guard<Arc<SphinxPrivateKey>>),
+    Secondary(SecondaryKeyGuard),
+}
+
+impl Deref for SphinxKeyGuard {
+    type Target = SphinxPrivateKey;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            SphinxKeyGuard::Primary(g) => g.deref(),
+            SphinxKeyGuard::Secondary(g) => g.deref(),
+        }
     }
 }
 

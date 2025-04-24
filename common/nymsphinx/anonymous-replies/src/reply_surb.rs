@@ -8,7 +8,7 @@ use nym_sphinx_addressing::nodes::{
     NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
 };
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{
     NymPacket, SURBMaterial, SphinxError, HEADER_SIZE, NODE_ADDRESS_LENGTH, SURB,
     X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
@@ -46,44 +46,7 @@ pub enum ReplySurbError {
 pub struct ReplySurb {
     pub(crate) surb: SURB,
     pub(crate) encryption_key: SurbEncryptionKey,
-}
-
-// Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
-// however, if we decided we needed it again, it's already here
-impl Serialize for ReplySurb {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_bytes(&self.to_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for ReplySurb {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct ReplySurbVisitor;
-
-        impl Visitor<'_> for ReplySurbVisitor {
-            type Value = ReplySurb;
-
-            fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                write!(formatter, "A replySURB must contain a valid symmetric encryption key and a correctly formed sphinx header")
-            }
-
-            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
-            where
-                E: SerdeError,
-            {
-                ReplySurb::from_bytes(bytes)
-                    .map_err(|_| SerdeError::invalid_length(bytes.len(), &self))
-            }
-        }
-
-        deserializer.deserialize_bytes(ReplySurbVisitor)
-    }
+    // pub(crate) used_key_rotation: SphinxKeyRotation,
 }
 
 impl ReplySurb {
@@ -123,6 +86,7 @@ impl ReplySurb {
         Ok(ReplySurb {
             surb: surb_material.construct_SURB().unwrap(),
             encryption_key: SurbEncryptionKey::new(rng),
+            // used_key_rotation: SphinxKeyRotation::from(topology.current_key_rotation()),
         })
     }
 
@@ -198,8 +162,14 @@ impl ReplySurb {
             .use_surb(message_bytes, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
-        let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();
+        let first_hop_address = NymNodeRoutingAddress::try_from(first_hop)?;
 
         Ok((NymPacket::Sphinx(packet), first_hop_address))
     }
+}
+
+pub struct AppliedReplySurb {
+    packet: NymPacket,
+    first_hop_address: NymNodeRoutingAddress,
+    key_rotation: SphinxKeyRotation,
 }

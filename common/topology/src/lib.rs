@@ -129,6 +129,11 @@ impl NymRouteProvider {
         }
     }
 
+    pub fn current_key_rotation(&self) -> u32 {
+        todo!()
+        // self.topology.rewarded_set.epoch_id
+    }
+
     pub fn new_empty(ignore_egress_epoch_roles: bool) -> NymRouteProvider {
         let this: Self = NymTopology::default().into();
         this.with_ignore_egress_epoch_roles(ignore_egress_epoch_roles)

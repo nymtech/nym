@@ -3,6 +3,7 @@
 
 use crate::codec::NymCodecError;
 use bytes::{BufMut, BytesMut};
+use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::key_rotation::SphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::{PacketVersion, CURRENT_PACKET_VERSION};
@@ -16,6 +17,14 @@ pub struct FramedNymPacket {
 
     /// The actual SphinxPacket being sent.
     pub(crate) packet: NymPacket,
+}
+
+impl From<MixPacket> for FramedNymPacket {
+    fn from(packet: MixPacket) -> Self {
+        let typ = packet.packet_type();
+        let rot = packet.key_rotation();
+        FramedNymPacket::new(packet.into_packet(), typ, rot)
+    }
 }
 
 impl FramedNymPacket {
@@ -56,6 +65,10 @@ impl FramedNymPacket {
 
     pub fn packet(&self) -> &NymPacket {
         &self.packet
+    }
+
+    pub fn key_rotation(&self) -> SphinxKeyRotation {
+        self.header.key_rotation
     }
 
     pub fn is_sphinx(&self) -> bool {

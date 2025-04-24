@@ -223,11 +223,15 @@ impl ConnectionHandler {
             SphinxKeyRotation::Unknown => {
                 // we have to try both keys, start with the primary as it has higher likelihood of being correct
                 // if let Ok(partially_unwrapped) = PartiallyUnwrappedPacket::new()
-                match PartiallyUnwrappedPacket::new(packet, self.shared.sphinx_keys.primary()) {
+                match PartiallyUnwrappedPacket::new(
+                    packet,
+                    self.shared.sphinx_keys.primary().inner().as_ref(),
+                ) {
                     Ok(unwrapped_packet) => Ok(unwrapped_packet),
                     Err((packet, err)) => {
                         if let Some(secondary) = self.shared.sphinx_keys.secondary() {
-                            PartiallyUnwrappedPacket::new(packet, secondary).map_err(|(_, err)| err)
+                            PartiallyUnwrappedPacket::new(packet, secondary.inner().as_ref())
+                                .map_err(|(_, err)| err)
                         } else {
                             Err(err)
                         }
@@ -238,13 +242,15 @@ impl ConnectionHandler {
                 let Some(odd_key) = self.shared.sphinx_keys.odd() else {
                     return Err(PacketProcessingError::ExpiredKey);
                 };
-                PartiallyUnwrappedPacket::new(packet, odd_key).map_err(|(_, err)| err)
+                PartiallyUnwrappedPacket::new(packet, odd_key.inner().as_ref())
+                    .map_err(|(_, err)| err)
             }
             SphinxKeyRotation::EvenRotation => {
                 let Some(even_key) = self.shared.sphinx_keys.even() else {
                     return Err(PacketProcessingError::ExpiredKey);
                 };
-                PartiallyUnwrappedPacket::new(packet, even_key).map_err(|(_, err)| err)
+                PartiallyUnwrappedPacket::new(packet, even_key.inner().as_ref())
+                    .map_err(|(_, err)| err)
             }
         }
     }
@@ -385,19 +391,19 @@ impl ConnectionHandler {
         // and by the time we need it, the rotation info should be present)
         match packet.header().key_rotation {
             SphinxKeyRotation::Unknown => {
-                process_framed_packet(packet, self.shared.sphinx_keys.primary())
+                process_framed_packet(packet, self.shared.sphinx_keys.primary().inner().as_ref())
             }
             SphinxKeyRotation::OddRotation => {
                 let Some(odd_key) = self.shared.sphinx_keys.odd() else {
                     return Err(PacketProcessingError::ExpiredKey);
                 };
-                process_framed_packet(packet, odd_key)
+                process_framed_packet(packet, odd_key.inner().as_ref())
             }
             SphinxKeyRotation::EvenRotation => {
                 let Some(even_key) = self.shared.sphinx_keys.even() else {
                     return Err(PacketProcessingError::ExpiredKey);
                 };
-                process_framed_packet(packet, even_key)
+                process_framed_packet(packet, even_key.inner().as_ref())
             }
         }
     }

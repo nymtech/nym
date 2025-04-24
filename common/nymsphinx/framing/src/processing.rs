@@ -5,7 +5,7 @@ use crate::packet::FramedNymPacket;
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_forwarding::packet::MixPacket;
-use nym_sphinx_params::{PacketSize, PacketType};
+use nym_sphinx_params::{PacketSize, PacketType, SphinxKeyRotation};
 use nym_sphinx_types::header::shared_secret::ExpandedSharedSecret;
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymPacketError,
@@ -153,6 +153,7 @@ impl PartiallyUnwrappedPacket {
         let packet_size = self.received_data.packet_size();
         let packet_type = self.received_data.packet_type();
 
+        let key_rotation = self.received_data.header.key_rotation;
         let packet = self.received_data.into_inner();
 
         // currently partial unwrapping is only implemented for sphinx packets.
@@ -167,7 +168,7 @@ impl PartiallyUnwrappedPacket {
             return Err(PacketProcessingError::PartialOutfoxProcessing);
         };
         let processed_packet = packet.process_with_expanded_secret(&expanded_shared_secret)?;
-        wrap_processed_sphinx_packet(processed_packet, packet_size, packet_type)
+        wrap_processed_sphinx_packet(processed_packet, packet_size, packet_type, key_rotation)
     }
 
     pub fn replay_tag(&self) -> Option<&[u8; REPLAY_TAG_SIZE]> {
@@ -192,13 +193,14 @@ pub fn process_framed_packet(
 ) -> Result<MixProcessingResult, PacketProcessingError> {
     let packet_size = received.packet_size();
     let packet_type = received.packet_type();
+    let key_rotation = received.key_rotation();
 
     // unwrap the sphinx packet
     let processed_packet = perform_framed_unwrapping(received, sphinx_key)?;
 
     // for forward packets, extract next hop and set delay (but do NOT delay here)
     // for final packets, extract SURBAck
-    perform_final_processing(processed_packet, packet_size, packet_type)
+    perform_final_processing(processed_packet, packet_size, packet_type, key_rotation)
 }
 
 fn perform_framed_unwrapping(
@@ -223,6 +225,7 @@ fn wrap_processed_sphinx_packet(
     packet: nym_sphinx_types::ProcessedPacket,
     packet_size: PacketSize,
     packet_type: PacketType,
+    key_rotation: SphinxKeyRotation,
 ) -> Result<MixProcessingResult, PacketProcessingError> {
     let processing_data = match packet.data {
         ProcessedPacketData::ForwardHop {
@@ -234,6 +237,7 @@ fn wrap_processed_sphinx_packet(
             next_hop_address,
             delay,
             packet_type,
+            key_rotation,
         ),
         // right now there's no use for the surb_id included in the header - probably it should get removed from the
         // sphinx all together?
@@ -246,6 +250,7 @@ fn wrap_processed_sphinx_packet(
             payload.recover_plaintext()?,
             packet_size,
             packet_type,
+            key_rotation,
         ),
     }?;
 
@@ -259,6 +264,7 @@ fn wrap_processed_outfox_packet(
     packet: OutfoxProcessedPacket,
     packet_size: PacketSize,
     packet_type: PacketType,
+    key_rotation: SphinxKeyRotation,
 ) -> Result<MixProcessingResult, PacketProcessingError> {
     let next_address = *packet.next_address();
     let packet = packet.into_packet();
@@ -268,6 +274,7 @@ fn wrap_processed_outfox_packet(
             packet.recover_plaintext()?.to_vec(),
             packet_size,
             packet_type,
+            key_rotation,
         )?;
         Ok(MixProcessingResult {
             packet_version: MixPacketVersion::Outfox,
@@ -278,6 +285,7 @@ fn wrap_processed_outfox_packet(
             NymNodeRoutingAddress::try_from_bytes(&next_address)?,
             NymPacket::Outfox(packet),
             PacketType::Outfox,
+            SphinxKeyRotation::Unknown,
         );
         Ok(MixProcessingResult {
             packet_version: MixPacketVersion::Outfox,
@@ -293,13 +301,14 @@ fn perform_final_processing(
     packet: NymProcessedPacket,
     packet_size: PacketSize,
     packet_type: PacketType,
+    key_rotation: SphinxKeyRotation,
 ) -> Result<MixProcessingResult, PacketProcessingError> {
     match packet {
         NymProcessedPacket::Sphinx(packet) => {
-            wrap_processed_sphinx_packet(packet, packet_size, packet_type)
+            wrap_processed_sphinx_packet(packet, packet_size, packet_type, key_rotation)
         }
         NymProcessedPacket::Outfox(packet) => {
-            wrap_processed_outfox_packet(packet, packet_size, packet_type)
+            wrap_processed_outfox_packet(packet, packet_size, packet_type, key_rotation)
         }
     }
 }
@@ -309,8 +318,10 @@ fn process_final_hop(
     payload: Vec<u8>,
     packet_size: PacketSize,
     packet_type: PacketType,
+    key_rotation: SphinxKeyRotation,
 ) -> Result<MixProcessingResultData, PacketProcessingError> {
-    let (forward_ack, message) = split_into_ack_and_message(payload, packet_size, packet_type)?;
+    let (forward_ack, message) =
+        split_into_ack_and_message(payload, packet_size, packet_type, key_rotation)?;
 
     Ok(MixProcessingResultData::FinalHop {
         final_hop_data: ProcessedFinalHop {
@@ -325,6 +336,7 @@ fn split_into_ack_and_message(
     data: Vec<u8>,
     packet_size: PacketSize,
     packet_type: PacketType,
+    key_rotation: SphinxKeyRotation,
 ) -> Result<(Option<MixPacket>, Vec<u8>), PacketProcessingError> {
     match packet_size {
         PacketSize::AckPacket | PacketSize::OutfoxAckPacket => {
@@ -346,7 +358,7 @@ fn split_into_ack_and_message(
                         return Err(err.into());
                     }
                 };
-            let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type);
+            let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type, key_rotation);
             Ok((Some(forward_ack), message))
         }
     }
@@ -374,10 +386,11 @@ fn process_forward_hop(
     forward_address: NodeAddressBytes,
     delay: SphinxDelay,
     packet_type: PacketType,
+    key_rotation: SphinxKeyRotation,
 ) -> Result<MixProcessingResultData, PacketProcessingError> {
     let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
-    let packet = MixPacket::new(next_hop_address, packet, packet_type);
+    let packet = MixPacket::new(next_hop_address, packet, packet_type, key_rotation);
     Ok(MixProcessingResultData::ForwardHop {
         packet,
         delay: Some(delay),

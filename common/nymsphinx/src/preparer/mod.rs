@@ -13,7 +13,7 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
@@ -152,14 +152,16 @@ pub trait FragmentPreparer {
             .apply_surb(packet_payload, packet_size, packet_type)
             .unwrap();
 
-        Ok(PreparedFragment {
-            // the round-trip delay is the sum of delays of all hops on the forward route as
-            // well as the total delay of the ack packet.
-            // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
-            total_delay: expected_forward_delay + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, packet_type),
-            fragment_identifier,
-        })
+        todo!("somehow get key rotation information here")
+
+        // Ok(PreparedFragment {
+        //     // the round-trip delay is the sum of delays of all hops on the forward route as
+        //     // well as the total delay of the ack packet.
+        //     // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
+        //     total_delay: expected_forward_delay + ack_delay,
+        //     mix_packet: MixPacket::new(first_hop_address, sphinx_packet, packet_type, key_rotation),
+        //     fragment_identifier,
+        // })
     }
 
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
@@ -210,6 +212,9 @@ pub trait FragmentPreparer {
         // more gracefully is that this error should never be reached as it implies incorrect chunking
         let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
             .expect("the message has been incorrectly fragmented");
+
+        let rotation_id = topology.current_key_rotation();
+        let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);
 
         let fragment_identifier = fragment.fragment_identifier();
 
@@ -279,7 +284,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
+            mix_packet: MixPacket::new(first_hop_address, packet, packet_type, sphinx_key_rotation),
             fragment_identifier,
         })
     }

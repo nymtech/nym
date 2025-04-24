@@ -256,7 +256,8 @@ impl ThroughputTestingClient {
         packet_bytes.append(&mut payload_bytes);
 
         let forward_packet = NymPacket::sphinx_from_bytes(&packet_bytes)?;
-        Ok(FramedNymPacket::new(forward_packet, Default::default()))
+        todo!()
+        // Ok(FramedNymPacket::new(forward_packet, Default::default()))
     }
 
     async fn send_packets(&mut self) -> anyhow::Result<()> {

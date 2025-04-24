@@ -58,32 +58,20 @@ impl<C, F> PacketForwarder<C, F> {
         C: SendWithoutResponse,
         F: RoutingFilter,
     {
-        let next_hop = packet.next_hop();
+        let next_hop = packet.next_hop_address();
 
-        let packet_type = packet.packet_type();
-        let packet = packet.into_packet();
-
-        if let Err(err) = self
-            .mixnet_client
-            .send_without_response(next_hop, packet, packet_type)
-        {
+        if let Err(err) = self.mixnet_client.send_without_response(packet) {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
                 // in any other case the connection might still be re-established (or created for the first time)
                 // and the packet might get sent, but we won't know about it
-                self.metrics
-                    .mixnet
-                    .egress_dropped_forward_packet(next_hop.into())
+                self.metrics.mixnet.egress_dropped_forward_packet(next_hop)
             } else if err.kind() == io::ErrorKind::NotConnected {
                 // let's give the benefit of the doubt and assume we manage to establish connection
-                self.metrics
-                    .mixnet
-                    .egress_sent_forward_packet(next_hop.into())
+                self.metrics.mixnet.egress_sent_forward_packet(next_hop)
             }
         } else {
-            self.metrics
-                .mixnet
-                .egress_sent_forward_packet(next_hop.into())
+            self.metrics.mixnet.egress_sent_forward_packet(next_hop)
         }
     }
 

@@ -146,7 +146,8 @@ where
         )?,
     };
 
-    Ok(MixPacket::new(first_hop_address, packet, packet_type))
+    todo!()
+    // Ok(MixPacket::new(first_hop_address, packet, packet_type))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

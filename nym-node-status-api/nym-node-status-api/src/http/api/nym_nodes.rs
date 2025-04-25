@@ -9,7 +9,7 @@ use utoipa::IntoParams;
 
 use crate::http::{
     error::{HttpError, HttpResult},
-    models::ExtendedNymNode,
+    models::{ExtendedNymNode, NodeDelegation},
     state::AppState,
     PagedResult, Pagination,
 };
@@ -35,7 +35,7 @@ pub(crate) fn routes() -> Router<AppState> {
         (status = 200, body = PagedResult<ExtendedNymNode>)
     )
 )]
-#[instrument(level = tracing::Level::DEBUG, skip_all, fields(page=pagination.page, size=pagination.size))]
+#[instrument(level = tracing::Level::INFO, skip_all, fields(page=pagination.page, size=pagination.size))]
 async fn nym_nodes(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
@@ -55,6 +55,7 @@ async fn nym_nodes(
     Ok(Json(PagedResult::paginate(pagination, nodes)))
 }
 
+#[allow(dead_code)] // clippy doesn't detect usage in utoipa macros
 #[derive(Deserialize, IntoParams)]
 #[into_params(parameter_in = Path)]
 struct NodeIdParam {
@@ -63,34 +64,25 @@ struct NodeIdParam {
 }
 
 #[utoipa::path(
-    tag = "Nym Nodes",
+    tag = "Nym Explorer",
     get,
     params(
         NodeIdParam
     ),
     path = "/{node_id}/delegations",
-    context_path = "/v3/nym-nodes",
+    context_path = "/explorer/v3/nym-nodes",
     responses(
-        (status = 200, body = PagedResult<ExtendedNymNode>)
+        (status = 200, body = NodeDelegation)
     )
 )]
-#[instrument(level = tracing::Level::DEBUG, skip(state))]
+#[instrument(level = tracing::Level::INFO, skip(state))]
 async fn node_delegations(
     Path(node_id): Path<NodeId>,
     State(state): State<AppState>,
-) -> HttpResult<Json<PagedResult<ExtendedNymNode>>> {
-    let db = state.db_pool();
-    let node_geocache = state.node_geocache();
-
-    let nodes = state
-        .cache()
-        .get_nym_nodes_list(db, node_geocache)
+) -> HttpResult<Json<Vec<NodeDelegation>>> {
+    state
+        .node_delegations(node_id)
         .await
-        .map_err(|e| {
-            tracing::error!("{e}");
-            HttpError::internal()
-        })?;
-
-    todo!()
-    // Ok(Json())
+        .ok_or_else(|| HttpError::no_delegations_for_node(node_id))
+        .map(Json)
 }

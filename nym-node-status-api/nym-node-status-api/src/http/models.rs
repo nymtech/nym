@@ -1,4 +1,5 @@
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Addr, Coin, Decimal};
+use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::client::NodeId;
 use serde::{Deserialize, Serialize};
@@ -119,4 +120,31 @@ pub struct SessionStats {
     pub vpn_sessions: Option<serde_json::Value>,
     pub mixnet_sessions: Option<serde_json::Value>,
     pub unknown_sessions: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct NodeDelegation {
+    #[schema(value_type = CoinSchema)]
+    pub amount: Coin,
+    pub cumulative_reward_ratio: String,
+    pub block_height: u64,
+    // TODO dz is node_id necessary?
+    pub node_id: NodeId,
+    #[schema(value_type = String)]
+    pub owner: Addr,
+    #[schema(value_type = Option<String>)]
+    pub proxy: Option<Addr>,
+}
+
+impl From<nym_mixnet_contract_common::Delegation> for NodeDelegation {
+    fn from(value: nym_mixnet_contract_common::Delegation) -> Self {
+        Self {
+            amount: value.amount,
+            cumulative_reward_ratio: value.cumulative_reward_ratio.to_string(),
+            block_height: value.height,
+            node_id: value.node_id,
+            owner: value.owner,
+            proxy: value.proxy,
+        }
+    }
 }

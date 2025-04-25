@@ -13,17 +13,19 @@ cd cmdrun &&
 ./nyx-total-stake.sh > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/nyx-total-stake.md &&
 
 cd ../api-scraping &&
-python api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/circulating-supply.md &&
+python api_targets.py validator --api mainnet --endpoint circulating-supply --value circulating_supply amount --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/circulating-supply.md &&
 
-python api_targets.py v --api mainnet --endpoint circulating-supply --format markdown --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/token-table.md &&
+python api_targets.py validator --api mainnet --endpoint circulating-supply --format markdown --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/token-table.md &&
 
-python api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking-scale-factor.md &&
+python api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking-scale-factor.md &&
 
-python api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval stake_saturation_point --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md &&
+python api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval stake_saturation_point --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md &&
+
+python api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval epoch_reward_budget --format markdown --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md &&
 
 python api_targets.py time_now > ../../docs/components/outputs/api-scraping-outputs/time-now.md &&
 
-python api_targets.py c --staking_target --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md &&
+python api_targets.py calculate --staking_target --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md &&
 
 cd ../../../scripts &&
 echo '```python' > ../documentation/docs/components/outputs/command-outputs/node-api-check-query-help.md &&

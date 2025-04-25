@@ -1,0 +1,41 @@
+import StakingTarget from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md';
+import StakingScaleFactor from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-scale-factor.md';
+import StakeSaturation from 'components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md';
+import CirculatingSupply from 'components/outputs/api-scraping-outputs/nyx-outputs/circulating-supply.md';
+import { Callout } from 'nextra/components';
+ 
+Stake saturation is a node reputation done in a form of self bond or stakers delegation. Optimal stake saturation level is calculated as:
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+> **stake_saturation_level = staking_target / rewarded_set_size**
+>
+> **rewarded_set_size = active_set_size + standby_set_size**
+</Callout>
+
+With current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM, staking target of <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM, divided by the sum of nodes in the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params), <b>the stake saturation level is <span style={{display: 'inline-block'}}><StakeSaturation /></span> NYM per node.</b> 
+
+Node stake saturation is a value between `0` and `1` following this logic.
+
+**Node stake saturation formula:**
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+> **node_stake_saturation = node_total_stake / stake_saturation_level**
+</Callout>
+
+
+
+- If a node has sum of self bond and delegations (stake) equal to the stake saturation level, then its `stake_saturation = 1`. 
+
+- In case of a smaller 
+
+{/*
+- If a node has sum of self bond and delegations (stake) equal to the stake saturation level, then its `stake_saturation = 1`. 
+
+- In case of a smaller 
+
+
+imagine the rewards for a fully saturated node are 250, with each staked token being rewarded (example) 0.01 NYM. Now imagine saturation is 200%: the reward for the node is still 250, but the APY for staked tokens is actually half, ie, 0.005 NYM
+saturation maxes out at 1.0
+if you have 1.3 instead of 1.0, you get the same rewards
+so all those additional staked tokens are wasted
+*/}

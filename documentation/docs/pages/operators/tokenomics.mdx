@@ -97,7 +97,7 @@ To get a full comprehension of [node operators rewards](tokenomics/mixnet-reward
  │           │   supply    │           │   nym nodes   │           │
  │circulating│   scale     │  staking  │   in rewarded │   stake   │
  │  supply   │   factor    │  target   │   set         │saturation │
- │           ├────────────►│           ├──────────────►│           │
+ │           ├────────────►│           ├──────────────►│   level   │
  └───────────┘             └───────────┘               └───────────┘
 
 ```
@@ -145,7 +145,7 @@ Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set 
 The alorithm for selecting the nodes into the Rewarded set is in detail explained in the [Rewarded set selection logic part](tokenomics/mixnet-rewards#rewarded-set-selection).
     </MyTab>
     <MyTab>
-In dVPN (2-hop) mode every node which meets the performance criteria, including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
+In dVPN (2-hop) mode every node which meets the [performance criteria](tokenomics/mixnet-rewards#node-performance-calculation), including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
     </MyTab>
   </Tabs>
 </div>

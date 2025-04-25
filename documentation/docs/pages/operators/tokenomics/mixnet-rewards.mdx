@@ -349,9 +349,9 @@ Routing score is measured by Nym Network Monitor which sends thousands of packag
 
 Once the rewarded set (currently 120 Mixnodes and 120 Gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
 
-If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](../tokenomics.mdx#stake-saturation) and [performance](#performance-calculation).
+If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](../tokenomics.mdx#stake-saturation) and [performance](#performance-calculation). This is how rewards get distributed between nodes in the rewarded set.
 
-**Rewards distribution formula**
+**Rewards distribution formula:**
 
 <Callout type="info" emoji="📌">
 > **node_epoch_rewards = reward_budget * 1 / active_set_size * (stake_saturation * performance)**
@@ -363,8 +363,6 @@ If a node is active in the rewarded set, it will receive rewards in the end of t
 
 Performance and stake saturation play an equally decisive role in the size of rewards earned after the epoch. The closer a node is to maximum value (`1`) of each of these parameters, the more rewards it will get.
 
-**Rewards are send to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set.**
-
 Given that there is a highly unlikely chance of all nodes having maximum stake saturation and performance, in majority of cases there will be some part of the reward budget left undistributed. This "change" is then kept in the [Mixmining reserve](../tokenomics#tokenomics).
 
 <Callout>
@@ -373,6 +371,34 @@ All parameters regarding performance score can be browsed or pull live from:
 `https://validator.nymtech.net/api/v1/nym-nodes/annotation/<NODE_ID>`
 
 In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
+</Callout>
+
+**Rewards are send to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](#rewards-distribution).
+
+#### Rewards Distribution
+
+Once the [rewards are asigned per each node](#rewards-calculation) they need to be distributed between the operator of the node and delegators (people who staked their NYM on that node). The distribution is pretty straightforward and it happens in the following order:
+
+
+1. **Operators Costs (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](#nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
+2. **Profit Margin (P.M.)**: What's the extra % cut the operator requests (this value is set by the operator in the bonding wallet node settings)
+3. **Bond & Stake proportionaly**: The remaining rewards are distributed proportionaly to the weight of every stake (including self bond, self delegation and each delegation).
+
+##### Nyx Epoch vs Interval
+
+The O.C. is a value required per month. However, it's paid only in epochs when the node is active. To calculate this, we use a value called `interval` which represents 30 days (approximate month):
+
+<Callout type="info" emoji="📌">
+> **1 epoch = 60 min** <br />
+> **1 interval = 720 epochs**
+>
+> 720 = 30 * 24 <br />
+> 30 days * 24 hours
+</ Callout>
+
+Therefore every epoch a node is active, the operator gets:
+<Callout type="info" emoji="📌">
+**operators_cost / 720**
 </Callout>
 
 {/*

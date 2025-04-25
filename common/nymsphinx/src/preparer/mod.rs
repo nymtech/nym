@@ -20,6 +20,7 @@ use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use tracing::*;
 
+use nym_sphinx_anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
 
@@ -103,7 +104,7 @@ pub trait FragmentPreparer {
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         packet_sender: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
@@ -148,20 +149,18 @@ pub trait FragmentPreparer {
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
-        let (sphinx_packet, first_hop_address) = reply_surb
+        let applied_surb = reply_surb
             .apply_surb(packet_payload, packet_size, packet_type)
             .unwrap();
 
-        todo!("somehow get key rotation information here")
-
-        // Ok(PreparedFragment {
-        //     // the round-trip delay is the sum of delays of all hops on the forward route as
-        //     // well as the total delay of the ack packet.
-        //     // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
-        //     total_delay: expected_forward_delay + ack_delay,
-        //     mix_packet: MixPacket::new(first_hop_address, sphinx_packet, packet_type, key_rotation),
-        //     fragment_identifier,
-        // })
+        Ok(PreparedFragment {
+            // the round-trip delay is the sum of delays of all hops on the forward route as
+            // well as the total delay of the ack packet.
+            // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
+            total_delay: expected_forward_delay + ack_delay,
+            mix_packet: MixPacket::from_applied_surb(applied_surb, packet_type),
+            fragment_identifier,
+        })
     }
 
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
@@ -376,9 +375,11 @@ where
         use_legacy_reply_surb_format: bool,
         amount: usize,
         topology: &NymRouteProvider,
-    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+    ) -> Result<Vec<ReplySurbWithKeyRotation>, NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(amount);
         let disabled_mix_hops = self.mix_hops_disabled();
+
+        let key_rotation = SphinxKeyRotation::from(topology.current_key_rotation());
 
         for _ in 0..amount {
             let reply_surb = ReplySurb::construct(
@@ -388,7 +389,8 @@ where
                 use_legacy_reply_surb_format,
                 topology,
                 disabled_mix_hops, // TODO: support SURBs with no mix hops after changes to surb format / construction
-            )?;
+            )?
+            .with_key_rotation(key_rotation);
             reply_surbs.push(reply_surb)
         }
 
@@ -400,7 +402,7 @@ where
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;

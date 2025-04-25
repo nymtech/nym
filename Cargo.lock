@@ -6758,7 +6758,6 @@ dependencies = [
  "nym-topology",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "serde",
  "thiserror 2.0.12",
  "tracing",
  "wasm-bindgen",
@@ -6802,8 +6801,8 @@ dependencies = [
 name = "nym-sphinx-forwarding"
 version = "0.1.0"
 dependencies = [
- "nym-outfox",
  "nym-sphinx-addressing",
+ "nym-sphinx-anonymous-replies",
  "nym-sphinx-params",
  "nym-sphinx-types",
  "thiserror 2.0.12",

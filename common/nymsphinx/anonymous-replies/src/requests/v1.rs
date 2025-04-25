@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::requests::InvalidReplyRequestError;
-use crate::ReplySurb;
+use crate::{ReplySurb, ReplySurbWithKeyRotation};
 use nym_sphinx_types::PAYLOAD_KEY_SIZE;
 use std::fmt::Display;
 use std::mem;
@@ -14,10 +14,10 @@ const fn v1_reply_surb_serialised_len() -> usize {
     ReplySurb::BASE_OVERHEAD + 4 * PAYLOAD_KEY_SIZE
 }
 
-fn v1_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
+fn v1_reply_surbs_serialised_len(surbs: &[ReplySurbWithKeyRotation]) -> usize {
     // sanity checks; this should probably be removed later on
     if let Some(reply_surb) = surbs.first() {
-        if reply_surb.surb.uses_key_seeds() {
+        if reply_surb.inner.surb.uses_key_seeds() {
             error!("using v1 surbs encoding with updated structure - the surbs will be unusable")
         }
     }
@@ -30,7 +30,7 @@ fn v1_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
 // NUM_SURBS (u32) || SURB_DATA
 fn recover_reply_surbs_v1(
     bytes: &[u8],
-) -> Result<(Vec<ReplySurb>, usize), InvalidReplyRequestError> {
+) -> Result<(Vec<ReplySurbWithKeyRotation>, usize), InvalidReplyRequestError> {
     let mut consumed = mem::size_of::<u32>();
     if bytes.len() < consumed {
         return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
@@ -45,7 +45,7 @@ fn recover_reply_surbs_v1(
     let mut reply_surbs = Vec::with_capacity(num_surbs as usize);
     for _ in 0..num_surbs as usize {
         let surb_bytes = &bytes[consumed..consumed + surb_size];
-        let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
+        let reply_surb = ReplySurb::from_bytes(surb_bytes)?.to_legacy();
         reply_surbs.push(reply_surb);
 
         consumed += surb_size;
@@ -55,19 +55,21 @@ fn recover_reply_surbs_v1(
 }
 
 // length (u32) prefixed reply surbs with legacy serialisation of 4 hops and full payload keys attached
-fn reply_surbs_bytes_v1(reply_surbs: &[ReplySurb]) -> impl Iterator<Item = u8> + use<'_> {
+fn reply_surbs_bytes_v1(
+    reply_surbs: &[ReplySurbWithKeyRotation],
+) -> impl Iterator<Item = u8> + use<'_> {
     let num_surbs = reply_surbs.len() as u32;
 
     num_surbs
         .to_be_bytes()
         .into_iter()
-        .chain(reply_surbs.iter().flat_map(|s| s.to_bytes()))
+        .chain(reply_surbs.iter().flat_map(|s| s.inner.to_bytes()))
 }
 
 #[derive(Debug)]
 pub struct DataV1 {
     pub message: Vec<u8>,
-    pub reply_surbs: Vec<ReplySurb>,
+    pub reply_surbs: Vec<ReplySurbWithKeyRotation>,
 }
 
 impl Display for DataV1 {
@@ -83,7 +85,7 @@ impl Display for DataV1 {
 
 #[derive(Debug)]
 pub struct AdditionalSurbsV1 {
-    pub reply_surbs: Vec<ReplySurb>,
+    pub reply_surbs: Vec<ReplySurbWithKeyRotation>,
 }
 
 impl Display for AdditionalSurbsV1 {
@@ -98,7 +100,7 @@ impl Display for AdditionalSurbsV1 {
 
 #[derive(Debug)]
 pub struct HeartbeatV1 {
-    pub additional_reply_surbs: Vec<ReplySurb>,
+    pub additional_reply_surbs: Vec<ReplySurbWithKeyRotation>,
 }
 
 impl Display for HeartbeatV1 {

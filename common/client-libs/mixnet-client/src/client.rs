@@ -6,7 +6,6 @@ use futures::StreamExt;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
-use nym_sphinx::params::SphinxKeyRotation;
 use std::io;
 use std::net::SocketAddr;
 use std::ops::Deref;

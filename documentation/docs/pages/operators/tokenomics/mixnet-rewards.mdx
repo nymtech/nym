@@ -264,10 +264,6 @@ All parameters regarding performance score can be browsed or pull live from:
 In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
 </Callout>
 
-<Callout type="info" emoji="ℹ️">
-Besides these values, the API also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set. Thus, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
-</ Callout>
-
 #### Config Score Calculation
 
 Config score is in place to ensure that the node configuration is done properly so the node is eligible for taking part in Nym network. The API looks into these paramteres:
@@ -298,6 +294,9 @@ First three points have binary values of either `0` or `1`, with a following log
 
 **Only if ALL conditions above are `True` the node can have any chance to be selected, as otherwise the probability will always be 0.**
 
+<Callout type="info" emoji="ℹ️">
+Besides these values, the API also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set. Thus, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
+</ Callout>
 
 ##### Versions Behind Calculation
 

@@ -10,7 +10,6 @@ repository = { workspace = true }
 [dependencies]
 rand = { workspace = true }
 bs58 = { workspace = true }
-serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 

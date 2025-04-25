@@ -15,9 +15,6 @@ use nym_sphinx_types::{
 };
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
-use serde::de::{Error as SerdeError, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Formatter};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -46,7 +43,6 @@ pub enum ReplySurbError {
 pub struct ReplySurb {
     pub(crate) surb: SURB,
     pub(crate) encryption_key: SurbEncryptionKey,
-    // pub(crate) used_key_rotation: SphinxKeyRotation,
 }
 
 impl ReplySurb {
@@ -166,10 +162,71 @@ impl ReplySurb {
 
         Ok((NymPacket::Sphinx(packet), first_hop_address))
     }
+
+    pub fn to_legacy(self) -> ReplySurbWithKeyRotation {
+        self.with_key_rotation(SphinxKeyRotation::Unknown)
+    }
+
+    pub fn with_key_rotation(self, key_rotation: SphinxKeyRotation) -> ReplySurbWithKeyRotation {
+        ReplySurbWithKeyRotation {
+            inner: self,
+            key_rotation,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReplySurbWithKeyRotation {
+    pub(crate) inner: ReplySurb,
+    pub(crate) key_rotation: SphinxKeyRotation,
+}
+
+impl ReplySurbWithKeyRotation {
+    pub fn encryption_key(&self) -> &SurbEncryptionKey {
+        self.inner.encryption_key()
+    }
+
+    pub fn inner_reply_surb(&self) -> &ReplySurb {
+        &self.inner
+    }
+
+    pub fn key_rotation(&self) -> SphinxKeyRotation {
+        self.key_rotation
+    }
+
+    pub fn apply_surb<M: AsRef<[u8]>>(
+        self,
+        message: M,
+        packet_size: PacketSize,
+        _packet_type: PacketType,
+    ) -> Result<AppliedReplySurb, ReplySurbError> {
+        let (packet, first_hop_address) =
+            self.inner.apply_surb(message, packet_size, _packet_type)?;
+
+        Ok(AppliedReplySurb {
+            packet,
+            first_hop_address,
+            key_rotation: self.key_rotation,
+        })
+    }
 }
 
 pub struct AppliedReplySurb {
-    packet: NymPacket,
-    first_hop_address: NymNodeRoutingAddress,
-    key_rotation: SphinxKeyRotation,
+    pub(crate) packet: NymPacket,
+    pub(crate) first_hop_address: NymNodeRoutingAddress,
+    pub(crate) key_rotation: SphinxKeyRotation,
+}
+
+impl AppliedReplySurb {
+    pub fn first_hop_address(&self) -> NymNodeRoutingAddress {
+        self.first_hop_address
+    }
+
+    pub fn key_rotation(&self) -> SphinxKeyRotation {
+        self.key_rotation
+    }
+
+    pub fn into_packet(self) -> NymPacket {
+        self.packet
+    }
 }

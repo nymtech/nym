@@ -5,6 +5,7 @@ use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressE
 use nym_sphinx_params::{PacketSize, PacketType, SphinxKeyRotation};
 use nym_sphinx_types::{NymPacket, NymPacketError};
 
+use nym_sphinx_anonymous_replies::reply_surb::AppliedReplySurb;
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::InvalidPacketSize;
 use nym_sphinx_params::packet_types::InvalidPacketType;
@@ -61,6 +62,18 @@ impl MixPacket {
             packet,
             packet_type,
             key_rotation,
+        }
+    }
+
+    pub fn from_applied_surb(
+        applied_reply_surb: AppliedReplySurb,
+        packet_type: PacketType,
+    ) -> Self {
+        MixPacket {
+            next_hop: applied_reply_surb.first_hop_address(),
+            key_rotation: applied_reply_surb.key_rotation(),
+            packet: applied_reply_surb.into_packet(),
+            packet_type,
         }
     }
 

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::requests::InvalidReplyRequestError;
-use crate::ReplySurb;
+use crate::{ReplySurb, ReplySurbWithKeyRotation};
+use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::constants::PAYLOAD_KEY_SEED_SIZE;
 use std::fmt::Display;
 use std::iter::once;
@@ -13,21 +14,29 @@ const fn v2_reply_surb_serialised_len(num_hops: u8) -> usize {
 }
 
 // sphinx doesn't support more than 5 hops (so cast to u8 is safe)
-// ASSUMPTION: all surbs are generated with the same parameters (if they're not, then the client is hurting itself)
-fn reply_surbs_hops(reply_surbs: &[ReplySurb]) -> u8 {
+// ASSUMPTION: all surbs are generated with the same parameters (if they're not, then the client is hurting itself),
+// which includes the same number of hops and the same underlying sphinx key rotation
+fn reply_surbs_hops(reply_surbs: &[ReplySurbWithKeyRotation]) -> u8 {
     reply_surbs
         .first()
-        .map(|reply_surb| reply_surb.surb.materials_count() as u8)
+        .map(|reply_surb| reply_surb.inner.surb.materials_count() as u8)
         .unwrap_or_default()
 }
 
-fn v2_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
+fn key_rotation(reply_surbs: &[ReplySurbWithKeyRotation]) -> SphinxKeyRotation {
+    reply_surbs
+        .first()
+        .map(|reply_surb| reply_surb.key_rotation)
+        .unwrap_or_default()
+}
+
+fn v2_reply_surbs_serialised_len(surbs: &[ReplySurbWithKeyRotation]) -> usize {
     let num_surbs = surbs.len();
     let num_hops = reply_surbs_hops(surbs);
 
     // sanity checks; this should probably be removed later on
     if let Some(reply_surb) = surbs.first() {
-        if !reply_surb.surb.uses_key_seeds() {
+        if !reply_surb.inner.surb.uses_key_seeds() {
             error!("using v2 surbs encoding with legacy structure - the surbs will be unusable")
         }
     }
@@ -35,14 +44,14 @@ fn v2_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
     // when serialising surbs are always prepended with:
     // - u16-encoded count,
     // - u8-encoded number of hops
-    // - u8 reserved value
+    // - u8-encoded sphinx key rotation (or unused for 'old' variant)
     4 + num_surbs * v2_reply_surb_serialised_len(num_hops)
 }
 
-// NUM_SURBS (u16) || HOPS (u8) || RESERVED (u8) || SURB_DATA
+// NUM_SURBS (u16) || HOPS (u8) || KEY ROTATION (u8) || SURB_DATA
 fn recover_reply_surbs_v2(
     bytes: &[u8],
-) -> Result<(Vec<ReplySurb>, usize), InvalidReplyRequestError> {
+) -> Result<(Vec<ReplySurbWithKeyRotation>, usize), InvalidReplyRequestError> {
     if bytes.len() < 4 {
         return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
@@ -50,7 +59,7 @@ fn recover_reply_surbs_v2(
     // we're not attaching more than 65k surbs...
     let num_surbs = u16::from_be_bytes([bytes[0], bytes[1]]);
     let num_hops = bytes[2];
-    let _reserved = bytes[3];
+    let key_rotation = SphinxKeyRotation::try_from(bytes[3])?;
     let mut consumed = 4;
 
     let surb_size = v2_reply_surb_serialised_len(num_hops);
@@ -61,7 +70,7 @@ fn recover_reply_surbs_v2(
     let mut reply_surbs = Vec::with_capacity(num_surbs as usize);
     for _ in 0..num_surbs as usize {
         let surb_bytes = &bytes[consumed..consumed + surb_size];
-        let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
+        let reply_surb = ReplySurb::from_bytes(surb_bytes)?.with_key_rotation(key_rotation);
         reply_surbs.push(reply_surb);
 
         consumed += surb_size;
@@ -70,23 +79,25 @@ fn recover_reply_surbs_v2(
     Ok((reply_surbs, consumed))
 }
 
-fn reply_surbs_bytes_v2(reply_surbs: &[ReplySurb]) -> impl Iterator<Item = u8> + use<'_> {
+fn reply_surbs_bytes_v2(
+    reply_surbs: &[ReplySurbWithKeyRotation],
+) -> impl Iterator<Item = u8> + use<'_> {
     let num_surbs = reply_surbs.len() as u16;
     let num_hops = reply_surbs_hops(reply_surbs);
-    let reserved = 0;
+    let key_rotation = key_rotation(reply_surbs) as u8;
 
     num_surbs
         .to_be_bytes()
         .into_iter()
         .chain(once(num_hops))
-        .chain(once(reserved))
-        .chain(reply_surbs.iter().flat_map(|surb| surb.to_bytes()))
+        .chain(once(key_rotation))
+        .chain(reply_surbs.iter().flat_map(|surb| surb.inner.to_bytes()))
 }
 
 #[derive(Debug)]
 pub struct DataV2 {
     pub message: Vec<u8>,
-    pub reply_surbs: Vec<ReplySurb>,
+    pub reply_surbs: Vec<ReplySurbWithKeyRotation>,
 }
 
 impl Display for DataV2 {
@@ -102,7 +113,7 @@ impl Display for DataV2 {
 
 #[derive(Debug)]
 pub struct AdditionalSurbsV2 {
-    pub reply_surbs: Vec<ReplySurb>,
+    pub reply_surbs: Vec<ReplySurbWithKeyRotation>,
 }
 
 impl Display for AdditionalSurbsV2 {
@@ -117,7 +128,7 @@ impl Display for AdditionalSurbsV2 {
 
 #[derive(Debug)]
 pub struct HeartbeatV2 {
-    pub additional_reply_surbs: Vec<ReplySurb>,
+    pub additional_reply_surbs: Vec<ReplySurbWithKeyRotation>,
 }
 
 impl Display for HeartbeatV2 {

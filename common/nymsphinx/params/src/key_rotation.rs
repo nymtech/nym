@@ -37,6 +37,7 @@ impl TryFrom<u8> for SphinxKeyRotation {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
+            _ if value == (Self::Unknown as u8) => Ok(Self::Unknown),
             _ if value == (Self::OddRotation as u8) => Ok(Self::OddRotation),
             _ if value == (Self::EvenRotation as u8) => Ok(Self::EvenRotation),
             received => Err(InvalidSphinxKeyRotation { received }),

@@ -5,7 +5,7 @@ use dashmap::iter::Iter;
 use dashmap::DashMap;
 use log::trace;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::anonymous_replies::ReplySurb;
+use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -134,7 +134,7 @@ impl ReceivedReplySurbsMap {
         &self,
         target: &AnonymousSenderTag,
         amount: usize,
-    ) -> (Option<Vec<ReplySurb>>, usize) {
+    ) -> (Option<Vec<ReplySurbWithKeyRotation>>, usize) {
         if let Some(mut entry) = self.inner.data.get_mut(target) {
             let surbs_left = entry.items_left();
             if surbs_left < self.min_surb_threshold() + amount {
@@ -150,7 +150,7 @@ impl ReceivedReplySurbsMap {
     pub fn get_reply_surb_ignoring_threshold(
         &self,
         target: &AnonymousSenderTag,
-    ) -> Option<(Option<ReplySurb>, usize)> {
+    ) -> Option<(Option<ReplySurbWithKeyRotation>, usize)> {
         self.inner
             .data
             .get_mut(target)
@@ -160,7 +160,7 @@ impl ReceivedReplySurbsMap {
     pub fn get_reply_surb(
         &self,
         target: &AnonymousSenderTag,
-    ) -> Option<(Option<ReplySurb>, usize)> {
+    ) -> Option<(Option<ReplySurbWithKeyRotation>, usize)> {
         self.inner.data.get_mut(target).map(|mut entry| {
             let surbs_left = entry.items_left();
             if surbs_left < self.min_surb_threshold() {
@@ -171,7 +171,7 @@ impl ReceivedReplySurbsMap {
         })
     }
 
-    pub fn insert_surbs<I: IntoIterator<Item = ReplySurb>>(
+    pub fn insert_surbs<I: IntoIterator<Item = ReplySurbWithKeyRotation>>(
         &self,
         target: &AnonymousSenderTag,
         surbs: I,
@@ -189,14 +189,14 @@ impl ReceivedReplySurbsMap {
 pub struct ReceivedReplySurbs {
     // in the future we'd probably want to put extra data here to indicate when the SURBs got received
     // so we could invalidate entries from the previous key rotations
-    data: VecDeque<ReplySurb>,
+    data: VecDeque<ReplySurbWithKeyRotation>,
 
     pending_reception: u32,
     surbs_last_received_at_timestamp: i64,
 }
 
 impl ReceivedReplySurbs {
-    fn new(initial_surbs: VecDeque<ReplySurb>) -> Self {
+    fn new(initial_surbs: VecDeque<ReplySurbWithKeyRotation>) -> Self {
         ReceivedReplySurbs {
             data: initial_surbs,
             pending_reception: 0,
@@ -206,7 +206,7 @@ impl ReceivedReplySurbs {
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub fn new_retrieved(
-        surbs: Vec<ReplySurb>,
+        surbs: Vec<ReplySurbWithKeyRotation>,
         surbs_last_received_at_timestamp: i64,
     ) -> ReceivedReplySurbs {
         ReceivedReplySurbs {
@@ -217,7 +217,7 @@ impl ReceivedReplySurbs {
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-    pub fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
+    pub fn surbs_ref(&self) -> &VecDeque<ReplySurbWithKeyRotation> {
         &self.data
     }
 
@@ -243,7 +243,10 @@ impl ReceivedReplySurbs {
         self.pending_reception = 0;
     }
 
-    pub fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {
+    pub fn get_reply_surbs(
+        &mut self,
+        amount: usize,
+    ) -> (Option<Vec<ReplySurbWithKeyRotation>>, usize) {
         if self.items_left() < amount {
             (None, self.items_left())
         } else {
@@ -252,11 +255,11 @@ impl ReceivedReplySurbs {
         }
     }
 
-    pub fn get_reply_surb(&mut self) -> (Option<ReplySurb>, usize) {
+    pub fn get_reply_surb(&mut self) -> (Option<ReplySurbWithKeyRotation>, usize) {
         (self.pop_surb(), self.items_left())
     }
 
-    fn pop_surb(&mut self) -> Option<ReplySurb> {
+    fn pop_surb(&mut self) -> Option<ReplySurbWithKeyRotation> {
         self.data.pop_front()
     }
 
@@ -265,7 +268,10 @@ impl ReceivedReplySurbs {
     }
 
     // realistically we're always going to be getting multiple surbs at once
-    pub fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
+    pub fn insert_reply_surbs<I: IntoIterator<Item = ReplySurbWithKeyRotation>>(
+        &mut self,
+        surbs: I,
+    ) {
         let mut v = surbs.into_iter().collect::<VecDeque<_>>();
         trace!("storing {} surbs in the storage", v.len());
         self.data.append(&mut v);

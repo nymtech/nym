@@ -9,7 +9,6 @@ use nym_sphinx_addressing::nodes::{
 };
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
-use nym_sphinx_types::constants::PAYLOAD_KEY_SEED_SIZE;
 use nym_sphinx_types::{
     NymPacket, SURBMaterial, SphinxError, HEADER_SIZE, NODE_ADDRESS_LENGTH, SURB,
     X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
@@ -125,12 +124,6 @@ impl ReplySurb {
             surb: surb_material.construct_SURB().unwrap(),
             encryption_key: SurbEncryptionKey::new(rng),
         })
-    }
-
-    /// Returns the expected number of bytes the [`ReplySURB`] will take after serialization using the new encoding format.
-    /// Useful for deserialization from a bytes stream.
-    pub fn v2_serialised_len(num_hops: u8) -> usize {
-        Self::BASE_OVERHEAD + num_hops as usize * PAYLOAD_KEY_SEED_SIZE
     }
 
     pub fn encryption_key(&self) -> &SurbEncryptionKey {

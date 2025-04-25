@@ -20,7 +20,10 @@ pub(crate) struct AddressInfoCache {
 
 impl AddressInfoCache {
     pub(crate) fn new() -> Self {
-        let cache_ttl = Duration::from_secs(60);
+        // epoch duration = 1 hour
+        // cache TTL is slightly lower than that to avoid too stale data in case
+        // cache was refreshed JUST BEFORE epoch transition
+        let cache_ttl = Duration::from_secs(60 * 30);
         let max_capacity = 1000;
 
         AddressInfoCache {
@@ -53,7 +56,7 @@ impl AddressInfoCache {
 
     pub(crate) async fn get_address_info(
         &self,
-        state: &AppState,
+        state: AppState,
         account_id: AccountId,
     ) -> AxumResult<NyxAccountDetails> {
         let address = account_id.to_string();
@@ -66,8 +69,8 @@ impl AddressInfoCache {
             None => {
                 tracing::trace!("No cache for {}, refreshing data...", &address);
 
-                // TODO dz can we avoid cloning state?
-                let mut collector = AddressDataCollector::new(state.clone(), account_id.clone());
+                let state = Arc::new(state);
+                let mut collector = AddressDataCollector::new(state, account_id.clone());
 
                 // ==> get balances of chain tokens <==
                 let balance = collector.get_address_balance().await?;

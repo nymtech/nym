@@ -297,11 +297,10 @@ impl AppState {
     }
 
     pub(crate) async fn get_address_info(
-        &self,
+        self,
         account_id: nym_validator_client::nyxd::AccountId,
     ) -> Result<NyxAccountDetails, AxumErrorResponse> {
-        self.address_info_cache
-            .get_address_info(self, account_id)
-            .await
+        let address_info_cache = self.address_info_cache.clone();
+        address_info_cache.get_address_info(self, account_id).await
     }
 }

@@ -10,11 +10,14 @@ use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;
 use nym_topology::NodeId;
 use nym_validator_client::nyxd::AccountId;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tracing::warn;
 
 pub(crate) struct AddressDataCollector {
-    app_state: AppState,
+    app_state: Arc<AppState>,
     account_id: AccountId,
     total_value: u128,
     operator_rewards: u128,
@@ -24,7 +27,7 @@ pub(crate) struct AddressDataCollector {
 }
 
 impl AddressDataCollector {
-    pub(crate) fn new(app_state: AppState, account_id: AccountId) -> Self {
+    pub(crate) fn new(app_state: Arc<AppState>, account_id: AccountId) -> Self {
         let base_denom = app_state
             .network_details()
             .network

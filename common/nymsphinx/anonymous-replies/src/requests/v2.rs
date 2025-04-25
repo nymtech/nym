@@ -32,24 +32,28 @@ fn v2_reply_surbs_serialised_len(surbs: &[ReplySurb]) -> usize {
         }
     }
 
-    // when serialising surbs are always prepended with u16-encoded count an u8-encoded number of hops
-    3 + num_surbs * v2_reply_surb_serialised_len(num_hops)
+    // when serialising surbs are always prepended with:
+    // - u16-encoded count,
+    // - u8-encoded number of hops
+    // - u8 reserved value
+    4 + num_surbs * v2_reply_surb_serialised_len(num_hops)
 }
 
-// NUM_SURBS (u16) || HOPS (u8) || SURB_DATA
+// NUM_SURBS (u16) || HOPS (u8) || RESERVED (u8) || SURB_DATA
 fn recover_reply_surbs_v2(
     bytes: &[u8],
 ) -> Result<(Vec<ReplySurb>, usize), InvalidReplyRequestError> {
-    if bytes.len() < 2 {
+    if bytes.len() < 4 {
         return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
 
     // we're not attaching more than 65k surbs...
     let num_surbs = u16::from_be_bytes([bytes[0], bytes[1]]);
     let num_hops = bytes[2];
-    let mut consumed = 3;
+    let _reserved = bytes[3];
+    let mut consumed = 4;
 
-    let surb_size = ReplySurb::v2_serialised_len(num_hops);
+    let surb_size = v2_reply_surb_serialised_len(num_hops);
     if bytes[consumed..].len() < num_surbs as usize * surb_size {
         return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
@@ -69,11 +73,13 @@ fn recover_reply_surbs_v2(
 fn reply_surbs_bytes_v2(reply_surbs: &[ReplySurb]) -> impl Iterator<Item = u8> + use<'_> {
     let num_surbs = reply_surbs.len() as u16;
     let num_hops = reply_surbs_hops(reply_surbs);
+    let reserved = 0;
 
     num_surbs
         .to_be_bytes()
         .into_iter()
         .chain(once(num_hops))
+        .chain(once(reserved))
         .chain(reply_surbs.iter().flat_map(|surb| surb.to_bytes()))
 }
 

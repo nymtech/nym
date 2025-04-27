@@ -3,9 +3,9 @@
 //! # Basic Example
 //!
 //! ```no_run
-//! use crate::client_pool::ClientPool;
-//! use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
-//! use crate::tcp_proxy::utils::{MessageBuffer, Payload, ProxiedMessage};
+//! use nym_sdk::client_pool::ClientPool;
+//! use nym_sdk::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
+//! use nym_sdk::tcp_proxy::utils::{MessageBuffer, Payload, ProxiedMessage};
 //! use anyhow::Result;
 //! use dashmap::DashSet;
 //! use nym_network_defaults::setup_env;

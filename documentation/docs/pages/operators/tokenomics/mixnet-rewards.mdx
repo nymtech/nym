@@ -379,25 +379,36 @@ In case you don't know your nodes `NODE_ID`, it's easy to find as long as your n
 Once the [rewards are asigned per each node](#rewards-calculation) they need to be distributed between the operator of the node and delegators (people who staked their NYM on that node). The distribution is pretty straightforward and it happens in the following order:
 
 
-1. **Operators Costs (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](#nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
+1. **Operators Cost (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](#nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
 2. **Profit Margin (P.M.)**: What's the extra % cut the operator requests (this value is set by the operator in the bonding wallet node settings)
 3. **Bond & Stake proportionaly**: The remaining rewards are distributed proportionaly to the weight of every stake (including self bond, self delegation and each delegation).
 
 ##### Nyx Epoch vs Interval
 
-The O.C. is a value required per month. However, it's paid only in epochs when the node is active. To calculate this, we use a value called `interval` which represents 30 days (approximate month):
-
 <Callout type="info" emoji="📌">
 > **1 epoch = 60 min** <br />
 > **1 interval = 720 epochs**
 >
-> 720 = 30 * 24 <br />
-> 30 days * 24 hours
+> The logic is that interval is 30 days: <br />
+> 24 epochs * 30 days = 720
 </ Callout>
+
+The Operators Cost (O.C). is a value denominated in NYM, that a node operator requires to get paid before the rewards get distributed. The cost is estimated per one month. However, it's paid only in epochs when the node is active. To calculate how O.C. works, we use a value called `interval` which represents 30 days (approximate month), or more precisely 720 epochs. To get covered a full O.C, the node would have to be active for the entire month.
+
+**O.C. real revenue formula**
 
 Therefore every epoch a node is active, the operator gets:
 <Callout type="info" emoji="📌">
-**operators_cost / 720**
+> **epoch_operator_cost_revenue = operators_cost / epochs_per_interval**
+>
+> that is:
+>
+> **epoch_operator_cost_revenue = operators_cost / 720**
+</ Callout>
+
+To calculate O.C. per month, multiply it by number of active epochs:
+<Callout type="info" emoji="📌">
+> **monthly_operator_cost_revenue = operator_cost / 720 * active_epochs**
 </Callout>
 
 {/*

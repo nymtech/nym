@@ -35,7 +35,7 @@ pub(crate) use node_delegations::DelegationsCache;
 mod geodata;
 mod node_delegations;
 
-const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
+const MONITOR_FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
@@ -79,9 +79,9 @@ pub(crate) async fn spawn_in_background(
         if let Err(e) = monitor.run().await {
             tracing::error!(
                 "Monitor run failed: {e}, retrying in {}s...",
-                FAILURE_RETRY_DELAY.as_secs()
+                MONITOR_FAILURE_RETRY_DELAY.as_secs()
             );
-            tokio::time::sleep(FAILURE_RETRY_DELAY).await;
+            tokio::time::sleep(MONITOR_FAILURE_RETRY_DELAY).await;
         } else {
             tracing::info!(
                 "Info successfully collected, sleeping for {}s...",
@@ -471,7 +471,7 @@ impl Monitor {
     async fn refresh_node_delegations(&mut self, bonded_nodes: &HashMap<NodeId, NymNodeDetails>) {
         let delegations_per_node = node_delegations::refresh(&self.nyxd_client, bonded_nodes).await;
 
-        // update after refresing all to avoid holding write lock for too long
+        // update after refreshing all to avoid holding write lock for too long
         *self.node_delegations.write().await = delegations_per_node;
     }
 

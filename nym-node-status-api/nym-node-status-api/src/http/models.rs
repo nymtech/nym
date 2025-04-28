@@ -128,8 +128,6 @@ pub struct NodeDelegation {
     pub amount: Coin,
     pub cumulative_reward_ratio: String,
     pub block_height: u64,
-    // TODO dz is node_id necessary?
-    pub node_id: NodeId,
     #[schema(value_type = String)]
     pub owner: Addr,
     #[schema(value_type = Option<String>)]
@@ -142,7 +140,6 @@ impl From<nym_mixnet_contract_common::Delegation> for NodeDelegation {
             amount: value.amount,
             cumulative_reward_ratio: value.cumulative_reward_ratio.to_string(),
             block_height: value.height,
-            node_id: value.node_id,
             owner: value.owner,
             proxy: value.proxy,
         }

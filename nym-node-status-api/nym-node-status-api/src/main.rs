@@ -1,6 +1,9 @@
+use crate::monitor::DelegationsCache;
 use clap::Parser;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_task::signal::wait_for_signal;
+use nym_validator_client::nyxd::NyxdClient;
+use std::sync::Arc;
 
 mod cli;
 mod db;
@@ -41,19 +44,27 @@ async fn main() -> anyhow::Result<()> {
     let geocache = moka::future::Cache::builder()
         .time_to_live(args.geodata_ttl)
         .build();
+    let delegations_cache = DelegationsCache::new();
 
     // Start the monitor
     let args_clone = args.clone();
     let geocache_clone = geocache.clone();
+    let delegations_cache_clone = Arc::clone(&delegations_cache);
+    let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
+        &nym_network_defaults::NymNetworkDetails::new_from_env(),
+    )?;
+    let nyxd_client = NyxdClient::connect(config, args.nyxd_addr.as_str())
+        .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 
     tokio::spawn(async move {
         monitor::spawn_in_background(
             db_pool,
             args_clone.nym_api_client_timeout,
-            args_clone.nyxd_addr,
+            nyxd_client,
             args_clone.monitor_refresh_interval,
             args_clone.ipinfo_api_token,
             geocache_clone,
+            delegations_cache_clone,
         )
         .await;
         tracing::info!("Started monitor task");
@@ -74,6 +85,7 @@ async fn main() -> anyhow::Result<()> {
         agent_key_list.to_owned(),
         args.max_agent_count,
         geocache,
+        delegations_cache,
     )
     .await
     .expect("Failed to start server");

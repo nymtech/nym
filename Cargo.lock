@@ -4733,7 +4733,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.56"
+version = "1.1.55"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6252,7 +6252,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "ammonia",
  "anyhow",

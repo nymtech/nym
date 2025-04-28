@@ -69,49 +69,78 @@ impl AddressInfoCache {
             None => {
                 tracing::trace!("No cache for {}, refreshing data...", &address);
 
-                let state = Arc::new(state);
-                let mut collector = AddressDataCollector::new(state, account_id.clone());
+                let address_info = self.collect_balances(state, &address, account_id).await?;
 
-                // ==> get balances of chain tokens <==
-                let balance = collector.get_address_balance().await?;
-
-                // ==> get list of delegations (history) <==
-                let delegation_data = collector.get_delegations().await?;
-
-                // ==> get the current reward for each active delegation <==
-                // calculate rewards from nodes this delegator delegated to
-                let accumulated_rewards = collector.calculate_rewards(&delegation_data).await?;
-
-                // ==> convert totals <==
-                let claimable_rewards = collector.claimable_rewards();
-                let total_value = collector.total_value();
-                let total_delegations = collector.total_delegations();
-                let operator_rewards = collector.operator_rewards();
-
-                let address_info = NyxAccountDetails {
-                    address: account_id.to_string(),
-                    balance: balance.into(),
-                    delegations: delegation_data
-                        .delegations()
-                        .into_iter()
-                        .map(|d| NyxAccountDelegationDetails {
-                            delegated: d.amount,
-                            height: d.height,
-                            node_id: d.node_id,
-                            proxy: d.proxy,
-                        })
-                        .collect(),
-                    accumulated_rewards,
-                    total_delegations,
-                    claimable_rewards,
-                    total_value,
-                    operator_rewards,
-                };
                 self.upsert_address_info(&address, address_info.clone())
                     .await;
 
                 Ok(address_info)
             }
         }
+    }
+
+    async fn collect_balances(
+        &self,
+        state: AppState,
+        address: &str,
+        account_id: AccountId,
+    ) -> AxumResult<NyxAccountDetails> {
+        let state = Arc::new(state);
+        let mut collector = AddressDataCollector::new(state, account_id.clone());
+
+        // ==> get balances of chain tokens <==
+        let balance = collector.get_address_balance().await?;
+
+        // it's very difficult to lower existing balance to exactly 0
+        // so assume this is an unused address and return early
+        if balance.amount == 0 {
+            let address_info = NyxAccountDetails {
+                address: address.to_string(),
+                balance: balance.clone().into(),
+                total_value: balance.clone().into(),
+                delegations: Vec::new(),
+                accumulated_rewards: Vec::new(),
+                total_delegations: balance.clone().into(),
+                claimable_rewards: balance.clone().into(),
+                operator_rewards: None,
+            };
+
+            return Ok(address_info);
+        }
+
+        // ==> get list of delegations (history) <==
+        let delegation_data = collector.get_delegations().await?;
+
+        // ==> get the current reward for each active delegation <==
+        // calculate rewards from nodes this delegator delegated to
+        let accumulated_rewards = collector.calculate_rewards(&delegation_data).await?;
+
+        // ==> convert totals <==
+        let claimable_rewards = collector.claimable_rewards();
+        let total_value = collector.total_value();
+        let total_delegations = collector.total_delegations();
+        let operator_rewards = collector.operator_rewards();
+
+        let address_info = NyxAccountDetails {
+            address: account_id.to_string(),
+            balance: balance.into(),
+            delegations: delegation_data
+                .delegations()
+                .into_iter()
+                .map(|d| NyxAccountDelegationDetails {
+                    delegated: d.amount,
+                    height: d.height,
+                    node_id: d.node_id,
+                    proxy: d.proxy,
+                })
+                .collect(),
+            accumulated_rewards,
+            total_delegations,
+            claimable_rewards,
+            total_value,
+            operator_rewards,
+        };
+
+        Ok(address_info)
     }
 }

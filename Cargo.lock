@@ -4760,6 +4760,7 @@ dependencies = [
  "humantime-serde",
  "itertools 0.14.0",
  "k256",
+ "moka",
  "nym-api-requests",
  "nym-bandwidth-controller",
  "nym-bin-common",

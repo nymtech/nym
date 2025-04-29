@@ -3,21 +3,19 @@
 
 use crate::{
     node_status_api::models::{AxumErrorResponse, AxumResult},
-    support::http::state::AppState,
+    nym_contract_cache::cache::NymContractCache,
     unstable_routes::models::NyxAccountDelegationRewardDetails,
 };
 use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;
 use nym_topology::NodeId;
 use nym_validator_client::nyxd::AccountId;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 use tracing::warn;
 
 pub(crate) struct AddressDataCollector {
-    app_state: Arc<AppState>,
+    nyxd_client: crate::nyxd::Client,
+    nym_contract_cache: NymContractCache,
     account_id: AccountId,
     total_value: u128,
     operator_rewards: u128,
@@ -27,22 +25,21 @@ pub(crate) struct AddressDataCollector {
 }
 
 impl AddressDataCollector {
-    pub(crate) fn new(app_state: Arc<AppState>, account_id: AccountId) -> Self {
-        let base_denom = app_state
-            .network_details()
-            .network
-            .chain_details
-            .mix_denom
-            .base
-            .to_string();
+    pub(crate) fn new(
+        nyxd_client: crate::nyxd::Client,
+        nym_contract_cache: NymContractCache,
+        base_denom: String,
+        account_id: AccountId,
+    ) -> Self {
         Self {
-            app_state,
+            nyxd_client,
+            nym_contract_cache,
+            base_denom,
             account_id,
             total_value: 0,
             operator_rewards: 0,
             claimable_rewards: 0,
             total_delegations: 0,
-            base_denom,
         }
     }
 
@@ -50,7 +47,6 @@ impl AddressDataCollector {
         &mut self,
     ) -> AxumResult<nym_validator_client::nyxd::Coin> {
         let balance = self
-            .app_state
             .nyxd_client
             .get_address_balance(&self.account_id, &self.base_denom)
             .await?
@@ -61,8 +57,7 @@ impl AddressDataCollector {
     }
 
     pub(crate) async fn get_delegations(&mut self) -> AxumResult<AddressDelegationInfo> {
-        let state = self.app_state.clone();
-        let og_delegations = state
+        let og_delegations = self
             .nyxd_client
             .get_all_delegator_delegations(&self.account_id)
             .await?;
@@ -72,8 +67,8 @@ impl AddressDataCollector {
             .map(|d| d.node_id)
             .collect::<HashSet<_>>();
 
-        let nym_nodes = state
-            .nym_contract_cache()
+        let nym_nodes = self
+            .nym_contract_cache
             .all_cached_nym_nodes()
             .await
             .ok_or_else(AxumErrorResponse::service_unavailable)?

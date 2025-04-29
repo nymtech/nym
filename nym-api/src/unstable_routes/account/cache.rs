@@ -1,17 +1,15 @@
-use std::{sync::Arc, time::Duration};
-
-use moka::{future::Cache, Entry};
-use nym_validator_client::nyxd::AccountId;
-use tokio::sync::RwLock;
-
 use crate::{
     node_status_api::models::AxumResult,
-    support::http::state::AppState,
+    nym_contract_cache::cache::NymContractCache,
     unstable_routes::{
         account::data_collector::AddressDataCollector,
         models::{NyxAccountDelegationDetails, NyxAccountDetails},
     },
 };
+use moka::{future::Cache, Entry};
+use nym_validator_client::nyxd::AccountId;
+use std::{sync::Arc, time::Duration};
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub(crate) struct AddressInfoCache {
@@ -34,7 +32,11 @@ impl AddressInfoCache {
         }
     }
 
-    async fn upsert_address_info(
+    pub(crate) async fn get(&self, key: &str) -> Option<Arc<RwLock<NyxAccountDetails>>> {
+        self.inner.get(key).await
+    }
+
+    pub(crate) async fn upsert_address_info(
         &self,
         address: &str,
         address_info: NyxAccountDetails,
@@ -54,39 +56,20 @@ impl AddressInfoCache {
             .await
     }
 
-    pub(crate) async fn get_address_info(
+    pub(crate) async fn collect_balances(
         &self,
-        state: AppState,
-        account_id: AccountId,
-    ) -> AxumResult<NyxAccountDetails> {
-        let address = account_id.to_string();
-        match self.inner.get(&address).await {
-            Some(guard) => {
-                tracing::trace!("Fetching from cache...");
-                let read_lock = guard.read().await;
-                Ok(read_lock.clone())
-            }
-            None => {
-                tracing::trace!("No cache for {}, refreshing data...", &address);
-
-                let address_info = self.collect_balances(state, &address, account_id).await?;
-
-                self.upsert_address_info(&address, address_info.clone())
-                    .await;
-
-                Ok(address_info)
-            }
-        }
-    }
-
-    async fn collect_balances(
-        &self,
-        state: AppState,
+        nyxd_client: crate::nyxd::Client,
+        nym_contract_cache: NymContractCache,
+        base_denom: String,
         address: &str,
         account_id: AccountId,
     ) -> AxumResult<NyxAccountDetails> {
-        let state = Arc::new(state);
-        let mut collector = AddressDataCollector::new(state, account_id.clone());
+        let mut collector = AddressDataCollector::new(
+            nyxd_client,
+            nym_contract_cache,
+            base_denom,
+            account_id.clone(),
+        );
 
         // ==> get balances of chain tokens <==
         let balance = collector.get_address_balance().await?;

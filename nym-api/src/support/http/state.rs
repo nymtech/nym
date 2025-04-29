@@ -300,7 +300,38 @@ impl AppState {
         self,
         account_id: nym_validator_client::nyxd::AccountId,
     ) -> Result<NyxAccountDetails, AxumErrorResponse> {
-        let address_info_cache = self.address_info_cache.clone();
-        address_info_cache.get_address_info(self, account_id).await
+        let address = account_id.to_string();
+        match self.address_info_cache.get(&address).await {
+            Some(guard) => {
+                tracing::trace!("Fetching from cache...");
+                let read_lock = guard.read().await;
+                Ok(read_lock.clone())
+            }
+            None => {
+                tracing::trace!("No cache for {}, refreshing data...", &address);
+
+                let address_info = self
+                    .address_info_cache
+                    .collect_balances(
+                        self.nyxd_client.clone(),
+                        self.nym_contract_cache.clone(),
+                        self.network_details()
+                            .network
+                            .chain_details
+                            .mix_denom
+                            .base
+                            .to_owned(),
+                        &address,
+                        account_id,
+                    )
+                    .await?;
+
+                self.address_info_cache
+                    .upsert_address_info(&address, address_info.clone())
+                    .await;
+
+                Ok(address_info)
+            }
+        }
     }
 }

@@ -1133,6 +1133,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "chacha"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a4d0c4741f6b1d67dc11a9926348a2bbe4fcdb9693dd56ff9bd1f9bf8a13c30"
+dependencies = [
+ "keystream",
+]
+
+[[package]]
 name = "chacha20"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4162,7 +4171,7 @@ checksum = "4ae926706ba42c425c9457121178330d75e273df2e82e28b758faf3de3a9acb9"
 dependencies = [
  "arrayref",
  "blake2 0.8.1",
- "chacha",
+ "chacha 0.3.0",
  "keystream",
 ]
 
@@ -6133,7 +6142,7 @@ dependencies = [
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",
- "chacha",
+ "chacha 0.4.0",
  "clap",
  "colored",
  "criterion",
@@ -9279,7 +9288,7 @@ dependencies = [
  "blake2 0.8.1",
  "bs58",
  "byteorder",
- "chacha",
+ "chacha 0.3.0",
  "ctr",
  "curve25519-dalek",
  "digest 0.10.7",

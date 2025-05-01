@@ -10,7 +10,7 @@ use crate::support::legacy_helpers::{to_legacy_gateway, to_legacy_mixnode};
 use axum::extract::State;
 use axum::{Json, Router};
 use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
-use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_api_requests::models::{KeyRotationInfoResponse, MixNodeBondAnnotated};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{reward_params::RewardingParams, GatewayBond, Interval, NodeId};
 use std::collections::HashSet;
@@ -48,6 +48,10 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
             axum::routing::get(get_interval_reward_params),
         )
         .route("/epoch/current", axum::routing::get(get_current_epoch))
+        .route(
+            "/epoch/key_rotation_info",
+            axum::routing::get(get_current_key_rotation_info),
+        )
 }
 
 #[utoipa::path(
@@ -404,4 +408,22 @@ async fn get_current_epoch(State(state): State<AppState>) -> Json<Option<Interva
         .await
         .to_owned()
         .into()
+}
+
+//
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = "/epoch/key_rotation_info",
+    context_path = "/v1/epoch",
+    responses(
+        (status = 200, body = Option<Interval>)
+    )
+)]
+async fn get_current_key_rotation_info(
+    State(state): State<AppState>,
+) -> Json<KeyRotationInfoResponse> {
+    let contract_cache = state.nym_contract_cache();
+    let current_interval = contract_cache.current_interval().await;
+    todo!()
 }

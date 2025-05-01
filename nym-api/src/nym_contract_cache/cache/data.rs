@@ -6,8 +6,8 @@ use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWith
 use nym_api_requests::models::ConfigScoreDataResponse;
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, NodeId, NymNodeDetails,
-    RewardingParams,
+    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, NodeId,
+    NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::AccountId;
@@ -46,6 +46,7 @@ pub(crate) struct ContractCacheData {
     pub(crate) config_score_data: Cache<Option<ConfigScoreData>>,
     pub(crate) current_reward_params: Cache<Option<RewardingParams>>,
     pub(crate) current_interval: Cache<Option<Interval>>,
+    pub(crate) key_rotation_state: Cache<Option<KeyRotationState>>,
 
     pub(crate) contracts_info: Cache<CachedContractsInfo>,
 }
@@ -64,6 +65,7 @@ impl ContractCacheData {
             current_reward_params: Cache::default(),
             contracts_info: Cache::default(),
             config_score_data: Default::default(),
+            key_rotation_state: Default::default(),
         }
     }
 }

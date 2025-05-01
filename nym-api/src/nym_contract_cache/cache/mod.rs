@@ -334,6 +334,10 @@ impl NymContractCache {
             .unwrap_or_default()
     }
 
+    pub(crate) async fn get_key_rotation_state(&self) {
+        todo!()
+    }
+
     pub(crate) async fn contract_details(&self) -> Cache<CachedContractsInfo> {
         self.get_owned(|cache| cache.contracts_info.clone_cache())
             .await

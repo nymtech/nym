@@ -170,6 +170,11 @@ impl NodeRewarding {
         }
     }
 
+    // we panic here as opposed to returning an error as this is undefined behaviour,
+    // because the pledge amount has decreased (i.e. slashing has occurred) which
+    // should not be possible under any situation. at this point we don't know how many other things
+    // might have failed so we have to bail
+    #[allow(clippy::panic)]
     pub fn pending_detailed_operator_reward(&self, original_pledge: &Coin) -> StdResult<Decimal> {
         let initial_dec = original_pledge.amount.into_base_decimal()?;
         if initial_dec > self.operator {
@@ -189,6 +194,11 @@ impl NodeRewarding {
         Ok(truncate_reward(delegator_reward, &delegation.amount.denom))
     }
 
+    // we panic here as opposed to returning an error as this is undefined behaviour,
+    // because the pledge amount has decreased (i.e. slashing has occurred) which
+    // should not be possible under any situation. at this point we don't know how many other things
+    // might have failed so we have to bail
+    #[allow(clippy::panic)]
     pub fn withdraw_operator_reward(
         &mut self,
         original_pledge: &Coin,

@@ -35,6 +35,7 @@ use crate::{
         PreassignedGatewayIdsResponse,
     },
     interval::{CurrentIntervalResponse, EpochStatus},
+    key_rotation::{KeyRotationIdResponse, KeyRotationState},
     mixnode::{
         MixOwnershipResponse, MixStakeSaturationResponse, MixnodeDetailsByIdentityResponse,
         MixnodeDetailsResponse, MixnodeRewardingDetailsResponse, PagedMixnodeBondsResponse,
@@ -857,6 +858,15 @@ pub enum QueryMsg {
         /// Cosmos address used for the query of the signing nonce.
         address: String,
     },
+
+    // sphinx key rotation-related
+    #[cfg_attr(feature = "schema", returns(KeyRotationState))]
+    /// Gets the current state config of the key rotation (i.e. starting epoch id and validity duration)
+    GetKeyRotationState {},
+
+    /// Gets the current key rotation id
+    #[cfg_attr(feature = "schema", returns(KeyRotationIdResponse))]
+    GetKeyRotationId {},
 }
 
 #[cw_serde]

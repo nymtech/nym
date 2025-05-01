@@ -28,12 +28,12 @@ use nym_mixnet_contract_common::{
     ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
     CurrentNymNodeVersionResponse, Delegation, EpochEventId, EpochRewardedSet, EpochStatus,
     GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, HistoricalNymNodeVersionEntry,
-    IdentityKey, IdentityKeyRef, IntervalEventId, MixNodeBond, MixNodeDetails,
-    MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NodeId,
-    NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails, NymNodeVersionHistoryResponse,
-    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixnodeBondsResponse, PagedNodeDelegationsResponse, PendingEpochEvent,
-    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
+    IdentityKey, IdentityKeyRef, IntervalEventId, KeyRotationIdResponse, KeyRotationState,
+    MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, NodeId, NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails,
+    NymNodeVersionHistoryResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedGatewayResponse, PagedMixnodeBondsResponse, PagedNodeDelegationsResponse,
+    PendingEpochEvent, PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
     PendingIntervalEventResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
     RewardedSet, UnbondedMixnode,
 };
@@ -545,6 +545,16 @@ pub trait MixnetQueryClient {
             address: address.to_string(),
         })
         .await
+    }
+
+    async fn get_key_rotation_state(&self) -> Result<KeyRotationState, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetKeyRotationState {})
+            .await
+    }
+
+    async fn get_key_rotation_id(&self) -> Result<KeyRotationIdResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetKeyRotationId {})
+            .await
     }
 }
 

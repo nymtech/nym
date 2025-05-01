@@ -56,14 +56,6 @@ impl AsRef<x25519::PrivateKey> for SphinxPrivateKey {
     }
 }
 
-// impl Deref for SphinxPrivateKey {
-//     type Target = x25519::PrivateKey;
-//
-//     fn deref(&self) -> &Self::Target {
-//         &self.inner
-//     }
-// }
-
 pub(crate) struct SphinxPublicKey {
     pub(crate) rotation_id: u32,
     pub(crate) inner: x25519::PublicKey,

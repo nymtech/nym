@@ -7,12 +7,15 @@ use cosmwasm_schema::cw_serde;
 pub type KeyRotationId = u32;
 
 #[cw_serde]
+#[derive(Copy)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct KeyRotationState {
     /// Defines how long each key rotation is valid for (in terms of epochs)
     pub validity_epochs: u32,
 
     /// Records the initial epoch_id when the key rotation has been introduced (0 for fresh contracts).
     /// It is used for determining when rotation is meant to advance.
+    #[cfg_attr(feature = "utoipa", schema(value_type = u32))]
     pub initial_epoch_id: EpochId,
 }
 

@@ -21,7 +21,7 @@ use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    EpochId, GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent,
+    EpochId, GatewayBond, IdentityKey, Interval, KeyRotationState, MixNode, NodeId, Percent,
 };
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
@@ -1379,6 +1379,21 @@ impl NodeRefreshBody {
 
         false
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KeyRotationInfoResponse {
+    pub key_rotation_state: KeyRotationState,
+
+    #[schema(value_type = u32)]
+    pub current_epoch_id: EpochId,
+
+    #[serde(with = "time::serde::rfc3339")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub current_epoch_start: OffsetDateTime,
+
+    pub epoch_duration: Duration,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]

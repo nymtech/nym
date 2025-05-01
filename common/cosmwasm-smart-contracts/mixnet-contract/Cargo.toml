@@ -40,3 +40,6 @@ contract-testing = []
 utoipa = ["dep:utoipa"]
 schema = ["cw2"]
 generate-ts = ['ts-rs']
+
+[lints]
+workspace = true

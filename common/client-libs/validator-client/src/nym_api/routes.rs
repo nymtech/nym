@@ -79,3 +79,11 @@ pub const SERVICE_PROVIDERS: &str = "services";
 pub const DETAILS: &str = "details";
 pub const CHAIN_STATUS: &str = "chain-status";
 pub const NETWORK: &str = "network";
+
+pub const EPOCH: &str = "epoch";
+
+pub use epoch_routes::*;
+pub mod epoch_routes {
+    pub const CURRENT: &str = "current";
+    pub const KEY_ROTATION_INFO: &str = "key-rotation-info";
+}

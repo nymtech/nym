@@ -1,16 +1,22 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::NodeModes;
+use crate::config::{Config, NodeModes};
 use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::key_rotation::key::{SphinxPrivateKey, SphinxPublicKey};
+use crate::node::nym_apis_client::NymApisClient;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use nym_validator_client::QueryHttpRpcNyxdClient;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
+use std::time::Duration;
+use tracing::warn;
 use url::Url;
 
 #[derive(Debug, Serialize)]
@@ -182,6 +188,27 @@ pub(crate) async fn get_current_rotation_id(
     nym_apis: &[Url],
     fallback_nyxd: &[Url],
 ) -> Result<u32, NymNodeError> {
-    // placeholder
-    Ok(42)
+    let apis_client = NymApisClient::new(nym_apis)?;
+    if let Ok(rotation_info) = apis_client
+        .query_exhaustively(
+            async |c| c.get_key_rotation_info().await,
+            Duration::from_secs(5),
+        )
+        .await
+    {
+        let current_epoch = rotation_info.current_epoch_id;
+        return Ok(rotation_info
+            .key_rotation_state
+            .key_rotation_id(current_epoch));
+    }
+    warn!("failed to retrieve key rotation id from nym apis. falling back to contract query");
+
+    for nyxd_url in fallback_nyxd {
+        let client = QueryHttpRpcNyxdClient::connect_to_default_env(nyxd_url.as_str())?;
+        if let Ok(res) = client.get_key_rotation_id().await {
+            return Ok(res.rotation_id);
+        }
+    }
+
+    Err(NymNodeError::NymApisExhausted)
 }

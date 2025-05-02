@@ -29,6 +29,7 @@ use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgress
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
+use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::background_task::ReplayProtectionBackgroundTask;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
@@ -75,6 +76,7 @@ pub(crate) mod http;
 pub(crate) mod key_rotation;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
+mod nym_apis_client;
 pub(crate) mod replay_protection;
 mod routing_filter;
 mod shared_network;
@@ -554,7 +556,7 @@ impl NymNode {
     async fn build_network_refresher(&self) -> Result<NetworkRefresher, NymNodeError> {
         NetworkRefresher::initialise_new(
             self.config.debug.testnet,
-            self.user_agent(),
+            Self::user_agent(),
             self.config.mixnet.nym_api_urls.clone(),
             self.config.debug.topology_cache_ttl,
             self.config.debug.routing_nodes_check_interval,
@@ -823,55 +825,17 @@ impl NymNode {
             .await?)
     }
 
-    fn user_agent(&self) -> UserAgent {
+    fn user_agent() -> UserAgent {
         bin_info!().into()
     }
 
-    async fn try_refresh_remote_nym_api_cache(&self) {
-        info!("attempting to request described cache refresh from nym-api...");
-        if self.config.mixnet.nym_api_urls.is_empty() {
-            warn!("no nym-api urls available");
-            return;
-        }
+    async fn try_refresh_remote_nym_api_cache(&self) -> Result<(), NymNodeError> {
+        info!("attempting to request described cache refresh from nym-api(s)...");
 
-        for nym_api_url in &self.config.mixnet.nym_api_urls {
-            info!("trying {nym_api_url}...");
-
-            let nym_api = match nym_http_api_client::ClientBuilder::new_with_urls(vec![nym_api_url
-                .clone()
-                .into()])
-            .no_hickory_dns()
-            .with_user_agent(self.user_agent())
-            .build::<&str>()
-            {
-                Ok(b) => b,
-                Err(e) => {
-                    warn!("failed to build http client for \"{nym_api_url}\": {e}",);
-                    continue;
-                }
-            };
-
-            let client = NymApiClient::from(nym_api);
-
-            // make new request every time in case previous one takes longer and invalidates the signature
-            let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());
-            match timeout(
-                Duration::from_secs(10),
-                client.nym_api.force_refresh_describe_cache(&request),
-            )
-            .await
-            {
-                Ok(Ok(_)) => {
-                    info!("managed to refresh own self-described data cache")
-                }
-                Ok(Err(request_failure)) => {
-                    warn!("failed to resolve the refresh request: {request_failure}")
-                }
-                Err(_timeout) => {
-                    warn!("timed out while attempting to resolve the request. the cache might be stale")
-                }
-            };
-        }
+        NymApisClient::new(&self.config.mixnet.nym_api_urls)?
+            .broadcast_force_refresh(self.ed25519_identity_keys.private_key())
+            .await;
+        Ok(())
     }
 
     pub(crate) fn start_verloc_measurements(&self) {
@@ -880,7 +844,7 @@ impl NymNode {
             self.config.verloc.bind_address
         );
 
-        let mut base_agent = self.user_agent();
+        let mut base_agent = Self::user_agent();
         base_agent.application = format!("{}-verloc", base_agent.application);
         let config = nym_verloc::measurements::ConfigBuilder::new(
             self.config.mixnet.nym_api_urls.clone(),
@@ -1113,7 +1077,7 @@ impl NymNode {
             }
         });
 
-        self.try_refresh_remote_nym_api_cache().await;
+        self.try_refresh_remote_nym_api_cache().await?;
         self.start_verloc_measurements();
 
         let network_refresher = self.build_network_refresher().await?;

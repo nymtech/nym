@@ -104,6 +104,7 @@ pub struct Cache<T> {
 }
 
 impl<T> Cache<Option<T>> {
+    #[allow(dead_code)]
     pub(crate) fn transpose(self) -> Option<Cache<T>> {
         self.value.map(|value| Cache {
             value,
@@ -129,6 +130,16 @@ impl<T> Cache<T> {
     {
         Cache {
             value: f(this.value),
+            as_at: this.as_at,
+        }
+    }
+
+    pub(crate) fn as_mapped<F, U>(this: &Self, f: F) -> Cache<U>
+    where
+        F: Fn(&T) -> U,
+    {
+        Cache {
+            value: f(&this.value),
             as_at: this.as_at,
         }
     }

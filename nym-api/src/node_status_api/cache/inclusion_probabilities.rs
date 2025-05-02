@@ -5,14 +5,9 @@
 
 use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
 use nym_api_requests::models::InclusionProbability;
-use nym_contracts_common::truncate_decimal;
-use nym_mixnet_contract_common::{NodeId, RewardingParams};
+use nym_mixnet_contract_common::NodeId;
 use serde::Serialize;
 use std::time::Duration;
-use tracing::error;
-
-const MAX_SIMULATION_SAMPLES: u64 = 5000;
-const MAX_SIMULATION_TIME_SEC: u64 = 15;
 
 #[deprecated]
 #[derive(Clone, Default, Serialize, schemars::JsonSchema)]
@@ -25,11 +20,24 @@ pub(crate) struct InclusionProbabilities {
 }
 
 impl InclusionProbabilities {
-    pub(crate) fn compute(
+    pub(crate) fn legacy_zero(
         mixnodes: &[LegacyMixNodeDetailsWithLayer],
-        params: RewardingParams,
-    ) -> Option<InclusionProbabilities> {
-        compute_inclusion_probabilities(mixnodes, params)
+    ) -> InclusionProbabilities {
+        // (all legacy mixnodes have 0% chance of being selected)
+        InclusionProbabilities {
+            inclusion_probabilities: mixnodes
+                .iter()
+                .map(|m| InclusionProbability {
+                    mix_id: m.mix_id(),
+                    in_active: 0.0,
+                    in_reserve: 0.0,
+                })
+                .collect(),
+            samples: 0,
+            elapsed: Default::default(),
+            delta_max: 0.0,
+            delta_l2: 0.0,
+        }
     }
 
     pub(crate) fn node(&self, mix_id: NodeId) -> Option<&InclusionProbability> {
@@ -37,64 +45,4 @@ impl InclusionProbabilities {
             .iter()
             .find(|x| x.mix_id == mix_id)
     }
-}
-
-#[deprecated]
-fn compute_inclusion_probabilities(
-    mixnodes: &[LegacyMixNodeDetailsWithLayer],
-    params: RewardingParams,
-) -> Option<InclusionProbabilities> {
-    let active_set_size = params.active_set_size();
-    let standby_set_size = params.rewarded_set.standby;
-
-    // Unzip list of total bonds into ids and bonds.
-    // We need to go through this zip/unzip procedure to make sure we have matching identities
-    // for the input to the simulator, which assumes the identity is the position in the vec
-    let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnodes);
-
-    // Compute inclusion probabilitites and keep track of how long time it took.
-    let mut rng = rand::thread_rng();
-    let results = nym_inclusion_probability::simulate_selection_probability_mixnodes(
-        &mixnode_total_bonds,
-        active_set_size as usize,
-        standby_set_size as usize,
-        MAX_SIMULATION_SAMPLES,
-        Duration::from_secs(MAX_SIMULATION_TIME_SEC),
-        &mut rng,
-    )
-    .inspect_err(|err| error!("{err}"))
-    .ok()?;
-
-    Some(InclusionProbabilities {
-        inclusion_probabilities: zip_ids_together_with_results(&ids, &results),
-        samples: results.samples,
-        elapsed: results.time,
-        delta_max: results.delta_max,
-        delta_l2: results.delta_l2,
-    })
-}
-
-fn unzip_into_mixnode_ids_and_total_bonds(
-    mixnodes: &[LegacyMixNodeDetailsWithLayer],
-) -> (Vec<NodeId>, Vec<u128>) {
-    mixnodes
-        .iter()
-        .map(|m| (m.mix_id(), truncate_decimal(m.total_stake()).u128()))
-        .unzip()
-}
-
-#[deprecated]
-fn zip_ids_together_with_results(
-    ids: &[NodeId],
-    results: &nym_inclusion_probability::SelectionProbability,
-) -> Vec<InclusionProbability> {
-    ids.iter()
-        .zip(results.active_set_probability.iter())
-        .zip(results.reserve_set_probability.iter())
-        .map(|((&mix_id, a), r)| InclusionProbability {
-            mix_id,
-            in_active: *a,
-            in_reserve: *r,
-        })
-        .collect()
 }

@@ -14,8 +14,8 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainStatusResponse,
-    LegacyDescribedMixNode, NodePerformanceResponse, NodeRefreshBody, NymNodeDescription,
-    PerformanceHistoryResponse, RewardedSetResponse,
+    KeyRotationInfoResponse, LegacyDescribedMixNode, NodePerformanceResponse, NodeRefreshBody,
+    NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
 };
 use nym_api_requests::nym_nodes::{
     NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponse,
@@ -1113,6 +1113,19 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_chain_status(&self) -> Result<ChainStatusResponse, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::NETWORK, routes::CHAIN_STATUS],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_key_rotation_info(&self) -> Result<KeyRotationInfoResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::EPOCH,
+                routes::KEY_ROTATION_INFO,
+            ],
             NO_PARAMS,
         )
         .await

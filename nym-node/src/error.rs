@@ -5,6 +5,7 @@ use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
 use nym_http_api_client::HttpClientError;
 use nym_ip_packet_router::error::ClientCoreError;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::ValidatorClientError;
 use std::io;
 use std::net::IpAddr;
@@ -114,6 +115,15 @@ pub enum NymNodeError {
 
     #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]
     NoPublicIps,
+
+    #[error("there are no available nym api endpoints")]
+    NoNymApiUrls,
+
+    #[error("failed to resolve nym-api query - no nodes returned a valid response")]
+    NymApisExhausted,
+
+    #[error("failed to resolve chain query: {0}")]
+    NyxdFailure(#[from] NyxdError),
 
     #[error("this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag.")]
     InvalidPublicIp { address: IpAddr },

@@ -107,10 +107,10 @@ impl Header {
     pub(crate) const V8_SIZE: usize = 4;
 
     pub(crate) fn encode(&self, dst: &mut BytesMut) {
-        if self.packet_version.is_initial() {
-            dst.reserve(Self::INITIAL_SIZE);
-        } else {
-            dst.reserve(Self::V8_SIZE)
+        let len = self.encoded_size();
+
+        if dst.len() < len {
+            dst.reserve(len);
         }
 
         dst.put_u8(self.packet_version.as_u8());
@@ -123,6 +123,18 @@ impl Header {
 
         // reserve bytes for the actual packet
         dst.reserve(self.packet_size.size());
+    }
+
+    pub(crate) fn frame_size(&self) -> usize {
+        self.encoded_size() + self.packet_size.size()
+    }
+
+    pub(crate) fn encoded_size(&self) -> usize {
+        if self.packet_version.is_initial() {
+            Self::INITIAL_SIZE
+        } else {
+            Self::V8_SIZE
+        }
     }
 
     pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {
@@ -144,7 +156,8 @@ impl Header {
 
         // we need to be able to decode the full header
         if !packet_version.is_initial() && src.len() < Self::V8_SIZE {
-            src.reserve(Self::V8_SIZE)
+            src.reserve(1);
+            return Ok(None);
         }
 
         let key_rotation = if packet_version.is_initial() {
@@ -165,10 +178,20 @@ impl Header {
 #[cfg(test)]
 mod header_encoding {
     use super::*;
+    use nym_sphinx_params::packet_version::INITIAL_PACKET_VERSION_NUMBER;
+
+    fn dummy_header() -> Header {
+        Header {
+            packet_version: CURRENT_PACKET_VERSION,
+            packet_size: Default::default(),
+            key_rotation: Default::default(),
+            packet_type: Default::default(),
+        }
+    }
 
     #[test]
     fn header_can_be_decoded_from_a_valid_encoded_instance() {
-        let header = Header::default();
+        let header = dummy_header();
         let mut bytes = BytesMut::new();
         header.encode(&mut bytes);
         let decoded = Header::decode(&mut bytes).unwrap().unwrap();
@@ -188,6 +211,7 @@ mod header_encoding {
                 PacketVersion::new().as_u8(),
                 unknown_packet_size,
                 PacketType::default() as u8,
+                SphinxKeyRotation::EvenRotation as u8,
             ]
             .as_ref(),
         );
@@ -202,7 +226,9 @@ mod header_encoding {
 
         let mut bytes = BytesMut::from(
             [
-                PacketVersion::new().as_u8(),
+                PacketVersion::try_from(INITIAL_PACKET_VERSION_NUMBER)
+                    .unwrap()
+                    .as_u8(),
                 PacketSize::default() as u8,
                 unknown_packet_type,
             ]
@@ -216,12 +242,12 @@ mod header_encoding {
         let mut empty_bytes = BytesMut::new();
         let decode_attempt_1 = Header::decode(&mut empty_bytes).unwrap();
         assert!(decode_attempt_1.is_none());
-        assert!(empty_bytes.capacity() > Header::SIZE);
+        assert!(empty_bytes.capacity() > Header::V8_SIZE);
 
         let mut empty_bytes = BytesMut::with_capacity(1);
         let decode_attempt_2 = Header::decode(&mut empty_bytes).unwrap();
         assert!(decode_attempt_2.is_none());
-        assert!(empty_bytes.capacity() > Header::SIZE);
+        assert!(empty_bytes.capacity() > Header::V8_SIZE);
     }
 
     #[test]
@@ -237,7 +263,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::new(),
                 packet_size,
-                ..Default::default()
+                ..dummy_header()
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);
@@ -252,6 +278,7 @@ mod header_encoding {
         let unchecked_header = Header {
             packet_version: future_version,
             packet_size: PacketSize::RegularPacket,
+            key_rotation: SphinxKeyRotation::EvenRotation,
             packet_type: PacketType::Mix,
         };
         let mut bytes = BytesMut::new();

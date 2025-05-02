@@ -441,9 +441,13 @@ mod tests {
     #[tokio::test]
     async fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
         let data = vec![42u8; SurbAck::len(Some(PacketType::Mix)) + 10];
-        let (ack, message) =
-            split_into_ack_and_message(data.clone(), PacketSize::AckPacket, PacketType::Mix)
-                .unwrap();
+        let (ack, message) = split_into_ack_and_message(
+            data.clone(),
+            PacketSize::AckPacket,
+            PacketType::Mix,
+            SphinxKeyRotation::EvenRotation,
+        )
+        .unwrap();
         assert!(ack.is_none());
         assert_eq!(data, message)
     }
@@ -455,6 +459,7 @@ mod tests {
             data.clone(),
             PacketSize::OutfoxAckPacket,
             PacketType::Outfox,
+            SphinxKeyRotation::EvenRotation,
         )
         .unwrap();
         assert!(ack.is_none());

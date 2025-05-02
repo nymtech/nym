@@ -3,6 +3,7 @@
 
 use crate::node_describe_cache::RefreshData;
 use crate::nym_contract_cache::cache::data::{CachedContractsInfo, ConfigScoreData};
+use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
 use data::ContractCacheData;
 use nym_api_requests::legacy::{
@@ -11,216 +12,86 @@ use nym_api_requests::legacy::{
 use nym_api_requests::models::MixnodeStatus;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, EpochRewardedSet, HistoricalNymNodeVersionEntry, Interval, NodeId,
-    NymNodeDetails, RewardingParams,
+    Interval, KeyRotationState, NodeId, NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
-use std::{
-    collections::HashSet,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
-use tokio::sync::{RwLock, RwLockReadGuard};
-use tokio::time;
-use tracing::{debug, error};
+use time::OffsetDateTime;
+use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod data;
 pub(crate) mod refresher;
 
-const CACHE_TIMEOUT_MS: u64 = 100;
-
 #[derive(Clone)]
 pub struct NymContractCache {
-    pub(crate) initialised: Arc<AtomicBool>,
-    pub(crate) inner: Arc<RwLock<ContractCacheData>>,
+    pub(crate) inner: SharedCache<ContractCacheData>,
 }
 
 impl NymContractCache {
     pub(crate) fn new() -> Self {
         NymContractCache {
-            initialised: Arc::new(AtomicBool::new(false)),
-            inner: Arc::new(RwLock::new(ContractCacheData::new())),
+            inner: SharedCache::new(),
         }
     }
 
-    /// Returns a copy of the current cache data.
+    pub(crate) fn inner(&self) -> SharedCache<ContractCacheData> {
+        self.inner.clone()
+    }
+
     async fn get_owned<T>(
         &self,
-        fn_arg: impl FnOnce(RwLockReadGuard<'_, ContractCacheData>) -> Cache<T>,
-    ) -> Option<Cache<T>> {
-        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
-            Ok(cache) => Some(fn_arg(cache)),
-            Err(e) => {
-                error!("{e}");
-                None
-            }
-        }
+        fn_arg: impl FnOnce(&ContractCacheData) -> T,
+    ) -> Result<T, UninitialisedCache> {
+        Ok(fn_arg(&**self.inner.get().await?))
     }
 
     async fn get<'a, T: 'a>(
         &'a self,
-        fn_arg: impl FnOnce(&ContractCacheData) -> &Cache<T>,
-    ) -> Option<RwLockReadGuard<'a, Cache<T>>> {
-        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
-            Ok(cache) => Some(RwLockReadGuard::map(cache, |item| fn_arg(item))),
-            Err(e) => {
-                error!("{e}");
-                None
-            }
-        }
+        fn_arg: impl FnOnce(&Cache<ContractCacheData>) -> &T,
+    ) -> Result<RwLockReadGuard<'a, T>, UninitialisedCache> {
+        let guard = self.inner.get().await?;
+        Ok(RwLockReadGuard::map(guard, fn_arg))
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn update(
-        &self,
-        mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
-        gateways: Vec<LegacyGatewayBondWithId>,
-        nym_nodes: Vec<NymNodeDetails>,
-        rewarded_set: EpochRewardedSet,
-        config_score_params: ConfigScoreParams,
-        nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
-        rewarding_params: RewardingParams,
-        current_interval: Interval,
-        nym_contracts_info: CachedContractsInfo,
-    ) {
-        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
-            Ok(mut cache) => {
-                let config_score_data = ConfigScoreData {
-                    config_score_params,
-                    nym_node_version_history,
-                };
+    pub async fn cache_timestamp(&self) -> OffsetDateTime {
+        let Ok(cache) = self.inner.get().await else {
+            return OffsetDateTime::UNIX_EPOCH;
+        };
 
-                cache.legacy_mixnodes.unchecked_update(mixnodes);
-                cache.legacy_gateways.unchecked_update(gateways);
-                cache.nym_nodes.unchecked_update(nym_nodes);
-                cache.rewarded_set.unchecked_update(rewarded_set);
-                cache.config_score_data.unchecked_update(config_score_data);
-                cache
-                    .current_reward_params
-                    .unchecked_update(Some(rewarding_params));
-                cache
-                    .current_interval
-                    .unchecked_update(Some(current_interval));
-                cache.contracts_info.unchecked_update(nym_contracts_info)
-            }
-            Err(err) => {
-                error!("{err}");
-            }
-        }
-    }
-
-    pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<NodeId>> {
-        self.get_owned(|cache| cache.legacy_mixnodes_blacklist.clone_cache())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub async fn gateways_blacklist(&self) -> Cache<HashSet<NodeId>> {
-        self.get_owned(|cache| cache.legacy_gateways_blacklist.clone_cache())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub async fn update_mixnodes_blacklist(&self, add: HashSet<NodeId>, remove: HashSet<NodeId>) {
-        let blacklist = self.mixnodes_blacklist().await;
-        let mut blacklist = blacklist.union(&add).cloned().collect::<HashSet<NodeId>>();
-        let to_remove = blacklist
-            .intersection(&remove)
-            .cloned()
-            .collect::<HashSet<NodeId>>();
-        for key in to_remove {
-            blacklist.remove(&key);
-        }
-        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
-            Ok(mut cache) => {
-                cache.legacy_mixnodes_blacklist.unchecked_update(blacklist);
-            }
-            Err(err) => {
-                error!("Failed to update mixnodes blacklist: {err}");
-            }
-        }
-    }
-
-    pub async fn update_gateways_blacklist(&self, add: HashSet<NodeId>, remove: HashSet<NodeId>) {
-        let blacklist = self.gateways_blacklist().await;
-        let mut blacklist = blacklist.union(&add).cloned().collect::<HashSet<_>>();
-        let to_remove = blacklist
-            .intersection(&remove)
-            .cloned()
-            .collect::<HashSet<_>>();
-        for key in to_remove {
-            blacklist.remove(&key);
-        }
-        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
-            Ok(mut cache) => {
-                cache.legacy_gateways_blacklist.unchecked_update(blacklist);
-            }
-            Err(err) => {
-                error!("Failed to update gateways blacklist: {err}");
-            }
-        }
-    }
-
-    pub async fn legacy_mixnodes_filtered(&self) -> Vec<LegacyMixNodeDetailsWithLayer> {
-        let mixnodes = self.legacy_mixnodes_all().await;
-        if mixnodes.is_empty() {
-            return Vec::new();
-        }
-        let blacklist = self.mixnodes_blacklist().await;
-
-        if !blacklist.is_empty() {
-            mixnodes
-                .into_iter()
-                .filter(|mix| !blacklist.contains(&mix.mix_id()))
-                .collect()
-        } else {
-            mixnodes
-        }
+        cache.timestamp()
     }
 
     pub async fn all_cached_legacy_mixnodes(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<Vec<LegacyMixNodeDetailsWithLayer>>>> {
-        self.get(|c| &c.legacy_mixnodes).await
+    ) -> Option<RwLockReadGuard<Vec<LegacyMixNodeDetailsWithLayer>>> {
+        self.get(|c| &c.legacy_mixnodes).await.ok()
     }
 
     pub async fn legacy_gateway_owner(&self, node_id: NodeId) -> Option<String> {
-        self.get(|c| &c.legacy_gateways)
-            .await?
-            .iter()
-            .find(|g| g.node_id == node_id)
-            .map(|g| g.owner.to_string())
-    }
+        let Ok(cache) = self.inner.get().await else {
+            return Default::default();
+        };
 
-    #[allow(dead_code)]
-    pub async fn legacy_mixnode_owner(&self, node_id: NodeId) -> Option<String> {
-        self.get(|c| &c.legacy_mixnodes)
-            .await?
+        cache
+            .legacy_gateways
             .iter()
-            .find(|m| m.mix_id() == node_id)
-            .map(|m| m.bond_information.owner.to_string())
+            .find(|gateway| gateway.node_id == node_id)
+            .map(|gateway| gateway.owner.to_string())
     }
 
     pub async fn all_cached_legacy_gateways(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<Vec<LegacyGatewayBondWithId>>>> {
-        self.get(|c| &c.legacy_gateways).await
+    ) -> Option<RwLockReadGuard<Vec<LegacyGatewayBondWithId>>> {
+        self.get(|c| &c.legacy_gateways).await.ok()
     }
 
-    pub async fn all_cached_nym_nodes(
-        &self,
-    ) -> Option<RwLockReadGuard<Cache<Vec<NymNodeDetails>>>> {
-        self.get(|c| &c.nym_nodes).await
+    pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<Vec<NymNodeDetails>>> {
+        self.get(|c| &c.nym_nodes).await.ok()
     }
 
     pub async fn legacy_mixnodes_all(&self) -> Vec<LegacyMixNodeDetailsWithLayer> {
-        self.get_owned(|cache| cache.legacy_mixnodes.clone_cache())
+        self.get_owned(|c| c.legacy_mixnodes.clone())
             .await
             .unwrap_or_default()
-            .into_inner()
     }
 
     pub async fn legacy_mixnodes_all_basic(&self) -> Vec<LegacyMixNodeBondWithLayer> {
@@ -231,159 +102,83 @@ impl NymContractCache {
             .collect()
     }
 
-    pub async fn legacy_gateways_filtered(&self) -> Vec<LegacyGatewayBondWithId> {
-        let gateways = self.legacy_gateways_all().await;
-        if gateways.is_empty() {
-            return Vec::new();
-        }
-
-        let blacklist = self.gateways_blacklist().await;
-
-        if !blacklist.is_empty() {
-            gateways
-                .into_iter()
-                .filter(|gw| !blacklist.contains(&gw.node_id))
-                .collect()
-        } else {
-            gateways
-        }
-    }
-
     pub async fn legacy_gateways_all(&self) -> Vec<LegacyGatewayBondWithId> {
-        self.get_owned(|cache| cache.legacy_gateways.clone_cache())
+        self.get_owned(|c| c.legacy_gateways.clone())
             .await
             .unwrap_or_default()
-            .into_inner()
     }
 
     pub async fn nym_nodes(&self) -> Vec<NymNodeDetails> {
-        self.get_owned(|cache| cache.nym_nodes.clone_cache())
-            .await
-            .unwrap_or_default()
-            .into_inner()
-    }
-
-    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<Cache<CachedEpochRewardedSet>>> {
-        self.get(|cache| &cache.rewarded_set).await
-    }
-
-    pub async fn rewarded_set_owned(&self) -> Cache<CachedEpochRewardedSet> {
-        self.get_owned(|cache| cache.rewarded_set.clone_cache())
+        self.get_owned(|c| c.nym_nodes.clone())
             .await
             .unwrap_or_default()
     }
 
-    pub async fn maybe_config_score_data_owned(&self) -> Option<Cache<ConfigScoreData>> {
-        self.config_score_data_owned().await.transpose()
-    }
-
-    pub async fn config_score_data_owned(&self) -> Cache<Option<ConfigScoreData>> {
-        self.get_owned(|cache| cache.config_score_data.clone_cache())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub async fn legacy_v1_rewarded_set_mixnodes(&self) -> Vec<LegacyMixNodeDetailsWithLayer> {
-        let Some(rewarded_set) = self.rewarded_set().await else {
-            return Vec::new();
-        };
-
-        let mut rewarded_nodes = rewarded_set
-            .active_mixnodes()
-            .into_iter()
-            .collect::<HashSet<_>>();
-
-        // rewarded mixnode = active or standby
-        for standby in &rewarded_set.standby {
-            rewarded_nodes.insert(*standby);
-        }
-
-        self.legacy_mixnodes_all()
-            .await
-            .into_iter()
-            .filter(|m| rewarded_nodes.contains(&m.mix_id()))
-            .collect()
-    }
-
-    pub async fn legacy_v1_active_set_mixnodes(&self) -> Vec<LegacyMixNodeDetailsWithLayer> {
-        let Some(rewarded_set) = self.rewarded_set().await else {
-            return Vec::new();
-        };
-
-        let active_nodes = rewarded_set
-            .active_mixnodes()
-            .into_iter()
-            .collect::<HashSet<_>>();
-
-        self.legacy_mixnodes_all()
-            .await
-            .into_iter()
-            .filter(|m| active_nodes.contains(&m.mix_id()))
-            .collect()
-    }
-
-    pub(crate) async fn interval_reward_params(&self) -> Cache<Option<RewardingParams>> {
-        self.get_owned(|cache| cache.current_reward_params.clone_cache())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub(crate) async fn current_interval(&self) -> Cache<Option<Interval>> {
-        self.get_owned(|cache| cache.current_interval.clone_cache())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub(crate) async fn get_key_rotation_state(&self) {
-        todo!()
-    }
-
-    pub(crate) async fn contract_details(&self) -> Cache<CachedContractsInfo> {
-        self.get_owned(|cache| cache.contracts_info.clone_cache())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub async fn legacy_mixnode_details(
+    pub async fn cached_rewarded_set(
         &self,
-        mix_id: NodeId,
-    ) -> (Option<LegacyMixNodeDetailsWithLayer>, MixnodeStatus) {
-        // the old behaviour was to get the nodes from the filtered list, so let's not change it here
-        let rewarded_set = self.rewarded_set_owned().await;
-        let all_bonded = &self.legacy_mixnodes_filtered().await;
-        let Some(bond) = all_bonded.iter().find(|mix| mix.mix_id() == mix_id) else {
-            return (None, MixnodeStatus::NotFound);
-        };
+    ) -> Result<Cache<CachedEpochRewardedSet>, UninitialisedCache> {
+        let cache = self.inner.get().await?;
+        Ok(Cache::as_mapped(&cache, |c| c.rewarded_set.clone()))
+    }
 
-        if rewarded_set.is_active_mixnode(&mix_id) {
-            return (Some(bond.clone()), MixnodeStatus::Active);
-        }
+    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<CachedEpochRewardedSet>> {
+        self.get(|c| &c.rewarded_set).await.ok()
+    }
 
-        if rewarded_set.is_standby(&mix_id) {
-            return (Some(bond.clone()), MixnodeStatus::Standby);
-        }
+    pub async fn rewarded_set_owned(&self) -> Result<CachedEpochRewardedSet, UninitialisedCache> {
+        self.get_owned(|c| c.rewarded_set.clone()).await
+    }
 
-        (Some(bond.clone()), MixnodeStatus::Inactive)
+    pub async fn maybe_config_score_data(&self) -> Result<ConfigScoreData, UninitialisedCache> {
+        self.get_owned(|c| c.config_score_data.clone()).await
+    }
+
+    pub(crate) async fn interval_reward_params(
+        &self,
+    ) -> Result<RewardingParams, UninitialisedCache> {
+        self.get_owned(|c| c.current_reward_params).await
+    }
+
+    pub(crate) async fn current_interval(&self) -> Result<Interval, UninitialisedCache> {
+        self.get_owned(|c| c.current_interval).await
+    }
+
+    pub(crate) async fn get_key_rotation_state(
+        &self,
+    ) -> Result<KeyRotationState, UninitialisedCache> {
+        self.get_owned(|c| c.key_rotation_state).await
+    }
+
+    pub(crate) async fn contract_details(&self) -> CachedContractsInfo {
+        self.get_owned(|c| c.contracts_info.clone())
+            .await
+            .unwrap_or_default()
     }
 
     pub async fn mixnode_status(&self, mix_id: NodeId) -> MixnodeStatus {
-        self.legacy_mixnode_details(mix_id).await.1
+        let Ok(cache) = self.inner.get().await else {
+            return Default::default();
+        };
+
+        if cache.legacy_mixnodes.iter().any(|n| n.mix_id() == mix_id) {
+            MixnodeStatus::Inactive
+        } else {
+            MixnodeStatus::NotFound
+        }
     }
 
     pub async fn get_node_refresh_data(
         &self,
         node_identity: ed25519::PublicKey,
     ) -> Option<RefreshData> {
-        if !self.initialised() {
-            return None;
-        }
-
-        let inner = self.inner.read().await;
+        let Ok(cache) = self.inner.get().await else {
+            return Default::default();
+        };
 
         let encoded_identity = node_identity.to_base58_string();
 
         // 1. check nymnodes
-        if let Some(nym_node) = inner
+        if let Some(nym_node) = cache
             .nym_nodes
             .iter()
             .find(|n| n.bond_information.identity() == encoded_identity)
@@ -392,7 +187,7 @@ impl NymContractCache {
         }
 
         // 2. check legacy mixnodes
-        if let Some(mixnode) = inner
+        if let Some(mixnode) = cache
             .legacy_mixnodes
             .iter()
             .find(|n| n.bond_information.identity() == encoded_identity)
@@ -401,7 +196,7 @@ impl NymContractCache {
         }
 
         // 3. check legacy gateways
-        if let Some(gateway) = inner
+        if let Some(gateway) = cache
             .legacy_gateways
             .iter()
             .find(|n| n.identity() == &encoded_identity)
@@ -412,19 +207,7 @@ impl NymContractCache {
         None
     }
 
-    pub fn initialised(&self) -> bool {
-        self.initialised.load(Ordering::Relaxed)
-    }
-
-    pub(crate) async fn wait_for_initial_values(&self) {
-        let initialisation_backoff = Duration::from_secs(5);
-        loop {
-            if self.initialised() {
-                break;
-            } else {
-                debug!("Validator cache hasn't been initialised yet - waiting for {:?} before trying again", initialisation_backoff);
-                tokio::time::sleep(initialisation_backoff).await;
-            }
-        }
+    pub(crate) async fn naive_wait_for_initial_values(&self) {
+        self.inner.naive_wait_for_initial_values().await
     }
 }

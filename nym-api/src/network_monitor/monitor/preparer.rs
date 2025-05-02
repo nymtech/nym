@@ -155,7 +155,7 @@ impl PacketPreparer {
 
     pub(crate) async fn wait_for_validator_cache_initial_values(&self, minimum_full_routes: usize) {
         // wait for the caches to get initialised
-        self.contract_cache.wait_for_initial_values().await;
+        self.contract_cache.naive_wait_for_initial_values().await;
         self.described_cache.naive_wait_for_initial_values().await;
 
         #[allow(clippy::expect_used)]

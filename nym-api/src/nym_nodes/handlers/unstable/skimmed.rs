@@ -124,18 +124,12 @@ where
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
     let describe_cache = state.describe_nodes_cache_data().await?;
 
-    let maybe_interval = state
-        .nym_contract_cache()
-        .current_interval()
-        .await
-        .to_owned();
+    let current_interval = state.nym_contract_cache().current_interval().await?;
 
     // 4.0 If the client indicates that they already know about the current topology send empty response
     if let Some(client_known_epoch) = query_params.epoch_id {
-        if let Some(ref interval) = maybe_interval {
-            if client_known_epoch == interval.current_epoch_id() {
-                return Ok(Json(PaginatedCachedNodesResponse::no_updates()));
-            }
+        if client_known_epoch == current_interval.current_epoch_id() {
+            return Ok(Json(PaginatedCachedNodesResponse::no_updates()));
         }
     }
 
@@ -153,7 +147,7 @@ where
         ]);
 
         return Ok(Json(
-            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
+            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(current_interval),
         ));
     }
 
@@ -177,7 +171,7 @@ where
     ]);
 
     Ok(Json(
-        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
+        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(current_interval),
     ))
 }
 

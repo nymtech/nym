@@ -5,6 +5,7 @@ use crate::node_status_api::helpers::{
     _get_active_set_legacy_mixnodes_detailed, _get_legacy_mixnodes_detailed,
     _get_rewarded_set_legacy_mixnodes_detailed,
 };
+use crate::node_status_api::models::ApiResult;
 use crate::support::http::state::AppState;
 use crate::support::legacy_helpers::{to_legacy_gateway, to_legacy_mixnode};
 use axum::extract::State;
@@ -64,24 +65,23 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
 )]
 #[deprecated]
 async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    let mut out = state.nym_contract_cache().legacy_mixnodes_filtered().await;
-
     let Ok(describe_cache) = state.described_nodes_cache.get().await else {
-        return Json(out);
+        return Json(Vec::new());
     };
 
     let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
-        return Json(out);
+        return Json(Vec::new());
     };
 
     let Ok(annotations) = state.node_annotations().await else {
-        return Json(out);
+        return Json(Vec::new());
     };
 
     // safety: valid percentage value
     #[allow(clippy::unwrap_used)]
     let p50 = Performance::from_percentage_value(50).unwrap();
 
+    let mut nodes = Vec::new();
     for nym_node in &**migrated_nymnodes {
         // if we can't get it self-described data, ignore it
         let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
@@ -101,10 +101,10 @@ async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDe
         }
 
         let node = to_legacy_mixnode(nym_node, description);
-        out.push(node);
+        nodes.push(node);
     }
 
-    Json(out)
+    Json(nodes)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -139,25 +139,18 @@ async fn get_mixnodes_detailed(State(state): State<AppState>) -> Json<Vec<MixNod
 )]
 #[deprecated]
 async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
-    // legacy
-    let mut out: Vec<GatewayBond> = state
-        .nym_contract_cache()
-        .legacy_gateways_filtered()
-        .await
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    let mut nodes = Vec::new();
 
     let Ok(describe_cache) = state.described_nodes_cache.get().await else {
-        return Json(out);
+        return Json(nodes);
     };
 
     let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
-        return Json(out);
+        return Json(nodes);
     };
 
     let Ok(annotations) = state.node_annotations().await else {
-        return Json(out);
+        return Json(nodes);
     };
 
     // safety: valid percentage value
@@ -183,10 +176,10 @@ async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
         }
 
         let node = to_legacy_gateway(nym_node, description);
-        out.push(node);
+        nodes.push(node);
     }
 
-    Json(out)
+    Json(nodes)
 }
 
 #[utoipa::path(
@@ -199,15 +192,10 @@ async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
 )]
 #[deprecated]
 async fn get_rewarded_set(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    Json(
-        state
-            .nym_contract_cache()
-            .legacy_v1_rewarded_set_mixnodes()
-            .await
-            .clone(),
-    )
+    // no legacy node will ever be in the rewarded set
+    Json(Vec::new())
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -247,11 +235,7 @@ async fn get_rewarded_set_detailed(
 )]
 #[deprecated]
 async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    let mut out = state
-        .nym_contract_cache()
-        .legacy_v1_active_set_mixnodes()
-        .await
-        .clone();
+    let mut out = Vec::new();
 
     let Some(rewarded_set) = state.nym_contract_cache().rewarded_set().await else {
         return Json(out);
@@ -335,17 +319,11 @@ async fn get_active_set_detailed(State(state): State<AppState>) -> Json<Vec<MixN
 )]
 #[deprecated]
 async fn get_blacklisted_mixnodes(State(state): State<AppState>) -> Json<Option<HashSet<NodeId>>> {
-    let blacklist = state
-        .nym_contract_cache()
-        .mixnodes_blacklist()
-        .await
-        .to_owned();
-    if blacklist.is_empty() {
-        None
-    } else {
-        Some(blacklist)
-    }
-    .into()
+    let cache = state.nym_contract_cache();
+
+    // since blacklist has been removed, the equivalent of a blacklisted node is a legacy node
+    let mixnodes = cache.legacy_mixnodes_all().await;
+    Json(Some(mixnodes.into_iter().map(|m| m.mix_id()).collect()))
 }
 
 #[utoipa::path(
@@ -359,19 +337,15 @@ async fn get_blacklisted_mixnodes(State(state): State<AppState>) -> Json<Option<
 #[deprecated]
 async fn get_blacklisted_gateways(State(state): State<AppState>) -> Json<Option<HashSet<String>>> {
     let cache = state.nym_contract_cache();
-    let blacklist = cache.gateways_blacklist().await.clone();
-    if blacklist.is_empty() {
-        Json(None)
-    } else {
-        let gateways = cache.legacy_gateways_all().await;
-        Json(Some(
-            gateways
-                .into_iter()
-                .filter(|g| blacklist.contains(&g.node_id))
-                .map(|g| g.gateway.identity_key.clone())
-                .collect(),
-        ))
-    }
+
+    // since blacklist has been removed, the equivalent of a blacklisted node is a legacy node
+    let gateways = cache.legacy_gateways_all().await;
+    Json(Some(
+        gateways
+            .into_iter()
+            .map(|g| g.gateway.identity_key.clone())
+            .collect(),
+    ))
 }
 
 #[utoipa::path(
@@ -389,7 +363,7 @@ async fn get_interval_reward_params(
         .nym_contract_cache()
         .interval_reward_params()
         .await
-        .to_owned()
+        .ok()
         .into()
 }
 
@@ -406,7 +380,7 @@ async fn get_current_epoch(State(state): State<AppState>) -> Json<Option<Interva
         .nym_contract_cache()
         .current_interval()
         .await
-        .to_owned()
+        .ok()
         .into()
 }
 
@@ -417,13 +391,20 @@ async fn get_current_epoch(State(state): State<AppState>) -> Json<Option<Interva
     path = "/epoch/key_rotation_info",
     context_path = "/v1/epoch",
     responses(
-        (status = 200, body = Option<Interval>)
+        (status = 200, body = KeyRotationInfoResponse)
     )
 )]
 async fn get_current_key_rotation_info(
     State(state): State<AppState>,
-) -> Json<KeyRotationInfoResponse> {
+) -> ApiResult<Json<KeyRotationInfoResponse>> {
     let contract_cache = state.nym_contract_cache();
-    let current_interval = contract_cache.current_interval().await;
-    todo!()
+    let current_interval = contract_cache.current_interval().await?;
+    let key_rotation_state = contract_cache.get_key_rotation_state().await?;
+
+    Ok(Json(KeyRotationInfoResponse {
+        key_rotation_state,
+        current_epoch_id: current_interval.current_epoch_id(),
+        current_epoch_start: current_interval.current_epoch_start(),
+        epoch_duration: current_interval.epoch_length(),
+    }))
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::AxumResult;
-use crate::support::caching::cache::UninitialisedCache;
 use crate::support::http::state::AppState;
 use axum::extract::State;
 use axum::routing::get;
@@ -49,11 +48,7 @@ struct MixIdParam {
 async fn config_score_details(
     State(state): State<AppState>,
 ) -> AxumResult<Json<ConfigScoreDataResponse>> {
-    let data = state
-        .nym_contract_cache()
-        .maybe_config_score_data_owned()
-        .await
-        .ok_or(UninitialisedCache)?;
+    let data = state.nym_contract_cache().maybe_config_score_data().await?;
 
-    Ok(Json(data.into_inner().into()))
+    Ok(Json(data.into()))
 }

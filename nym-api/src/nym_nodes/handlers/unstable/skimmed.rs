@@ -127,15 +127,7 @@ where
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
     let describe_cache = state.describe_nodes_cache_data().await?;
 
-    let Some(interval) = state
-        .nym_contract_cache()
-        .current_interval()
-        .await
-        .to_owned()
-    else {
-        // if we can't obtain interval information, it means caches are not valid
-        return Err(AxumErrorResponse::service_unavailable());
-    };
+    let interval = state.nym_contract_cache().current_interval().await?;
 
     // 4.0 If the client indicates that they already know about the current topology send empty response
     if let Some(client_known_epoch) = query_params.epoch_id {

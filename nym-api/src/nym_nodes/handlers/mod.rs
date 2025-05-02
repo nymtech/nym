@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
-use crate::support::caching::cache::UninitialisedCache;
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
@@ -69,16 +68,10 @@ async fn rewarded_set(
 ) -> AxumResult<FormattedResponse<RewardedSetResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let cached_rewarded_set = state
-        .nym_contract_cache()
-        .rewarded_set()
-        .await
-        .map(|cache| cache.clone_cache())
-        .ok_or(UninitialisedCache)?
-        .into_inner();
+    let rewarded_set = state.nym_contract_cache().rewarded_set_owned().await?;
 
     Ok(output.to_response(
-        nym_mixnet_contract_common::EpochRewardedSet::from(cached_rewarded_set).into(),
+        nym_mixnet_contract_common::EpochRewardedSet::from(rewarded_set).into(),
     ))
 }
 

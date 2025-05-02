@@ -352,7 +352,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
     type Error = NodeDescribeCacheError;
 
     async fn wait_until_ready(&self) {
-        self.contract_cache.wait_for_initial_values().await
+        self.contract_cache.naive_wait_for_initial_values().await
     }
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {

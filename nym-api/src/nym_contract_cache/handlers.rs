@@ -50,7 +50,7 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
         )
         .route("/epoch/current", axum::routing::get(get_current_epoch))
         .route(
-            "/epoch/key_rotation_info",
+            "/epoch/key-rotation-info",
             axum::routing::get(get_current_key_rotation_info),
         )
 }
@@ -388,7 +388,7 @@ async fn get_current_epoch(State(state): State<AppState>) -> Json<Option<Interva
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/epoch/key_rotation_info",
+    path = "/epoch/key-rotation-info",
     context_path = "/v1/epoch",
     responses(
         (status = 200, body = KeyRotationInfoResponse)

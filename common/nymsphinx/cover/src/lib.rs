@@ -10,7 +10,9 @@ use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_chunking::fragment::COVER_FRAG_ID;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType};
+use nym_sphinx_params::{
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType, SphinxKeyRotation,
+};
 use nym_sphinx_types::NymPacket;
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
@@ -125,6 +127,9 @@ where
     let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
     let destination = full_address.as_sphinx_destination();
 
+    let rotation_id = topology.current_key_rotation();
+    let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);
+
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
@@ -146,8 +151,12 @@ where
         )?,
     };
 
-    todo!()
-    // Ok(MixPacket::new(first_hop_address, packet, packet_type))
+    Ok(MixPacket::new(
+        first_hop_address,
+        packet,
+        packet_type,
+        sphinx_key_rotation,
+    ))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

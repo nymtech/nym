@@ -72,7 +72,9 @@ impl Display for RequestError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema, Default,
+)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -86,6 +88,7 @@ pub enum MixnodeStatus {
     Active,   // in both the active set and the rewarded set
     Standby,  // only in the rewarded set
     Inactive, // in neither the rewarded set nor the active set, but is bonded
+    #[default]
     NotFound, // doesn't even exist in the bonded set
 }
 impl MixnodeStatus {

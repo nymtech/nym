@@ -6,10 +6,8 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::cache::node_sets::produce_node_annotations;
 use crate::support::caching::cache::SharedCache;
 use crate::{
-    node_status_api::cache::{inclusion_probabilities, NodeStatusCacheError},
-    nym_contract_cache::cache::NymContractCache,
-    storage::NymApiStorage,
-    support::caching::CacheNotification,
+    node_status_api::cache::NodeStatusCacheError, nym_contract_cache::cache::NymContractCache,
+    storage::NymApiStorage, support::caching::CacheNotification,
 };
 use ::time::OffsetDateTime;
 use nym_task::TaskClient;
@@ -17,7 +15,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
-use tracing::{error, info, trace, warn};
+use tracing::{info, trace, warn};
 
 // Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
@@ -139,35 +137,16 @@ impl NodeStatusCacheRefresher {
 
         // Fetch contract cache data to work with
         let mixnode_details = self.contract_cache.legacy_mixnodes_all().await;
-        let interval_reward_params = self.contract_cache.interval_reward_params().await;
-        let current_interval = self.contract_cache.current_interval().await;
-        let rewarded_set = self.contract_cache.rewarded_set_owned().await;
+        let interval_reward_params = self.contract_cache.interval_reward_params().await?;
+        let current_interval = self.contract_cache.current_interval().await?;
+        let rewarded_set = self.contract_cache.rewarded_set_owned().await?;
         let gateway_bonds = self.contract_cache.legacy_gateways_all().await;
         let nym_nodes = self.contract_cache.nym_nodes().await;
-        let config_score_data = self
-            .contract_cache
-            .config_score_data_owned()
-            .await
-            .into_inner()
-            .ok_or(NodeStatusCacheError::SourceDataMissing)?;
-
-        // get blacklists
-        let mixnodes_blacklist = self.contract_cache.mixnodes_blacklist().await;
-        let gateways_blacklist = self.contract_cache.gateways_blacklist().await;
-
-        let interval_reward_params =
-            interval_reward_params.ok_or(NodeStatusCacheError::SourceDataMissing)?;
-        let current_interval = current_interval.ok_or(NodeStatusCacheError::SourceDataMissing)?;
+        let config_score_data = self.contract_cache.maybe_config_score_data().await?;
 
         // Compute inclusion probabilities
-        let inclusion_probabilities = inclusion_probabilities::InclusionProbabilities::compute(
-            &mixnode_details,
-            interval_reward_params,
-        )
-        .ok_or_else(|| {
-            error!("Failed to simulate selection probabilities for mixnodes, not updating cache");
-            NodeStatusCacheError::SimulationFailed
-        })?;
+        // (all legacy mixnodes have 0% chance of being selected)
+        let inclusion_probabilities = crate::node_status_api::cache::inclusion_probabilities::InclusionProbabilities::legacy_zero(&mixnode_details);
 
         let Ok(described) = self.described_cache.get().await else {
             return Err(NodeStatusCacheError::UnavailableDescribedCache);
@@ -198,7 +177,6 @@ impl NodeStatusCacheRefresher {
                 interval_reward_params,
                 current_interval,
                 &rewarded_set,
-                &mixnodes_blacklist,
             )
             .await;
 
@@ -207,7 +185,6 @@ impl NodeStatusCacheRefresher {
                 &self.storage,
                 gateway_bonds,
                 current_interval,
-                &gateways_blacklist,
             )
             .await;
 

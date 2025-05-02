@@ -1,56 +1,47 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::NymContractCache;
-use crate::nym_contract_cache::cache::data::{CachedContractInfo, CachedContractsInfo};
+use crate::nym_contract_cache::cache::data::{
+    CachedContractInfo, CachedContractsInfo, ConfigScoreData, ContractCacheData,
+};
 use crate::nyxd::Client;
-use crate::support::caching::CacheNotification;
+use crate::support::caching::refresher::CacheItemProvider;
 use anyhow::Result;
+use async_trait::async_trait;
 use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
-use nym_mixnet_contract_common::{EpochRewardedSet, LegacyMixLayer};
-use nym_task::TaskClient;
+use nym_mixnet_contract_common::LegacyMixLayer;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, NymContractsProvider, VestingQueryClient,
 };
+use nym_validator_client::nyxd::error::NyxdError;
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
+use std::collections::HashMap;
 use std::collections::HashSet;
-use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
-use tokio::sync::watch;
-use tokio::time;
-use tracing::{error, info, trace, warn};
+use tracing::info;
 
-pub struct NymContractCacheRefresher {
+pub struct ContractDataProvider {
     nyxd_client: Client,
-    cache: NymContractCache,
-    caching_interval: Duration,
-
-    // Notify listeners that the cache has been updated
-    update_notifier: watch::Sender<CacheNotification>,
 }
 
-impl NymContractCacheRefresher {
-    pub(crate) fn new(
-        nyxd_client: Client,
-        caching_interval: Duration,
-        cache: NymContractCache,
-    ) -> Self {
-        let (tx, _) = watch::channel(CacheNotification::Start);
-        NymContractCacheRefresher {
-            nyxd_client,
-            cache,
-            caching_interval,
-            update_notifier: tx,
-        }
+#[async_trait]
+impl CacheItemProvider for ContractDataProvider {
+    type Item = ContractCacheData;
+    type Error = NyxdError;
+
+    async fn try_refresh(&self) -> std::result::Result<Self::Item, Self::Error> {
+        self.refresh().await
+    }
+}
+
+impl ContractDataProvider {
+    pub(crate) fn new(nyxd_client: Client) -> Self {
+        ContractDataProvider { nyxd_client }
     }
 
-    pub fn subscribe(&self) -> watch::Receiver<CacheNotification> {
-        self.update_notifier.subscribe()
-    }
-
-    async fn get_nym_contracts_info(&self) -> Result<CachedContractsInfo> {
+    async fn get_nym_contracts_info(&self) -> Result<CachedContractsInfo, NyxdError> {
         use crate::query_guard;
 
         let mut updated = HashMap::new();
@@ -112,8 +103,8 @@ impl NymContractCacheRefresher {
         Ok(updated)
     }
 
-    async fn refresh(&self) -> Result<()> {
-        let rewarding_params = self.nyxd_client.get_current_rewarding_parameters().await?;
+    async fn refresh(&self) -> Result<ContractCacheData, NyxdError> {
+        let current_reward_params = self.nyxd_client.get_current_rewarding_parameters().await?;
         let current_interval = self.nyxd_client.get_current_interval().await?.interval;
 
         let nym_nodes = self.nyxd_client.get_nymnodes().await?;
@@ -127,7 +118,7 @@ impl NymContractCacheRefresher {
             .map(|id| (id.identity, id.node_id))
             .collect();
 
-        let mut gateways = Vec::with_capacity(gateway_bonds.len());
+        let mut legacy_gateways = Vec::with_capacity(gateway_bonds.len());
         #[allow(clippy::panic)]
         for bond in gateway_bonds {
             // we explicitly panic here because that value MUST exist.
@@ -138,10 +129,10 @@ impl NymContractCacheRefresher {
                     bond.identity()
                 )
             });
-            gateways.push(LegacyGatewayBondWithId { bond, node_id })
+            legacy_gateways.push(LegacyGatewayBondWithId { bond, node_id })
         }
 
-        let rewarded_set = self.get_rewarded_set().await;
+        let rewarded_set = self.nyxd_client.get_rewarded_set_nodes().await?;
         let layer1 = rewarded_set
             .assignment
             .layer1
@@ -164,7 +155,7 @@ impl NymContractCacheRefresher {
             LegacyMixLayer::Three,
         ];
         let mut rng = OsRng;
-        let mut mixnodes = Vec::with_capacity(mixnode_details.len());
+        let mut legacy_mixnodes = Vec::with_capacity(mixnode_details.len());
         for detail in mixnode_details {
             // if node is not in the rewarded set, well.
             // slap a random layer on it because legacy clients don't understand a concept of layerless mixnodes
@@ -180,7 +171,7 @@ impl NymContractCacheRefresher {
                 layer_choices.choose(&mut rng).copied().unwrap()
             };
 
-            mixnodes.push(LegacyMixNodeDetailsWithLayer {
+            legacy_mixnodes.push(LegacyMixNodeDetailsWithLayer {
                 bond_information: LegacyMixNodeBondWithLayer {
                     bond: detail.bond_information,
                     layer,
@@ -190,71 +181,31 @@ impl NymContractCacheRefresher {
             })
         }
 
+        let key_rotation_state = self.nyxd_client.get_key_rotation_state().await?;
         let config_score_params = self.nyxd_client.get_config_score_params().await?;
         let nym_node_version_history = self.nyxd_client.get_nym_node_version_history().await?;
-        let contract_info = self.get_nym_contracts_info().await?;
+        let contracts_info = self.get_nym_contracts_info().await?;
 
         info!(
             "Updating validator cache. There are {} [legacy] mixnodes, {} [legacy] gateways and {} nym nodes",
-            mixnodes.len(),
-            gateways.len(),
+            legacy_mixnodes.len(),
+            legacy_gateways.len(),
             nym_nodes.len(),
         );
 
-        self.cache
-            .update(
-                mixnodes,
-                gateways,
-                nym_nodes,
-                rewarded_set,
+        Ok(ContractCacheData {
+            legacy_mixnodes,
+            legacy_gateways,
+            nym_nodes,
+            rewarded_set: rewarded_set.into(),
+            config_score_data: ConfigScoreData {
                 config_score_params,
                 nym_node_version_history,
-                rewarding_params,
-                current_interval,
-                contract_info,
-            )
-            .await;
-
-        if let Err(err) = self.update_notifier.send(CacheNotification::Updated) {
-            warn!("Failed to notify validator cache refresh: {err}");
-        }
-
-        Ok(())
-    }
-
-    async fn get_rewarded_set(&self) -> EpochRewardedSet {
-        self.nyxd_client
-            .get_rewarded_set_nodes()
-            .await
-            .unwrap_or_default()
-    }
-
-    pub(crate) async fn run(&self, mut shutdown: TaskClient) {
-        let mut interval = time::interval(self.caching_interval);
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                _ = interval.tick() => {
-                    tokio::select! {
-                        biased;
-                        _ = shutdown.recv() => {
-                            trace!("ValidatorCacheRefresher: Received shutdown");
-                        }
-                        ret = self.refresh() => {
-                            if let Err(err) = ret {
-                                error!("Failed to refresh validator cache - {err}");
-                            } else {
-                                // relaxed memory ordering is fine here. worst case scenario network monitor
-                                // will just have to wait for an additional backoff to see the change.
-                                // And so this will not really incur any performance penalties by setting it every loop iteration
-                                self.cache.initialised.store(true, Ordering::Relaxed)
-                            }
-                        }
-                    }
-                }
-                _ = shutdown.recv() => {
-                    trace!("ValidatorCacheRefresher: Received shutdown");
-                }
-            }
-        }
+            },
+            current_reward_params,
+            current_interval,
+            key_rotation_state,
+            contracts_info,
+        })
     }
 }

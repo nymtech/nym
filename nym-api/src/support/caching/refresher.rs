@@ -22,7 +22,7 @@ pub struct CacheRefresher<T, E> {
 }
 
 #[async_trait]
-pub trait CacheItemProvider {
+pub(crate) trait CacheItemProvider {
     type Item;
     type Error: std::error::Error;
 

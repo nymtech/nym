@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet::{FramedNymPacket, Header};
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{BufMut, BytesMut};
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nym_sphinx_params::packet_types::InvalidPacketType;
 use nym_sphinx_params::packet_version::{InvalidPacketVersion, PacketVersion};
 use nym_sphinx_params::PacketType;
-use nym_sphinx_types::{NymPacket, NymPacketError};
+use nym_sphinx_types::NymPacketError;
 use std::io;
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};

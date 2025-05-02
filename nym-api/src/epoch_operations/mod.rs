@@ -22,7 +22,6 @@ use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
-use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{error, info, trace, warn};
@@ -165,58 +164,6 @@ impl EpochAdvancer {
         Ok(())
     }
 
-    // this purposely does not deal with nym-nodes as they don't have a concept of a blacklist.
-    // instead clients are meant to be filtering out them themselves based on the provided scores.
-    async fn update_legacy_node_blacklist(
-        &mut self,
-        interval: &Interval,
-    ) -> Result<(), RewardingError> {
-        info!("Updating blacklists");
-
-        let mut mix_blacklist_add = HashSet::new();
-        let mut mix_blacklist_remove = HashSet::new();
-        let mut gate_blacklist_add = HashSet::new();
-        let mut gate_blacklist_remove = HashSet::new();
-
-        let mixnodes = self
-            .storage
-            .get_all_avg_mix_reliability_in_last_24hr(interval.current_epoch_end_unix_timestamp())
-            .await?;
-        let gateways = self
-            .storage
-            .get_all_avg_gateway_reliability_in_last_24hr(
-                interval.current_epoch_end_unix_timestamp(),
-            )
-            .await?;
-
-        // TODO: Make thresholds configurable
-        for mix in mixnodes {
-            if mix.value() <= 50.0 {
-                mix_blacklist_add.insert(mix.mix_id());
-            } else {
-                mix_blacklist_remove.insert(mix.mix_id());
-            }
-        }
-
-        self.nym_contract_cache
-            .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
-            .await;
-
-        for gateway in gateways {
-            if gateway.value() <= 50.0 {
-                gate_blacklist_add.insert(gateway.node_id());
-            } else {
-                gate_blacklist_remove.insert(gateway.node_id());
-            }
-        }
-
-        self.nym_contract_cache
-            .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
-            .await;
-
-        Ok(())
-    }
-
     async fn wait_until_epoch_end(&mut self, shutdown: &mut TaskClient) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
 
@@ -267,7 +214,9 @@ impl EpochAdvancer {
 
     pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
         info!("waiting for initial contract cache values before we can start rewarding");
-        self.nym_contract_cache.wait_for_initial_values().await;
+        self.nym_contract_cache
+            .naive_wait_for_initial_values()
+            .await;
 
         info!("waiting for initial self-described cache values before we can start rewarding");
         self.described_cache.naive_wait_for_initial_values().await;
@@ -278,10 +227,7 @@ impl EpochAdvancer {
                 None => return Ok(()),
                 Some(interval) => interval,
             };
-            if let Err(err) = self.update_legacy_node_blacklist(&interval_details).await {
-                error!("failed to update the node blacklist - {err}");
-                continue;
-            }
+
             if let Err(err) = self.perform_epoch_operations(interval_details).await {
                 error!("failed to perform epoch operations - {err}");
                 sleep(Duration::from_secs(30)).await;

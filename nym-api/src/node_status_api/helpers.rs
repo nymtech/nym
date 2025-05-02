@@ -198,16 +198,12 @@ pub(crate) async fn _get_mixnode_reward_estimation(
         .await
         .ok_or_else(|| AxumErrorResponse::not_found("mixnode bond not found"))?;
 
-    let reward_params = contract_cache.interval_reward_params().await;
-    let as_at = reward_params.timestamp();
-    let reward_params = reward_params
-        .into_inner()
-        .ok_or_else(AxumErrorResponse::internal)?;
-    let current_interval = contract_cache
-        .current_interval()
-        .await
-        .into_inner()
-        .ok_or_else(AxumErrorResponse::internal)?;
+    let reward_params = contract_cache.interval_reward_params().await?;
+    let current_interval = contract_cache.current_interval().await?;
+
+    // in some very rare edge cases this value might be off (as internals might have got updated between
+    // queries for `reward_params` and `current_interval`, but timestamp is only informative to begin with)
+    let as_at = contract_cache.cache_timestamp().await;
 
     let reward_estimation = compute_reward_estimate(
         &mixnode.mixnode_details,
@@ -236,16 +232,12 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
         .await
         .ok_or_else(|| AxumErrorResponse::not_found("mixnode bond not found"))?;
 
-    let reward_params = contract_cache.interval_reward_params().await;
-    let as_at = reward_params.timestamp();
-    let reward_params = reward_params
-        .into_inner()
-        .ok_or_else(AxumErrorResponse::internal)?;
-    let current_interval = contract_cache
-        .current_interval()
-        .await
-        .into_inner()
-        .ok_or_else(AxumErrorResponse::internal)?;
+    let reward_params = contract_cache.interval_reward_params().await?;
+    let current_interval = contract_cache.current_interval().await?;
+
+    // in some very rare edge cases this value might be off (as internals might have got updated between
+    // queries for `reward_params` and `current_interval`, but timestamp is only informative to begin with)
+    let as_at = contract_cache.cache_timestamp().await;
 
     // For these parameters we either use the provided ones, or fall back to the system ones
     let performance = user_reward_param.performance.unwrap_or(mixnode.performance);
@@ -321,11 +313,8 @@ pub(crate) async fn _get_mixnode_stake_saturation(
 
     // Recompute the stake saturation just so that we can confidently state that the `as_at`
     // field is consistent and correct. Luckily this is very cheap.
-    let reward_params = contract_cache.interval_reward_params().await;
-    let as_at = reward_params.timestamp();
-    let rewarding_params = reward_params
-        .into_inner()
-        .ok_or_else(AxumErrorResponse::internal)?;
+    let rewarding_params = contract_cache.interval_reward_params().await?;
+    let as_at = contract_cache.cache_timestamp().await;
 
     Ok(StakeSaturationResponse {
         saturation: mixnode

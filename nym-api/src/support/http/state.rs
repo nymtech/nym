@@ -260,11 +260,8 @@ impl AppState {
 
     pub(crate) async fn rewarded_set(
         &self,
-    ) -> Result<RwLockReadGuard<Cache<CachedEpochRewardedSet>>, AxumErrorResponse> {
-        self.nym_contract_cache()
-            .rewarded_set()
-            .await
-            .ok_or_else(AxumErrorResponse::internal)
+    ) -> Result<Cache<CachedEpochRewardedSet>, AxumErrorResponse> {
+        Ok(self.nym_contract_cache().cached_rewarded_set().await?)
     }
 
     pub(crate) async fn node_annotations(

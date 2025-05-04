@@ -68,9 +68,14 @@ export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
 export type MappedNymNode = MappedNymNodes[0];
 
 const NodeTableWithAction = () => {
+  // All hooks at the top!
   const [activeFilter, setActiveFilter] = useState<
     "all" | "mixnodes" | "gateways"
   >("all");
+  const [uptime, setUptime] = useState<[number, number]>([0, 100]);
+  const [saturation, setSaturation] = useState<[number, number]>([0, 100]);
+  const [profitMargin, setProfitMargin] = useState<[number, number]>([0, 100]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Use React Query to fetch epoch rewards
   const {
@@ -87,7 +92,6 @@ const NodeTableWithAction = () => {
   });
 
   // Use React Query to fetch Nym nodes
-
   const {
     data: nsApiNodes = [],
     isLoading: isNSApiNodesLoading,
@@ -100,6 +104,24 @@ const NodeTableWithAction = () => {
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
+
+  // Map nodes with rewards data
+  const nsApiNodesData = epochRewardsData
+    ? mappedNSApiNodes(nsApiNodes || [], epochRewardsData)
+    : [];
+
+  // Calculate max saturation from all nodes
+  const maxSaturation = Math.max(
+    100,
+    ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
+  );
+
+  // Ensure saturation filter always covers the full range when maxSaturation changes, but only after data is loaded
+  useEffect(() => {
+    if (nsApiNodesData.length > 0) {
+      setSaturation([0, maxSaturation]);
+    }
+  }, [maxSaturation, nsApiNodesData.length]);
 
   // Handle loading state
   if (isEpochLoading || isNSApiNodesLoading) {
@@ -130,28 +152,6 @@ const NodeTableWithAction = () => {
   if (!epochRewardsData) {
     return null;
   }
-
-  const nsApiNodesData = mappedNSApiNodes(nsApiNodes || [], epochRewardsData);
-
-  // Calculate max saturation from all nodes
-  const maxSaturation = Math.max(
-    100,
-    ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
-  );
-
-  // Advanced filter states
-  const [uptime, setUptime] = useState<[number, number]>([0, 100]);
-  const [saturation, setSaturation] = useState<[number, number]>([
-    0,
-    maxSaturation,
-  ]);
-  const [profitMargin, setProfitMargin] = useState<[number, number]>([0, 100]);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-
-  // Ensure saturation filter always covers the full range when maxSaturation changes
-  useEffect(() => {
-    setSaturation([0, maxSaturation]);
-  }, [maxSaturation]);
 
   // Step 1: Filter nodes by type
   const typeFilteredNodes = nsApiNodesData.filter((node) => {

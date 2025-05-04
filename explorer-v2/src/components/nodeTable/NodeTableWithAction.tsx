@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  Skeleton,
-  Stack,
-  Typography,
-  Box,
-} from "@mui/material";
+import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";

@@ -8,7 +8,7 @@ import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
 
 // Utility function to calculate node saturation point
@@ -71,12 +71,6 @@ const NodeTableWithAction = () => {
   const [activeFilter, setActiveFilter] = useState<
     "all" | "mixnodes" | "gateways"
   >("all");
-
-  // Advanced filter states
-  const [uptime, setUptime] = useState<[number, number]>([0, 100]);
-  const [saturation, setSaturation] = useState<[number, number]>([0, 100]);
-  const [profitMargin, setProfitMargin] = useState<[number, number]>([0, 100]);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Use React Query to fetch epoch rewards
   const {
@@ -144,6 +138,20 @@ const NodeTableWithAction = () => {
     100,
     ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
   );
+
+  // Advanced filter states
+  const [uptime, setUptime] = useState<[number, number]>([0, 100]);
+  const [saturation, setSaturation] = useState<[number, number]>([
+    0,
+    maxSaturation,
+  ]);
+  const [profitMargin, setProfitMargin] = useState<[number, number]>([0, 100]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Ensure saturation filter always covers the full range when maxSaturation changes
+  useEffect(() => {
+    setSaturation([0, maxSaturation]);
+  }, [maxSaturation]);
 
   // Step 1: Filter nodes by type
   const typeFilteredNodes = nsApiNodesData.filter((node) => {

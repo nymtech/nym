@@ -1,6 +1,13 @@
 "use client";
 
-import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Skeleton,
+  Stack,
+  Typography,
+  Box,
+} from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
@@ -9,6 +16,7 @@ import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
 import { useState } from "react";
+import AdvancedFilters from "./AdvancedFilters";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
@@ -71,6 +79,12 @@ const NodeTableWithAction = () => {
     "all" | "mixnodes" | "gateways"
   >("all");
 
+  // Advanced filter states
+  const [uptime, setUptime] = useState<[number, number]>([0, 100]);
+  const [saturation, setSaturation] = useState<[number, number]>([0, 100]);
+  const [profitMargin, setProfitMargin] = useState<[number, number]>([0, 100]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
   // Use React Query to fetch epoch rewards
   const {
     data: epochRewardsData,
@@ -132,8 +146,14 @@ const NodeTableWithAction = () => {
 
   const nsApiNodesData = mappedNSApiNodes(nsApiNodes || [], epochRewardsData);
 
-  // Filter nodes based on active filter
-  const filteredNodes = nsApiNodesData.filter((node) => {
+  // Calculate max saturation from all nodes
+  const maxSaturation = Math.max(
+    100,
+    ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
+  );
+
+  // Step 1: Filter nodes by type
+  const typeFilteredNodes = nsApiNodesData.filter((node) => {
     switch (activeFilter) {
       case "mixnodes":
         return node.mixnode;
@@ -144,8 +164,32 @@ const NodeTableWithAction = () => {
     }
   });
 
+  // Step 2: If advanced filters are open, apply them only if sliders are not at default
+  const isDefault = {
+    uptime: uptime[0] === 0 && uptime[1] === 100,
+    saturation: saturation[0] === 0 && saturation[1] === maxSaturation,
+    profitMargin: profitMargin[0] === 0 && profitMargin[1] === 100,
+  };
+  const filteredNodes = advancedOpen
+    ? typeFilteredNodes.filter((node) => {
+        const uptimeMatch =
+          isDefault.uptime ||
+          (node.qualityOfService >= uptime[0] &&
+            node.qualityOfService <= uptime[1]);
+        const saturationMatch =
+          isDefault.saturation ||
+          (node.stakeSaturation >= saturation[0] &&
+            node.stakeSaturation <= saturation[1]);
+        const profitMarginMatch =
+          isDefault.profitMargin ||
+          (node.profitMarginPercentage >= profitMargin[0] &&
+            node.profitMarginPercentage <= profitMargin[1]);
+        return uptimeMatch && saturationMatch && profitMarginMatch;
+      })
+    : typeFilteredNodes;
+
   return (
-    <Stack spacing={2}>
+    <Stack spacing={3}>
       <NodeFilterButtonGroup
         size="medium"
         options={[
@@ -164,6 +208,17 @@ const NodeTableWithAction = () => {
         ]}
         onPage={activeFilter}
         onFilterChange={setActiveFilter}
+      />
+      <AdvancedFilters
+        open={advancedOpen}
+        setOpen={setAdvancedOpen}
+        uptime={uptime}
+        setUptime={setUptime}
+        saturation={saturation}
+        setSaturation={setSaturation}
+        profitMargin={profitMargin}
+        setProfitMargin={setProfitMargin}
+        maxSaturation={maxSaturation}
       />
       <NodeTable nodes={filteredNodes} />
     </Stack>

@@ -7,6 +7,8 @@ import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
+import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
+import { useState } from "react";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
@@ -45,21 +47,30 @@ const mappedNSApiNodes = (
       name: cleanMoniker,
       nodeId: node.node_id,
       identity_key: node.identity_key,
-      countryCode: node.geoip.country || null,
-      countryName: countryName(node.geoip.country) || null,
+      countryCode: node.geoip?.country || null,
+      countryName: countryName(node.geoip?.country || null) || null,
       profitMarginPercentage: node.rewarding_details
         ? +node.rewarding_details.cost_params.profit_margin_percent * 100
         : 0,
       owner: node.bonding_address,
       stakeSaturation: nodeSaturationPoint,
       qualityOfService: +node.uptime * 100,
+      mixnode: node.self_description?.declared_role.mixnode === true,
+      gateway:
+        node.self_description?.declared_role.entry === true ||
+        node.self_description?.declared_role.exit_ipr === true ||
+        node.self_description?.declared_role.exit_nr === true,
     };
   });
 
-  export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
-  export type MappedNymNode = MappedNymNodes[0];
+export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
+export type MappedNymNode = MappedNymNodes[0];
 
 const NodeTableWithAction = () => {
+  const [activeFilter, setActiveFilter] = useState<
+    "all" | "mixnodes" | "gateways"
+  >("all");
+
   // Use React Query to fetch epoch rewards
   const {
     data: epochRewardsData,
@@ -115,13 +126,48 @@ const NodeTableWithAction = () => {
   }
 
   // Map nodes with rewards data
-
   if (!epochRewardsData) {
     return null;
   }
 
   const nsApiNodesData = mappedNSApiNodes(nsApiNodes || [], epochRewardsData);
-  return <NodeTable nodes={nsApiNodesData} />;
+
+  // Filter nodes based on active filter
+  const filteredNodes = nsApiNodesData.filter((node) => {
+    switch (activeFilter) {
+      case "mixnodes":
+        return node.mixnode;
+      case "gateways":
+        return node.gateway;
+      default:
+        return true;
+    }
+  });
+
+  return (
+    <Stack spacing={2}>
+      <NodeFilterButtonGroup
+        size="medium"
+        options={[
+          {
+            label: "All nodes",
+            isSelected: activeFilter === "all",
+          },
+          {
+            label: "Mixnodes",
+            isSelected: activeFilter === "mixnodes",
+          },
+          {
+            label: "Gateways",
+            isSelected: activeFilter === "gateways",
+          },
+        ]}
+        onPage={activeFilter}
+        onFilterChange={setActiveFilter}
+      />
+      <NodeTable nodes={filteredNodes} />
+    </Stack>
+  );
 };
 
 export default NodeTableWithAction;

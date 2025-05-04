@@ -47,7 +47,7 @@ export default async function Home() {
           <TokenomicsCard />
         </Grid>
       </Grid>
-      <Grid container>
+      <Grid container rowSpacing={5}>
         <Grid size={12}>
           <SectionHeading title="Nym Nodes" />
         </Grid>

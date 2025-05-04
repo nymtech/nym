@@ -202,7 +202,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
         >
           {cleanMoniker || "Moniker"}
         </Typography>
-        {nodeInfo.geoip.country && (
+        {nodeInfo.geoip?.country && (
           <Box display={"flex"} gap={1}>
             <Typography
               variant="h6"
@@ -215,8 +215,8 @@ export const NodeProfileCard = ({ paramId }: Props) => {
 
             <Box>
               <CountryFlag
-                countryCode={nodeInfo.geoip.country}
-                countryName={countryName(nodeInfo.geoip.country)}
+                countryCode={nodeInfo.geoip?.country || ""}
+                countryName={countryName(nodeInfo.geoip?.country || "")}
               />
             </Box>
           </Box>

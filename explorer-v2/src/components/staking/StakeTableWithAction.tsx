@@ -43,8 +43,8 @@ const mappedNSApiNodes = (
       name: cleanMoniker,
       nodeId: node.node_id,
       identity_key: node.identity_key,
-      countryCode: node.geoip.country || null,
-      countryName: countryName(node.geoip.country) || null,
+      countryCode: node.geoip?.country || null,
+      countryName: countryName(node.geoip?.country || null) || null,
       profitMarginPercentage: node.rewarding_details
         ? +node.rewarding_details.cost_params.profit_margin_percent * 100
         : 0,

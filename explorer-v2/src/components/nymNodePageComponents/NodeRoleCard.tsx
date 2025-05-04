@@ -226,6 +226,8 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   }
   if (!nodeInfo) return null;
 
+  console.log("nodeInfo", nodeInfo);
+
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />

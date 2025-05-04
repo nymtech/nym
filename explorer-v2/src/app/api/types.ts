@@ -72,56 +72,59 @@ export interface ExplorerData {
 }
 
 export type NodeDescription = {
-  last_polled: string;
+  authenticator: {
+    address: string;
+  };
+  auxiliary_details: {
+    accepted_operator_terms_and_conditions: boolean;
+    announce_ports: {
+      mix_port: number | null;
+      verloc_port: number | null;
+    };
+    location: string;
+  };
+  build_information: {
+    binary_name: string;
+    build_timestamp: string;
+    build_version: string;
+    cargo_profile: string;
+    cargo_triple: string;
+    commit_branch: string;
+    commit_sha: string;
+    commit_timestamp: string;
+    rustc_channel: string;
+    rustc_version: string;
+  };
+  declared_role: {
+    entry: boolean;
+    exit_ipr: boolean;
+    exit_nr: boolean;
+    mixnode: boolean;
+  };
   host_information: {
-    ip_address: string[];
     hostname: string;
+    ip_address: [string, string];
     keys: {
       ed25519: string;
       x25519: string;
       x25519_noise: string | null;
     };
   };
-  declared_role: {
-    mixnode: boolean;
-    entry: boolean;
-    exit_nr: boolean;
-    exit_ipr: boolean;
+  ip_packet_router: {
+    address: string;
   };
-  auxiliary_details: {
-    location: string;
-    announce_ports: {
-      verloc_port: number | null;
-      mix_port: number | null;
-    };
-    accepted_operator_terms_and_conditions: boolean;
-  };
-  build_information: {
-    binary_name: string;
-    build_timestamp: string;
-    build_version: string;
-    commit_sha: string;
-    commit_timestamp: string;
-    commit_branch: string;
-    rustc_version: string;
-    rustc_channel: string;
-    cargo_profile: string;
-    cargo_triple: string;
+  last_polled: string;
+  mixnet_websockets: {
+    ws_port: number;
+    wss_port: number;
   };
   network_requester: {
     address: string;
     uses_exit_policy: boolean;
   };
-  ip_packet_router: {
-    address: string;
-  };
-  authenticator: {
-    address: string;
-  };
-  wireguard: string | null;
-  mixnet_websockets: {
-    ws_port: number;
-    wss_port: number | null;
+  wireguard: {
+    port: number;
+    public_key: string;
   };
 } | null;
 
@@ -165,15 +168,6 @@ export type Location = {
   longitude?: number;
 };
 
-export type NodeData = {
-  node_id: number;
-  contract_node_type: string;
-  description: NodeDescription;
-  bond_information: BondInformation;
-  rewarding_details: RewardingDetails;
-  location: Location;
-};
-
 // ACCOUNT BALANCES
 
 export interface IRewardDetails {
@@ -206,7 +200,6 @@ export interface IAccountBalancesInfo {
   total_value: IAmountDetails;
   vesting_account?: null | string;
 }
-
 
 export interface NodeRewardDetails {
   amount: {
@@ -405,7 +398,7 @@ export type NS_NODE = {
     security_contact: string;
     website: string;
   };
-  geoip: {
+  geoip?: {
     city: string;
     country: string;
     ip_address: string;
@@ -436,62 +429,7 @@ export type NS_NODE = {
     unique_delegations: number;
     unit_delegation: string;
   } | null;
-  self_description?: {
-    authenticator: {
-      address: string;
-    };
-    auxiliary_details: {
-      accepted_operator_terms_and_conditions: boolean;
-      announce_ports: {
-        mix_port: number | null;
-        verloc_port: number | null;
-      };
-      location: string;
-    };
-    build_information: {
-      binary_name: string;
-      build_timestamp: string;
-      build_version: string;
-      cargo_profile: string;
-      cargo_triple: string;
-      commit_branch: string;
-      commit_sha: string;
-      commit_timestamp: string;
-      rustc_channel: string;
-      rustc_version: string;
-    };
-    declared_role: {
-      entry: boolean;
-      exit_ipr: boolean;
-      exit_nr: boolean;
-      mixnode: boolean;
-    };
-    host_information: {
-      hostname: string;
-      ip_address: [string, string];
-      keys: {
-        ed25519: string;
-        x25519: string;
-        x25519_noise: string | null;
-      };
-    };
-    ip_packet_router: {
-      address: string;
-    };
-    last_polled: string;
-    mixnet_websockets: {
-      ws_port: number;
-      wss_port: number;
-    };
-    network_requester: {
-      address: string;
-      uses_exit_policy: boolean;
-    };
-    wireguard: {
-      port: number;
-      public_key: string;
-    };
-  } | null;
+  self_description?: NodeDescription;
   total_stake: string;
   uptime: number;
 };

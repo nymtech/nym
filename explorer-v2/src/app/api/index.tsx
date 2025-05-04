@@ -277,6 +277,9 @@ export const fetchWorldMapCountries =
         // Increment the count for this country
         countryCounts[threeLetterCode] =
           (countryCounts[threeLetterCode] || 0) + 1;
+      } else {
+        // If no geoip data, count it as unknown
+        countryCounts[""] = (countryCounts[""] || 0) + 1;
       }
     }
 

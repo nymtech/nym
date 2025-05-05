@@ -26,7 +26,7 @@ jobs:
           git config --global user.name "Lawrence Stalder"
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.45.1
+        uses: mikefarah/yq@v4.45.2
         id: get_version
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/nym-network-monitor/Cargo.toml

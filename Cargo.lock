@@ -801,7 +801,7 @@ dependencies = [
  "rand_core 0.6.4",
  "ripemd",
  "secp256k1",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -984,7 +984,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
 dependencies = [
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "tinyvec",
 ]
 
@@ -1158,9 +1158,9 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.4.40"
+version = "0.4.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a7964611d71df112cb1730f2ee67324fcf4d0fc6606acbbe9bfe06df124637c"
+checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -1233,9 +1233,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.47"
+version = "4.5.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06f5378ea264ad4f82bbc826628b5aad714a75abf6ece087e923010eb937fb6"
+checksum = "be8c97f3a6f02b9e24cadc12aaba75201d18754b53ea0a9d99642f806ccdb4c9"
 dependencies = [
  "clap",
 ]
@@ -1484,7 +1484,7 @@ dependencies = [
  "p256",
  "rand_core 0.6.4",
  "rayon",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "thiserror 1.0.69",
 ]
 
@@ -1542,7 +1542,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "static_assertions",
  "thiserror 1.0.69",
 ]
@@ -2304,7 +2304,7 @@ dependencies = [
  "ed25519",
  "rand_core 0.6.4",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -2320,7 +2320,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "hex",
  "rand_core 0.6.4",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "zeroize",
 ]
 
@@ -3205,9 +3205,9 @@ dependencies = [
 
 [[package]]
 name = "hickory-resolver"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a128410b38d6f931fcc6ca5c107a3b02cabd6c05967841269a4ad65d23c44331"
+checksum = "dc62a9a99b0bfb44d2ab95a7208ac952d31060efc16241c87eaf36406fecf87a"
 dependencies = [
  "cfg-if",
  "futures-util",
@@ -3730,9 +3730,9 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 
 [[package]]
 name = "indexed_db_futures"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94eebf0199c01a1560770d964efb1fb09183a3afc0b1c1397fac1bfdbfa7d6cf"
+checksum = "ac6179b8a3ef894b4645271be8131a444679c8d39b8307d70cbb34e471b68ea4"
 dependencies = [
  "accessory",
  "cfg-if",
@@ -4020,7 +4020,7 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "once_cell",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "signature",
 ]
 
@@ -4800,7 +4800,7 @@ dependencies = [
  "semver 1.0.26",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "sqlx",
  "tempfile",
  "tendermint",
@@ -4845,7 +4845,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "tendermint",
  "tendermint-rpc",
  "thiserror 2.0.12",
@@ -4922,7 +4922,7 @@ dependencies = [
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "thiserror 2.0.12",
  "x25519-dalek",
 ]
@@ -5064,7 +5064,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
- "toml 0.8.20",
+ "toml 0.8.22",
  "url",
  "zeroize",
 ]
@@ -5149,7 +5149,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "si-scale",
  "tempfile",
  "thiserror 2.0.12",
@@ -5278,7 +5278,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "subtle 2.6.1",
  "thiserror 2.0.12",
  "zeroize",
@@ -5294,7 +5294,7 @@ dependencies = [
  "nym-network-defaults",
  "serde",
  "thiserror 2.0.12",
- "toml 0.8.20",
+ "toml 0.8.22",
  "url",
 ]
 
@@ -5518,7 +5518,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "serde_bytes",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "subtle-encoding",
  "thiserror 2.0.12",
  "x25519-dalek",
@@ -5543,7 +5543,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_derive",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "thiserror 2.0.12",
  "zeroize",
 ]
@@ -5642,7 +5642,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "sqlx",
  "thiserror 2.0.12",
  "time",
@@ -6180,13 +6180,13 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "sysinfo",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-util",
- "toml 0.8.20",
+ "toml 0.8.22",
  "tower-http",
  "tracing",
  "tracing-indicatif",
@@ -6469,7 +6469,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "toml 0.8.20",
+ "toml 0.8.22",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -6785,7 +6785,7 @@ dependencies = [
  "nym-task",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "si-scale",
  "sysinfo",
  "thiserror 2.0.12",
@@ -6837,7 +6837,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "time",
  "utoipa",
 ]
@@ -6897,7 +6897,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "strum 0.26.3",
  "tempfile",
  "thiserror 2.0.12",
@@ -6944,7 +6944,7 @@ dependencies = [
  "reqwest 0.12.15",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "tendermint-rpc",
  "thiserror 2.0.12",
  "time",
@@ -6988,7 +6988,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "sqlx",
  "thiserror 2.0.12",
  "time",
@@ -7139,7 +7139,7 @@ dependencies = [
  "reqwest 0.12.15",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "tar",
  "thiserror 2.0.12",
  "time",
@@ -7190,7 +7190,7 @@ dependencies = [
  "futures",
  "humantime 2.2.0",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "sqlx",
  "tendermint",
  "tendermint-rpc",
@@ -7378,7 +7378,7 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "primeorder",
- "sha2 0.10.8",
+ "sha2 0.10.9",
 ]
 
 [[package]]
@@ -7531,7 +7531,7 @@ checksum = "e1e58089ea25d717bfd31fb534e4f3afcc2cc569c70de3e239778991ea3b7dea"
 dependencies = [
  "once_cell",
  "pest",
- "sha2 0.10.8",
+ "sha2 0.10.9",
 ]
 
 [[package]]
@@ -7757,7 +7757,7 @@ dependencies = [
  "md-5",
  "memchr",
  "rand 0.9.0",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "stringprep",
 ]
 
@@ -8398,7 +8398,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb09b49230ba22e8c676e7b75dfe2887dea8121f18b530ae0ba519ce442d2b21"
 dependencies = [
- "sha2 0.10.8",
+ "sha2 0.10.9",
 ]
 
 [[package]]
@@ -8451,7 +8451,7 @@ version = "8.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e5347777e9aacb56039b0e1f28785929a8a3b709e87482e7442c72e7c12529d"
 dependencies = [
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "walkdir",
 ]
 
@@ -9116,9 +9116,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.10.8"
+version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -9288,7 +9288,7 @@ dependencies = [
  "lioness",
  "rand 0.8.5",
  "rand_distr",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "subtle 2.6.1",
  "x25519-dalek",
  "zeroize",
@@ -9368,7 +9368,7 @@ dependencies = [
  "rustls-pemfile 1.0.4",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "smallvec",
  "sqlformat",
  "thiserror 1.0.69",
@@ -9408,7 +9408,7 @@ dependencies = [
  "quote",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "sqlx-core",
  "sqlx-mysql",
  "sqlx-postgres",
@@ -9453,7 +9453,7 @@ dependencies = [
  "rsa",
  "serde",
  "sha1",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "smallvec",
  "sqlx-core",
  "stringprep",
@@ -9493,7 +9493,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "smallvec",
  "sqlx-core",
  "stringprep",
@@ -9803,7 +9803,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "serde_repr",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "signature",
  "subtle 2.6.1",
  "subtle-encoding",
@@ -9822,7 +9822,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tendermint",
- "toml 0.8.20",
+ "toml 0.8.22",
  "url",
 ]
 
@@ -9928,7 +9928,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
- "toml 0.8.20",
+ "toml 0.8.22",
  "tracing",
  "url",
  "zeroize",
@@ -10247,15 +10247,15 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.14"
+version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b9590b93e6fcc1739458317cccd391ad3955e2bde8913edf6f95f9e65a8f034"
+checksum = "66a539a9ad6d5d281510d5bd368c973d636c02dbf8a67300bfb6b950696ad7df"
 dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
  "futures-util",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.2",
  "pin-project-lite",
  "slab",
  "tokio",
@@ -10272,9 +10272,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.20"
+version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd87a5cdd6ffab733b2f74bc4fd7ee5fff6634124999ac278c35fc78c6120148"
+checksum = "05ae329d1f08c4d17a59bed7ff5b5a769d062e64a62d34a3261b219e62cd5aae"
 dependencies = [
  "serde",
  "serde_spanned",
@@ -10284,25 +10284,32 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.8"
+version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
+checksum = "3da5db5a963e24bc68be8b17b6fa82814bb22ee8660f192bb182771d498f09a3"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "toml_edit"
-version = "0.22.24"
+version = "0.22.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
+checksum = "310068873db2c5b3e7659d2cc35d21855dbafa50d1ce336397c666e3cb08137e"
 dependencies = [
  "indexmap 2.7.1",
  "serde",
  "serde_spanned",
  "toml_datetime",
+ "toml_write",
  "winnow",
 ]
+
+[[package]]
+name = "toml_write"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfb942dfe1d8e29a7ee7fcbde5bd2b9a25fb89aa70caea2eba3bee836ff41076"
 
 [[package]]
 name = "tonic"
@@ -11864,9 +11871,9 @@ checksum = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486"
 
 [[package]]
 name = "winnow"
-version = "0.7.3"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7f4ea97f6f78012141bcdb6a216b2609f0979ada50b20ca5b52dde2eac2bb1"
+checksum = "d9fb597c990f03753e08d3c29efbfcf2019a003b4bf4ba19225c158e1549f0f3"
 dependencies = [
  "memchr",
 ]

@@ -4,6 +4,40 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.8-tourist] (2025-04-29)
+
+- add reserved byte to reply surb serialisation ([#5731])
+- Remove inactive peers ([#5721])
+- Update Hickory DNS "0.24.4" to "0.25" ([#5709])
+- build(deps): bump the patch-updates group across 1 directory with 7 updates ([#5708])
+- Peer handle should die more gracefully ([#5704])
+- build(deps): bump crossbeam-channel from 0.5.14 to 0.5.15 ([#5702])
+- build(deps): bump actions/checkout from 3 to 4 ([#5700])
+- Feature/updated sphinx payload keys ([#5698])
+- Bump the nym-vpn deb metapackage to 1.0 ([#5697])
+- Make mix hops optional for Mixnet Client ([#5696])
+- build(deps): bump tokio from 1.44.1 to 1.44.2 ([#5693])
+- Feature/replay protection ([#5682])
+- Adding fresh nym-api tests and workflow ([#5659])
+- build(deps): bump next from 14.2.21 to 14.2.25 ([#5655])
+- build(deps): bump pnpm/action-setup from 4.0.0 to 4.1.0 ([#5436])
+
+[#5731]: https://github.com/nymtech/nym/pull/5731
+[#5721]: https://github.com/nymtech/nym/pull/5721
+[#5709]: https://github.com/nymtech/nym/pull/5709
+[#5708]: https://github.com/nymtech/nym/pull/5708
+[#5704]: https://github.com/nymtech/nym/pull/5704
+[#5702]: https://github.com/nymtech/nym/pull/5702
+[#5700]: https://github.com/nymtech/nym/pull/5700
+[#5698]: https://github.com/nymtech/nym/pull/5698
+[#5697]: https://github.com/nymtech/nym/pull/5697
+[#5696]: https://github.com/nymtech/nym/pull/5696
+[#5693]: https://github.com/nymtech/nym/pull/5693
+[#5682]: https://github.com/nymtech/nym/pull/5682
+[#5659]: https://github.com/nymtech/nym/pull/5659
+[#5655]: https://github.com/nymtech/nym/pull/5655
+[#5436]: https://github.com/nymtech/nym/pull/5436
+
 ## [2025.7-tex] (2025-04-14)
 
 - Expand /v3/nym-nodes with geodata ([#5686])

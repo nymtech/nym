@@ -17,8 +17,7 @@ pub use nym_client_core::{
     client::{
         mix_traffic::transceiver::*,
         topology_control::{
-            GeoAwareTopologyProvider, NymApiTopologyProvider, NymApiTopologyProviderConfig,
-            TopologyProvider,
+            NymApiTopologyProvider, NymApiTopologyProviderConfig, TopologyProvider,
         },
     },
     config::DebugConfig,

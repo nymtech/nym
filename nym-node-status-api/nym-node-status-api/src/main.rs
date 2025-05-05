@@ -37,8 +37,14 @@ async fn main() -> anyhow::Result<()> {
         scraper.start().await;
     });
 
+    // node geocache is shared between node monitor and HTTP server
+    let geocache = moka::future::Cache::builder()
+        .time_to_live(args.geodata_ttl)
+        .build();
+
     // Start the monitor
     let args_clone = args.clone();
+    let geocache_clone = geocache.clone();
 
     tokio::spawn(async move {
         monitor::spawn_in_background(
@@ -47,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
             args_clone.nyxd_addr,
             args_clone.monitor_refresh_interval,
             args_clone.ipinfo_api_token,
-            args_clone.geodata_ttl,
+            geocache_clone,
         )
         .await;
         tracing::info!("Started monitor task");
@@ -67,6 +73,7 @@ async fn main() -> anyhow::Result<()> {
         args.nym_http_cache_ttl,
         agent_key_list.to_owned(),
         args.max_agent_count,
+        geocache,
     )
     .await
     .expect("Failed to start server");

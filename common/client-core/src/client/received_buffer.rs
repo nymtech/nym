@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_gateway_client::MixnetMessageReceiver;
 use nym_sphinx::anonymous_replies::requests::{
@@ -39,7 +39,7 @@ pub type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<Reconstruct
 
 struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     messages: Vec<ReconstructedMessage>,
-    local_encryption_keypair: Arc<encryption::KeyPair>,
+    local_encryption_keypair: Arc<x25519::KeyPair>,
 
     // TODO: looking how it 'looks' here, perhaps `MessageReceiver` should be renamed to something
     // else instead.
@@ -176,7 +176,7 @@ struct ReceivedMessagesBuffer<R: MessageReceiver> {
 
 impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
     fn new(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
@@ -250,10 +250,10 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         let mut reconstructed = Vec::new();
         for msg in msgs {
             let (reply_surbs, from_surb_request) = match msg.content {
-                RepliableMessageContent::Data {
-                    message,
-                    reply_surbs,
-                } => {
+                RepliableMessageContent::Data(content) => {
+                    let reply_surbs = content.reply_surbs;
+                    let message = content.message;
+
                     trace!(
                         "received message that also contained additional {} reply surbs from {:?}!",
                         reply_surbs.len(),
@@ -264,7 +264,9 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
 
                     (reply_surbs, false)
                 }
-                RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
+                RepliableMessageContent::AdditionalSurbs(content) => {
+                    let reply_surbs = content.reply_surbs;
+
                     trace!(
                         "received additional {} reply surbs from {:?}!",
                         reply_surbs.len(),
@@ -272,9 +274,37 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                     );
                     (reply_surbs, true)
                 }
-                RepliableMessageContent::Heartbeat {
-                    additional_reply_surbs,
-                } => {
+                RepliableMessageContent::Heartbeat(content) => {
+                    let additional_reply_surbs = content.additional_reply_surbs;
+                    error!("received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)");
+                    (additional_reply_surbs, false)
+                }
+                RepliableMessageContent::DataV2(content) => {
+                    let reply_surbs = content.reply_surbs;
+                    let message = content.message;
+
+                    trace!(
+                        "received message that also contained additional {} reply surbs from {:?}!",
+                        reply_surbs.len(),
+                        msg.sender_tag
+                    );
+
+                    reconstructed.push(ReconstructedMessage::new(message, msg.sender_tag));
+
+                    (reply_surbs, false)
+                }
+                RepliableMessageContent::AdditionalSurbsV2(content) => {
+                    let reply_surbs = content.reply_surbs;
+
+                    trace!(
+                        "received additional {} reply surbs from {:?}!",
+                        reply_surbs.len(),
+                        msg.sender_tag
+                    );
+                    (reply_surbs, true)
+                }
+                RepliableMessageContent::HeartbeatV2(content) => {
+                    let additional_reply_surbs = content.additional_reply_surbs;
                     error!("received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)");
                     (additional_reply_surbs, false)
                 }
@@ -536,7 +566,7 @@ pub(crate) struct ReceivedMessagesBufferController<R: MessageReceiver> {
 
 impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferController<R> {
     pub(crate) fn new(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,

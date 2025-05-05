@@ -19,8 +19,7 @@ const MENU_DATA: MenuItem[] = [
     id: 3,
     title: "Onboarding",
     url: "/onboarding",
-  }
-
+  },
 ];
 
 export default MENU_DATA;

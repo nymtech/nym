@@ -70,13 +70,13 @@ export default async function BlogPage({
                           <Typography key={author} variant="subtitle3">
                             {author}
                           </Typography>
-                        )
+                        ),
                       )}
                     </Box>
                     <time dateTime={blogArticle?.attributes?.date.toString()}>
                       {format(
                         new Date(blogArticle?.attributes?.date),
-                        "MMMM dd, yyyy"
+                        "MMMM dd, yyyy",
                       )}
                     </time>
                   </Typography>

@@ -1,22 +1,20 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-#![allow(dead_code)]
-
-use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
-use crate::config::gateway_tasks::ZkNymTicketHandlerDebug;
-use crate::config::service_providers::{
-    IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
+use crate::config::old_configs::old_config_v8::{
+    AuthenticatorDebugV8, AuthenticatorPathsV8, AuthenticatorV8, ConfigV8,
+    GatewayTasksConfigDebugV8, GatewayTasksConfigV8, GatewayTasksPathsV8, HostV8, HttpV8,
+    IpPacketRouterDebugV8, IpPacketRouterPathsV8, IpPacketRouterV8, KeysPathsV8, LoggingSettingsV8,
+    MixnetDebugV8, MixnetV8, NetworkRequesterDebugV8, NetworkRequesterPathsV8, NetworkRequesterV8,
+    NodeModesV8, NymNodePathsV8, ServiceProvidersConfigDebugV8, ServiceProvidersConfigV8,
+    ServiceProvidersPathsV8, VerlocDebugV8, VerlocV8, WireguardPathsV8, WireguardV8,
+    ZkNymTicketHandlerDebugV8,
 };
 use crate::config::*;
-use crate::error::{EntryGatewayError, NymNodeError};
+use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
-use gateway_tasks::DEFAULT_WS_PORT;
-use nym_client_core_config_types::{
-    disk_persistence::{ClientKeysPaths, CommonClientPaths},
-    DebugConfig as ClientDebugConfig,
-};
+use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::{mainnet, var_names};
 use nym_config::helpers::inaddr_any;
 use nym_config::{
@@ -24,17 +22,13 @@ use nym_config::{
     serde_helpers::{de_maybe_port, de_maybe_stringified},
 };
 use nym_config::{parse_urls, read_config_from_toml_file};
-use persistence::*;
 use serde::{Deserialize, Serialize};
-use std::fs::create_dir_all;
+use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{env, fs, io};
-use tracing::info;
 use tracing::{debug, instrument};
 use url::Url;
-use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -132,14 +126,6 @@ impl From<&[NodeModeV7]> for NodeModesV7 {
 }
 
 impl NodeModesV7 {
-    pub fn any_enabled(&self) -> bool {
-        self.mixnode || self.entry || self.exit
-    }
-
-    pub fn standalone_exit(&self) -> bool {
-        !self.mixnode && !self.entry && self.exit
-    }
-
     pub fn with_mode(&mut self, mode: NodeModeV7) -> &mut Self {
         match mode {
             NodeModeV7::Mixnode => self.with_mixnode(),
@@ -147,10 +133,6 @@ impl NodeModesV7 {
             NodeModeV7::ExitGateway => self.with_entry().with_exit(),
             NodeModeV7::ExitProvidersOnly => self.with_exit(),
         }
-    }
-
-    pub fn expects_final_hop_traffic(&self) -> bool {
-        self.entry || self.exit
     }
 
     pub fn with_mixnode(&mut self) -> &mut Self {
@@ -318,45 +300,6 @@ pub struct KeysPathsV7 {
 
     /// Path to file containing x25519 noise public key.
     pub public_x25519_noise_key_file: PathBuf,
-}
-
-impl KeysPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-
-        KeysPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME),
-            public_x25519_sphinx_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME),
-            private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
-            public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_sphinx_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_sphinx_key_file,
-            &self.public_x25519_sphinx_key_file,
-        )
-    }
-
-    pub fn x25519_noise_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_noise_key_file,
-            &self.public_x25519_noise_key_file,
-        )
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -701,56 +644,6 @@ pub struct NetworkRequesterPathsV7 {
     // it's possible we might have to add credential storage here for return tickets
 }
 
-impl NetworkRequesterPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        NetworkRequesterPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_NR_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_NR_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_NR_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_NR_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_NR_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_NR_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_NR_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IpPacketRouterPathsV7 {
@@ -781,56 +674,6 @@ pub struct IpPacketRouterPathsV7 {
     // it's possible we might have to add credential storage here for return tickets
 }
 
-impl IpPacketRouterPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        IpPacketRouterPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_IPR_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_IPR_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_IPR_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_IPR_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_IPR_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_IPR_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthenticatorPathsV7 {
@@ -859,56 +702,6 @@ pub struct AuthenticatorPathsV7 {
     /// Due to how clients are started up, this file has to exist.
     pub gateway_registrations: PathBuf,
     // it's possible we might have to add credential storage here for return tickets
-}
-
-impl AuthenticatorPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        AuthenticatorPathsV7 {
-            private_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_AUTH_PRIVATE_IDENTITY_KEY_FILENAME),
-            public_ed25519_identity_key_file: data_dir
-                .join(DEFAULT_ED25519_AUTH_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_AUTH_PRIVATE_DH_KEY_FILENAME),
-            public_x25519_diffie_hellman_key_file: data_dir
-                .join(DEFAULT_X25519_AUTH_PUBLIC_DH_KEY_FILENAME),
-            ack_key_file: data_dir.join(DEFAULT_AUTH_ACK_KEY_FILENAME),
-            reply_surb_database: data_dir.join(DEFAULT_AUTH_REPLY_SURB_DB_FILENAME),
-            gateway_registrations: data_dir.join(DEFAULT_AUTH_GATEWAYS_DB_FILENAME),
-        }
-    }
-
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
-    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_ed25519_identity_key_file,
-            &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_diffie_hellman_key_file,
-            &self.public_x25519_diffie_hellman_key_file,
-        )
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1106,53 +899,6 @@ pub struct GatewayTasksPathsV7 {
     pub cosmos_mnemonic: PathBuf,
 }
 
-impl GatewayTasksPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksPathsV7 {
-            clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
-            stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
-            cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
-        }
-    }
-
-    pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
-        let stringified =
-            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
-                EntryGatewayError::MnemonicLoadFailure {
-                    path: self.cosmos_mnemonic.clone(),
-                    source,
-                }
-            })?);
-
-        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
-            stringified.as_ref(),
-        )?))
-    }
-
-    pub fn save_mnemonic_to_file(
-        &self,
-        mnemonic: &bip39::Mnemonic,
-    ) -> Result<(), EntryGatewayError> {
-        // wrapper for io errors
-        fn _save_to_file(path: &Path, mnemonic: &bip39::Mnemonic) -> io::Result<()> {
-            if let Some(parent) = path.parent() {
-                create_dir_all(parent)?;
-            }
-            info!("saving entry gateway mnemonic to '{}'", path.display());
-
-            let stringified = Zeroizing::new(mnemonic.to_string());
-            fs::write(path, &stringified)
-        }
-
-        _save_to_file(&self.cosmos_mnemonic, mnemonic).map_err(|source| {
-            EntryGatewayError::MnemonicSaveFailure {
-                path: self.cosmos_mnemonic.clone(),
-                source,
-            }
-        })
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct StaleMessageDebugV7 {
     /// Specifies how often the clean-up task should check for stale data.
@@ -1258,19 +1004,6 @@ pub struct GatewayTasksConfigV7 {
     pub debug: GatewayTasksConfigDebugV7,
 }
 
-impl GatewayTasksConfigV7 {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksConfigV7 {
-            storage_paths: GatewayTasksPathsV7::new(data_dir),
-            enforce_zk_nyms: false,
-            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
-            announce_ws_port: None,
-            announce_wss_port: None,
-            debug: Default::default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServiceProvidersPathsV7 {
@@ -1286,19 +1019,6 @@ pub struct ServiceProvidersPathsV7 {
     pub ip_packet_router: IpPacketRouterPathsV7,
 
     pub authenticator: AuthenticatorPathsV7,
-}
-
-impl ServiceProvidersPathsV7 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        ServiceProvidersPathsV7 {
-            clients_storage: data_dir.join(DEFAULT_CLIENTS_STORAGE_FILENAME),
-            stats_storage: data_dir.join(DEFAULT_STATS_STORAGE_FILENAME),
-            network_requester: NetworkRequesterPathsV7::new(data_dir),
-            ip_packet_router: IpPacketRouterPathsV7::new(data_dir),
-            authenticator: AuthenticatorPathsV7::new(data_dir),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1340,25 +1060,6 @@ pub struct ServiceProvidersConfigV7 {
 
     #[serde(default)]
     pub debug: ServiceProvidersConfigDebugV7,
-}
-
-impl ServiceProvidersConfigV7 {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        #[allow(clippy::expect_used)]
-        // SAFETY:
-        // we expect our default values to be well-formed
-        ServiceProvidersConfigV7 {
-            storage_paths: ServiceProvidersPathsV7::new(data_dir),
-            open_proxy: false,
-            upstream_exit_policy_url: mainnet::EXIT_POLICY_URL
-                .parse()
-                .expect("invalid default exit policy URL"),
-            network_requester: Default::default(),
-            ip_packet_router: Default::default(),
-            authenticator: Default::default(),
-            debug: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -1498,7 +1199,7 @@ impl ConfigV7 {
 pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV7>,
-) -> Result<Config, NymNodeError> {
+) -> Result<ConfigV8, NymNodeError> {
     debug!("attempting to load v7 config...");
 
     let old_cfg = if let Some(prev_config) = prev_config {
@@ -1507,20 +1208,20 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
         ConfigV7::read_from_path(&path)?
     };
 
-    let cfg = Config {
+    let cfg = ConfigV8 {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
-        modes: NodeModes {
+        modes: NodeModesV8 {
             mixnode: old_cfg.modes.mixnode,
             entry: old_cfg.modes.entry,
             exit: old_cfg.modes.exit,
         },
-        host: Host {
+        host: HostV8 {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: Mixnet {
+        mixnet: MixnetV8 {
             bind_address: {
                 if old_cfg.mixnet.bind_address.ip().is_unspecified() {
                     SocketAddr::new(in6addr_any_init(), old_cfg.mixnet.bind_address.port())
@@ -1531,7 +1232,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
             announce_port: old_cfg.mixnet.announce_port,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            debug: MixnetDebug {
+            debug: MixnetDebugV8 {
                 maximum_forward_packet_delay: old_cfg.mixnet.debug.maximum_forward_packet_delay,
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
@@ -1546,8 +1247,8 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
             },
         },
-        storage_paths: NymNodePaths {
-            keys: KeysPaths {
+        storage_paths: NymNodePathsV8 {
+            keys: KeysPathsV8 {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1575,7 +1276,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
             },
             description: old_cfg.storage_paths.description,
         },
-        http: Http {
+        http: HttpV8 {
             bind_address: {
                 if old_cfg.http.bind_address.ip().is_unspecified() {
                     SocketAddr::new(in6addr_any_init(), old_cfg.http.bind_address.port())
@@ -1590,7 +1291,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
             ..Default::default()
         },
-        verloc: Verloc {
+        verloc: VerlocV8 {
             bind_address: {
                 if old_cfg.verloc.bind_address.ip().is_unspecified() {
                     SocketAddr::new(in6addr_any_init(), old_cfg.verloc.bind_address.port())
@@ -1599,7 +1300,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                 }
             },
             announce_port: old_cfg.verloc.announce_port,
-            debug: VerlocDebug {
+            debug: VerlocDebugV8 {
                 packets_per_node: old_cfg.verloc.debug.packets_per_node,
                 connection_timeout: old_cfg.verloc.debug.connection_timeout,
                 packet_timeout: old_cfg.verloc.debug.packet_timeout,
@@ -1609,7 +1310,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                 retry_timeout: old_cfg.verloc.debug.retry_timeout,
             },
         },
-        wireguard: Wireguard {
+        wireguard: WireguardV8 {
             enabled: old_cfg.wireguard.enabled,
             bind_address: {
                 if old_cfg.wireguard.bind_address.ip().is_unspecified() {
@@ -1623,7 +1324,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
             announced_port: old_cfg.wireguard.announced_port,
             private_network_prefix_v4: old_cfg.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: old_cfg.wireguard.private_network_prefix_v6,
-            storage_paths: WireguardPaths {
+            storage_paths: WireguardPathsV8 {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
                     .storage_paths
@@ -1634,8 +1335,8 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
-        gateway_tasks: GatewayTasksConfig {
-            storage_paths: GatewayTasksPaths {
+        gateway_tasks: GatewayTasksConfigV8 {
+            storage_paths: GatewayTasksPathsV8 {
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
                 stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
@@ -1653,9 +1354,9 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
             },
             announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
             announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
-            debug: gateway_tasks::Debug {
+            debug: GatewayTasksConfigDebugV8 {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
-                zk_nym_tickets: ZkNymTicketHandlerDebug {
+                zk_nym_tickets: ZkNymTicketHandlerDebugV8 {
                     revocation_bandwidth_penalty: old_cfg
                         .gateway_tasks
                         .debug
@@ -1681,11 +1382,11 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                 ..Default::default()
             },
         },
-        service_providers: ServiceProvidersConfig {
-            storage_paths: ServiceProvidersPaths {
+        service_providers: ServiceProvidersConfigV8 {
+            storage_paths: ServiceProvidersPathsV8 {
                 clients_storage: old_cfg.service_providers.storage_paths.clients_storage,
                 stats_storage: old_cfg.service_providers.storage_paths.stats_storage,
-                network_requester: NetworkRequesterPaths {
+                network_requester: NetworkRequesterPathsV8 {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1722,7 +1423,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPaths {
+                ip_packet_router: IpPacketRouterPathsV8 {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1759,7 +1460,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
-                authenticator: AuthenticatorPaths {
+                authenticator: AuthenticatorPathsV8 {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1799,8 +1500,8 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
             },
             open_proxy: old_cfg.service_providers.open_proxy,
             upstream_exit_policy_url: old_cfg.service_providers.upstream_exit_policy_url,
-            network_requester: NetworkRequester {
-                debug: NetworkRequesterDebug {
+            network_requester: NetworkRequesterV8 {
+                debug: NetworkRequesterDebugV8 {
                     enabled: old_cfg.service_providers.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1814,8 +1515,8 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                         .client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouter {
-                debug: IpPacketRouterDebug {
+            ip_packet_router: IpPacketRouterV8 {
+                debug: IpPacketRouterDebugV8 {
                     enabled: old_cfg.service_providers.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1829,8 +1530,8 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                         .client_debug,
                 },
             },
-            authenticator: Authenticator {
-                debug: AuthenticatorDebug {
+            authenticator: AuthenticatorV8 {
+                debug: AuthenticatorDebugV8 {
                     enabled: old_cfg.service_providers.authenticator.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1840,12 +1541,12 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                     client_debug: old_cfg.service_providers.authenticator.debug.client_debug,
                 },
             },
-            debug: service_providers::Debug {
+            debug: ServiceProvidersConfigDebugV8 {
                 message_retrieval_limit: old_cfg.service_providers.debug.message_retrieval_limit,
             },
         },
         metrics: Default::default(),
-        logging: LoggingSettings {},
+        logging: LoggingSettingsV8 {},
         debug: Default::default(),
     };
     Ok(cfg)

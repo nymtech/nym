@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::chunking;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
@@ -113,7 +113,8 @@ impl NymMessage {
         match self {
             NymMessage::Plain(data) => data,
             NymMessage::Repliable(repliable) => match repliable.content {
-                RepliableMessageContent::Data { message, .. } => message,
+                RepliableMessageContent::Data(content) => content.message,
+                RepliableMessageContent::DataV2(content) => content.message,
                 _ => Vec::new(),
             },
             NymMessage::Reply(reply) => match reply.content {
@@ -183,7 +184,7 @@ impl NymMessage {
             // each plain or repliable packet attaches an ephemeral public key so that the recipient
             // could perform diffie-hellman with its own keys followed by a kdf to re-derive
             // the packet encryption key
-            NymMessage::Plain(_) | NymMessage::Repliable(_) => encryption::PUBLIC_KEY_SIZE,
+            NymMessage::Plain(_) | NymMessage::Repliable(_) => x25519::PUBLIC_KEY_SIZE,
             // each reply attaches the digest of the encryption key so that the recipient could
             // lookup correct key for decryption,
             NymMessage::Reply(_) => ReplySurbKeyDigestAlgorithm::output_size(),
@@ -215,7 +216,7 @@ impl NymMessage {
             chunking::number_of_required_fragments(serialized_len, plaintext_per_packet);
 
         // by chunking I mean that currently the fragments hold variable amount of plaintext in them (I wish I had time to rewrite it...)
-        log::trace!(
+        tracing::trace!(
             "this message will use {serialized_len} bytes of PLAINTEXT (This does not account for Ack or chunking overhead). \
             With {packet_size:?} PacketSize ({plaintext_per_packet} of usable plaintext available) it will require {num_fragments} packet(s).",
         );
@@ -241,7 +242,7 @@ impl NymMessage {
 
         let wasted_space_percentage =
             (space_left as f32 / (bytes.len() + 1 + space_left) as f32) * 100.0;
-        log::trace!(
+        tracing::trace!(
             "Padding {self_display}: {} of raw plaintext bytes are required. \
             They're going to be put into {packets_used} sphinx packets with {space_left} bytes \
             of leftover space. {wasted_space_percentage:.1}% of packet capacity is going to \
@@ -309,6 +310,7 @@ mod tests {
         // a single variant for each repliable and reply is enough as they are more thoroughly tested
         // internally
         let repliable = NymMessage::new_repliable(RepliableMessage::new_data(
+            true,
             vec![1, 2, 3, 4, 5],
             [42u8; 16].into(),
             vec![],

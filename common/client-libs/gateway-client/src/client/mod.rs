@@ -17,7 +17,7 @@ use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCred
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
@@ -57,7 +57,7 @@ pub(crate) mod websockets;
 use websockets::connect_async;
 
 pub struct GatewayConfig {
-    pub gateway_identity: identity::PublicKey,
+    pub gateway_identity: ed25519::PublicKey,
 
     // currently a dead field
     pub gateway_owner: Option<String>,
@@ -67,7 +67,7 @@ pub struct GatewayConfig {
 
 impl GatewayConfig {
     pub fn new(
-        gateway_identity: identity::PublicKey,
+        gateway_identity: ed25519::PublicKey,
         gateway_owner: Option<String>,
         gateway_listener: String,
     ) -> Self {
@@ -93,8 +93,8 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     bandwidth: ClientBandwidth,
     gateway_address: String,
-    gateway_identity: identity::PublicKey,
-    local_identity: Arc<identity::KeyPair>,
+    gateway_identity: ed25519::PublicKey,
+    local_identity: Arc<ed25519::KeyPair>,
     shared_key: Option<Arc<SharedGatewayKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
@@ -117,7 +117,7 @@ impl<C, St> GatewayClient<C, St> {
     pub fn new(
         cfg: GatewayClientConfig,
         gateway_config: GatewayConfig,
-        local_identity: Arc<identity::KeyPair>,
+        local_identity: Arc<ed25519::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedGatewayKey>>,
         packet_router: PacketRouter,
@@ -145,7 +145,7 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    pub fn gateway_identity(&self) -> identity::PublicKey {
+    pub fn gateway_identity(&self) -> ed25519::PublicKey {
         self.gateway_identity
     }
 
@@ -1063,8 +1063,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
         gateway_listener: Url,
-        gateway_identity: identity::PublicKey,
-        local_identity: Arc<identity::KeyPair>,
+        gateway_identity: ed25519::PublicKey,
+        local_identity: Arc<ed25519::KeyPair>,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
     ) -> Self {
         log::trace!("Initialising gateway client");

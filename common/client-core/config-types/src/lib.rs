@@ -65,11 +65,10 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 
 // stats reporting related
 
-/// Time interval between reporting statistics to the given provider if it exist
+/// Time interval between reporting statistics to the given provider if it exists
 const STATS_REPORT_INTERVAL_SECS: Duration = Duration::from_secs(300);
 
 use crate::error::InvalidTrafficModeFailure;
-pub use nym_country_group::CountryGroup;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -258,15 +257,6 @@ impl Config {
         self
     }
 
-    pub fn with_topology_structure(mut self, topology_structure: TopologyStructure) -> Self {
-        self.set_topology_structure(topology_structure);
-        self
-    }
-
-    pub fn set_topology_structure(&mut self, topology_structure: TopologyStructure) {
-        self.debug.topology.topology_structure = topology_structure;
-    }
-
     pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
         if no_per_hop_delays {
             self.set_no_per_hop_delays()
@@ -415,7 +405,21 @@ pub struct Traffic {
     /// Do not set it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
 
+    /// Specify whether any constructed sphinx packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    /// this affects any forward packets, acks and reply surbs
+    /// this flag should remain disabled until sufficient number of nodes on the network has upgraded
+    /// and support updated format.
+    /// in the case of reply surbs, the recipient must also understand the new encoding
+    pub use_legacy_sphinx_format: bool,
+
     pub packet_type: PacketType,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    pub disable_mix_hops: bool,
 }
 
 impl Traffic {
@@ -442,6 +446,11 @@ impl Default for Traffic {
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
             packet_type: PacketType::Mix,
+
+            // we should use the legacy format until sufficient number of nodes understand the
+            // improved encoding
+            use_legacy_sphinx_format: true,
+            disable_mix_hops: false,
         }
     }
 }
@@ -546,9 +555,6 @@ pub struct Topology {
     #[serde(with = "humantime_serde")]
     pub max_startup_gateway_waiting_period: Duration,
 
-    /// Specifies the mixnode topology to be used for sending packets.
-    pub topology_structure: TopologyStructure,
-
     /// Specifies a minimum performance of a mixnode that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_mixnode_performance: u8,
@@ -570,30 +576,6 @@ pub struct Topology {
     pub ignore_ingress_epoch_role: bool,
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum TopologyStructure {
-    #[default]
-    NymApi,
-    GeoAware(GroupBy),
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum GroupBy {
-    CountryGroup(CountryGroup),
-    NymAddress(Recipient),
-}
-
-impl std::fmt::Display for GroupBy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupBy::CountryGroup(group) => write!(f, "group: {group}"),
-            GroupBy::NymAddress(address) => write!(f, "address: {address}"),
-        }
-    }
-}
-
 impl Default for Topology {
     fn default() -> Self {
         Topology {
@@ -601,7 +583,6 @@ impl Default for Topology {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
             max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
-            topology_structure: TopologyStructure::default(),
             minimum_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             minimum_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
             use_extended_topology: false,

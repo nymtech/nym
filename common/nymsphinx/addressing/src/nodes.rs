@@ -8,7 +8,7 @@
 //! Currently, that routing information is an IP address, but in principle it can be anything
 //!  for as long as it's going to fit in the field.
 
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_sphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -16,8 +16,8 @@ use thiserror::Error;
 
 // Not entirely sure whether this is the correct place for those, but let's see how it's going
 // to work out
-pub type NodeIdentity = identity::PublicKey;
-pub const NODE_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
+pub type NodeIdentity = ed25519::PublicKey;
+pub const NODE_IDENTITY_SIZE: usize = ed25519::PUBLIC_KEY_LENGTH;
 
 /// MAX_UNPADDED_LEN represents maximum length an unpadded address could have.
 /// In this case it's an ipv6 socket address (with version prefix)
@@ -199,7 +199,7 @@ impl TryFrom<NodeAddressBytes> for NymNodeRoutingAddress {
     type Error = NymNodeRoutingAddressError;
 
     fn try_from(value: NodeAddressBytes) -> Result<Self, Self::Error> {
-        Self::try_from_bytes(value.as_bytes_ref())
+        Self::try_from_bytes(value.as_bytes())
     }
 }
 

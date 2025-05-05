@@ -1,0 +1,35 @@
+<svg
+  width="16"
+  height="16"
+  viewBox="0 0 16 16"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    d="M10.6668 13.3333V14.6667H10.0002V15.3333H2.00016V14.6667H1.3335V3.99999H2.00016V3.33333H4.00016V13.3333H10.6668Z"
+    fill="#FFFFFF"
+    style="
+      fill: #FFFFFF;
+      fill: color(display-p3 1 1 1);
+      fill-opacity: 1;
+    "
+  />
+  <path
+    d="M10.6665 4.66667V0.666672H5.33317V1.33334H4.6665V12H5.33317V12.6667H13.9998V12H14.6665V4.66667H10.6665ZM13.3332 11.3333H5.99984V2.00001H9.33317V6.00001H13.3332V11.3333Z"
+    fill="#FFFFFF"
+    style="
+      fill: #FFFFFF;
+      fill: color(display-p3 1 1 1);
+      fill-opacity: 1;
+    "
+  />
+  <path
+    d="M14.6668 3.33334V4H11.3335V0.666672H12.0002V1.33334H12.6668V2.00001H13.3335V2.66667H14.0002V3.33334H14.6668Z"
+    fill="#FFFFFF"
+    style="
+      fill: #FFFFFF;
+      fill: color(display-p3 1 1 1);
+      fill-opacity: 1;
+    "
+  />
+</svg>

@@ -1,6 +1,6 @@
 "use client";
-import Image from "next/image";
 import { icons } from "@/utils/getIconByName";
+import Image from "next/image";
 
 // import { useMainContext } from "@/context";
 export const SocialIcon = ({ channel }: { channel: string }): JSX.Element => {

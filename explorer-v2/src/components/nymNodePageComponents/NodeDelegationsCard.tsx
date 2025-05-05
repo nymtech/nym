@@ -1,24 +1,41 @@
 "use client";
 
-import { fetchNodeDelegations } from "@/app/api";
+import { fetchObservatoryNodes } from "@/app/api";
+import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import DelegationsTable from "./DelegationsTable";
 
-interface NodeDelegationsCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
-const NodeDelegationsCard = ({ id }: NodeDelegationsCardProps) => {
+const NodeDelegationsCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined;
+
   const {
-    data: delegations = [],
-    isLoading,
+    data: nymNodes,
     isError,
+    isLoading,
   } = useQuery({
-    queryKey: ["nodeDelegations", id],
-    queryFn: () => fetchNodeDelegations(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes?.find((node) => node.identity_key === paramId);
+  } else {
+    nodeInfo = nymNodes?.find((node) => node.node_id === Number(paramId));
+  }
+
+  if (!nodeInfo) return null;
+
+  const id = nodeInfo.node_id;
 
   if (isLoading) {
     return (
@@ -43,7 +60,7 @@ const NodeDelegationsCard = ({ id }: NodeDelegationsCardProps) => {
 
   return (
     <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
-      <DelegationsTable delegations={delegations} />
+      <DelegationsTable id={id} />
     </ExplorerCard>
   );
 };

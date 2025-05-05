@@ -5,7 +5,7 @@ use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::node::helpers::load_ed25519_identity_keypair;
 use nym_bin_common::output_format::OutputFormat;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_types::helpers::ConsoleSigningOutput;
 
 // I don't think it makes sense to expose 'text' and 'contract-msg' as env variables
@@ -27,7 +27,7 @@ pub struct Args {
     output: OutputFormat,
 }
 
-fn print_signed_text(private_key: &identity::PrivateKey, text: &str, output: OutputFormat) {
+fn print_signed_text(private_key: &ed25519::PrivateKey, text: &str, output: OutputFormat) {
     eprintln!("Signing the text {text:?} using your node's Ed25519 identity key...",);
 
     let signature = private_key.sign_text(text);
@@ -36,7 +36,7 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str, output: Out
 }
 
 fn print_signed_contract_msg(
-    private_key: &identity::PrivateKey,
+    private_key: &ed25519::PrivateKey,
     raw_msg: &str,
     output: OutputFormat,
 ) {

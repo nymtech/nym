@@ -3,7 +3,7 @@
 
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::x25519;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
@@ -62,7 +62,7 @@ pub enum MessageRecoveryError {
     NotEnoughBytesForEphemeralKey { provided: usize, required: usize },
 
     #[error("Recovered remote x25519 public key is invalid - {0}")]
-    InvalidRemoteEphemeralKey(#[from] encryption::KeyRecoveryError),
+    InvalidRemoteEphemeralKey(#[from] x25519::KeyRecoveryError),
 
     #[error("The reconstructed message was malformed - {source}")]
     MalformedReconstructedMessage {
@@ -100,19 +100,19 @@ pub trait MessageReceiver {
 
     fn recover_plaintext_from_regular_packet<'a>(
         &self,
-        local_key: &encryption::PrivateKey,
+        local_key: &x25519::PrivateKey,
         raw_enc_frag: &'a mut [u8],
     ) -> Result<&'a mut [u8], MessageRecoveryError> {
-        if raw_enc_frag.len() < encryption::PUBLIC_KEY_SIZE {
+        if raw_enc_frag.len() < x25519::PUBLIC_KEY_SIZE {
             return Err(MessageRecoveryError::NotEnoughBytesForEphemeralKey {
                 provided: raw_enc_frag.len(),
-                required: encryption::PUBLIC_KEY_SIZE,
+                required: x25519::PUBLIC_KEY_SIZE,
             });
         }
 
         // 1. recover remote encryption key
-        let remote_key_bytes = &raw_enc_frag[..encryption::PUBLIC_KEY_SIZE];
-        let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;
+        let remote_key_bytes = &raw_enc_frag[..x25519::PUBLIC_KEY_SIZE];
+        let remote_ephemeral_key = x25519::PublicKey::from_bytes(remote_key_bytes)?;
 
         // 2. recompute shared encryption key
         let encryption_key = recompute_shared_key::<PacketEncryptionAlgorithm, PacketHkdfAlgorithm>(
@@ -121,7 +121,7 @@ pub trait MessageReceiver {
         );
 
         // 3. decrypt fragment data
-        let fragment_ciphertext = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
+        let fragment_ciphertext = &mut raw_enc_frag[x25519::PUBLIC_KEY_SIZE..];
 
         self.decrypt_raw_message::<PacketEncryptionAlgorithm>(
             fragment_ciphertext,

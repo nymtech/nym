@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
-use crate::node::mixnet::packet_forwarding::global::is_global_ip;
-use arc_swap::ArcSwap;
+use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use async_trait::async_trait;
 use nym_gateway::node::UserAgent;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
@@ -22,129 +21,6 @@ use tokio::time::interval;
 use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
-
-pub(crate) trait RoutingFilter {
-    fn should_route(&self, ip: IpAddr) -> bool;
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub(crate) struct OpenFilter;
-
-impl RoutingFilter for OpenFilter {
-    fn should_route(&self, _: IpAddr) -> bool {
-        true
-    }
-}
-
-impl RoutingFilter for NetworkRoutingFilter {
-    fn should_route(&self, ip: IpAddr) -> bool {
-        // only allow non-global ips on testnets
-        if self.testnet_mode && !is_global_ip(&ip) {
-            return true;
-        }
-
-        self.attempt_resolve(ip).should_route()
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct NetworkRoutingFilter {
-    testnet_mode: bool,
-
-    resolved: KnownNodes,
-
-    // while this is technically behind a lock, it should not be called too often as once resolved it will
-    // be present on the arcswap in either allowed or denied section
-    pending: UnknownNodes,
-}
-
-impl NetworkRoutingFilter {
-    fn new_empty(testnet_mode: bool) -> Self {
-        NetworkRoutingFilter {
-            testnet_mode,
-            resolved: Default::default(),
-            pending: Default::default(),
-        }
-    }
-
-    pub(crate) fn attempt_resolve(&self, ip: IpAddr) -> Resolution {
-        if self.resolved.inner.allowed.load().contains(&ip) {
-            Resolution::Accept
-        } else if self.resolved.inner.denied.load().contains(&ip) {
-            Resolution::Deny
-        } else {
-            self.pending.try_insert(ip);
-            Resolution::Unknown
-        }
-    }
-}
-
-#[derive(Clone, Default)]
-struct UnknownNodes(Arc<RwLock<HashSet<IpAddr>>>);
-
-impl UnknownNodes {
-    fn try_insert(&self, ip: IpAddr) {
-        // if we can immediately grab the lock to push it into the pending queue, amazing, let's do it
-        // otherwise we can do it next time we see this ip
-        // (if we can't hold the lock, it means it's being updated at this very moment which is actually a good thing)
-        if let Ok(mut guard) = self.0.try_write() {
-            guard.insert(ip);
-        }
-    }
-
-    async fn clear(&self) {
-        self.0.write().await.clear();
-    }
-
-    async fn nodes(&self) -> HashSet<IpAddr> {
-        self.0.read().await.clone()
-    }
-}
-
-// for now we don't care about keys, etc.
-// we only want to know if given ip belongs to a known node
-#[derive(Debug, Default, Clone)]
-pub(crate) struct KnownNodes {
-    inner: Arc<KnownNodesInner>,
-}
-
-#[derive(Debug, Default)]
-struct KnownNodesInner {
-    allowed: ArcSwap<HashSet<IpAddr>>,
-    denied: ArcSwap<HashSet<IpAddr>>,
-}
-
-pub(crate) enum Resolution {
-    Unknown,
-    Deny,
-    Accept,
-}
-
-impl From<bool> for Resolution {
-    fn from(value: bool) -> Self {
-        if value {
-            Resolution::Accept
-        } else {
-            Resolution::Deny
-        }
-    }
-}
-
-impl Resolution {
-    pub(crate) fn should_route(&self) -> bool {
-        matches!(self, Resolution::Accept)
-    }
-}
-
-impl KnownNodes {
-    fn swap_allowed(&self, new: HashSet<IpAddr>) {
-        self.inner.allowed.store(Arc::new(new))
-    }
-
-    fn swap_denied(&self, new: HashSet<IpAddr>) {
-        self.inner.denied.store(Arc::new(new))
-    }
-}
 
 struct NodesQuerier {
     client: NymApiClient,
@@ -316,26 +192,6 @@ impl NetworkRefresher {
         Ok(this)
     }
 
-    fn allowed_nodes_copy(&self) -> HashSet<IpAddr> {
-        self.routing_filter
-            .resolved
-            .inner
-            .allowed
-            .load_full()
-            .as_ref()
-            .clone()
-    }
-
-    fn denied_nodes_copy(&self) -> HashSet<IpAddr> {
-        self.routing_filter
-            .resolved
-            .inner
-            .denied
-            .load_full()
-            .as_ref()
-            .clone()
-    }
-
     async fn inspect_pending(&mut self) {
         let to_resolve = self.routing_filter.pending.nodes().await;
 
@@ -344,8 +200,8 @@ impl NetworkRefresher {
             return;
         }
 
-        let mut allowed = self.allowed_nodes_copy();
-        let mut denied = self.denied_nodes_copy();
+        let mut allowed = self.routing_filter().allowed_nodes_copy();
+        let mut denied = self.routing_filter().denied_nodes_copy();
 
         // short circuit: check if the pending nodes are not already resolved
         // (it could happen due to lack of full sync between pending lock and arcswap(s))
@@ -389,7 +245,7 @@ impl NetworkRefresher {
             .collect::<HashSet<_>>();
 
         let pending = self.routing_filter.pending.nodes().await;
-        let mut current_denied = self.denied_nodes_copy();
+        let mut current_denied = self.routing_filter.denied_nodes_copy();
 
         for allowed in &known_nodes {
             // if some node has become known, it should be removed from the denied set

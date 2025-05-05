@@ -1,6 +1,6 @@
 export * from './AppBar';
 export * from './ConfirmPassword';
-export * from './CopyToClipboard';
+export * from './Clipboard';
 export * from './ErrorFallback';
 export * from './InfoToolTip';
 export * from './LoadingPage';

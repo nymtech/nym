@@ -37,19 +37,27 @@ pub enum SurbAckRecoveryError {
 }
 
 impl SurbAck {
+    #[allow(clippy::too_many_arguments)]
     pub fn construct<R>(
         rng: &mut R,
+        use_legacy_sphinx_format: bool,
         recipient: &Recipient,
         ack_key: &AckKey,
         marshaled_fragment_id: [u8; 5],
         average_delay: time::Duration,
         topology: &NymRouteProvider,
         packet_type: PacketType,
+        disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
     {
-        let route = topology.random_route_to_egress(rng, recipient.gateway())?;
+        let route = if disable_mix_hops {
+            topology.empty_route_to_egress(recipient.gateway())?
+        } else {
+            topology.random_route_to_egress(rng, recipient.gateway())?
+        };
+
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
@@ -57,8 +65,6 @@ impl SurbAck {
         let packet_size = match packet_type {
             PacketType::Outfox => surb_ack_payload.len().max(MIN_PACKET_SIZE),
             PacketType::Mix => PacketSize::AckPacket.payload_size(),
-            #[allow(deprecated)]
-            PacketType::Vpn => PacketSize::AckPacket.payload_size(),
         };
 
         let surb_ack_packet = match packet_type {
@@ -69,14 +75,7 @@ impl SurbAck {
                 Some(packet_size),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
-                packet_size,
-                surb_ack_payload,
-                &route,
-                &destination,
-                &delays,
-            )?,
-            #[allow(deprecated)]
-            PacketType::Vpn => NymPacket::sphinx_build(
+                use_legacy_sphinx_format,
                 packet_size,
                 surb_ack_payload,
                 &route,
@@ -106,8 +105,6 @@ impl SurbAck {
                 PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
             }
             PacketType::Mix => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
-            #[allow(deprecated)]
-            PacketType::Vpn => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
         }
     }
 
@@ -139,8 +136,6 @@ impl SurbAck {
         let packet = match packet_type {
             PacketType::Outfox => NymPacket::outfox_from_bytes(&b[address_offset..])?,
             PacketType::Mix => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
-            #[allow(deprecated)]
-            PacketType::Vpn => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
         };
 
         Ok((address, packet))

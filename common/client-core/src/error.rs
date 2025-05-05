@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
-use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::node::RoutingNodeError;
 use nym_topology::{NodeId, NymTopologyError};

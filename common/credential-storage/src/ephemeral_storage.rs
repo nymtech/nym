@@ -70,6 +70,13 @@ impl Storage for EphemeralStorage {
         Ok(())
     }
 
+    async fn contains_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+    ) -> Result<bool, StorageError> {
+        Ok(self.storage_manager.contains_ticketbook(ticketbook).await)
+    }
+
     async fn get_ticketbooks_info(
         &self,
     ) -> Result<Vec<BasicTicketbookInformation>, Self::StorageError> {

@@ -62,6 +62,10 @@ where
     /// Optional secondary predefined packet size used for the loop cover messages.
     secondary_packet_size: Option<PacketSize>,
 
+    /// Specify whether any constructed packets should use the legacy format,
+    /// where the payload keys are explicitly attached rather than using the seeds
+    use_legacy_sphinx_format: bool,
+
     packet_type: PacketType,
 
     stats_tx: ClientStatsSender,
@@ -130,6 +134,7 @@ impl LoopCoverTrafficStream<OsRng> {
             topology_access,
             primary_packet_size: traffic_config.primary_packet_size,
             secondary_packet_size: traffic_config.secondary_packet_size,
+            use_legacy_sphinx_format: traffic_config.use_legacy_sphinx_format,
             packet_type: traffic_config.packet_type,
             stats_tx,
             task_client,
@@ -182,6 +187,7 @@ impl LoopCoverTrafficStream<OsRng> {
 
         let cover_message = match generate_loop_cover_packet(
             &mut self.rng,
+            self.use_legacy_sphinx_format,
             topology_ref,
             &self.ack_key,
             &self.our_full_destination,

@@ -30,7 +30,6 @@ const getStartEndTime = (start: string, end: string) => {
 
 export const CurrentEpochCard = () => {
   const { data, isError, isLoading, epochStatus } = useEpochContext();
-
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [progress, setProgress] = useState(0);

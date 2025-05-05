@@ -1,20 +1,24 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::encryption_key::{SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize};
 use nym_crypto::{generic_array::typenum::Unsigned, Digest};
 use nym_sphinx_addressing::clients::Recipient;
-use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
+use nym_sphinx_addressing::nodes::{
+    NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
+};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
-use nym_sphinx_types::{NymPacket, SURBMaterial, SphinxError, SURB};
+use nym_sphinx_types::{
+    NymPacket, SURBMaterial, SphinxError, HEADER_SIZE, NODE_ADDRESS_LENGTH, SURB,
+    X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
+};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 use std::fmt::{self, Formatter};
-use std::time;
+use std::time::Duration;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -30,6 +34,9 @@ pub enum ReplySurbError {
 
     #[error("failed to recover reply SURB from bytes: {0}")]
     RecoveryError(#[from] SphinxError),
+
+    #[error("failed to validate the first hop address of the recovered reply SURB: {0}")]
+    MalformedSurbFirstHop(#[from] NymNodeRoutingAddressError),
 
     #[error("failed to recover reply SURB encryption key from bytes: {0}")]
     InvalidEncryptionKeyData(#[from] SurbEncryptionKeyError),
@@ -80,6 +87,10 @@ impl<'de> Deserialize<'de> for ReplySurb {
 }
 
 impl ReplySurb {
+    /// base overhead of a reply surb that exists regardless of type or number of key materials.
+    pub(crate) const BASE_OVERHEAD: usize =
+        SurbEncryptionKeySize::USIZE + HEADER_SIZE + NODE_ADDRESS_LENGTH;
+
     pub fn max_msg_len(packet_size: PacketSize) -> usize {
         // For detailed explanation (of ack overhead) refer to common\nymsphinx\src\preparer.rs::available_plaintext_per_packet()
         let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
@@ -91,8 +102,10 @@ impl ReplySurb {
     pub fn construct<R>(
         rng: &mut R,
         recipient: &Recipient,
-        average_delay: time::Duration,
+        average_delay: Duration,
+        use_legacy_surb_format: bool,
         topology: &NymRouteProvider,
+        _disable_mix_hops: bool, // TODO: support SURBs with no mix hops after changes to surb format / construction
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
@@ -101,23 +114,16 @@ impl ReplySurb {
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
-        let surb_material = SURBMaterial::new(route, delays, destination);
+        let mut surb_material = SURBMaterial::new(route, delays, destination);
+        if use_legacy_surb_format {
+            surb_material = surb_material.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
+        }
 
         // this can't fail as we know we have a valid route to gateway and have correct number of delays
         Ok(ReplySurb {
             surb: surb_material.construct_SURB().unwrap(),
             encryption_key: SurbEncryptionKey::new(rng),
         })
-    }
-
-    /// Returns the expected number of bytes the [`ReplySURB`] will take after serialization.
-    /// Useful for deserialization from a bytes stream.
-    pub fn serialized_len() -> usize {
-        use nym_sphinx_types::{HEADER_SIZE, NODE_ADDRESS_LENGTH, PAYLOAD_KEY_SIZE};
-
-        // the SURB itself consists of SURB_header, first hop address and set of payload keys
-        // for each hop (3x mix + egress)
-        SurbEncryptionKeySize::USIZE + HEADER_SIZE + NODE_ADDRESS_LENGTH + 4 * PAYLOAD_KEY_SIZE
     }
 
     pub fn encryption_key(&self) -> &SurbEncryptionKey {
@@ -143,7 +149,12 @@ impl ReplySurb {
 
         let surb = match SURB::from_bytes(&bytes[SurbEncryptionKeySize::USIZE..]) {
             Err(err) => return Err(ReplySurbError::RecoveryError(err)),
-            Ok(surb) => surb,
+            Ok(surb) => {
+                // we can't really check fully validity of the header, but at the very least we could make a sanity check
+                // to make sure the first hop address is a valid socket address
+                let _ = NymNodeRoutingAddress::try_from(surb.first_hop())?;
+                surb
+            }
         };
 
         Ok(ReplySurb {

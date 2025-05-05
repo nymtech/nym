@@ -1,0 +1,2 @@
+[capabilities]
+shell = { open = true }

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::shared_network::RoutingFilter;
+use crate::node::routing_filter::RoutingFilter;
 use futures::StreamExt;
 use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender, PacketToForward,
@@ -60,14 +60,6 @@ impl<C, F> PacketForwarder<C, F> {
     {
         let next_hop = packet.next_hop();
 
-        if !self.routing_filter.should_route(next_hop.as_ref().ip()) {
-            debug!("dropping packet as the egress address does not belong to any known node");
-            self.metrics
-                .mixnet
-                .egress_dropped_forward_packet(next_hop.into());
-            return;
-        }
-
         let packet_type = packet.packet_type();
         let packet = packet.into_packet();
 
@@ -110,6 +102,16 @@ impl<C, F> PacketForwarder<C, F> {
         C: SendWithoutResponse,
         F: RoutingFilter,
     {
+        let next_hop = new_packet.packet.next_hop();
+
+        if !self.routing_filter.should_route(next_hop.as_ref().ip()) {
+            debug!("dropping packet as the egress address does not belong to any known node");
+            self.metrics
+                .mixnet
+                .egress_dropped_forward_packet(next_hop.into());
+            return;
+        }
+
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
         if let Some(instant) = new_packet.forward_delay_target {

@@ -1,15 +1,18 @@
 "use client";
 import { Close as CloseIcon, Menu as MenuIcon } from "@mui/icons-material";
 import { Box, Drawer, IconButton, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useState } from "react";
 import { Link } from "../../components/muiLink";
 import { Wrapper } from "../../components/wrapper";
 import NymLogo from "../icons/NymLogo";
 import ConnectWallet from "../wallet/ConnectWallet";
+import { DarkLightSwitchDesktop } from "./Switch";
 import MENU_DATA from "./menuItems";
 
 export const MobileHeader = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const theme = useTheme();
 
   // Mobile menu handlers
   const toggleDrawer = (open: boolean) => {
@@ -31,10 +34,14 @@ export const MobileHeader = () => {
             sx: {
               width: "100%",
               height: "100%",
-              bgcolor: "base.white",
+              bgcolor:
+                theme.palette.mode === "dark" ? "pine.900" : "base.white",
               overflow: "hidden",
               position: "relative",
-              color: "background.main",
+              color:
+                theme.palette.mode === "dark"
+                  ? "base.white"
+                  : "background.main",
             },
           }}
         >
@@ -65,7 +72,10 @@ export const MobileHeader = () => {
                       display: "flex",
                       width: "100%",
                       padding: 3.75,
-                      color: "background.main",
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "background.main",
                       justifyContent: "space-between",
                       alignItems: "center",
                     }}
@@ -84,10 +94,20 @@ export const MobileHeader = () => {
                           width: "10px",
                           height: "10px",
                           borderRadius: "100%",
-                          bgcolor: "primary.main",
+                          bgcolor:
+                            theme.palette.mode === "dark"
+                              ? "base.white"
+                              : "primary.main",
                         }}
                       />
-                      <Typography color="primary" variant="h4">
+                      <Typography
+                        color={
+                          theme.palette.mode === "dark"
+                            ? "base.white"
+                            : "primary"
+                        }
+                        variant="h4"
+                      >
                         {menu.title}
                       </Typography>
                     </Box>
@@ -139,16 +159,27 @@ const MobileMenuHeader = ({
         <Box
           sx={{
             display: "flex",
-            gap: 2.5,
             alignItems: "center",
           }}
         >
+          {!drawerOpen && <DarkLightSwitchDesktop />}
           <IconButton sx={{}} onClick={() => toggleDrawer(!drawerOpen)}>
             {drawerOpen ? <CloseIcon /> : <MenuIcon />}
           </IconButton>
         </Box>
       </Box>
-      {!drawerOpen && <ConnectWallet size="small" />}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 2.5,
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
+        {!drawerOpen && <ConnectWallet size="small" />}
+      </Box>
       <Box height={40} />
     </Wrapper>
   );

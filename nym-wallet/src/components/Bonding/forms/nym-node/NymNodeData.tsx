@@ -1,15 +1,16 @@
 import React from 'react';
 import * as Yup from 'yup';
-import { Stack, TextField, FormControlLabel, Checkbox } from '@mui/material';
+import { Stack, FormControlLabel, Checkbox } from '@mui/material';
 import { useForm } from 'react-hook-form';
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
+import { HookFormTextFieldWithPaste } from 'src/components/Clipboard/ClipboardFormFields';
 import { useFormContext } from './FormContext';
 import { settingsValidationSchema } from './settingsValidationSchema';
 
 type NymNodeDataProps = {
   onClose: () => void;
+  // eslint-disable-next-line react/no-unused-prop-types
   onBack: () => void;
   onNext: () => Promise<void>;
   step: number;
@@ -53,23 +54,24 @@ const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
       okDisabled={Object.keys(errors).length > 0}
     >
       <Stack gap={3}>
-        <IdentityKeyFormField
-          autoFocus
+        {/* Identity Key Field with Paste Button */}
+        <HookFormTextFieldWithPaste
+          name="identity_key"
+          register={register}
+          setValue={setValue}
+          errors={errors}
           required
-          fullWidth
+          InputLabelProps={{ shrink: true }}
           label="Identity Key"
-          initialValue={nymNodeData.identity_key}
-          errorText={errors.identity_key?.message?.toString()}
-          onChanged={(value) => setValue('identity_key', value, { shouldValidate: true })}
-          showTickOnValid={false}
         />
 
-        <TextField
-          {...register('host')}
+        {/* Host Field with Built-in Paste */}
+        <HookFormTextFieldWithPaste
           name="host"
           label="Host"
-          error={Boolean(errors.host)}
-          helperText={errors.host?.message}
+          register={register}
+          setValue={setValue}
+          errors={errors}
           required
           InputLabelProps={{ shrink: true }}
         />
@@ -78,14 +80,15 @@ const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
           control={<Checkbox onChange={() => setShowAdvancedOptions((show) => !show)} checked={showAdvancedOptions} />}
           label="Show advanced options"
         />
+
         {showAdvancedOptions && (
           <Stack direction="row" gap={3} sx={{ mb: 2 }}>
-            <TextField
-              {...register('custom_http_port')}
+            <HookFormTextFieldWithPaste
               name="custom_http_port"
               label="Custom HTTP port"
-              error={Boolean(errors.custom_http_port)}
-              helperText={errors.custom_http_port?.message}
+              register={register}
+              setValue={setValue}
+              errors={errors}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />

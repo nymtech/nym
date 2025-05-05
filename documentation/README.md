@@ -21,6 +21,15 @@ Our `prebuild` script relies on the following:
 
 Otherwise make sure to have `node` installed.
 
+#### Binary dependencies
+If you don't want/need build our binaries in Rust localy you can download them from latest Release page on [github](https://github.com/nymtech/nym/releases) into target/release in root of this repo.
+{'nym-node', 'nym-api', 'nymvisor'}
+
+Make them executable
+```bash
+chmod +x target/release/*
+```
+
 ### Serve Local (Hot Reload)
 ```sh
 pnpm i

@@ -3,7 +3,7 @@
 
 use crate::support::config::default_data_directory;
 use anyhow::Context;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -123,7 +123,7 @@ impl NymApiPaths {
         }
     }
 
-    pub fn load_identity(&self) -> anyhow::Result<identity::KeyPair> {
+    pub fn load_identity(&self) -> anyhow::Result<ed25519::KeyPair> {
         let keypaths = nym_pemstore::KeyPairPath::new(
             &self.private_identity_key_file,
             &self.public_identity_key_file,

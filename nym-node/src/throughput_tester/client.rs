@@ -7,6 +7,7 @@ use arrayref::array_ref;
 use blake2::VarBlake2b;
 use chacha::ChaCha;
 use futures::{stream, SinkExt, Stream, StreamExt};
+use hkdf::Hkdf;
 use human_repr::{HumanCount, HumanDuration, HumanThroughput};
 use lioness::Lioness;
 use nym_crypto::asymmetric::x25519;
@@ -15,13 +16,17 @@ use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::PacketSize;
 use nym_sphinx_routing::generate_hop_delays;
-use nym_sphinx_types::header::keys::PayloadKey;
+use nym_sphinx_types::constants::{
+    EXPANDED_SHARED_SECRET_HKDF_INFO, EXPANDED_SHARED_SECRET_HKDF_SALT,
+    EXPANDED_SHARED_SECRET_LENGTH,
+};
 use nym_sphinx_types::{
-    Destination, DestinationAddressBytes, Node, NymPacket, SphinxHeader,
-    DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH,
+    Destination, DestinationAddressBytes, Node, NymPacket, PayloadKey, DESTINATION_ADDRESS_LENGTH,
+    IDENTIFIER_LENGTH,
 };
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
+use sha2::Sha256;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
@@ -96,6 +101,19 @@ pub(crate) struct ThroughputTestingClient {
     payload_key: PayloadKey,
 }
 
+fn rederive_lioness_payload_key(shared_secret: &[u8; 32]) -> PayloadKey {
+    let hkdf = Hkdf::<Sha256>::new(Some(EXPANDED_SHARED_SECRET_HKDF_SALT), shared_secret);
+
+    // expanded shared secret
+    let mut output = [0u8; EXPANDED_SHARED_SECRET_LENGTH];
+    // SAFETY: the length of the provided okm is within the allowed range
+    #[allow(clippy::unwrap_used)]
+    hkdf.expand(EXPANDED_SHARED_SECRET_HKDF_INFO, &mut output)
+        .unwrap();
+
+    *array_ref!(&output, 32, 192)
+}
+
 impl ThroughputTestingClient {
     pub(crate) async fn try_create(
         initial_sending_delay: Duration,
@@ -141,21 +159,22 @@ impl ThroughputTestingClient {
         let payload = PacketSize::RegularPacket.payload_size();
 
         let forward_packet =
-            NymPacket::sphinx_build(payload, b"foomp", &route, &destination, &delays)?;
+            NymPacket::sphinx_build(true, payload, b"foomp", &route, &destination, &delays)?;
 
         // SAFETY: we constructed a sphinx packet...
         #[allow(clippy::unwrap_used)]
-        let sphinx_packet = forward_packet.as_sphinx_packet().unwrap();
+        let sphinx_packet = forward_packet.to_sphinx_packet().unwrap();
         let header = &sphinx_packet.header;
 
-        // derive the routing keys of our node so we could tag the payload to figure out latency
+        // derive the expanded shared secret for our node so we could tag the payload to figure out latency
         // by tagging the packet
-        let routing_keys = SphinxHeader::compute_routing_keys(
-            &header.shared_secret,
-            (&node_keys.private_key()).as_ref(),
-        );
-        let payload_key = routing_keys.payload_key;
-        let unwrapped_payload = sphinx_packet.payload.unwrap(&payload_key)?;
+        let shared_secret = node_keys
+            .private_key()
+            .as_ref()
+            .diffie_hellman(&header.shared_secret);
+        let payload_key = rederive_lioness_payload_key(shared_secret.as_bytes());
+
+        let unwrapped_payload = sphinx_packet.payload.unwrap(payload_key)?;
         let unwrapped_forward_payload_bytes = unwrapped_payload.into_bytes();
 
         let start = Instant::now();
@@ -214,11 +233,7 @@ impl ThroughputTestingClient {
     }
 
     fn lioness_encrypt(&self, block: &mut [u8]) -> anyhow::Result<()> {
-        let lioness_cipher = Lioness::<VarBlake2b, ChaCha>::new_raw(array_ref!(
-            self.payload_key,
-            0,
-            lioness::RAW_KEY_SIZE
-        ));
+        let lioness_cipher = Lioness::<VarBlake2b, ChaCha>::new_raw(&self.payload_key);
         lioness_cipher.encrypt(block)?;
         Ok(())
     }
@@ -271,7 +286,7 @@ impl ThroughputTestingClient {
         let inner = received.into_inner();
         // safety: we sent a sphinx packet...
         #[allow(clippy::unwrap_used)]
-        let sphinx = inner.as_sphinx_packet().unwrap();
+        let sphinx = inner.to_sphinx_packet().unwrap();
         let tag = PacketTag::from_bytes(sphinx.payload.as_bytes());
 
         self.stats.new_received(tag.elapsed_nanos());

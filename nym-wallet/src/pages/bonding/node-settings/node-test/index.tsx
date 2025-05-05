@@ -52,6 +52,7 @@ export const NodeTestPage = () => {
       } catch (e) {
         setError('Node test failed, please try again');
         testStateRef.current = 'Stopped';
+        // eslint-disable-next-line no-console
         console.log(e);
       } finally {
         setIsLoading(false);
@@ -67,6 +68,7 @@ export const NodeTestPage = () => {
       await client.tester.init(validator, nodeTesterId);
       setNodeTestClient(client);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.log(e);
       setError('Failed to load node tester client, please try again');
     }

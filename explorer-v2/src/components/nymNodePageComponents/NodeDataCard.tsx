@@ -1,18 +1,20 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
-
+import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { fetchEpochRewards, fetchObservatoryNodes } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
-interface INodeMetricsCardProps {
-  id: number; // Node ID
-}
+type Props = {
+  paramId: string;
+};
 
-export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
+export const NodeDataCard = ({ paramId }: Props) => {
+  let nodeInfo: IObservatoryNode | undefined;
+
   const {
     data: epochRewardsData,
     isLoading: isEpochLoading,
@@ -20,19 +22,27 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
   // Fetch node information
   const {
-    data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    data: nymNodes,
+    isLoading,
+    isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id],
-    queryFn: () => fetchNodeInfo(id),
+    queryKey: ["nymNodes"],
+    queryFn: fetchObservatoryNodes,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
-  if (isEpochLoading || isNodeLoading) {
+  if (isEpochLoading || isLoading) {
     return (
       <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Skeleton variant="text" height={50} />
@@ -43,7 +53,7 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
     );
   }
 
-  if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
+  if (isEpochError || isError || !nymNodes || !epochRewardsData) {
     return (
       <ExplorerCard label="Nym node data" sx={{ height: "100%" }}>
         <Typography variant="h3" sx={{ color: "pine.950" }}>
@@ -52,6 +62,16 @@ export const NodeDataCard = ({ id }: INodeMetricsCardProps) => {
       </ExplorerCard>
     );
   }
+
+  // get node info based on wether it's dentity_key or node_id
+
+  if (paramId.length > 10) {
+    nodeInfo = nymNodes.find((node) => node.identity_key === paramId);
+  } else {
+    nodeInfo = nymNodes.find((node) => node.node_id === Number(paramId));
+  }
+
+  if (!nodeInfo) return null;
 
   const softwareUpdateTime = format(
     new Date(nodeInfo.description.build_information.build_timestamp),

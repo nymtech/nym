@@ -8,7 +8,7 @@ use crate::support::helpers::{
 use cosmwasm_std::{coins, Addr, Coin, Decimal, Timestamp};
 use cw_multi_test::{App, AppBuilder, Executor};
 use nym_contracts_common::signing::{ContractMessageContent, MessageSignature, Nonce};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::{EpochAssignmentResponse, Role, RolesMetadataResponse};
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};
 use nym_mixnet_contract_common::{
@@ -376,9 +376,9 @@ impl TestSetup {
             )
             .unwrap();
 
-        let keypair = identity::KeyPair::new(&mut self.rng);
+        let keypair = ed25519::KeyPair::new(&mut self.rng);
         let identity_key = keypair.public_key().to_base58_string();
-        let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+        let legit_sphinx_keys = nym_crypto::asymmetric::x25519::KeyPair::new(&mut self.rng);
 
         let mixnode = MixNode {
             identity_key,

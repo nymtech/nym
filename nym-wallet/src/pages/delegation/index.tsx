@@ -2,7 +2,7 @@ import React, { FC, useContext, useEffect, useState } from 'react';
 import { Alert, AlertTitle, Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { Theme, useTheme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { AppContext, urls } from 'src/context/main';
 import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { TPoolOption } from 'src/components';
@@ -401,7 +401,16 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   return (
     <>
-      <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
+      {/* Main container - make sure it constrains width properly */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mt: 4,
+          maxWidth: '100%',
+          overflowX: 'hidden',
+        }}
+      >
         <Stack spacing={3}>
           <Box display="flex" justifyContent="space-between">
             {' '}
@@ -446,7 +455,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               )}
             </Box>
           )}
-          {delegationsComponent(delegations)}
+
+          {/* Add a container to ensure delegations are constrained */}
+          <Box sx={{ width: '100%', overflowX: 'hidden' }}>{delegationsComponent(delegations)}</Box>
         </Stack>
       </Paper>
 

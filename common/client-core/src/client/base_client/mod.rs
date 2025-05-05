@@ -39,7 +39,7 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::ForgetMe;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
@@ -367,7 +367,7 @@ where
     // buffer controlling all messages fetched from provider
     // required so that other components would be able to use them (say the websocket)
     fn start_received_messages_buffer_controller(
-        local_encryption_keypair: Arc<encryption::KeyPair>,
+        local_encryption_keypair: Arc<x25519::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
@@ -552,18 +552,12 @@ where
         user_agent: Option<UserAgent>,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
-        custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
-            config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
+        custom_provider.unwrap_or_else(|| {
+            Box::new(NymApiTopologyProvider::new(
                 config_topology,
                 nym_api_urls,
                 user_agent,
-            )),
-            config::TopologyStructure::GeoAware(group_by) => {
-                warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");
-
-                #[allow(deprecated)]
-                Box::new(crate::client::topology_control::GeoAwareTopologyProvider::new(nym_api_urls, group_by))
-            }
+            ))
         })
     }
 
@@ -942,7 +936,7 @@ where
 
 pub struct BaseClient {
     pub address: Recipient,
-    pub identity_keys: Arc<identity::KeyPair>,
+    pub identity_keys: Arc<ed25519::KeyPair>,
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,

@@ -10,7 +10,8 @@ const config: DocsThemeConfig = {
     const config = useConfig();
     const { route } = useRouter();
     const url = process.env.NEXT_PUBLIC_SITE_URL;
-    const image = url + "/nym_logo.jpg";
+    const image = url + "/images/Nym_meta_Image.png";
+    const favicon = url + "/favicon.svg";
 
     // Define descriptions for different "books"
     const bookDescriptions: Record<string, string> = {
@@ -40,7 +41,7 @@ const config: DocsThemeConfig = {
         <title>{title}</title>
         <meta name="author" content="Nym" />
         <link rel="canonical" href={url + route} />
-
+        <link rel="icon" href={favicon} type="image/svg+xml" />
         <meta property="og:title" content={title} />
         <meta property="og:site_name" content="Nym docs"></meta>
         <meta name="description" content={description} />

@@ -26,30 +26,30 @@ async fn create_window(
 ) -> Result<(), BackendError> {
     // create the new window first, to stop the app process from exiting
     log::info!("Creating {} window...", new_window_label);
-    match tauri::WindowBuilder::new(
+    match tauri::WebviewWindowBuilder::new(
         &app_handle,
         new_window_label,
-        tauri::WindowUrl::App(new_window_url.into()),
+        tauri::WebviewUrl::App(new_window_url.into()),
     )
     .title("Nym Wallet")
     .build()
     {
         Ok(window) => {
             if let Err(err) = window.set_focus() {
-                log::error!("Unable to focus log window: {err}");
+                log::error!("Unable to focus window: {err}");
             }
             if let Err(err) = window.maximize() {
                 log::error!("Could not maximize window: {err}");
             }
         }
         Err(err) => {
-            log::error!("Unable to create log window: {err}");
+            log::error!("Unable to create window: {err}");
             return Err(BackendError::NewWindowError);
         }
     }
 
     // close the old window
-    match app_handle.windows().get(try_close_window_label) {
+    match app_handle.get_webview_window(try_close_window_label) {
         Some(try_close_window) => {
             if let Err(err) = try_close_window.close() {
                 log::error!("Could not close window: {err}")

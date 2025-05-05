@@ -7,7 +7,7 @@ use crate::support::config::{
     default_config_directory, default_data_directory, upgrade_helpers, Config,
 };
 use anyhow::{Context, Result};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use rand::rngs::OsRng;
 use std::{fs, io};
 
@@ -20,7 +20,7 @@ fn init_identity_keys(config: &config::NymApiPaths) -> Result<()> {
     );
 
     let mut rng = OsRng;
-    let keypair = identity::KeyPair::new(&mut rng);
+    let keypair = ed25519::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &keypaths)
         .context("failed to store identity keys of the nym api")?;
     Ok(())

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
 import { LockOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { isDelegation, useDelegationContext } from 'src/context/delegations';
@@ -100,7 +100,7 @@ export const DelegationItem = ({
             </Tooltip>
           )}
         </TableCell>
-        <TableCell align="right" sx={{ color: 'inherit' }}>
+        <TableCell align="center" sx={{ color: 'inherit' }}>
           {!item.pending_events.length && !nodeIsUnbonded && (
             <DelegationsActionsMenu
               onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
@@ -117,8 +117,15 @@ export const DelegationItem = ({
             <Tooltip
               title="Your changes will take effect when the new epoch starts. There is a new epoch every hour."
               arrow
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    textAlign: 'left',
+                  },
+                },
+              }}
             >
-              <Chip label="Pending Events" />
+              <Chip label="Pending events" />
             </Tooltip>
           )}
         </TableCell>

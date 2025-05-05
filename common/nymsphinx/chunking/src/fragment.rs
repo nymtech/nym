@@ -272,6 +272,10 @@ impl Fragment {
         self.payload
     }
 
+    pub fn payload(&self) -> &[u8] {
+        &self.payload
+    }
+
     /// Tries to recover `Fragment` from slice of bytes extracted from received sphinx packet.
     /// It can fail if payload would not fully fit in a single `Fragment` or some of the metadata
     /// is malformed or self-contradictory, for example if current_fragment > total_fragments.

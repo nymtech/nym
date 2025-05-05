@@ -13,6 +13,20 @@ declare module "@mui/material/styles" {
     medium: Palette["primary"];
     light: Palette["primary"];
     gray: Palette["primary"];
+    pine: {
+      25: string;
+      200: string;
+      300: string;
+      600: string;
+      800: string;
+      900: string;
+      950: string;
+    };
+    base: {
+      white: string;
+      black: string;
+      transparent: string;
+    };
   }
   interface PaletteOptions {
     accent?: PaletteOptions["primary"];
@@ -20,6 +34,20 @@ declare module "@mui/material/styles" {
     medium?: PaletteOptions["primary"];
     light?: PaletteOptions["primary"];
     gray?: PaletteOptions["primary"];
+    pine?: {
+      25?: string;
+      200?: string;
+      300?: string;
+      600?: string;
+      800?: string;
+      900?: string;
+      950?: string;
+    };
+    base?: {
+      white?: string;
+      black?: string;
+      transparent?: string;
+    };
   }
 
   // Apply CustomTypography to TypographyVariants

@@ -11,7 +11,7 @@ use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
 use nym_api_requests::models::{NodeAnnotation, NymNodeDescription};
 use nym_contracts_common::NaiveFloat;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
 use nym_node_tester_utils::node::{NodeType, TestableNode};
 use nym_node_tester_utils::NodeTester;
@@ -89,8 +89,8 @@ pub(crate) struct PacketPreparer {
     // in the future we should really create unique set of keys every time otherwise
     // gateways might recognise our "test" keys and take special care to always forward those packets
     // even if otherwise they are malicious.
-    self_public_identity: identity::PublicKey,
-    self_public_encryption: encryption::PublicKey,
+    self_public_identity: ed25519::PublicKey,
+    self_public_encryption: x25519::PublicKey,
 }
 
 impl PacketPreparer {
@@ -100,8 +100,8 @@ impl PacketPreparer {
         node_status_cache: NodeStatusCache,
         per_node_test_packets: usize,
         ack_key: Arc<AckKey>,
-        self_public_identity: identity::PublicKey,
-        self_public_encryption: encryption::PublicKey,
+        self_public_identity: ed25519::PublicKey,
+        self_public_encryption: x25519::PublicKey,
     ) -> Self {
         PacketPreparer {
             contract_cache,
@@ -129,6 +129,7 @@ impl PacketPreparer {
             false,
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
+            true,
             self.ack_key.clone(),
         )
     }
@@ -222,9 +223,9 @@ impl PacketPreparer {
                 node_id: bond.mix_id,
                 mix_host: SocketAddr::new(*ips.first()?, bond.mix_node.mix_port),
                 entry: None,
-                identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)
+                identity_key: ed25519::PublicKey::from_base58_string(&bond.mix_node.identity_key)
                     .ok()?,
-                sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)
+                sphinx_key: x25519::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)
                     .ok()?,
                 supported_roles: SupportedRoles {
                     mixnode: true,
@@ -254,10 +255,9 @@ impl PacketPreparer {
                     hostname,
                     clients_wss_port: None,
                 }),
-                identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)
+                identity_key: ed25519::PublicKey::from_base58_string(&bond.gateway.identity_key)
                     .ok()?,
-                sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)
-                    .ok()?,
+                sphinx_key: x25519::PublicKey::from_base58_string(&bond.gateway.sphinx_key).ok()?,
                 supported_roles: SupportedRoles {
                     mixnode: false,
                     mixnet_entry: true,

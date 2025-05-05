@@ -21,7 +21,7 @@ use crate::support::nyxd;
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
@@ -90,8 +90,8 @@ impl<'a> NetworkMonitorBuilder<'a> {
         // in the future
         let mut rng = rand::rngs::OsRng;
 
-        let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
-        let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
+        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rng));
         let ack_key = Arc::new(AckKey::new(&mut rng));
 
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
@@ -183,8 +183,8 @@ fn new_packet_preparer(
     node_status_cache: NodeStatusCache,
     per_node_test_packets: usize,
     ack_key: Arc<AckKey>,
-    self_public_identity: identity::PublicKey,
-    self_public_encryption: encryption::PublicKey,
+    self_public_identity: ed25519::PublicKey,
+    self_public_encryption: x25519::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
         contract_cache,
@@ -200,7 +200,7 @@ fn new_packet_preparer(
 fn new_packet_sender(
     config: &Config,
     gateways_status_updater: GatewayClientUpdateSender,
-    local_identity: Arc<identity::KeyPair>,
+    local_identity: Arc<ed25519::KeyPair>,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
 ) -> PacketSender {
     PacketSender::new(
@@ -213,7 +213,7 @@ fn new_packet_sender(
 
 fn new_received_processor<R: MessageReceiver + Send + 'static>(
     packets_receiver: ReceivedProcessorReceiver,
-    client_encryption_keypair: Arc<encryption::KeyPair>,
+    client_encryption_keypair: Arc<x25519::KeyPair>,
     ack_key: Arc<AckKey>,
 ) -> ReceivedProcessor<R> {
     ReceivedProcessor::new(packets_receiver, client_encryption_keypair, ack_key)

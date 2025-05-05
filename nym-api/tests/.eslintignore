@@ -1,7 +1,0 @@
-.vscode
-node_modules
-build
-coverage
-dist
-.cache
-jest.config.js

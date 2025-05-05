@@ -9,6 +9,7 @@ import {
   Typography,
   TableCellProps,
   Card,
+  Skeleton,
 } from '@mui/material';
 import { Period } from '@nymproject/types';
 import { AppContext } from 'src/context';
@@ -28,7 +29,7 @@ const vestingPeriod = (current?: Period, original?: number) => {
   return 'N/A';
 };
 
-export const VestingSchedule = () => {
+export const VestingSchedule = ({ isLoading }: { isLoading?: boolean }) => {
   const { userBalance, clientDetails } = useContext(AppContext);
   const [vestedPercentage, setVestedPercentage] = useState(0);
 
@@ -73,8 +74,14 @@ export const VestingSchedule = () => {
                   textTransform: 'uppercase',
                 }}
               >
-                {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-                {clientDetails?.display_mix_denom.toUpperCase()}
+                {isLoading ? (
+                  <Skeleton width={100} />
+                ) : (
+                  <>
+                    {userBalance.tokenAllocation?.vesting || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
+                    {clientDetails?.display_mix_denom.toUpperCase()}
+                  </>
+                )}
               </TableCell>
               <TableCell
                 align="left"
@@ -83,7 +90,11 @@ export const VestingSchedule = () => {
                   borderBottom: 'none',
                 }}
               >
-                {vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)}
+                {isLoading ? (
+                  <Skeleton width={40} />
+                ) : (
+                  vestingPeriod(userBalance.currentVestingPeriod, userBalance.originalVesting?.number_of_periods)
+                )}
               </TableCell>
               <TableCell
                 sx={{
@@ -93,8 +104,14 @@ export const VestingSchedule = () => {
                 }}
                 align="right"
               >
-                {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
-                {clientDetails?.display_mix_denom.toUpperCase()}
+                {isLoading ? (
+                  <Skeleton width={100} />
+                ) : (
+                  <>
+                    {userBalance.tokenAllocation?.vested || 'n/a'} / {userBalance.originalVesting?.amount.amount}{' '}
+                    {clientDetails?.display_mix_denom.toUpperCase()}
+                  </>
+                )}
               </TableCell>
             </TableRow>
           </TableBody>
@@ -103,7 +120,7 @@ export const VestingSchedule = () => {
       <Typography variant="body2" sx={{ color: 'nym.text.muted', mb: 3 }}>
         Percentage
       </Typography>
-      <VestingTimeline percentageComplete={vestedPercentage} />
+      <VestingTimeline percentageComplete={vestedPercentage} isLoading={isLoading} />
     </Card>
   );
 };

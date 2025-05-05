@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::output_format::OutputFormat;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
@@ -34,14 +34,14 @@ pub struct SignArgs {
 
 pub async fn sign(args: SignArgs) -> Result<(), NyxdError> {
     eprintln!(">>> loading: {}", args.private_key.display());
-    let private_identity_key: identity::PrivateKey =
+    let private_identity_key: ed25519::PrivateKey =
         nym_pemstore::load_key(args.private_key).expect("failed to load key");
 
     print_signed_msg(&private_identity_key, &args.base58_msg, args.output);
     Ok(())
 }
 
-fn print_signed_msg(private_key: &identity::PrivateKey, raw_msg: &str, output: OutputFormat) {
+fn print_signed_msg(private_key: &ed25519::PrivateKey, raw_msg: &str, output: OutputFormat) {
     let trimmed = raw_msg.trim();
     eprintln!(">>> attempting to sign: {trimmed}");
 

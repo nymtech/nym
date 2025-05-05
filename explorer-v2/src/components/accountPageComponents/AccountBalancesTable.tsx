@@ -12,6 +12,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import * as React from "react";
 import { TABLET_WIDTH } from "../../app/constants";
@@ -38,6 +39,7 @@ const progressBarColours = [
 
 const Row = (props: IAccontStatsRowProps) => {
   const tablet = useMediaQuery(TABLET_WIDTH);
+  const theme = useTheme();
 
   const {
     type,
@@ -60,11 +62,17 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "25%",
             }}
           >
-            <Typography variant="body4" sx={{ color: "pine.950" }}>
+            <Typography
+              variant="body4"
+              sx={{
+                color:
+                  theme.palette.mode === "dark" ? "base.white" : "pine.950",
+              }}
+            >
               {type}
             </Typography>
           </TableCell>
@@ -73,12 +81,18 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "25%",
             }}
           >
             <Box>
-              <Typography variant="body4" sx={{ color: "pine.950" }}>
+              <Typography
+                variant="body4"
+                sx={{
+                  color:
+                    theme.palette.mode === "dark" ? "base.white" : "pine.950",
+                }}
+              >
                 {allocation}%
               </Typography>
               <StaticProgressBar
@@ -92,11 +106,17 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "20%",
             }}
           >
-            <Typography variant="body4" sx={{ color: "pine.950" }}>
+            <Typography
+              variant="body4"
+              sx={{
+                color:
+                  theme.palette.mode === "dark" ? "base.white" : "pine.950",
+              }}
+            >
               {amount.toFixed(4)} NYM
             </Typography>
           </TableCell>
@@ -105,13 +125,17 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "20%",
             }}
           >
             <Typography
               variant="subtitle2"
-              sx={{ color: "pine.950", fontWeight: 700 }}
+              sx={{
+                color:
+                  theme.palette.mode === "dark" ? "base.white" : "pine.950",
+                fontWeight: 700,
+              }}
             >
               ${value}
             </Typography>
@@ -120,7 +144,7 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "10%",
             }}
           >
@@ -142,13 +166,20 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "45%",
             }}
           >
             <Box display={"flex"} gap={1} alignItems={"center"}>
               <CircleIcon sx={{ color: progressBarColor, fontSize: 12 }} />
-              {type}
+              <Typography
+                sx={{
+                  color:
+                    theme.palette.mode === "dark" ? "base.white" : "inherit",
+                }}
+              >
+                {type}
+              </Typography>
             </Box>
           </TableCell>
 
@@ -157,19 +188,31 @@ const Row = (props: IAccontStatsRowProps) => {
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "45%",
             }}
           >
-            <Typography>{amount.toFixed(4)} NYM</Typography>
-            <Typography>$ {value}</Typography>
+            <Typography
+              sx={{
+                color: theme.palette.mode === "dark" ? "base.white" : "inherit",
+              }}
+            >
+              {amount.toFixed(4)} NYM
+            </Typography>
+            <Typography
+              sx={{
+                color: theme.palette.mode === "dark" ? "base.white" : "inherit",
+              }}
+            >
+              $ {value}
+            </Typography>
           </TableCell>
 
           <TableCell
             sx={{
               borderBottom: isLastRow
                 ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
+                : `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(224, 224, 224, 1)"}`,
               width: "10%",
             }}
           >
@@ -199,7 +242,13 @@ const Row = (props: IAccontStatsRowProps) => {
                 borderBottom: "none", // Explicitly remove border
               }}
             >
-              <Typography variant="body4" sx={{ color: "pine.950" }}>
+              <Typography
+                variant="body4"
+                sx={{
+                  color:
+                    theme.palette.mode === "dark" ? "base.white" : "pine.950",
+                }}
+              >
                 <span style={{ marginRight: 8 }}>•</span>
                 {historyRow.type}
               </Typography>
@@ -218,7 +267,13 @@ const Row = (props: IAccontStatsRowProps) => {
                 borderBottom: "none", // Explicitly remove border
               }}
             >
-              <Typography variant="body4" sx={{ color: "pine.950" }}>
+              <Typography
+                variant="body4"
+                sx={{
+                  color:
+                    theme.palette.mode === "dark" ? "base.white" : "pine.950",
+                }}
+              >
                 {historyRow.amount.toFixed(4)} NYM
               </Typography>
             </TableCell>
@@ -241,6 +296,8 @@ export interface IAccountBalancesTableProps {
 export const AccountBalancesTable = (props: IAccountBalancesTableProps) => {
   const { rows } = props;
   const tablet = useMediaQuery(TABLET_WIDTH);
+  const theme = useTheme();
+
   const progressBarPercentages = () => {
     return rows.map((row) => row.allocation);
   };
@@ -267,22 +324,54 @@ export const AccountBalancesTable = (props: IAccountBalancesTableProps) => {
             {tablet ? (
               <TableRow>
                 <TableCell>
-                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "pine.600",
+                    }}
+                  >
                     Type
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "pine.600",
+                    }}
+                  >
                     Allocation
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "pine.600",
+                    }}
+                  >
                     Amount
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "pine.600",
+                    }}
+                  >
                     Value
                   </Typography>
                 </TableCell>
@@ -291,12 +380,28 @@ export const AccountBalancesTable = (props: IAccountBalancesTableProps) => {
             ) : (
               <TableRow>
                 <TableCell>
-                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "pine.600",
+                    }}
+                  >
                     Type
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "base.white"
+                          : "pine.600",
+                    }}
+                  >
                     Amount / Value
                   </Typography>
                 </TableCell>

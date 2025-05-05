@@ -10,7 +10,8 @@ use tracing::instrument;
 
 use crate::{
     db::{queries, DbPool},
-    http::models::{DailyStats, ExtendedNymNode, Gateway, Mixnode, SummaryHistory},
+    http::models::{DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory},
+    monitor::NodeGeoCache,
 };
 
 use super::models::SessionStats;
@@ -21,6 +22,7 @@ pub(crate) struct AppState {
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
+    node_geocache: NodeGeoCache,
 }
 
 impl AppState {
@@ -29,12 +31,14 @@ impl AppState {
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
+        node_geocache: NodeGeoCache,
     ) -> Self {
         Self {
             db_pool,
             cache: HttpCache::new(cache_ttl).await,
             agent_key_list,
             agent_max_count,
+            node_geocache,
         }
     }
 
@@ -52,6 +56,10 @@ impl AppState {
 
     pub(crate) fn agent_max_count(&self) -> i64 {
         self.agent_max_count
+    }
+
+    pub(crate) fn node_geocache(&self) -> NodeGeoCache {
+        self.node_geocache.clone()
     }
 }
 
@@ -210,7 +218,11 @@ impl HttpCache {
             .await
     }
 
-    pub async fn get_nym_nodes_list(&self, db: &DbPool) -> anyhow::Result<Vec<ExtendedNymNode>> {
+    pub async fn get_nym_nodes_list(
+        &self,
+        db: &DbPool,
+        node_geocache: NodeGeoCache,
+    ) -> anyhow::Result<Vec<ExtendedNymNode>> {
         match self.nym_nodes.get(NYM_NODES_LIST_KEY).await {
             Some(guard) => {
                 tracing::trace!("Fetching from cache...");
@@ -220,11 +232,13 @@ impl HttpCache {
             None => {
                 tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
 
-                let nym_nodes = aggregate_node_info_from_db(db).await.inspect(|nym_nodes| {
-                    if nym_nodes.is_empty() {
-                        tracing::warn!("Database contains 0 nym nodes");
-                    }
-                })?;
+                let nym_nodes = aggregate_node_info_from_db(db, node_geocache)
+                    .await
+                    .inspect(|nym_nodes| {
+                        if nym_nodes.is_empty() {
+                            tracing::warn!("Database contains 0 nym nodes");
+                        }
+                    })?;
                 self.upsert_nym_node_list(nym_nodes.clone()).await;
 
                 Ok(nym_nodes)
@@ -346,7 +360,10 @@ impl HttpCache {
 }
 
 #[instrument(level = "info", skip_all)]
-async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<ExtendedNymNode>> {
+async fn aggregate_node_info_from_db(
+    pool: &DbPool,
+    node_geocache: NodeGeoCache,
+) -> anyhow::Result<Vec<ExtendedNymNode>> {
     let node_bond_info = queries::get_described_node_bond_info(pool).await?;
     tracing::debug!("Described nodes with bond info: {}", node_bond_info.len());
 
@@ -359,8 +376,10 @@ async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<Extend
     })?;
     tracing::debug!("Skimmed nodes: {}", skimmed_nodes.len());
 
-    let described_nodes = queries::get_node_descriptions(pool).await?;
+    let described_nodes = queries::get_node_self_description(pool).await?;
     tracing::debug!("Described nodes: {}", described_nodes.len());
+
+    let node_descriptions = queries::get_bonded_node_description(pool).await?;
 
     let mut parsed_nym_nodes = Vec::new();
     for (node_id, described_node) in described_nodes {
@@ -404,6 +423,21 @@ async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<Extend
             .map(|details| details.bond_information.owner.to_string())
             .unwrap_or_default();
 
+        let node_description = node_descriptions.get(&node_id).cloned().unwrap_or_default();
+        let geoip = {
+            node_geocache.get(&node_id).await.map(|data| NodeGeoData {
+                city: data.city,
+                country: data.two_letter_iso_country_code,
+                ip_address: data.ip_address,
+                latitude: data.location.latitude.to_string(),
+                longitude: data.location.longitude.to_string(),
+                org: data.org,
+                postal: data.postal,
+                region: data.region,
+                timezone: data.timezone,
+            })
+        };
+
         parsed_nym_nodes.push(ExtendedNymNode {
             node_id,
             identity_key,
@@ -415,8 +449,10 @@ async fn aggregate_node_info_from_db(pool: &DbPool) -> anyhow::Result<Vec<Extend
             bonded,
             node_type,
             accepted_tnc,
-            description: serde_json::to_value(description).unwrap_or_default(),
+            self_description: serde_json::to_value(description).unwrap_or_default(),
             rewarding_details: serde_json::to_value(rewarding_details).unwrap_or_default(),
+            description: node_description,
+            geoip,
         });
     }
 

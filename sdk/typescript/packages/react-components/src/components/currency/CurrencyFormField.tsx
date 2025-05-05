@@ -1,9 +1,8 @@
 import * as React from 'react';
 import { ChangeEvent } from 'react';
-import { InputAdornment, TextField } from '@mui/material';
+import { TextField } from '@mui/material';
 import { SxProps } from '@mui/system';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
-import { CoinMark } from '../coins/CoinMark';
 
 const MAX_VALUE = 1_000_000_000_000_000;
 const MIN_VALUE = 0.000001;
@@ -34,10 +33,8 @@ export const CurrencyFormField: FCWithChildren<{
   onChanged,
   onValidate,
   sx,
-  showCoinMark = true,
   denom = 'nym',
 }) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>(validationErrorProp);
 
@@ -130,12 +127,6 @@ export const CurrencyFormField: FCWithChildren<{
       InputProps={{
         readOnly,
         required,
-        endAdornment: showCoinMark && (
-          <InputAdornment position="end">
-            {denom === 'nym' && <CoinMark height="20px" />}
-            {denom !== 'nym' && <span>NYMT</span>}
-          </InputAdornment>
-        ),
         ...{
           min: MIN_VALUE,
           max: MAX_VALUE,

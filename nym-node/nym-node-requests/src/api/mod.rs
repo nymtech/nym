@@ -3,7 +3,7 @@
 
 use crate::api::v1::node::models::{LegacyHostInformation, LegacyHostInformationV2};
 use crate::error::Error;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::ed25519;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -35,7 +35,7 @@ pub struct SignedData<T> {
 }
 
 impl<T> SignedData<T> {
-    pub fn new(data: T, key: &identity::PrivateKey) -> Result<Self, Error>
+    pub fn new(data: T, key: &ed25519::PrivateKey) -> Result<Self, Error>
     where
         T: Serialize,
     {
@@ -44,7 +44,7 @@ impl<T> SignedData<T> {
         Ok(SignedData { data, signature })
     }
 
-    pub fn verify(&self, key: &identity::PublicKey) -> bool
+    pub fn verify(&self, key: &ed25519::PublicKey) -> bool
     where
         T: Serialize,
     {
@@ -52,7 +52,7 @@ impl<T> SignedData<T> {
             return false;
         };
 
-        let Ok(signature) = identity::Signature::from_base58_string(&self.signature) else {
+        let Ok(signature) = ed25519::Signature::from_base58_string(&self.signature) else {
             return false;
         };
 

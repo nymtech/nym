@@ -112,10 +112,10 @@ impl PeerController {
                 request_tx.clone(),
                 &task_client,
             );
+            let public_key = public_key.clone();
             tokio::spawn(async move {
-                if let Err(e) = handle.run().await {
-                    log::error!("Peer handle shut down ungracefully - {e}");
-                }
+                handle.run().await;
+                log::debug!("Peer handle shut down for {public_key}");
             });
         }
         let bw_storage_managers = bw_storage_managers
@@ -223,10 +223,10 @@ impl PeerController {
         if let Ok(host_information) = self.wg_api.inner.read_interface_data() {
             *self.host_information.write().await = host_information;
         }
+        let public_key = peer.public_key.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle.run().await {
-                log::error!("Peer handle shut down ungracefully - {e}");
-            }
+            handle.run().await;
+            log::debug!("Peer handle shut down for {public_key}");
         });
         Ok(())
     }

@@ -79,6 +79,7 @@ members = [
     "common/nymsphinx/routing",
     "common/nymsphinx/types",
     "common/nyxd-scraper",
+    "common/nyxd-scraper-psql",
     "common/pemstore",
     "common/serde-helpers",
     "common/service-provider-requests-common",

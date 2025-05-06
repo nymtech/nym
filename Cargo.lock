@@ -7061,12 +7061,42 @@ name = "nyxd-scraper"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
+ "chrono",
  "const_format",
  "cosmrs 0.17.0-pre",
  "eyre",
  "futures",
  "humantime 2.1.0",
  "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "sqlx",
+ "tendermint 0.37.0",
+ "tendermint-rpc",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "nyxd-scraper-psql"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "const_format",
+ "cosmrs 0.17.0-pre",
+ "eyre",
+ "futures",
+ "humantime 2.1.0",
+ "serde",
+ "serde_json",
  "sha2 0.10.8",
  "sqlx",
  "tendermint 0.37.0",

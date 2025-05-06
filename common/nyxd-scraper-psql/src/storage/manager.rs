@@ -549,12 +549,9 @@ where
     trace!("prune_transactions");
     let start = Instant::now();
 
-    sqlx::query!(
-        "DELETE FROM transaction WHERE height < $1",
-        oldest_to_keep
-    )
-    .execute(executor)
-    .await?;
+    sqlx::query!("DELETE FROM transaction WHERE height < $1", oldest_to_keep)
+        .execute(executor)
+        .await?;
     log_db_operation_time("prune_transactions", start);
 
     Ok(())

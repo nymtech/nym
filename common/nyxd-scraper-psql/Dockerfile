@@ -1,0 +1,7 @@
+FROM postgres:latest
+
+ENV POSTGRES_USER=nym
+ENV POSTGRES_PASSWORD=password123
+ENV POSTGRES_DB=nyxd_scraper
+
+EXPOSE 5432 

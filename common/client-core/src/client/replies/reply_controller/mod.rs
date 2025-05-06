@@ -11,7 +11,7 @@ use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::anonymous_replies::{ReplySurb, ReplySurbWithKeyRotation};
+use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_task::TaskClient;

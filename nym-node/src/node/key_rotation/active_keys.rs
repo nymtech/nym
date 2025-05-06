@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::key_rotation::key::SphinxPrivateKey;
-use arc_swap::access::Access;
 use arc_swap::{ArcSwap, ArcSwapOption, Guard};
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use std::ops::Deref;
 use std::sync::Arc;
 use tracing::error;

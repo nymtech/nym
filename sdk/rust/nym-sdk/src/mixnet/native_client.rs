@@ -11,7 +11,7 @@ use nym_client_core::client::{
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
-use nym_client_core::config::ForgetMe;
+use nym_client_core::config::{ForgetMe, RememberMe};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
@@ -61,6 +61,7 @@ pub struct MixnetClient {
     _buffered: Vec<ReconstructedMessage>,
     pub(crate) client_request_sender: ClientRequestSender,
     pub(crate) forget_me: ForgetMe,
+    pub(crate) remember_me: RememberMe,
 }
 
 impl MixnetClient {
@@ -77,6 +78,7 @@ impl MixnetClient {
         packet_type: Option<PacketType>,
         client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
+        remember_me: RememberMe,
     ) -> Self {
         Self {
             nym_address,
@@ -91,6 +93,7 @@ impl MixnetClient {
             _buffered: Vec::new(),
             client_request_sender,
             forget_me,
+            remember_me,
         }
     }
 
@@ -226,6 +229,13 @@ impl MixnetClient {
                 Err(e) => error!("Failed to send forget me request: {}", e),
             };
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        } else if self.remember_me.stats() {
+            log::debug!("Sending remember me request: {:?}", self.remember_me);
+            match self.send_remember_me().await {
+                Ok(_) => (),
+                Err(e) => error!("Failed to send remember me request: {}", e),
+            };
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
         if let TaskHandle::Internal(task_manager) = &mut self.task_handle {
@@ -241,6 +251,19 @@ impl MixnetClient {
         let client_request = ClientRequest::ForgetMe {
             client: self.forget_me.client(),
             stats: self.forget_me.stats(),
+        };
+        match self.client_request_sender.send(client_request).await {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                error!("Failed to send forget me request: {}", e);
+                Err(Error::MessageSendingFailure)
+            }
+        }
+    }
+
+    pub async fn send_remember_me(&self) -> Result<()> {
+        let client_request = ClientRequest::RememberMe {
+            session_type: self.remember_me.session_type(),
         };
         match self.client_request_sender.send(client_request).await {
             Ok(_) => Ok(()),

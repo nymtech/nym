@@ -39,6 +39,10 @@ impl SphinxPrivateKey {
     pub(crate) fn is_even_rotation(&self) -> bool {
         self.rotation_id & 1 == 0
     }
+
+    pub(crate) fn rotation_id(&self) -> u32 {
+        self.rotation_id
+    }
 }
 
 impl From<&SphinxPrivateKey> for SphinxPublicKey {

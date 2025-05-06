@@ -28,6 +28,11 @@ type AdvancedFiltersProps = {
   maxSaturation?: number;
   activeFilter: "all" | "mixnodes" | "gateways";
   setActiveFilter: (filter: "all" | "mixnodes" | "gateways") => void;
+  nodeCounts: {
+    all: number;
+    mixnodes: number;
+    gateways: number;
+  };
 };
 
 export default function AdvancedFilters({
@@ -42,6 +47,7 @@ export default function AdvancedFilters({
   maxSaturation = 100,
   activeFilter,
   setActiveFilter,
+  nodeCounts,
 }: AdvancedFiltersProps) {
   const theme = useTheme();
   const green = "#14e76f"; // from theme colours
@@ -254,16 +260,19 @@ export default function AdvancedFilters({
             size="medium"
             options={[
               {
-                label: "All nodes",
+                label: `All nodes (${nodeCounts.all})`,
                 isSelected: activeFilter === "all",
+                value: "all",
               },
               {
-                label: "Mixnodes",
+                label: `Mixnodes (${nodeCounts.mixnodes})`,
                 isSelected: activeFilter === "mixnodes",
+                value: "mixnodes",
               },
               {
-                label: "Gateways",
+                label: `Gateways (${nodeCounts.gateways})`,
                 isSelected: activeFilter === "gateways",
+                value: "gateways",
               },
             ]}
             onPage={activeFilter}

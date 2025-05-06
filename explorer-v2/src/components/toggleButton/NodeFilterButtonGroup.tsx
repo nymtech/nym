@@ -4,6 +4,7 @@ import { Button, ButtonGroup } from "@mui/material";
 type Option = {
   label: string;
   isSelected: boolean;
+  value: "all" | "mixnodes" | "gateways";
 };
 
 type Options = [Option, Option, Option];
@@ -19,26 +20,16 @@ const NodeFilterButtonGroup = ({
   onPage: string;
   onFilterChange: (filter: "all" | "mixnodes" | "gateways") => void;
 }) => {
-  const handleClick = (label: string) => {
-    if (onPage === label) return;
-    switch (label) {
-      case "All nodes":
-        onFilterChange("all");
-        break;
-      case "Mixnodes":
-        onFilterChange("mixnodes");
-        break;
-      case "Gateways":
-        onFilterChange("gateways");
-        break;
-    }
+  const handleClick = (value: "all" | "mixnodes" | "gateways") => {
+    if (onPage === value) return;
+    onFilterChange(value);
   };
   return (
     <ButtonGroup size={size}>
       {options.map((option) => (
         <Button
           key={option.label}
-          onClick={() => handleClick(option.label)}
+          onClick={() => handleClick(option.value)}
           sx={{
             color: option.isSelected ? "primary.contrastText" : "text.primary",
             "&:hover": {

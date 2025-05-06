@@ -122,6 +122,13 @@ const NodeTableWithAction = () => {
     }
   }, [maxSaturation, nsApiNodesData.length]);
 
+  // Calculate node counts for each type
+  const nodeCounts = {
+    all: nsApiNodesData.length,
+    mixnodes: nsApiNodesData.filter((node) => node.mixnode).length,
+    gateways: nsApiNodesData.filter((node) => node.gateway).length,
+  };
+
   // Handle loading state
   if (isEpochLoading || isNSApiNodesLoading) {
     return (
@@ -202,6 +209,7 @@ const NodeTableWithAction = () => {
         maxSaturation={maxSaturation}
         activeFilter={activeFilter}
         setActiveFilter={setActiveFilter}
+        nodeCounts={nodeCounts}
       />
       <NodeTable nodes={filteredNodes} />
     </Stack>

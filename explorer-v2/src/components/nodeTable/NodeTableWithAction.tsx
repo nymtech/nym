@@ -7,7 +7,6 @@ import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
-import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
 import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
 
@@ -191,25 +190,6 @@ const NodeTableWithAction = () => {
 
   return (
     <Stack spacing={3}>
-      <NodeFilterButtonGroup
-        size="medium"
-        options={[
-          {
-            label: "All nodes",
-            isSelected: activeFilter === "all",
-          },
-          {
-            label: "Mixnodes",
-            isSelected: activeFilter === "mixnodes",
-          },
-          {
-            label: "Gateways",
-            isSelected: activeFilter === "gateways",
-          },
-        ]}
-        onPage={activeFilter}
-        onFilterChange={setActiveFilter}
-      />
       <AdvancedFilters
         open={advancedOpen}
         setOpen={setAdvancedOpen}
@@ -220,6 +200,8 @@ const NodeTableWithAction = () => {
         profitMargin={profitMargin}
         setProfitMargin={setProfitMargin}
         maxSaturation={maxSaturation}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
       />
       <NodeTable nodes={filteredNodes} />
     </Stack>

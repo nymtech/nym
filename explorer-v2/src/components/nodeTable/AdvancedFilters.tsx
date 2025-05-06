@@ -14,6 +14,7 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import PercentIcon from "@mui/icons-material/Percent";
+import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
 
 type AdvancedFiltersProps = {
   uptime: [number, number];
@@ -24,8 +25,9 @@ type AdvancedFiltersProps = {
   setProfitMargin: (value: [number, number]) => void;
   open?: boolean;
   setOpen?: (open: boolean) => void;
-  onlyPanel?: boolean;
   maxSaturation?: number;
+  activeFilter: "all" | "mixnodes" | "gateways";
+  setActiveFilter: (filter: "all" | "mixnodes" | "gateways") => void;
 };
 
 export default function AdvancedFilters({
@@ -37,8 +39,9 @@ export default function AdvancedFilters({
   setProfitMargin,
   open,
   setOpen,
-  onlyPanel,
   maxSaturation = 100,
+  activeFilter,
+  setActiveFilter,
 }: AdvancedFiltersProps) {
   const theme = useTheme();
   const green = "#14e76f"; // from theme colours
@@ -52,7 +55,7 @@ export default function AdvancedFilters({
   const panel = (
     <Box
       sx={{
-        mt: onlyPanel ? 0 : 3,
+        mt: 3,
         p: 2,
         borderRadius: 3,
         background: theme.palette.background.paper,
@@ -73,13 +76,13 @@ export default function AdvancedFilters({
         Advanced filtering mode is active
       </Typography>
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <Box
             sx={{
               p: 3,
               borderRadius: 3,
               background: theme.palette.background.default,
-              mb: 2,
+              mb: { xs: 2, sm: 0 },
               border: `1px solid ${theme.palette.divider}`,
             }}
           >
@@ -126,13 +129,13 @@ export default function AdvancedFilters({
             />
           </Box>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <Box
             sx={{
               p: 3,
               borderRadius: 3,
               background: theme.palette.background.default,
-              mb: 2,
+              mb: { xs: 2, sm: 0 },
               border: `1px solid ${theme.palette.divider}`,
             }}
           >
@@ -179,13 +182,13 @@ export default function AdvancedFilters({
             />
           </Box>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }} sx={{ mx: { sm: "auto" } }}>
           <Box
             sx={{
               p: 3,
               borderRadius: 3,
               background: theme.palette.background.default,
-              mb: 2,
+              mb: { xs: 2, sm: 0 },
               border: `1px solid ${theme.palette.divider}`,
             }}
           >
@@ -236,53 +239,81 @@ export default function AdvancedFilters({
     </Box>
   );
 
-  if (onlyPanel) return panel;
-
   return (
     <Box sx={{ width: "100%" }}>
-      <Button
-        variant="outlined"
-        color="inherit"
-        startIcon={
-          <FilterAltIcon
-            sx={{
-              color:
-                theme.palette.mode === "light"
-                  ? `${theme.palette.common.black} !important`
-                  : `${theme.palette.common.white} !important`,
-            }}
-          />
-        }
-        onClick={() => setOpen && setOpen(!open)}
+      <Box
         sx={{
-          borderRadius: 3,
-          px: 4,
-          py: 1.5,
-          color:
-            theme.palette.mode === "light"
-              ? `${theme.palette.common.black} !important`
-              : `${theme.palette.common.white} !important`,
-          borderColor:
-            theme.palette.mode === "light"
-              ? theme.palette.grey[400]
-              : theme.palette.common.white,
-          background: "none",
-          fontWeight: 500,
-          fontSize: 20,
-          "&:hover, &:focus": {
-            background:
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: 2,
+        }}
+      >
+        <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+          <NodeFilterButtonGroup
+            size="medium"
+            options={[
+              {
+                label: "All nodes",
+                isSelected: activeFilter === "all",
+              },
+              {
+                label: "Mixnodes",
+                isSelected: activeFilter === "mixnodes",
+              },
+              {
+                label: "Gateways",
+                isSelected: activeFilter === "gateways",
+              },
+            ]}
+            onPage={activeFilter}
+            onFilterChange={setActiveFilter}
+          />
+        </Box>
+        <Button
+          variant="outlined"
+          color="inherit"
+          startIcon={
+            <FilterAltIcon
+              sx={{
+                color:
+                  theme.palette.mode === "light"
+                    ? `${theme.palette.common.black} !important`
+                    : `${theme.palette.common.white} !important`,
+              }}
+            />
+          }
+          onClick={() => setOpen && setOpen(!open)}
+          sx={{
+            borderRadius: 3,
+            px: 4,
+            py: 1.5,
+            color:
               theme.palette.mode === "light"
-                ? "rgba(0,0,0,0.04)"
-                : "rgba(255,255,255,0.05)",
+                ? `${theme.palette.common.black} !important`
+                : `${theme.palette.common.white} !important`,
             borderColor:
               theme.palette.mode === "light"
                 ? theme.palette.grey[400]
                 : theme.palette.common.white,
-          },
-        }}
-      >
-        Advanced Filters
-      </Button>
+            background: "none",
+            fontWeight: 500,
+            fontSize: 20,
+            "&:hover, &:focus": {
+              background:
+                theme.palette.mode === "light"
+                  ? "rgba(0,0,0,0.04)"
+                  : "rgba(255,255,255,0.05)",
+              borderColor:
+                theme.palette.mode === "light"
+                  ? theme.palette.grey[400]
+                  : theme.palette.common.white,
+            },
+          }}
+        >
+          Advanced Filters
+        </Button>
+      </Box>
       <Collapse in={open} timeout="auto" unmountOnExit>
         {panel}
       </Collapse>

@@ -55,6 +55,14 @@ pub enum KeyIOFailure {
         #[source]
         err: io::Error,
     },
+
+    #[error("failed to remove {key} key from '{}': {err}", path.display())]
+    KeyRemovalFailure {
+        key: String,
+        path: PathBuf,
+        #[source]
+        err: io::Error,
+    },
 }
 
 #[derive(Debug, Error)]

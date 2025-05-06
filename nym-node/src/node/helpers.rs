@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::{Config, NodeModes};
+use crate::config::NodeModes;
 use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::key_rotation::key::{SphinxPrivateKey, SphinxPublicKey};
 use crate::node::nym_apis_client::NymApisClient;
@@ -114,7 +114,7 @@ pub(crate) fn store_keypair<T: PemStorableKeyPair>(
     paths: &KeyPairPath,
     name: impl Into<String>,
 ) -> Result<(), KeyIOFailure> {
-    nym_pemstore::store_keypair(keys, &paths).map_err(|err| KeyIOFailure::KeyPairStoreFailure {
+    nym_pemstore::store_keypair(keys, paths).map_err(|err| KeyIOFailure::KeyPairStoreFailure {
         keys: name.into(),
         paths: paths.clone(),
         err,

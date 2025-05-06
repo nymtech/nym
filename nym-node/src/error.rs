@@ -46,6 +46,15 @@ pub enum KeyIOFailure {
         #[source]
         err: io::Error,
     },
+
+    #[error("failed to move {key} key from '{}' to '{}': {err}", source.display(), destination.display())]
+    KeyMoveFailure {
+        key: String,
+        source: PathBuf,
+        destination: PathBuf,
+        #[source]
+        err: io::Error,
+    },
 }
 
 #[derive(Debug, Error)]

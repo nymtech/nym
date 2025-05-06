@@ -399,7 +399,7 @@ impl NymNode {
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
         let current_rotation_id =
             get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
-        let sphinx_key_manager = SphinxKeyManager::initialise_new(
+        let _ = SphinxKeyManager::initialise_new(
             &mut rng,
             current_rotation_id,
             &config.storage_paths.keys.primary_x25519_sphinx_key_file,
@@ -442,12 +442,15 @@ impl NymNode {
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
         let wireguard_data = WireguardData::new(&config.wireguard)?;
+        let current_rotation_id =
+            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
 
         Ok(NymNode {
             ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
                 &config.storage_paths.keys.ed25519_identity_storage_paths(),
             )?),
-            sphinx_key_manager: SphinxKeyManager::try_load(
+            sphinx_key_manager: SphinxKeyManager::try_load_or_regenerate(
+                current_rotation_id,
                 &config.storage_paths.keys.primary_x25519_sphinx_key_file,
                 &config.storage_paths.keys.secondary_x25519_sphinx_key_file,
             )?,

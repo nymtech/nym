@@ -7,6 +7,7 @@ use arc_swap::{ArcSwap, ArcSwapOption, Guard};
 use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use std::ops::Deref;
 use std::sync::Arc;
+use tracing::error;
 
 #[derive(Clone)]
 pub(crate) struct ActiveSphinxKeys {
@@ -24,6 +25,18 @@ impl ActiveSphinxKeys {
             inner: Arc::new(ActiveSphinxKeysInner {
                 primary_key: ArcSwap::from_pointee(primary),
                 secondary_key: Default::default(),
+            }),
+        }
+    }
+
+    pub(crate) fn new_loaded(
+        primary: SphinxPrivateKey,
+        secondary: Option<SphinxPrivateKey>,
+    ) -> Self {
+        ActiveSphinxKeys {
+            inner: Arc::new(ActiveSphinxKeysInner {
+                primary_key: ArcSwap::from_pointee(primary),
+                secondary_key: ArcSwapOption::from_pointee(secondary),
             }),
         }
     }
@@ -57,29 +70,14 @@ impl ActiveSphinxKeys {
         Some(SphinxKeyGuard::Secondary(SecondaryKeyGuard { guard }))
     }
 
-    // 1. generate new key
-    // 2. save it in a temp file
-    // 3. copy primary key file to secondary files
-    // 4. set primary to secondary
-    // 5. move temp file to primary
-    // 6. set new key to primary
-    // 7. announce it to nym-api
-    fn rotate<R: RngCore + CryptoRng>(&self, rng: &mut R) {
-        todo!("check rotation id");
-        //
-        // if self.inner.secondary_key.load().is_some() {
-        //     // this should NEVER happen, but technically nothing should blow up
-        //     error!("somehow our secondary key was still set during the rotation!")
-        // }
-        //
-        // let new = x25519::KeyPair::new(rng);
-        // let todo = "backup the key";
-        // // we also need to announce it here...
-        //
-        // let old_primary = self.inner.primary_key.swap(Arc::new(new));
-        // self.inner.secondary_key.store(Some(old_primary));
-        //
-        // // TODO: backup new key + remove old key
+    pub(crate) fn rotate(&self, new_primary: SphinxPrivateKey) {
+        if self.inner.secondary_key.load().is_some() {
+            // this should NEVER happen, but technically nothing should blow up
+            error!("somehow our secondary key was still set during the rotation!")
+        }
+
+        let old_primary = self.inner.primary_key.swap(Arc::new(new_primary));
+        self.inner.secondary_key.store(Some(old_primary));
     }
 
     fn deactivate_secondary(&self) {

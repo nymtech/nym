@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_statistics_common::hash_identifier;
+use nym_statistics_common::{hash_identifier, types::SessionType};
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -63,19 +63,6 @@ pub struct FinishedSession {
 impl FinishedSession {
     pub fn new(duration: Duration, typ: SessionType) -> Self {
         FinishedSession { duration, typ }
-    }
-}
-
-#[derive(PartialEq, Copy, Clone, strum::Display, strum::EnumString)]
-pub enum SessionType {
-    Vpn,
-    Mixnet,
-    Unknown,
-}
-
-impl SessionType {
-    pub fn from_string<S: AsRef<str>>(s: S) -> Self {
-        s.as_ref().parse().unwrap_or(Self::Unknown)
     }
 }
 

@@ -1,7 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
+use nym_node_metrics::entry::{ActiveSession, FinishedSession};
+use nym_statistics_common::types::SessionType;
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
 

@@ -3,8 +3,9 @@
 
 use error::StatsStorageError;
 use models::StoredFinishedSession;
-use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
+use nym_node_metrics::entry::{ActiveSession, FinishedSession};
 use nym_sphinx::DestinationAddressBytes;
+use nym_statistics_common::types::SessionType;
 use sessions::SessionManager;
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},

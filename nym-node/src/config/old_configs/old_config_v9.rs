@@ -5,21 +5,36 @@ use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
 use crate::config::gateway_tasks::{
     ClientBandwidthDebug, StaleMessageDebug, ZkNymTicketHandlerDebug,
 };
+use crate::config::persistence::{
+    AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
+    NymNodePaths, ReplayProtectionPaths, ServiceProvidersPaths, WireguardPaths,
+    DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME, DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME,
+};
 use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
-use crate::config::{Config, NodeModes, DEFAULT_HTTP_PORT};
-use crate::error::NymNodeError;
+use crate::config::{
+    gateway_tasks, service_providers, Config, GatewayTasksConfig, Host, Http, Mixnet, MixnetDebug,
+    NodeModes, ReplayProtection, ReplayProtectionDebug, ServiceProvidersConfig, Verloc,
+    VerlocDebug, Wireguard, DEFAULT_HTTP_PORT,
+};
+use crate::error::{KeyIOFailure, NymNodeError};
+use crate::node::helpers::{get_current_rotation_id, load_key, store_key};
+use crate::node::key_rotation::key::SphinxPrivateKey;
 use celes::Country;
 use clap::ValueEnum;
+use nym_bin_common::logging::LoggingSettings;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::DEFAULT_VERLOC_LISTENING_PORT;
 use nym_config::helpers::{in6addr_any_init, inaddr_any};
 use nym_config::{
     defaults::TICKETBOOK_VALIDITY_DAYS,
+    read_config_from_toml_file,
     serde_helpers::{de_maybe_port, de_maybe_stringified},
 };
+use nym_crypto::asymmetric::x25519;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -1260,6 +1275,57 @@ pub struct ConfigV9 {
     pub debug: DebugV9,
 }
 
+impl ConfigV9 {
+    // simple wrapper that reads config file and assigns path location
+    fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
+        let path = path.as_ref();
+        let mut loaded: ConfigV9 =
+            read_config_from_toml_file(path).map_err(|source| NymNodeError::ConfigLoadFailure {
+                path: path.to_path_buf(),
+                source,
+            })?;
+        loaded.save_path = Some(path.to_path_buf());
+        debug!("loaded config file from {}", path.display());
+        Ok(loaded)
+    }
+}
+
+async fn upgrade_sphinx_key(old_cfg: &ConfigV9) -> Result<(PathBuf, PathBuf), NymNodeError> {
+    let current_sphinx_key_path = &old_cfg.storage_paths.keys.private_x25519_sphinx_key_file;
+    let current_pubkey_path = &old_cfg.storage_paths.keys.public_x25519_sphinx_key_file;
+
+    let current_sphinx_key: x25519::PrivateKey =
+        load_key(current_sphinx_key_path, "sphinx private key")?;
+
+    let keys_dir = current_sphinx_key_path
+        .parent()
+        .ok_or(NymNodeError::DataDirDerivationFailure)?;
+
+    let primary_key_path = keys_dir.join(DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME);
+    let secondary_key_path = keys_dir.join(DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME);
+
+    // we mark the current sphinx key as the primary and attach the current rotation id
+    let rotation_id =
+        get_current_rotation_id(&old_cfg.mixnet.nym_api_urls, &old_cfg.mixnet.nyxd_urls).await?;
+
+    let primary_key = SphinxPrivateKey::import(current_sphinx_key, rotation_id);
+    store_key(&primary_key, &primary_key_path, "sphinx private key")?;
+
+    // no point in keeping the old sphinx files
+    fs::remove_file(current_sphinx_key_path).map_err(|err| KeyIOFailure::KeyRemovalFailure {
+        key: "sphinx private key".to_string(),
+        path: current_sphinx_key_path.clone(),
+        err,
+    })?;
+    fs::remove_file(current_pubkey_path).map_err(|err| KeyIOFailure::KeyRemovalFailure {
+        key: "sphinx public key".to_string(),
+        path: current_pubkey_path.clone(),
+        err,
+    })?;
+
+    Ok((primary_key_path, secondary_key_path))
+}
+
 #[instrument(skip_all)]
 pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
     path: P,
@@ -1267,5 +1333,386 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
 ) -> Result<Config, NymNodeError> {
     debug!("attempting to load v9 config...");
 
-    todo!("migrate plain x25519 to rotational sphinx")
+    let old_cfg = if let Some(prev_config) = prev_config {
+        prev_config
+    } else {
+        ConfigV9::read_from_path(&path)?
+    };
+
+    let (primary_x25519_sphinx_key_file, secondary_x25519_sphinx_key_file) =
+        upgrade_sphinx_key(&old_cfg).await?;
+
+    let cfg = Config {
+        save_path: old_cfg.save_path,
+        id: old_cfg.id,
+        modes: NodeModes {
+            mixnode: old_cfg.modes.mixnode,
+            entry: old_cfg.modes.entry,
+            exit: old_cfg.modes.exit,
+        },
+        host: Host {
+            public_ips: old_cfg.host.public_ips,
+            hostname: old_cfg.host.hostname,
+            location: old_cfg.host.location,
+        },
+        mixnet: Mixnet {
+            bind_address: old_cfg.mixnet.bind_address,
+            announce_port: old_cfg.mixnet.announce_port,
+            nym_api_urls: old_cfg.mixnet.nym_api_urls,
+            nyxd_urls: old_cfg.mixnet.nyxd_urls,
+            replay_protection: ReplayProtection {
+                storage_paths: ReplayProtectionPaths {
+                    current_bloomfilters_directory: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .storage_paths
+                        .current_bloomfilters_directory,
+                },
+                debug: ReplayProtectionDebug {
+                    unsafe_disabled: old_cfg.mixnet.replay_protection.debug.unsafe_disabled,
+                    maximum_replay_detection_deferral: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .maximum_replay_detection_deferral,
+                    maximum_replay_detection_pending_packets: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .maximum_replay_detection_pending_packets,
+                    false_positive_rate: old_cfg.mixnet.replay_protection.debug.false_positive_rate,
+                    initial_expected_packets_per_second: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .initial_expected_packets_per_second,
+                    bloomfilter_minimum_packets_per_second_size: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .bloomfilter_minimum_packets_per_second_size,
+                    bloomfilter_size_multiplier: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .bloomfilter_size_multiplier,
+                    bloomfilter_reset_rate: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .bloomfilter_reset_rate,
+                    bloomfilter_disk_flushing_rate: old_cfg
+                        .mixnet
+                        .replay_protection
+                        .debug
+                        .bloomfilter_disk_flushing_rate,
+                },
+            },
+            debug: MixnetDebug {
+                maximum_forward_packet_delay: old_cfg.mixnet.debug.maximum_forward_packet_delay,
+                packet_forwarding_initial_backoff: old_cfg
+                    .mixnet
+                    .debug
+                    .packet_forwarding_initial_backoff,
+                packet_forwarding_maximum_backoff: old_cfg
+                    .mixnet
+                    .debug
+                    .packet_forwarding_maximum_backoff,
+                initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
+                maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
+                unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
+            },
+        },
+        storage_paths: NymNodePaths {
+            keys: KeysPaths {
+                private_ed25519_identity_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_ed25519_identity_key_file,
+                public_ed25519_identity_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_ed25519_identity_key_file,
+                primary_x25519_sphinx_key_file,
+                private_x25519_noise_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_x25519_noise_key_file,
+                public_x25519_noise_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_x25519_noise_key_file,
+                secondary_x25519_sphinx_key_file,
+            },
+            description: old_cfg.storage_paths.description,
+        },
+        http: Http {
+            bind_address: old_cfg.http.bind_address,
+            landing_page_assets_path: old_cfg.http.landing_page_assets_path,
+            access_token: old_cfg.http.access_token,
+            expose_system_info: old_cfg.http.expose_system_info,
+            expose_system_hardware: old_cfg.http.expose_system_hardware,
+            expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
+            node_load_cache_ttl: old_cfg.http.node_load_cache_ttl,
+        },
+        verloc: Verloc {
+            bind_address: old_cfg.verloc.bind_address,
+            announce_port: old_cfg.verloc.announce_port,
+            debug: VerlocDebug {
+                packets_per_node: old_cfg.verloc.debug.packets_per_node,
+                connection_timeout: old_cfg.verloc.debug.connection_timeout,
+                packet_timeout: old_cfg.verloc.debug.packet_timeout,
+                delay_between_packets: old_cfg.verloc.debug.delay_between_packets,
+                tested_nodes_batch_size: old_cfg.verloc.debug.tested_nodes_batch_size,
+                testing_interval: old_cfg.verloc.debug.testing_interval,
+                retry_timeout: old_cfg.verloc.debug.retry_timeout,
+            },
+        },
+        wireguard: Wireguard {
+            enabled: old_cfg.wireguard.enabled,
+            bind_address: old_cfg.wireguard.bind_address,
+            private_ipv4: old_cfg.wireguard.private_ipv4,
+            private_ipv6: old_cfg.wireguard.private_ipv6,
+            announced_port: old_cfg.wireguard.announced_port,
+            private_network_prefix_v4: old_cfg.wireguard.private_network_prefix_v4,
+            private_network_prefix_v6: old_cfg.wireguard.private_network_prefix_v6,
+            storage_paths: WireguardPaths {
+                private_diffie_hellman_key_file: old_cfg
+                    .wireguard
+                    .storage_paths
+                    .private_diffie_hellman_key_file,
+                public_diffie_hellman_key_file: old_cfg
+                    .wireguard
+                    .storage_paths
+                    .public_diffie_hellman_key_file,
+            },
+        },
+        gateway_tasks: GatewayTasksConfig {
+            storage_paths: GatewayTasksPaths {
+                clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
+                stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
+                cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
+            },
+            enforce_zk_nyms: old_cfg.gateway_tasks.enforce_zk_nyms,
+            ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,
+            announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
+            announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
+            debug: gateway_tasks::Debug {
+                message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
+                maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,
+                minimum_mix_performance: old_cfg.gateway_tasks.debug.minimum_mix_performance,
+                max_request_timestamp_skew: old_cfg.gateway_tasks.debug.max_request_timestamp_skew,
+                stale_messages: StaleMessageDebug {
+                    cleaner_run_interval: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .stale_messages
+                        .cleaner_run_interval,
+                    max_age: old_cfg.gateway_tasks.debug.stale_messages.max_age,
+                },
+                client_bandwidth: ClientBandwidthDebug {
+                    max_flushing_rate: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .client_bandwidth
+                        .max_flushing_rate,
+                    max_delta_flushing_amount: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .client_bandwidth
+                        .max_delta_flushing_amount,
+                },
+                zk_nym_tickets: ZkNymTicketHandlerDebug {
+                    revocation_bandwidth_penalty: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .zk_nym_tickets
+                        .revocation_bandwidth_penalty,
+                    pending_poller: old_cfg.gateway_tasks.debug.zk_nym_tickets.pending_poller,
+                    minimum_api_quorum: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .zk_nym_tickets
+                        .minimum_api_quorum,
+                    minimum_redemption_tickets: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .zk_nym_tickets
+                        .minimum_redemption_tickets,
+                    maximum_time_between_redemption: old_cfg
+                        .gateway_tasks
+                        .debug
+                        .zk_nym_tickets
+                        .maximum_time_between_redemption,
+                },
+            },
+        },
+        service_providers: ServiceProvidersConfig {
+            storage_paths: ServiceProvidersPaths {
+                clients_storage: old_cfg.service_providers.storage_paths.clients_storage,
+                stats_storage: old_cfg.service_providers.storage_paths.stats_storage,
+                network_requester: NetworkRequesterPaths {
+                    private_ed25519_identity_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .private_ed25519_identity_key_file,
+                    public_ed25519_identity_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .public_ed25519_identity_key_file,
+                    private_x25519_diffie_hellman_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .private_x25519_diffie_hellman_key_file,
+                    public_x25519_diffie_hellman_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .public_x25519_diffie_hellman_key_file,
+                    ack_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .ack_key_file,
+                    reply_surb_database: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .reply_surb_database,
+                    gateway_registrations: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .network_requester
+                        .gateway_registrations,
+                },
+                ip_packet_router: IpPacketRouterPaths {
+                    private_ed25519_identity_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .private_ed25519_identity_key_file,
+                    public_ed25519_identity_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .public_ed25519_identity_key_file,
+                    private_x25519_diffie_hellman_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .private_x25519_diffie_hellman_key_file,
+                    public_x25519_diffie_hellman_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .public_x25519_diffie_hellman_key_file,
+                    ack_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .ack_key_file,
+                    reply_surb_database: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .reply_surb_database,
+                    gateway_registrations: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .ip_packet_router
+                        .gateway_registrations,
+                },
+                authenticator: AuthenticatorPaths {
+                    private_ed25519_identity_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .private_ed25519_identity_key_file,
+                    public_ed25519_identity_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .public_ed25519_identity_key_file,
+                    private_x25519_diffie_hellman_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .private_x25519_diffie_hellman_key_file,
+                    public_x25519_diffie_hellman_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .public_x25519_diffie_hellman_key_file,
+                    ack_key_file: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .ack_key_file,
+                    reply_surb_database: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .reply_surb_database,
+                    gateway_registrations: old_cfg
+                        .service_providers
+                        .storage_paths
+                        .authenticator
+                        .gateway_registrations,
+                },
+            },
+            open_proxy: old_cfg.service_providers.open_proxy,
+            upstream_exit_policy_url: old_cfg.service_providers.upstream_exit_policy_url,
+            network_requester: NetworkRequester {
+                debug: NetworkRequesterDebug {
+                    enabled: old_cfg.service_providers.network_requester.debug.enabled,
+                    disable_poisson_rate: old_cfg
+                        .service_providers
+                        .network_requester
+                        .debug
+                        .disable_poisson_rate,
+                    client_debug: old_cfg
+                        .service_providers
+                        .network_requester
+                        .debug
+                        .client_debug,
+                },
+            },
+            ip_packet_router: IpPacketRouter {
+                debug: IpPacketRouterDebug {
+                    enabled: old_cfg.service_providers.ip_packet_router.debug.enabled,
+                    disable_poisson_rate: old_cfg
+                        .service_providers
+                        .ip_packet_router
+                        .debug
+                        .disable_poisson_rate,
+                    client_debug: old_cfg
+                        .service_providers
+                        .ip_packet_router
+                        .debug
+                        .client_debug,
+                },
+            },
+            authenticator: Authenticator {
+                debug: AuthenticatorDebug {
+                    enabled: old_cfg.service_providers.authenticator.debug.enabled,
+                    disable_poisson_rate: old_cfg
+                        .service_providers
+                        .authenticator
+                        .debug
+                        .disable_poisson_rate,
+                    client_debug: old_cfg.service_providers.authenticator.debug.client_debug,
+                },
+            },
+            debug: service_providers::Debug {
+                message_retrieval_limit: old_cfg.service_providers.debug.message_retrieval_limit,
+            },
+        },
+        metrics: Default::default(),
+        logging: LoggingSettings {},
+        debug: Default::default(),
+    };
+    Ok(cfg)
 }

@@ -28,6 +28,13 @@ impl SphinxPrivateKey {
         }
     }
 
+    pub(crate) fn import(key: x25519::PrivateKey, rotation_id: u32) -> Self {
+        SphinxPrivateKey {
+            rotation_id,
+            inner: key,
+        }
+    }
+
     pub(crate) fn x25519_pubkey(&self) -> x25519::PublicKey {
         self.inner.public_key()
     }

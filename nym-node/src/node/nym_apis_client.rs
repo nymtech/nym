@@ -1,7 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
 use crate::error::NymNodeError;
 use crate::node::NymNode;
 use futures::{stream, StreamExt};

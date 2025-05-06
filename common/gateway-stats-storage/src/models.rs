@@ -6,8 +6,6 @@ use nym_statistics_common::types::SessionType;
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
 
-pub use nym_credentials_interface::TicketType;
-
 #[derive(FromRow)]
 pub struct StoredFinishedSession {
     duration_ms: i64,
@@ -23,25 +21,11 @@ impl From<StoredFinishedSession> for FinishedSession {
     }
 }
 
-pub trait ToSessionType {
-    fn to_session_type(&self) -> SessionType;
-}
-
-impl ToSessionType for TicketType {
-    fn to_session_type(&self) -> SessionType {
-        match self {
-            TicketType::V1MixnetEntry => SessionType::Mixnet,
-            TicketType::V1MixnetExit => SessionType::Mixnet,
-            TicketType::V1WireguardEntry => SessionType::Vpn,
-            TicketType::V1WireguardExit => SessionType::Vpn,
-        }
-    }
-}
-
 #[derive(FromRow)]
 pub(crate) struct StoredActiveSession {
     start_time: OffsetDateTime,
     typ: String,
+    remember: u8,
 }
 
 impl From<StoredActiveSession> for ActiveSession {
@@ -49,6 +33,7 @@ impl From<StoredActiveSession> for ActiveSession {
         ActiveSession {
             start: value.start_time,
             typ: SessionType::from_string(&value.typ),
+            remember: value.remember != 0,
         }
     }
 }

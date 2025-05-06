@@ -69,6 +69,7 @@ impl FinishedSession {
 pub struct ActiveSession {
     pub start: OffsetDateTime,
     pub typ: SessionType,
+    pub remember: bool,
 }
 
 impl ActiveSession {
@@ -76,11 +77,15 @@ impl ActiveSession {
         ActiveSession {
             start: start_time,
             typ: SessionType::Unknown,
+            remember: false,
         }
     }
 
     pub fn set_type(&mut self, typ: SessionType) {
         self.typ = typ;
+    }
+    pub fn remember(&mut self) {
+        self.remember = true;
     }
 
     pub fn end_at(self, stop_time: OffsetDateTime) -> Option<FinishedSession> {

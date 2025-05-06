@@ -148,6 +148,16 @@ impl PersistentStatsStorage {
             .await?)
     }
 
+    pub async fn remember_active_session(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StatsStorageError> {
+        Ok(self
+            .session_manager
+            .remember_active_session(client_address.as_base58_string())
+            .await?)
+    }
+
     pub async fn update_active_session_type(
         &self,
         client_address: DestinationAddressBytes,

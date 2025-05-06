@@ -12,6 +12,7 @@ use tungstenite::Message;
 pub enum SensitiveServerResponse {
     KeyUpgradeAck {},
     ForgetMeAck {},
+    RememberMeAck {},
 }
 
 impl SensitiveServerResponse {

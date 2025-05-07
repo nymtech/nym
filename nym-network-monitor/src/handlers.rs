@@ -111,13 +111,13 @@ pub async fn graph_handler() -> Result<String, StatusCode> {
         (status = 200, description = "Returns a map of all fragments sent by the network monitor", body = FragmentsSent),
     )
 )]
-pub async fn sent_handler() -> FormattedResponse < FragmentsSent> {
-Json(FragmentsSent(
-( * monitoring::FRAGMENTS_SENT)
-.clone()
-.into_iter()
-.collect::< HashMap < _, _ > > (),
-))
+pub async fn sent_handler() -> FormattedResponse<FragmentsSent> {
+    Json(FragmentsSent(
+        (*monitoring::FRAGMENTS_SENT)
+            .clone()
+            .into_iter()
+            .collect::<HashMap<_, _>>(),
+    ))
 }
 
 #[utoipa::path(
@@ -127,13 +127,13 @@ Json(FragmentsSent(
         (status = 200, description = "Returns a map of all fragments received by the network monitor", body = FragmentsReceived),
     )
 )]
-pub async fn recv_handler() -> FormattedResponse < FragmentsReceived> {
-Json(FragmentsReceived(
-( * monitoring::FRAGMENTS_RECEIVED)
-.clone()
-.into_iter()
-.collect::< HashMap < _, _ > > (),
-))
+pub async fn recv_handler() -> FormattedResponse<FragmentsReceived> {
+    Json(FragmentsReceived(
+        (*monitoring::FRAGMENTS_RECEIVED)
+            .clone()
+            .into_iter()
+            .collect::<HashMap<_, _>>(),
+    ))
 }
 
 #[utoipa::path(
@@ -209,7 +209,7 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
             Duration::from_secs(*MIXNET_TIMEOUT.get().expect("Set at the begining")),
             recv.write().await.next(),
         )
-            .await
+        .await
         {
             Ok(Some(received)) => {
                 debug!("Received: {}", String::from_utf8_lossy(&received.message));
@@ -226,7 +226,7 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
             Duration::from_secs(5),
             mixnet_sender.send_plain_message(our_address, &msg),
         )
-            .await
+        .await
         {
             Ok(_) => debug!("Sent message: {msg}"),
             Err(e) => warn!("Failed to send message: {e}"),

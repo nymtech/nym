@@ -13,7 +13,7 @@ if [ ! -f "${VALIDATOR_DATA_DIRECTORY}/config/genesis.json" ]; then
   echo "init chain successful"
   sleep 2
 
-  # staking/governance token is hardcoded in config, change this
+  # staking/governance token is hardcoded in config
   echo "changing params"
   sed -i "s/\"stake\"/\"u${STAKE_DENOM}\"/" "${VALIDATOR_DATA_DIRECTORY}/config/genesis.json"
   sed -i 's/minimum-gas-prices = "0stake"/minimum-gas-prices = "0.025u'"${DENOM}"'"/' "${VALIDATOR_DATA_DIRECTORY}/config/app.toml"
@@ -48,7 +48,7 @@ if [ ! -f "${VALIDATOR_DATA_DIRECTORY}/config/genesis.json" ]; then
   ./${APP_NAME} genesis collect-gentxs 2>/dev/null
   ./${APP_NAME} genesis validate-genesis >/dev/null
 
-  # Copy genesis file
+  # copy genesis file
   cp "${VALIDATOR_DATA_DIRECTORY}/config/genesis.json" "${OUTPUT_DIRECTORY}/genesis.json"
 fi
 

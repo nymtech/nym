@@ -8,7 +8,7 @@ use nym_crypto::asymmetric::x25519::{
     serde_helpers::{bs58_x25519_pubkey, option_bs58_x25519_pubkey},
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::net::IpAddr;
 
 pub use crate::api::SignedHostInformation;
@@ -71,6 +71,13 @@ impl HostInformation {
 }
 
 #[derive(Serialize)]
+pub struct LegacyHostInformationV3 {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: LegacyHostKeysV3,
+}
+
+#[derive(Serialize)]
 pub struct LegacyHostInformationV2 {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
@@ -78,14 +85,24 @@ pub struct LegacyHostInformationV2 {
 }
 
 #[derive(Serialize)]
-pub struct LegacyHostInformation {
+pub struct LegacyHostInformationV1 {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
-    pub keys: LegacyHostKeys,
+    pub keys: LegacyHostKeysV1,
 }
 
-impl From<HostInformation> for LegacyHostInformationV2 {
+impl From<HostInformation> for LegacyHostInformationV3 {
     fn from(value: HostInformation) -> Self {
+        LegacyHostInformationV3 {
+            ip_address: value.ip_address,
+            hostname: value.hostname,
+            keys: value.keys.into(),
+        }
+    }
+}
+
+impl From<LegacyHostInformationV3> for LegacyHostInformationV2 {
+    fn from(value: LegacyHostInformationV3) -> Self {
         LegacyHostInformationV2 {
             ip_address: value.ip_address,
             hostname: value.hostname,
@@ -94,9 +111,9 @@ impl From<HostInformation> for LegacyHostInformationV2 {
     }
 }
 
-impl From<LegacyHostInformationV2> for LegacyHostInformation {
+impl From<LegacyHostInformationV2> for LegacyHostInformationV1 {
     fn from(value: LegacyHostInformationV2) -> Self {
-        LegacyHostInformation {
+        LegacyHostInformationV1 {
             ip_address: value.ip_address,
             hostname: value.hostname,
             keys: value.keys.into(),
@@ -114,19 +131,78 @@ pub struct HostKeys {
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub ed25519_identity: ed25519::PublicKey,
 
-    /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
-    /// Currently, it corresponds to either mixnode's or gateway's key.
+    /// Current, active, x25519 sphinx key clients are expected to use when constructing packets
+    /// with this node in the route.
     #[serde(alias = "x25519")]
-    #[serde(with = "bs58_x25519_pubkey")]
-    #[schemars(with = "String")]
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub x25519_sphinx: x25519::PublicKey,
+    #[serde(alias = "x25519_sphinx")]
+    #[serde(deserialize_with = "de_sphinx_key")]
+    pub current_x25519_sphinx_key: SphinxKey,
+
+    /// Pre-announced x25519 sphinx key clients will use during the following key rotation
+    #[serde(default)]
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
     #[schemars(with = "Option<String>")]
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub x25519_noise: Option<x25519::PublicKey>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SphinxKey {
+    pub rotation_id: u32,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub public_key: x25519::PublicKey,
+}
+
+fn de_sphinx_key<'de, D>(deserializer: D) -> Result<SphinxKey, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SphinxKeyDeHelper {
+        Current(SphinxKey),
+        Legacy(#[serde(with = "bs58_x25519_pubkey")] x25519::PublicKey),
+    }
+
+    impl From<SphinxKeyDeHelper> for SphinxKey {
+        fn from(value: SphinxKeyDeHelper) -> Self {
+            match value {
+                SphinxKeyDeHelper::Current(key) => key,
+                SphinxKeyDeHelper::Legacy(public_key) => SphinxKey {
+                    rotation_id: u32::MAX,
+                    public_key,
+                },
+            }
+        }
+    }
+
+    Ok(SphinxKeyDeHelper::deserialize(deserializer)?.into())
+}
+
+#[derive(Serialize)]
+pub struct LegacyHostKeysV3 {
+    /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
+    #[serde(alias = "ed25519")]
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub ed25519_identity: ed25519::PublicKey,
+
+    /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
+    /// Currently, it corresponds to either mixnode's or gateway's key.
+    #[serde(alias = "x25519")]
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub x25519_sphinx: x25519::PublicKey,
+
+    /// Base58-encoded x25519 public key of this node used for the noise protocol.
+    #[serde(default)]
+    #[serde(with = "option_bs58_x25519_pubkey")]
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
@@ -138,13 +214,23 @@ pub struct LegacyHostKeysV2 {
 }
 
 #[derive(Serialize)]
-pub struct LegacyHostKeys {
+pub struct LegacyHostKeysV1 {
     pub ed25519: String,
     pub x25519: String,
 }
 
-impl From<HostKeys> for LegacyHostKeysV2 {
+impl From<HostKeys> for LegacyHostKeysV3 {
     fn from(value: HostKeys) -> Self {
+        LegacyHostKeysV3 {
+            ed25519_identity: value.ed25519_identity,
+            x25519_sphinx: value.current_x25519_sphinx_key.public_key,
+            x25519_noise: value.x25519_noise,
+        }
+    }
+}
+
+impl From<LegacyHostKeysV3> for LegacyHostKeysV2 {
+    fn from(value: LegacyHostKeysV3) -> Self {
         LegacyHostKeysV2 {
             ed25519_identity: value.ed25519_identity.to_base58_string(),
             x25519_sphinx: value.x25519_sphinx.to_base58_string(),
@@ -156,9 +242,9 @@ impl From<HostKeys> for LegacyHostKeysV2 {
     }
 }
 
-impl From<LegacyHostKeysV2> for LegacyHostKeys {
+impl From<LegacyHostKeysV2> for LegacyHostKeysV1 {
     fn from(value: LegacyHostKeysV2) -> Self {
-        LegacyHostKeys {
+        LegacyHostKeysV1 {
             ed25519: value.ed25519_identity,
             x25519: value.x25519_sphinx,
         }

@@ -639,12 +639,6 @@ pub struct ReplayProtectionDebug {
     /// It's performed in case the traffic rates increase before the next bloomfilter update.
     pub bloomfilter_size_multiplier: f64,
 
-    // NOTE: this field is temporary until replay detection bloomfilter rotation is tied
-    // to key rotation
-    /// Specifies how often the bloomfilter is cleared
-    #[serde(with = "humantime_serde")]
-    pub bloomfilter_reset_rate: Duration,
-
     /// Specifies how often the bloomfilter is flushed to disk for recovery in case of a crash
     #[serde(with = "humantime_serde")]
     pub bloomfilter_disk_flushing_rate: Duration,
@@ -661,9 +655,6 @@ impl ReplayProtectionDebug {
     // 10^-5
     pub const DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE: f64 = 1e-5;
 
-    // 25h (key rotation will be happening every 24h + 1h of overlap)
-    pub const DEFAULT_REPLAY_DETECTION_BF_RESET_RATE: Duration = Duration::from_secs(25 * 60 * 60);
-
     // we must have some reasonable balance between losing values and trashing the disk.
     // since on average HDD it would take ~30s to save a 2GB bloomfilter
     pub const DEFAULT_BF_DISK_FLUSHING_RATE: Duration = Duration::from_secs(10 * 60);
@@ -674,34 +665,35 @@ impl ReplayProtectionDebug {
     pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
 
     pub fn validate(&self) -> Result<(), NymNodeError> {
-        if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
-            return Err(NymNodeError::config_validation_failure(
-                "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",
-            ));
-        }
-
-        let items_in_filter = items_in_bloomfilter(
-            self.bloomfilter_reset_rate,
-            self.initial_expected_packets_per_second,
-        );
-        let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
-        let bloomfilter_size = bitmap_size / 8;
-
-        let mut sys_info = System::new();
-        sys_info.refresh_memory();
-
-        // we'll need 2x size of the bloomfilter
-        // as during key transition we'll have to simultaneously use two filters
-        // plus we also need to make a memcopy during disk flush
-        let required_memory = 2 * bloomfilter_size;
-
-        let memory = sys_info.available_memory();
-        if (memory as usize) < required_memory {
-            return Err(NymNodeError::config_validation_failure(
-                 format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
-        }
-
-        Ok(())
+        todo!()
+        // if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
+        //     return Err(NymNodeError::config_validation_failure(
+        //         "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",
+        //     ));
+        // }
+        //
+        // let items_in_filter = items_in_bloomfilter(
+        //     self.bloomfilter_reset_rate,
+        //     self.initial_expected_packets_per_second,
+        // );
+        // let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
+        // let bloomfilter_size = bitmap_size / 8;
+        //
+        // let mut sys_info = System::new();
+        // sys_info.refresh_memory();
+        //
+        // // we'll need 2x size of the bloomfilter
+        // // as during key transition we'll have to simultaneously use two filters
+        // // plus we also need to make a memcopy during disk flush
+        // let required_memory = 2 * bloomfilter_size;
+        //
+        // let memory = sys_info.available_memory();
+        // if (memory as usize) < required_memory {
+        //     return Err(NymNodeError::config_validation_failure(
+        //          format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
+        // }
+        //
+        // Ok(())
     }
 }
 
@@ -717,7 +709,6 @@ impl Default for ReplayProtectionDebug {
             bloomfilter_minimum_packets_per_second_size:
                 Self::DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE,
             bloomfilter_size_multiplier: Self::DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER,
-            bloomfilter_reset_rate: Self::DEFAULT_REPLAY_DETECTION_BF_RESET_RATE,
             bloomfilter_disk_flushing_rate: Self::DEFAULT_BF_DISK_FLUSHING_RATE,
         }
     }

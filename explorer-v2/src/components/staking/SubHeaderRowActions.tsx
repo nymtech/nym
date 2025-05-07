@@ -8,7 +8,6 @@ import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { fetchTotalStakerRewards } from "../../app/api";
-import type { NodeRewardDetails } from "../../app/api/types";
 import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
@@ -19,7 +18,7 @@ import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
 const fetchDelegations = async (
   address: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nymClient: any,
+  nymClient: any
 ): Promise<Delegation[]> => {
   const data = await nymClient.getDelegatorDelegations({ delegator: address });
   return data.delegations;
@@ -84,10 +83,10 @@ const SubHeaderRowActions = () => {
       const client = await SigningCosmWasmClient.connectWithSigner(
         "https://rpc.nymtech.net/",
         signer,
-        { gasPrice },
+        { gasPrice }
       );
 
-      const messages = delegations.map((delegation: NodeRewardDetails) => ({
+      const messages = delegations.map((delegation: Delegation) => ({
         contractAddress: NYM_MIXNET_CONTRACT,
         funds: [],
         msg: {
@@ -101,7 +100,7 @@ const SubHeaderRowActions = () => {
         address,
         messages,
         "auto",
-        "Redeeming all rewards",
+        "Redeeming all rewards"
       );
       // Success state
       setIsLoading(false);

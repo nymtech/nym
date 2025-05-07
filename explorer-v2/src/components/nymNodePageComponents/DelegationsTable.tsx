@@ -55,7 +55,7 @@ const DelegationsTable = ({ id }: Props) => {
         accessorKey: "height",
         Cell: ({ row }) => (
           <Stack spacing={1}>
-            <Typography variant="body4">{row.original.height}</Typography>
+            <Typography variant="body4">{row.original.block_height}</Typography>
           </Stack>
         ),
       },
@@ -86,7 +86,7 @@ const DelegationsTable = ({ id }: Props) => {
         ),
       },
     ],
-    [],
+    []
   );
   const table = useMaterialReactTable({
     columns,

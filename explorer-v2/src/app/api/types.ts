@@ -206,10 +206,10 @@ export interface NodeRewardDetails {
     amount: string;
     denom: string;
   };
+  block_height: number;
   cumulative_reward_ratio: string;
-  height: number;
-  node_id: number;
   owner: string;
+  proxy: string;
 }
 
 export type LastProbeResult = {

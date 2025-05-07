@@ -17,7 +17,6 @@ import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
-  DATA_OBSERVATORY_NODES_URL,
   NS_API_NODES,
   NYM_ACCOUNT_ADDRESS,
   NYM_PRICES_API,
@@ -59,15 +58,12 @@ export const fetchGatewayStatus = async (
 export const fetchNodeDelegations = async (
   id: number,
 ): Promise<NodeRewardDetails[]> => {
-  const response = await fetch(
-    `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
-    {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
+  const response = await fetch(`${NS_API_NODES}/${id}/delegations`, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
     },
-  );
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch delegations");

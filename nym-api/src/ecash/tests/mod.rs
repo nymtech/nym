@@ -415,8 +415,7 @@ impl FakeChainState {
 
     // TODO: make it return a result
     fn execute_dkg_contract(&mut self, sender: MessageInfo, msg: &Binary) {
-        let exec_msg: nym_coconut_dkg_common::msg::ExecuteMsg =
-            from_output.to_response(msg).unwrap();
+        let exec_msg: nym_coconut_dkg_common::msg::ExecuteMsg = from_json(msg).unwrap();
         match exec_msg {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner,
@@ -1421,12 +1420,11 @@ impl TestFixture {
         let response = self
             .axum
             .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
-            .output
-            .to_response(&req)
+            .json(&req)
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);
-        response.output.to_response()
+        response.json()
     }
 
     async fn issued_ticketbooks_for_unchecked(
@@ -1441,7 +1439,7 @@ impl TestFixture {
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);
-        response.output.to_response()
+        response.json()
     }
 
     async fn issued_ticketbooks_challenge_commitment(
@@ -1454,8 +1452,7 @@ impl TestFixture {
             .post(&format!(
                 "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
             ))
-            .output
-            .to_response(
+            .json(
                 &IssuedTicketbooksChallengeCommitmentRequestBody {
                     expiration_date,
                     deposits,
@@ -1475,7 +1472,7 @@ impl TestFixture {
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);
-        response.output.to_response()
+        response.json()
     }
 }
 
@@ -1521,8 +1518,7 @@ mod credential_tests {
         let response = test_fixture
             .axum
             .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
-            .output
-            .to_response(&request_body)
+            .json(&request_body)
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);
@@ -1706,8 +1702,7 @@ mod credential_tests {
         let response = test
             .axum
             .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
-            .output
-            .to_response(&request_body)
+            .json(&request_body)
             .await;
 
         assert_eq!(response.status_code(), StatusCode::OK);

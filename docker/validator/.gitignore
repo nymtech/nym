@@ -1,0 +1,13 @@
+# data
+
+data/
+data/validator/
+data/addresses/
+
+# docker
+.docker/
+
+# access
+*_mnemonic
+*.key
+genesis_mnemonic

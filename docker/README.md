@@ -1,45 +1,79 @@
 ## Build with Docker & Docker Compose
 
-Currently you can build and run locally in a Docker containers the following components of the Nym Privacy Platform:
+#### Standard Build (x86_64 Genesis Validator
 
-* One genesis validator
-* Any number of secondary validators
-* A contract uploader, that uploads the contract built from the local sources
-* The web wallet application, accessible on port 3000
-* The block explorer application, accessible on port 3080
-* The network explorer application, accessible on port 3040, for registered users
-
-### Running
-
-The following commands need to be run from the root of the Nym git project.
-
-To build the entire dockerized environment, run the following command:
+To build the genesis validator:
 
 ```
-PERSONAL_TOKEN=[network explorer token] docker-compose build
+docker-compose build validator
 ```
 
-or build each service separately, as changes are made to their relevant source code.
-**Note** network-explorer build time is currently very high, so building it more than once is not advisable. 
-
-To start the dockerized environment, run the following command:
+To start the genesis validator:
 
 ```
-METEOR_SETTINGS=$(cat docker/block_explorer/settings.json) docker-compose up -d --scale=secondary_validator=3
+docker-compose up -d validator
 ```
 
-**Note**: The `secondary_validator=3` can take any other number as value, depending on the desired setup.
+The genesis validator will be initialized with the network configuration defined in the `docker-compose.yml` file.
 
-The web wallet interface will become available at `localhost:3000`.
+### Managing the Validator
 
-The mnemonic needed to connect to the admin user, which also has a pre-added number of tokens, can be obtained by running:
+To check the validator logs:
 
 ```
-docker logs nym_mnemonic_echo_1
+docker logs validator
 ```
 
-To stop the dockerized environment, run:
+To get the admin mnemonic:
+
+```
+docker exec validator cat /home/nym/output/genesis_mnemonic
+```
+
+To stop the validator:
 
 ```
 docker-compose down
+```
+
+### Using nym-cli for Smart Contract Operations
+
+The nym-cli utility can be used to manage and execute WASM smart contracts. You can access the cli from within the validator container:
+
+```
+docker exec -it validator ./nym-cli cosmwasm --help
+```
+
+#### Available Commands:
+
+- **upload**: Upload a smart contract WASM blob
+- **init**: Init a WASM smart contract
+- **generate-init-message**: Generate an instantiate message
+- **migrate**: Migrate a WASM smart contract
+- **execute**: Execute a WASM smart contract method
+- **raw-contract-state**: Obtain raw contract state of a cosmwasm smart contract
+
+#### Example Usage:
+
+To upload a contract:
+
+```
+docker exec -it validator ./nym-cli cosmwasm upload \
+  --mnemonic $(cat /home/nym/output/genesis_mnemonic) \
+  --wasm-file /path/to/contract.wasm
+```
+
+To initialize a contract:
+
+```
+docker exec -it validator ./nym-cli cosmwasm init \
+  --mnemonic $(cat /home/nym/output/genesis_mnemonic) \
+  --code-id <CODE_ID> \
+  --init-msg '{"x": "x"}'
+```
+
+For more detailed options, use the help command:
+
+```
+docker exec -it validator ./nym-cli cosmwasm <COMMAND> --help
 ```

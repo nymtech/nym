@@ -13,6 +13,7 @@ use nym_api_requests::ecash::models::{
     IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponse,
     IssuedTicketbooksOnCountResponse, SignableMessageBody,
 };
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::min;
@@ -80,15 +81,20 @@ pub(crate) struct IssuanceDatePathParam {
     path = "/issued-ticketbooks-count",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksCountResponse),
+        (status = 200, content(
+            (IssuedTicketbooksCountResponse = "application/json"),
+            (IssuedTicketbooksCountResponse = "application/yaml"),
+            (IssuedTicketbooksCountResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_ticketbooks_count(
     Query(pagination): Query<PaginationRequest>,
     State(state): State<Arc<EcashState>>,
-) -> AxumResult<Json<IssuedTicketbooksCountResponse>> {
+) -> AxumResult<FormattedResponse<IssuedTicketbooksCountResponse>> {
     state.ensure_signer().await?;
+    let output = pagination.output.unwrap_or_default();
 
     let page = pagination.page.unwrap_or_default();
     let per_page = min(
@@ -98,9 +104,7 @@ async fn issued_ticketbooks_count(
         MAX_ISSUANCE_COUNT_PAGE_SIZE,
     );
 
-    Ok(Json(
-        state.get_issued_ticketbooks_count(page, per_page).await?,
-    ))
+    Ok(output.to_response(state.get_issued_ticketbooks_count(page, per_page).await?))
 }
 
 /// Returns number of issued ticketbooks for particular expiration date.
@@ -109,22 +113,28 @@ async fn issued_ticketbooks_count(
     tag = "Ecash",
     get,
     params(
-        ExpirationDatePathParam
+        ExpirationDatePathParam, OutputParams
     ),
     path = "/issued-ticketbooks-for-count/{expiration_date}",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksForCountResponse),
+        (status = 200, content(
+            (IssuedTicketbooksForCountResponse = "application/json"),
+            (IssuedTicketbooksForCountResponse = "application/yaml"),
+            (IssuedTicketbooksForCountResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_ticketbooks_for_count(
+    Query(output): Query<OutputParams>,
     Path(ExpirationDatePathParam { expiration_date }): Path<ExpirationDatePathParam>,
     State(state): State<Arc<EcashState>>,
-) -> AxumResult<Json<IssuedTicketbooksForCountResponse>> {
+) -> AxumResult<FormattedResponse<IssuedTicketbooksForCountResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
-    Ok(Json(
+    Ok(output.to_response(
         state
             .get_issued_ticketbooks_for_count(expiration_date)
             .await?,
@@ -137,46 +147,56 @@ async fn issued_ticketbooks_for_count(
     tag = "Ecash",
     get,
     params(
-        IssuanceDatePathParam
+        IssuanceDatePathParam, OutputParams
     ),
     path = "/issued-ticketbooks-on-count/{issuance_date}",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksOnCountResponse),
+        (status = 200, content(
+            (IssuedTicketbooksOnCountResponse = "application/json"),
+            (IssuedTicketbooksOnCountResponse = "application/yaml"),
+            (IssuedTicketbooksOnCountResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_ticketbooks_on_count(
+    Query(output): Query<OutputParams>,
     Path(IssuanceDatePathParam { issuance_date }): Path<IssuanceDatePathParam>,
     State(state): State<Arc<EcashState>>,
-) -> AxumResult<Json<IssuedTicketbooksOnCountResponse>> {
+) -> AxumResult<FormattedResponse<IssuedTicketbooksOnCountResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
-    Ok(Json(
-        state.get_issued_ticketbooks_on_count(issuance_date).await?,
-    ))
+    Ok(output.to_response(state.get_issued_ticketbooks_on_count(issuance_date).await?))
 }
 
 #[utoipa::path(
     tag = "Ecash",
     get,
     params(
-        ExpirationDatePathParam
+        ExpirationDatePathParam, OutputParams
     ),
     path = "/issued-ticketbooks-for/{expiration_date}",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksForResponse),
+        (status = 200, content(
+            (IssuedTicketbooksForResponse = "application/json"),
+            (IssuedTicketbooksForResponse = "application/yaml"),
+            (IssuedTicketbooksForResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_ticketbooks_for(
+    Query(output): Query<OutputParams>,
     State(state): State<Arc<EcashState>>,
     Path(ExpirationDatePathParam { expiration_date }): Path<ExpirationDatePathParam>,
-) -> AxumResult<Json<IssuedTicketbooksForResponse>> {
+) -> AxumResult<FormattedResponse<IssuedTicketbooksForResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
-    Ok(Json(
+    Ok(output.to_response(
         state
             .get_issued_ticketbooks_deposits_on(expiration_date)
             .await?
@@ -191,17 +211,24 @@ async fn issued_ticketbooks_for(
     path = "/issued-ticketbooks-challenge-commitment",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksChallengeCommitmentResponse),
+        (status = 200, content(
+            (IssuedTicketbooksChallengeCommitmentResponse = "application/json"),
+            (IssuedTicketbooksChallengeCommitmentResponse = "application/yaml"),
+            (IssuedTicketbooksChallengeCommitmentResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
-    )
+    ),
+    params(OutputParams)
 )]
 async fn issued_ticketbooks_challenge_commitment(
+    Query(output): Query<OutputParams>,
     State(state): State<Arc<EcashState>>,
     Json(request): Json<IssuedTicketbooksChallengeCommitmentRequest>,
-) -> AxumResult<Json<IssuedTicketbooksChallengeCommitmentResponse>> {
+) -> AxumResult<FormattedResponse<IssuedTicketbooksChallengeCommitmentResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
-    Ok(Json(
+    Ok(output.to_response(
         state
             .get_issued_ticketbooks_challenge_commitment(request)
             .await?
@@ -216,17 +243,24 @@ async fn issued_ticketbooks_challenge_commitment(
     path = "/issued-ticketbooks-data",
     context_path = "/v1/ecash",
     responses(
-        (status = 200, body = IssuedTicketbooksDataResponse),
+        (status = 200, content(
+            (IssuedTicketbooksDataResponse = "application/json"),
+            (IssuedTicketbooksDataResponse = "application/yaml"),
+            (IssuedTicketbooksDataResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
-    )
+    ),
+    params(OutputParams)
 )]
 async fn issued_ticketbooks_data(
+    Query(output): Query<OutputParams>,
     State(state): State<Arc<EcashState>>,
     Json(request): Json<IssuedTicketbooksDataRequest>,
-) -> AxumResult<Json<IssuedTicketbooksDataResponse>> {
+) -> AxumResult<FormattedResponse<IssuedTicketbooksDataResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
-    Ok(Json(
+    Ok(output.to_response(
         state
             .get_issued_ticketbooks_data(request)
             .await?

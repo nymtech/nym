@@ -4,7 +4,6 @@
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use bincode::Options;
 use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +15,16 @@ pub enum FormattedResponse<T> {
     Yaml(Yaml<T>),
     #[cfg(feature = "bincode")]
     Bincode(Bincode<T>),
+}
+impl<T> FormattedResponse<T> {
+    pub fn into_inner(self) -> T {
+        match self {
+            FormattedResponse::Json(inner) => inner.0,
+            FormattedResponse::Yaml(inner) => inner.0,
+            #[cfg(feature = "bincode")]
+            FormattedResponse::Bincode(inner) => inner.0,
+        }
+    }
 }
 
 impl<T> IntoResponse for FormattedResponse<T>
@@ -121,6 +130,7 @@ where
 {
     // replicates axum's Json
     fn into_response(self) -> Response {
+        use bincode::Options;
         let mut buf = BytesMut::with_capacity(128).writer();
 
         match make_bincode_serializer().serialize_into(&mut buf, &self.0) {

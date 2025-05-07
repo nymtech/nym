@@ -345,6 +345,7 @@ impl<C, S> Client<C, S> {
 
 #[derive(Clone)]
 pub struct NymApiClient {
+    pub use_bincode: bool,
     pub nym_api: nym_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
@@ -356,14 +357,26 @@ impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
         let nym_api = nym_api::Client::new(api_url, None);
 
-        NymApiClient { nym_api }
+        NymApiClient {
+            use_bincode: false,
+            nym_api,
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_with_timeout(api_url: Url, timeout: std::time::Duration) -> Self {
         let nym_api = nym_api::Client::new(api_url, Some(timeout));
 
-        NymApiClient { nym_api }
+        NymApiClient {
+            use_bincode: false,
+            nym_api,
+        }
+    }
+
+    #[must_use]
+    pub fn with_bincode(mut self) -> Self {
+        self.use_bincode = true;
+        self
     }
 
     pub fn new_with_user_agent(api_url: Url, user_agent: impl Into<UserAgent>) -> Self {
@@ -373,7 +386,10 @@ impl NymApiClient {
             .build::<ValidatorClientError>()
             .expect("failed to build nym api client");
 
-        NymApiClient { nym_api }
+        NymApiClient {
+            use_bincode: false,
+            nym_api,
+        }
     }
 
     pub fn api_url(&self) -> &Url {
@@ -410,7 +426,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_entry_assigned_nodes(false, Some(page), None)
+                .get_basic_entry_assigned_nodes(false, Some(page), None, self.use_bincode)
                 .await?;
 
             nodes.append(&mut res.nodes.data);
@@ -436,7 +452,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_active_mixing_assigned_nodes(false, Some(page), None)
+                .get_basic_active_mixing_assigned_nodes(false, Some(page), None, self.use_bincode)
                 .await?;
 
             nodes.append(&mut res.nodes.data);
@@ -462,7 +478,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_mixing_capable_nodes(false, Some(page), None)
+                .get_basic_mixing_capable_nodes(false, Some(page), None, self.use_bincode)
                 .await?;
 
             nodes.append(&mut res.nodes.data);
@@ -485,7 +501,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_nodes(false, Some(page), None)
+                .get_basic_nodes(false, Some(page), None, self.use_bincode)
                 .await?;
 
             nodes.append(&mut res.nodes.data);

@@ -857,16 +857,23 @@ impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInf
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[serde(from = "HostKeysDeHelper")]
 pub struct HostKeys {
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub ed25519: ed25519::PublicKey,
 
+    #[deprecated(note = "use the current_x25519_sphinx_key with explicit rotation information")]
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub x25519: x25519::PublicKey,
+
+    pub current_x25519_sphinx_key: SphinxKey,
+
+    #[serde(default)]
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
 
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
@@ -875,13 +882,61 @@ pub struct HostKeys {
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
-impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
-    fn from(value: nym_node_requests::api::v1::node::models::HostKeys) -> Self {
+#[derive(Deserialize)]
+struct HostKeysDeHelper {
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub ed25519: ed25519::PublicKey,
+
+    #[serde(default)]
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    pub x25519_noise: Option<x25519::PublicKey>,
+
+    pub current_x25519_sphinx_key: SphinxKey,
+
+    #[serde(default)]
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
+}
+
+impl From<HostKeysDeHelper> for HostKeys {
+    fn from(value: HostKeysDeHelper) -> Self {
         HostKeys {
-            ed25519: value.ed25519_identity,
-            x25519: value.x25519_sphinx,
+            ed25519: value.ed25519,
+            x25519: value.current_x25519_sphinx_key.public_key,
+            current_x25519_sphinx_key: value.current_x25519_sphinx_key,
+            pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key,
             x25519_noise: value.x25519_noise,
         }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct SphinxKey {
+    pub rotation_id: u32,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub public_key: x25519::PublicKey,
+}
+
+impl From<nym_node_requests::api::v1::node::models::SphinxKey> for SphinxKey {
+    fn from(value: nym_node_requests::api::v1::node::models::SphinxKey) -> Self {
+        SphinxKey {
+            rotation_id: value.rotation_id,
+            public_key: value.public_key,
+        }
+    }
+}
+
+impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
+    fn from(value: nym_node_requests::api::v1::node::models::HostKeys) -> Self {
+        HostKeysDeHelper {
+            ed25519: value.ed25519_identity,
+            current_x25519_sphinx_key: value.current_x25519_sphinx_key.into(),
+            pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key.map(Into::into),
+            x25519_noise: value.x25519_noise,
+        }
+        .into()
     }
 }
 

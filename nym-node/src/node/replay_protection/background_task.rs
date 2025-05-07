@@ -33,41 +33,41 @@ struct ReplayProtectionBackgroundTaskConfig {
 
 impl From<&Config> for ReplayProtectionBackgroundTaskConfig {
     fn from(config: &Config) -> Self {
-        ReplayProtectionBackgroundTaskConfig {
-            current_bloomfilter_path: config
-                .mixnet
-                .replay_protection
-                .storage_paths
-                .current_bloomfilter_filepath(),
-            current_bloomfilter_temp_flush_path: config
-                .mixnet
-                .replay_protection
-                .storage_paths
-                .current_bloomfilter_being_flushed_filepath(),
-            false_positive_rate: config.mixnet.replay_protection.debug.false_positive_rate,
-            filter_reset_rate: config.mixnet.replay_protection.debug.bloomfilter_reset_rate,
-            disk_flushing_rate: config
-                .mixnet
-                .replay_protection
-                .debug
-                .bloomfilter_disk_flushing_rate,
-            bloomfilter_size_multiplier: config
-                .mixnet
-                .replay_protection
-                .debug
-                .bloomfilter_size_multiplier,
-            minimum_bloomfilter_packets_per_second: config
-                .mixnet
-                .replay_protection
-                .debug
-                .bloomfilter_minimum_packets_per_second_size,
-        }
+        todo!()
+        // ReplayProtectionBackgroundTaskConfig {
+        //     current_bloomfilter_path: config
+        //         .mixnet
+        //         .replay_protection
+        //         .storage_paths
+        //         .current_bloomfilter_filepath(),
+        //     current_bloomfilter_temp_flush_path: config
+        //         .mixnet
+        //         .replay_protection
+        //         .storage_paths
+        //         .current_bloomfilter_being_flushed_filepath(),
+        //     false_positive_rate: config.mixnet.replay_protection.debug.false_positive_rate,
+        //     filter_reset_rate: config.mixnet.replay_protection.debug.bloomfilter_reset_rate,
+        //     disk_flushing_rate: config
+        //         .mixnet
+        //         .replay_protection
+        //         .debug
+        //         .bloomfilter_disk_flushing_rate,
+        //     bloomfilter_size_multiplier: config
+        //         .mixnet
+        //         .replay_protection
+        //         .debug
+        //         .bloomfilter_size_multiplier,
+        //     minimum_bloomfilter_packets_per_second: config
+        //         .mixnet
+        //         .replay_protection
+        //         .debug
+        //         .bloomfilter_minimum_packets_per_second_size,
+        // }
     }
 }
 
-// background task responsible for periodically flushing the bloomfilter to disk
-// as well as clearing it up on the specified timer
-// (in the future this will be enforced by key rotation)
+// background task responsible for periodically flushing the bloomfilters to disk
+// it no longer removes them on the timer as it's now responsibility of the key rotation controller
 pub struct ReplayProtectionBackgroundTask {
     config: ReplayProtectionBackgroundTaskConfig,
     last_reset: LastResetData,

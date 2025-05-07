@@ -59,7 +59,6 @@ pub const DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME: &str = "x25519_wg_dh.pub";
 pub const DEFAULT_RD_BLOOMFILTER_SUBDIR: &str = "replay-detection";
 pub const DEFAULT_RD_BLOOMFILTER_FILE_EXT: &str = "bloom";
 pub const DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT: &str = "flush";
-pub const CURRENT_RD_BLOOMFILTER_FILENAME: &str = "current";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -498,15 +497,15 @@ pub struct ReplayProtectionPaths {
 }
 
 impl ReplayProtectionPaths {
-    pub fn current_bloomfilter_filepath(&self) -> PathBuf {
+    pub fn bloomfilter_filepath(&self, rotation_id: u32) -> PathBuf {
         self.current_bloomfilters_directory
-            .join(CURRENT_RD_BLOOMFILTER_FILENAME)
+            .join(format!("rot-{rotation_id}"))
             .with_extension(DEFAULT_RD_BLOOMFILTER_FILE_EXT)
     }
 
-    pub fn current_bloomfilter_being_flushed_filepath(&self) -> PathBuf {
+    pub fn current_bloomfilter_being_flushed_filepath(&self, rotation_id: u32) -> PathBuf {
         self.current_bloomfilters_directory
-            .join(CURRENT_RD_BLOOMFILTER_FILENAME)
+            .join(format!("rot-{rotation_id}"))
             .with_extension(DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT)
     }
 }

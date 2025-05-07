@@ -12,12 +12,19 @@ use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::NymApiClient;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tracing::warn;
 use url::Url;
 
+#[derive(Clone)]
 pub struct NymApisClient {
+    inner: Arc<RwLock<InnerClient>>,
+}
+
+struct InnerClient {
     active_client: NymApiClient,
     available_urls: Vec<Url>,
     currently_used_api: usize,
@@ -38,24 +45,57 @@ impl NymApisClient {
             .build()?;
 
         Ok(NymApisClient {
-            active_client: NymApiClient {
-                nym_api: active_client,
-            },
-            available_urls: urls,
-            currently_used_api: 0,
+            inner: Arc::new(RwLock::new(InnerClient {
+                active_client: NymApiClient {
+                    nym_api: active_client,
+                },
+                available_urls: urls,
+                currently_used_api: 0,
+            })),
         })
     }
 
-    fn use_next_endpoint(&mut self) {
-        if self.available_urls.len() == 1 {
+    async fn use_next_endpoint(&mut self) {
+        let mut guard = self.inner.write().await;
+        if guard.available_urls.len() == 1 {
             return;
         }
 
-        self.currently_used_api = (self.currently_used_api + 1) % self.available_urls.len();
-        self.active_client
-            .change_nym_api(self.available_urls[self.currently_used_api].clone())
+        let next_index = (guard.currently_used_api + 1) % guard.available_urls.len();
+        let next = guard.available_urls[next_index].clone();
+        guard.currently_used_api = next_index;
+        guard.active_client.change_nym_api(next)
     }
 
+    pub(crate) async fn query_exhaustively<R, T>(
+        &self,
+        req: R,
+        timeout_duration: Duration,
+    ) -> Result<T, NymNodeError>
+    where
+        R: AsyncFn(Client) -> Result<T, NymAPIError>,
+    {
+        self.inner
+            .read()
+            .await
+            .query_exhaustively(req, timeout_duration)
+            .await
+    }
+
+    pub(crate) async fn broadcast_force_refresh(&self, private_key: &ed25519::PrivateKey) {
+        self.inner
+            .read()
+            .await
+            .broadcast_force_refresh(private_key)
+            .await;
+    }
+
+    pub(crate) async fn broadcast_key_rotation(&self) {
+        self.inner.read().await.broadcast_key_rotation().await;
+    }
+}
+
+impl InnerClient {
     // currently there are no cases without json body, but for those we'd just need to slightly adjust the signature
     async fn broadcast<B, R>(&self, request_body: &B, req: R, timeout_duration: Duration)
     where
@@ -115,11 +155,11 @@ impl NymApisClient {
     }
 
     pub(crate) async fn broadcast_key_rotation(&self) {
-        //
+        todo!()
     }
 }
 
-impl AsRef<NymApiClient> for NymApisClient {
+impl AsRef<NymApiClient> for InnerClient {
     fn as_ref(&self) -> &NymApiClient {
         &self.active_client
     }

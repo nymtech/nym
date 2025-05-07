@@ -13,8 +13,14 @@ pub(crate) struct ActiveSphinxKeys {
 }
 
 struct ActiveSphinxKeysInner {
+    /// Key that's currently used as the default when processing packets with no explicit rotation information
     primary_key: ArcSwap<SphinxPrivateKey>,
+
+    /// Optionally, a key from the previous rotation during the overlap period when the keys are rotated.
     secondary_key: ArcSwapOption<SphinxPrivateKey>,
+
+    /// Optionally, a key for the upcoming rotation that's being pre-announced to other network entities
+    pre_announced_key: ArcSwapOption<SphinxPrivateKey>,
 }
 
 impl ActiveSphinxKeys {

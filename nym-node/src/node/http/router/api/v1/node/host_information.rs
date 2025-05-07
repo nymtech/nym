@@ -3,6 +3,7 @@
 
 use crate::node::http::api::api_requests;
 use crate::node::http::state::AppState;
+use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::{v1::node::models::SignedHostInformation, SignedDataHostInfo};
@@ -27,13 +28,25 @@ pub(crate) async fn host_information(
 ) -> HostInformationResponse {
     let output = output.output.unwrap_or_default();
 
+    let primary_key = state.x25519_sphinx_keys.primary();
+    let pre_announced = match state.x25519_sphinx_keys.secondary() {
+        None => None,
+        Some(secondary_key) => {
+            todo!()
+        }
+    };
+
     let host_info = api_requests::v1::node::models::HostInformation {
         ip_address: state.static_information.ip_addresses.clone(),
         hostname: state.static_information.hostname.clone(),
         keys: api_requests::v1::node::models::HostKeys {
             ed25519_identity: *state.static_information.ed25519_identity_keys.public_key(),
-            x25519_sphinx: state.x25519_sphinx_keys.primary().x25519_pubkey(),
+            current_x25519_sphinx_key: api_requests::v1::node::models::SphinxKey {
+                rotation_id: primary_key.rotation_id(),
+                public_key: primary_key.x25519_pubkey(),
+            },
             x25519_noise: state.static_information.x25519_noise_key,
+            pre_announced_x25519_sphinx_key: pre_announced,
         },
     };
 

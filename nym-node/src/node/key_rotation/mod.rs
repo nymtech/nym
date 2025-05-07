@@ -2,6 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub(crate) mod active_keys;
-mod controller;
+pub(crate) mod controller;
 pub(crate) mod key;
 pub(crate) mod manager;

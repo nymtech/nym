@@ -3,40 +3,28 @@ services:
     build:
       context: ./
       args: 
-        UID: 1001
-        GID: 1001
         NYM_CLI_GIT_TAG: "2025.8-tourist"
-        WASMD_VERSION: "v0.54.0"
+        WASMD_VERSION: "v0.54.3"
     image: validator:latest
     container_name: validator
-    user: nym
     ports:
       - "127.0.0.1:26657:26657"
       - "127.0.0.1:26656:26656"
       - "127.0.0.1:1317:1317"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
     volumes:
-      - "addresses_volume:/home/nym/output"  
-      - "validator_data_volume:/home/nym/.nyxd"
+      - ./data/addresses:/root/output
+      - ./data/validator:/root/.nyxd
     environment:
       BECH32_PREFIX: "ntest"
-      DENOM: "nym"
-      STAKE_DENOM: "nyx"
-      WASMD_VERSION: "v0.54.0"
+      DENOM: "nymtest"
+      STAKE_DENOM: "nyxtest"
+      WASMD_VERSION: "v0.54.3"
       CHAIN_ID: "nymtestnetwork"
       NYM_CLI_GIT_TAG: "2025.8-tourist"
       RETAIN_BLOCKS: "no"
-
-volumes:
-  validator_data_volume:
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: './data/validator'
-  addresses_volume:
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: './data/addresses'

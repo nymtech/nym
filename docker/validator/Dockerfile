@@ -1,42 +1,40 @@
 FROM ubuntu:24.04
 
-ARG UID=1001
-ARG GID=1001
-ARG NYM_CLI_GIT_TAG
 ARG WASMD_VERSION
+ARG NYM_CLI_GIT_TAG
 ARG RETAIN_BLOCKS
 
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    jq \
     curl \
     wget \
+    vim \
     openssl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -g "${GID}" nym || true
-RUN useradd --create-home --no-log-init -u "${UID}" -g "${GID}" nym || true
+WORKDIR /root
 
-WORKDIR /home/nym
+RUN wget -O nym-cli "https://github.com/nymtech/nym/releases/download/nym-binaries-v${NYM_CLI_GIT_TAG:-2025.8-tourist}/nym-cli" && \
+    chmod 755 nym-cli || echo "nym-cli not available"
 
-RUN wget -O nym-cli "https://github.com/nymtech/nym/releases/download/nym-binaries-v${NYM_CLI_GIT_TAG:-2025.8-tourist}/nym-cli" || echo "nym-cli not available" && \
-    wget "https://github.com/nymtech/nyxd/releases/download/${WASMD_VERSION:-v0.54.0}/nyxd-ubuntu-22.04.tar.gz" && \
+RUN wget "https://github.com/nymtech/nyxd/releases/download/${WASMD_VERSION:-v0.54.3}/nyxd-ubuntu-22.04.tar.gz" && \
     tar -zxvf nyxd-ubuntu-22.04.tar.gz && \
-    mv libwasmvm.*.so /lib/ || true && \
+    mv libwasmvm.x86_64.so /lib/x86_64-linux-gnu/ && \
     chmod 755 nyxd && \
     rm nyxd-ubuntu-22.04.tar.gz
 
-# Create directories and set permissions
-RUN mkdir -p .nyxd output && \
-    chown -R nym:nym ./ && \
-    chmod 750 .nyxd output && \
-    touch .env && \
-    chown nym:nym .env
+RUN mkdir -p "/root/.nyxd/config" "/root/output"
+RUN chmod 755 "/root/.nyxd" "/root/.nyxd/config" "/root/output"
 
-VOLUME /home/nym/.nyxd
-VOLUME /home/nym/output
+VOLUME /root/.nyxd
+VOLUME /root/output
 
-COPY --chown=nym:nym start.sh .
-RUN chmod 750 *.sh
+RUN touch .env
+
+COPY start.sh .
+RUN chmod 755 *.sh
 
 ENV RETAIN_BLOCKS=${RETAIN_BLOCKS}
 

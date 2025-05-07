@@ -1,7 +1,5 @@
 ## Build with Docker & Docker Compose
 
-#### Standard Build (x86_64 Genesis Validator
-
 To build the genesis validator:
 
 ```
@@ -14,7 +12,7 @@ To start the genesis validator:
 docker-compose up -d validator
 ```
 
-The genesis validator will be initialized with the network configuration defined in the `docker-compose.yml` file.
+The genesis validator will be initialised with the network configuration defined in the `docker-compose.yml` file.
 
 ### Managing the Validator
 

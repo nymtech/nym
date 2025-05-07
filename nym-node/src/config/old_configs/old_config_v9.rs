@@ -1396,11 +1396,6 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .replay_protection
                         .debug
                         .bloomfilter_size_multiplier,
-                    bloomfilter_reset_rate: old_cfg
-                        .mixnet
-                        .replay_protection
-                        .debug
-                        .bloomfilter_reset_rate,
                     bloomfilter_disk_flushing_rate: old_cfg
                         .mixnet
                         .replay_protection

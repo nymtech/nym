@@ -4,6 +4,8 @@ data/
 data/validator/
 data/addresses/
 
+secrets/
+
 # docker
 .docker/
 

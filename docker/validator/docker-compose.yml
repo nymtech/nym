@@ -21,9 +21,9 @@ services:
       - ./data/addresses:/root/output
       - ./data/validator:/root/.nyxd
     environment:
-      BECH32_PREFIX: "ntest"
-      DENOM: "nymtest"
-      STAKE_DENOM: "nyxtest"
+      BECH32_PREFIX: "n"
+      DENOM: "nym"
+      STAKE_DENOM: "nyx"
       WASMD_VERSION: "v0.54.3"
       CHAIN_ID: "nymtestnetwork"
       NYM_CLI_GIT_TAG: "2025.8-tourist"

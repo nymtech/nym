@@ -13,6 +13,7 @@ license.workspace = true
 [dependencies]
 axum-client-ip.workspace = true
 axum.workspace = true
+bincode = { workspace = true, optional = true }
 bytes = { workspace = true }
 colored.workspace = true
 futures = { workspace = true }
@@ -28,3 +29,4 @@ zeroize = { workspace = true }
 
 [features]
 utoipa = ["dep:utoipa"]
+bincode = ["dep:bincode"]

@@ -32,36 +32,46 @@ const mappedNSApiNodes = (
   nodes: NS_NODE[],
   epochRewardsData: ExplorerData["currentEpochRewardsData"]
 ) =>
-  nodes.map((node) => {
-    const nodeSaturationPoint = getNodeSaturationPoint(
-      +node.total_stake,
-      epochRewardsData.interval.stake_saturation_point
-    );
+  nodes
+    .map((node) => {
+      const nodeSaturationPoint = getNodeSaturationPoint(
+        +node.total_stake,
+        epochRewardsData.interval.stake_saturation_point
+      );
 
-    const cleanMoniker = DOMPurify.sanitize(node.description.moniker).replace(
-      /&amp;/g,
-      "&"
-    );
+      const cleanMoniker = DOMPurify.sanitize(node.description.moniker).replace(
+        /&amp;/g,
+        "&"
+      );
 
-    return {
-      name: cleanMoniker,
-      nodeId: node.node_id,
-      identity_key: node.identity_key,
-      countryCode: node.geoip?.country || null,
-      countryName: countryName(node.geoip?.country || null) || null,
-      profitMarginPercentage: node.rewarding_details
-        ? +node.rewarding_details.cost_params.profit_margin_percent * 100
-        : 0,
-      owner: node.bonding_address,
-      stakeSaturation: nodeSaturationPoint,
-      qualityOfService: +node.uptime * 100,
-      mixnode: node.self_description?.declared_role.mixnode === true,
-      gateway:
-        node.self_description?.declared_role.entry === true ||
-        node.self_description?.declared_role.exit_ipr === true ||
-        node.self_description?.declared_role.exit_nr === true,
-    };
-  });
+      return {
+        name: cleanMoniker,
+        nodeId: node.node_id,
+        identity_key: node.identity_key,
+        countryCode: node.geoip?.country || null,
+        countryName: countryName(node.geoip?.country || null) || null,
+        profitMarginPercentage: node.rewarding_details
+          ? +node.rewarding_details.cost_params.profit_margin_percent * 100
+          : 0,
+        owner: node.bonding_address,
+        stakeSaturation: nodeSaturationPoint,
+        qualityOfService: +node.uptime * 100,
+        mixnode: node.self_description?.declared_role.mixnode === true,
+        gateway:
+          node.self_description?.declared_role.entry === true ||
+          node.self_description?.declared_role.exit_ipr === true ||
+          node.self_description?.declared_role.exit_nr === true,
+      };
+    })
+    .sort((a, b) => {
+      // Handle null country names by putting them at the end
+      if (!a.countryName && !b.countryName) return 0;
+      if (!a.countryName) return 1;
+      if (!b.countryName) return -1;
+
+      // Sort alphabetically by country name
+      return a.countryName.localeCompare(b.countryName);
+    });
 
 export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
 export type MappedNymNode = MappedNymNodes[0];

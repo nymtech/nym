@@ -38,6 +38,7 @@ import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
 
+
 type DelegationWithNodeDetails = {
   node: MappedNymNode | undefined;
   delegation: Delegation;

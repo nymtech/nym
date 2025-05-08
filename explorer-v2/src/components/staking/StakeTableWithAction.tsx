@@ -51,12 +51,6 @@ const mappedNSApiNodes = (
           : 0,
         owner: node.bonding_address,
         stakeSaturation: nodeSaturationPoint,
-        qualityOfService: +node.uptime * 100,
-        mixnode: node.self_description?.declared_role.mixnode === true,
-        gateway:
-          node.self_description?.declared_role.entry === true ||
-          node.self_description?.declared_role.exit_ipr === true ||
-          node.self_description?.declared_role.exit_nr === true,
       };
     })
     .sort((a, b) => {

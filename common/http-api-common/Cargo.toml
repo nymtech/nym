@@ -11,22 +11,39 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum-client-ip.workspace = true
-axum.workspace = true
+axum = { workspace = true, optional = true }
+axum-client-ip = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
-bytes = { workspace = true }
-colored.workspace = true
-futures = { workspace = true }
-mime = { workspace = true }
+bytes = { workspace = true, optional = true }
+colored = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+mime = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
-serde_yaml = { workspace = true }
-subtle.workspace = true
-tower = { workspace = true }
+serde_yaml = { workspace = true, optional = true }
+subtle = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
 tracing.workspace = true
 utoipa = { workspace = true, optional = true }
-zeroize = { workspace = true }
+zeroize = { workspace = true, optional = true }
 
 [features]
+default = []
+output = [
+    "axum",
+    "bytes",
+    "mime",
+    "serde_yaml"
+]
+
+middleware = [
+    "axum",
+    "axum-client-ip",
+    "colored",
+    "futures",
+    "subtle",
+    "tower",
+    "zeroize"
+]
+
 utoipa = ["dep:utoipa"]
 bincode = ["dep:bincode"]

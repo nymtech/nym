@@ -5816,7 +5816,6 @@ dependencies = [
  "futures",
  "mime",
  "serde",
- "serde_json",
  "serde_yaml",
  "subtle 2.6.1",
  "tower 0.5.2",

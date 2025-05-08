@@ -15,7 +15,7 @@ export async function Footer() {
   const locale = "en";
   const footerData = await getFooter(locale);
   const legalContent1 =
-    "Nym Noise Generating Network Explorer, V 2.1.0 Public Beta release.";
+    "Nym Noise Generating Network Explorer, V 2.2.0 Public Beta release.";
   const legalContent2 = footerData?.attributes?.legalContent2 || false;
   const footerLinkBlocks = footerData?.attributes?.linkBlocks || [];
 

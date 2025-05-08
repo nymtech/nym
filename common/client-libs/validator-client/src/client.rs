@@ -351,6 +351,15 @@ pub struct NymApiClient {
     // we could re-implement the communication with the REST API on port 1317
 }
 
+impl From<nym_api::Client> for NymApiClient {
+    fn from(nym_api: nym_api::Client) -> Self {
+        NymApiClient {
+            use_bincode: false,
+            nym_api,
+        }
+    }
+}
+
 // we have to allow the use of deprecated method here as they're calling the deprecated trait methods
 #[allow(deprecated)]
 impl NymApiClient {

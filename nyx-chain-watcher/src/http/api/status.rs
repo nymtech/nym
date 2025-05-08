@@ -35,9 +35,7 @@ pub(crate) fn routes() -> Router<AppState> {
         (status = 200, body = BinaryBuildInformationOwned)
     )
 )]
-async fn build_information(
-    State(state): State<StatusState>,
-) -> FormattedResponse<BinaryBuildInformationOwned> {
+async fn build_information(State(state): State<StatusState>) -> Json<BinaryBuildInformationOwned> {
     Json(state.build_information.to_owned())
 }
 
@@ -50,7 +48,7 @@ async fn build_information(
         (status = 200, body = HealthResponse)
     )
 )]
-async fn health(State(state): State<StatusState>) -> FormattedResponse<HealthResponse> {
+async fn health(State(state): State<StatusState>) -> Json<HealthResponse> {
     let uptime = state.startup_time.elapsed();
 
     let health = HealthResponse {
@@ -71,7 +69,7 @@ async fn health(State(state): State<StatusState>) -> FormattedResponse<HealthRes
 )]
 pub(crate) async fn active_payment_watchers(
     State(state): State<AppState>,
-) -> FormattedResponse<ActivePaymentWatchersResponse> {
+) -> Json<ActivePaymentWatchersResponse> {
     Json(ActivePaymentWatchersResponse {
         watchers: state.registered_payment_watchers.deref().clone(),
     })
@@ -88,7 +86,7 @@ pub(crate) async fn active_payment_watchers(
 )]
 pub(crate) async fn payment_listener_status(
     State(state): State<PaymentListenerState>,
-) -> FormattedResponse<PaymentListenerStatusResponse> {
+) -> Json<PaymentListenerStatusResponse> {
     let guard = state.inner.read().await;
 
     // sorry for the nasty conversion code here, run out of time : (
@@ -151,7 +149,7 @@ pub(crate) async fn payment_listener_status(
 )]
 pub(crate) async fn price_scraper_status(
     State(state): State<PriceScraperState>,
-) -> FormattedResponse<PriceScraperStatusResponse> {
+) -> Json<PriceScraperStatusResponse> {
     let guard = state.inner.read().await;
     Json(PriceScraperStatusResponse {
         last_success: guard
@@ -179,7 +177,7 @@ pub(crate) async fn price_scraper_status(
 )]
 pub(crate) async fn bank_module_status(
     State(state): State<BankScraperModuleState>,
-) -> FormattedResponse<BankModuleStatusResponse> {
+) -> Json<BankModuleStatusResponse> {
     let guard = state.inner.read().await;
     Json(BankModuleStatusResponse {
         processed_bank_msgs_since_startup: guard.processed_bank_msgs_since_startup,

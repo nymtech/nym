@@ -26,7 +26,6 @@ futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
 log = { workspace = true }
-pretty_env_logger = { workspace = true }
 publicsuffix = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }

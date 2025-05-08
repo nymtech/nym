@@ -77,7 +77,6 @@ dirs.workspace = true
 [dev-dependencies]
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
-pretty_env_logger = { workspace = true }
 reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

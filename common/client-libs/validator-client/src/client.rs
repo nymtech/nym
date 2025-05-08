@@ -383,8 +383,8 @@ impl NymApiClient {
     }
 
     #[must_use]
-    pub fn with_bincode(mut self) -> Self {
-        self.use_bincode = true;
+    pub fn with_bincode(mut self, use_bincode: bool) -> Self {
+        self.use_bincode = use_bincode;
         self
     }
 

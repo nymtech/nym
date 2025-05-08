@@ -111,7 +111,7 @@ pub async fn graph_handler() -> Result<String, StatusCode> {
         (status = 200, description = "Returns a map of all fragments sent by the network monitor", body = FragmentsSent),
     )
 )]
-pub async fn sent_handler() -> FormattedResponse<FragmentsSent> {
+pub async fn sent_handler() -> Json<FragmentsSent> {
     Json(FragmentsSent(
         (*monitoring::FRAGMENTS_SENT)
             .clone()
@@ -127,7 +127,7 @@ pub async fn sent_handler() -> FormattedResponse<FragmentsSent> {
         (status = 200, description = "Returns a map of all fragments received by the network monitor", body = FragmentsReceived),
     )
 )]
-pub async fn recv_handler() -> FormattedResponse<FragmentsReceived> {
+pub async fn recv_handler() -> Json<FragmentsReceived> {
     Json(FragmentsReceived(
         (*monitoring::FRAGMENTS_RECEIVED)
             .clone()

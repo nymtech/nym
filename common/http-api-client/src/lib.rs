@@ -144,7 +144,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{instrument, warn};
+use tracing::{debug, instrument, warn};
 use url::Url;
 
 use bytes::Bytes;
@@ -998,7 +998,7 @@ where
     // if content type header is missing, fallback to our old default, json
     let mime = try_get_mime_type(headers).unwrap_or(mime::APPLICATION_JSON);
 
-    tracing::debug!("attempting to parse response as {mime}");
+    debug!("attempting to parse response as {mime}");
 
     // unfortunately we can't use stronger typing for subtype as "bincode" is not a defined mime type
     match (mime.type_(), mime.subtype().as_str()) {
@@ -1006,7 +1006,7 @@ where
         #[cfg(feature = "bincode")]
         (mime::APPLICATION, "bincode") => decode_as_bincode(headers, content),
         (_, _) => {
-            warn!("unrecognised mime type {mime}. falling back to json decoding...");
+            debug!("unrecognised mime type {mime}. falling back to json decoding...");
             decode_as_json(headers, content)
         }
     }

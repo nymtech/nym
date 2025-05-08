@@ -63,7 +63,7 @@ impl TopologyProvider for MyTopologyProvider {
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
     let my_topology_provider = MyTopologyProvider::new(nym_api);

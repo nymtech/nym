@@ -12,7 +12,7 @@ use crate::types::types::{CMessageCallback, CStringCallback, ReceivedMessage, St
 
 #[no_mangle]
 pub extern "C" fn init_logging() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 }
 
 #[no_mangle]

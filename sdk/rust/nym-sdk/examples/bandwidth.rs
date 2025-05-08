@@ -6,7 +6,7 @@ use nym_sdk::mixnet::MixnetMessageSender;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
     // right now, only sandbox has coconut setup
     // this should be run from the `sdk/rust/nym-sdk` directory
     setup_env(Some("../../../envs/sandbox.env"));

@@ -10,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
     use clap::Parser;
 
     let args = cli::Cli::parse();
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
     nym_network_defaults::setup_env(args.config_env_file.as_ref());
 
     if !args.no_banner {

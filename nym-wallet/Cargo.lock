@@ -4039,6 +4039,8 @@ dependencies = [
  "pretty_env_logger",
  "schemars",
  "serde",
+ "tracing",
+ "tracing-subscriber",
  "utoipa",
  "vergen",
 ]
@@ -4430,7 +4432,6 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-store-cipher",
- "pretty_env_logger",
  "serde_json",
 ]
 

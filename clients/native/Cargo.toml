@@ -46,6 +46,7 @@ nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-bin-common = { path = "../../common/bin-common", features = [
     "output_format",
     "clap",
+    "basic_tracing",
 ] }
 nym-client-core = { path = "../../common/client-core", features = [
     "fs-credentials-storage",

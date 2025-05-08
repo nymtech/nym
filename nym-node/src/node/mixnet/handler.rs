@@ -3,6 +3,8 @@
 
 use crate::node::mixnet::shared::SharedData;
 use futures::StreamExt;
+use nym_noise::connection::Connection;
+use nym_noise::upgrade_noise_responder;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
@@ -61,7 +63,6 @@ impl PendingReplayCheckPackets {
 
 pub(crate) struct ConnectionHandler {
     shared: SharedData,
-    mixnet_connection: Framed<TcpStream, NymCodec>,
     remote_address: SocketAddr,
 
     // packets pending for replay detection
@@ -78,11 +79,7 @@ impl Drop for ConnectionHandler {
 }
 
 impl ConnectionHandler {
-    pub(crate) fn new(
-        shared: &SharedData,
-        tcp_stream: TcpStream,
-        remote_address: SocketAddr,
-    ) -> Self {
+    pub(crate) fn new(shared: &SharedData, remote_address: SocketAddr) -> Self {
         let shutdown = shared.shutdown.child_token(remote_address.to_string());
         shared.metrics.network.new_active_ingress_mixnet_client();
 
@@ -93,11 +90,11 @@ impl ConnectionHandler {
                 replay_protection_filter: shared.replay_protection_filter.clone(),
                 mixnet_forwarder: shared.mixnet_forwarder.clone(),
                 final_hop: shared.final_hop.clone(),
+                noise_config: shared.noise_config.clone(),
                 metrics: shared.metrics.clone(),
                 shutdown,
             },
             remote_address,
-            mixnet_connection: Framed::new(tcp_stream, NymCodec),
             pending_packets: PendingReplayCheckPackets::new(),
         }
     }
@@ -365,7 +362,29 @@ impl ConnectionHandler {
             remote = %self.remote_address
         )
     )]
-    pub(crate) async fn handle_stream(&mut self) {
+    pub(crate) async fn handle_connection(&mut self, socket: TcpStream) {
+        let noise_stream = match upgrade_noise_responder(socket, &self.shared.noise_config).await {
+            Ok(noise_stream) => noise_stream,
+            Err(err) => {
+                error!(
+                    "Failed to perform Noise handshake with {:?} - {err}",
+                    self.remote_address
+                );
+                return;
+            }
+        };
+        debug!(
+            "Noise responder handshake completed for {:?}",
+            self.remote_address
+        );
+        self.handle_stream(Framed::new(noise_stream, NymCodec))
+            .await
+    }
+
+    pub(crate) async fn handle_stream(
+        &mut self,
+        mut mixnet_connection: Framed<Connection, NymCodec>,
+    ) {
         loop {
             tokio::select! {
                 biased;
@@ -373,7 +392,7 @@ impl ConnectionHandler {
                     trace!("connection handler: received shutdown");
                     break
                 }
-                maybe_framed_nym_packet = self.mixnet_connection.next() => {
+                maybe_framed_nym_packet = mixnet_connection.next() => {
                     match maybe_framed_nym_packet {
                         Some(Ok(packet)) => self.handle_received_nym_packet(packet).await,
                         Some(Err(err)) => {

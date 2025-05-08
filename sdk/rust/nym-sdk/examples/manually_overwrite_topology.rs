@@ -7,7 +7,7 @@ use nym_topology::{NymTopology, RoutingNode, SupportedRoles};
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();

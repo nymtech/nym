@@ -312,7 +312,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
     if args.debug {
-        nym_bin_common::logging::setup_logging();
+        nym_bin_common::logging::setup_tracing_logger();
     }
 
     nym_network_defaults::setup_env(args.config_env_file.as_ref());

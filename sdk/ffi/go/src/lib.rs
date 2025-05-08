@@ -35,7 +35,7 @@ enum GoWrapError {
 
 #[no_mangle]
 fn init_logging() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 }
 
 #[no_mangle]

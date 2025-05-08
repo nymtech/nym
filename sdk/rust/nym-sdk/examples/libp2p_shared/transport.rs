@@ -538,7 +538,7 @@ mod test {
         Multiaddr, StreamMuxer,
     };
     use log::info;
-    use nym_bin_common::logging::setup_logging;
+    use nym_bin_common::logging::setup_tracing_logger;
     use nym_sdk::mixnet::MixnetClient;
     use std::{pin::Pin, str::FromStr, sync::atomic::Ordering};
     use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -573,7 +573,7 @@ mod test {
 
     #[tokio::test]
     async fn test_transport_connection() {
-        setup_logging();
+        setup_tracing_logger();
 
         let client = MixnetClient::connect_new().await.unwrap();
         let (dialer_notify_inbound_tx, mut dialer_notify_inbound_rx) = unbounded_channel();

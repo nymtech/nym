@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     // Specify some config options
     let config_dir = PathBuf::from("/tmp/mixnet-client");

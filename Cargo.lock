@@ -522,7 +522,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 name = "autodoc"
 version = "0.1.0"
 dependencies = [
- "env_logger 0.11.8",
+ "env_logger",
  "log",
 ]
 
@@ -2377,19 +2377,6 @@ checksum = "186e05a59d4c50738528153b83b0b0194d3a29507dfec16eccd4b342903397d0"
 dependencies = [
  "log",
  "regex",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
-dependencies = [
- "humantime",
- "is-terminal",
- "log",
- "regex",
- "termcolor",
 ]
 
 [[package]]
@@ -4930,7 +4917,6 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",
- "pretty_env_logger",
  "schemars",
  "serde",
  "serde_json",
@@ -4975,7 +4961,6 @@ dependencies = [
  "nym-cli-commands",
  "nym-network-defaults",
  "nym-validator-client",
- "pretty_env_logger",
  "serde",
  "serde_json",
  "tap",
@@ -6071,7 +6056,6 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-types",
- "pretty_env_logger",
  "publicsuffix",
  "rand 0.8.5",
  "regex",
@@ -6430,7 +6414,6 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "parking_lot",
- "pretty_env_logger",
  "rand 0.8.5",
  "reqwest 0.12.15",
  "serde",
@@ -7772,16 +7755,6 @@ checksum = "3ae130e2f271fbc2ac3a40fb1d07180839cdbbe443c7a27e1e3c13c5cac0116d"
 dependencies = [
  "diff",
  "yansi",
-]
-
-[[package]]
-name = "pretty_env_logger"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "865724d4dbe39d9f3dd3b52b88d859d66bcb2d6a0acfd5ea68a65fb66d4bdc1c"
-dependencies = [
- "env_logger 0.10.2",
- "log",
 ]
 
 [[package]]

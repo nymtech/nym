@@ -30,7 +30,7 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 tokio-postgres = { workspace = true }
 
 # internal
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }
 nym-client-core = { path = "../common/client-core" }
 nym-crypto = { path = "../common/crypto" }
 nym-network-defaults = { path = "../common/network-defaults" }

@@ -178,7 +178,7 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let args = Args::parse();
 

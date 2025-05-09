@@ -110,6 +110,11 @@ pub enum PacketProcessingError {
     PacketReplay,
 }
 
+pub struct PartialyUnwrappedPacketWithKeyRotation {
+    pub packet: PartiallyUnwrappedPacket,
+    pub used_key_rotation: u32,
+}
+
 pub struct PartiallyUnwrappedPacket {
     received_data: FramedNymPacket,
     partial_result: PartialMixProcessingResult,
@@ -173,6 +178,16 @@ impl PartiallyUnwrappedPacket {
 
     pub fn replay_tag(&self) -> Option<&[u8; REPLAY_TAG_SIZE]> {
         self.partial_result.replay_tag()
+    }
+
+    pub fn with_key_rotation(
+        self,
+        used_key_rotation: u32,
+    ) -> PartialyUnwrappedPacketWithKeyRotation {
+        PartialyUnwrappedPacketWithKeyRotation {
+            packet: self,
+            used_key_rotation,
+        }
     }
 }
 

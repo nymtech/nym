@@ -3,26 +3,53 @@
 
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use futures::pin_mut;
 use nym_task::ShutdownToken;
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::models::KeyRotationInfoResponse;
 use std::time::Duration;
-use tokio::time::interval;
-use tracing::{info, trace};
+use time::OffsetDateTime;
+use tokio::time::{interval, sleep, Instant};
+use tracing::{error, info, trace, warn};
 
 pub(crate) struct KeyRotationController {
     // regular polling rate to catch any changes in the system config. they shouldn't happen too often
     // so the requests can be sent quite infrequently
     regular_polling_interval: Duration,
 
+    replay_protection_bloomfilters: ReplayProtectionBloomfilters,
     client: NymApisClient,
     managed_keys: SphinxKeyManager,
     shutdown_token: ShutdownToken,
 }
 
-enum KeyRotationActionState {
-    // perform key-rotation and pre-announce new key to the nym-api(s)
-    PreAnnounce,
+struct NextAction {
+    typ: KeyRotationActionState,
+    deadline: OffsetDateTime,
+}
 
-    // remove the old key and purge associated data like the replay detection bloomfilter
+impl NextAction {
+    fn until_deadline(&self) -> Duration {
+        let now = OffsetDateTime::now_utc();
+        Duration::try_from(self.deadline - now).unwrap_or_else(|_| {
+            // deadline is already in the past
+            Duration::from_nanos(0)
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
+enum KeyRotationActionState {
+    // generate and pre-announce new key to the nym-api(s)
+    PreAnnounce { rotation_id: u32 },
+
+    // perform the following exchange
+    // primary -> secondary
+    // pre_announced -> primary
+    SwapDefault,
+
+    // remove the old overlap key and purge associated data like the replay detection bloomfilter
     PurgeOld,
 }
 
@@ -31,8 +58,108 @@ impl KeyRotationController {
         todo!()
     }
 
-    async fn regular_poll(&self) {
-        todo!()
+    async fn determine_next_action(&self) -> NextAction {
+        loop {
+            if let Some(next) = self.try_determine_next_action().await {
+                return next;
+            }
+
+            warn!("failed to determine next key rotation action; will try again in 2min");
+            sleep(Duration::from_secs(120)).await;
+        }
+    }
+
+    async fn try_determine_next_action(&self) -> Option<NextAction> {
+        let key_rotation_info = self.try_get_key_rotation_info().await?;
+        let current_rotation = key_rotation_info.current_key_rotation_id();
+
+        let current_epoch = key_rotation_info.current_epoch_id;
+        let next_rotation_epoch = key_rotation_info.next_rotation_starting_epoch_id();
+        let current_rotation_epoch = key_rotation_info.current_rotation_starting_epoch_id();
+
+        let secondary_rotation_id = self.managed_keys.keys.secondary_key_rotation_id();
+        let (action, execution_epoch) = match secondary_rotation_id {
+            None => {
+                // we don't have any secondary key, meaning the next thing we could possibly do is to pre-announce new key
+                // an epoch before next rotation
+                let rotation_id = current_rotation + 1;
+
+                (
+                    KeyRotationActionState::PreAnnounce { rotation_id },
+                    next_rotation_epoch - 1,
+                )
+            }
+            Some(id) if id == current_rotation - 1 => {
+                // our secondary key is from the previous rotation, meaning the next thing we have to do
+                // is to remove it (we have clearly already rotated)
+                (KeyRotationActionState::PurgeOld, current_rotation_epoch + 1)
+            }
+            Some(id) if id == current_rotation => {
+                // our secondary key is from the current epoch, meaning (hopefully) we just have gone into the
+                // next rotation, and we have to swap it into the primary
+                (KeyRotationActionState::SwapDefault, current_rotation_epoch)
+            }
+            Some(id) if id == current_rotation + 1 => {
+                // our secondary key is from the upcoming rotation, meaning it's the pre-announced key, meaning
+                // the next thing we have to do is to swap it into the primary
+                (KeyRotationActionState::SwapDefault, next_rotation_epoch)
+            }
+            Some(other) => {
+                // this situation should have never occurred, our secondary key is completely unusable,
+                // so we should just remove it immediately and try again
+                error!("inconsistent secondary key state. it's marked for rotation {other} while the current value is {current_rotation}");
+                (KeyRotationActionState::PurgeOld, current_epoch)
+            }
+        };
+
+        let now = OffsetDateTime::now_utc();
+        let since_epoch_start = now - key_rotation_info.current_epoch_start;
+        let until_execution_epoch =
+            execution_epoch.saturating_sub(current_epoch) * key_rotation_info.epoch_duration;
+
+        Some(NextAction {
+            typ: action,
+            deadline: now - since_epoch_start + until_execution_epoch,
+        })
+    }
+
+    async fn try_get_key_rotation_info(&self) -> Option<KeyRotationInfoResponse> {
+        let Ok(rotation_info) = self
+            .client
+            .query_exhaustively(
+                async |c| c.get_key_rotation_info().await,
+                Duration::from_secs(5),
+            )
+            .await
+        else {
+            warn!("failed to retrieve key rotation information from ANY nym-api - we might miss configuration changes");
+            return None;
+        };
+
+        Some(rotation_info)
+    }
+
+    async fn execute_next_action(&self, action: KeyRotationActionState) {
+        match action {
+            KeyRotationActionState::PreAnnounce { rotation_id } => {
+                let public_key = match self.managed_keys.generate_key_for_new_rotation(rotation_id)
+                {
+                    Err(err) => {
+                        error!("failed to generate and store new sphinx key: {err}");
+                        return;
+                    }
+                    Ok(key) => key,
+                };
+
+                self.client.broadcast_pre_announced_key(public_key).await;
+            }
+            KeyRotationActionState::SwapDefault => {
+                if let Err(err) = self.managed_keys.rotate_keys() {
+                    error!("failed to perform sphinx key swap: {err}")
+                }
+            }
+            KeyRotationActionState::PurgeOld => {}
+        }
     }
 
     pub(crate) async fn run(&self) {
@@ -41,17 +168,27 @@ impl KeyRotationController {
         let mut polling_interval = interval(self.regular_polling_interval);
         polling_interval.reset();
 
+        let mut next_action = self.determine_next_action().await;
+        let mut state_update_future = sleep(next_action.until_deadline());
+        pin_mut!(state_update_future);
+
         while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
-                   trace!("KeyRotationController: Received shutdown");
+                    trace!("KeyRotationController: Received shutdown");
+                    break;
                 }
-                _ = polling_interval.tick() => {
-                    self.regular_poll().await;
+                _ = polling_interval.tick() => {}
+                _ = &mut state_update_future => {
+                    self.execute_next_action(next_action.typ).await
                 }
-                // TODO:
             }
+
+            next_action = self.determine_next_action().await;
+            state_update_future
+                .as_mut()
+                .reset(Instant::now() + next_action.until_deadline());
         }
 
         trace!("KeyRotationController: exiting")

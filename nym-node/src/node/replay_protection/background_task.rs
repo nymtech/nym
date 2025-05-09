@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::error::NymNodeError;
-use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::items_in_bloomfilter;
 use human_repr::HumanCount;
 use nym_node_metrics::NymNodeMetrics;
@@ -72,7 +72,7 @@ pub struct ReplayProtectionBackgroundTask {
     config: ReplayProtectionBackgroundTaskConfig,
     last_reset: LastResetData,
 
-    filter: ReplayProtectionBloomfilter,
+    filter: ReplayProtectionBloomfilters,
     metrics: NymNodeMetrics,
     shutdown_token: ShutdownToken,
 }
@@ -99,7 +99,7 @@ impl ReplayProtectionBackgroundTask {
 
         // if there's nothing on disk, we must create a new filter
         let bloomfilter = if task_config.current_bloomfilter_path.exists() {
-            ReplayProtectionBloomfilter::load(&task_config.current_bloomfilter_path).await?
+            ReplayProtectionBloomfilters::load(&task_config.current_bloomfilter_path).await?
         } else {
             let bf_items = items_in_bloomfilter(
                 task_config.filter_reset_rate,
@@ -110,7 +110,7 @@ impl ReplayProtectionBackgroundTask {
                     .initial_expected_packets_per_second,
             );
 
-            ReplayProtectionBloomfilter::new_empty(bf_items, task_config.false_positive_rate)?
+            ReplayProtectionBloomfilters::new_empty(bf_items, task_config.false_positive_rate)?
         };
 
         Ok(ReplayProtectionBackgroundTask {
@@ -125,7 +125,7 @@ impl ReplayProtectionBackgroundTask {
         })
     }
 
-    pub(crate) fn global_bloomfilter(&self) -> ReplayProtectionBloomfilter {
+    pub(crate) fn global_bloomfilter(&self) -> ReplayProtectionBloomfilters {
         self.filter.clone()
     }
 

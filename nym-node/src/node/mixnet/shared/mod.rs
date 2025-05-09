@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::mixnet::PacketKind;
@@ -66,7 +66,7 @@ impl ProcessingConfig {
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
     pub(super) sphinx_keys: ActiveSphinxKeys,
-    pub(super) replay_protection_filter: ReplayProtectionBloomfilter,
+    pub(super) replay_protection_filter: ReplayProtectionBloomfilters,
 
     // used for FORWARD mix packets and FINAL ack packets
     pub(super) mixnet_forwarder: MixForwardingSender,
@@ -89,7 +89,7 @@ impl SharedData {
     pub(crate) fn new(
         processing_config: ProcessingConfig,
         sphinx_keys: ActiveSphinxKeys,
-        replay_protection_filter: ReplayProtectionBloomfilter,
+        replay_protection_filter: ReplayProtectionBloomfilters,
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
         metrics: NymNodeMetrics,

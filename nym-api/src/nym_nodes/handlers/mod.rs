@@ -15,9 +15,9 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
+use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
@@ -55,10 +55,20 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
     path = "/rewarded-set",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = RewardedSetResponse)
+        (status = 200, content(
+            (RewardedSetResponse = "application/json"),
+            (RewardedSetResponse = "application/yaml"),
+            (RewardedSetResponse = "application/bincode")
+        ))
     ),
+    params(OutputParams)
 )]
-async fn rewarded_set(State(state): State<AppState>) -> AxumResult<Json<RewardedSetResponse>> {
+async fn rewarded_set(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<RewardedSetResponse>> {
+    let output = output.output.unwrap_or_default();
+
     let cached_rewarded_set = state
         .nym_contract_cache()
         .rewarded_set()
@@ -67,7 +77,7 @@ async fn rewarded_set(State(state): State<AppState>) -> AxumResult<Json<Rewarded
         .ok_or(UninitialisedCache)?
         .into_inner();
 
-    Ok(Json(
+    Ok(output.to_response(
         nym_mixnet_contract_common::EpochRewardedSet::from(cached_rewarded_set).into(),
     ))
 }
@@ -136,16 +146,21 @@ async fn refresh_described(
     path = "/noise",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PaginatedResponse<NoiseDetails>)
+        (status = 200, content(
+            (PaginatedResponse<NoiseDetails> = "application/json"),
+            (PaginatedResponse<NoiseDetails> = "application/yaml"),
+            (PaginatedResponse<NoiseDetails> = "application/bincode")
+        ))
     ),
     params(PaginationRequest)
 )]
 async fn nodes_noise(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> AxumResult<Json<PaginatedResponse<NoiseDetails>>> {
+) -> AxumResult<FormattedResponse<PaginatedResponse<NoiseDetails>>> {
     // TODO: implement it
     let _ = pagination;
+    let output = pagination.output.unwrap_or_default();
 
     let describe_cache = state.describe_nodes_cache_data().await?;
 
@@ -167,7 +182,7 @@ async fn nodes_noise(
 
     let total = nodes.len();
 
-    Ok(Json(PaginatedResponse {
+    Ok(output.to_response(PaginatedResponse {
         pagination: Pagination {
             total,
             page: 0,
@@ -183,21 +198,26 @@ async fn nodes_noise(
     path = "/bonded",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PaginatedResponse<NymNodeDetails>)
+        (status = 200, content(
+            (PaginatedResponse<NymNodeDetails> = "application/json"),
+            (PaginatedResponse<NymNodeDetails> = "application/yaml"),
+            (PaginatedResponse<NymNodeDetails> = "application/bincode")
+        ))
     ),
     params(PaginationRequest)
 )]
 async fn get_bonded_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> Json<PaginatedResponse<NymNodeDetails>> {
+) -> FormattedResponse<PaginatedResponse<NymNodeDetails>> {
     // TODO: implement it
     let _ = pagination;
+    let output = pagination.output.unwrap_or_default();
 
     let details = state.nym_contract_cache().nym_nodes().await;
     let total = details.len();
 
-    Json(PaginatedResponse {
+    output.to_response(PaginatedResponse {
         pagination: Pagination {
             total,
             page: 0,
@@ -213,21 +233,26 @@ async fn get_bonded_nodes(
     path = "/described",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PaginatedResponse<NymNodeDescription>)
+        (status = 200, content(
+            (PaginatedResponse<NymNodeDescription> = "application/json"),
+            (PaginatedResponse<NymNodeDescription> = "application/yaml"),
+            (PaginatedResponse<NymNodeDescription> = "application/bincode")
+        ))
     ),
     params(PaginationRequest)
 )]
 async fn get_described_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> AxumResult<Json<PaginatedResponse<NymNodeDescription>>> {
+) -> AxumResult<FormattedResponse<PaginatedResponse<NymNodeDescription>>> {
     // TODO: implement it
     let _ = pagination;
+    let output = pagination.output.unwrap_or_default();
 
     let cache = state.described_nodes_cache.get().await?;
     let descriptions = cache.all_nodes().cloned().collect::<Vec<_>>();
 
-    Ok(Json(PaginatedResponse {
+    Ok(output.to_response(PaginatedResponse {
         pagination: Pagination {
             total: descriptions.len(),
             page: 0,
@@ -243,21 +268,28 @@ async fn get_described_nodes(
     path = "/annotation/{node_id}",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = AnnotationResponse)
+        (status = 200, content(
+            (AnnotationResponse = "application/json"),
+            (AnnotationResponse = "application/yaml"),
+            (AnnotationResponse = "application/bincode")
+        ))
     ),
-    params(NodeIdParam),
+    params(NodeIdParam, OutputParams),
 )]
 async fn get_node_annotation(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<AnnotationResponse>> {
+) -> AxumResult<FormattedResponse<AnnotationResponse>> {
+    let output = output.output.unwrap_or_default();
+
     let annotations = state
         .node_status_cache
         .node_annotations()
         .await
         .ok_or_else(AxumErrorResponse::internal)?;
 
-    Ok(Json(AnnotationResponse {
+    Ok(output.to_response(AnnotationResponse {
         node_id,
         annotation: annotations.get(&node_id).cloned(),
     }))
@@ -269,21 +301,28 @@ async fn get_node_annotation(
     path = "/performance/{node_id}",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = NodePerformanceResponse)
+        (status = 200, content(
+            (NodePerformanceResponse = "application/json"),
+            (NodePerformanceResponse = "application/yaml"),
+            (NodePerformanceResponse = "application/bincode")
+        ))
     ),
-    params(NodeIdParam),
+    params(NodeIdParam, OutputParams),
 )]
 async fn get_current_node_performance(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<NodePerformanceResponse>> {
+) -> AxumResult<FormattedResponse<NodePerformanceResponse>> {
+    let output = output.output.unwrap_or_default();
+
     let annotations = state
         .node_status_cache
         .node_annotations()
         .await
         .ok_or_else(AxumErrorResponse::internal)?;
 
-    Ok(Json(NodePerformanceResponse {
+    Ok(output.to_response(NodePerformanceResponse {
         node_id,
         performance: annotations
             .get(&node_id)
@@ -292,12 +331,13 @@ async fn get_current_node_performance(
 }
 
 // todo; probably extract it to requests crate
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, IntoParams, ToSchema, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, IntoParams, ToSchema)]
 #[into_params(parameter_in = Query)]
 pub(crate) struct DateQuery {
     #[schema(value_type = String, example = "1970-01-01")]
-    #[schemars(with = "String")]
     pub(crate) date: Date,
+
+    pub(crate) output: Option<Output>,
 }
 
 #[utoipa::path(
@@ -306,21 +346,27 @@ pub(crate) struct DateQuery {
     path = "/historical-performance/{node_id}",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = NodeDatePerformanceResponse)
+        (status = 200, content(
+            (NodeDatePerformanceResponse = "application/json"),
+            (NodeDatePerformanceResponse = "application/yaml"),
+            (NodeDatePerformanceResponse = "application/bincode")
+        ))
     ),
     params(DateQuery, NodeIdParam)
 )]
 async fn get_historical_performance(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
-    Query(DateQuery { date }): Query<DateQuery>,
+    Query(DateQuery { date, output }): Query<DateQuery>,
     State(state): State<AppState>,
-) -> AxumResult<Json<NodeDatePerformanceResponse>> {
+) -> AxumResult<FormattedResponse<NodeDatePerformanceResponse>> {
+    let output = output.unwrap_or_default();
+
     let uptime = state
         .storage()
         .get_historical_node_uptime_on(node_id, date)
         .await?;
 
-    Ok(Json(NodeDatePerformanceResponse {
+    Ok(output.to_response(NodeDatePerformanceResponse {
         node_id,
         date,
         performance: uptime.and_then(|u| {
@@ -337,7 +383,11 @@ async fn get_historical_performance(
     path = "/performance-history/{node_id}",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PerformanceHistoryResponse)
+        (status = 200, content(
+            (PerformanceHistoryResponse = "application/json"),
+            (PerformanceHistoryResponse = "application/yaml"),
+            (PerformanceHistoryResponse = "application/bincode")
+        ))
     ),
     params(PaginationRequest, NodeIdParam)
 )]
@@ -345,9 +395,10 @@ async fn get_node_performance_history(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> AxumResult<Json<PerformanceHistoryResponse>> {
+) -> AxumResult<FormattedResponse<PerformanceHistoryResponse>> {
     // TODO: implement it
     let _ = pagination;
+    let output = pagination.output.unwrap_or_default();
 
     let history = state
         .storage()
@@ -358,7 +409,7 @@ async fn get_node_performance_history(
         .collect::<Vec<_>>();
     let total = history.len();
 
-    Ok(Json(PerformanceHistoryResponse {
+    Ok(output.to_response(PerformanceHistoryResponse {
         node_id,
         history: PaginatedResponse {
             pagination: Pagination {
@@ -377,7 +428,11 @@ async fn get_node_performance_history(
     path = "/uptime-history/{node_id}",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PerformanceHistoryResponse)
+        (status = 200, content(
+            (PerformanceHistoryResponse = "application/json"),
+            (PerformanceHistoryResponse = "application/yaml"),
+            (PerformanceHistoryResponse = "application/bincode")
+        ))
     ),
     params(PaginationRequest, NodeIdParam)
 )]
@@ -385,9 +440,10 @@ async fn get_node_uptime_history(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> AxumResult<Json<UptimeHistoryResponse>> {
+) -> AxumResult<FormattedResponse<UptimeHistoryResponse>> {
     // TODO: implement it
     let _ = pagination;
+    let output = pagination.output.unwrap_or_default();
 
     let history = state
         .storage()
@@ -398,7 +454,7 @@ async fn get_node_uptime_history(
         .collect::<Vec<_>>();
     let total = history.len();
 
-    Ok(Json(UptimeHistoryResponse {
+    Ok(output.to_response(UptimeHistoryResponse {
         node_id,
         history: PaginatedResponse {
             pagination: Pagination {

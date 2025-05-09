@@ -177,7 +177,7 @@ impl NetworkRefresher {
 
         let mut this = NetworkRefresher {
             querier: NodesQuerier {
-                client: NymApiClient { nym_api },
+                client: NymApiClient::from(nym_api),
                 nym_api_urls,
                 currently_used_api: 0,
             },

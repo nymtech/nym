@@ -842,7 +842,7 @@ impl NymNode {
                     }
                 };
 
-            let client = NymApiClient { nym_api };
+            let client = NymApiClient::from(nym_api);
 
             // make new request every time in case previous one takes longer and invalidates the signature
             let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());

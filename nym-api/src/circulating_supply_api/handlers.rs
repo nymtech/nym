@@ -3,8 +3,10 @@
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
+use axum::extract::Query;
 use axum::{extract, Router};
 use nym_api_requests::models::CirculatingSupplyResponse;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_validator_client::nyxd::Coin;
 
 pub(crate) fn circulating_supply_routes() -> Router<AppState> {
@@ -25,18 +27,26 @@ pub(crate) fn circulating_supply_routes() -> Router<AppState> {
     get,
     path = "/v1/circulating-supply",
     responses(
-        (status = 200, body = CirculatingSupplyResponse)
-    )
+        (status = 200, content(
+            (CirculatingSupplyResponse = "application/json"),
+            (CirculatingSupplyResponse = "application/yaml"),
+            (CirculatingSupplyResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn get_full_circulating_supply(
+    Query(output): Query<OutputParams>,
     extract::State(state): extract::State<AppState>,
-) -> AxumResult<axum::Json<CirculatingSupplyResponse>> {
+) -> AxumResult<FormattedResponse<CirculatingSupplyResponse>> {
+    let output = output.output.unwrap_or_default();
+
     match state
         .circulating_supply_cache()
         .get_circulating_supply()
         .await
     {
-        Some(value) => Ok(value.into()),
+        Some(value) => Ok(output.to_response(value)),
         None => Err(AxumErrorResponse::internal_msg("unavailable")),
     }
 }
@@ -46,12 +56,19 @@ async fn get_full_circulating_supply(
     get,
     path = "/v1/circulating-supply/total-supply-value",
     responses(
-        (status = 200, body = [f64])
-    )
+        (status = 200, content(
+            (f64 = "application/json"),
+            (f64 = "application/yaml"),
+            (f64 = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn get_total_supply(
+    Query(output): Query<OutputParams>,
     extract::State(state): extract::State<AppState>,
-) -> AxumResult<axum::Json<f64>> {
+) -> AxumResult<FormattedResponse<f64>> {
+    let output = output.output.unwrap_or_default();
     let full_circulating_supply = match state
         .circulating_supply_cache()
         .get_circulating_supply()
@@ -61,7 +78,9 @@ async fn get_total_supply(
         None => return Err(AxumErrorResponse::internal_msg("unavailable")),
     };
 
-    Ok(unym_coin_to_float_unym(full_circulating_supply.total_supply.into()).into())
+    let total_supply = unym_coin_to_float_unym(full_circulating_supply.total_supply.into());
+
+    Ok(output.to_response(total_supply))
 }
 
 #[utoipa::path(
@@ -69,12 +88,20 @@ async fn get_total_supply(
     get,
     path = "/v1/circulating-supply/circulating-supply-value",
     responses(
-        (status = 200, body = [f64])
-    )
+        (status = 200, content(
+            (f64 = "application/json"),
+            (f64 = "application/yaml"),
+            (f64 = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn get_circulating_supply(
+    Query(output): Query<OutputParams>,
     extract::State(state): extract::State<AppState>,
-) -> AxumResult<axum::Json<f64>> {
+) -> AxumResult<FormattedResponse<f64>> {
+    let output = output.output.unwrap_or_default();
+
     let full_circulating_supply = match state
         .circulating_supply_cache()
         .get_circulating_supply()
@@ -84,7 +111,10 @@ async fn get_circulating_supply(
         None => return Err(AxumErrorResponse::internal_msg("unavailable")),
     };
 
-    Ok(unym_coin_to_float_unym(full_circulating_supply.circulating_supply.into()).into())
+    let circulating_supply =
+        unym_coin_to_float_unym(full_circulating_supply.circulating_supply.into());
+
+    Ok(output.to_response(circulating_supply))
 }
 
 // TODO: this is not the best place to put it, it should be more centralised,

@@ -9,7 +9,7 @@ use nym_validator_client::{
 };
 use time::OffsetDateTime;
 
-use nym_node_metrics::entry::SessionType;
+use nym_statistics_common::types::SessionType;
 use std::collections::HashMap;
 use tokio::time::Duration;
 use tracing::instrument;

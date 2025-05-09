@@ -7,13 +7,13 @@ use crate::node::metrics::handler::{
 use async_trait::async_trait;
 use nym_gateway::node::PersistentStatsStorage;
 use nym_gateway_stats_storage::error::StatsStorageError;
-use nym_gateway_stats_storage::models::{TicketType, ToSessionType};
 use nym_node_metrics::entry::{ActiveSession, ClientSessions, FinishedSession};
 use nym_node_metrics::events::GatewaySessionEvent;
 use nym_node_metrics::prometheus_wrapper::PrometheusMetric::EntryClientSessionsDurations;
 use nym_node_metrics::prometheus_wrapper::PROMETHEUS_METRICS;
 use nym_node_metrics::NymNodeMetrics;
 use nym_sphinx_types::DestinationAddressBytes;
+use nym_statistics_common::types::SessionType;
 use time::{Date, Duration, OffsetDateTime};
 use tracing::error;
 use tracing::log::trace;
@@ -40,9 +40,6 @@ impl GatewaySessionStatsHandler {
         client: DestinationAddressBytes,
     ) -> Result<(), StatsStorageError> {
         self.storage
-            .insert_unique_user(self.current_day, client.as_base58_string())
-            .await?;
-        self.storage
             .insert_active_session(client, ActiveSession::new(start_time))
             .await?;
         Ok(())
@@ -54,40 +51,36 @@ impl GatewaySessionStatsHandler {
         client: DestinationAddressBytes,
     ) -> Result<(), StatsStorageError> {
         if let Some(session) = self.storage.get_active_session(client).await? {
-            if let Some(finished_session) = session.end_at(stop_time) {
-                PROMETHEUS_METRICS.observe_histogram(
-                    EntryClientSessionsDurations {
-                        typ: finished_session.typ.to_string(),
-                    },
-                    finished_session.duration.as_secs_f64(),
-                );
-
-                self.storage
-                    .insert_finished_session(self.current_day, finished_session)
-                    .await?;
-                self.storage.delete_active_session(client).await?;
+            if session.remember {
+                if let Some(finished_session) = session.end_at(stop_time) {
+                    PROMETHEUS_METRICS.observe_histogram(
+                        EntryClientSessionsDurations {
+                            typ: finished_session.typ.to_string(),
+                        },
+                        finished_session.duration.as_secs_f64(),
+                    );
+                    self.storage
+                        .insert_unique_user(self.current_day, client.as_base58_string())
+                        .await?;
+                    self.storage
+                        .insert_finished_session(self.current_day, finished_session)
+                        .await?;
+                }
             }
+            self.storage.delete_active_session(client).await?;
         }
         Ok(())
     }
 
-    async fn handle_ecash_ticket(
+    async fn handle_session_remember(
         &mut self,
-        ticket_type: TicketType,
         client: DestinationAddressBytes,
+        session_type: SessionType,
     ) -> Result<(), StatsStorageError> {
+        self.storage.remember_active_session(client).await?;
         self.storage
-            .update_active_session_type(client, ticket_type.to_session_type())
+            .update_active_session_type(client, session_type)
             .await?;
-        Ok(())
-    }
-
-    async fn handle_session_delete(
-        &mut self,
-        client: DestinationAddressBytes,
-    ) -> Result<(), StatsStorageError> {
-        self.storage.delete_active_session(client).await?;
-        self.storage.delete_unique_user(client).await?;
         Ok(())
     }
 
@@ -104,15 +97,11 @@ impl GatewaySessionStatsHandler {
                 self.handle_session_stop(stop_time, client).await
             }
 
-            GatewaySessionEvent::EcashTicket {
-                ticket_type,
+            // As long as remember is sent before stop, everything should work as expected
+            GatewaySessionEvent::SessionRemember {
+                session_type,
                 client,
-            } => self.handle_ecash_ticket(ticket_type, client).await,
-
-            // As long as delete is sent before stop, everything should work as expected
-            GatewaySessionEvent::SessionDelete { client } => {
-                self.handle_session_delete(client).await
-            }
+            } => self.handle_session_remember(client, session_type).await,
         }
     }
 
@@ -172,6 +161,7 @@ impl GatewaySessionStatsHandler {
         //publish yesterday's data if any
         self.update_shared_stats(yesterday).await?;
         //store "active" sessions as duration 0
+        //it's not guaranteed that these are to be remembered, but we can easily spot them
         for active_session in self.storage.get_all_active_sessions().await? {
             self.storage
                 .insert_finished_session(

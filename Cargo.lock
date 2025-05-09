@@ -5132,6 +5132,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
+ "nym-statistics-common",
  "serde",
  "thiserror 2.0.12",
  "url",
@@ -5663,6 +5664,7 @@ dependencies = [
  "nym-pemstore",
  "nym-serde-helpers",
  "nym-sphinx",
+ "nym-statistics-common",
  "nym-task",
  "rand 0.8.5",
  "serde",
@@ -5682,7 +5684,6 @@ dependencies = [
 name = "nym-gateway-stats-storage"
 version = "0.1.0"
 dependencies = [
- "nym-credentials-interface",
  "nym-node-metrics",
  "nym-sphinx",
  "nym-statistics-common",
@@ -6127,6 +6128,7 @@ dependencies = [
  "nym-sphinx-params",
  "nym-sphinx-routing",
  "nym-sphinx-types",
+ "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "nym-types",
@@ -6210,7 +6212,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6743,6 +6745,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "si-scale",
+ "strum 0.26.3",
  "sysinfo",
  "thiserror 2.0.12",
  "time",

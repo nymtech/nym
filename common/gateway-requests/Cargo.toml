@@ -28,6 +28,7 @@ nym-crypto = { path = "../crypto", features = ["aead", "hashing"] }
 nym-pemstore = { path = "../pemstore" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-serde-helpers = { path = "../serde-helpers", features = ["base64"] }
+nym-statistics-common = { path = "../statistics" }
 nym-task = { path = "../task" }
 
 nym-credentials = { path = "../credentials" }

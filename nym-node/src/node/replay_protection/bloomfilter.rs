@@ -6,25 +6,27 @@ use bloomfilter::Bloom;
 use human_repr::HumanDuration;
 use nym_sphinx_types::REPLAY_TAG_SIZE;
 use std::collections::HashMap;
+use std::mem;
 use std::path::Path;
 use std::sync::{Arc, PoisonError, TryLockError};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::Instant;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 // auxiliary data associated with the bloomfilter to get some statistics from the time of its creation
 // this is needed in order to more accurately resize it upon reset
-struct ReplayProtectionBloomfilterMetadata {
+#[derive(Copy, Clone)]
+pub(crate) struct ReplayProtectionBloomfilterMetadata {
     // used in the unlikely case of epoch durations being changed. it doesn't really cost us anything
     // to include it, so might as well
-    creation_time: Instant,
+    pub(crate) creation_time: Instant,
 
     /// Number of packets that this node has received since startup, as recorded when this bloomfilter was created.
     /// Used for determining the approximate packet rate and thus number of entries in the bloomfilter
-    packets_received_at_creation: usize,
+    pub(crate) packets_received_at_creation: usize,
 
-    rotation_id: u32,
+    pub(crate) rotation_id: u32,
 }
 
 // it appears that now std Mutex is faster (or comparable) to parking_lot
@@ -71,6 +73,83 @@ impl ReplayProtectionBloomfilters {
 
     pub(crate) fn disabled(&self) -> bool {
         self.disabled
+    }
+
+    pub(crate) fn allocate_pre_announced(
+        &self,
+        items_count: usize,
+        fp_p: f64,
+        packets_received_at_creation: usize,
+        rotation_id: u32,
+    ) -> Result<(), NymNodeError> {
+        // build the new filter
+        let filter =
+            Bloom::new_for_fp_rate(items_count, fp_p).map_err(NymNodeError::bloomfilter_failure)?;
+
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?;
+
+        guard.pre_announced = Some(RotationFilter {
+            metadata: ReplayProtectionBloomfilterMetadata {
+                creation_time: Instant::now(),
+                packets_received_at_creation,
+                rotation_id,
+            },
+            data: filter,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn promote_pre_announced(&self) -> Result<(), NymNodeError> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?;
+
+        let Some(mut pre_announced) = guard.pre_announced.take() else {
+            error!("there was no pre-announced bloomfilter to promote");
+            return Ok(());
+        };
+
+        // pre_announced -> primary
+        // primary -> temp (pre_announced)
+        mem::swap(&mut guard.primary, &mut pre_announced);
+
+        // temp (pre_announced) -> secondary
+        guard.secondary = Some(pre_announced);
+        Ok(())
+    }
+
+    pub(crate) fn purge_secondary(&self) -> Result<(), NymNodeError> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?;
+        guard.secondary = None;
+        Ok(())
+    }
+
+    pub(crate) fn primary_metadata(
+        &self,
+    ) -> Result<ReplayProtectionBloomfilterMetadata, NymNodeError> {
+        let metadata = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?
+            .primary
+            .metadata;
+
+        Ok(metadata)
     }
 
     pub(crate) fn reset(&self, items_count: usize, fp_p: f64) -> Result<(), NymNodeError> {

@@ -21,7 +21,7 @@ use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    EpochId, GatewayBond, IdentityKey, Interval, KeyRotationState, MixNode, NodeId, Percent,
+    EpochId, GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent,
 };
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
@@ -41,6 +41,7 @@ use thiserror::Error;
 use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
+pub use nym_mixnet_contract_common::KeyRotationState;
 pub use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]

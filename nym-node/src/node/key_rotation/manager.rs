@@ -135,51 +135,64 @@ impl SphinxKeyManager {
         primary_key_path: P,
         secondary_key_path: P,
     ) -> Result<Self, NymNodeError> {
-        todo!("check if primary and secondary are correct - we might have crashed during the file swap");
+        // if the temporary key exists, it means we crashed in the middle of rotating the key.
+        // rather than trying to figure out which exact step failed, just delete it and it will be redone
+        // (we still have the two keys, they just might be in the wrong order)
+        let tmp_location = primary_key_path.as_ref().with_extension("tmp");
+        if tmp_location.exists() {
+            warn!("we seem to have crashed in the middle of rotating the sphinx key");
+            fs::remove_file(&tmp_location).map_err(|err| KeyIOFailure::KeyRemovalFailure {
+                key: "old x25519 sphinx (temp location)".to_string(),
+                path: tmp_location,
+                err,
+            })?;
+        }
 
-        // // check the temporary location in case we crashed in the middle of rotating the key
-        // let tmp_location = primary_key_path.as_ref().with_extension("tmp");
-        // if tmp_location.exists() {
-        //     warn!("we seem to have crashed in the middle of rotating the sphinx key");
-        //     // if temporary key exists, it means it has never overwritten the primary;
-        //     // secondary key might or might have not gotten overwritten, but that doesn't matter,
-        //     // we can do it again
-        //     Self:swape_key_files(primary_key_path.as_ref(), secondary_key_path.as_ref())?;
-        // }
-        //
-        // // primary key should always be present
-        // let primary: SphinxPrivateKey =
-        //     load_key(primary_key_path.as_ref(), "x25519 sphinx primary")?;
-        //
-        // // if upon loading it turns out that the node has been inactive for a long time,
-        // // immediately rotate keys (but leave 1h grace period for current primary, i.e. set it as secondary)
-        // if primary.rotation_id() != current_rotation_id {
-        //     warn!("this node has been inactive for more than a key rotation duration. the current primary key was generated for rotation {} while the current rotation is {current_rotation_id}. new key will be generated now.", primary.rotation_id());
-        //     let mut this = SphinxKeyManager {
-        //         keys: ActiveSphinxKeys::new_loaded(primary, None),
-        //         primary_key_path: primary_key_path.as_ref().to_path_buf(),
-        //         secondary_key_path: secondary_key_path.as_ref().to_path_buf(),
-        //     };
-        //     this.rotate_keys(current_rotation_id)?;
-        //     return Ok(this);
-        // }
-        //
-        // // secondary key **might** be present
-        // let secondary_path = secondary_key_path.as_ref();
-        //
-        // let secondary = if secondary_path.exists() {
-        //     Some(load_key::<SphinxPrivateKey, _>(
-        //         secondary_key_path.as_ref(),
-        //         "x25519 sphinx secondary",
-        //     )?)
-        // } else {
-        //     None
-        // };
-        //
-        // Ok(SphinxKeyManager {
-        //     keys: ActiveSphinxKeys::new_loaded(primary, secondary),
-        //     primary_key_path: primary_key_path.as_ref().to_path_buf(),
-        //     secondary_key_path: secondary_key_path.as_ref().to_path_buf(),
-        // })
+        // primary key should always be present
+        let mut primary: SphinxPrivateKey =
+            load_key(primary_key_path.as_ref(), "x25519 sphinx primary")?;
+
+        let mut secondary: Option<SphinxPrivateKey> = if secondary_key_path.as_ref().exists() {
+            Some(load_key(
+                secondary_key_path.as_ref(),
+                "x25519 sphinx secondary",
+            )?)
+        } else {
+            None
+        };
+
+        let primary_id = primary.rotation_id();
+        let secondary_id = secondary.as_ref().map(|k| k.rotation_id());
+
+        // 1. check for failed (or missed) rotation, i.e. secondary > primary AND current_rotation > primary
+        if let Some(secondary_id) = secondary_id {
+            if secondary_id > primary_id && current_rotation_id > primary_id {
+                Self::swap_key_files(primary_key_path.as_ref(), secondary_key_path.as_ref())?;
+                // SAFETY: we just checked secondary exists
+                #[allow(clippy::unwrap_used)]
+                let tmp = secondary.take().unwrap();
+                secondary = Some(primary);
+                primary = tmp;
+            }
+        }
+
+        // if upon loading it turns out that the node has been inactive for a long time,
+        // immediately rotate keys (but leave 1h grace period for current primary, i.e. set it as secondary)
+        if primary.rotation_id() != current_rotation_id {
+            warn!("this node has been inactive for more than a key rotation duration. the current primary key was generated for rotation {} while the current rotation is {current_rotation_id}. new key will be generated now.", primary.rotation_id());
+            let mut this = SphinxKeyManager {
+                keys: ActiveSphinxKeys::new_loaded(primary, None),
+                primary_key_path: primary_key_path.as_ref().to_path_buf(),
+                secondary_key_path: secondary_key_path.as_ref().to_path_buf(),
+            };
+            this.generate_key_for_new_rotation(current_rotation_id)?;
+            return Ok(this);
+        }
+
+        Ok(SphinxKeyManager {
+            keys: ActiveSphinxKeys::new_loaded(primary, secondary),
+            primary_key_path: primary_key_path.as_ref().to_path_buf(),
+            secondary_key_path: secondary_key_path.as_ref().to_path_buf(),
+        })
     }
 }

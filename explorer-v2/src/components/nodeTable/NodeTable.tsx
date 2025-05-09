@@ -7,6 +7,7 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Tooltip,
 } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
@@ -29,6 +30,7 @@ import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
+import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 
 const ColumnHeading = ({
   children,
@@ -100,7 +102,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           { nodeId },
           fee,
           "Delegation from Nym Explorer V2",
-          uNymFunds,
+          uNymFunds
         );
         setSelectedNodeForStaking(undefined);
         setInfoModalProps({
@@ -129,7 +131,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient, handleRefetch],
+    [nymClient, handleRefetch]
   );
 
   const handleOnSelectStake = useCallback(
@@ -158,7 +160,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         identityKey: node.identity_key,
       });
     },
-    [isWalletConnected],
+    [isWalletConnected]
   );
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
@@ -189,54 +191,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         },
         Cell: ({ row }) => <Favorite address={row.original.owner} />,
       },
-
-      {
-        id: "name",
-        header: "",
-        Header: <ColumnHeading>Name</ColumnHeading>,
-        accessorKey: "name",
-        Cell: ({ row }) => (
-          <Stack spacing={1}>
-            <Typography variant="body4">{row.original.name || "-"}</Typography>
-          </Stack>
-        ),
-      },
-      {
-        id: "id",
-        header: "",
-        Header: <ColumnHeading>Node ID</ColumnHeading>,
-        accessorKey: "nodeId",
-        size: 90,
-        Cell: ({ row }) => (
-          <Stack spacing={1}>
-            <Typography variant="body4">{row.original.nodeId}</Typography>
-          </Stack>
-        ),
-      },
-      {
-        id: "identity_key",
-        header: "",
-        Header: <ColumnHeading>Identity Key</ColumnHeading>,
-        accessorKey: "identity_key",
-        Cell: ({ row }) => (
-          <Stack spacing={1}>
-            <Typography variant="body5">{row.original.identity_key}</Typography>
-          </Stack>
-        ),
-      },
-      {
-        id: "qos",
-        header: "Qlt of Service",
-        align: "center",
-        accessorKey: "qualityOfService",
-        size: 100,
-        Header: <ColumnHeading>Qlt of Service</ColumnHeading>,
-        Cell: ({ row }) => (
-          <Typography variant="body4">
-            {row.original.qualityOfService.toFixed()}%
-          </Typography>
-        ),
-      },
       {
         id: "location",
         header: "Location",
@@ -256,17 +210,111 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           ),
       },
       {
+        id: "name",
+        header: "",
+        size: 190,
+
+        Header: <ColumnHeading>Node</ColumnHeading>,
+        accessorKey: "name",
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
+            <Typography variant="body4">{row.original.name || "-"}</Typography>
+            <Tooltip
+              title={row.original.identity_key}
+              placement="bottom"
+              slotProps={{
+                tooltip: {
+                  sx: {
+                    maxWidth: "none",
+                    whiteSpace: "nowrap",
+                    bgcolor: isDarkMode ? "#374042" : "#E5E7EB",
+                    color: isDarkMode ? "#FFFFFF" : "#000000",
+                    "& .MuiTooltip-arrow": {
+                      color: isDarkMode ? "#374042" : "#E5E7EB",
+                    },
+                  },
+                },
+              }}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                onClick={(e) => e.stopPropagation()}
+                sx={{ height: "24px" }}
+              >
+                <Typography
+                  variant="body5"
+                  sx={{
+                    height: "24px",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {row.original.identity_key.length > 17
+                    ? `${row.original.identity_key.slice(0, 10)}...${row.original.identity_key.slice(-8)}`
+                    : row.original.identity_key}
+                </Typography>
+                <CopyToClipboard text={row.original.identity_key} />
+              </Stack>
+            </Tooltip>
+          </Stack>
+        ),
+      },
+      {
+        id: "id",
+        header: "",
+        Header: <ColumnHeading>Node ID</ColumnHeading>,
+        accessorKey: "nodeId",
+        size: 90,
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
+            <Typography variant="body4">{row.original.nodeId}</Typography>
+          </Stack>
+        ),
+      },
+
+      {
+        id: "qos",
+        header: "Qlt of Service",
+        align: "center",
+        accessorKey: "qualityOfService",
+        size: 100,
+        Header: <ColumnHeading>Uptime</ColumnHeading>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {row.original.qualityOfService.toFixed()}%
+          </Typography>
+        ),
+      },
+
+      {
         id: "stakeSaturation",
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
         size: 120,
 
         Header: <ColumnHeading>Saturation</ColumnHeading>,
-        Cell: ({ row }) => (
-          <Typography variant="body4">
-            {row.original.stakeSaturation}%
-          </Typography>
-        ),
+        Cell: ({ row }) => {
+          const value = row.original.stakeSaturation;
+          let color = "#000000";
+
+          if (value > 100) {
+            color = "#EF4444"; // red
+          } else if (value >= 75) {
+            color = "#22C55E"; // green
+          } else if (value >= 25) {
+            color = "#F59E0B"; // amber/orange-yellow
+          } else {
+            color = "#EF4444"; // red
+          }
+
+          return (
+            <Typography variant="body4" sx={{ color }}>
+              {value}%
+            </Typography>
+          );
+        },
       },
       {
         id: "profitMarginPercentage",
@@ -303,7 +351,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableSorting: false,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites],
+    [isWalletConnected, handleOnSelectStake, favorites]
   );
   const table = useMaterialReactTable({
     columns,

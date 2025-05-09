@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NymNodeError;
+use crate::node::key_rotation::key::SphinxPublicKey;
 use crate::node::NymNode;
 use futures::{stream, StreamExt};
 use nym_crypto::asymmetric::ed25519;
@@ -55,17 +56,17 @@ impl NymApisClient {
         })
     }
 
-    async fn use_next_endpoint(&mut self) {
-        let mut guard = self.inner.write().await;
-        if guard.available_urls.len() == 1 {
-            return;
-        }
-
-        let next_index = (guard.currently_used_api + 1) % guard.available_urls.len();
-        let next = guard.available_urls[next_index].clone();
-        guard.currently_used_api = next_index;
-        guard.active_client.change_nym_api(next)
-    }
+    // async fn use_next_endpoint(&self) {
+    //     let mut guard = self.inner.write().await;
+    //     if guard.available_urls.len() == 1 {
+    //         return;
+    //     }
+    //
+    //     let next_index = (guard.currently_used_api + 1) % guard.available_urls.len();
+    //     let next = guard.available_urls[next_index].clone();
+    //     guard.currently_used_api = next_index;
+    //     guard.active_client.change_nym_api(next)
+    // }
 
     pub(crate) async fn query_exhaustively<R, T>(
         &self,
@@ -75,11 +76,19 @@ impl NymApisClient {
     where
         R: AsyncFn(Client) -> Result<T, NymAPIError>,
     {
-        self.inner
-            .read()
-            .await
-            .query_exhaustively(req, timeout_duration)
-            .await
+        let guard = self.inner.read().await;
+        let (res, last_working_endpoint) = guard.query_exhaustively(req, timeout_duration).await?;
+
+        // if we had to use a different api, update our starting point for the future calls
+        if guard.currently_used_api != last_working_endpoint {
+            drop(guard);
+            let mut guard = self.inner.write().await;
+            let next_url = guard.available_urls[last_working_endpoint].clone();
+            guard.currently_used_api = last_working_endpoint;
+            guard.active_client.change_nym_api(next_url);
+        }
+
+        Ok(res)
     }
 
     pub(crate) async fn broadcast_force_refresh(&self, private_key: &ed25519::PrivateKey) {
@@ -90,8 +99,12 @@ impl NymApisClient {
             .await;
     }
 
-    pub(crate) async fn broadcast_key_rotation(&self) {
-        self.inner.read().await.broadcast_key_rotation().await;
+    pub(crate) async fn broadcast_pre_announced_key(&self, public_key: SphinxPublicKey) {
+        self.inner
+            .read()
+            .await
+            .broadcast_pre_announced_key(public_key)
+            .await;
     }
 }
 
@@ -117,20 +130,30 @@ impl InnerClient {
         }
     }
 
-    pub(crate) async fn query_exhaustively<R, T>(
+    async fn query_exhaustively<R, T>(
         &self,
         req: R,
         timeout_duration: Duration,
-    ) -> Result<T, NymNodeError>
+    ) -> Result<(T, usize), NymNodeError>
     where
         R: AsyncFn(Client) -> Result<T, NymAPIError>,
     {
-        // this is DESIGNED to query sequentially (but exhaustively) and not to try to send queries to ALL apis at once
+        let last_working = self.currently_used_api;
+
+        // start from the last working api and progress from there
+        // also, note this is DESIGNED to query sequentially (but exhaustively)
+        // and not to try to send queries to ALL apis at once
         // and check which resolves first
-        for url in &self.available_urls {
+        for (idx, url) in self
+            .available_urls
+            .iter()
+            .enumerate()
+            .skip(last_working)
+            .chain(self.available_urls.iter().enumerate().take(last_working))
+        {
             let nym_api = self.active_client.nym_api.clone_with_new_url(url.clone());
             match timeout(timeout_duration, req(nym_api)).await {
-                Ok(Ok(res)) => return Ok(res),
+                Ok(Ok(res)) => return Ok((res, idx)),
                 Ok(Err(err)) => {
                     warn!("failed to resolve query for {url}: {err}")
                 }
@@ -143,7 +166,7 @@ impl InnerClient {
         Err(NymNodeError::NymApisExhausted)
     }
 
-    pub(crate) async fn broadcast_force_refresh(&self, private_key: &ed25519::PrivateKey) {
+    async fn broadcast_force_refresh(&self, private_key: &ed25519::PrivateKey) {
         let request = NodeRefreshBody::new(private_key);
 
         self.broadcast(
@@ -154,7 +177,7 @@ impl InnerClient {
         .await;
     }
 
-    pub(crate) async fn broadcast_key_rotation(&self) {
+    async fn broadcast_pre_announced_key(&self, public_key: SphinxPublicKey) {
         todo!()
     }
 }

@@ -16,11 +16,9 @@ struct ActiveSphinxKeysInner {
     /// Key that's currently used as the default when processing packets with no explicit rotation information
     primary_key: ArcSwap<SphinxPrivateKey>,
 
-    /// Optionally, a key from the previous rotation during the overlap period when the keys are rotated.
+    /// Optionally, a secondary key associated with this node. depending on the context it could either be
+    /// the pre-announced key for the following rotation or a key from the previous rotation for the overlap period
     secondary_key: ArcSwapOption<SphinxPrivateKey>,
-
-    /// Optionally, a key for the upcoming rotation that's being pre-announced to other network entities
-    pre_announced_key: ArcSwapOption<SphinxPrivateKey>,
 }
 
 impl ActiveSphinxKeys {
@@ -37,12 +35,13 @@ impl ActiveSphinxKeys {
         primary: SphinxPrivateKey,
         secondary: Option<SphinxPrivateKey>,
     ) -> Self {
-        ActiveSphinxKeys {
-            inner: Arc::new(ActiveSphinxKeysInner {
-                primary_key: ArcSwap::from_pointee(primary),
-                secondary_key: ArcSwapOption::from_pointee(secondary),
-            }),
-        }
+        todo!()
+        // ActiveSphinxKeys {
+        //     inner: Arc::new(ActiveSphinxKeysInner {
+        //         primary_key: ArcSwap::from_pointee(primary),
+        //         secondary_key: ArcSwapOption::from_pointee(secondary),
+        //     }),
+        // }
     }
 
     pub(crate) fn even(&self) -> Option<SphinxKeyGuard> {
@@ -74,17 +73,39 @@ impl ActiveSphinxKeys {
         Some(SphinxKeyGuard::Secondary(SecondaryKeyGuard { guard }))
     }
 
-    pub(crate) fn rotate(&self, new_primary: SphinxPrivateKey) {
-        if self.inner.secondary_key.load().is_some() {
-            // this should NEVER happen, but technically nothing should blow up
-            error!("somehow our secondary key was still set during the rotation!")
-        }
-
-        let old_primary = self.inner.primary_key.swap(Arc::new(new_primary));
-        self.inner.secondary_key.store(Some(old_primary));
+    pub(crate) fn set_secondary(&self, new_key: SphinxPrivateKey) {
+        self.inner.secondary_key.store(Some(Arc::new(new_key)))
     }
 
-    fn deactivate_secondary(&self) {
+    pub(crate) fn secondary_key_rotation_id(&self) -> Option<u32> {
+        self.inner
+            .secondary_key
+            .load()
+            .as_ref()
+            .map(|k| k.rotation_id())
+    }
+
+    // set the secondary (pre-announced key) as the primary
+    // and the current primary as the secondary (for the overlap epoch)
+    pub(crate) fn rotate(&self) -> bool {
+        let primary = self.inner.primary_key.load();
+
+        let Some(pre_announced) = self.inner.secondary_key.load_full() else {
+            error!("sphinx key inconsistency - attempted to perform key rotation without having pre-announced new key");
+            return false;
+        };
+
+        if pre_announced.rotation_id() != primary.rotation_id() + 1 {
+            error!("sphinx key inconsistency - pre-announced key rotation id != primary + 1");
+            return false;
+        }
+
+        let old_primary = self.inner.primary_key.swap(pre_announced);
+        self.inner.secondary_key.store(Some(old_primary));
+        true
+    }
+
+    pub(crate) fn deactivate_secondary(&self) {
         self.inner.secondary_key.store(None);
     }
 }
@@ -106,8 +127,25 @@ impl Deref for SphinxKeyGuard {
     }
 }
 
+// enum SecondaryKey {
+//     PreAnnounced(SphinxPrivateKey),
+//     PreviousOverlap(SphinxPrivateKey),
+// }
+
+// impl Deref for SecondaryKey {
+//     type Target = SphinxPrivateKey;
+//
+//     fn deref(&self) -> &Self::Target {
+//         match self {
+//             SecondaryKey::PreAnnounced(key) => &key,
+//             SecondaryKey::PreviousOverlap(key) => &key,
+//         }
+//     }
+// }
+
 pub(crate) struct SecondaryKeyGuard {
     guard: Guard<Option<Arc<SphinxPrivateKey>>>,
+    // guard: Guard<Option<Arc<SecondaryKey>>>,
 }
 
 impl Deref for SecondaryKeyGuard {

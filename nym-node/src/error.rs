@@ -56,6 +56,15 @@ pub enum KeyIOFailure {
         err: io::Error,
     },
 
+    #[error("failed to copy {key} key from '{}' to '{}': {err}", source.display(), destination.display())]
+    KeyCopyFailure {
+        key: String,
+        source: PathBuf,
+        destination: PathBuf,
+        #[source]
+        err: io::Error,
+    },
+
     #[error("failed to remove {key} key from '{}': {err}", path.display())]
     KeyRemovalFailure {
         key: String,

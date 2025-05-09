@@ -31,7 +31,7 @@ use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::background_task::ReplayProtectionBackgroundTask;
-use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
@@ -956,9 +956,9 @@ impl NymNode {
 
     pub(crate) async fn setup_replay_detection(
         &self,
-    ) -> Result<ReplayProtectionBloomfilter, NymNodeError> {
+    ) -> Result<ReplayProtectionBloomfilters, NymNodeError> {
         if self.config.mixnet.replay_protection.debug.unsafe_disabled {
-            return Ok(ReplayProtectionBloomfilter::new_disabled());
+            return Ok(ReplayProtectionBloomfilters::new_disabled());
         }
 
         // create the background task for the bloomfilter

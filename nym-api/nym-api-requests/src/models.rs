@@ -1454,6 +1454,23 @@ pub struct KeyRotationInfoResponse {
     pub epoch_duration: Duration,
 }
 
+impl KeyRotationInfoResponse {
+    pub fn current_key_rotation_id(&self) -> u32 {
+        self.key_rotation_state
+            .key_rotation_id(self.current_epoch_id)
+    }
+
+    pub fn next_rotation_starting_epoch_id(&self) -> EpochId {
+        self.key_rotation_state
+            .next_rotation_starting_epoch_id(self.current_epoch_id)
+    }
+
+    pub fn current_rotation_starting_epoch_id(&self) -> EpochId {
+        self.key_rotation_state
+            .current_rotation_starting_epoch_id(self.current_epoch_id)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct RewardedSetResponse {
     #[serde(default)]

@@ -10,7 +10,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
-use utoipa::ToSchema;
 
 #[cfg(feature = "client")]
 pub mod client;
@@ -22,7 +21,7 @@ pub use client::Client;
 // create the type alias manually if openapi is not enabled
 pub type SignedHostInformation = SignedData<crate::api::v1::node::models::HostInformation>;
 
-#[derive(ToSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SignedDataHostInfo {
     // #[serde(flatten)]
     pub data: crate::api::v1::node::models::HostInformation,
@@ -341,8 +340,7 @@ mod tests {
         assert!(!current_struct_no_noise.verify(ed22519.public_key()));
         assert!(current_struct_no_noise.verify_host_information());
 
-        // if noise key is present, the signature is actually valid
-        assert!(current_struct_noise.verify(ed22519.public_key()));
+        assert!(!current_struct_noise.verify(ed22519.public_key()));
         assert!(current_struct_noise.verify_host_information())
     }
 

@@ -8,10 +8,11 @@ use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_framing::processing::{
     process_framed_packet, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
-    PartiallyUnwrappedPacket, ProcessedFinalHop,
+    PartiallyUnwrappedPacket, PartialyUnwrappedPacketWithKeyRotation, ProcessedFinalHop,
 };
 use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::{Delay, REPLAY_TAG_SIZE};
+use std::collections::HashMap;
 use std::mem;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -20,41 +21,50 @@ use tokio_util::codec::Framed;
 use tracing::{debug, error, instrument, trace, warn};
 
 struct PendingReplayCheckPackets {
-    packets: Vec<PartiallyUnwrappedPacket>,
+    // map of rotation id used for packet creation to the packets
+    packets: HashMap<u32, Vec<PartiallyUnwrappedPacket>>,
     last_acquired_mutex: Instant,
 }
 
 impl PendingReplayCheckPackets {
     fn new() -> PendingReplayCheckPackets {
         PendingReplayCheckPackets {
-            packets: vec![],
+            packets: Default::default(),
             last_acquired_mutex: Instant::now(),
         }
     }
 
-    fn reset(&mut self, now: Instant) -> Vec<PartiallyUnwrappedPacket> {
+    fn reset(&mut self, now: Instant) -> HashMap<u32, Vec<PartiallyUnwrappedPacket>> {
         self.last_acquired_mutex = now;
         mem::take(&mut self.packets)
     }
 
-    fn push(&mut self, now: Instant, packet: PartiallyUnwrappedPacket) {
+    fn push(&mut self, now: Instant, packet: PartialyUnwrappedPacketWithKeyRotation) {
         if self.packets.is_empty() {
             self.last_acquired_mutex = now;
         }
-        self.packets.push(packet);
+        self.packets
+            .entry(packet.used_key_rotation)
+            .or_default()
+            .push(packet.packet)
     }
 
-    fn replay_tags(&self) -> Vec<&[u8; REPLAY_TAG_SIZE]> {
-        let mut replay_tags = Vec::with_capacity(self.packets.len());
-        for packet in &self.packets {
-            let Some(replay_tag) = packet.replay_tag() else {
-                error!(
-                    "corrupted batch of {} packets - replay tag was missing",
-                    self.packets.len()
-                );
-                return Vec::new();
-            };
-            replay_tags.push(replay_tag);
+    fn replay_tags(&self) -> HashMap<u32, Vec<&[u8; REPLAY_TAG_SIZE]>> {
+        let mut replay_tags = HashMap::with_capacity(self.packets.len());
+        'outer: for (rotation_id, packets) in &self.packets {
+            let mut rotation_replay_tags = Vec::with_capacity(packets.len());
+            for packet in packets {
+                let Some(replay_tag) = packet.replay_tag() else {
+                    error!(
+                        "corrupted batch of {} packets - replay tag was missing",
+                        self.packets.len()
+                    );
+                    replay_tags.insert(*rotation_id, Vec::new());
+                    continue 'outer;
+                };
+                rotation_replay_tags.push(replay_tag);
+            }
+            replay_tags.insert(*rotation_id, rotation_replay_tags);
         }
         replay_tags
     }
@@ -216,22 +226,26 @@ impl ConnectionHandler {
     fn try_partially_unwrap_packet(
         &self,
         packet: FramedNymPacket,
-    ) -> Result<PartiallyUnwrappedPacket, PacketProcessingError> {
+    ) -> Result<PartialyUnwrappedPacketWithKeyRotation, PacketProcessingError> {
         // based on the received sphinx key rotation information,
         // attempt to choose appropriate key for processing the packet
         match packet.header().key_rotation {
             SphinxKeyRotation::Unknown => {
+                let primary = self.shared.sphinx_keys.primary();
+                let primary_rotation = primary.rotation_id();
+
                 // we have to try both keys, start with the primary as it has higher likelihood of being correct
                 // if let Ok(partially_unwrapped) = PartiallyUnwrappedPacket::new()
-                match PartiallyUnwrappedPacket::new(
-                    packet,
-                    self.shared.sphinx_keys.primary().inner().as_ref(),
-                ) {
-                    Ok(unwrapped_packet) => Ok(unwrapped_packet),
+                match PartiallyUnwrappedPacket::new(packet, primary.inner().as_ref()) {
+                    Ok(unwrapped_packet) => {
+                        Ok(unwrapped_packet.with_key_rotation(primary_rotation))
+                    }
                     Err((packet, err)) => {
                         if let Some(secondary) = self.shared.sphinx_keys.secondary() {
+                            let secondary_rotation = secondary.rotation_id();
                             PartiallyUnwrappedPacket::new(packet, secondary.inner().as_ref())
                                 .map_err(|(_, err)| err)
+                                .map(|p| p.with_key_rotation(secondary_rotation))
                         } else {
                             Err(err)
                         }
@@ -242,15 +256,19 @@ impl ConnectionHandler {
                 let Some(odd_key) = self.shared.sphinx_keys.odd() else {
                     return Err(PacketProcessingError::ExpiredKey);
                 };
+                let odd_rotation = odd_key.rotation_id();
                 PartiallyUnwrappedPacket::new(packet, odd_key.inner().as_ref())
                     .map_err(|(_, err)| err)
+                    .map(|p| p.with_key_rotation(odd_rotation))
             }
             SphinxKeyRotation::EvenRotation => {
                 let Some(even_key) = self.shared.sphinx_keys.even() else {
                     return Err(PacketProcessingError::ExpiredKey);
                 };
+                let even_rotation = even_key.rotation_id();
                 PartiallyUnwrappedPacket::new(packet, even_key.inner().as_ref())
                     .map_err(|(_, err)| err)
+                    .map(|p| p.with_key_rotation(even_rotation))
             }
         }
     }
@@ -317,17 +335,24 @@ impl ConnectionHandler {
     async fn handle_post_replay_detection_packets(
         &self,
         now: Instant,
-        packets: Vec<PartiallyUnwrappedPacket>,
-        replay_check_results: Vec<bool>,
+        packets: HashMap<u32, Vec<PartiallyUnwrappedPacket>>,
+        replay_check_results: HashMap<u32, Vec<bool>>,
     ) {
-        for (packet, replayed) in packets.into_iter().zip(replay_check_results) {
-            let unwrapped_packet = if replayed {
-                Err(PacketProcessingError::PacketReplay)
-            } else {
-                packet.finalise_unwrapping()
+        for (rotation_id, packets) in packets {
+            let Some(replay_checks) = replay_check_results.get(&rotation_id) else {
+                // this should never happen, but if we messed up, and it does, don't panic, just drop the packets
+                error!("inconsistent replay check result - no values for rotation {rotation_id}");
+                continue;
             };
+            for (packet, &replayed) in packets.into_iter().zip(replay_checks) {
+                let unwrapped_packet = if replayed {
+                    Err(PacketProcessingError::PacketReplay)
+                } else {
+                    packet.finalise_unwrapping()
+                };
 
-            self.handle_unwrapped_packet(now, unwrapped_packet).await;
+                self.handle_unwrapped_packet(now, unwrapped_packet).await;
+            }
         }
     }
 

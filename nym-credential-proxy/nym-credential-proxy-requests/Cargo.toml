@@ -36,6 +36,6 @@ features = ["tokio"]
 
 [features]
 default = ["query-types"]
-query-types = ["nym-http-api-common"]
+query-types = ["nym-http-api-common", "nym-http-api-common/output"]
 openapi = ["utoipa"]
 tsify = ["dep:tsify", "wasm-bindgen"]

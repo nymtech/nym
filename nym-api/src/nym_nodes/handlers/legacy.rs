@@ -3,10 +3,11 @@
 
 use crate::support::http::state::AppState;
 use crate::support::legacy_helpers::{to_legacy_gateway, to_legacy_mixnode};
-use axum::extract::State;
-use axum::{Json, Router};
+use axum::extract::{Query, State};
+use axum::Router;
 use nym_api_requests::legacy::LegacyMixNodeBondWithLayer;
 use nym_api_requests::models::{LegacyDescribedGateway, LegacyDescribedMixNode};
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use tower_http::compression::CompressionLayer;
 
 // we want to mark the routes as deprecated in swagger, but still expose them
@@ -29,22 +30,29 @@ pub(crate) fn legacy_nym_node_routes() -> Router<AppState> {
     get,
     path = "/v1/gateways/described",
     responses(
-        (status = 200, body = Vec<LegacyDescribedGateway>)
-    )
+        (status = 200, content(
+            (Vec<LegacyDescribedGateway> = "application/json"),
+            (Vec<LegacyDescribedGateway> = "application/yaml"),
+            (Vec<LegacyDescribedGateway> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn get_gateways_described(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<LegacyDescribedGateway>> {
+) -> FormattedResponse<Vec<LegacyDescribedGateway>> {
     let contract_cache = state.nym_contract_cache();
     let describe_cache = state.described_nodes_cache();
+    let output = output.output.unwrap_or_default();
 
     // legacy
     let legacy = contract_cache.legacy_gateways_filtered().await;
 
     // if the self describe cache is unavailable, well, don't attach describe data and only return legacy gateways
     let Ok(describe_cache) = describe_cache.get().await else {
-        return Json(legacy.into_iter().map(Into::into).collect());
+        return output.to_response(legacy.into_iter().map(Into::into).collect());
     };
 
     let migrated_nymnodes = state.nym_contract_cache().nym_nodes().await;
@@ -75,7 +83,7 @@ async fn get_gateways_described(
         })
     }
 
-    Json(out)
+    output.to_response(out)
 }
 
 #[utoipa::path(
@@ -83,15 +91,22 @@ async fn get_gateways_described(
     get,
     path = "/v1/mixnodes/described",
     responses(
-        (status = 200, body = Vec<LegacyDescribedMixNode>)
-    )
+        (status = 200, content(
+            (Vec<LegacyDescribedMixNode> = "application/json"),
+            (Vec<LegacyDescribedMixNode> = "application/yaml"),
+            (Vec<LegacyDescribedMixNode> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn get_mixnodes_described(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<LegacyDescribedMixNode>> {
+) -> FormattedResponse<Vec<LegacyDescribedMixNode>> {
     let contract_cache = state.nym_contract_cache();
     let describe_cache = state.described_nodes_cache();
+    let output = output.output.unwrap_or_default();
 
     let legacy: Vec<LegacyMixNodeBondWithLayer> = contract_cache
         .legacy_mixnodes_filtered()
@@ -102,7 +117,7 @@ async fn get_mixnodes_described(
 
     // if the self describe cache is unavailable, well, don't attach describe data and only return legacy mixnodes
     let Ok(describe_cache) = describe_cache.get().await else {
-        return Json(legacy.into_iter().map(Into::into).collect());
+        return output.to_response(legacy.into_iter().map(Into::into).collect());
     };
 
     let migrated_nymnodes = state.nym_contract_cache().nym_nodes().await;
@@ -131,5 +146,5 @@ async fn get_mixnodes_described(
         })
     }
 
-    Json(out)
+    output.to_response(out)
 }

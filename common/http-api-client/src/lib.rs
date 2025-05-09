@@ -144,10 +144,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{instrument, warn};
+use tracing::{debug, instrument, warn};
 use url::Url;
 
+use bytes::Bytes;
+use http::header::CONTENT_TYPE;
 use http::HeaderMap;
+use mime::Mime;
 pub use reqwest::IntoUrl;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
@@ -210,11 +213,8 @@ pub enum HttpClientError<E: Display = String> {
     #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
     EndpointFailure { status: StatusCode, error: E },
 
-    #[error("failed to decode response body: {source} from {content}")]
-    ResponseDecodeFailure {
-        source: serde_json::Error,
-        content: String,
-    },
+    #[error("failed to decode response body: {message} from {content}")]
+    ResponseDecodeFailure { message: String, content: String },
 
     #[cfg(target_arch = "wasm32")]
     #[error("the request has timed out")]
@@ -698,7 +698,25 @@ pub trait ApiClient: ApiClientCore {
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T`.
     #[instrument(level = "debug", skip_all)]
+    // TODO: deprecate in favour of get_response that works based on mime type in the response
     async fn get_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned,
+    {
+        self.get_response(path, params).await
+    }
+
+    /// 'get' data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
+    /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
+    /// into the provided type `T` based on the content type header
+    async fn get_response<T, K, V, E>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
@@ -877,14 +895,10 @@ fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
-fn decode_as_text(bytes: &bytes::Bytes, headers: HeaderMap) -> String {
+fn decode_as_text(bytes: &bytes::Bytes, headers: &HeaderMap) -> String {
     use encoding_rs::{Encoding, UTF_8};
-    use mime::Mime;
 
-    let content_type = headers
-        .get(http::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<Mime>().ok());
+    let content_type = try_get_mime_type(headers);
 
     let encoding_name = content_type
         .as_ref()
@@ -897,7 +911,7 @@ fn decode_as_text(bytes: &bytes::Bytes, headers: HeaderMap) -> String {
     text.into_owned()
 }
 
-/// Attempt to parse a json object from an HTTP response
+/// Attempt to parse a response object from an HTTP response
 #[instrument(level = "debug", skip_all)]
 pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
 where
@@ -919,16 +933,7 @@ where
         // internally reqwest is first retrieving bytes and then performing parsing via serde_json
         // (and similarly does the same thing for text())
         let full = res.bytes().await?;
-        match serde_json::from_slice(&full) {
-            Ok(data) => Ok(data),
-            Err(err) => {
-                let content = decode_as_text(&full, headers);
-                Err(HttpClientError::ResponseDecodeFailure {
-                    source: err,
-                    content,
-                })
-            }
-        }
+        decode_raw_response(&headers, full)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {
@@ -945,6 +950,73 @@ where
             Err(HttpClientError::GenericRequestFailure(plaintext))
         }
     }
+}
+
+fn decode_as_json<T, E>(headers: &HeaderMap, content: Bytes) -> Result<T, HttpClientError<E>>
+where
+    T: DeserializeOwned,
+    E: DeserializeOwned + Display,
+{
+    match serde_json::from_slice(&content) {
+        Ok(data) => Ok(data),
+        Err(err) => {
+            let content = decode_as_text(&content, headers);
+            Err(HttpClientError::ResponseDecodeFailure {
+                message: err.to_string(),
+                content,
+            })
+        }
+    }
+}
+
+#[cfg(feature = "bincode")]
+fn decode_as_bincode<T, E>(headers: &HeaderMap, content: Bytes) -> Result<T, HttpClientError<E>>
+where
+    T: DeserializeOwned,
+    E: DeserializeOwned + Display,
+{
+    use bincode::Options;
+
+    let opts = nym_http_api_common::make_bincode_serializer();
+    match opts.deserialize(&content) {
+        Ok(data) => Ok(data),
+        Err(err) => {
+            let content = decode_as_text(&content, headers);
+            Err(HttpClientError::ResponseDecodeFailure {
+                message: err.to_string(),
+                content,
+            })
+        }
+    }
+}
+
+fn decode_raw_response<T, E>(headers: &HeaderMap, content: Bytes) -> Result<T, HttpClientError<E>>
+where
+    T: DeserializeOwned,
+    E: DeserializeOwned + Display,
+{
+    // if content type header is missing, fallback to our old default, json
+    let mime = try_get_mime_type(headers).unwrap_or(mime::APPLICATION_JSON);
+
+    debug!("attempting to parse response as {mime}");
+
+    // unfortunately we can't use stronger typing for subtype as "bincode" is not a defined mime type
+    match (mime.type_(), mime.subtype().as_str()) {
+        (mime::APPLICATION, "json") => decode_as_json(headers, content),
+        #[cfg(feature = "bincode")]
+        (mime::APPLICATION, "bincode") => decode_as_bincode(headers, content),
+        (_, _) => {
+            debug!("unrecognised mime type {mime}. falling back to json decoding...");
+            decode_as_json(headers, content)
+        }
+    }
+}
+
+fn try_get_mime_type(headers: &HeaderMap) -> Option<Mime> {
+    headers
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<Mime>().ok())
 }
 
 #[cfg(test)]

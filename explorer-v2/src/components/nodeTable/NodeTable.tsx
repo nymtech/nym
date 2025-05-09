@@ -281,11 +281,24 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "qualityOfService",
         size: 100,
         Header: <ColumnHeading>Uptime</ColumnHeading>,
-        Cell: ({ row }) => (
-          <Typography variant="body4">
-            {row.original.qualityOfService.toFixed()}%
-          </Typography>
-        ),
+        Cell: ({ row }) => {
+          const value = row.original.qualityOfService;
+          let color = "#000000";
+
+          if (value >= 80) {
+            color = "#22C55E"; // green
+          } else if (value >= 50) {
+            color = "#F59E0B"; // amber/orange-yellow
+          } else {
+            color = "#EF4444"; // red
+          }
+
+          return (
+            <Typography variant="body4" sx={{ color, fontWeight: 400 }}>
+              {value.toFixed()}%
+            </Typography>
+          );
+        },
       },
 
       {
@@ -300,17 +313,17 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           let color = "#000000";
 
           if (value > 100) {
-            color = "#EF4444"; // red
+            color = "#EF4444";
           } else if (value >= 75) {
-            color = "#22C55E"; // green
+            color = "#22C55E";
           } else if (value >= 25) {
-            color = "#F59E0B"; // amber/orange-yellow
+            color = "#F59E0B";
           } else {
-            color = "#EF4444"; // red
+            color = "#EF4444";
           }
 
           return (
-            <Typography variant="body4" sx={{ color }}>
+            <Typography variant="body4" sx={{ color, fontWeight: 400 }}>
               {value}%
             </Typography>
           );

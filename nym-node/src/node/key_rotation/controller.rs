@@ -1,24 +1,46 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
 use nym_task::ShutdownToken;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::KeyRotationInfoResponse;
+use nym_validator_client::models::{KeyRotationInfoResponse, KeyRotationState};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{interval, sleep, Instant};
 use tracing::{error, info, trace, warn};
+
+struct RotationConfig {
+    epoch_duration: Duration,
+    rotation_state: KeyRotationState,
+}
+
+impl RotationConfig {
+    fn rotation_lifetime(&self) -> Duration {
+        (self.rotation_state.validity_epochs + 1) * self.epoch_duration
+    }
+}
+
+impl From<KeyRotationInfoResponse> for RotationConfig {
+    fn from(value: KeyRotationInfoResponse) -> Self {
+        RotationConfig {
+            epoch_duration: value.epoch_duration,
+            rotation_state: value.key_rotation_state,
+        }
+    }
+}
 
 pub(crate) struct KeyRotationController {
     // regular polling rate to catch any changes in the system config. they shouldn't happen too often
     // so the requests can be sent quite infrequently
     regular_polling_interval: Duration,
 
-    replay_protection_bloomfilters: ReplayProtectionBloomfilters,
+    rotation_config: RotationConfig,
+    replay_protection_manager: ReplayProtectionBloomfiltersManager,
     client: NymApisClient,
     managed_keys: SphinxKeyManager,
     shutdown_token: ShutdownToken,
@@ -54,8 +76,21 @@ enum KeyRotationActionState {
 }
 
 impl KeyRotationController {
-    pub(crate) fn new(client: NymApisClient, shutdown_token: ShutdownToken) -> Self {
+    pub(crate) async fn new(
+        regular_polling_interval: Duration,
+        client: NymApisClient,
+        replay_protection_manager: ReplayProtectionBloomfiltersManager,
+        managed_keys: SphinxKeyManager,
+        shutdown_token: ShutdownToken,
+    ) -> Self {
         todo!()
+        // KeyRotationController {
+        //     regular_polling_interval,
+        //     replay_protection_manager,
+        //     client,
+        //     managed_keys,
+        //     shutdown_token,
+        // }
     }
 
     async fn determine_next_action(&self) -> NextAction {
@@ -151,14 +186,41 @@ impl KeyRotationController {
                     Ok(key) => key,
                 };
 
+                if self
+                    .replay_protection_manager
+                    .allocate_pre_announced(rotation_id, self.rotation_config.rotation_lifetime())
+                    .is_err()
+                {
+                    // mutex poisoning - we have to exit
+                    self.shutdown_token.cancel();
+                    return;
+                }
                 self.client.broadcast_pre_announced_key(public_key).await;
             }
             KeyRotationActionState::SwapDefault => {
                 if let Err(err) = self.managed_keys.rotate_keys() {
                     error!("failed to perform sphinx key swap: {err}")
+                };
+                if self
+                    .replay_protection_manager
+                    .promote_pre_announced()
+                    .is_err()
+                {
+                    // mutex poisoning - we have to exit
+                    self.shutdown_token.cancel();
+                    return;
                 }
             }
-            KeyRotationActionState::PurgeOld => {}
+            KeyRotationActionState::PurgeOld => {
+                if let Err(err) = self.managed_keys.remove_overlap_key() {
+                    error!("failed to remove old sphinx key: {err}");
+                };
+                if self.replay_protection_manager.purge_secondary().is_err() {
+                    // mutex poisoning - we have to exit
+                    self.shutdown_token.cancel();
+                    return;
+                }
+            }
         }
     }
 

@@ -4,7 +4,6 @@
 use crate::config::Config;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
-use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
 use nym_node_metrics::NymNodeMetrics;
@@ -80,7 +79,7 @@ impl KeyRotationController {
     pub(crate) fn new(
         config: &Config,
         client: NymApisClient,
-        replay_protection_manager: ReplayProtectionBloomfilters,
+        replay_protection_manager: ReplayProtectionBloomfiltersManager,
         metrics: NymNodeMetrics,
         managed_keys: SphinxKeyManager,
         shutdown_token: ShutdownToken,

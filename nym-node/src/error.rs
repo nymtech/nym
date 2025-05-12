@@ -198,6 +198,9 @@ pub enum NymNodeError {
     #[error("failed to save/load the bloomfilter: {source} using path: {}", path.display())]
     BloomfilterIoFailure { source: io::Error, path: PathBuf },
 
+    #[error("failed to deserialise bloomfilter metadata")]
+    BloomfilterMetadataDeserialisationFailure,
+
     #[error(transparent)]
     GatewayFailure(Box<nym_gateway::GatewayError>),
 

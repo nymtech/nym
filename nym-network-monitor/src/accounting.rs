@@ -486,11 +486,8 @@ async fn submit_accounting_routes_to_db(client: Arc<Client>) -> anyhow::Result<(
 }
 
 pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()> {
-    match submit_metrics_to_db(database_url).await {
-        Ok(_) => (),
-        Err(e) => {
-            error!("Error submitting metrics to db: {}", e);
-        }
+    if let Err(e) = submit_metrics_to_db(database_url).await {
+        error!("Error submitting metrics to db: {}", e);
     }
 
     if let Some(private_key) = PRIVATE_KEY.get() {

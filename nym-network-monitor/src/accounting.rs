@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use tokio_postgres::{binary_copy::BinaryCopyInWriter, types::Type, Client, NoTls};
 use utoipa::ToSchema;
 
-use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
+use crate::{NYM_API_URLS, PRIVATE_KEY, TOPOLOGY};
 
 struct HydratedRoute {
     mix_nodes: Vec<RoutingNode>,
@@ -491,49 +491,54 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
     }
 
     if let Some(private_key) = PRIVATE_KEY.get() {
-        let node_stats = monitor_mixnode_results().await?;
-        let gateway_stats = monitor_gateway_results().await?;
+        if let Some(nym_api_urls) = NYM_API_URLS.get() {
+            for nym_api_url in nym_api_urls {
+                let node_stats = monitor_mixnode_results().await?;
+                let gateway_stats = monitor_gateway_results().await?;
 
-        info!("Submitting metrics to {}", *NYM_API_URL);
-        let client = reqwest::Client::new();
+                info!("Submitting metrics to {}", nym_api_url);
+                let client = reqwest::Client::new();
 
-        let node_submit_url = format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
-        let gateway_submit_url =
-            format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", &*NYM_API_URL);
+                let node_submit_url =
+                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", nym_api_url);
+                let gateway_submit_url =
+                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", nym_api_url);
 
-        info!("Submitting {} mixnode measurements", node_stats.len());
+                info!("Submitting {} mixnode measurements", node_stats.len());
 
-        node_stats
-            .chunks(10)
-            .map(|chunk| {
-                let monitor_message = MonitorMessage::new(chunk.to_vec(), private_key);
-                client.post(&node_submit_url).json(&monitor_message).send()
-            })
-            .collect::<FuturesUnordered<_>>()
-            .collect::<Vec<Result<_, _>>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
+                node_stats
+                    .chunks(10)
+                    .map(|chunk| {
+                        let monitor_message = MonitorMessage::new(chunk.to_vec(), private_key);
+                        client.post(&node_submit_url).json(&monitor_message).send()
+                    })
+                    .collect::<FuturesUnordered<_>>()
+                    .collect::<Vec<Result<_, _>>>()
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?;
 
-        info!("Submitting {} gateway measurements", gateway_stats.len());
+                info!("Submitting {} gateway measurements", gateway_stats.len());
 
-        gateway_stats
-            .chunks(10)
-            .map(|chunk| {
-                let monitor_message = MonitorMessage::new(
-                    chunk.to_vec(),
-                    PRIVATE_KEY.get().expect("We've set this!"),
-                );
-                client
-                    .post(&gateway_submit_url)
-                    .json(&monitor_message)
-                    .send()
-            })
-            .collect::<FuturesUnordered<_>>()
-            .collect::<Vec<Result<_, _>>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
+                gateway_stats
+                    .chunks(10)
+                    .map(|chunk| {
+                        let monitor_message = MonitorMessage::new(
+                            chunk.to_vec(),
+                            PRIVATE_KEY.get().expect("We've set this!"),
+                        );
+                        client
+                            .post(&gateway_submit_url)
+                            .json(&monitor_message)
+                            .send()
+                    })
+                    .collect::<FuturesUnordered<_>>()
+                    .collect::<Vec<Result<_, _>>>()
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?;
+            }
+        }
     }
 
     NetworkAccount::empty_buffers();

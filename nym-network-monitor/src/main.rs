@@ -13,7 +13,6 @@ use nym_sphinx::chunking::monitoring;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
-use std::sync::LazyLock;
 use std::time::Duration;
 use std::{
     collections::VecDeque,
@@ -25,9 +24,7 @@ use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
 use tokio_util::sync::CancellationToken;
 
-static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
-    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{} env var not set", NYM_API))
-});
+static NYM_API_URLS: OnceCell<Vec<String>> = OnceCell::const_new();
 
 static MIXNET_TIMEOUT: OnceCell<u64> = OnceCell::const_new();
 static TOPOLOGY: OnceCell<NymTopology> = OnceCell::const_new();
@@ -138,6 +135,9 @@ struct Args {
 
     #[arg(long, env = "DATABASE_URL")]
     database_url: Option<String>,
+
+    #[arg(long, env = "NYM_APIS")]
+    nym_apis: Option<Vec<String>>,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -198,6 +198,10 @@ async fn main() -> Result<()> {
     if let Some(private_key) = args.private_key {
         let pk = PrivateKey::from_base58_string(&private_key)?;
         PRIVATE_KEY.set(pk).ok();
+    }
+
+    if let Some(nym_apis) = args.nym_apis {
+        NYM_API_URLS.set(nym_apis).ok();
     }
 
     TOPOLOGY

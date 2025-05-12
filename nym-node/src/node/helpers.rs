@@ -9,13 +9,11 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
-use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use std::time::Duration;
 use tracing::warn;
 use url::Url;
 
@@ -189,13 +187,7 @@ pub(crate) async fn get_current_rotation_id(
     fallback_nyxd: &[Url],
 ) -> Result<u32, NymNodeError> {
     let apis_client = NymApisClient::new(nym_apis)?;
-    if let Ok(rotation_info) = apis_client
-        .query_exhaustively(
-            async |c| c.get_key_rotation_info().await,
-            Duration::from_secs(5),
-        )
-        .await
-    {
+    if let Ok(rotation_info) = apis_client.get_key_rotation_info().await {
         let current_epoch = rotation_info.current_epoch_id;
         return Ok(rotation_info
             .key_rotation_state

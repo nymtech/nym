@@ -4,21 +4,12 @@
 use crate::config::Config;
 use crate::error::NymNodeError;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
-use crate::node::replay_protection::items_in_bloomfilter;
-use human_repr::HumanCount;
-use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownToken;
-use std::cmp::max;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::time::{interval, Instant};
+use tokio::time::interval;
 use tracing::{error, info, trace, warn};
-
-struct LastResetData {
-    packets_received_at_last_reset: usize,
-    reset_time: Instant,
-}
 
 struct ReplayProtectionBackgroundTaskConfig {
     current_bloomfilter_path: PathBuf,
@@ -67,66 +58,62 @@ impl From<&Config> for ReplayProtectionBackgroundTaskConfig {
 }
 
 // background task responsible for periodically flushing the bloomfilters to disk
-// it no longer removes them on the timer as it's now responsibility of the key rotation controller
-pub struct ReplayProtectionBackgroundTask {
+pub struct ReplayProtectionDiskFlush {
     config: ReplayProtectionBackgroundTaskConfig,
-    last_reset: LastResetData,
 
-    filter: ReplayProtectionBloomfilters,
-    metrics: NymNodeMetrics,
+    filters: ReplayProtectionBloomfilters,
     shutdown_token: ShutdownToken,
 }
 
-impl ReplayProtectionBackgroundTask {
+impl ReplayProtectionDiskFlush {
     pub(crate) async fn new(
         config: &Config,
-        metrics: NymNodeMetrics,
+        primary_key_rotation_id: u32,
+        secondary_key_rotation_id: Option<u32>,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
-        let task_config: ReplayProtectionBackgroundTaskConfig = config.into();
-
-        if task_config.current_bloomfilter_temp_flush_path.exists() {
-            error!(
-                "bloomfilter didn't get successfully flushed to disk and its data got corrupted"
-            );
-            fs::remove_file(&task_config.current_bloomfilter_temp_flush_path).map_err(|source| {
-                NymNodeError::BloomfilterIoFailure {
-                    source,
-                    path: task_config.current_bloomfilter_temp_flush_path.clone(),
-                }
-            })?
-        }
-
-        // if there's nothing on disk, we must create a new filter
-        let bloomfilter = if task_config.current_bloomfilter_path.exists() {
-            ReplayProtectionBloomfilters::load(&task_config.current_bloomfilter_path).await?
-        } else {
-            let bf_items = items_in_bloomfilter(
-                task_config.filter_reset_rate,
-                config
-                    .mixnet
-                    .replay_protection
-                    .debug
-                    .initial_expected_packets_per_second,
-            );
-
-            ReplayProtectionBloomfilters::new_empty(bf_items, task_config.false_positive_rate)?
-        };
-
-        Ok(ReplayProtectionBackgroundTask {
-            config: task_config,
-            last_reset: LastResetData {
-                packets_received_at_last_reset: 0,
-                reset_time: Instant::now(),
-            },
-            filter: bloomfilter,
-            metrics,
-            shutdown_token,
-        })
+        // based on current rotation id, figure out which filter is which and also purge old ones, if exist.
+        todo!()
+        //
+        // let task_config: ReplayProtectionBackgroundTaskConfig = config.into();
+        //
+        // if task_config.current_bloomfilter_temp_flush_path.exists() {
+        //     error!(
+        //         "bloomfilter didn't get successfully flushed to disk and its data got corrupted"
+        //     );
+        //     fs::remove_file(&task_config.current_bloomfilter_temp_flush_path).map_err(|source| {
+        //         NymNodeError::BloomfilterIoFailure {
+        //             source,
+        //             path: task_config.current_bloomfilter_temp_flush_path.clone(),
+        //         }
+        //     })?
+        // }
+        //
+        // // if there's nothing on disk, we must create a new filter
+        // let bloomfilter = if task_config.current_bloomfilter_path.exists() {
+        //     ReplayProtectionBloomfilters::load(&task_config.current_bloomfilter_path).await?
+        // } else {
+        //     let bf_items = items_in_bloomfilter(
+        //         task_config.filter_reset_rate,
+        //         config
+        //             .mixnet
+        //             .replay_protection
+        //             .debug
+        //             .initial_expected_packets_per_second,
+        //     );
+        //
+        //     ReplayProtectionBloomfilters::new_empty(bf_items, task_config.false_positive_rate)?
+        // };
+        //
+        // Ok(ReplayProtectionDiskFlush {
+        //     config: task_config,
+        //     filters: bloomfilter,
+        //     shutdown_token,
+        // })
     }
 
-    pub(crate) fn global_bloomfilter(&self) -> ReplayProtectionBloomfilters {
-        self.filter.clone()
+    pub(crate) fn global_bloomfilters(&self) -> ReplayProtectionBloomfilters {
+        self.filters.clone()
     }
 
     async fn flush_to_disk(&self) -> Result<(), NymNodeError> {
@@ -151,7 +138,7 @@ impl ReplayProtectionBackgroundTask {
         // we first write bytes to temporary location,
         // and then we move it to the correct path
         let temp = &self.config.current_bloomfilter_temp_flush_path;
-        self.filter.flush_to_disk(temp).await?;
+        self.filters.flush_to_disk(temp).await?;
         fs::rename(temp, &self.config.current_bloomfilter_path).map_err(|source| {
             NymNodeError::BloomfilterIoFailure {
                 source,
@@ -161,43 +148,7 @@ impl ReplayProtectionBackgroundTask {
         Ok(())
     }
 
-    fn reset_bloomfilter(&mut self) -> Result<(), NymNodeError> {
-        // 1. determine parameters for new bloomfilter
-        let received = self.metrics.mixnet.ingress.forward_hop_packets_received()
-            + self.metrics.mixnet.ingress.final_hop_packets_received();
-
-        let time_delta = self.last_reset.reset_time.elapsed();
-        let received_since_last_reset = received - self.last_reset.packets_received_at_last_reset;
-        let received_per_second =
-            (received_since_last_reset as f64 / time_delta.as_secs_f64()).round() as usize;
-
-        let bf_received = max(
-            received_per_second,
-            self.config.minimum_bloomfilter_packets_per_second,
-        );
-        let items_in_new_filter = items_in_bloomfilter(self.config.filter_reset_rate, bf_received);
-        let adjusted =
-            (items_in_new_filter as f64 * self.config.bloomfilter_size_multiplier).round() as usize;
-
-        info!(
-            "resetting bloom filter. new expected number of packets: {} that preserve fp rate of {}",
-            adjusted.human_count_bare(),
-            self.config.false_positive_rate
-        );
-
-        // 2. update the filter
-        self.last_reset.reset_time = Instant::now();
-        self.last_reset.packets_received_at_last_reset = received_since_last_reset;
-
-        // if this fails with the mutex getting poisoned, the next received packet is going to cause
-        // a shutdown, so we don't have to propagate it here
-        self.filter.reset(adjusted, self.config.false_positive_rate)
-    }
-
     pub(crate) async fn run(&mut self) {
-        let mut reset_timer = interval(self.config.filter_reset_rate);
-        reset_timer.reset();
-
         let mut flush_timer = interval(self.config.disk_flushing_rate);
         flush_timer.reset();
 
@@ -207,11 +158,6 @@ impl ReplayProtectionBackgroundTask {
                 _ = self.shutdown_token.cancelled() => {
                     trace!("ReplayProtectionBackgroundTask: Received shutdown");
                     break;
-                }
-                _ = reset_timer.tick() => {
-                    if let Err(err) = self.reset_bloomfilter() {
-                        error!("failed to reset the bloomfilter: {err}")
-                    }
                 }
                 _ = flush_timer.tick() => {
                     if let Err(err) = self.flush_to_disk().await {

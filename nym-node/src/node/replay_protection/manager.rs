@@ -59,6 +59,7 @@ impl ReplayProtectionBloomfiltersManager {
             self.target_fp_p
         );
 
+        // 2. allocate the filter
         self.filters
             .allocate_pre_announced(adjusted, self.target_fp_p, received, rotation_id)
     }

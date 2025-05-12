@@ -1,13 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
+use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownToken;
-use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, KeyRotationState};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -76,10 +77,11 @@ enum KeyRotationActionState {
 }
 
 impl KeyRotationController {
-    pub(crate) async fn new(
-        regular_polling_interval: Duration,
+    pub(crate) fn new(
+        config: &Config,
         client: NymApisClient,
-        replay_protection_manager: ReplayProtectionBloomfiltersManager,
+        replay_protection_manager: ReplayProtectionBloomfilters,
+        metrics: NymNodeMetrics,
         managed_keys: SphinxKeyManager,
         shutdown_token: ShutdownToken,
     ) -> Self {
@@ -159,14 +161,7 @@ impl KeyRotationController {
     }
 
     async fn try_get_key_rotation_info(&self) -> Option<KeyRotationInfoResponse> {
-        let Ok(rotation_info) = self
-            .client
-            .query_exhaustively(
-                async |c| c.get_key_rotation_info().await,
-                Duration::from_secs(5),
-            )
-            .await
-        else {
+        let Ok(rotation_info) = self.client.get_key_rotation_info().await else {
             warn!("failed to retrieve key rotation information from ANY nym-api - we might miss configuration changes");
             return None;
         };
@@ -174,52 +169,61 @@ impl KeyRotationController {
         Some(rotation_info)
     }
 
+    async fn pre_announce_new_key(&self, rotation_id: u32) {
+        let public_key = match self.managed_keys.generate_key_for_new_rotation(rotation_id) {
+            Err(err) => {
+                error!("failed to generate and store new sphinx key: {err}");
+                return;
+            }
+            Ok(key) => key,
+        };
+
+        if self
+            .replay_protection_manager
+            .allocate_pre_announced(rotation_id, self.rotation_config.rotation_lifetime())
+            .is_err()
+        {
+            // mutex poisoning - we have to exit
+            self.shutdown_token.cancel();
+            return;
+        }
+        self.client.broadcast_pre_announced_key(public_key).await;
+    }
+
+    fn swap_default_key(&self) {
+        if let Err(err) = self.managed_keys.rotate_keys() {
+            error!("failed to perform sphinx key swap: {err}")
+        };
+        if self
+            .replay_protection_manager
+            .promote_pre_announced()
+            .is_err()
+        {
+            // mutex poisoning - we have to exit
+            self.shutdown_token.cancel();
+            return;
+        }
+    }
+
+    fn purge_old_rotation_data(&self) {
+        if let Err(err) = self.managed_keys.remove_overlap_key() {
+            error!("failed to remove old sphinx key: {err}");
+        };
+        if self.replay_protection_manager.purge_secondary().is_err() {
+            // mutex poisoning - we have to exit
+            self.shutdown_token.cancel();
+            return;
+        }
+    }
+
     async fn execute_next_action(&self, action: KeyRotationActionState) {
         match action {
             KeyRotationActionState::PreAnnounce { rotation_id } => {
-                let public_key = match self.managed_keys.generate_key_for_new_rotation(rotation_id)
-                {
-                    Err(err) => {
-                        error!("failed to generate and store new sphinx key: {err}");
-                        return;
-                    }
-                    Ok(key) => key,
-                };
-
-                if self
-                    .replay_protection_manager
-                    .allocate_pre_announced(rotation_id, self.rotation_config.rotation_lifetime())
-                    .is_err()
-                {
-                    // mutex poisoning - we have to exit
-                    self.shutdown_token.cancel();
-                    return;
-                }
-                self.client.broadcast_pre_announced_key(public_key).await;
+                self.pre_announce_new_key(rotation_id).await
             }
-            KeyRotationActionState::SwapDefault => {
-                if let Err(err) = self.managed_keys.rotate_keys() {
-                    error!("failed to perform sphinx key swap: {err}")
-                };
-                if self
-                    .replay_protection_manager
-                    .promote_pre_announced()
-                    .is_err()
-                {
-                    // mutex poisoning - we have to exit
-                    self.shutdown_token.cancel();
-                    return;
-                }
-            }
+            KeyRotationActionState::SwapDefault => self.swap_default_key(),
             KeyRotationActionState::PurgeOld => {
-                if let Err(err) = self.managed_keys.remove_overlap_key() {
-                    error!("failed to remove old sphinx key: {err}");
-                };
-                if self.replay_protection_manager.purge_secondary().is_err() {
-                    // mutex poisoning - we have to exit
-                    self.shutdown_token.cancel();
-                    return;
-                }
+                self.purge_old_rotation_data();
             }
         }
     }

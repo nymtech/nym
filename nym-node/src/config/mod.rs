@@ -6,7 +6,6 @@ use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
-use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
@@ -27,7 +26,6 @@ use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use sysinfo::System;
 use tracing::{debug, error};
 use url::Url;
 
@@ -44,7 +42,6 @@ pub mod upgrade_helpers;
 pub use crate::config::gateway_tasks::GatewayTasksConfig;
 pub use crate::config::metrics::MetricsConfig;
 pub use crate::config::service_providers::ServiceProvidersConfig;
-use crate::node::replay_protection::{bitmap_size, items_in_bloomfilter};
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 

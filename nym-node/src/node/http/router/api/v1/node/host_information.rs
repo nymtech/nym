@@ -3,7 +3,6 @@
 
 use crate::node::http::api::api_requests;
 use crate::node::http::state::AppState;
-use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::{v1::node::models::SignedHostInformation, SignedDataHostInfo};

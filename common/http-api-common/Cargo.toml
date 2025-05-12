@@ -21,10 +21,14 @@ mime = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 tracing.workspace = true
 utoipa = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+time = { workspace = true, features = ["macros"] }
 
 [features]
 default = []
@@ -32,7 +36,9 @@ output = [
     "axum",
     "bytes",
     "mime",
-    "serde_yaml"
+    "serde_yaml",
+    "time",
+    "time/formatting"
 ]
 
 middleware = [
@@ -47,3 +53,6 @@ middleware = [
 
 utoipa = ["dep:utoipa"]
 bincode = ["dep:bincode"]
+
+[lints]
+workspace = true

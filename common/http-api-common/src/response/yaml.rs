@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::response::{error_response, ResponseWrapper};
+use axum::http::header::IntoHeaderName;
 use axum::http::{header, HeaderValue};
 use axum::response::{IntoResponse, Response};
 use bytes::{BufMut, BytesMut};
@@ -17,6 +18,17 @@ impl<T> From<T> for Yaml<T> {
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/yaml"),
         ))
+    }
+}
+
+impl<T> Yaml<T> {
+    pub(crate) fn with_header(
+        mut self,
+        name: impl IntoHeaderName,
+        value: impl Into<HeaderValue>,
+    ) -> Self {
+        self.0.headers.insert(name, value.into());
+        self
     }
 }
 

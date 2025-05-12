@@ -33,6 +33,7 @@ use crate::node::mixnet::SharedFinalHopData;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
@@ -953,9 +954,11 @@ impl NymNode {
 
     pub(crate) async fn setup_replay_detection(
         &self,
-    ) -> Result<ReplayProtectionBloomfilters, NymNodeError> {
+    ) -> Result<ReplayProtectionBloomfiltersManager, NymNodeError> {
         if self.config.mixnet.replay_protection.debug.unsafe_disabled {
-            return Ok(ReplayProtectionBloomfilters::new_disabled());
+            return Ok(ReplayProtectionBloomfiltersManager::new_disabled(
+                self.metrics.clone(),
+            ));
         }
 
         // create the background task for the bloomfilter
@@ -965,15 +968,16 @@ impl NymNode {
             &self.config,
             sphinx_keys.keys.primary_key_rotation_id(),
             sphinx_keys.keys.secondary_key_rotation_id(),
+            self.metrics.clone(),
             self.shutdown_manager
                 .clone_token("replay-detection-background-flush"),
         )
         .await?;
 
-        let replay_protection_bloomfilter = replay_detection_background.global_bloomfilters();
+        let bloomfilters_manager = replay_detection_background.bloomfilters_manager();
         self.shutdown_manager
             .spawn(async move { replay_detection_background.run().await });
-        Ok(replay_protection_bloomfilter)
+        Ok(bloomfilters_manager)
     }
 
     // I'm assuming this will be needed in other places, so it's explicitly extracted
@@ -996,13 +1000,13 @@ impl NymNode {
     pub(crate) async fn setup_key_rotation(
         &mut self,
         nym_apis_client: NymApisClient,
-        replay_protection_bloomfilters: ReplayProtectionBloomfilters,
+        replay_protection_manager: ReplayProtectionBloomfiltersManager,
     ) -> Result<(), NymNodeError> {
         let managed_keys = self.take_managed_sphinx_keys()?;
         let rotation_controller = KeyRotationController::new(
             &self.config,
             nym_apis_client,
-            replay_protection_bloomfilters,
+            replay_protection_manager,
             self.metrics.clone(),
             managed_keys,
             self.shutdown_manager.clone_token("key-rotation-controller"),
@@ -1119,18 +1123,18 @@ impl NymNode {
         let active_clients_store = ActiveClientsStore::new();
         let nym_apis_client = self.setup_nym_apis_client()?;
 
-        let replay_protection_bloomfilter = self.setup_replay_detection().await?;
+        let bloomfilters_manager = self.setup_replay_detection().await?;
 
         let (mix_packet_sender, active_egress_mixnet_connections) = self
             .start_mixnet_listener(
                 &active_clients_store,
-                replay_protection_bloomfilter.clone(),
+                bloomfilters_manager.bloomfilters(),
                 network_refresher.routing_filter(),
                 self.shutdown_manager.clone_token("mixnet-traffic"),
             )
             .await?;
 
-        self.setup_key_rotation(nym_apis_client, replay_protection_bloomfilter)
+        self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
             .await?;
 
         let metrics_sender = self.setup_metrics_backend(

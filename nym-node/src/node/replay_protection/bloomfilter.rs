@@ -5,19 +5,22 @@ use crate::error::NymNodeError;
 use bloomfilter::Bloom;
 use nym_sphinx_types::REPLAY_TAG_SIZE;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::mem;
 use std::path::Path;
-use std::sync::{Arc, PoisonError, TryLockError};
-use tokio::time::Instant;
-use tracing::error;
+use std::sync::{Arc, Mutex, PoisonError, TryLockError};
+use time::OffsetDateTime;
+use tracing::{error, info, warn};
 
 // auxiliary data associated with the bloomfilter to get some statistics from the time of its creation
 // this is needed in order to more accurately resize it upon reset
+
 #[derive(Copy, Clone)]
 pub(crate) struct ReplayProtectionBloomfilterMetadata {
     // used in the unlikely case of epoch durations being changed. it doesn't really cost us anything
     // to include it, so might as well
-    pub(crate) creation_time: Instant,
+    pub(crate) creation_time: OffsetDateTime,
 
     /// Number of packets that this node has received since startup, as recorded when this bloomfilter was created.
     /// Used for determining the approximate packet rate and thus number of entries in the bloomfilter
@@ -26,25 +29,80 @@ pub(crate) struct ReplayProtectionBloomfilterMetadata {
     pub(crate) rotation_id: u32,
 }
 
+impl ReplayProtectionBloomfilterMetadata {
+    const SERIALIZED_LEN: usize = size_of::<i64>() + size_of::<u64>() + size_of::<u32>();
+
+    // UNIX_TIMESTAMP || PACKETS_RECEIVED || ROTATION_ID
+    pub(crate) fn bytes(&self) -> Vec<u8> {
+        self.creation_time
+            .unix_timestamp()
+            .to_be_bytes()
+            .into_iter()
+            .chain((self.packets_received_at_creation as u64).to_be_bytes())
+            .chain(self.rotation_id.to_be_bytes())
+            .collect()
+    }
+    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, NymNodeError> {
+        if bytes.len() != Self::SERIALIZED_LEN {
+            return Err(NymNodeError::BloomfilterMetadataDeserialisationFailure);
+        }
+
+        // SAFETY: we just checked we have correct number of bytes
+        #[allow(clippy::unwrap_used)]
+        let creation_timestamp = i64::from_be_bytes(bytes[0..8].try_into().unwrap());
+
+        #[allow(clippy::unwrap_used)]
+        let packets_received_at_creation =
+            u64::from_be_bytes(bytes[8..16].try_into().unwrap()) as usize;
+
+        #[allow(clippy::unwrap_used)]
+        let rotation_id = u32::from_be_bytes(bytes[16..].try_into().unwrap());
+
+        Ok(ReplayProtectionBloomfilterMetadata {
+            creation_time: OffsetDateTime::from_unix_timestamp(creation_timestamp)
+                .map_err(|_| NymNodeError::BloomfilterMetadataDeserialisationFailure)?,
+            packets_received_at_creation,
+            rotation_id,
+        })
+    }
+}
+
 // it appears that now std Mutex is faster (or comparable) to parking_lot
 // in high contention situations: https://github.com/rust-lang/rust/pull/95035#issuecomment-1073966631
 // (tokio's async Mutex has too much overhead due to the number of access required)
 #[derive(Clone)]
 pub(crate) struct ReplayProtectionBloomfilters {
     disabled: bool,
-    inner: Arc<std::sync::Mutex<ReplayProtectionBloomfiltersInner>>,
+    inner: Arc<Mutex<ReplayProtectionBloomfiltersInner>>,
 }
 
 impl ReplayProtectionBloomfilters {
-    pub(crate) fn new_empty(items_count: usize, fp_p: f64) -> Result<Self, NymNodeError> {
-        todo!()
-        // Ok(ReplayProtectionBloomfilter {
-        //     disabled: false,
-        //     inner: Arc::new(std::sync::Mutex::new(ReplayProtectionBloomfilterInner {
-        //         current_filter: Bloom::new_for_fp_rate(items_count, fp_p)
-        //             .map_err(NymNodeError::bloomfilter_failure)?,
-        //     })),
-        // })
+    pub(crate) fn new(primary: RotationFilter, secondary: Option<RotationFilter>) -> Self {
+        // figure out if the secondary filter is the overlap or pre_announced filter
+        let primary_id = primary.metadata.rotation_id;
+        let (overlap, pre_announced) = match secondary {
+            None => (None, None),
+            Some(secondary_filter) => {
+                let secondary_id = secondary_filter.metadata.rotation_id;
+                if secondary_id == primary_id + 1 {
+                    (None, Some(secondary_filter))
+                } else if secondary_id == primary_id - 1 {
+                    (Some(secondary_filter), None)
+                } else {
+                    warn!("{secondary_id} is not valid for either pre_announced or overlap bloomfilter given primary rotation of {primary_id}");
+                    (None, None)
+                }
+            }
+        };
+
+        ReplayProtectionBloomfilters {
+            disabled: false,
+            inner: Arc::new(Mutex::new(ReplayProtectionBloomfiltersInner {
+                primary,
+                overlap,
+                pre_announced,
+            })),
+        }
     }
 
     // SAFETY: the hardcoded values of 1,1 are valid
@@ -56,13 +114,13 @@ impl ReplayProtectionBloomfilters {
             inner: Arc::new(std::sync::Mutex::new(ReplayProtectionBloomfiltersInner {
                 primary: RotationFilter {
                     metadata: ReplayProtectionBloomfilterMetadata {
-                        creation_time: Instant::now(),
+                        creation_time: OffsetDateTime::now_utc(),
                         packets_received_at_creation: 0,
                         rotation_id: u32::MAX,
                     },
                     data: Bloom::new(1, 1).unwrap(),
                 },
-                secondary: None,
+                overlap: None,
                 pre_announced: None,
             })),
         }
@@ -79,10 +137,6 @@ impl ReplayProtectionBloomfilters {
         packets_received_at_creation: usize,
         rotation_id: u32,
     ) -> Result<(), NymNodeError> {
-        // build the new filter
-        let filter =
-            Bloom::new_for_fp_rate(items_count, fp_p).map_err(NymNodeError::bloomfilter_failure)?;
-
         let mut guard = self
             .inner
             .lock()
@@ -90,14 +144,12 @@ impl ReplayProtectionBloomfilters {
                 message: "mutex got poisoned",
             })?;
 
-        guard.pre_announced = Some(RotationFilter {
-            metadata: ReplayProtectionBloomfilterMetadata {
-                creation_time: Instant::now(),
-                packets_received_at_creation,
-                rotation_id,
-            },
-            data: filter,
-        });
+        guard.pre_announced = Some(RotationFilter::new(
+            items_count,
+            fp_p,
+            packets_received_at_creation,
+            rotation_id,
+        )?);
         Ok(())
     }
 
@@ -119,7 +171,7 @@ impl ReplayProtectionBloomfilters {
         mem::swap(&mut guard.primary, &mut pre_announced);
 
         // temp (pre_announced) -> secondary
-        guard.secondary = Some(pre_announced);
+        guard.overlap = Some(pre_announced);
         Ok(())
     }
 
@@ -130,7 +182,7 @@ impl ReplayProtectionBloomfilters {
             .map_err(|_| NymNodeError::BloomfilterFailure {
                 message: "mutex got poisoned",
             })?;
-        guard.secondary = None;
+        guard.overlap = None;
         Ok(())
     }
 
@@ -149,97 +201,41 @@ impl ReplayProtectionBloomfilters {
         Ok(metadata)
     }
 
-    pub(crate) fn reset(&self, items_count: usize, fp_p: f64) -> Result<(), NymNodeError> {
-        // 1. build the new filter
-        todo!()
-        // let new_inner = ReplayProtectionBloomfilterInner {
-        //     current_filter: Bloom::new_for_fp_rate(items_count, fp_p)
-        //         .map_err(NymNodeError::bloomfilter_failure)?,
-        // };
-        //
-        // // 2. swap it
-        // let mut guard = self
-        //     .inner
-        //     .lock()
-        //     .map_err(|_| NymNodeError::BloomfilterFailure {
-        //         message: "mutex got poisoned",
-        //     })?;
-        //
-        // *guard = new_inner;
-        // Ok(())
+    pub(crate) fn primary_bytes_and_id(&self) -> Result<(Vec<u8>, u32), NymNodeError> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?;
+
+        let id = guard.primary.metadata.rotation_id;
+        let bytes = guard.primary.data.to_bytes();
+        Ok((bytes, id))
     }
 
-    // NOTE: with key rotations we'll have to check whether the file is still valid and which
-    // key it corresponds to, but that's a future problem
-    pub(crate) async fn load<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
-        todo!()
-        // info!("attempting to load prior replay detection bloomfilter...");
-        // let path = path.as_ref();
-        // let mut file =
-        //     File::open(path)
-        //         .await
-        //         .map_err(|source| NymNodeError::BloomfilterIoFailure {
-        //             source,
-        //             path: path.to_path_buf(),
-        //         })?;
-        //
-        // let mut buf = Vec::new();
-        // file.read_to_end(&mut buf)
-        //     .await
-        //     .map_err(|source| NymNodeError::BloomfilterIoFailure {
-        //         source,
-        //         path: path.to_path_buf(),
-        //     })?;
-        //
-        // Ok(ReplayProtectionBloomfilter {
-        //     disabled: false,
-        //     inner: Arc::new(std::sync::Mutex::new(ReplayProtectionBloomfilterInner {
-        //         current_filter: Bloom::from_bytes(buf)
-        //             .map_err(NymNodeError::bloomfilter_failure)?,
-        //     })),
-        // })
-    }
+    pub(crate) fn secondary_bytes_and_id(&self) -> Result<Option<(Vec<u8>, u32)>, NymNodeError> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| NymNodeError::BloomfilterFailure {
+                message: "mutex got poisoned",
+            })?;
 
-    // average HDD has the write speed of ~80MB/s so a 2GB bloomfilter would take almost 30s to write...
-    // and this function is explicitly async and using tokio's async operations, because otherwise
-    // we'd have to go through the whole hassle of using spawn_blocking and awaiting that one instead
-    pub(crate) async fn flush_to_disk<P: AsRef<Path>>(&self, path: P) -> Result<(), NymNodeError> {
-        todo!()
-        // debug!("flushing replay protection bloomfilter to disk...");
-        // let start = Instant::now();
-        // let path = path.as_ref();
-        //
-        // let mut file =
-        //     File::create(path)
-        //         .await
-        //         .map_err(|source| NymNodeError::BloomfilterIoFailure {
-        //             source,
-        //             path: path.to_path_buf(),
-        //         })?;
-        // let data = self.bytes().map_err(|_| NymNodeError::BloomfilterFailure {
-        //     message: "mutex got poisoned",
-        // })?;
-        // file.write_all(&data)
-        //     .await
-        //     .map_err(|source| NymNodeError::BloomfilterIoFailure {
-        //         source,
-        //         path: path.to_path_buf(),
-        //     })?;
-        //
-        // let elapsed = start.elapsed();
-        //
-        // info!(
-        //     "flushed replay protection bloomfilter to disk. it took: {}",
-        //     elapsed.human_duration()
-        // );
-        //
-        // Ok(())
-    }
-}
+        let secondary = match guard.overlap.as_ref() {
+            Some(overlap) => overlap,
+            None => {
+                let Some(pre_announced) = guard.pre_announced.as_ref() else {
+                    return Ok(None);
+                };
+                pre_announced
+            }
+        };
 
-struct RotationFilter {
-    metadata: ReplayProtectionBloomfilterMetadata,
-    data: Bloom<[u8; REPLAY_TAG_SIZE]>,
+        let id = secondary.metadata.rotation_id;
+        let bytes = secondary.data.to_bytes();
+        Ok(Some((bytes, id)))
+    }
 }
 
 impl ReplayProtectionBloomfilters {
@@ -266,28 +262,19 @@ impl ReplayProtectionBloomfilters {
 
         Ok(guard.batch_check_and_set(&reply_tags))
     }
-
-    // due to the size of the bloomfilter, extra caution has to be applied when using this method
-    // note: we're not getting reference to bytes as this method is used when flushing data to the disk
-    // (which takes ~30s) and we can't block the mutex for that long.
-    fn bytes(&self) -> Result<Vec<u8>, PoisonError<()>> {
-        todo!()
-        // let guard = self.inner.lock().map_err(|_| PoisonError::new(()))?;
-        // Ok(guard.current_filter.to_bytes())
-    }
 }
 
 struct ReplayProtectionBloomfiltersInner {
     primary: RotationFilter,
 
     // don't worry, we'll never have 3 active filters at once,
-    // we will either have a secondary (during the first epoch of a new rotation)
+    // we will either have a overlap (during the first epoch of a new rotation)
     // or a pre_announced (during the last epoch of the current rotation)
     // during epoch transition, the following change will happen:
-    // primary -> secondary
+    // primary -> overlap
     // pre_announced -> primary
     // I'm not using an enum because it's easier to reason about those as separate fields
-    secondary: Option<RotationFilter>,
+    overlap: Option<RotationFilter>,
     pre_announced: Option<RotationFilter>,
 }
 
@@ -300,9 +287,9 @@ impl ReplayProtectionBloomfiltersInner {
         for (&rotation_id, reply_tags) in reply_tags {
             // try to 'find' the relevant filter. we might be doing 3 reads here, but realistically it's
             // going to be 'primary' most of the time and even if not, it's just few ns of overhead...
-            let mut filter = if self.primary.metadata.rotation_id == rotation_id {
+            let filter = if self.primary.metadata.rotation_id == rotation_id {
                 Some(&mut self.primary.data)
-            } else if let Some(secondary) = &mut self.secondary {
+            } else if let Some(secondary) = &mut self.overlap {
                 // if let chaining won't be stable until 1.88 so we have to do the Option workaround
                 if secondary.metadata.rotation_id == rotation_id {
                     Some(&mut secondary.data)
@@ -319,7 +306,7 @@ impl ReplayProtectionBloomfiltersInner {
                 None
             };
 
-            let Some(mut filter) = filter else {
+            let Some(filter) = filter else {
                 // if we've received a packet from an unknown rotation, it most likely means it has been replayed
                 // from an older rotation, so mark it as such
                 result.insert(rotation_id, vec![false; reply_tags.len()]);
@@ -334,5 +321,76 @@ impl ReplayProtectionBloomfiltersInner {
         }
 
         result
+    }
+}
+
+pub(crate) struct RotationFilter {
+    metadata: ReplayProtectionBloomfilterMetadata,
+    data: Bloom<[u8; REPLAY_TAG_SIZE]>,
+}
+
+impl RotationFilter {
+    pub(crate) fn new(
+        items_count: usize,
+        fp_p: f64,
+        packets_received_at_creation: usize,
+        rotation_id: u32,
+    ) -> Result<Self, NymNodeError> {
+        let filter =
+            Bloom::new_for_fp_rate(items_count, fp_p).map_err(NymNodeError::bloomfilter_failure)?;
+
+        Ok(RotationFilter {
+            metadata: ReplayProtectionBloomfilterMetadata {
+                creation_time: OffsetDateTime::now_utc(),
+                packets_received_at_creation,
+                rotation_id,
+            },
+            data: filter,
+        })
+    }
+
+    // due to the size of the bloomfilter, extra caution has to be applied when using this method
+    // note: we're not getting reference to bytes as this method is used when flushing data to the disk
+    // (which takes ~30s) and we can't block the mutex for that long.
+    fn bytes(&self) -> Vec<u8> {
+        // attach metadata bytes at the end as it would make deserialisation cheaper (as we could avoid
+        // copying the bloomfilter bytes twice)
+        let mut bloom_bytes = self.data.to_bytes();
+        bloom_bytes.extend_from_slice(&self.metadata.bytes());
+        bloom_bytes
+    }
+
+    pub(crate) fn try_from_bytes(bytes: Vec<u8>) -> Result<Self, NymNodeError> {
+        let len = bytes.len();
+        if bytes.len() < ReplayProtectionBloomfilterMetadata::SERIALIZED_LEN {
+            return Err(NymNodeError::BloomfilterMetadataDeserialisationFailure);
+        }
+
+        let mut bloom_bytes = bytes;
+        let metadata_bytes =
+            bloom_bytes.split_off(len - ReplayProtectionBloomfilterMetadata::SERIALIZED_LEN);
+
+        Ok(RotationFilter {
+            metadata: ReplayProtectionBloomfilterMetadata::try_from_bytes(&metadata_bytes)?,
+            data: Bloom::from_bytes(bloom_bytes).map_err(NymNodeError::bloomfilter_failure)?,
+        })
+    }
+
+    pub(crate) fn load<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
+        info!("attempting to load prior replay detection bloomfilter...");
+        let path = path.as_ref();
+        let mut file = File::open(path).map_err(|source| NymNodeError::BloomfilterIoFailure {
+            source,
+            path: path.to_path_buf(),
+        })?;
+
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)
+            .map_err(|source| NymNodeError::BloomfilterIoFailure {
+                source,
+                path: path.to_path_buf(),
+            })?;
+
+        RotationFilter::try_from_bytes(buf)
     }
 }

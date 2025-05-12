@@ -6,6 +6,7 @@ use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
+use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
@@ -26,6 +27,7 @@ use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use sysinfo::System;
 use tracing::{debug, error};
 use url::Url;
 
@@ -42,6 +44,7 @@ pub mod upgrade_helpers;
 pub use crate::config::gateway_tasks::GatewayTasksConfig;
 pub use crate::config::metrics::MetricsConfig;
 pub use crate::config::service_providers::ServiceProvidersConfig;
+use crate::node::replay_protection::{bitmap_size, items_in_bloomfilter};
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
@@ -662,35 +665,38 @@ impl ReplayProtectionDebug {
     pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
 
     pub fn validate(&self) -> Result<(), NymNodeError> {
-        todo!()
-        // if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
-        //     return Err(NymNodeError::config_validation_failure(
-        //         "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",
-        //     ));
-        // }
-        //
-        // let items_in_filter = items_in_bloomfilter(
-        //     self.bloomfilter_reset_rate,
-        //     self.initial_expected_packets_per_second,
-        // );
-        // let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
-        // let bloomfilter_size = bitmap_size / 8;
-        //
-        // let mut sys_info = System::new();
-        // sys_info.refresh_memory();
-        //
-        // // we'll need 2x size of the bloomfilter
-        // // as during key transition we'll have to simultaneously use two filters
-        // // plus we also need to make a memcopy during disk flush
-        // let required_memory = 2 * bloomfilter_size;
-        //
-        // let memory = sys_info.available_memory();
-        // if (memory as usize) < required_memory {
-        //     return Err(NymNodeError::config_validation_failure(
-        //          format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
-        // }
-        //
-        // Ok(())
+        if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
+            return Err(NymNodeError::config_validation_failure(
+                "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",
+            ));
+        }
+
+        // ideally we would have pulled the exact information from the network,
+        // but making async calls really doesn't play around with this method
+        // so we do second best: assume 24h rotation with 1h overlap (which realistically won't ever change)
+
+        let items_in_filter = items_in_bloomfilter(
+            Duration::from_secs(25 * 60 * 60),
+            self.initial_expected_packets_per_second,
+        );
+        let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
+        let bloomfilter_size = bitmap_size / 8;
+
+        let mut sys_info = System::new();
+        sys_info.refresh_memory();
+
+        // we'll need 2x size of the bloomfilter
+        // as during key transition we'll have to simultaneously use two filters
+        // plus we also need to make a memcopy during disk flush
+        let required_memory = 2 * bloomfilter_size;
+
+        let memory = sys_info.available_memory();
+        if (memory as usize) < required_memory {
+            return Err(NymNodeError::config_validation_failure(
+                 format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
+        }
+
+        Ok(())
     }
 }
 

@@ -497,20 +497,6 @@ pub struct ReplayProtectionPaths {
 }
 
 impl ReplayProtectionPaths {
-    pub fn bloomfilter_filepath(&self, rotation_id: u32) -> PathBuf {
-        self.current_bloomfilters_directory
-            .join(format!("rot-{rotation_id}"))
-            .with_extension(DEFAULT_RD_BLOOMFILTER_FILE_EXT)
-    }
-
-    pub fn current_bloomfilter_being_flushed_filepath(&self, rotation_id: u32) -> PathBuf {
-        self.current_bloomfilters_directory
-            .join(format!("rot-{rotation_id}"))
-            .with_extension(DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT)
-    }
-}
-
-impl ReplayProtectionPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         ReplayProtectionPaths {
             current_bloomfilters_directory: data_dir.as_ref().join(DEFAULT_RD_BLOOMFILTER_SUBDIR),

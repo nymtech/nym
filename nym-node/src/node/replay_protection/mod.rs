@@ -6,6 +6,7 @@ use std::time::Duration;
 
 pub(crate) mod background_task;
 pub(crate) mod bloomfilter;
+mod helpers;
 pub(crate) mod manager;
 
 pub fn bitmap_size(false_positive_rate: f64, items_in_filter: usize) -> usize {

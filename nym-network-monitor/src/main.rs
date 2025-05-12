@@ -2,7 +2,7 @@ use crate::http::HttpServer;
 use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
-use log::{error, info, warn};
+use log::{info, warn};
 use nym_bin_common::bin_info;
 use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
@@ -23,7 +23,6 @@ use std::{
 };
 use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
-use tokio_postgres::NoTls;
 use tokio_util::sync::CancellationToken;
 
 static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
@@ -229,31 +228,16 @@ async fn main() -> Result<()> {
 
     info!("Waiting for message (ctrl-c to exit)");
 
-    let client = if let Some(database_url) = args.database_url {
-        let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
-
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                error!("Postgres connection error: {}", e);
-            }
-        });
-
-        Some(Arc::new(client))
-    } else {
-        None
-    };
-
     loop {
-        let client = client.as_ref().map(Arc::clone);
         match tokio::time::timeout(Duration::from_secs(600), ctrl_c()).await {
             Ok(_) => {
                 info!("Received kill signal, shutting down, submitting final batch of metrics");
-                submit_metrics(client).await?;
+                submit_metrics(args.database_url.as_ref()).await?;
                 break;
             }
             Err(_) => {
                 info!("Submitting metrics, cleaning metric buffers");
-                submit_metrics(client).await?;
+                submit_metrics(args.database_url.as_ref()).await?;
             }
         };
     }

@@ -8,7 +8,7 @@ use futures::{stream, StreamExt};
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::Client;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::NodeRefreshBody;
+use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::NymApiClient;
 use rand::prelude::SliceRandom;
@@ -105,6 +105,16 @@ impl NymApisClient {
             .await
             .broadcast_pre_announced_key(public_key)
             .await;
+    }
+
+    pub(crate) async fn get_key_rotation_info(
+        &self,
+    ) -> Result<KeyRotationInfoResponse, NymNodeError> {
+        self.query_exhaustively(
+            async |c| c.get_key_rotation_info().await,
+            Duration::from_secs(5),
+        )
+        .await
     }
 }
 

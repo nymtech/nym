@@ -18,6 +18,7 @@ use crate::node::http::helpers::system_info::get_system_info;
 use crate::node::http::state::{AppState, StaticNodeInformation};
 use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
@@ -30,7 +31,7 @@ use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::nym_apis_client::NymApisClient;
-use crate::node::replay_protection::background_task::ReplayProtectionBackgroundTask;
+use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::{
@@ -375,7 +376,7 @@ pub(crate) struct NymNode {
     wireguard: Option<WireguardData>,
 
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
-    sphinx_key_manager: SphinxKeyManager,
+    sphinx_key_manager: Option<SphinxKeyManager>,
 
     // to be used when noise is integrated
     #[allow(dead_code)]
@@ -445,11 +446,11 @@ impl NymNode {
             ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
                 &config.storage_paths.keys.ed25519_identity_storage_paths(),
             )?),
-            sphinx_key_manager: SphinxKeyManager::try_load_or_regenerate(
+            sphinx_key_manager: Some(SphinxKeyManager::try_load_or_regenerate(
                 current_rotation_id,
                 &config.storage_paths.keys.primary_x25519_sphinx_key_file,
                 &config.storage_paths.keys.secondary_x25519_sphinx_key_file,
-            )?,
+            )?),
             x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
                 &config.storage_paths.keys.x25519_noise_storage_paths(),
             )?),
@@ -518,16 +519,13 @@ impl NymNode {
     }
 
     pub(crate) fn display_details(&self) -> Result<DisplayDetails, NymNodeError> {
+        let sphinx_keys = self.sphinx_keys()?;
         Ok(DisplayDetails {
             current_modes: self.config.modes,
             description: self.description.clone(),
             ed25519_identity_key: self.ed25519_identity_key().to_base58_string(),
-            x25519_primary_sphinx_key: self.sphinx_key_manager.keys.primary().deref().into(),
-            x25519_secondary_sphinx_key: self
-                .sphinx_key_manager
-                .keys
-                .secondary()
-                .map(|g| g.deref().into()),
+            x25519_primary_sphinx_key: sphinx_keys.keys.primary().deref().into(),
+            x25519_secondary_sphinx_key: sphinx_keys.keys.secondary().map(|g| g.deref().into()),
             x25519_noise_key: self.x25519_noise_key().to_base58_string(),
             x25519_wireguard_key: self.x25519_wireguard_key()?.to_base58_string(),
             exit_network_requester_address: self.exit_network_requester_address().to_string(),
@@ -548,8 +546,8 @@ impl NymNode {
         self.x25519_noise_keys.public_key()
     }
 
-    pub(crate) fn active_sphinx_keys(&self) -> ActiveSphinxKeys {
-        self.sphinx_key_manager.keys.clone()
+    pub(crate) fn active_sphinx_keys(&self) -> Result<ActiveSphinxKeys, NymNodeError> {
+        Ok(self.sphinx_keys()?.keys.clone())
     }
 
     async fn build_network_refresher(&self) -> Result<NetworkRefresher, NymNodeError> {
@@ -585,7 +583,7 @@ impl NymNode {
             .unwrap_or(self.config.gateway_tasks.ws_bind_address.port());
 
         Ok(LocalGatewayNode {
-            active_sphinx_keys: self.sphinx_key_manager.keys.clone(),
+            active_sphinx_keys: self.active_sphinx_keys()?.clone(),
             mix_host,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
@@ -813,7 +811,7 @@ impl NymNode {
                 ip_addresses: self.config.host.public_ips.clone(),
                 hostname: self.config.host.hostname.clone(),
             },
-            self.sphinx_key_manager.keys.clone(),
+            self.active_sphinx_keys()?.clone(),
             self.metrics.clone(),
             self.verloc_stats.clone(),
             self.config.http.node_load_cache_ttl,
@@ -936,7 +934,6 @@ impl NymNode {
         // >>>> END: register all relevant handlers
 
         // console logger to preserve old mixnode functionalities
-        // if self.config.logging.debug.log_to_console {
         if self.config.metrics.debug.log_stats_to_console {
             ConsoleLogger::new(
                 self.config.metrics.debug.console_logging_update_interval,
@@ -963,23 +960,62 @@ impl NymNode {
 
         // create the background task for the bloomfilter
         // to reset it and flush it to disk
-        let mut replay_detection_background = ReplayProtectionBackgroundTask::new(
+        let sphinx_keys = self.sphinx_keys()?;
+        let mut replay_detection_background = ReplayProtectionDiskFlush::new(
             &self.config,
-            self.metrics.clone(),
+            sphinx_keys.keys.primary_key_rotation_id(),
+            sphinx_keys.keys.secondary_key_rotation_id(),
             self.shutdown_manager
-                .clone_token("replay-detection-background"),
+                .clone_token("replay-detection-background-flush"),
         )
         .await?;
 
-        let replay_protection_bloomfilter = replay_detection_background.global_bloomfilter();
+        let replay_protection_bloomfilter = replay_detection_background.global_bloomfilters();
         self.shutdown_manager
             .spawn(async move { replay_detection_background.run().await });
         Ok(replay_protection_bloomfilter)
     }
 
+    // I'm assuming this will be needed in other places, so it's explicitly extracted
+    fn setup_nym_apis_client(&self) -> Result<NymApisClient, NymNodeError> {
+        NymApisClient::new(&self.config.mixnet.nym_api_urls)
+    }
+
+    fn sphinx_keys(&self) -> Result<&SphinxKeyManager, NymNodeError> {
+        self.sphinx_key_manager
+            .as_ref()
+            .ok_or(NymNodeError::ConsumedSphinxKeys)
+    }
+
+    fn take_managed_sphinx_keys(&mut self) -> Result<SphinxKeyManager, NymNodeError> {
+        self.sphinx_key_manager
+            .take()
+            .ok_or(NymNodeError::ConsumedSphinxKeys)
+    }
+
+    pub(crate) async fn setup_key_rotation(
+        &mut self,
+        nym_apis_client: NymApisClient,
+        replay_protection_bloomfilters: ReplayProtectionBloomfilters,
+    ) -> Result<(), NymNodeError> {
+        let managed_keys = self.take_managed_sphinx_keys()?;
+        let rotation_controller = KeyRotationController::new(
+            &self.config,
+            nym_apis_client,
+            replay_protection_bloomfilters,
+            self.metrics.clone(),
+            managed_keys,
+            self.shutdown_manager.clone_token("key-rotation-controller"),
+        );
+
+        rotation_controller.start();
+        Ok(())
+    }
+
     pub(crate) async fn start_mixnet_listener<F>(
         &self,
         active_clients_store: &ActiveClientsStore,
+        replay_protection_bloomfilter: ReplayProtectionBloomfilters,
         routing_filter: F,
         shutdown: ShutdownToken,
     ) -> Result<(MixForwardingSender, ActiveConnections), NymNodeError>
@@ -1010,7 +1046,6 @@ impl NymNode {
         );
         let active_connections = mixnet_client.active_connections();
 
-        let replay_protection_bloomfilter = self.setup_replay_detection().await?;
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
             routing_filter,
@@ -1027,7 +1062,7 @@ impl NymNode {
 
         let shared = mixnet::SharedData::new(
             processing_config,
-            self.sphinx_key_manager.keys.clone(),
+            self.active_sphinx_keys()?,
             replay_protection_bloomfilter,
             mix_packet_sender.clone(),
             final_hop_data,
@@ -1042,6 +1077,7 @@ impl NymNode {
     pub(crate) async fn run_minimal_mixnet_processing(self) -> Result<(), NymNodeError> {
         self.start_mixnet_listener(
             &ActiveClientsStore::new(),
+            ReplayProtectionBloomfilters::new_disabled(),
             OpenFilter,
             self.shutdown_manager.clone_token("mixnet-traffic"),
         )
@@ -1081,13 +1117,20 @@ impl NymNode {
 
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
+        let nym_apis_client = self.setup_nym_apis_client()?;
+
+        let replay_protection_bloomfilter = self.setup_replay_detection().await?;
 
         let (mix_packet_sender, active_egress_mixnet_connections) = self
             .start_mixnet_listener(
                 &active_clients_store,
+                replay_protection_bloomfilter.clone(),
                 network_refresher.routing_filter(),
                 self.shutdown_manager.clone_token("mixnet-traffic"),
             )
+            .await?;
+
+        self.setup_key_rotation(nym_apis_client, replay_protection_bloomfilter)
             .await?;
 
         let metrics_sender = self.setup_metrics_backend(

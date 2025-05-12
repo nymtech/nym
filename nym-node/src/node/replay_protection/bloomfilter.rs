@@ -3,16 +3,13 @@
 
 use crate::error::NymNodeError;
 use bloomfilter::Bloom;
-use human_repr::HumanDuration;
 use nym_sphinx_types::REPLAY_TAG_SIZE;
 use std::collections::HashMap;
 use std::mem;
 use std::path::Path;
 use std::sync::{Arc, PoisonError, TryLockError};
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::Instant;
-use tracing::{debug, error, info};
+use tracing::error;
 
 // auxiliary data associated with the bloomfilter to get some statistics from the time of its creation
 // this is needed in order to more accurately resize it upon reset

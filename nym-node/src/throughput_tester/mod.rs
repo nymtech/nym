@@ -116,7 +116,7 @@ pub(crate) fn test_mixing_throughput(
     let nym_node = tester.prepare_nymnode(config_path)?;
     let listener = nym_node.config().mixnet.bind_address;
 
-    let sphinx_keys = nym_node.active_sphinx_keys();
+    let sphinx_keys = nym_node.active_sphinx_keys()?;
 
     let mut stats = Vec::with_capacity(senders);
     for _ in 0..senders {

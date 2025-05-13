@@ -131,12 +131,17 @@ pub struct HostKeys {
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub ed25519_identity: ed25519::PublicKey,
 
+    #[deprecated(note = "use explicit primary_x25519_sphinx_key instead")]
+    #[serde(alias = "x25519")]
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub x25519_sphinx: x25519::PublicKey,
+
     /// Current, active, x25519 sphinx key clients are expected to use when constructing packets
     /// with this node in the route.
-    #[serde(alias = "x25519")]
-    #[serde(alias = "x25519_sphinx")]
     #[serde(deserialize_with = "de_sphinx_key")]
-    pub current_x25519_sphinx_key: SphinxKey,
+    pub primary_x25519_sphinx_key: SphinxKey,
 
     /// Pre-announced x25519 sphinx key clients will use during the following key rotation
     #[serde(default)]
@@ -223,7 +228,7 @@ impl From<HostKeys> for LegacyHostKeysV3 {
     fn from(value: HostKeys) -> Self {
         LegacyHostKeysV3 {
             ed25519_identity: value.ed25519_identity,
-            x25519_sphinx: value.current_x25519_sphinx_key.public_key,
+            x25519_sphinx: value.primary_x25519_sphinx_key.public_key,
             x25519_noise: value.x25519_noise,
         }
     }

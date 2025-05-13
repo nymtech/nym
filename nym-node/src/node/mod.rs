@@ -1003,11 +1003,13 @@ impl NymNode {
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
     ) -> Result<(), NymNodeError> {
         let managed_keys = self.take_managed_sphinx_keys()?;
+        let rotation_state = nym_apis_client.get_key_rotation_info().await?;
+
         let rotation_controller = KeyRotationController::new(
             &self.config,
+            rotation_state.into(),
             nym_apis_client,
             replay_protection_manager,
-            self.metrics.clone(),
             managed_keys,
             self.shutdown_manager.clone_token("key-rotation-controller"),
         );

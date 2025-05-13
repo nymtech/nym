@@ -35,13 +35,12 @@ impl ActiveSphinxKeys {
         primary: SphinxPrivateKey,
         secondary: Option<SphinxPrivateKey>,
     ) -> Self {
-        todo!()
-        // ActiveSphinxKeys {
-        //     inner: Arc::new(ActiveSphinxKeysInner {
-        //         primary_key: ArcSwap::from_pointee(primary),
-        //         secondary_key: ArcSwapOption::from_pointee(secondary),
-        //     }),
-        // }
+        ActiveSphinxKeys {
+            inner: Arc::new(ActiveSphinxKeysInner {
+                primary_key: ArcSwap::from_pointee(primary),
+                secondary_key: ArcSwapOption::from_pointee(secondary),
+            }),
+        }
     }
 
     pub(crate) fn even(&self) -> Option<SphinxKeyGuard> {

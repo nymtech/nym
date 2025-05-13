@@ -530,6 +530,9 @@ pub struct Mixnet {
     pub replay_protection: ReplayProtection,
 
     #[serde(default)]
+    pub key_rotation: KeyRotation,
+
+    #[serde(default)]
     pub debug: MixnetDebug,
 }
 
@@ -717,6 +720,32 @@ impl Default for ReplayProtectionDebug {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotation {
+    pub debug: KeyRotationDebug,
+}
+
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotationDebug {
+    /// Specifies how often the node should poll for any changes in the key rotation global state.
+    #[serde(with = "humantime_serde")]
+    pub rotation_state_poling_interval: Duration,
+}
+
+impl KeyRotationDebug {
+    pub const DEFAULT_ROTATION_STATE_POLLING_INTERVAL: Duration = Duration::from_secs(4 * 60 * 60);
+}
+
+impl Default for KeyRotationDebug {
+    fn default() -> Self {
+        KeyRotationDebug {
+            rotation_state_poling_interval: Self::DEFAULT_ROTATION_STATE_POLLING_INTERVAL,
+        }
+    }
+}
+
 impl MixnetDebug {
     // given that genuine clients are using mean delay of 50ms,
     // the probability of them delaying for over 10s is 10^-87
@@ -767,6 +796,7 @@ impl Mixnet {
             nym_api_urls,
             nyxd_urls,
             replay_protection: ReplayProtection::new_default(data_dir),
+            key_rotation: Default::default(),
             debug: Default::default(),
         }
     }

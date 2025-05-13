@@ -3979,7 +3979,6 @@ version = "0.6.0"
 dependencies = [
  "const-str",
  "log",
- "pretty_env_logger",
  "schemars",
  "serde",
  "utoipa",

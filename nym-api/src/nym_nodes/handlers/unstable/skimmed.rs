@@ -20,6 +20,7 @@ use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::future::Future;
+use std::time::Duration;
 use tokio::sync::RwLockReadGuard;
 use tracing::trace;
 use utoipa::ToSchema;
@@ -126,18 +127,20 @@ where
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
     let describe_cache = state.describe_nodes_cache_data().await?;
 
-    let maybe_interval = state
+    let Some(interval) = state
         .nym_contract_cache()
         .current_interval()
         .await
-        .to_owned();
+        .to_owned()
+    else {
+        // if we can't obtain interval information, it means caches are not valid
+        return Err(AxumErrorResponse::service_unavailable());
+    };
 
     // 4.0 If the client indicates that they already know about the current topology send empty response
     if let Some(client_known_epoch) = query_params.epoch_id {
-        if let Some(ref interval) = maybe_interval {
-            if client_known_epoch == interval.current_epoch_id() {
-                return Ok(output.to_response(PaginatedCachedNodesResponse::no_updates()));
-            }
+        if client_known_epoch == interval.current_epoch_id() {
+            return Ok(output.to_response(PaginatedCachedNodesResponse::no_updates()));
         }
     }
 
@@ -155,7 +158,7 @@ where
         ]);
 
         return Ok(output.to_response(
-            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
+            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(Some(interval)),
         ));
     }
 
@@ -178,9 +181,19 @@ where
         annotated_legacy_nodes.timestamp(),
     ]);
 
-    Ok(output.to_response(
-        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
-    ))
+    let base_response = output.to_response(
+        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(Some(interval)),
+    );
+
+    if !active_only {
+        return Ok(base_response);
+    }
+
+    // if caller requested only active nodes, the response is valid until the epoch changes
+    // (but add 2 minutes due to epoch transition not being instantaneous
+    let epoch_end = interval.current_epoch_end();
+    let expiration = epoch_end + Duration::from_secs(120);
+    Ok(base_response.with_expires_header(expiration))
 }
 
 /// Deprecated query that gets ALL gateways

@@ -210,7 +210,7 @@ impl ReplayProtectionBloomfilters {
             })?;
 
         let id = guard.primary.metadata.rotation_id;
-        let bytes = guard.primary.data.to_bytes();
+        let bytes = guard.primary.bytes();
         Ok((bytes, id))
     }
 
@@ -233,7 +233,7 @@ impl ReplayProtectionBloomfilters {
         };
 
         let id = secondary.metadata.rotation_id;
-        let bytes = secondary.data.to_bytes();
+        let bytes = secondary.bytes();
         Ok(Some((bytes, id)))
     }
 }

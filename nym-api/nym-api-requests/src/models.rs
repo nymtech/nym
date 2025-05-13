@@ -933,7 +933,7 @@ impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
     fn from(value: nym_node_requests::api::v1::node::models::HostKeys) -> Self {
         HostKeysDeHelper {
             ed25519: value.ed25519_identity,
-            current_x25519_sphinx_key: value.current_x25519_sphinx_key.into(),
+            current_x25519_sphinx_key: value.primary_x25519_sphinx_key.into(),
             pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key.map(Into::into),
             x25519_noise: value.x25519_noise,
         }

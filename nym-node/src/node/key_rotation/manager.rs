@@ -180,7 +180,7 @@ impl SphinxKeyManager {
         // immediately rotate keys (but leave 1h grace period for current primary, i.e. set it as secondary)
         if primary.rotation_id() != current_rotation_id {
             warn!("this node has been inactive for more than a key rotation duration. the current primary key was generated for rotation {} while the current rotation is {current_rotation_id}. new key will be generated now.", primary.rotation_id());
-            let mut this = SphinxKeyManager {
+            let this = SphinxKeyManager {
                 keys: ActiveSphinxKeys::new_loaded(primary, None),
                 primary_key_path: primary_key_path.as_ref().to_path_buf(),
                 secondary_key_path: secondary_key_path.as_ref().to_path_buf(),

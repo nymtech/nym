@@ -1403,6 +1403,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .bloomfilter_disk_flushing_rate,
                 },
             },
+            key_rotation: Default::default(),
             debug: MixnetDebug {
                 maximum_forward_packet_delay: old_cfg.mixnet.debug.maximum_forward_packet_delay,
                 packet_forwarding_initial_backoff: old_cfg

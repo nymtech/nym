@@ -5,6 +5,7 @@ use axum::http::header::IntoHeaderName;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use time::format_description::BorrowedFormatItem;
 use time::macros::{format_description, offset};
 use time::OffsetDateTime;
@@ -83,6 +84,9 @@ impl<T> FormattedResponse<T> {
         }
     }
 
+    /// Set the `expires` header on the response to the provided expiration.
+    /// Internally it will perform conversions to make sure the value is set in GMT offset,
+    /// e.g. `Expires: Wed, 21 Oct 2015 07:28:00 GMT`
     #[must_use]
     pub fn with_expires_header(self, expiration: OffsetDateTime) -> FormattedResponse<T> {
         // as per RFC-7234 (section 5.3) EXPIRES header has to use value formatted
@@ -93,6 +97,13 @@ impl<T> FormattedResponse<T> {
         // SAFETY: our formatted datetime doesn't contain forbidden characters
         #[allow(clippy::unwrap_used)]
         self.with_header(header::EXPIRES, HeaderValue::try_from(formatted).unwrap())
+    }
+
+    /// Work similarly to `with_expires_header`, but rather than setting explicit expiration value,
+    /// it adds the provided time delta to the current time instead.
+    #[must_use]
+    pub fn with_expires_header_delta(self, expires_in: Duration) -> FormattedResponse<T> {
+        self.with_expires_header(OffsetDateTime::now_utc() + expires_in)
     }
 }
 

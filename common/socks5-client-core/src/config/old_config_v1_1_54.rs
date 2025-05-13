@@ -17,7 +17,7 @@ impl From<ConfigV1_1_54> for Config {
     fn from(value: ConfigV1_1_54) -> Self {
         Config {
             base: value.base.into(),
-            socks5: value.socks5.into(),
+            socks5: value.socks5,
         }
     }
 }

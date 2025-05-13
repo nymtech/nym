@@ -15,7 +15,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
-use nym_sphinx_params::PacketSize;
+use nym_sphinx_params::{PacketSize, SphinxKeyRotation};
 use nym_sphinx_routing::generate_hop_delays;
 use nym_sphinx_types::constants::{
     EXPANDED_SHARED_SECRET_HKDF_INFO, EXPANDED_SHARED_SECRET_HKDF_SALT,
@@ -101,6 +101,7 @@ pub(crate) struct ThroughputTestingClient {
     listener: TcpListener,
     forward_connection: Framed<TcpStream, NymCodec>,
     payload_key: PayloadKey,
+    key_rotation: SphinxKeyRotation,
 }
 
 fn rederive_lioness_payload_key(shared_secret: &[u8; 32]) -> PayloadKey {
@@ -195,6 +196,12 @@ impl ThroughputTestingClient {
             }
         };
 
+        let key_rotation = if loaded_private.is_even_rotation() {
+            SphinxKeyRotation::EvenRotation
+        } else {
+            SphinxKeyRotation::OddRotation
+        };
+
         Ok(ThroughputTestingClient {
             stats,
             last_received_update: Instant::now(),
@@ -210,6 +217,7 @@ impl ThroughputTestingClient {
             listener,
             forward_connection: Framed::new(forward_connection, NymCodec),
             payload_key,
+            key_rotation,
         })
     }
 
@@ -256,8 +264,13 @@ impl ThroughputTestingClient {
         packet_bytes.append(&mut payload_bytes);
 
         let forward_packet = NymPacket::sphinx_from_bytes(&packet_bytes)?;
-        todo!()
-        // Ok(FramedNymPacket::new(forward_packet, Default::default()))
+        // let key_rotation = if self.s
+
+        Ok(FramedNymPacket::new(
+            forward_packet,
+            Default::default(),
+            self.key_rotation,
+        ))
     }
 
     async fn send_packets(&mut self) -> anyhow::Result<()> {

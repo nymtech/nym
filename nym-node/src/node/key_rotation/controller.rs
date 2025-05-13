@@ -6,7 +6,6 @@ use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
-use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownToken;
 use nym_validator_client::models::{KeyRotationInfoResponse, KeyRotationState};
 use std::time::Duration;
@@ -14,7 +13,7 @@ use time::OffsetDateTime;
 use tokio::time::{interval, sleep, Instant};
 use tracing::{error, info, trace, warn};
 
-struct RotationConfig {
+pub(crate) struct RotationConfig {
     epoch_duration: Duration,
     rotation_state: KeyRotationState,
 }
@@ -78,20 +77,24 @@ enum KeyRotationActionState {
 impl KeyRotationController {
     pub(crate) fn new(
         config: &Config,
+        rotation_config: RotationConfig,
         client: NymApisClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
-        metrics: NymNodeMetrics,
         managed_keys: SphinxKeyManager,
         shutdown_token: ShutdownToken,
     ) -> Self {
-        todo!()
-        // KeyRotationController {
-        //     regular_polling_interval,
-        //     replay_protection_manager,
-        //     client,
-        //     managed_keys,
-        //     shutdown_token,
-        // }
+        KeyRotationController {
+            regular_polling_interval: config
+                .mixnet
+                .key_rotation
+                .debug
+                .rotation_state_poling_interval,
+            rotation_config,
+            replay_protection_manager,
+            client,
+            managed_keys,
+            shutdown_token,
+        }
     }
 
     async fn determine_next_action(&self) -> NextAction {
@@ -234,7 +237,7 @@ impl KeyRotationController {
         polling_interval.reset();
 
         let mut next_action = self.determine_next_action().await;
-        let mut state_update_future = sleep(next_action.until_deadline());
+        let state_update_future = sleep(next_action.until_deadline());
         pin_mut!(state_update_future);
 
         while !self.shutdown_token.is_cancelled() {

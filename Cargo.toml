@@ -354,7 +354,7 @@ wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
 
-prometheus = { version = "0.13.0" }
+prometheus = { version = "0.14.0" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork

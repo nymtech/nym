@@ -150,7 +150,7 @@ where
         ]);
 
         return Ok(output.to_response(
-            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(Some(interval)),
+            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(interval),
         ));
     }
 
@@ -173,9 +173,8 @@ where
         annotated_legacy_nodes.timestamp(),
     ]);
 
-    let base_response = output.to_response(
-        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(Some(interval)),
-    );
+    let base_response = output
+        .to_response(PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(interval));
 
     if !active_only {
         return Ok(base_response);

@@ -47,9 +47,7 @@ impl NymApisClient {
 
         Ok(NymApisClient {
             inner: Arc::new(RwLock::new(InnerClient {
-                active_client: NymApiClient {
-                    nym_api: active_client,
-                },
+                active_client: NymApiClient::from(active_client),
                 available_urls: urls,
                 currently_used_api: 0,
             })),

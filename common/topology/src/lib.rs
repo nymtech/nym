@@ -224,6 +224,10 @@ impl NymTopology {
         serde_json::from_reader(file).map_err(Into::into)
     }
 
+    pub fn node_details(&self) -> &HashMap<NodeId, RoutingNode> {
+        &self.node_details
+    }
+
     pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNode]) {
         self.add_additional_nodes(nodes.iter())
     }

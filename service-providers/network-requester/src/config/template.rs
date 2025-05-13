@@ -102,7 +102,6 @@ upstream_exit_policy_url = '{{ network_requester.upstream_exit_policy_url }}'
 [debug]
 
 [debug.traffic]
-average_packet_delay = '{{ debug.traffic.average_packet_delay }}'
 message_sending_average_delay = '{{ debug.traffic.message_sending_average_delay }}'
 
 [debug.acknowledgements]

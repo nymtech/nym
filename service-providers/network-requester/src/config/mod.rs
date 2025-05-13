@@ -32,6 +32,7 @@ pub use old::v1 as old_config_v1_1_13;
 pub use old::v2 as old_config_v1_1_20;
 pub use old::v3 as old_config_v1_1_20_2;
 pub use old::v4 as old_config_v1_1_33;
+pub use old::v5 as old_config_v1_1_54;
 
 const DEFAULT_NETWORK_REQUESTERS_DIR: &str = "network-requester";
 

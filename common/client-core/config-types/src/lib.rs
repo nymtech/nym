@@ -376,7 +376,6 @@ pub struct Traffic {
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,

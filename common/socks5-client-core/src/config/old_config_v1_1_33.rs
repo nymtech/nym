@@ -1,7 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{Config, Socks5, Socks5Debug};
+use super::old_config_v1_1_54::ConfigV1_1_54;
+use super::{Socks5, Socks5Debug};
 pub use nym_client_core::config::old_config_v1_1_33::ConfigV1_1_33 as BaseClientConfigV1_1_33;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -23,9 +24,9 @@ pub struct ConfigV1_1_33 {
     pub socks5: Socks5V1_1_33,
 }
 
-impl From<ConfigV1_1_33> for Config {
+impl From<ConfigV1_1_33> for ConfigV1_1_54 {
     fn from(value: ConfigV1_1_33) -> Self {
-        Config {
+        ConfigV1_1_54 {
             base: value.base.into(),
             socks5: value.socks5.into(),
         }

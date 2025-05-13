@@ -86,7 +86,6 @@ unknown_list_location = '{{ storage_paths.unknown_list_location }}'
 [debug]
 
 [debug.traffic]
-average_packet_delay = '{{ debug.traffic.average_packet_delay }}'
 message_sending_average_delay = '{{ debug.traffic.message_sending_average_delay }}'
 
 [debug.acknowledgements]

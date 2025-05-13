@@ -77,15 +77,15 @@ async fn get_mixnodes(
     let output = output.output.unwrap_or_default();
 
     let Ok(describe_cache) = state.described_nodes_cache.get().await else {
-        return Json(Vec::new());
+        return output.to_response(Vec::new());
     };
 
     let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
-        return Json(Vec::new());
+        return output.to_response(Vec::new());
     };
 
     let Ok(annotations) = state.node_annotations().await else {
-        return Json(Vec::new());
+        return output.to_response(Vec::new());
     };
 
     // safety: valid percentage value
@@ -483,13 +483,7 @@ async fn get_current_epoch(
 ) -> FormattedResponse<Option<Interval>> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(
-        state
-            .nym_contract_cache()
-            .current_interval()
-            .await
-            .ok(),
-    )
+    output.to_response(state.nym_contract_cache().current_interval().await.ok())
 }
 
 //
@@ -499,17 +493,25 @@ async fn get_current_epoch(
     path = "/epoch/key-rotation-info",
     context_path = "/v1/epoch",
     responses(
-        (status = 200, body = KeyRotationInfoResponse)
-    )
+        (status = 200, content(
+            (KeyRotationInfoResponse = "application/json"),
+            (KeyRotationInfoResponse = "application/yaml"),
+            (KeyRotationInfoResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn get_current_key_rotation_info(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> ApiResult<Json<KeyRotationInfoResponse>> {
+) -> ApiResult<FormattedResponse<KeyRotationInfoResponse>> {
+    let output = output.output.unwrap_or_default();
+
     let contract_cache = state.nym_contract_cache();
     let current_interval = contract_cache.current_interval().await?;
     let key_rotation_state = contract_cache.get_key_rotation_state().await?;
 
-    Ok(Json(KeyRotationInfoResponse {
+    Ok(output.to_response(KeyRotationInfoResponse {
         key_rotation_state,
         current_epoch_id: current_interval.current_epoch_id(),
         current_epoch_start: current_interval.current_epoch_start(),

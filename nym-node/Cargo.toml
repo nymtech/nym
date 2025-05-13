@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.9.0"
+version = "1.10.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -63,6 +63,7 @@ nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-forwarding = { path = "../common/nymsphinx/forwarding" }
 nym-sphinx-routing = { path = "../common/nymsphinx/routing" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
+nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }

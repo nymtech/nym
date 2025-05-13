@@ -12,7 +12,7 @@ use tokio::signal::ctrl_c;
 // Run with: cargo run --example client_pool -- ../../../envs/<NETWORK>.env
 #[tokio::main]
 async fn main() -> Result<()> {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
     setup_env(std::env::args().nth(1));
 
     let conn_pool = ClientPool::new(2); // Start the Client Pool with 2 Clients always being kept in reserve

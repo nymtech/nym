@@ -1,17 +1,17 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
-
 use cosmwasm_std::Decimal;
 use moka::{future::Cache, Entry};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
+use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nym_api::SkimmedNode;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::{
     db::{queries, DbPool},
     http::models::{DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory},
-    monitor::NodeGeoCache,
+    monitor::{DelegationsCache, NodeGeoCache},
 };
 
 use super::models::SessionStats;
@@ -23,6 +23,7 @@ pub(crate) struct AppState {
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
     node_geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
 }
 
 impl AppState {
@@ -32,6 +33,7 @@ impl AppState {
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
         node_geocache: NodeGeoCache,
+        node_delegations: Arc<RwLock<DelegationsCache>>,
     ) -> Self {
         Self {
             db_pool,
@@ -39,6 +41,7 @@ impl AppState {
             agent_key_list,
             agent_max_count,
             node_geocache,
+            node_delegations,
         }
     }
 
@@ -60,6 +63,16 @@ impl AppState {
 
     pub(crate) fn node_geocache(&self) -> NodeGeoCache {
         self.node_geocache.clone()
+    }
+
+    pub(crate) async fn node_delegations(
+        &self,
+        node_id: NodeId,
+    ) -> Option<Vec<super::models::NodeDelegation>> {
+        self.node_delegations
+            .read()
+            .await
+            .delegations_owned(node_id)
     }
 }
 

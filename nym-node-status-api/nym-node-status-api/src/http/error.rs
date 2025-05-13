@@ -1,3 +1,4 @@
+use nym_mixnet_contract_common::NodeId;
 use std::fmt::Display;
 
 pub(crate) type HttpResult<T> = Result<T, HttpError>;
@@ -38,6 +39,14 @@ impl HttpError {
         Self {
             message: serde_json::json!({"message": "No testruns available"}).to_string(),
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+        }
+    }
+
+    pub(crate) fn no_delegations_for_node(node_id: NodeId) -> Self {
+        Self {
+            message: serde_json::json!({"message": format!("No delegation data for node_id={}", node_id)})
+                .to_string(),
+            status: axum::http::StatusCode::NOT_FOUND,
         }
     }
 }

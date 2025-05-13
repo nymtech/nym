@@ -1,13 +1,14 @@
 use axum::Router;
 use core::net::SocketAddr;
 use nym_crypto::asymmetric::ed25519::PublicKey;
-use tokio::{net::TcpListener, task::JoinHandle};
+use std::sync::Arc;
+use tokio::{net::TcpListener, sync::RwLock, task::JoinHandle};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFutureOwned};
 
 use crate::{
     db::DbPool,
     http::{api::RouterBuilder, state::AppState},
-    monitor::NodeGeoCache,
+    monitor::{DelegationsCache, NodeGeoCache},
 };
 
 /// Return handles that allow for graceful shutdown of server + awaiting its
@@ -19,6 +20,7 @@ pub(crate) async fn start_http_api(
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
     node_geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
 ) -> anyhow::Result<ShutdownHandles> {
     let router_builder = RouterBuilder::with_default_routes();
 
@@ -28,6 +30,7 @@ pub(crate) async fn start_http_api(
         agent_key_list,
         agent_max_count,
         node_geocache,
+        node_delegations,
     )
     .await;
     let router = router_builder.with_state(state);

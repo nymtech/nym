@@ -10,7 +10,7 @@ license.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"]}
 log = { workspace = true }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../../service-providers/common" }

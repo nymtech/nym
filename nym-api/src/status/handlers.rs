@@ -4,14 +4,14 @@
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::status::ApiStatusState;
 use crate::support::http::state::AppState;
-use axum::extract::State;
-use axum::Json;
+use axum::extract::{Query, State};
 use axum::Router;
 use nym_api_requests::models::{
     ApiHealthResponse, ApiStatus, ChainStatus, SignerInformationResponse,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -30,11 +30,21 @@ pub(crate) fn api_status_routes() -> Router<AppState> {
     get,
     path = "/v1/api-status/health",
     responses(
-        (status = 200, body = ApiHealthResponse)
-    )
+        (status = 200, content(
+            (ApiHealthResponse = "application/json"),
+            (ApiHealthResponse = "application/yaml"),
+            (ApiHealthResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
-async fn health(State(state): State<AppState>) -> Json<ApiHealthResponse> {
+async fn health(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<ApiHealthResponse> {
     const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
+
+    let output = output.output.unwrap_or_default();
 
     let uptime = state.api_status.startup_time.elapsed();
     let chain_status = match state
@@ -61,7 +71,7 @@ async fn health(State(state): State<AppState>) -> Json<ApiHealthResponse> {
         chain_status,
         uptime: uptime.as_secs(),
     };
-    Json(health)
+    output.to_response(health)
 }
 
 #[utoipa::path(
@@ -69,13 +79,21 @@ async fn health(State(state): State<AppState>) -> Json<ApiHealthResponse> {
     get,
     path = "/v1/api-status/build-information",
     responses(
-        (status = 200, body = BinaryBuildInformationOwned)
-    )
+        (status = 200, content(
+            (BinaryBuildInformationOwned = "application/json"),
+            (BinaryBuildInformationOwned = "application/yaml"),
+            (BinaryBuildInformationOwned = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn build_information(
+    Query(output): Query<OutputParams>,
     State(state): State<ApiStatusState>,
-) -> Json<BinaryBuildInformationOwned> {
-    Json(state.build_information.to_owned())
+) -> FormattedResponse<BinaryBuildInformationOwned> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(state.build_information.to_owned())
 }
 
 #[utoipa::path(
@@ -83,17 +101,25 @@ async fn build_information(
     get,
     path = "/v1/api-status/signer-information",
     responses(
-        (status = 200, body = SignerInformationResponse)
-    )
+        (status = 200, content(
+            (SignerInformationResponse = "application/json"),
+            (SignerInformationResponse = "application/yaml"),
+            (SignerInformationResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn signer_information(
+    Query(output): Query<OutputParams>,
     State(state): State<ApiStatusState>,
-) -> AxumResult<Json<SignerInformationResponse>> {
+) -> AxumResult<FormattedResponse<SignerInformationResponse>> {
     let signer_state = state.signer_information.as_ref().ok_or_else(|| {
         AxumErrorResponse::internal_msg("this api does not expose zk-nym signing functionalities")
     })?;
 
-    Ok(Json(SignerInformationResponse {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(SignerInformationResponse {
         cosmos_address: signer_state.cosmos_address.clone(),
         identity: signer_state.identity.clone(),
         announce_address: signer_state.announce_address.clone(),

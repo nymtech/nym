@@ -38,7 +38,7 @@ impl From<AnnotatedExpirationDateSignature> for ExpirationDateSignature {
 
 pub struct ExpirationDateSignatureShare<B = PartialExpirationDateSignature>
 where
-    B: Borrow<PartialExpirationDateSignature>,
+    B: Borrow<PartialExpirationDateSignature> + Send + Sync,
 {
     pub index: SignerIndex,
     pub key: VerificationKeyAuth,
@@ -205,7 +205,7 @@ fn _aggregate_expiration_signatures<B>(
     validate_shares: bool,
 ) -> Result<Vec<ExpirationDateSignature>>
 where
-    B: Borrow<ExpirationDateSignature>,
+    B: Borrow<ExpirationDateSignature> + Send + Sync,
 {
     // Check if all indices are unique
     if signatures_shares
@@ -304,7 +304,7 @@ pub fn aggregate_expiration_signatures<B>(
     signatures_shares: &[ExpirationDateSignatureShare<B>],
 ) -> Result<Vec<ExpirationDateSignature>>
 where
-    B: Borrow<PartialExpirationDateSignature>,
+    B: Borrow<PartialExpirationDateSignature> + Send + Sync,
 {
     _aggregate_expiration_signatures(vk, expiration_date, signatures_shares, true)
 }

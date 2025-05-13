@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "2.2.0"
+version = "2.3.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

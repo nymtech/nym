@@ -22,6 +22,8 @@ pub mod error;
 pub mod gateways;
 /// Statistics reporting abstractions and implementations.
 pub mod report;
+/// Statistics related types.
+pub mod types;
 
 const CLIENT_ID_PREFIX: &str = "client_stats_id";
 

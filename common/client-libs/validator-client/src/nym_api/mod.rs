@@ -318,6 +318,7 @@ pub trait NymApiClientExt: ApiClient {
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
+        use_bincode: bool,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
 
@@ -333,7 +334,11 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(
+        if use_bincode {
+            params.push(("output", "bincode".to_string()))
+        }
+
+        self.get_response(
             &[
                 routes::API_VERSION,
                 "unstable",
@@ -355,6 +360,7 @@ pub trait NymApiClientExt: ApiClient {
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
+        use_bincode: bool,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
 
@@ -370,7 +376,11 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(
+        if use_bincode {
+            params.push(("output", "bincode".to_string()))
+        }
+
+        self.get_response(
             &[
                 routes::API_VERSION,
                 "unstable",
@@ -392,6 +402,7 @@ pub trait NymApiClientExt: ApiClient {
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
+        use_bincode: bool,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
 
@@ -407,7 +418,11 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(
+        if use_bincode {
+            params.push(("output", "bincode".to_string()))
+        }
+
+        self.get_response(
             &[
                 routes::API_VERSION,
                 "unstable",
@@ -427,6 +442,7 @@ pub trait NymApiClientExt: ApiClient {
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
+        use_bincode: bool,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
 
@@ -442,7 +458,11 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(
+        if use_bincode {
+            params.push(("output", "bincode".to_string()))
+        }
+
+        self.get_response(
             &[
                 routes::API_VERSION,
                 "unstable",

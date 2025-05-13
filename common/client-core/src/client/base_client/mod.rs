@@ -36,7 +36,7 @@ use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
-use nym_client_core_config_types::ForgetMe;
+use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -235,6 +235,12 @@ where
     #[must_use]
     pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
         self.config.debug.forget_me = *forget_me;
+        self
+    }
+
+    #[must_use]
+    pub fn with_remember_me(mut self, remember_me: &RememberMe) -> Self {
+        self.config.debug.remember_me = *remember_me;
         self
     }
 
@@ -930,6 +936,7 @@ where
             task_handle: shutdown,
             client_request_sender,
             forget_me: self.config.debug.forget_me,
+            remember_me: self.config.debug.remember_me,
         })
     }
 }
@@ -944,4 +951,5 @@ pub struct BaseClient {
     pub client_request_sender: ClientRequestSender,
     pub task_handle: TaskHandle,
     pub forget_me: ForgetMe,
+    pub remember_me: RememberMe,
 }

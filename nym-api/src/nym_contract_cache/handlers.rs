@@ -7,10 +7,11 @@ use crate::node_status_api::helpers::{
 };
 use crate::support::http::state::AppState;
 use crate::support::legacy_helpers::{to_legacy_gateway, to_legacy_mixnode};
-use axum::extract::State;
-use axum::{Json, Router};
+use axum::extract::{Query, State};
+use axum::Router;
 use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
 use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{reward_params::RewardingParams, GatewayBond, Interval, NodeId};
 use std::collections::HashSet;
@@ -55,23 +56,32 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
     get,
     path = "/v1/mixnodes",
     responses(
-        (status = 200, body = Vec<LegacyMixNodeDetailsWithLayer>)
-    )
+        (status = 200, content(
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/json"),
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/yaml"),
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
+async fn get_mixnodes(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Vec<LegacyMixNodeDetailsWithLayer>> {
+    let output = output.output.unwrap_or_default();
     let mut out = state.nym_contract_cache().legacy_mixnodes_filtered().await;
 
     let Ok(describe_cache) = state.described_nodes_cache.get().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Ok(annotations) = state.node_annotations().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     // safety: valid percentage value
@@ -100,7 +110,7 @@ async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDe
         out.push(node);
     }
 
-    Json(out)
+    output.to_response(out)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -115,14 +125,22 @@ async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDe
     get,
     path = "/v1/mixnodes/detailed",
     responses(
-        (status = 200, body = Vec<MixNodeBondAnnotated>)
-    )
+        (status = 200, content(
+            (Vec<MixNodeBondAnnotated> = "application/json"),
+            (Vec<MixNodeBondAnnotated> = "application/yaml"),
+            (Vec<MixNodeBondAnnotated> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_mixnodes_detailed(State(state): State<AppState>) -> Json<Vec<MixNodeBondAnnotated>> {
-    _get_legacy_mixnodes_detailed(state.node_status_cache())
-        .await
-        .into()
+async fn get_mixnodes_detailed(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Vec<MixNodeBondAnnotated>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(_get_legacy_mixnodes_detailed(state.node_status_cache()).await)
 }
 
 #[utoipa::path(
@@ -130,11 +148,21 @@ async fn get_mixnodes_detailed(State(state): State<AppState>) -> Json<Vec<MixNod
     get,
     path = "/v1/gateways",
     responses(
-        (status = 200, body = Vec<GatewayBond>)
-    )
+        (status = 200, content(
+            (Vec<GatewayBond> = "application/json"),
+            (Vec<GatewayBond> = "application/yaml"),
+            (Vec<GatewayBond> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
+async fn get_gateways(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Vec<GatewayBond>> {
+    let output = output.output.unwrap_or_default();
+
     // legacy
     let mut out: Vec<GatewayBond> = state
         .nym_contract_cache()
@@ -145,15 +173,15 @@ async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
         .collect();
 
     let Ok(describe_cache) = state.described_nodes_cache.get().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Ok(annotations) = state.node_annotations().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     // safety: valid percentage value
@@ -182,7 +210,7 @@ async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
         out.push(node);
     }
 
-    Json(out)
+    output.to_response(out)
 }
 
 #[utoipa::path(
@@ -190,14 +218,22 @@ async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
     get,
     path = "/v1/mixnodes/rewarded",
     responses(
-        (status = 200, body = Vec<LegacyMixNodeDetailsWithLayer>)
-    )
+        (status = 200, content(
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/json"),
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/yaml"),
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn get_rewarded_set(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    Json(
+) -> FormattedResponse<Vec<LegacyMixNodeDetailsWithLayer>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(
         state
             .nym_contract_cache()
             .legacy_v1_rewarded_set_mixnodes()
@@ -218,19 +254,28 @@ async fn get_rewarded_set(
     get,
     path = "/v1/mixnodes/rewarded/detailed",
     responses(
-        (status = 200, body = Vec<MixNodeBondAnnotated>)
-    )
+        (status = 200, content(
+            (Vec<MixNodeBondAnnotated> = "application/json"),
+            (Vec<MixNodeBondAnnotated> = "application/yaml"),
+            (Vec<MixNodeBondAnnotated> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn get_rewarded_set_detailed(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<MixNodeBondAnnotated>> {
-    _get_rewarded_set_legacy_mixnodes_detailed(
-        state.node_status_cache(),
-        state.nym_contract_cache(),
+) -> FormattedResponse<Vec<MixNodeBondAnnotated>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(
+        _get_rewarded_set_legacy_mixnodes_detailed(
+            state.node_status_cache(),
+            state.nym_contract_cache(),
+        )
+        .await,
     )
-    .await
-    .into()
 }
 
 #[utoipa::path(
@@ -238,11 +283,21 @@ async fn get_rewarded_set_detailed(
     get,
     path = "/v1/mixnodes/active",
     responses(
-        (status = 200, body = Vec<LegacyMixNodeDetailsWithLayer>)
-    )
+        (status = 200, content(
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/json"),
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/yaml"),
+            (Vec<LegacyMixNodeDetailsWithLayer> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
+async fn get_active_set(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Vec<LegacyMixNodeDetailsWithLayer>> {
+    let output = output.output.unwrap_or_default();
+
     let mut out = state
         .nym_contract_cache()
         .legacy_v1_active_set_mixnodes()
@@ -250,19 +305,19 @@ async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNode
         .clone();
 
     let Some(rewarded_set) = state.nym_contract_cache().rewarded_set().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Ok(describe_cache) = state.described_nodes_cache.get().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     let Ok(annotations) = state.node_annotations().await else {
-        return Json(out);
+        return output.to_response(out);
     };
 
     // safety: valid percentage value
@@ -295,7 +350,7 @@ async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNode
         out.push(node);
     }
 
-    Json(out)
+    output.to_response(out)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -311,14 +366,28 @@ async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNode
     get,
     path = "/v1/mixnodes/active/detailed",
     responses(
-        (status = 200, body = Vec<MixNodeBondAnnotated>)
-    )
+        (status = 200, content(
+            (Vec<MixNodeBondAnnotated> = "application/json"),
+            (Vec<MixNodeBondAnnotated> = "application/yaml"),
+            (Vec<MixNodeBondAnnotated> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_active_set_detailed(State(state): State<AppState>) -> Json<Vec<MixNodeBondAnnotated>> {
-    _get_active_set_legacy_mixnodes_detailed(state.node_status_cache(), state.nym_contract_cache())
-        .await
-        .into()
+async fn get_active_set_detailed(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Vec<MixNodeBondAnnotated>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(
+        _get_active_set_legacy_mixnodes_detailed(
+            state.node_status_cache(),
+            state.nym_contract_cache(),
+        )
+        .await,
+    )
 }
 
 #[utoipa::path(
@@ -326,22 +395,31 @@ async fn get_active_set_detailed(State(state): State<AppState>) -> Json<Vec<MixN
     get,
     path = "/v1/mixnodes/blacklisted",
     responses(
-        (status = 200, body = Option<HashSet<NodeId>>)
-    )
+        (status = 200, content(
+            (Option<HashSet<NodeId>> = "application/json"),
+            (Option<HashSet<NodeId>> = "application/yaml"),
+            (Option<HashSet<NodeId>> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_blacklisted_mixnodes(State(state): State<AppState>) -> Json<Option<HashSet<NodeId>>> {
+async fn get_blacklisted_mixnodes(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Option<HashSet<NodeId>>> {
+    let output = output.output.unwrap_or_default();
+
     let blacklist = state
         .nym_contract_cache()
         .mixnodes_blacklist()
         .await
         .to_owned();
     if blacklist.is_empty() {
-        None
+        output.to_response(None)
     } else {
-        Some(blacklist)
+        output.to_response(Some(blacklist))
     }
-    .into()
 }
 
 #[utoipa::path(
@@ -349,18 +427,28 @@ async fn get_blacklisted_mixnodes(State(state): State<AppState>) -> Json<Option<
     get,
     path = "/v1/gateways/blacklisted",
     responses(
-        (status = 200, body = Option<HashSet<String>>)
-    )
+        (status = 200, content(
+            (Option<HashSet<NodeId>> = "application/json"),
+            (Option<HashSet<NodeId>> = "application/yaml"),
+            (Option<HashSet<NodeId>> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
-async fn get_blacklisted_gateways(State(state): State<AppState>) -> Json<Option<HashSet<String>>> {
+async fn get_blacklisted_gateways(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Option<HashSet<String>>> {
+    let output = output.output.unwrap_or_default();
+
     let cache = state.nym_contract_cache();
     let blacklist = cache.gateways_blacklist().await.clone();
     if blacklist.is_empty() {
-        Json(None)
+        output.to_response(None)
     } else {
         let gateways = cache.legacy_gateways_all().await;
-        Json(Some(
+        output.to_response(Some(
             gateways
                 .into_iter()
                 .filter(|g| blacklist.contains(&g.node_id))
@@ -375,18 +463,27 @@ async fn get_blacklisted_gateways(State(state): State<AppState>) -> Json<Option<
     get,
     path = "/v1/epoch/reward_params",
     responses(
-        (status = 200, body = Option<RewardingParams>)
-    )
+        (status = 200, content(
+            (Option<RewardingParams> = "application/json"),
+            (Option<RewardingParams> = "application/yaml"),
+            (Option<RewardingParams> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn get_interval_reward_params(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Option<RewardingParams>> {
-    state
-        .nym_contract_cache()
-        .interval_reward_params()
-        .await
-        .to_owned()
-        .into()
+) -> FormattedResponse<Option<RewardingParams>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(
+        state
+            .nym_contract_cache()
+            .interval_reward_params()
+            .await
+            .to_owned(),
+    )
 }
 
 #[utoipa::path(
@@ -394,14 +491,25 @@ async fn get_interval_reward_params(
     get,
     path = "/v1/epoch/current",
     responses(
-        (status = 200, body = Option<Interval>)
-    )
+        (status = 200, content(
+            (Option<Interval> = "application/json"),
+            (Option<Interval> = "application/yaml"),
+            (Option<Interval> = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
-async fn get_current_epoch(State(state): State<AppState>) -> Json<Option<Interval>> {
-    state
-        .nym_contract_cache()
-        .current_interval()
-        .await
-        .to_owned()
-        .into()
+async fn get_current_epoch(
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> FormattedResponse<Option<Interval>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(
+        state
+            .nym_contract_cache()
+            .current_interval()
+            .await
+            .to_owned(),
+    )
 }

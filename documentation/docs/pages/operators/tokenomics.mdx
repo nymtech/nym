@@ -11,6 +11,8 @@ import TokenTable from 'components/outputs/api-scraping-outputs/nyx-outputs/toke
 import StakingTarget from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md';
 import StakingScaleFactor from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-scale-factor.md';
 import StakeSaturation from 'components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md';
+import StakeSaturationSnippet from 'components/operators/snippets/stake-saturation.mdx';
+import EpochRewardBudget from 'components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md';
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
@@ -83,7 +85,7 @@ Below is a table with token supply distribution.
 
 <TokenTable />
 
-To get live data, visit [Nym token page](https://nym.com.net/about/token) or see how to [query API endpoints](#query-tokenomics-api).
+To get live data, visit [SpectreDAO token dashboard](https://explorer.nym.spectredao.net/token) or see how to [query API endpoints](#query-tokenomics-api).
 
 ### Calculation & Explanation
 
@@ -95,7 +97,7 @@ To get a full comprehension of [node operators rewards](tokenomics/mixnet-reward
  │           │   supply    │           │   nym nodes   │           │
  │circulating│   scale     │  staking  │   in rewarded │   stake   │
  │  supply   │   factor    │  target   │   set         │saturation │
- │           ├────────────►│           ├──────────────►│           │
+ │           ├────────────►│           ├──────────────►│   level   │
  └───────────┘             └───────────┘               └───────────┘
 
 ```
@@ -121,20 +123,11 @@ The value of this variable can be changed to optimize the metrics of the network
 
 #### Stake saturation
 
-Node reputation in a form of self bond or stakers delegation. Stake saturation is calculated as:
+<StakeSaturationSnippet />
 
-<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
-> **stake_saturation = staking_target / rewarded_set_size**
->
-> **rewarded_set_size = active_set_size + standby_set_size**
-</Callout>
+#### Rewarded Set
 
-
-With current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM, staking target of <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM, divided by the sum of nodes in the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params), <b>the stake saturation level is <span style={{display: 'inline-block'}}><StakeSaturation /></span> NYM per node.</b>
-
-
-
-#### Active set
+> To read more about rewards calculation, please see next page [*Nym Operators Rewards*](tokenomics/mixnet-rewards.mdx) or you can go directly into details about [Rewarded set selection logic](tokenomics/mixnet-rewards#rewarded-set-selection).
 
 Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other.
 
@@ -146,22 +139,19 @@ The way how we approach this challenge is different for Mixnet (5-hop) and dVPN 
     <strong>dVPN mode</strong>,
     ]} defaultIndex="0">
     <MyTab>
-Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set size](https://validator.nymtech.net/api/v1/epoch/reward_params) is 240 nodes</b>, 120 with Gateway functionality: 50 entry (1st layer) and 70 exit (5th layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min). The best performing and reputated (optimal stake saturation) nodes are chosen. Performance is much more ample as you can see in the formula below:
+Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set size](https://validator.nymtech.net/api/v1/epoch/reward_params) is 240 nodes</b>, 120 with Gateway functionality: 50 entry (1st layer) and 70 exit (5th layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min).
 
-<Callout type ="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
-> **active_set_selection_probability = ( node_performance ^ 20 ) * stake_saturation**
-</Callout>
 
+The alorithm for selecting the nodes into the Rewarded set is in detail explained in the [Rewarded set selection logic part](tokenomics/mixnet-rewards#rewarded-set-selection).
     </MyTab>
     <MyTab>
-In dVPN (2-hop) mode every node which meets the performance criteria, including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working on not then depends on the end users choise of the location or exact nodes selection.
+In dVPN (2-hop) mode every node which meets the [performance criteria](tokenomics/mixnet-rewards#node-performance-calculation), including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
     </MyTab>
   </Tabs>
 </div>
 
-In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the rewarded set selection.
+In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the [rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).
 
-To read more about rewards calculation, please see next page [*Nym Operators Rewards*](tokenomics/mixnet-rewards.md).
 
 ## Query Validator API
 
@@ -170,20 +160,20 @@ We have available API endpoints which can be accessed via [Swagger UI page](http
 ```sh
 curl -X 'GET' \
   'https://validator.nymtech.net/api/v1/circulating-supply' \
-  -H 'accept: application/json'sh
+  -H 'accept: application/json'
 
 curl -X 'GET' \
   'https://validator.nymtech.net/api/v1/circulating-supply/total-supply-value' \
--H 'accept: application/json'sh
+-H 'accept: application/json'
 
 
 curl -X 'GET' \
   'https://validator.nymtech.net/api/v1/circulating-supply-value' \
--H 'accept: application/json'sh
+-H 'accept: application/json'
 
 curl -X 'GET' \
   'https://validator.nymtech.net/api/v1/epoch/reward_params' \
--H 'accept: application/json'sh
+-H 'accept: application/json'
 ```
 
 > The unit of value is measured in `uNYM`.

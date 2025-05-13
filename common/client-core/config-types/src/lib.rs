@@ -5,6 +5,7 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_config::serde_helpers::{de_maybe_stringified, ser_maybe_stringified};
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
+use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -718,6 +719,9 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to the forget me flag.
     pub forget_me: ForgetMe,
+
+    /// Defines all configuration options related to the remember me flag.
+    pub remember_me: RememberMe,
 }
 
 impl DebugConfig {
@@ -741,6 +745,7 @@ impl Default for DebugConfig {
             reply_surbs: Default::default(),
             stats_reporting: Default::default(),
             forget_me: Default::default(),
+            remember_me: Default::default(),
         }
     }
 }
@@ -804,5 +809,59 @@ impl ForgetMe {
             client: false,
             stats: false,
         }
+    }
+}
+
+#[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
+pub struct RememberMe {
+    /// Signal that this client should be accounted for in the stats
+    stats: bool,
+
+    /// Type of the session to remember, if it should be remembered
+    session_type: SessionType,
+}
+
+impl RememberMe {
+    pub fn new_vpn() -> Self {
+        Self {
+            stats: true,
+            session_type: SessionType::Vpn,
+        }
+    }
+
+    pub fn new_mixnet() -> Self {
+        Self {
+            stats: true,
+            session_type: SessionType::Mixnet,
+        }
+    }
+
+    pub fn new_native() -> Self {
+        Self {
+            stats: true,
+            session_type: SessionType::Native,
+        }
+    }
+
+    pub fn new(stats: bool, session_type: SessionType) -> Self {
+        Self {
+            stats,
+            session_type,
+        }
+    }
+
+    pub fn new_none() -> Self {
+        Self {
+            stats: false,
+            session_type: SessionType::Unknown,
+        }
+    }
+
+    pub fn session_type(&self) -> SessionType {
+        self.session_type
+    }
+
+    pub fn stats(&self) -> bool {
+        self.stats
     }
 }

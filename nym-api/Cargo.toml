@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.55"
+version = "1.1.56"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
@@ -27,6 +27,7 @@ humantime-serde = { workspace = true }
 k256 = { workspace = true, features = [
     "ecdsa-core",
 ] } # needed for the Verifier trait; pull whatever version is used by other dependencies
+moka = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
@@ -116,7 +117,7 @@ nym-bin-common = { path = "../common/bin-common", features = ["output_format", "
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
+nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa", "bincode", "output", "middleware"] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 nym-statistics-common = { path = "../common/statistics" }
@@ -128,6 +129,7 @@ v2-performance = []
 generate-ts = ["ts-rs"]
 
 [build-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",

@@ -32,6 +32,7 @@ nym-authenticator-requests = { path = "../../common/authenticator-requests" }
 nym-bin-common = { path = "../../common/bin-common", features = [
     "clap",
     "output_format",
+    "basic_tracing",
 ] }
 nym-client-core = { path = "../../common/client-core", features = ["cli"] }
 nym-config = { path = "../../common/config" }

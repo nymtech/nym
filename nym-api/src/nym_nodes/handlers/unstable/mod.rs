@@ -30,12 +30,13 @@ use crate::nym_nodes::handlers::unstable::skimmed::{
 };
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::nym_nodes::{
     NodeRoleQueryParam, NodesByAddressesRequestBody, NodesByAddressesResponse,
 };
+use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use serde::Deserialize;
 use std::collections::HashMap;
 use tower_http::compression::CompressionLayer;
@@ -46,7 +47,7 @@ pub(crate) mod semi_skimmed;
 pub(crate) mod skimmed;
 
 #[allow(deprecated)]
-pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
+pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .nest(
             "/skimmed",
@@ -98,6 +99,8 @@ struct NodesParamsWithRole {
     // the client already knows about the latest topology state, allowing a `no-updates` response
     // instead of wasting bandwidth serving an unchanged topology.
     epoch_id: Option<u32>,
+
+    output: Option<Output>,
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -113,6 +116,7 @@ struct NodesParams {
     // the client already knows about the latest topology state, allowing a `no-updates` response
     // instead of wasting bandwidth serving an unchanged topology.
     epoch_id: Option<u32>,
+    output: Option<Output>,
 }
 
 impl From<NodesParamsWithRole> for NodesParams {
@@ -123,6 +127,7 @@ impl From<NodesParamsWithRole> for NodesParams {
             page: params.page,
             per_page: params.per_page,
             epoch_id: params.epoch_id,
+            output: params.output,
         }
     }
 }
@@ -130,6 +135,7 @@ impl From<NodesParamsWithRole> for NodesParams {
 impl<'a> From<&'a NodesParams> for PaginationRequest {
     fn from(params: &'a NodesParams) -> Self {
         PaginationRequest {
+            output: params.output,
             page: params.page,
             per_page: params.per_page,
         }
@@ -143,19 +149,27 @@ impl<'a> From<&'a NodesParams> for PaginationRequest {
     path = "/by-addresses",
     context_path = "/v1/unstable/nym-nodes",
     responses(
-        (status = 200, body = NodesByAddressesResponse)
-    )
+        (status = 200, content(
+            (NodesByAddressesResponse = "application/json"),
+            (NodesByAddressesResponse = "application/yaml"),
+            (NodesByAddressesResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 async fn nodes_by_addresses(
+    Query(output): Query<OutputParams>,
     state: State<AppState>,
     Json(body): Json<NodesByAddressesRequestBody>,
-) -> AxumResult<Json<NodesByAddressesResponse>> {
+) -> AxumResult<FormattedResponse<NodesByAddressesResponse>> {
     // if the request is too big, simply reject it
     if body.addresses.len() > 100 {
         return Err(AxumErrorResponse::bad_request(
             "requested too many addresses",
         ));
     }
+
+    let output = output.output.unwrap_or_default();
 
     // TODO: perhaps introduce different cache because realistically nym-api will receive
     // request for the same couple addresses from all nodes in quick succession
@@ -166,5 +180,5 @@ async fn nodes_by_addresses(
         existence.insert(address, describe_cache.node_with_address(address));
     }
 
-    Ok(Json(NodesByAddressesResponse { existence }))
+    Ok(output.to_response(NodesByAddressesResponse { existence }))
 }

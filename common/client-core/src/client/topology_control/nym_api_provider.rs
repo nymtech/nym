@@ -70,6 +70,10 @@ impl NymApiTopologyProvider {
         }
     }
 
+    pub fn disable_bincode(&mut self) {
+        self.validator_client.use_bincode = false;
+    }
+
     fn use_next_nym_api(&mut self) {
         if self.nym_api_urls.len() == 1 {
             warn!("There's only a single nym API available - it won't be possible to use a different one");

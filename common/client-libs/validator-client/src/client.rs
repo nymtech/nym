@@ -367,7 +367,7 @@ impl NymApiClient {
         let nym_api = nym_api::Client::new(api_url, None);
 
         NymApiClient {
-            use_bincode: false,
+            use_bincode: true,
             nym_api,
         }
     }
@@ -377,7 +377,7 @@ impl NymApiClient {
         let nym_api = nym_api::Client::new(api_url, Some(timeout));
 
         NymApiClient {
-            use_bincode: false,
+            use_bincode: true,
             nym_api,
         }
     }

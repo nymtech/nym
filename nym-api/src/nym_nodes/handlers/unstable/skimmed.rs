@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::nym_nodes::handlers::unstable::helpers::{refreshed_at, LegacyAnnotation};
 use crate::nym_nodes::handlers::unstable::{NodesParams, NodesParamsWithRole};

@@ -5,10 +5,20 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::CacheNotification;
 use async_trait::async_trait;
 use nym_task::TaskClient;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::watch;
+use tokio::sync::{watch, Notify};
 use tokio::time::interval;
 use tracing::{error, info, trace, warn};
+
+#[derive(Clone)]
+pub struct RefreshRequester(Arc<Notify>);
+
+impl Default for RefreshRequester {
+    fn default() -> Self {
+        RefreshRequester(Arc::new(Notify::new()))
+    }
+}
 
 pub struct CacheRefresher<T, E> {
     name: String,
@@ -18,7 +28,7 @@ pub struct CacheRefresher<T, E> {
     // TODO: the Send + Sync bounds are only required for the `start` method. could we maybe make it less restrictive?
     provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
     shared_cache: SharedCache<T>,
-    // triggers: Vec<Box<dyn RefreshTriggerTrait>>,
+    refresh_requester: RefreshRequester,
 }
 
 #[async_trait]
@@ -30,28 +40,6 @@ pub(crate) trait CacheItemProvider {
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error>;
 }
-
-// pub struct TriggerFailure;
-//
-// #[async_trait]
-// pub trait RefreshTriggerTrait {
-//     async fn triggerred(&mut self) -> Result<(), TriggerFailure>;
-// }
-//
-// // TODO: how to get rid of `T: Send + Sync`? it really doesn't need to be Send + Sync
-// // since it's wrapped in Shared<T> internally anyway
-// #[async_trait]
-// impl<T> RefreshTriggerTrait for watch::Receiver<T>
-// where
-//     T: Send + Sync,
-// {
-//     async fn triggerred(&mut self) -> Result<(), TriggerFailure> {
-//         self.changed().await.map_err(|err| {
-//             error!("failed to process refresh trigger: {err}");
-//             TriggerFailure
-//         })
-//     }
-// }
 
 impl<T, E> CacheRefresher<T, E>
 where
@@ -69,6 +57,7 @@ where
             refresh_notification_sender,
             provider: item_provider,
             shared_cache: SharedCache::new(),
+            refresh_requester: Default::default(),
         }
     }
 
@@ -85,6 +74,7 @@ where
             refresh_notification_sender,
             provider: item_provider,
             shared_cache,
+            refresh_requester: Default::default(),
         }
     }
 
@@ -96,6 +86,10 @@ where
 
     pub(crate) fn update_watcher(&self) -> watch::Receiver<CacheNotification> {
         self.refresh_notification_sender.subscribe()
+    }
+
+    pub(crate) fn refresh_requester(&self) -> RefreshRequester {
+        self.refresh_requester.clone()
     }
 
     #[allow(dead_code)]
@@ -147,6 +141,13 @@ where
                     trace!("{}: Received shutdown", self.name)
                 }
                 _ = refresh_interval.tick() => self.refresh(&mut task_client).await,
+                // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
+                // so it doesn't matter if we lose our queue position
+                _ = self.refresh_requester.0.notified() => {
+                    self.refresh(&mut task_client).await;
+                    // since we just performed the full request, we can reset our existing interval
+                    refresh_interval.reset();
+                }
             }
         }
     }

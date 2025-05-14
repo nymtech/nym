@@ -1,7 +1,10 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_config::defaults::NymNetworkDetails;
+use crate::{
+    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, ForgetMe, GatewayConnection,
+    RememberMe, ReplySurbs, StatsReporting, Topology, Traffic,
+};
 use nym_config::serde_helpers::{de_maybe_stringified, ser_maybe_stringified};
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
@@ -9,13 +12,6 @@ use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
-
-#[cfg(feature = "disk-persistence")]
-pub mod disk_persistence;
-pub mod error;
-pub mod old;
-
-pub use error::ConfigUpgradeFailure;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -69,241 +65,161 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 /// Time interval between reporting statistics to the given provider if it exists
 const STATS_REPORT_INTERVAL_SECS: Duration = Duration::from_secs(300);
 
-use crate::error::InvalidTrafficModeFailure;
+// aliases for backwards compatibility
+pub type ConfigV1_1_54 = ConfigV6;
+pub type ClientV1_1_54 = ClientV6;
+pub type DebugConfigV1_1_54 = DebugConfigV6;
+
+pub type TrafficV1_1_54 = TrafficV6;
+pub type CoverTrafficV1_1_54 = CoverTrafficV6;
+pub type GatewayConnectionV1_1_54 = GatewayConnectionV6;
+pub type AcknowledgementsV1_1_54 = AcknowledgementsV6;
+pub type TopologyV1_1_54 = TopologyV6;
+pub type ReplySurbsV1_1_54 = ReplySurbsV6;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config {
-    pub client: Client,
+pub struct ConfigV6 {
+    pub client: ClientV6,
 
     #[serde(default)]
-    pub debug: DebugConfig,
+    pub debug: DebugConfigV6,
 }
 
-impl Config {
-    pub fn new<S1, S2>(id: S1, version: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
+impl From<ConfigV6> for Config {
+    fn from(value: ConfigV6) -> Self {
         Config {
-            client: Client::new_default(id, version),
-            debug: Default::default(),
+            client: Client {
+                version: value.client.version,
+                id: value.client.id,
+                disabled_credentials_mode: value.client.disabled_credentials_mode,
+                nyxd_urls: value.client.nyxd_urls,
+                nym_api_urls: value.client.nym_api_urls,
+            },
+            debug: DebugConfig {
+                traffic: Traffic {
+                    average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
+                    message_sending_average_delay: value
+                        .debug
+                        .traffic
+                        .message_sending_average_delay,
+                    disable_main_poisson_packet_distribution: value
+                        .debug
+                        .traffic
+                        .disable_main_poisson_packet_distribution,
+                    primary_packet_size: value.debug.traffic.primary_packet_size,
+                    secondary_packet_size: value.debug.traffic.secondary_packet_size,
+                    packet_type: value.debug.traffic.packet_type,
+                    deterministic_route_selection: value
+                        .debug
+                        .traffic
+                        .deterministic_route_selection,
+                    maximum_number_of_retransmissions: value
+                        .debug
+                        .traffic
+                        .maximum_number_of_retransmissions,
+                    use_legacy_sphinx_format: value.debug.traffic.use_legacy_sphinx_format,
+                    disable_mix_hops: value.debug.traffic.disable_mix_hops,
+                },
+                cover_traffic: CoverTraffic {
+                    loop_cover_traffic_average_delay: value
+                        .debug
+                        .cover_traffic
+                        .loop_cover_traffic_average_delay,
+                    cover_traffic_primary_size_ratio: value
+                        .debug
+                        .cover_traffic
+                        .cover_traffic_primary_size_ratio,
+                    disable_loop_cover_traffic_stream: value
+                        .debug
+                        .cover_traffic
+                        .disable_loop_cover_traffic_stream,
+                },
+                gateway_connection: GatewayConnection {
+                    gateway_response_timeout: value
+                        .debug
+                        .gateway_connection
+                        .gateway_response_timeout,
+                },
+                acknowledgements: Acknowledgements {
+                    average_ack_delay: value.debug.acknowledgements.average_ack_delay,
+                    ack_wait_multiplier: value.debug.acknowledgements.ack_wait_multiplier,
+                    ack_wait_addition: value.debug.acknowledgements.ack_wait_addition,
+                },
+                topology: Topology {
+                    topology_refresh_rate: value.debug.topology.topology_refresh_rate,
+                    topology_resolution_timeout: value.debug.topology.topology_resolution_timeout,
+                    disable_refreshing: value.debug.topology.disable_refreshing,
+                    max_startup_gateway_waiting_period: value
+                        .debug
+                        .topology
+                        .max_startup_gateway_waiting_period,
+                    minimum_mixnode_performance: value.debug.topology.minimum_mixnode_performance,
+                    minimum_gateway_performance: value.debug.topology.minimum_gateway_performance,
+                    use_extended_topology: value.debug.topology.use_extended_topology,
+                    ignore_egress_epoch_role: value.debug.topology.ignore_egress_epoch_role,
+                    ignore_ingress_epoch_role: value.debug.topology.ignore_ingress_epoch_role,
+                },
+                reply_surbs: ReplySurbs {
+                    minimum_reply_surb_storage_threshold: value
+                        .debug
+                        .reply_surbs
+                        .minimum_reply_surb_storage_threshold,
+                    maximum_reply_surb_storage_threshold: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_storage_threshold,
+                    minimum_reply_surb_request_size: value
+                        .debug
+                        .reply_surbs
+                        .minimum_reply_surb_request_size,
+                    maximum_reply_surb_request_size: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_request_size,
+                    maximum_allowed_reply_surb_request_size: value
+                        .debug
+                        .reply_surbs
+                        .maximum_allowed_reply_surb_request_size,
+                    maximum_reply_surb_rerequest_waiting_period: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_rerequest_waiting_period,
+                    maximum_reply_surb_drop_waiting_period: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_drop_waiting_period,
+                    maximum_reply_surb_age: value.debug.reply_surbs.maximum_reply_surb_age,
+                    maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
+                    surb_mix_hops: value.debug.reply_surbs.surb_mix_hops,
+                    minimum_reply_surb_threshold_buffer: value
+                        .debug
+                        .reply_surbs
+                        .minimum_reply_surb_threshold_buffer,
+                    fresh_sender_tags: value.debug.reply_surbs.fresh_sender_tags,
+                },
+                stats_reporting: StatsReporting {
+                    enabled: value.debug.stats_reporting.enabled,
+                    provider_address: value.debug.stats_reporting.provider_address,
+                    reporting_interval: value.debug.stats_reporting.reporting_interval,
+                },
+                forget_me: ForgetMe {
+                    client: value.debug.forget_me.client,
+                    stats: value.debug.forget_me.stats,
+                },
+                remember_me: RememberMe {
+                    stats: value.debug.remember_me.stats,
+                    session_type: value.debug.remember_me.session_type.into(),
+                },
+            },
         }
-    }
-
-    pub fn from_client_config(client: Client, debug: DebugConfig) -> Self {
-        Config { client, debug }
-    }
-
-    pub fn validate(&self) -> bool {
-        self.debug.validate()
-    }
-
-    pub fn with_debug_config(mut self, debug: DebugConfig) -> Self {
-        self.debug = debug;
-        self
-    }
-
-    pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
-        self.client.disabled_credentials_mode = disabled_credentials_mode;
-        self
-    }
-
-    pub fn with_custom_nyxd(mut self, urls: Vec<Url>) -> Self {
-        self.client.nyxd_urls = urls;
-        self
-    }
-
-    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
-        self.client.nyxd_urls = nyxd_urls;
-    }
-
-    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
-        self.client.nym_api_urls = nym_api_urls;
-        self
-    }
-
-    pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
-        self.client.nym_api_urls = nym_api_urls;
-    }
-
-    pub fn with_high_default_traffic_volume(mut self, enabled: bool) -> Self {
-        if enabled {
-            self.set_high_default_traffic_volume();
-        }
-        self
-    }
-
-    pub fn with_packet_type(mut self, packet_type: PacketType) -> Self {
-        self.debug.traffic.packet_type = packet_type;
-        self
-    }
-
-    pub fn with_enabled_stats_reporting_address(mut self, address: Recipient) -> Self {
-        self.debug.stats_reporting.provider_address = Some(address);
-        self.debug.stats_reporting.enabled = true; //since we are overriding the address, we assume the reporting should be enabled
-        self
-    }
-
-    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
-        self.debug.forget_me = forget_me;
-        self
-    }
-
-    // TODO: this should be refactored properly
-    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
-    // medium_toggle:
-    // - sets secondary packet size to 16kb
-    // - disables poisson distribution of the main traffic stream
-    // - sets the cover traffic stream to 1 packet / 5s (on average)
-    // - disables per hop delay
-    //
-    // fastmode (to be renamed to `fast-poisson`):
-    // - sets average per hop delay to 10ms
-    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
-    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
-    //
-    // no_cover:
-    // - disables poisson distribution of the main traffic stream
-    // - disables the secondary cover traffic stream
-    #[doc(hidden)]
-    pub fn try_apply_traffic_modes(
-        &mut self,
-        disable_poisson_process: bool,
-        medium_toggle: bool,
-        fast_mode: bool,
-        no_cover: bool,
-    ) -> Result<(), InvalidTrafficModeFailure> {
-        if disable_poisson_process {
-            self.set_no_poisson_process()
-        }
-
-        if medium_toggle {
-            if fast_mode {
-                return Err(InvalidTrafficModeFailure::MediumToggleWithFastMode);
-            }
-            if no_cover {
-                return Err(InvalidTrafficModeFailure::MediumToggleWithNoCover);
-            }
-
-            self.set_experimental_medium_toggle();
-        }
-
-        if fast_mode {
-            self.set_high_default_traffic_volume()
-        }
-
-        if no_cover {
-            self.set_no_cover_traffic();
-        }
-
-        Ok(())
-    }
-
-    pub fn set_high_default_traffic_volume(&mut self) {
-        self.debug.traffic.average_packet_delay = Duration::from_millis(10);
-        // basically don't really send cover messages
-        self.debug.cover_traffic.loop_cover_traffic_average_delay =
-            Duration::from_millis(2_000_000);
-        // 250 "real" messages / s
-        self.debug.traffic.message_sending_average_delay = Duration::from_millis(4);
-    }
-
-    /// Enable medium mixnet traffic, for experiments only.
-    /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[doc(hidden)]
-    pub fn set_experimental_medium_toggle(&mut self) {
-        self.set_no_cover_traffic_with_keepalive();
-        self.set_no_per_hop_delays();
-        self.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
-    }
-
-    pub fn with_disabled_poisson_process(mut self, disabled: bool) -> Self {
-        if disabled {
-            self.set_no_poisson_process()
-        }
-        self
-    }
-
-    pub fn set_no_poisson_process(&mut self) {
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
-    }
-
-    pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
-        if disabled {
-            self.set_no_cover_traffic()
-        }
-        self
-    }
-
-    pub fn set_no_cover_traffic(&mut self) {
-        self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
-    }
-
-    pub fn with_disabled_cover_traffic_with_keepalive(mut self, disabled: bool) -> Self {
-        if disabled {
-            self.set_no_cover_traffic_with_keepalive()
-        }
-        self
-    }
-    pub fn set_no_cover_traffic_with_keepalive(&mut self) {
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
-        self.debug.cover_traffic.loop_cover_traffic_average_delay = Duration::from_secs(5);
-    }
-
-    pub fn with_disabled_topology_refresh(mut self, disable_topology_refresh: bool) -> Self {
-        self.debug.topology.disable_refreshing = disable_topology_refresh;
-        self
-    }
-
-    pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
-        if no_per_hop_delays {
-            self.set_no_per_hop_delays()
-        }
-        self
-    }
-
-    pub fn set_no_per_hop_delays(&mut self) {
-        self.debug.traffic.average_packet_delay = Duration::ZERO;
-        self.debug.acknowledgements.average_ack_delay = Duration::ZERO;
-    }
-
-    pub fn with_secondary_packet_size(mut self, secondary_packet_size: Option<PacketSize>) -> Self {
-        self.set_secondary_packet_size(secondary_packet_size);
-        self
-    }
-
-    pub fn set_secondary_packet_size(&mut self, secondary_packet_size: Option<PacketSize>) {
-        self.debug.traffic.secondary_packet_size = secondary_packet_size;
-    }
-
-    pub fn set_custom_version(&mut self, version: &str) {
-        self.client.version = version.to_string();
-    }
-
-    pub fn get_id(&self) -> String {
-        self.client.id.clone()
-    }
-
-    pub fn get_disabled_credentials_mode(&self) -> bool {
-        self.client.disabled_credentials_mode
-    }
-
-    pub fn get_validator_endpoints(&self) -> Vec<Url> {
-        self.client.nyxd_urls.clone()
-    }
-
-    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
-        self.client.nym_api_urls.clone()
     }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 // note: the deny_unknown_fields is VITAL here to allow upgrades from v1.1.20_2
 #[serde(deny_unknown_fields)]
-pub struct Client {
+pub struct ClientV6 {
     /// Version of the client for which this configuration was created.
     pub version: String,
 
@@ -325,63 +241,21 @@ pub struct Client {
     pub nym_api_urls: Vec<Url>,
 }
 
-impl Client {
-    pub fn new_default<S1, S2>(id: S1, version: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        let network = NymNetworkDetails::new_mainnet();
-        let nyxd_urls = network
-            .endpoints
-            .iter()
-            .map(|validator| validator.nyxd_url())
-            .collect();
-        let nym_api_urls = network
-            .endpoints
-            .iter()
-            .filter_map(|validator| validator.api_url())
-            .collect::<Vec<_>>();
-
-        Client {
-            version: version.into(),
-            id: id.into(),
-            disabled_credentials_mode: true,
-            nyxd_urls,
-            nym_api_urls,
-        }
-    }
-
-    pub fn new<S: Into<String>>(
-        id: S,
-        version: S,
-        disabled_credentials_mode: bool,
-        nyxd_urls: Vec<Url>,
-        nym_api_urls: Vec<Url>,
-    ) -> Self {
-        Client {
-            version: version.into(),
-            id: id.into(),
-            disabled_credentials_mode,
-            nyxd_urls,
-            nym_api_urls,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Traffic {
+pub struct TrafficV6 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
+    #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
+    #[serde(with = "humantime_serde")]
     pub message_sending_average_delay: Duration,
 
     /// Controls whether the main packet stream constantly produces packets according to the predefined
@@ -421,22 +295,9 @@ pub struct Traffic {
     pub disable_mix_hops: bool,
 }
 
-impl Traffic {
-    pub fn validate(&self) -> bool {
-        if let Some(secondary_packet_size) = self.secondary_packet_size {
-            if secondary_packet_size == PacketSize::AckPacket
-                || secondary_packet_size == self.primary_packet_size
-            {
-                return false;
-            }
-        }
-        true
-    }
-}
-
-impl Default for Traffic {
+impl Default for TrafficV6 {
     fn default() -> Self {
-        Traffic {
+        TrafficV6 {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
@@ -456,7 +317,7 @@ impl Default for Traffic {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct CoverTraffic {
+pub struct CoverTrafficV6 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     #[serde(with = "humantime_serde")]
@@ -471,9 +332,9 @@ pub struct CoverTraffic {
     pub disable_loop_cover_traffic_stream: bool,
 }
 
-impl Default for CoverTraffic {
+impl Default for CoverTrafficV6 {
     fn default() -> Self {
-        CoverTraffic {
+        CoverTrafficV6 {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
             cover_traffic_primary_size_ratio: DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO,
             disable_loop_cover_traffic_stream: false,
@@ -483,16 +344,16 @@ impl Default for CoverTraffic {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct GatewayConnection {
+pub struct GatewayConnectionV6 {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     #[serde(with = "humantime_serde")]
     pub gateway_response_timeout: Duration,
 }
 
-impl Default for GatewayConnection {
+impl Default for GatewayConnectionV6 {
     fn default() -> Self {
-        GatewayConnection {
+        GatewayConnectionV6 {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
         }
     }
@@ -500,7 +361,7 @@ impl Default for GatewayConnection {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Acknowledgements {
+pub struct AcknowledgementsV6 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
@@ -520,9 +381,9 @@ pub struct Acknowledgements {
     pub ack_wait_addition: Duration,
 }
 
-impl Default for Acknowledgements {
+impl Default for AcknowledgementsV6 {
     fn default() -> Self {
-        Acknowledgements {
+        AcknowledgementsV6 {
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
             ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
@@ -531,8 +392,8 @@ impl Default for Acknowledgements {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
-pub struct Topology {
+#[serde(default, deny_unknown_fields)]
+pub struct TopologyV6 {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
     #[serde(with = "humantime_serde")]
@@ -575,9 +436,9 @@ pub struct Topology {
     pub ignore_ingress_epoch_role: bool,
 }
 
-impl Default for Topology {
+impl Default for TopologyV6 {
     fn default() -> Self {
-        Topology {
+        TopologyV6 {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
@@ -594,7 +455,7 @@ impl Default for Topology {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct ReplySurbs {
+pub struct ReplySurbsV6 {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
     pub minimum_reply_surb_storage_threshold: usize,
@@ -643,9 +504,9 @@ pub struct ReplySurbs {
     pub fresh_sender_tags: bool,
 }
 
-impl Default for ReplySurbs {
+impl Default for ReplySurbsV6 {
     fn default() -> Self {
-        ReplySurbs {
+        ReplySurbsV6 {
             minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             minimum_reply_surb_threshold_buffer: DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD_BUFFER,
@@ -663,9 +524,40 @@ impl Default for ReplySurbs {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DebugConfigV6 {
+    /// Defines all configuration options related to traffic streams.
+    pub traffic: TrafficV6,
+
+    /// Defines all configuration options related to cover traffic stream(s).
+    pub cover_traffic: CoverTrafficV6,
+
+    /// Defines all configuration options related to the gateway connection.
+    pub gateway_connection: GatewayConnectionV6,
+
+    /// Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
+    pub acknowledgements: AcknowledgementsV6,
+
+    /// Defines all configuration options related topology, such as refresh rates or timeouts.
+    pub topology: TopologyV6,
+
+    /// Defines all configuration options related to reply SURBs.
+    pub reply_surbs: ReplySurbsV6,
+
+    /// Defines all configuration options related to stats reporting.
+    pub stats_reporting: StatsReportingV6,
+
+    /// Defines all configuration options related to the forget me flag.
+    pub forget_me: ForgetMeV6,
+
+    /// Defines all configuration options related to the remember me flag.
+    pub remember_me: RememberMeV6,
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct StatsReporting {
+pub struct StatsReportingV6 {
     /// Is stats reporting enabled
     pub enabled: bool,
 
@@ -681,9 +573,9 @@ pub struct StatsReporting {
     pub reporting_interval: Duration,
 }
 
-impl Default for StatsReporting {
+impl Default for StatsReportingV6 {
     fn default() -> Self {
-        StatsReporting {
+        StatsReportingV6 {
             enabled: true,
             provider_address: None,
             reporting_interval: STATS_REPORT_INTERVAL_SECS,
@@ -691,175 +583,41 @@ impl Default for StatsReporting {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct DebugConfig {
-    /// Defines all configuration options related to traffic streams.
-    pub traffic: Traffic,
-
-    /// Defines all configuration options related to cover traffic stream(s).
-    pub cover_traffic: CoverTraffic,
-
-    /// Defines all configuration options related to the gateway connection.
-    pub gateway_connection: GatewayConnection,
-
-    /// Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
-    pub acknowledgements: Acknowledgements,
-
-    /// Defines all configuration options related topology, such as refresh rates or timeouts.
-    pub topology: Topology,
-
-    /// Defines all configuration options related to reply SURBs.
-    pub reply_surbs: ReplySurbs,
-
-    /// Defines all configuration options related to stats reporting.
-    pub stats_reporting: StatsReporting,
-
-    /// Defines all configuration options related to the forget me flag.
-    pub forget_me: ForgetMe,
-
-    /// Defines all configuration options related to the remember me flag.
-    pub remember_me: RememberMe,
-}
-
-impl DebugConfig {
-    pub fn validate(&self) -> bool {
-        // no other sections have explicit requirements (yet)
-        self.traffic.validate()
-    }
-}
-
-// it could be derived, sure, but I'd rather have an explicit implementation in case we had to change
-// something manually at some point
-#[allow(clippy::derivable_impls)]
-impl Default for DebugConfig {
-    fn default() -> Self {
-        DebugConfig {
-            traffic: Default::default(),
-            cover_traffic: Default::default(),
-            gateway_connection: Default::default(),
-            acknowledgements: Default::default(),
-            topology: Default::default(),
-            reply_surbs: Default::default(),
-            stats_reporting: Default::default(),
-            forget_me: Default::default(),
-            remember_me: Default::default(),
-        }
-    }
-}
-
 #[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
-pub struct ForgetMe {
+pub struct ForgetMeV6 {
     client: bool,
     stats: bool,
 }
 
-impl From<bool> for ForgetMe {
-    fn from(value: bool) -> Self {
-        if value {
-            Self::new_all()
-        } else {
-            Self::new_none()
-        }
-    }
-}
-
-impl ForgetMe {
-    pub fn new_all() -> Self {
-        Self {
-            client: true,
-            stats: true,
-        }
-    }
-
-    pub fn new_client() -> Self {
-        Self {
-            client: true,
-            stats: false,
-        }
-    }
-
-    pub fn new_stats() -> Self {
-        Self {
-            client: false,
-            stats: true,
-        }
-    }
-
-    pub fn new(client: bool, stats: bool) -> Self {
-        Self { client, stats }
-    }
-
-    pub fn any(&self) -> bool {
-        self.client || self.stats
-    }
-
-    pub fn client(&self) -> bool {
-        self.client
-    }
-
-    pub fn stats(&self) -> bool {
-        self.stats
-    }
-
-    pub fn new_none() -> Self {
-        Self {
-            client: false,
-            stats: false,
-        }
-    }
-}
-
 #[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
-pub struct RememberMe {
+pub struct RememberMeV6 {
     /// Signal that this client should be accounted for in the stats
     stats: bool,
 
     /// Type of the session to remember, if it should be remembered
-    session_type: SessionType,
+    session_type: SessionTypeV6,
 }
 
-impl RememberMe {
-    pub fn new_vpn() -> Self {
-        Self {
-            stats: true,
-            session_type: SessionType::Vpn,
+#[derive(PartialEq, Copy, Clone, Serialize, Deserialize, Default, Debug)]
+pub enum SessionTypeV6 {
+    Vpn,
+    Mixnet,
+    Wasm,
+    Native,
+    Socks5,
+    #[default]
+    Unknown,
+}
+
+impl From<SessionTypeV6> for SessionType {
+    fn from(value: SessionTypeV6) -> Self {
+        match value {
+            SessionTypeV6::Vpn => Self::Vpn,
+            SessionTypeV6::Mixnet => Self::Mixnet,
+            SessionTypeV6::Wasm => Self::Wasm,
+            SessionTypeV6::Native => Self::Native,
+            SessionTypeV6::Socks5 => Self::Socks5,
+            SessionTypeV6::Unknown => Self::Unknown,
         }
-    }
-
-    pub fn new_mixnet() -> Self {
-        Self {
-            stats: true,
-            session_type: SessionType::Mixnet,
-        }
-    }
-
-    pub fn new_native() -> Self {
-        Self {
-            stats: true,
-            session_type: SessionType::Native,
-        }
-    }
-
-    pub fn new(stats: bool, session_type: SessionType) -> Self {
-        Self {
-            stats,
-            session_type,
-        }
-    }
-
-    pub fn new_none() -> Self {
-        Self {
-            stats: false,
-            session_type: SessionType::Unknown,
-        }
-    }
-
-    pub fn session_type(&self) -> SessionType {
-        self.session_type
-    }
-
-    pub fn stats(&self) -> bool {
-        self.stats
     }
 }

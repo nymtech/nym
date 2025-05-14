@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::default_config_filepath;
-use crate::config::old::v5::ConfigV5;
+use crate::config::old::v6::ConfigV6;
 use crate::config::old_config_v1_1_13::OldConfigV1;
 use crate::config::old_config_v1_1_20::ConfigV2;
 use crate::config::old_config_v1_1_20_2::ConfigV3;
 use crate::config::old_config_v1_1_33::ConfigV4;
+use crate::config::old_config_v1_1_54::ConfigV5;
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
 use log::{info, trace};
@@ -42,7 +43,8 @@ async fn try_upgrade_v1_config<P: AsRef<Path>>(
     )
     .await?;
 
-    let updated: Config = updated_step4.into();
+    let updated_step5: ConfigV6 = updated_step4.into();
+    let updated: Config = updated_step5.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -76,7 +78,8 @@ async fn try_upgrade_v2_config<P: AsRef<Path>>(
     )
     .await?;
 
-    let updated: Config = updated_step3.into();
+    let updated_step4: ConfigV6 = updated_step3.into();
+    let updated: Config = updated_step4.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -107,7 +110,8 @@ async fn try_upgrade_v3_config<P: AsRef<Path>>(
     )
     .await?;
 
-    let updated: Config = updated_step2.into();
+    let updated_step3: ConfigV6 = updated_step2.into();
+    let updated: Config = updated_step3.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -137,7 +141,8 @@ async fn try_upgrade_v4_config<P: AsRef<Path>>(
     )
     .await?;
 
-    let updated: Config = updated_step1.into();
+    let updated_step2: ConfigV6 = updated_step1.into();
+    let updated: Config = updated_step2.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -153,6 +158,25 @@ async fn try_upgrade_v5_config<P: AsRef<Path>>(
         return Ok(false);
     };
     info!("It seems the client is using <= v5 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated_step1: ConfigV6 = old_config.into();
+    let updated: Config = updated_step1.into();
+    updated.save_to(config_path)?;
+
+    Ok(true)
+}
+
+async fn try_upgrade_v6_config<P: AsRef<Path>>(
+    config_path: P,
+) -> Result<bool, NetworkRequesterError> {
+    // explicitly load it as v6 (which is incompatible with the current one)
+    let Ok(old_config) = ConfigV6::read_from_toml_file(config_path.as_ref()) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v6 config template.");
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
@@ -177,7 +201,10 @@ pub async fn try_upgrade_config<P: AsRef<Path>>(
     if try_upgrade_v4_config(config_path.as_ref()).await? {
         return Ok(());
     }
-    if try_upgrade_v5_config(config_path).await? {
+    if try_upgrade_v5_config(config_path.as_ref()).await? {
+        return Ok(());
+    }
+    if try_upgrade_v6_config(config_path).await? {
         return Ok(());
     }
 

@@ -24,6 +24,7 @@ use std::{
 use template::CONFIG_TEMPLATE;
 
 pub mod helpers;
+pub mod old_config_v1_1_54;
 pub mod persistence;
 pub mod template;
 

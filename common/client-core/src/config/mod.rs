@@ -4,6 +4,6 @@
 pub use nym_client_core_config_types::disk_persistence;
 pub use nym_client_core_config_types::old::{
     old_config_v1_1_13, old_config_v1_1_20, old_config_v1_1_20_2, old_config_v1_1_30,
-    old_config_v1_1_33,
+    old_config_v1_1_33, old_config_v1_1_54,
 };
 pub use nym_client_core_config_types::*;

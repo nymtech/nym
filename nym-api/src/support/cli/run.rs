@@ -11,7 +11,7 @@ use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::EpochAdvancer;
 use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
@@ -225,7 +225,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // we should be doing the below, but can't due to our current startup structure
     // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
     // let cache = refresher.get_shared_cache();
-    let describe_cache_watcher = node_describe_cache::new_refresher_with_initial_value(
+    let describe_cache_watcher = node_describe_cache::provider::new_provider_with_initial_value(
         &config.topology_cacher,
         nym_contract_cache_state.clone(),
         described_nodes_cache.clone(),

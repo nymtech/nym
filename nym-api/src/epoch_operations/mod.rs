@@ -12,7 +12,7 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::{NodeStatusCache, ONE_DAY};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;

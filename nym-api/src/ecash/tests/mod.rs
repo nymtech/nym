@@ -7,7 +7,7 @@ use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
 use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;

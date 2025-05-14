@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::NodeStatusCache;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::cache::node_sets::produce_node_annotations;
 use crate::support::caching::cache::SharedCache;
 use crate::{

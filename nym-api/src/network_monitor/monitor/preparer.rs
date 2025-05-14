@@ -3,7 +3,8 @@
 
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_route::TestRoute;
-use crate::node_describe_cache::{DescribedNodes, NodeDescriptionTopologyExt};
+use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_describe_cache::NodeDescriptionTopologyExt;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;

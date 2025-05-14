@@ -4,7 +4,7 @@
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::state::EcashState;
 use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;

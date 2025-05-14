@@ -11,8 +11,16 @@ use tokio::sync::{watch, Notify};
 use tokio::time::interval;
 use tracing::{error, info, trace, warn};
 
+pub(crate) type CacheUpdateWatcher = watch::Receiver<CacheNotification>;
+
 #[derive(Clone)]
 pub struct RefreshRequester(Arc<Notify>);
+
+impl RefreshRequester {
+    pub(crate) fn request_cache_refresh(&self) {
+        self.0.notify_waiters()
+    }
+}
 
 impl Default for RefreshRequester {
     fn default() -> Self {
@@ -84,7 +92,7 @@ where
         self
     }
 
-    pub(crate) fn update_watcher(&self) -> watch::Receiver<CacheNotification> {
+    pub(crate) fn update_watcher(&self) -> CacheUpdateWatcher {
         self.refresh_notification_sender.subscribe()
     }
 
@@ -160,7 +168,7 @@ where
         tokio::spawn(async move { self.run(task_client).await });
     }
 
-    pub fn start_with_watcher(self, task_client: TaskClient) -> watch::Receiver<CacheNotification>
+    pub fn start_with_watcher(self, task_client: TaskClient) -> CacheUpdateWatcher
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,

@@ -23,6 +23,7 @@ thiserror.workspace = true
 time = { workspace = true, features = ["serde", "parsing", "formatting"] }
 ts-rs = { workspace = true, optional = true }
 utoipa.workspace = true
+tracing = { workspace = true }
 
 # for serde on secp256k1 signatures
 ecdsa = { workspace = true, features = ["serde"] }

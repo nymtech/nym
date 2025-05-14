@@ -10,6 +10,7 @@ use crate::ecash::dkg::controller::keys::{
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::EpochAdvancer;
+use crate::key_rotation::KeyRotationController;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
@@ -115,7 +116,7 @@ pub(crate) struct Args {
     pub(crate) allow_illegal_ips: bool,
 }
 
-async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {
+async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles> {
     let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
 
     let nyxd_client = nyxd::Client::new(config)?;
@@ -225,28 +226,34 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // we should be doing the below, but can't due to our current startup structure
     // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
     // let cache = refresher.get_shared_cache();
-    let describe_cache_watcher = node_describe_cache::provider::new_provider_with_initial_value(
+    let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
         &config.topology_cacher,
         nym_contract_cache_state.clone(),
         described_nodes_cache.clone(),
     )
-    .named("node-self-described-data-refresher")
-    .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
+    .named("node-self-described-data-refresher");
+
+    let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
+
+    let describe_cache_watcher = describe_cache_refresher
+        .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
     // start all the caches first
-    let contract_cache_watcher = nym_contract_cache::start_refresher(
+    let contract_cache_refresher = nym_contract_cache::build_refresher(
         &config.node_status_api,
-        &nym_contract_cache_state,
+        &nym_contract_cache_state.clone(),
         nyxd_client.clone(),
-        &task_manager,
     );
+    let contract_cache_watcher =
+        contract_cache_refresher.start_with_watcher(task_manager.subscribe());
+
     node_status_api::start_cache_refresh(
         &config.node_status_api,
         &nym_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
         storage.clone(),
-        contract_cache_watcher,
+        contract_cache_watcher.clone(),
         describe_cache_watcher,
         &task_manager,
     );
@@ -302,6 +309,15 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         }
     }
 
+    // finally start a background task watching the contract changes and requesting
+    // self-described cache refresh upon being close to key rotation rollover
+    KeyRotationController::new(
+        describe_cache_refresh_requester,
+        contract_cache_watcher,
+        nym_contract_cache_state,
+    )
+    .start(task_manager.subscribe_named("KeyRotationController"));
+
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;
 
@@ -328,7 +344,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
-    let mut axum_shutdown = start_nym_api_tasks_axum(&config).await?;
+    let mut axum_shutdown = start_nym_api_tasks(&config).await?;
 
     // it doesn't matter which server catches the interrupt: it needs only be caught once
     if let Err(err) = axum_shutdown.task_manager_mut().catch_interrupt().await {

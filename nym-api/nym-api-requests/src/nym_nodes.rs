@@ -46,12 +46,14 @@ impl<T: ToSchema> CachedNodesResponse<T> {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PaginatedCachedNodesResponse<T> {
     pub status: Option<TopologyRequestStatus>,
+    pub rotation_id: u32,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
 }
 
 impl<T> PaginatedCachedNodesResponse<T> {
     pub fn new_full(
+        rotation_id: u32,
         refreshed_at: impl Into<OffsetDateTimeJsonSchemaWrapper>,
         nodes: Vec<T>,
     ) -> Self {
@@ -66,6 +68,7 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 data: nodes,
             },
             status: None,
+            rotation_id,
         }
     }
 
@@ -74,7 +77,7 @@ impl<T> PaginatedCachedNodesResponse<T> {
         self
     }
 
-    pub fn no_updates() -> Self {
+    pub fn no_updates(rotation_id: u32) -> Self {
         PaginatedCachedNodesResponse {
             refreshed_at: OffsetDateTime::now_utc().into(),
             nodes: PaginatedResponse {
@@ -86,6 +89,7 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 data: Vec::new(),
             },
             status: Some(TopologyRequestStatus::NoUpdates),
+            rotation_id,
         }
     }
 }

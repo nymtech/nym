@@ -188,7 +188,7 @@ pub(crate) async fn get_current_rotation_id(
 ) -> Result<u32, NymNodeError> {
     let apis_client = NymApisClient::new(nym_apis)?;
     if let Ok(rotation_info) = apis_client.get_key_rotation_info().await {
-        let current_epoch = rotation_info.current_epoch_id;
+        let current_epoch = rotation_info.current_absolute_epoch_id;
         return Ok(rotation_info
             .key_rotation_state
             .key_rotation_id(current_epoch));

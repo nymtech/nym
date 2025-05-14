@@ -39,6 +39,7 @@ use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
+use tracing::warn;
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
 pub use nym_mixnet_contract_common::KeyRotationState;
@@ -1030,7 +1031,39 @@ impl NymNodeDescription {
         self.description.host_information.keys.ed25519
     }
 
-    pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
+    pub fn current_sphinx_key(&self, current_rotation_id: u32) -> x25519::PublicKey {
+        let keys = &self.description.host_information.keys;
+
+        if keys.current_x25519_sphinx_key.rotation_id == u32::MAX {
+            // legacy case (i.e. node doesn't support rotation)
+            return keys.current_x25519_sphinx_key.public_key;
+        }
+
+        if current_rotation_id == keys.current_x25519_sphinx_key.rotation_id {
+            // it's the 'current' key
+            return keys.current_x25519_sphinx_key.public_key;
+        }
+
+        if let Some(pre_announced) = &keys.pre_announced_x25519_sphinx_key {
+            if pre_announced.rotation_id == current_rotation_id {
+                return pre_announced.public_key;
+            }
+        }
+
+        warn!(
+            "unexpected key rotation {current_rotation_id} for node {}",
+            self.node_id
+        );
+        // this should never be reached, but just in case, return the fallback option
+        keys.current_x25519_sphinx_key.public_key
+    }
+
+    pub fn to_skimmed_node(
+        &self,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {
             Some(self.entry_information())
@@ -1043,7 +1076,7 @@ impl NymNodeDescription {
             ed25519_identity_pubkey: keys.ed25519,
             ip_addresses: self.description.host_information.ip_address.clone(),
             mix_port: self.description.mix_port(),
-            x25519_sphinx_pubkey: keys.x25519,
+            x25519_sphinx_pubkey: self.current_sphinx_key(current_rotation_id),
             // we can't use the declared roles, we have to take whatever was provided in the contract.
             // why? say this node COULD operate as an exit, but it might be the case the contract decided
             // to assign it an ENTRY role only. we have to use that one instead.
@@ -1413,25 +1446,11 @@ impl NodeRefreshBody {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-pub struct SphinxKeyPreannounceRequestBody {
-    // #[serde(with = "bs58_ed25519_pubkey")]
-    // #[schemars(with = "String")]
-    // #[schema(value_type = String)]
-    // pub node_identity: ed25519::PublicKey,
-    //
-    // // a poor man's nonce
-    // pub request_timestamp: i64,
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
-    #[schema(value_type = String)]
-    pub signature: ed25519::Signature,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct KeyRotationInfoResponse {
     pub key_rotation_state: KeyRotationState,
 
     #[schema(value_type = u32)]
-    pub current_epoch_id: EpochId,
+    pub current_absolute_epoch_id: EpochId,
 
     #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
@@ -1444,17 +1463,17 @@ pub struct KeyRotationInfoResponse {
 impl KeyRotationInfoResponse {
     pub fn current_key_rotation_id(&self) -> u32 {
         self.key_rotation_state
-            .key_rotation_id(self.current_epoch_id)
+            .key_rotation_id(self.current_absolute_epoch_id)
     }
 
     pub fn next_rotation_starting_epoch_id(&self) -> EpochId {
         self.key_rotation_state
-            .next_rotation_starting_epoch_id(self.current_epoch_id)
+            .next_rotation_starting_epoch_id(self.current_absolute_epoch_id)
     }
 
     pub fn current_rotation_starting_epoch_id(&self) -> EpochId {
         self.key_rotation_state
-            .current_rotation_starting_epoch_id(self.current_epoch_id)
+            .current_rotation_starting_epoch_id(self.current_absolute_epoch_id)
     }
 }
 

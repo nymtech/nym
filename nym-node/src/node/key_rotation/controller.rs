@@ -112,7 +112,7 @@ impl KeyRotationController {
         let key_rotation_info = self.try_get_key_rotation_info().await?;
         let current_rotation = key_rotation_info.current_key_rotation_id();
 
-        let current_epoch = key_rotation_info.current_epoch_id;
+        let current_epoch = key_rotation_info.current_absolute_epoch_id;
         let next_rotation_epoch = key_rotation_info.next_rotation_starting_epoch_id();
         let current_rotation_epoch = key_rotation_info.current_rotation_starting_epoch_id();
 
@@ -172,12 +172,9 @@ impl KeyRotationController {
     }
 
     async fn pre_announce_new_key(&self, rotation_id: u32) {
-        let public_key = match self.managed_keys.generate_key_for_new_rotation(rotation_id) {
-            Err(err) => {
-                error!("failed to generate and store new sphinx key: {err}");
-                return;
-            }
-            Ok(key) => key,
+        if let Err(err) = self.managed_keys.generate_key_for_new_rotation(rotation_id) {
+            error!("failed to generate and store new sphinx key: {err}");
+            return;
         };
 
         if self
@@ -189,7 +186,9 @@ impl KeyRotationController {
             self.shutdown_token.cancel();
             return;
         }
-        self.client.broadcast_pre_announced_key(public_key).await;
+
+        // no need to send the information explicitly to nym-apis, as they're scheduled to refresh
+        // self-described endpoints of all nodes before the key rotation epoch rolls over
     }
 
     fn swap_default_key(&self) {

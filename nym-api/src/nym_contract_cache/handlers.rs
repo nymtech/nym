@@ -513,7 +513,7 @@ async fn get_current_key_rotation_info(
 
     Ok(output.to_response(KeyRotationInfoResponse {
         key_rotation_state,
-        current_epoch_id: current_interval.current_epoch_id(),
+        current_absolute_epoch_id: current_interval.current_epoch_absolute_id(),
         current_epoch_start: current_interval.current_epoch_start(),
         epoch_duration: current_interval.epoch_length(),
     }))

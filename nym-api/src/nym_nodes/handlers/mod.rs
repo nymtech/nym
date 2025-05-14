@@ -10,7 +10,7 @@ use axum::{Json, Router};
 use nym_api_requests::models::{
     AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
     NoiseDetails, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
-    SphinxKeyPreannounceRequestBody, UptimeHistoryResponse,
+    UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -29,7 +29,6 @@ pub(crate) mod unstable;
 pub(crate) fn nym_node_routes() -> Router<AppState> {
     Router::new()
         .route("/refresh-described", post(refresh_described))
-        .route("/pre-announce-sphinx-key", post(pre_announce_sphinx_key))
         .route("/noise", get(nodes_noise))
         .route("/bonded", get(get_bonded_nodes))
         .route("/described", get(get_described_nodes))
@@ -72,20 +71,6 @@ async fn rewarded_set(
     let rewarded_set = state.nym_contract_cache().rewarded_set_owned().await?;
 
     Ok(output.to_response(nym_mixnet_contract_common::EpochRewardedSet::from(rewarded_set).into()))
-}
-
-#[utoipa::path(
-    tag = "Nym Nodes",
-    post,
-    request_body = SphinxKeyPreannounceRequestBody,
-    path = "/pre-announce-sphinx-key",
-    context_path = "/v1/nym-nodes",
-)]
-async fn pre_announce_sphinx_key(
-    State(state): State<AppState>,
-    Json(request_body): Json<SphinxKeyPreannounceRequestBody>,
-) -> AxumResult<()> {
-    todo!()
 }
 
 #[utoipa::path(

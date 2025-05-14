@@ -62,13 +62,20 @@ pub enum NodeDescribeCacheError {
 // this exists because I've been moving things around quite a lot and now the place that holds the type
 // doesn't have relevant dependencies for proper impl
 pub(crate) trait NodeDescriptionTopologyExt {
-    fn try_to_topology_node(&self) -> Result<RoutingNode, RoutingNodeError>;
+    fn try_to_topology_node(
+        &self,
+        current_rotation_id: u32,
+    ) -> Result<RoutingNode, RoutingNodeError>;
 }
 
 impl NodeDescriptionTopologyExt for NymNodeDescription {
-    fn try_to_topology_node(&self) -> Result<RoutingNode, RoutingNodeError> {
+    fn try_to_topology_node(
+        &self,
+        current_rotation_id: u32,
+    ) -> Result<RoutingNode, RoutingNodeError> {
         // for the purposes of routing, performance is completely ignored,
         // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(Default::default(), Default::default())).try_into()
+        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
+            .try_into()
     }
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
-use crate::node::key_rotation::key::SphinxPublicKey;
 use crate::node::NymNode;
 use futures::{stream, StreamExt};
 use nym_crypto::asymmetric::ed25519;
@@ -97,14 +96,6 @@ impl NymApisClient {
             .await;
     }
 
-    pub(crate) async fn broadcast_pre_announced_key(&self, public_key: SphinxPublicKey) {
-        self.inner
-            .read()
-            .await
-            .broadcast_pre_announced_key(public_key)
-            .await;
-    }
-
     pub(crate) async fn get_key_rotation_info(
         &self,
     ) -> Result<KeyRotationInfoResponse, NymNodeError> {
@@ -183,10 +174,6 @@ impl InnerClient {
             Duration::from_secs(10),
         )
         .await;
-    }
-
-    async fn broadcast_pre_announced_key(&self, public_key: SphinxPublicKey) {
-        todo!()
     }
 }
 

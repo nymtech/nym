@@ -33,6 +33,7 @@ fn build_nym_nodes_response<'a, NI>(
     rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
     annotations: &HashMap<NodeId, NodeAnnotation>,
+    current_key_rotation: u32,
     active_only: bool,
 ) -> Vec<SkimmedNode>
 where
@@ -53,7 +54,11 @@ where
         // but in that case just use 0 performance
         let annotation = annotations.get(&node_id).copied().unwrap_or_default();
 
-        nodes.push(nym_node.to_skimmed_node(role, annotation.last_24h_performance));
+        nodes.push(nym_node.to_skimmed_node(
+            current_key_rotation,
+            role,
+            annotation.last_24h_performance,
+        ));
     }
     nodes
 }
@@ -64,6 +69,7 @@ fn add_legacy<LN>(
     rewarded_set: &CachedEpochRewardedSet,
     describe_cache: &DescribedNodes,
     annotated_legacy_nodes: &HashMap<NodeId, LN>,
+    current_key_rotation: u32,
     active_only: bool,
 ) where
     LN: LegacyAnnotation,
@@ -78,7 +84,8 @@ fn add_legacy<LN>(
 
         // if we have self-described info, prefer it over contract data
         if let Some(described) = describe_cache.get_node(node_id) {
-            nodes.push(described.to_skimmed_node(role, legacy.performance()))
+            // legacy nodes don't support key rotation
+            nodes.push(described.to_skimmed_node(current_key_rotation, role, legacy.performance()))
         } else {
             match legacy.try_to_skimmed_node(role) {
                 Ok(node) => nodes.push(node),
@@ -127,18 +134,28 @@ where
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
     let describe_cache = state.describe_nodes_cache_data().await?;
 
-    let interval = state.nym_contract_cache().current_interval().await?;
+    let contract_cache = state.nym_contract_cache();
+
+    let interval = contract_cache.current_interval().await?;
+    let current_key_rotation = contract_cache.current_key_rotation_id().await?;
 
     // 4.0 If the client indicates that they already know about the current topology send empty response
     if let Some(client_known_epoch) = query_params.epoch_id {
         if client_known_epoch == interval.current_epoch_id() {
-            return Ok(output.to_response(PaginatedCachedNodesResponse::no_updates()));
+            return Ok(output.to_response(PaginatedCachedNodesResponse::no_updates(
+                current_key_rotation,
+            )));
         }
     }
 
     // 4. start building the response
-    let mut nodes =
-        build_nym_nodes_response(&rewarded_set, nym_nodes_subset, &annotations, active_only);
+    let mut nodes = build_nym_nodes_response(
+        &rewarded_set,
+        nym_nodes_subset,
+        &annotations,
+        current_key_rotation,
+        active_only,
+    );
 
     // 5. if we allow legacy nodes, repeat the procedure for them, otherwise return just nym-nodes
     if let Some(true) = query_params.no_legacy {
@@ -150,7 +167,8 @@ where
         ]);
 
         return Ok(output.to_response(
-            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(interval),
+            PaginatedCachedNodesResponse::new_full(current_key_rotation, refreshed_at, nodes)
+                .fresh(interval),
         ));
     }
 
@@ -162,6 +180,7 @@ where
         &rewarded_set,
         &describe_cache,
         &annotated_legacy_nodes,
+        current_key_rotation,
         active_only,
     );
 
@@ -173,8 +192,10 @@ where
         annotated_legacy_nodes.timestamp(),
     ]);
 
-    let base_response = output
-        .to_response(PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(interval));
+    let base_response = output.to_response(
+        PaginatedCachedNodesResponse::new_full(current_key_rotation, refreshed_at, nodes)
+            .fresh(interval),
+    );
 
     if !active_only {
         return Ok(base_response);
@@ -275,8 +296,15 @@ async fn nodes_basic(
     let legacy_mixnodes = state.legacy_mixnode_annotations().await?;
     let legacy_gateways = state.legacy_gateways_annotations().await?;
 
-    let mut nodes =
-        build_nym_nodes_response(&rewarded_set, all_nym_nodes, &annotations, active_only);
+    let current_key_rotation = state.nym_contract_cache().current_key_rotation_id().await?;
+
+    let mut nodes = build_nym_nodes_response(
+        &rewarded_set,
+        all_nym_nodes,
+        &annotations,
+        current_key_rotation,
+        active_only,
+    );
 
     // add legacy gateways to the response
     add_legacy(
@@ -284,6 +312,7 @@ async fn nodes_basic(
         &rewarded_set,
         &describe_cache,
         &legacy_gateways,
+        current_key_rotation,
         active_only,
     );
 
@@ -293,6 +322,7 @@ async fn nodes_basic(
         &rewarded_set,
         &describe_cache,
         &legacy_mixnodes,
+        current_key_rotation,
         active_only,
     );
 
@@ -305,7 +335,11 @@ async fn nodes_basic(
         legacy_gateways.timestamp(),
     ]);
 
-    Ok(output.to_response(PaginatedCachedNodesResponse::new_full(refreshed_at, nodes)))
+    Ok(output.to_response(PaginatedCachedNodesResponse::new_full(
+        current_key_rotation,
+        refreshed_at,
+        nodes,
+    )))
 }
 
 #[allow(dead_code)] // not dead, used in OpenAPI docs

@@ -416,7 +416,14 @@ impl PacketPreparer {
             let node_3 = rand_l3[i].clone();
             let gateway = rand_gateways[i].clone();
 
-            routes.push(TestRoute::new(rng.gen(), node_1, node_2, node_3, gateway))
+            routes.push(TestRoute::new(
+                rng.gen(),
+                current_rotation_id,
+                node_1,
+                node_2,
+                node_3,
+                gateway,
+            ))
         }
         info!("The following routes will be used for testing: {routes:#?}");
         Some(routes)

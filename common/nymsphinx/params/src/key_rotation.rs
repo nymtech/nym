@@ -21,9 +21,12 @@ pub struct InvalidSphinxKeyRotation {
     received: u8,
 }
 
+// convert from particular rotation id into SphinxKeyRotation variant
 impl From<u32> for SphinxKeyRotation {
     fn from(value: u32) -> Self {
-        if value % 2 == 0 {
+        if value == 0 || value == u32::MAX {
+            SphinxKeyRotation::Unknown
+        } else if value % 2 == 0 {
             SphinxKeyRotation::EvenRotation
         } else {
             SphinxKeyRotation::OddRotation
@@ -31,6 +34,7 @@ impl From<u32> for SphinxKeyRotation {
     }
 }
 
+// convert from an encoded SphinxKeyRotation into particular variant
 // if value is actually provided, it MUST be one of the two. otherwise is invalid
 impl TryFrom<u8> for SphinxKeyRotation {
     type Error = InvalidSphinxKeyRotation;

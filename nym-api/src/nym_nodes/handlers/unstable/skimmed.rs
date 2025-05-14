@@ -143,6 +143,7 @@ where
     if let Some(client_known_epoch) = query_params.epoch_id {
         if client_known_epoch == interval.current_epoch_id() {
             return Ok(output.to_response(PaginatedCachedNodesResponse::no_updates(
+                interval.current_epoch_absolute_id(),
                 current_key_rotation,
             )));
         }
@@ -167,8 +168,13 @@ where
         ]);
 
         return Ok(output.to_response(
-            PaginatedCachedNodesResponse::new_full(current_key_rotation, refreshed_at, nodes)
-                .fresh(interval),
+            PaginatedCachedNodesResponse::new_full(
+                interval.current_epoch_absolute_id(),
+                current_key_rotation,
+                refreshed_at,
+                nodes,
+            )
+            .fresh(interval),
         ));
     }
 
@@ -193,8 +199,13 @@ where
     ]);
 
     let base_response = output.to_response(
-        PaginatedCachedNodesResponse::new_full(current_key_rotation, refreshed_at, nodes)
-            .fresh(interval),
+        PaginatedCachedNodesResponse::new_full(
+            interval.current_epoch_absolute_id(),
+            current_key_rotation,
+            refreshed_at,
+            nodes,
+        )
+        .fresh(interval),
     );
 
     if !active_only {
@@ -237,7 +248,7 @@ pub(super) async fn deprecated_gateways_basic(
 
     // 3. return result
     Ok(output.to_response(CachedNodesResponse {
-        refreshed_at: all_gateways.refreshed_at,
+        refreshed_at: all_gateways.metadata.refreshed_at,
         // 2. remove pagination
         nodes: all_gateways.nodes.data,
     }))
@@ -272,7 +283,7 @@ pub(super) async fn deprecated_mixnodes_basic(
 
     // 3. return result
     Ok(output.to_response(CachedNodesResponse {
-        refreshed_at: active_mixnodes.refreshed_at,
+        refreshed_at: active_mixnodes.metadata.refreshed_at,
         // 2. remove pagination
         nodes: active_mixnodes.nodes.data,
     }))
@@ -296,6 +307,7 @@ async fn nodes_basic(
     let legacy_mixnodes = state.legacy_mixnode_annotations().await?;
     let legacy_gateways = state.legacy_gateways_annotations().await?;
 
+    let interval = state.nym_contract_cache().current_interval().await?;
     let current_key_rotation = state.nym_contract_cache().current_key_rotation_id().await?;
 
     let mut nodes = build_nym_nodes_response(
@@ -337,6 +349,7 @@ async fn nodes_basic(
 
     Ok(output.to_response(PaginatedCachedNodesResponse::new_full(
         current_key_rotation,
+        interval.current_epoch_absolute_id(),
         refreshed_at,
         nodes,
     )))

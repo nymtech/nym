@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use log::{debug, error, warn};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::NymTopology;
+use nym_topology::{NymTopology, NymTopologyMetadata};
 use nym_validator_client::UserAgent;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
@@ -89,39 +89,59 @@ impl NymApiTopologyProvider {
         let rewarded_set_fut = self.validator_client.get_current_rewarded_set();
 
         let topology = if self.config.use_extended_topology {
-            let all_nodes_fut = self.validator_client.get_all_basic_nodes();
+            let all_nodes_fut = self.validator_client.get_all_basic_nodes_with_metadata();
 
             // Join rewarded_set_fut and all_nodes_fut concurrently
-            let (rewarded_set, all_nodes) = futures::try_join!(rewarded_set_fut, all_nodes_fut)
+            let (rewarded_set, all_nodes_res) = futures::try_join!(rewarded_set_fut, all_nodes_fut)
                 .inspect_err(|err| error!("failed to get network nodes: {err}"))
                 .ok()?;
+
+            let metadata = all_nodes_res.metadata;
+            let all_nodes = all_nodes_res.nodes;
 
             debug!(
                 "there are {} nodes on the network (before filtering)",
                 all_nodes.len()
             );
-            let mut topology = NymTopology::new_empty(rewarded_set);
-            topology.add_additional_nodes(all_nodes.iter().filter(|n| {
-                n.performance.round_to_integer() >= self.config.min_node_performance()
-            }));
+            let nodes_filtered = all_nodes
+                .into_iter()
+                .filter(|n| n.performance.round_to_integer() >= self.config.min_node_performance())
+                .collect::<Vec<_>>();
 
-            topology
+            NymTopology::new(
+                NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
+                rewarded_set,
+                Vec::new(),
+            )
+            .with_skimmed_nodes(&nodes_filtered)
         } else {
             // if we're not using extended topology, we're only getting active set mixnodes and gateways
 
             let mixnodes_fut = self
                 .validator_client
-                .get_all_basic_active_mixing_assigned_nodes();
+                .get_all_basic_active_mixing_assigned_nodes_with_metadata();
 
             // TODO: we really should be getting ACTIVE gateways only
-            let gateways_fut = self.validator_client.get_all_basic_entry_assigned_nodes();
+            let gateways_fut = self
+                .validator_client
+                .get_all_basic_entry_assigned_nodes_with_metadata();
 
-            let (rewarded_set, mixnodes, gateways) =
+            let (rewarded_set, mixnodes_res, gateways_res) =
                 futures::try_join!(rewarded_set_fut, mixnodes_fut, gateways_fut)
                     .inspect_err(|err| {
                         error!("failed to get network nodes: {err}");
                     })
                     .ok()?;
+
+            let metadata = mixnodes_res.metadata;
+            let mixnodes = mixnodes_res.nodes;
+
+            if gateways_res.metadata != metadata {
+                warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
+                return None;
+            }
+
+            let gateways = gateways_res.nodes;
 
             debug!(
                 "there are {} mixnodes and {} gateways in total (before performance filtering)",
@@ -129,15 +149,24 @@ impl NymApiTopologyProvider {
                 gateways.len()
             );
 
-            let mut topology = NymTopology::new_empty(rewarded_set);
-            topology.add_additional_nodes(mixnodes.iter().filter(|m| {
-                m.performance.round_to_integer() >= self.config.min_mixnode_performance
-            }));
-            topology.add_additional_nodes(gateways.iter().filter(|m| {
-                m.performance.round_to_integer() >= self.config.min_gateway_performance
-            }));
+            let mut nodes = Vec::new();
+            for mix in mixnodes {
+                if mix.performance.round_to_integer() >= self.config.min_mixnode_performance {
+                    nodes.push(mix)
+                }
+            }
+            for gateway in gateways {
+                if gateway.performance.round_to_integer() >= self.config.min_gateway_performance {
+                    nodes.push(gateway)
+                }
+            }
 
-            topology
+            NymTopology::new(
+                NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
+                rewarded_set,
+                Vec::new(),
+            )
+            .with_skimmed_nodes(&nodes)
         };
 
         if !topology.is_minimally_routable() {

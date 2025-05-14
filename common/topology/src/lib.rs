@@ -3,6 +3,8 @@
 
 use ::serde::{Deserialize, Serialize};
 use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_crypto::asymmetric::ed25519;
+use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::IteratorRandom;
@@ -15,7 +17,6 @@ use tracing::{debug, trace, warn};
 
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
-use nym_crypto::asymmetric::ed25519;
 pub use nym_mixnet_contract_common::nym_node::Role;
 pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId};
 pub use rewarded_set::CachedEpochRewardedSet;
@@ -92,8 +93,39 @@ mod deprecated_network_address_impls {
 
 pub type MixLayer = u8;
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct NymTopologyMetadata {
+    key_rotation_id: u32,
+    // we have to keep track of key rotation id anyway, so we might as well also include the epoch id
+    // to keep track of the data staleness
+    absolute_epoch_id: EpochId,
+}
+
+impl NymTopologyMetadata {
+    pub fn new(key_rotation_id: u32, absolute_epoch_id: EpochId) -> Self {
+        NymTopologyMetadata {
+            key_rotation_id,
+            absolute_epoch_id,
+        }
+    }
+}
+
+impl Default for NymTopologyMetadata {
+    fn default() -> Self {
+        // that's not ideal, but we don't want to break backwards compatibility : /
+        NymTopologyMetadata {
+            key_rotation_id: u32::MAX,
+            absolute_epoch_id: 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NymTopology {
+    // while this is not ideal, use empty values as default to not break backwards compatibility
+    #[serde(default)]
+    metadata: NymTopologyMetadata,
+
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
     // so we use the same 'master' rewarded set information for that
     //
@@ -130,8 +162,11 @@ impl NymRouteProvider {
     }
 
     pub fn current_key_rotation(&self) -> u32 {
-        todo!()
-        // self.topology.rewarded_set.epoch_id
+        self.topology.metadata.key_rotation_id
+    }
+
+    pub fn absolute_epoch_id(&self) -> EpochId {
+        self.topology.metadata.absolute_epoch_id
     }
 
     pub fn new_empty(ignore_egress_epoch_roles: bool) -> NymRouteProvider {
@@ -207,18 +242,22 @@ impl NymRouteProvider {
 }
 
 impl NymTopology {
+    #[deprecated]
     pub fn new_empty(rewarded_set: impl Into<CachedEpochRewardedSet>) -> Self {
         NymTopology {
+            metadata: NymTopologyMetadata::default(),
             rewarded_set: rewarded_set.into(),
             node_details: Default::default(),
         }
     }
 
     pub fn new(
+        metadata: NymTopologyMetadata,
         rewarded_set: impl Into<CachedEpochRewardedSet>,
         node_details: Vec<RoutingNode>,
     ) -> Self {
         NymTopology {
+            metadata,
             rewarded_set: rewarded_set.into(),
             node_details: node_details.into_iter().map(|n| (n.node_id, n)).collect(),
         }
@@ -232,6 +271,11 @@ impl NymTopology {
 
     pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNode]) {
         self.add_additional_nodes(nodes.iter())
+    }
+
+    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNode]) -> Self {
+        self.add_skimmed_nodes(nodes);
+        self
     }
 
     pub fn add_routing_nodes<B: Borrow<RoutingNode>>(

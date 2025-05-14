@@ -10,9 +10,14 @@ use nym_gateway::node::UserAgent;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
-use nym_topology::{EntryDetails, EpochRewardedSet, NodeId, NymTopology, Role, TopologyProvider};
+use nym_topology::{
+    EntryDetails, EpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, Role,
+    TopologyProvider,
+};
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
+use nym_validator_client::nym_nodes::{
+    NodesByAddressesResponse, SkimmedNode, SkimmedNodesWithMetadata,
+};
 use nym_validator_client::{NymApiClient, ValidatorClientError};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
@@ -58,10 +63,10 @@ impl NodesQuerier {
         res
     }
 
-    async fn current_nymnodes(&mut self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+    async fn current_nymnodes(&mut self) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
         let res = self
             .client
-            .get_all_basic_nodes()
+            .get_all_basic_nodes_with_metadata()
             .await
             .inspect_err(|err| error!("failed to get network nodes: {err}"));
 
@@ -140,14 +145,18 @@ impl TopologyProvider for CachedTopologyProvider {
         let network_guard = self.cached_network.inner.read().await;
         let self_node = self.gateway_node.identity_key;
 
-        let mut topology = NymTopology::new_empty(network_guard.rewarded_set.clone())
-            .with_additional_nodes(network_guard.network_nodes.iter().filter(|node| {
-                if node.supported_roles.mixnode {
-                    node.performance.round_to_integer() >= self.min_mix_performance
-                } else {
-                    true
-                }
-            }));
+        let mut topology = NymTopology::new(
+            network_guard.topology_metadata,
+            network_guard.rewarded_set.clone(),
+            Vec::new(),
+        )
+        .with_additional_nodes(network_guard.network_nodes.iter().filter(|node| {
+            if node.supported_roles.mixnode {
+                node.performance.round_to_integer() >= self.min_mix_performance
+            } else {
+                true
+            }
+        }));
 
         if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
@@ -169,6 +178,7 @@ impl CachedNetwork {
         CachedNetwork {
             inner: Arc::new(RwLock::new(CachedNetworkInner {
                 rewarded_set: Default::default(),
+                topology_metadata: Default::default(),
                 network_nodes: vec![],
             })),
         }
@@ -177,6 +187,7 @@ impl CachedNetwork {
 
 struct CachedNetworkInner {
     rewarded_set: EpochRewardedSet,
+    topology_metadata: NymTopologyMetadata,
     network_nodes: Vec<SkimmedNode>,
 }
 
@@ -264,7 +275,9 @@ impl NetworkRefresher {
 
     async fn refresh_network_nodes_inner(&mut self) -> Result<(), ValidatorClientError> {
         let rewarded_set = self.querier.rewarded_set().await?;
-        let nodes = self.querier.current_nymnodes().await?;
+        let res = self.querier.current_nymnodes().await?;
+        let nodes = res.nodes;
+        let metadata = res.metadata;
 
         // collect all known/allowed nodes information
         let known_nodes = nodes
@@ -293,6 +306,8 @@ impl NetworkRefresher {
         self.routing_filter.pending.clear().await;
 
         let mut network_guard = self.network.inner.write().await;
+        network_guard.topology_metadata =
+            NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id);
         network_guard.network_nodes = nodes;
         network_guard.rewarded_set = rewarded_set;
 

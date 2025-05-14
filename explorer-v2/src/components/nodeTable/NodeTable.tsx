@@ -212,7 +212,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       {
         id: "name",
         header: "",
-        size: 190,
+        size: 210,
 
         Header: <ColumnHeading>Node</ColumnHeading>,
         accessorKey: "name",
@@ -328,6 +328,40 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             </Typography>
           );
         },
+      },
+      {
+        id: "selfBond",
+        header: "Self-bond",
+        accessorKey: "selfBond",
+        Header: <ColumnHeading>Self-bond</ColumnHeading>,
+        Cell: ({ row }) => {
+          const value = row.original.selfBond;
+          let color = "#000000";
+
+          if (value === 0) {
+            color = "#EF4444";
+          }
+
+          return (
+            <Typography
+              variant="body4"
+              sx={{ color, fontWeight: value === 0 ? 400 : 300 }}
+            >
+              {row.original.selfBond} NYM
+            </Typography>
+          );
+        },
+      },
+      {
+        id: "operatingCosts",
+        header: "Operating costs",
+        accessorKey: "operatingCosts",
+        Header: <ColumnHeading>Operating costs</ColumnHeading>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {row.original.operatingCosts} NYM
+          </Typography>
+        ),
       },
       {
         id: "profitMarginPercentage",

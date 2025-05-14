@@ -9,6 +9,7 @@ import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
@@ -44,12 +45,24 @@ const mappedNSApiNodes = (
         "&"
       );
 
+      const selfBondFormatted = node.rewarding_details?.operator
+        ? formatBigNum(Number(node.rewarding_details.operator) / 1_000_000)
+        : 0;
+
+      const operatingCostsFormatted = node.rewarding_details
+        ? Number(
+            node.rewarding_details.cost_params.interval_operating_cost.amount
+          ) / 1_000_000
+        : 0;
+
       return {
         name: cleanMoniker,
         nodeId: node.node_id,
         identity_key: node.identity_key,
         countryCode: node.geoip?.country || null,
         countryName: countryName(node.geoip?.country || null) || null,
+        selfBond: selfBondFormatted,
+        operatingCosts: operatingCostsFormatted,
         profitMarginPercentage: node.rewarding_details
           ? +node.rewarding_details.cost_params.profit_margin_percent * 100
           : 0,
@@ -80,11 +93,60 @@ const NodeTableWithAction = () => {
   // All hooks at the top!
   const [activeFilter, setActiveFilter] = useState<
     "all" | "mixnodes" | "gateways"
-  >("all");
-  const [uptime, setUptime] = useState<[number, number]>([0, 100]);
+  >(() => {
+    const stored = sessionStorage.getItem("nodeTableActiveFilter");
+    return (stored as "all" | "mixnodes" | "gateways") || "all";
+  });
+  const [uptime, setUptime] = useState<[number, number]>(() => {
+    const stored = sessionStorage.getItem("nodeTableUptime");
+    return stored ? JSON.parse(stored) : [0, 100];
+  });
   const [saturation, setSaturation] = useState<[number, number]>([0, 100]);
-  const [profitMargin, setProfitMargin] = useState<[number, number]>([0, 100]);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [profitMargin, setProfitMargin] = useState<[number, number]>(() => {
+    const stored = sessionStorage.getItem("nodeTableProfitMargin");
+    return stored ? JSON.parse(stored) : [0, 100];
+  });
+  const [advancedOpen, setAdvancedOpen] = useState(() => {
+    const stored = sessionStorage.getItem("nodeTableAdvancedOpen");
+    return stored ? JSON.parse(stored) : false;
+  });
+
+  // Wrapper functions to handle filter changes and sessionStorage
+  const handleActiveFilterChange = (
+    newFilter: "all" | "mixnodes" | "gateways"
+  ) => {
+    setActiveFilter(newFilter);
+    sessionStorage.setItem("nodeTableActiveFilter", newFilter);
+  };
+
+  const handleUptimeChange = (newUptime: [number, number]) => {
+    setUptime(newUptime);
+    sessionStorage.setItem("nodeTableUptime", JSON.stringify(newUptime));
+  };
+
+  const handleSaturationChange = (newSaturation: [number, number]) => {
+    setSaturation(newSaturation);
+    sessionStorage.setItem(
+      "nodeTableSaturation",
+      JSON.stringify(newSaturation)
+    );
+  };
+
+  const handleProfitMarginChange = (newProfitMargin: [number, number]) => {
+    setProfitMargin(newProfitMargin);
+    sessionStorage.setItem(
+      "nodeTableProfitMargin",
+      JSON.stringify(newProfitMargin)
+    );
+  };
+
+  const handleAdvancedOpenChange = (newAdvancedOpen: boolean) => {
+    setAdvancedOpen(newAdvancedOpen);
+    sessionStorage.setItem(
+      "nodeTableAdvancedOpen",
+      JSON.stringify(newAdvancedOpen)
+    );
+  };
 
   // Use React Query to fetch epoch rewards
   const {
@@ -125,9 +187,12 @@ const NodeTableWithAction = () => {
     ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
   );
 
-  // Ensure saturation filter always covers the full range when maxSaturation changes, but only after data is loaded
+  // Initialize saturation from sessionStorage or set to maxSaturation when data is loaded
   useEffect(() => {
-    if (nsApiNodesData.length > 0) {
+    const stored = sessionStorage.getItem("nodeTableSaturation");
+    if (stored) {
+      setSaturation(JSON.parse(stored));
+    } else if (nsApiNodesData.length > 0) {
       setSaturation([0, maxSaturation]);
     }
   }, [maxSaturation, nsApiNodesData.length]);
@@ -209,16 +274,16 @@ const NodeTableWithAction = () => {
     <Stack spacing={3}>
       <AdvancedFilters
         open={advancedOpen}
-        setOpen={setAdvancedOpen}
+        setOpen={handleAdvancedOpenChange}
         uptime={uptime}
-        setUptime={setUptime}
+        setUptime={handleUptimeChange}
         saturation={saturation}
-        setSaturation={setSaturation}
+        setSaturation={handleSaturationChange}
         profitMargin={profitMargin}
-        setProfitMargin={setProfitMargin}
+        setProfitMargin={handleProfitMarginChange}
         maxSaturation={maxSaturation}
         activeFilter={activeFilter}
-        setActiveFilter={setActiveFilter}
+        setActiveFilter={handleActiveFilterChange}
         nodeCounts={nodeCounts}
       />
       <NodeTable nodes={filteredNodes} />

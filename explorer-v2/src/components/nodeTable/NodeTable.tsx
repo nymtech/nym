@@ -336,7 +336,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Self-bond</ColumnHeading>,
         Cell: ({ row }) => {
           const value = row.original.selfBond;
-          let color = "#000000";
+          let color = isDarkMode ? "#FFFFFF" : "#000000";
 
           if (value === 0) {
             color = "#EF4444";

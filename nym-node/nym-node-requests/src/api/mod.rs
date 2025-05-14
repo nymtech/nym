@@ -113,6 +113,7 @@ impl Display for ErrorResponse {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,6 +137,7 @@ mod tests {
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: current_rotation_id,
                     public_key: *x25519_sphinx.public_key(),
@@ -154,6 +156,7 @@ mod tests {
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: current_rotation_id,
                     public_key: *x25519_sphinx.public_key(),
@@ -174,6 +177,7 @@ mod tests {
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: current_rotation_id,
                     public_key: *x25519_sphinx.public_key(),
@@ -195,6 +199,7 @@ mod tests {
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: current_rotation_id,
                     public_key: *x25519_sphinx.public_key(),
@@ -236,6 +241,7 @@ mod tests {
             hostname: Some("foomp.com".to_string()),
             keys: HostKeys {
                 ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: u32::MAX,
                     public_key: *x25519_sphinx.public_key(),
@@ -293,6 +299,7 @@ mod tests {
             hostname: legacy_info_no_noise.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info_no_noise.keys.ed25519_identity.parse().unwrap(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: u32::MAX,
                     public_key: *x25519_sphinx.public_key(),
@@ -308,6 +315,7 @@ mod tests {
             hostname: legacy_info_noise.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info_noise.keys.ed25519_identity.parse().unwrap(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: u32::MAX,
                     public_key: *x25519_sphinx.public_key(),
@@ -365,6 +373,7 @@ mod tests {
             hostname: legacy_info.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info.keys.ed25519.parse().unwrap(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
                 primary_x25519_sphinx_key: SphinxKey {
                     rotation_id: u32::MAX,
                     public_key: *x25519_sphinx.public_key(),

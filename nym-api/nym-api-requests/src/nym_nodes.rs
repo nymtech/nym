@@ -8,14 +8,28 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{Interval, NodeId};
+use nym_mixnet_contract_common::{EpochId, Interval, NodeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+pub struct SkimmedNodesWithMetadata {
+    pub nodes: Vec<SkimmedNode>,
+    pub metadata: NodesResponseMetadata,
+}
+
+impl SkimmedNodesWithMetadata {
+    pub fn new(nodes: Vec<SkimmedNode>, metadata: NodesResponseMetadata) -> Self {
+        SkimmedNodesWithMetadata { nodes, metadata }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema, PartialEq,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum TopologyRequestStatus {
     NoUpdates,
@@ -43,22 +57,52 @@ impl<T: ToSchema> CachedNodesResponse<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct PaginatedCachedNodesResponse<T> {
+#[derive(
+    Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema, PartialEq,
+)]
+pub struct NodesResponseMetadata {
     pub status: Option<TopologyRequestStatus>,
+    #[schema(value_type = u32)]
+    pub absolute_epoch_id: EpochId,
     pub rotation_id: u32,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+}
+
+impl NodesResponseMetadata {
+    pub fn refreshed_at(&self) -> OffsetDateTime {
+        self.refreshed_at.into()
+    }
+}
+
+const TODO: &str =
+    "create new endpoints with metadata after poc works for backwards bincode compat...";
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+// can't add any new fields here, even with #[serde(default)] and whatnot,
+// because it will break all clients using bincode : (
+pub struct LegacyPaginatedCachedNodesResponse<T> {
+    pub status: Option<TopologyRequestStatus>,
+    pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+    pub nodes: PaginatedResponse<T>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PaginatedCachedNodesResponse<T> {
+    // make sure to flatten it to preserve backwards compatibility!!
+    #[serde(flatten)]
+    pub metadata: NodesResponseMetadata,
+
     pub nodes: PaginatedResponse<T>,
 }
 
 impl<T> PaginatedCachedNodesResponse<T> {
     pub fn new_full(
+        absolute_epoch_id: EpochId,
         rotation_id: u32,
         refreshed_at: impl Into<OffsetDateTimeJsonSchemaWrapper>,
         nodes: Vec<T>,
     ) -> Self {
         PaginatedCachedNodesResponse {
-            refreshed_at: refreshed_at.into(),
             nodes: PaginatedResponse {
                 pagination: Pagination {
                     total: nodes.len(),
@@ -67,19 +111,22 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 },
                 data: nodes,
             },
-            status: None,
-            rotation_id,
+            metadata: NodesResponseMetadata {
+                refreshed_at: refreshed_at.into(),
+                status: None,
+                absolute_epoch_id,
+                rotation_id,
+            },
         }
     }
 
     pub fn fresh(mut self, interval: Interval) -> Self {
-        self.status = Some(TopologyRequestStatus::Fresh(interval));
+        self.metadata.status = Some(TopologyRequestStatus::Fresh(interval));
         self
     }
 
-    pub fn no_updates(rotation_id: u32) -> Self {
+    pub fn no_updates(absolute_epoch_id: EpochId, rotation_id: u32) -> Self {
         PaginatedCachedNodesResponse {
-            refreshed_at: OffsetDateTime::now_utc().into(),
             nodes: PaginatedResponse {
                 pagination: Pagination {
                     total: 0,
@@ -88,8 +135,12 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 },
                 data: Vec::new(),
             },
-            status: Some(TopologyRequestStatus::NoUpdates),
-            rotation_id,
+            metadata: NodesResponseMetadata {
+                refreshed_at: OffsetDateTime::now_utc().into(),
+                status: Some(TopologyRequestStatus::NoUpdates),
+                absolute_epoch_id,
+                rotation_id,
+            },
         }
     }
 }

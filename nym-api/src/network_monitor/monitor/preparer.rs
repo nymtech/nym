@@ -286,13 +286,16 @@ impl PacketPreparer {
     fn to_legacy_layered_mixes<'a, R: Rng>(
         &self,
         rng: &mut R,
+        current_rotation_id: u32,
         node_statuses: &HashMap<NodeId, NodeAnnotation>,
         mixing_nym_nodes: impl Iterator<Item = &'a NymNodeDescription> + 'a,
     ) -> HashMap<LegacyMixLayer, Vec<(RoutingNode, f64)>> {
         let mut layered_mixes = HashMap::new();
 
         for mixing_nym_node in mixing_nym_nodes {
-            let Some(parsed_node) = self.nym_node_to_routing_node(mixing_nym_node) else {
+            let Some(parsed_node) =
+                self.nym_node_to_routing_node(current_rotation_id, mixing_nym_node)
+            else {
                 continue;
             };
             // if the node is not present, default to 0.5
@@ -310,13 +313,16 @@ impl PacketPreparer {
 
     fn to_legacy_gateway_nodes<'a>(
         &self,
+        current_rotation_id: u32,
         node_statuses: &HashMap<NodeId, NodeAnnotation>,
         gateway_capable_nym_nodes: impl Iterator<Item = &'a NymNodeDescription> + 'a,
     ) -> Vec<(RoutingNode, f64)> {
         let mut gateways = Vec::new();
 
         for gateway_capable_node in gateway_capable_nym_nodes {
-            let Some(parsed_node) = self.nym_node_to_routing_node(gateway_capable_node) else {
+            let Some(parsed_node) =
+                self.nym_node_to_routing_node(current_rotation_id, gateway_capable_node)
+            else {
                 continue;
             };
             // if the node is not present, default to 0.5
@@ -342,11 +348,21 @@ impl PacketPreparer {
         // last I checked `gatewaying` wasn't a word : )
         let gateway_capable_nym_nodes = descriptions.entry_capable_nym_nodes();
 
+        // SAFETY: cache has already been initialised
+        #[allow(clippy::unwrap_used)]
+        let current_rotation_id = self.contract_cache.current_key_rotation_id().await.unwrap();
+
         let mut rng = thread_rng();
 
         // separate mixes into layers for easier selection alongside the selection weights
-        let layered_mixes = self.to_legacy_layered_mixes(&mut rng, &statuses, mixing_nym_nodes);
-        let gateways = self.to_legacy_gateway_nodes(&statuses, gateway_capable_nym_nodes);
+        let layered_mixes = self.to_legacy_layered_mixes(
+            &mut rng,
+            current_rotation_id,
+            &statuses,
+            mixing_nym_nodes,
+        );
+        let gateways =
+            self.to_legacy_gateway_nodes(current_rotation_id, &statuses, gateway_capable_nym_nodes);
 
         // get all nodes from each layer...
         let l1 = layered_mixes.get(&LegacyMixLayer::One)?;
@@ -483,8 +499,12 @@ impl PacketPreparer {
         (parsed_nodes, invalid_nodes)
     }
 
-    fn nym_node_to_routing_node(&self, description: &NymNodeDescription) -> Option<RoutingNode> {
-        description.try_to_topology_node().ok()
+    fn nym_node_to_routing_node(
+        &self,
+        current_rotation_id: u32,
+        description: &NymNodeDescription,
+    ) -> Option<RoutingNode> {
+        description.try_to_topology_node(current_rotation_id).ok()
     }
 
     pub(super) async fn prepare_test_packets(
@@ -495,6 +515,10 @@ impl PacketPreparer {
         _packet_type: PacketType,
     ) -> PreparedPackets {
         let (mixnodes, gateways) = self.all_legacy_mixnodes_and_gateways().await;
+
+        // SAFETY: cache has already been initialised
+        #[allow(clippy::unwrap_used)]
+        let current_rotation_id = self.contract_cache.current_key_rotation_id().await.unwrap();
 
         #[allow(clippy::expect_used)]
         let descriptions = self
@@ -522,7 +546,7 @@ impl PacketPreparer {
 
         // try to add nym-nodes into the fold
         for mix in mixing_nym_nodes {
-            if let Some(parsed) = self.nym_node_to_routing_node(mix) {
+            if let Some(parsed) = self.nym_node_to_routing_node(current_rotation_id, mix) {
                 mixnodes_under_test.push(TestableNode::new_routing(&parsed, NodeType::Mixnode));
                 mixnodes_to_test_details.push(parsed);
             }
@@ -536,7 +560,7 @@ impl PacketPreparer {
             .collect::<Vec<_>>();
 
         for gateway in gateway_capable_nym_nodes {
-            if let Some(parsed) = self.nym_node_to_routing_node(gateway) {
+            if let Some(parsed) = self.nym_node_to_routing_node(current_rotation_id, gateway) {
                 gateways_under_test.push(TestableNode::new_routing(&parsed, NodeType::Gateway));
                 gateways_to_test_details.push(parsed);
             }

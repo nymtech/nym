@@ -149,6 +149,14 @@ impl NymContractCache {
         self.get_owned(|c| c.key_rotation_state).await
     }
 
+    pub(crate) async fn current_key_rotation_id(&self) -> Result<u32, UninitialisedCache> {
+        let guard = self.inner.get().await?;
+        let current_absolute_epoch_id = guard.current_interval.current_epoch_absolute_id();
+        Ok(guard
+            .key_rotation_state
+            .key_rotation_id(current_absolute_epoch_id))
+    }
+
     pub(crate) async fn contract_details(&self) -> CachedContractsInfo {
         self.get_owned(|c| c.contracts_info.clone())
             .await

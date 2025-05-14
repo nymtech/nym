@@ -49,7 +49,7 @@ export default async function Home() {
       </Grid>
       <Grid container rowSpacing={5}>
         <Grid size={12}>
-          <SectionHeading title="Nym Nodes" />
+          <SectionHeading title="Nym Servers" />
         </Grid>
         <Grid size={12}>
           <NodeTable />

@@ -260,7 +260,7 @@ export default function AdvancedFilters({
             size="medium"
             options={[
               {
-                label: `All nodes (${nodeCounts.all})`,
+                label: `All servers (${nodeCounts.all})`,
                 isSelected: activeFilter === "all",
                 value: "all",
               },

@@ -88,9 +88,6 @@ ip_packet_router_description = '{{ storage_paths.ip_packet_router_description }}
 
 [debug]
 
-[debug.traffic]
-message_sending_average_delay = '{{ debug.traffic.message_sending_average_delay }}'
-
 [debug.acknowledgements]
 average_ack_delay = '{{ debug.acknowledgements.average_ack_delay }}'
 

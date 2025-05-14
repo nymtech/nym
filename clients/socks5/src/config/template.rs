@@ -98,9 +98,6 @@ send_anonymously = {{ core.socks5.send_anonymously }}
 
 [core.debug]
 
-[core.debug.traffic]
-message_sending_average_delay = '{{ core.debug.traffic.message_sending_average_delay }}'
-
 [core.debug.acknowledgements]
 average_ack_delay = '{{ core.debug.acknowledgements.average_ack_delay }}'
 

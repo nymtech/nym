@@ -382,7 +382,6 @@ pub struct Traffic {
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    #[serde(with = "humantime_serde")]
     pub message_sending_average_delay: Duration,
 
     /// Controls whether the main packet stream constantly produces packets according to the predefined

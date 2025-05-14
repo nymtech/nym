@@ -10,7 +10,6 @@ use time::format_description::BorrowedFormatItem;
 use time::macros::{format_description, offset};
 use time::OffsetDateTime;
 
-#[cfg(feature = "bincode")]
 pub mod bincode;
 pub mod json;
 pub mod yaml;
@@ -18,7 +17,6 @@ pub mod yaml;
 pub use json::Json;
 pub use yaml::Yaml;
 
-#[cfg(feature = "bincode")]
 pub use bincode::Bincode;
 
 #[derive(Debug, Clone, Default)]
@@ -50,7 +48,6 @@ impl<T> ResponseWrapper<T> {
 pub enum FormattedResponse<T> {
     Json(Json<T>),
     Yaml(Yaml<T>),
-    #[cfg(feature = "bincode")]
     Bincode(Bincode<T>),
 }
 
@@ -59,7 +56,6 @@ impl<T> FormattedResponse<T> {
         match self {
             FormattedResponse::Json(inner) => inner.0.data,
             FormattedResponse::Yaml(inner) => inner.0.data,
-            #[cfg(feature = "bincode")]
             FormattedResponse::Bincode(inner) => inner.0.data,
         }
     }
@@ -77,7 +73,6 @@ impl<T> FormattedResponse<T> {
             FormattedResponse::Yaml(inner) => {
                 FormattedResponse::Yaml(inner.with_header(name, value))
             }
-            #[cfg(feature = "bincode")]
             FormattedResponse::Bincode(inner) => {
                 FormattedResponse::Bincode(inner.with_header(name, value))
             }
@@ -115,7 +110,6 @@ where
         match self {
             FormattedResponse::Json(json_response) => json_response.into_response(),
             FormattedResponse::Yaml(yaml_response) => yaml_response.into_response(),
-            #[cfg(feature = "bincode")]
             FormattedResponse::Bincode(bincode_response) => bincode_response.into_response(),
         }
     }
@@ -128,7 +122,6 @@ pub enum Output {
     #[default]
     Json,
     Yaml,
-    #[cfg(feature = "bincode")]
     Bincode,
 }
 
@@ -144,7 +137,6 @@ impl Output {
         match self {
             Output::Json => FormattedResponse::Json(Json::from(data)),
             Output::Yaml => FormattedResponse::Yaml(Yaml::from(data)),
-            #[cfg(feature = "bincode")]
             Output::Bincode => FormattedResponse::Bincode(Bincode::from(data)),
         }
     }

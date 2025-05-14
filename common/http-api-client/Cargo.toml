@@ -12,7 +12,7 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-bincode = { workspace = true, optional = true }
+bincode = { workspace = true }
 reqwest = { workspace = true, features = ["json", "gzip"] }
 http.workspace = true
 url = { workspace = true }
@@ -27,7 +27,7 @@ bytes = { workspace = true }
 encoding_rs = { workspace = true }
 mime = { workspace = true }
 
-nym-http-api-common = { path = "../http-api-common", default-features = false, optional = true }
+nym-http-api-common = { path = "../http-api-common", default-features = false }
 nym-bin-common = { path = "../bin-common" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
@@ -41,5 +41,3 @@ features = ["tokio"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
 
-[features]
-bincode = ["dep:bincode", "nym-http-api-common", "nym-http-api-common/bincode"]

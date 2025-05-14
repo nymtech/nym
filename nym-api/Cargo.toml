@@ -117,7 +117,7 @@ nym-bin-common = { path = "../common/bin-common", features = ["output_format", "
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa", "bincode", "output", "middleware"] }
+nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 nym-statistics-common = { path = "../common/statistics" }

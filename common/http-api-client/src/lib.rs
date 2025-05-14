@@ -969,7 +969,6 @@ where
     }
 }
 
-#[cfg(feature = "bincode")]
 fn decode_as_bincode<T, E>(headers: &HeaderMap, content: Bytes) -> Result<T, HttpClientError<E>>
 where
     T: DeserializeOwned,
@@ -1003,7 +1002,6 @@ where
     // unfortunately we can't use stronger typing for subtype as "bincode" is not a defined mime type
     match (mime.type_(), mime.subtype().as_str()) {
         (mime::APPLICATION, "json") => decode_as_json(headers, content),
-        #[cfg(feature = "bincode")]
         (mime::APPLICATION, "bincode") => decode_as_bincode(headers, content),
         (_, _) => {
             debug!("unrecognised mime type {mime}. falling back to json decoding...");

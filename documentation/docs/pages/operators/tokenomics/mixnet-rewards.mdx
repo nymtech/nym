@@ -12,6 +12,8 @@ import CirculatingSupply from 'components/outputs/api-scraping-outputs/nyx-outpu
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
+import React, { useState, useEffect } from 'react';
+import RewardsCalculator from 'components/operators/interactive/calculators/reward-calculator.jsx';
 
 # Nym Operators Rewards
 
@@ -44,6 +46,7 @@ To make it easier for the reader, we use a highlighting line on the left side, w
 </AccordionTemplate>
 </Callout>
 */}
+
 
 <Callout type="info" emoji="ℹ️">
 Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827).
@@ -372,7 +375,7 @@ If a node is active in the rewarded set, it will receive rewards in the end of t
 **Node rewards calculation formula:**
 
 <Callout type="info" emoji="📌">
-> **node_epoch_rewards = [total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> \* <abbr title="Node bond size is capped at stake saturation level">node_bond_size</abbr> / [circulating_supply](https://validator.nymtech.net/api/v1/circulating-supply) ) + 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> )**
+> **node_epoch_rewards = [total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> \* ( <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / [circulating_supply](https://validator.nymtech.net/api/v1/circulating-supply) ) ) + 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> )**
 >
 > Where: <br/>
 > **[total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span>** <br/>
@@ -382,22 +385,29 @@ If a node is active in the rewarded set, it will receive rewards in the end of t
 > **&alpha; = <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr>**
 > 
 > Therefore: <br/>
-> **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">( 1 / 240 )</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> \* <abbr title="Node bond size is capped at stake saturation level">node_bond_size</abbr> / <span style={{display: 'inline-block'}}><CirculatingSupply /></span> ) + 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> )**
+> **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">( 1 / 240 )</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> \* ( <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / <span style={{display: 'inline-block'}}><CirculatingSupply /></span> ) ) + 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> )**
 </Callout>
 
-Performance and stake saturation play an equally decisive role in the size of rewards earned after the epoch. The closer a node is to maximum value (`1`) of each of these parameters, the more rewards it will get.
+Performance and stake saturation (both are a float between `0` and `1` representing percentage) play an equally decisive role in the size of rewards earned after the epoch. The closer a node is to maximum value (`1`) of each of these parameters, the more rewards it will get.
+
+**Try to calculate rewards yourself**
+
+<RewardsCalculator />
+
+> Nym documentation pages are rendered statically (like in Nextra or Next.js static export mode), that's why they cannot fetch from APIs at runtime by default, therefore on chain data must be filled manually.
+
+**Rewards are send to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](#rewards-distribution).
 
 Given that there is a highly unlikely chance of all nodes having maximum stake saturation and performance, in majority of cases there will be some part of the reward budget left undistributed. This "change" is then kept in the [Mixmining reserve](../tokenomics#tokenomics).
 
 <Callout>
-All parameters regarding performance score can be browsed or pull live from:
+All parameters regarding node performance score can be browsed or pull live from:
 
 `https://validator.nymtech.net/api/v1/nym-nodes/annotation/<NODE_ID>`
 
 In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
 </Callout>
 
-**Rewards are send to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](#rewards-distribution).
 
 ### Rewards Distribution
 
@@ -406,12 +416,6 @@ Once the [rewards are assigned per each node](#rewards-calculation) they need to
 1. **Operators Cost (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](#nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
 2. **Profit Margin (P.M.)**: What's the extra % cut that the operator requests (this value is set by the operator in the bonding wallet node settings, smallest value is 20% to prevent race to bottom)
 3. **Bond & Stake proportionally**: The remaining rewards are distributed proportionally to the weight of every stake (including self bond, self delegation and each delegation).
-
-**Operator epoch rewards calculation formula**
-
-<Callout type="info" emoji="📌">
-> **operator_epoch_rewards
-</Callout>
 
 #### Nyx Epoch vs Interval
 

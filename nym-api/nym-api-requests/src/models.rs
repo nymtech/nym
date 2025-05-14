@@ -1441,6 +1441,20 @@ impl NodeRefreshBody {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct SphinxKeyPreannounceRequestBody {
+    // #[serde(with = "bs58_ed25519_pubkey")]
+    // #[schemars(with = "String")]
+    // #[schema(value_type = String)]
+    // pub node_identity: ed25519::PublicKey,
+    //
+    // // a poor man's nonce
+    // pub request_timestamp: i64,
+    #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = String)]
+    pub signature: ed25519::Signature,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct KeyRotationInfoResponse {
     pub key_rotation_state: KeyRotationState,
 

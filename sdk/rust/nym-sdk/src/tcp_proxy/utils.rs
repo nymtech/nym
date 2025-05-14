@@ -1,7 +1,9 @@
-use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf};
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -11,7 +13,7 @@ const DEFAULT_DECAY: u64 = 6; // decay time in seconds
 // Keeps track of
 // - incoming and unsorted messages wrapped in DecayWrapper for keeping track of when they were received
 // - the expected next message ID (reset on .tick())
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MessageBuffer {
     buffer: Vec<DecayWrapper<ProxiedMessage>>,
     next_msg_id: u16,
@@ -148,9 +150,9 @@ impl<T> Deref for DecayWrapper<T> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProxiedMessage {
-    message: Payload,
-    session_id: Uuid,
-    message_id: u16,
+    pub message: Payload,
+    pub session_id: Uuid,
+    pub message_id: u16,
 }
 
 impl ProxiedMessage {
@@ -175,7 +177,7 @@ impl ProxiedMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum Payload {
     Data(Vec<u8>),
     Close,

@@ -2327,10 +2327,15 @@ dependencies = [
  "bincode",
  "bytecodec",
  "bytes",
+ "clap",
  "dashmap",
  "dirs",
+ "futures",
+ "nym-bin-common",
+ "nym-crypto",
  "nym-sdk",
  "serde",
+ "tempfile",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -5641,6 +5646,7 @@ dependencies = [
  "bs58",
  "lazy_static",
  "nym-bin-common",
+ "nym-crypto",
  "nym-sdk",
  "nym-sphinx-anonymous-replies",
  "tokio",
@@ -5799,11 +5805,12 @@ dependencies = [
 
 [[package]]
 name = "nym-go-ffi"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "lazy_static",
  "nym-bin-common",
+ "nym-crypto",
  "nym-ffi-shared",
  "nym-sdk",
  "nym-sphinx-anonymous-replies",

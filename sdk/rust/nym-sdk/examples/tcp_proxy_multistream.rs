@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout. The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env), 2).await?;
+        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 80, Some(env), 3).await?;
 
     // For our disconnect() logic below
     let proxy_clone = proxy_client.clone();
@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     println!("done. sending bytes");
 
     // In the info traces you will see the different session IDs being set up, one for each TcpStream.
-    for i in 0..8 {
+    for i in 0..4 {
         let client_cancel_inner_token = client_cancel_token.clone();
         if client_cancel_token.is_cancelled() {
             break;
@@ -101,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
 
             // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)
             tokio::spawn(async move {
-                for i in 0..8 {
+                for i in 0..4 {
                     if client_cancel_inner_token.is_cancelled() {
                         break;
                     }
@@ -132,7 +132,7 @@ async fn main() -> anyhow::Result<()> {
                     match bincode::deserialize::<ExampleMessage>(&bytes) {
                         Ok(msg) => {
                             reply_counter += 1;
-                            println!("<< conn {} received {}/8", msg.tcp_conn, reply_counter);
+                            println!("<< conn {} received {}/4", msg.tcp_conn, reply_counter);
                         }
                         Err(e) => {
                             println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
@@ -147,12 +147,18 @@ async fn main() -> anyhow::Result<()> {
         tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
     }
 
+    loop {
+        if example_cancel_token.is_cancelled() {
+            break;
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
     Ok(())
 }
 
 // emulate a series of small messages followed by a closing larger one
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    let amounts = [10, 15, 50, 1000, 10, 15, 500, 2000];
+    let amounts = [10, 15, 50, 1000, 2000];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

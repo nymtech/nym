@@ -303,11 +303,11 @@ export default function AdvancedFilters({
                 : `${theme.palette.common.white} !important`,
             borderColor:
               theme.palette.mode === "light"
-                ? theme.palette.grey[400]
+                ? theme.palette.common.black
                 : theme.palette.common.white,
             background: "none",
             fontWeight: 500,
-            fontSize: 20,
+            fontSize: 16,
             "&:hover, &:focus": {
               background:
                 theme.palette.mode === "light"

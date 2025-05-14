@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_describe_cache::RefreshData;
+use crate::node_describe_cache::refresh::RefreshData;
 use crate::nym_contract_cache::cache::data::{CachedContractsInfo, ConfigScoreData};
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;

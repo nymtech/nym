@@ -519,6 +519,7 @@ pub trait ApiClientCore {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ApiClientCore for Client {
+    #[instrument(level = "debug", skip_all, fields(path=?path))]
     fn create_request<B, K, V>(
         &self,
         method: reqwest::Method,

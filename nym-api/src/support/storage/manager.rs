@@ -10,10 +10,11 @@ use crate::support::storage::models::{
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
-use nym_types::monitoring::NodeResult;
+use nym_types::monitoring::{NodeResult, RouteResult};
 use sqlx::FromRow;
 use time::{Date, OffsetDateTime};
 use tracing::info;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
@@ -49,6 +50,25 @@ impl AvgGatewayReliability {
     pub fn value(&self) -> f32 {
         self.value.unwrap_or_default()
     }
+}
+
+// Helper struct for in-memory state during calculation for an interval
+#[derive(Debug, Default, Clone)]
+struct NodeCorrectionIntervalState {
+    pos_samples: u32,
+    neg_samples: u32,
+    fail_seq: u32,
+}
+
+// Output struct for the calculated corrected reliability for an interval
+#[derive(Debug, serde::Serialize)] // Add utoipa::ToSchema if this struct is directly exposed via API
+pub struct CorrectedNodeIntervalReliability {
+    pub node_id: NodeId, // nym_mixnet_contract_common::NodeId (typically u32)
+    pub identity: Option<String>, // Base58 public key
+    pub reliability: f64,
+    pub pos_samples_in_interval: u32,
+    pub neg_samples_in_interval: u32,
+    pub final_fail_seq_in_interval: u32,
 }
 
 // all SQL goes here
@@ -661,6 +681,33 @@ impl StorageManager {
         }
 
         // finally commit the transaction
+        tx.commit().await
+    }
+
+    pub(super) async fn submit_route_monitoring_results(
+        &self,
+        route_results: &[RouteResult],
+    ) -> Result<(), sqlx::Error> {
+        info!("Inserting {} route monitoring results", route_results.len());
+        // insert it all in a transaction to make sure all nodes are updated at the same time
+        // (plus it's a nice guard against new nodes)
+        let mut tx = self.connection_pool.begin().await?;
+
+        for route_result in route_results {
+            sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO routes (layer1, layer2, layer3, gw, success) VALUES (?, ?, ?, ?, ?);
+                "#,
+                route_result.layer1,
+                route_result.layer2,
+                route_result.layer3,
+                route_result.gw,
+                route_result.success,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
         tx.commit().await
     }
 
@@ -1328,6 +1375,137 @@ impl StorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    /// Fetches raw route results from the database for a given time interval.
+    /// Assumes the 'routes' table has layer1, layer2, layer3, gw, success, and a timestamp.
+    async fn get_raw_routes_in_interval(
+        &self,
+        start_ts_secs: i64,
+        end_ts_secs: i64,
+    ) -> Result<Vec<(NodeId, NodeId, NodeId, NodeId, bool)>, sqlx::Error> {
+        // Temporary struct to match the expected columns from the 'routes' table
+        // NodeId here is assumed to be compatible with how layer1, etc. are stored (e.g. u32/i32/i64)
+        struct RawRouteData {
+            layer1: NodeId,
+            layer2: NodeId,
+            layer3: NodeId,
+            gw: NodeId,
+            success: bool,
+            // timestamp: i64, // Not explicitly selected into struct, but used in WHERE and ORDER BY
+        }
+
+        // Ensure your 'routes' table has:
+        // layer1 (NodeId type), layer2 (NodeId type), layer3 (NodeId type),
+        // gw (NodeId type), success (bool/INTEGER), timestamp (BIGINT/INTEGER)
+        // The "NodeId:" type hint for sqlx::query_as! helps map to nym_mixnet_contract_common::NodeId
+        let db_routes = sqlx::query_as!(
+            RawRouteData,
+            r#"
+            SELECT
+                layer1 as "layer1",
+                layer2 as "layer2",
+                layer3 as "layer3",
+                gw as "gw",
+                success
+            FROM routes
+            WHERE timestamp >= ? AND timestamp <= ?
+            ORDER BY timestamp ASC
+            "#,
+            start_ts_secs,
+            end_ts_secs
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(db_routes
+            .into_iter()
+            .map(|r| (r.layer1, r.layer2, r.layer3, r.gw, r.success))
+            .collect())
+    }
+
+    pub async fn calculate_corrected_node_reliabilities_for_interval(
+        &self,
+        start_ts_secs: i64,
+        end_ts_secs: i64,
+    ) -> Result<Vec<CorrectedNodeIntervalReliability>, anyhow::Error> {
+        let raw_routes = self
+            .get_raw_routes_in_interval(start_ts_secs, end_ts_secs)
+            .await?;
+
+        let mut node_states: HashMap<NodeId, NodeCorrectionIntervalState> = HashMap::new();
+
+        for (l1, l2, l3, gw, success) in raw_routes {
+            let path_node_ids = [l1, l2, l3, gw];
+
+            if success {
+                for &node_id in &path_node_ids {
+                    let state = node_states.entry(node_id).or_default();
+                    state.pos_samples += 1;
+                    state.fail_seq = 0;
+                }
+            } else {
+                // Path test failed
+                let mut current_path_node_ids_for_blame: Vec<NodeId> = Vec::new();
+                for &node_id in &path_node_ids {
+                    let state = node_states.entry(node_id).or_default();
+                    state.fail_seq += 1;
+                    current_path_node_ids_for_blame.push(node_id);
+                }
+
+                let mut guilty_nodes_in_path: Vec<NodeId> = Vec::new();
+                for &node_id in &current_path_node_ids_for_blame {
+                    if let Some(state_after_update) = node_states.get(&node_id) {
+                        if state_after_update.fail_seq > 2 {
+                            guilty_nodes_in_path.push(node_id);
+                        }
+                    }
+                }
+
+                if !guilty_nodes_in_path.is_empty() {
+                    for &guilty_node_id in &guilty_nodes_in_path {
+                        if let Some(state) = node_states.get_mut(&guilty_node_id) {
+                            state.neg_samples += 1;
+                        }
+                    }
+                } else {
+                    // No single guilty party, distribute blame
+                    for &node_id_in_path in &current_path_node_ids_for_blame {
+                        if let Some(state) = node_states.get_mut(&node_id_in_path) {
+                            state.neg_samples += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut final_reliabilities = Vec::new();
+        for (node_id, state) in node_states {
+            let total_samples = state.pos_samples + state.neg_samples;
+            let reliability = if total_samples == 0 {
+                0.0 // Default for no samples in this interval. Consider Option<f64> or filtering.
+            } else {
+                state.pos_samples as f64 / total_samples as f64
+            };
+
+            // Attempt to fetch identity, first as mixnode, then as gateway if not found.
+            // This assumes get_mixnode_identity_key and get_gateway_identity_key return Result<Option<String>, sqlx::Error>
+            let mut identity: Option<String> = self.get_mixnode_identity_key(node_id).await.unwrap_or(None);
+            if identity.is_none() {
+                identity = self.get_gateway_identity_key(node_id).await.unwrap_or(None);
+            }
+
+            final_reliabilities.push(CorrectedNodeIntervalReliability {
+                node_id,
+                identity,
+                reliability,
+                pos_samples_in_interval: state.pos_samples,
+                neg_samples_in_interval: state.neg_samples,
+                final_fail_seq_in_interval: state.fail_seq,
+            });
+        }
+
+        Ok(final_reliabilities)
     }
 }
 

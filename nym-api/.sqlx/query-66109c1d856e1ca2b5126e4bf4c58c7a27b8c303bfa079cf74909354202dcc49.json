@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT OR IGNORE INTO routes (layer1, layer2, layer3, gw, success) VALUES (?, ?, ?, ?, ?);\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "66109c1d856e1ca2b5126e4bf4c58c7a27b8c303bfa079cf74909354202dcc49"
+}

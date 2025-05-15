@@ -96,27 +96,25 @@ impl StorageManager {
         start_ts_secs: i64,
         end_ts_secs: i64,
     ) -> Result<Vec<AvgMixnodeReliability>, sqlx::Error> {
-        let result = sqlx::query_as!(
-            AvgMixnodeReliability,
-            r#"
-            SELECT
-                d.mix_id as "mix_id: NodeId",
-                AVG(s.reliability) as "value: f32"
-            FROM
-                mixnode_details d
-            JOIN
-                mixnode_status s on d.id = s.mixnode_details_id
-            WHERE
-                timestamp >= ? AND
-                timestamp <= ?
-            GROUP BY 1
-            "#,
-            start_ts_secs,
-            end_ts_secs
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-        Ok(result)
+        let corrected_reliabilities = self
+            .calculate_corrected_node_reliabilities_for_interval(start_ts_secs, end_ts_secs)
+            .await
+            .map_err(|_e| sqlx::Error::PoolClosed)?; // Example: map anyhow::Error to sqlx::Error; adjust as needed
+
+        let mut avg_mix_reliabilities = Vec::new();
+
+        for corrected_node_info in corrected_reliabilities {
+            // Check if this node_id is a mixnode by attempting to fetch its identity key as a mixnode.
+            // This relies on get_mixnode_identity_key returning Some for mixnodes and None (or error) for non-mixnodes.
+            if self.get_mixnode_identity_key(corrected_node_info.node_id).await?.is_some() {
+                avg_mix_reliabilities.push(AvgMixnodeReliability {
+                    mix_id: corrected_node_info.node_id,
+                    value: Some(corrected_node_info.reliability as f32),
+                });
+            }
+        }
+
+        Ok(avg_mix_reliabilities)
     }
 
     pub(super) async fn get_all_avg_gateway_reliability_in_interval(
@@ -124,27 +122,30 @@ impl StorageManager {
         start_ts_secs: i64,
         end_ts_secs: i64,
     ) -> Result<Vec<AvgGatewayReliability>, sqlx::Error> {
-        let result = sqlx::query_as!(
-            AvgGatewayReliability,
-            r#"
-            SELECT
-                d.node_id as "node_id: NodeId",
-                CASE WHEN count(*) > 3 THEN AVG(reliability) ELSE 100 END as "value: f32"
-            FROM
-                gateway_details d
-            JOIN
-                gateway_status s on d.id = s.gateway_details_id
-            WHERE
-                timestamp >= ? AND
-                timestamp <= ?
-            GROUP BY 1
-            "#,
-            start_ts_secs,
-            end_ts_secs
-        )
-        .fetch_all(&self.connection_pool)
-        .await?;
-        Ok(result)
+        let corrected_reliabilities = self
+            .calculate_corrected_node_reliabilities_for_interval(start_ts_secs, end_ts_secs)
+            .await
+            .map_err(|_e| sqlx::Error::PoolClosed)?; // Example: map anyhow::Error to sqlx::Error; adjust as needed
+
+        let mut avg_gateway_reliabilities = Vec::new();
+
+        for corrected_node_info in corrected_reliabilities {
+            // Check if this node_id is a gateway.
+            if self.get_gateway_identity_key(corrected_node_info.node_id).await?.is_some() {
+                let total_samples = corrected_node_info.pos_samples_in_interval + corrected_node_info.neg_samples_in_interval;
+                let reliability_value = if total_samples <= 3 {
+                    100.0 // Default to 100% if 3 or fewer samples
+                } else {
+                    corrected_node_info.reliability as f32
+                };
+
+                avg_gateway_reliabilities.push(AvgGatewayReliability {
+                    node_id: corrected_node_info.node_id, // AvgGatewayReliability uses node_id
+                    value: Some(reliability_value),
+                });
+            }
+        }
+        Ok(avg_gateway_reliabilities)
     }
 
     /// Tries to obtain row id of given mixnode given its identity.
@@ -1387,11 +1388,11 @@ impl StorageManager {
         // Temporary struct to match the expected columns from the 'routes' table
         // NodeId here is assumed to be compatible with how layer1, etc. are stored (e.g. u32/i32/i64)
         struct RawRouteData {
-            layer1: NodeId,
-            layer2: NodeId,
-            layer3: NodeId,
-            gw: NodeId,
-            success: bool,
+            layer1: i64,
+            layer2: i64,
+            layer3: i64,
+            gw: i64,
+            success: Option<bool>,
             // timestamp: i64, // Not explicitly selected into struct, but used in WHERE and ORDER BY
         }
 
@@ -1420,7 +1421,7 @@ impl StorageManager {
 
         Ok(db_routes
             .into_iter()
-            .map(|r| (r.layer1, r.layer2, r.layer3, r.gw, r.success))
+            .map(|r| (r.layer1 as NodeId, r.layer2 as NodeId, r.layer3 as NodeId, r.gw as NodeId, r.success.unwrap_or_default()))
             .collect())
     }
 

@@ -698,7 +698,7 @@ pub trait ApiClient: ApiClientCore {
     /// 'get' json data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T`.
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "debug", skip_all, fields(path=?path))]
     // TODO: deprecate in favour of get_response that works based on mime type in the response
     async fn get_json<T, K, V, E>(
         &self,

@@ -19,7 +19,7 @@ use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
-use crate::unstable_routes::account::cache::AddressInfoCache;
+use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;

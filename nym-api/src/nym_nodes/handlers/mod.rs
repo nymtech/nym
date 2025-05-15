@@ -24,7 +24,6 @@ use tower_http::compression::CompressionLayer;
 use utoipa::{IntoParams, ToSchema};
 
 pub(crate) mod legacy;
-pub(crate) mod unstable;
 
 pub(crate) fn nym_node_routes() -> Router<AppState> {
     Router::new()

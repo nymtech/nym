@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::unstable_routes::v1::account::models::NyxAccountDelegationRewardDetails;
 use crate::{
     node_status_api::models::{AxumErrorResponse, AxumResult},
     nym_contract_cache::cache::NymContractCache,
-    unstable_routes::models::NyxAccountDelegationRewardDetails,
 };
 use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;

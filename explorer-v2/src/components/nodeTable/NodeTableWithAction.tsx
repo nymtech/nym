@@ -9,7 +9,6 @@ import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(

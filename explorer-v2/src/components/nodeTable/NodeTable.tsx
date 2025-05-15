@@ -398,7 +398,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableSorting: false,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites]
+    [isWalletConnected, handleOnSelectStake, favorites, isDarkMode]
   );
   const table = useMaterialReactTable({
     columns,

@@ -8,7 +8,7 @@ use futures::{pin_mut, stream::FuturesUnordered, StreamExt};
 use log::{debug, error, info};
 use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{NymRouteProvider, RoutingNode};
-use nym_types::monitoring::{MonitorMessage, NodeResult};
+use nym_types::monitoring::{MonitorMessage, MonitorResults, NodeResult, RouteResult};
 use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -439,6 +439,7 @@ async fn db_connection(database_url: Option<&String>) -> Result<Option<(Client, 
         Ok(None)
     }
 }
+
 pub async fn submit_metrics_to_db(database_url: Option<&String>) -> anyhow::Result<()> {
     if let Some((client, handle)) = db_connection(database_url).await? {
         let client = Arc::new(client);
@@ -509,7 +510,8 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                 node_stats
                     .chunks(10)
                     .map(|chunk| {
-                        let monitor_message = MonitorMessage::new(chunk.to_vec(), private_key);
+                        let monitor_results = MonitorResults::Node(chunk.to_vec());
+                        let monitor_message = MonitorMessage::new(monitor_results, private_key);
                         client.post(&node_submit_url).json(&monitor_message).send()
                     })
                     .collect::<FuturesUnordered<_>>()
@@ -523,8 +525,9 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                 gateway_stats
                     .chunks(10)
                     .map(|chunk| {
+                        let monitor_results = MonitorResults::Node(chunk.to_vec());
                         let monitor_message = MonitorMessage::new(
-                            chunk.to_vec(),
+                            monitor_results,
                             PRIVATE_KEY.get().expect("We've set this!"),
                         );
                         client
@@ -537,6 +540,29 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                     .await
                     .into_iter()
                     .collect::<Result<Vec<_>, _>>()?;
+
+                let network_account = NetworkAccount::finalize()?;
+                let accounting_routes = network_account.accounting_routes;
+                let route_results = accounting_routes
+                    .iter()
+                    .map(|route| {
+                        RouteResult::new(
+                            route.mix_nodes.0,
+                            route.mix_nodes.1,
+                            route.mix_nodes.2,
+                            route.gateway_node,
+                            route.success,
+                        )
+                    })
+                    .collect::<Vec<RouteResult>>();
+
+                let monitor_results = MonitorResults::Route(route_results);
+                let monitor_message = MonitorMessage::new(monitor_results, private_key);
+                client
+                    .post(&node_submit_url)
+                    .json(&monitor_message)
+                    .send()
+                    .await?;
             }
         }
     }

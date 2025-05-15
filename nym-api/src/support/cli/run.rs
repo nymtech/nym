@@ -28,7 +28,7 @@ use crate::support::http::{RouterBuilder, ShutdownHandles, TASK_MANAGER_TIMEOUT_
 use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
-use crate::unstable_routes::account::cache::AddressInfoCache;
+use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     circulating_supply_api, ecash, epoch_operations, network_monitor, node_describe_cache,
     node_status_api, nym_contract_cache,

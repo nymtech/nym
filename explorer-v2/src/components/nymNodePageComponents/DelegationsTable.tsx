@@ -46,6 +46,7 @@ const DelegationsTable = ({ id }: Props) => {
     refetchOnMount: false,
   });
 
+
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [
       {

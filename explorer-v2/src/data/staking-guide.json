@@ -11,6 +11,7 @@
   "iconLight": "stakeCard",
   "iconDark": "stakeCardDark",
   "image": "/explorer/images/stake-article.webp",
+  "link": "https://nym.com/blog/stake-Nym-tokens",
   "overview": {
     "content": [
       {

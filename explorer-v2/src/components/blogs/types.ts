@@ -8,6 +8,7 @@ type BlogArticle = {
   image: string;
   iconLight: string;
   iconDark: string;
+  link: string;
   attributes: {
     blogAuthors: string[];
     date: Date;
@@ -23,8 +24,6 @@ type BlogArticle = {
   }[];
 };
 
-export type BlogArticleWithLink = BlogArticle & {
-  link: string;
-};
+export type BlogArticleWithLink = BlogArticle; 
 
 export default BlogArticle;

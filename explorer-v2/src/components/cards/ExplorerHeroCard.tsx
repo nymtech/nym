@@ -68,7 +68,12 @@ const ExplorerHeroCard = ({
   const iconSrc = isDarkMode ? iconDarkSrc : iconLightSrc;
 
   return (
-    <Link href={link} sx={{ textDecoration: "none", height: "100%" }}>
+    <Link
+      href={link}
+      sx={{ textDecoration: "none", height: "100%" }}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       <Card sx={dynamicCardStyles} elevation={0}>
         <CardHeader
           title={

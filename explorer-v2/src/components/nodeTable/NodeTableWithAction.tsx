@@ -45,8 +45,8 @@ const mappedNSApiNodes = (
         "&"
       );
 
-      const selfBondFormatted = node.rewarding_details?.operator
-        ? formatBigNum(Number(node.rewarding_details.operator) / 1_000_000)
+      const selfBondFormatted = node.original_pledge
+        ? Number(node.original_pledge) / 1_000_000
         : 0;
 
       const operatingCostsFormatted = node.rewarding_details

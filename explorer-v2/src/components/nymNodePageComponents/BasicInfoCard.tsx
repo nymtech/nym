@@ -72,8 +72,9 @@ export const BasicInfoCard = ({ paramId }: Props) => {
 
   if (!nodeInfo) return null;
 
-  const selfBond = nodeInfo.rewarding_details
-    ? formatBigNum(Number(nodeInfo.rewarding_details.operator) / 1_000_000)
+
+  const selfBond = nodeInfo.original_pledge
+    ? formatBigNum(Number(nodeInfo.original_pledge) / 1_000_000)
     : 0;
   const selfBondFormatted = `${selfBond} NYM`;
 

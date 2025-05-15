@@ -26,7 +26,6 @@ const BlogArticlesCards = async ({
       const blogArticle = JSON.parse(fileContent);
       return {
         ...blogArticle,
-        link: `/onboarding/${filename.replace(".json", "")}`,
       };
     }),
   );

@@ -4,13 +4,13 @@
 use crate::{
     node_status_api::models::{AxumErrorResponse, AxumResult},
     support::http::state::AppState,
-    unstable_routes::models::NyxAccountDetails,
 };
 use axum::{
     extract::{Path, State},
     routing::get,
     Json, Router,
 };
+use models::NyxAccountDetails;
 use nym_validator_client::nyxd::AccountId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -19,6 +19,7 @@ use utoipa::ToSchema;
 
 pub(crate) mod cache;
 pub(crate) mod data_collector;
+pub(crate) mod models;
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new().route("/:address", get(address))

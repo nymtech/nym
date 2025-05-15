@@ -12,6 +12,7 @@ import StakingTarget from 'components/outputs/api-scraping-outputs/nyx-outputs/s
 import StakingScaleFactor from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-scale-factor.md';
 import StakeSaturation from 'components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md';
 import StakeSaturationSnippet from 'components/operators/snippets/stake-saturation.mdx';
+import StakingSupply from 'components/outputs/api-scraping-outputs/nyx-outputs/staking_supply.md';
 import EpochRewardBudget from 'components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md';
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
@@ -117,9 +118,15 @@ A number of aimed NYM tokens to be staked in the network. The staking target a i
 > **staking_target = staking_supply_scale_factor \* circulating_supply**
 </Callout>
 
+{/*
 Staking supply scale factor is currently it's set to be <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>.
 
-The value of this variable can be changed to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>, <b>the staking target is <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM.</b>
+The value of this variable can is changed from time to time to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>, <b>the staking target is <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM.</b>
+*/}
+
+Staking supply scale factor is currently it's set to be 30.5%.
+
+The value of this variable can is changed from time to time to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor 30.5%, <b>the staking target is <span style={{display: 'inline-block'}}><StakingSupply /></span> NYM.</b>
 
 #### Stake saturation
 

@@ -7,8 +7,10 @@ import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tab
 import NyxPercentStake from 'components/outputs/nyx-outputs/nyx-percent-stake.md';
 import NyxTotalStake from 'components/outputs/nyx-outputs/nyx-total-stake.md';
 import EpochRewardBudget from 'components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md';
+import StakeSaturation from 'components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md';
 import StakeSaturationSnippet from 'components/operators/snippets/stake-saturation.mdx';
 import CirculatingSupply from 'components/outputs/api-scraping-outputs/nyx-outputs/circulating-supply.md';
+import StakingTarget from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md';
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
@@ -375,20 +377,51 @@ If a node is active in the rewarded set, it will receive rewards in the end of t
 **Node rewards calculation formula:**
 
 <Callout type="info" emoji="📌">
-> **node_epoch_rewards = [total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> \* ( <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / [circulating_supply](https://validator.nymtech.net/api/v1/circulating-supply) ) ) + 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> )**
+> **node_epoch_rewards = [total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> \* ( ( <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / [stake_saturation_level](https://validator.nymtech.net/api/v1/epoch/reward_params) ) / rewarded_set_size ) ) \* 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> )**
 >
 > Where: <br/>
 > **[total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span>** <br/>
-> **<abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> = 1 / active_set_size** <br/>
-> **[active_set_size](https://validator.nymtech.net/api/v1/epoch/reward_params) = 240** <br/>
-> **[circulating_supply](https://validator.nymtech.net/api/v1/circulating-supply) = <span style={{display: 'inline-block'}}><CirculatingSupply /></span>** <br/>
+> **<abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> = 1 / rewarded_set_size** <br/>
+> **[rewarded_set_size](https://validator.nymtech.net/api/v1/epoch/reward_params) = 240** <br/>
+> **[stake_saturation_level](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><StakeSaturation /></span>** <br/>
 > **&alpha; = <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr>**
 > 
 > Therefore: <br/>
-> **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">( 1 / 240 )</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> \* ( <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / <span style={{display: 'inline-block'}}><CirculatingSupply /></span> ) ) + 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> )**
+> **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">( 1 / 240 )</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> \* ( (  <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / <span style={{display: 'inline-block'}}><StakeSaturation /></span> ) / 240 ) ) \* 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> )**
 </Callout>
 
 Performance and stake saturation (both are a float between `0` and `1` representing percentage) play an equally decisive role in the size of rewards earned after the epoch. The closer a node is to maximum value (`1`) of each of these parameters, the more rewards it will get.
+
+<br />
+<AccordionTemplate name="✏️ Explanation & Example: Functionality of &alpha; constant">
+Operators aim to get [stake saturation](#stake-saturation) on their nodes as close to maximum value `1` as possible. The value of node stake is composed of **delegations** (stake from others or self) and **bond** (tokens locked by the operator on top of the node when registering it to the network).
+
+Constant **&alpha;** is a in place to increase rewards for nodes with higher bond. Minimum value of bond is 100 NYM. The higher bond an operator locks, the more skin in the game they have and therefore they receive a small premium.
+
+Let's compare 3 nodes to see their rewards, for simplicity all of them having maximum performance and stake saturation, being active in the same epoch with reward budget of 5_000 NYM, circulating supply is 800_000_000 NYM and node work fraction 1 / 240, only their bond differs:
+
+```
+node1_bond_size = 100 NYM
+node2_bond_size = 250_000 NYM
+node3_bond_size = 1_000_000 NYM
+```
+The calculation would be:
+
+```
+node1_epoch_rewards = 5_000 * ( ( 1 / 240 ) + 0.3 * ( 100 / 800_000_000) ) + 1 / ( 1 + 0.3 )
+node2_epoch_rewards = 5_000 * ( ( 1 / 240 ) + 0.3 * ( 250_000 / 800_000_000) ) + 1 / ( 1 + 0.3 )
+node3_epoch_rewards = 5_000 * ( ( 1 / 240 ) + 0.3 * ( 1_000_000 / 800_000_000) ) + 1 / ( 1 + 0.3 )
+```
+
+The result:
+```
+node1_epoch_rewards = 21.6027 NYM
+node2_epoch_rewards = 22.0713 NYM
+node3_epoch_rewards = 23.4775 NYM
+```
+
+Difference between the smallest possible bond 100 NYM and very big bond 1mm NYM (around full stake saturation point) is about 8% of increase in epoch rewards. 
+</ AccordionTemplate>
 
 **Try to calculate rewards yourself**
 

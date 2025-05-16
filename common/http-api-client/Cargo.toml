@@ -12,7 +12,13 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-reqwest = { workspace = true, features = ["json", "gzip"] }
+reqwest = { workspace = true, features = [
+    "json",
+    "gzip",
+    "deflate",
+    "brotli",
+    "zstd",
+] }
 http.workspace = true
 url = { workspace = true }
 once_cell = { workspace = true }
@@ -30,7 +36,10 @@ mime = { workspace = true }
 nym-bin-common = { path = "../bin-common" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
-hickory-resolver = { workspace = true, features = ["dns-over-https-rustls", "webpki-roots"] }
+hickory-resolver = { workspace = true, features = [
+    "dns-over-https-rustls",
+    "webpki-roots",
+] }
 
 # for request timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]

@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::{config::Config, error::*};
+use crate::{config::Config, error::*, seen_credential_cache::SeenCredentialCache};
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
@@ -77,6 +77,8 @@ pub(crate) struct MixnetListener {
     pub(crate) ecash_verifier: Option<Arc<EcashManager>>,
 
     pub(crate) timeout_check_interval: IntervalStream,
+
+    pub(crate) seen_credential_cache: SeenCredentialCache,
 }
 
 impl MixnetListener {
@@ -98,6 +100,7 @@ impl MixnetListener {
             peer_manager: PeerManager::new(wireguard_gateway_data),
             ecash_verifier,
             timeout_check_interval,
+            seen_credential_cache: SeenCredentialCache::new(),
         }
     }
 

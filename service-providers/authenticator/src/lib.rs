@@ -10,3 +10,4 @@ pub mod error;
 pub mod mixnet_client;
 pub mod mixnet_listener;
 mod peer_manager;
+mod seen_credential_cache;

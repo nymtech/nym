@@ -398,29 +398,35 @@ Operators aim to get [stake saturation](#stake-saturation) on their nodes as clo
 
 Constant **&alpha;** is a in place to increase rewards for nodes with higher bond. Minimum value of bond is 100 NYM. The higher bond an operator locks, the more skin in the game they have and therefore they receive a small premium.
 
-Let's compare 3 nodes to see their rewards, for simplicity all of them having maximum performance and stake saturation, being active in the same epoch with reward budget of 5_000 NYM, circulating supply is 800_000_000 NYM and node work fraction 1 / 240, only their bond differs:
+Let's compare 3 nodes to see their rewards, for simplicity all of them having maximum performance and stake saturation, being active in the same epoch with reward budget of 5_000 NYM, stake saturation level is 1_000_000_000 NYM and node work fraction 1 / 240. The only variable is then the size of their bond. The formula will look like this:
+
+```
+node_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( node_bond_size / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+```
+
+Bond size of our 3 example nodes:
 
 ```
 node1_bond_size = 100 NYM
 node2_bond_size = 250_000 NYM
 node3_bond_size = 1_000_000 NYM
 ```
-The calculation would be:
+Rewards calculation:
 
 ```
-node1_epoch_rewards = 5_000 * ( ( 1 / 240 ) + 0.3 * ( 100 / 800_000_000) ) + 1 / ( 1 + 0.3 )
-node2_epoch_rewards = 5_000 * ( ( 1 / 240 ) + 0.3 * ( 250_000 / 800_000_000) ) + 1 / ( 1 + 0.3 )
-node3_epoch_rewards = 5_000 * ( ( 1 / 240 ) + 0.3 * ( 1_000_000 / 800_000_000) ) + 1 / ( 1 + 0.3 )
+node1_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( 100 / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+node2_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( 250_000 / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+node3_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( 1_000_000 / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
 ```
 
 The result:
 ```
-node1_epoch_rewards = 21.6027 NYM
-node2_epoch_rewards = 22.0713 NYM
-node3_epoch_rewards = 23.4775 NYM
+node1_epoch_rewards = 16.0261 NYM
+node2_epoch_rewards = 17.2275 NYM
+node3_epoch_rewards = 20.8333 NYM
 ```
 
-Difference between the smallest possible bond 100 NYM and very big bond 1mm NYM (around full stake saturation point) is about 8% of increase in epoch rewards. 
+Difference between the smallest possible bond 100 NYM and a maximum bond 1mm NYM (equal full stake saturation point) is about 23% of increase in epoch rewards. 
 </ AccordionTemplate>
 
 **Try to calculate rewards yourself**

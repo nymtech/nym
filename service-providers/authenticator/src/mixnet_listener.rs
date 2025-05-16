@@ -731,19 +731,28 @@ impl MixnetListener {
                 "bandwidth entry should have just been created".to_string(),
             ))?;
 
-        let client_bandwidth = ClientBandwidth::new(bandwidth.into());
-        let mut verifier = CredentialVerifier::new(
-            CredentialSpendingRequest::new(msg.credential()),
-            ecash_verifier.clone(),
-            BandwidthStorageManager::new(
-                ecash_verifier.storage().clone(),
-                client_bandwidth,
-                client_id,
-                BandwidthFlushingBehaviourConfig::default(),
-                true,
-            ),
-        );
-        let available_bandwidth = verifier.verify().await?;
+        let available_bandwidth = if self.received_retry(&msg) {
+            // don't process the credential and just return the current bandwidth
+            bandwidth.available
+        } else {
+            let client_bandwidth = ClientBandwidth::new(bandwidth.into());
+            let credential = msg.credential();
+            let mut verifier = CredentialVerifier::new(
+                CredentialSpendingRequest::new(credential.clone()),
+                ecash_verifier.clone(),
+                BandwidthStorageManager::new(
+                    ecash_verifier.storage().clone(),
+                    client_bandwidth,
+                    client_id,
+                    BandwidthFlushingBehaviourConfig::default(),
+                    true,
+                ),
+            );
+            let available_bandwidth = verifier.verify().await?;
+            self.seen_credential_cache
+                .insert_credential(credential, msg.pub_key());
+            available_bandwidth
+        };
 
         let bytes = match AuthenticatorVersion::from(protocol) {
             AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_topup_bandwidth(
@@ -778,6 +787,18 @@ impl MixnetListener {
         };
 
         Ok((bytes, reply_to))
+    }
+
+    fn received_retry(&self, msg: &Box<dyn TopUpMessage + Send + Sync + 'static>) -> bool {
+        if let Some(peer_pub_key) = self
+            .seen_credential_cache
+            .get_peer_pub_key(&msg.credential())
+        {
+            // check if the same peer sent the same credential twice, probably because of a retry
+            peer_pub_key == msg.pub_key()
+        } else {
+            false
+        }
     }
 
     async fn on_reconstructed_message(
@@ -858,6 +879,7 @@ impl MixnetListener {
                     if let Err(e) = self.remove_stale_registrations().await {
                         log::error!("Could not clear stale registrations. The registration process might get jammed soon - {:?}", e);
                     }
+                    self.seen_credential_cache.remove_stale();
                 }
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {

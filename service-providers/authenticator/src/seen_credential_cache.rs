@@ -41,9 +41,13 @@ impl SeenCredentialCache {
             .insert(credential.serial_number_b58(), value);
     }
 
-    pub(crate) fn contains(&self, credential: &CredentialSpendingData) -> bool {
+    pub(crate) fn get_peer_pub_key(
+        &self,
+        credential: &CredentialSpendingData,
+    ) -> Option<PeerPublicKey> {
         self.cached_credentials
-            .contains_key(&credential.serial_number_b58())
+            .get(&credential.serial_number_b58())
+            .map(|value| value.peer_pub_key)
     }
 
     pub(crate) fn remove_stale(&mut self) {

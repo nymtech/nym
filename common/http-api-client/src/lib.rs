@@ -562,6 +562,8 @@ impl ApiClientCore for Client {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let request_copy = request.try_clone();
+            tracing::info!("Send request: {:?}", request_copy);
             Ok(request.send().await?)
         }
     }

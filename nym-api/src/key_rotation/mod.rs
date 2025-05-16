@@ -6,8 +6,9 @@ use crate::support::caching::refresher::{CacheUpdateWatcher, RefreshRequester};
 use nym_mixnet_contract_common::{Interval, KeyRotationState};
 use nym_task::TaskClient;
 use time::OffsetDateTime;
-use tracing::{error, trace};
+use tracing::{debug, error, info, trace};
 
+#[derive(Debug)]
 struct ContractData {
     interval: Interval,
     key_rotation_state: KeyRotationState,
@@ -32,7 +33,7 @@ impl ContractData {
         let current_epoch_progress = self.current_epoch_progress(OffsetDateTime::now_utc());
 
         if !(0. ..=1.).contains(&current_epoch_progress) {
-            error!("epoch seems to be stuck - can't progress key rotation!");
+            error!("epoch seems to be stuck (current progress is at {:.1}%) - can't progress key rotation!", current_epoch_progress * 100.);
             return None;
         }
 
@@ -61,6 +62,8 @@ pub(crate) struct KeyRotationController {
     pub(crate) contract_cache: NymContractCache,
 }
 
+const todo: &str = "remove those println";
+
 impl KeyRotationController {
     pub(crate) fn new(
         describe_cache_refresher: RefreshRequester,
@@ -87,13 +90,19 @@ impl KeyRotationController {
     }
 
     async fn handle_contract_cache_update(&mut self) {
+        println!("contract cache refreshed - checking rotation status");
+
         let updated = self.get_contract_data().await;
+        println!("status: {updated:#?}");
 
         // if we're only 1/4 epoch away from the next rotation, and we haven't yet performed the refresh,
         // update the self-described cache, as all nodes should have already pre-announced their new sphinx keys
         if let Some(remaining) = updated.epochs_until_next_rotation() {
+            debug!("{remaining} epoch(s) remaining until next key rotation");
+            println!("{remaining} epoch(s) remaining until next key rotation");
             let expected = Some(updated.upcoming_rotation_id());
             if remaining < 0.25 && self.last_described_refreshed_for != expected {
+                info!("{remaining} epoch(s) remaining until next key rotation - requesting full refresh of self-described cache");
                 self.describe_cache_refresher.request_cache_refresh();
                 self.last_described_refreshed_for = expected;
             }
@@ -110,7 +119,6 @@ impl KeyRotationController {
                 _ = task_client.recv() => {
                     trace!("KeyRotationController: Received shutdown");
                 }
-
                 _ = self.contract_cache_watcher.changed() => {
                     self.handle_contract_cache_update().await
                 }

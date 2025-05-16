@@ -10,10 +10,9 @@ use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_topology::{HardcodedTopologyProvider, NymTopology, Role};
 use std::fs::File;
 use std::io::Write;
-use std::sync::LazyLock;
 use std::time::Duration;
 use std::{
     collections::VecDeque,
@@ -25,9 +24,7 @@ use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
 use tokio_util::sync::CancellationToken;
 
-static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
-    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{} env var not set", NYM_API))
-});
+static NYM_API_URLS: OnceCell<Vec<String>> = OnceCell::const_new();
 
 static MIXNET_TIMEOUT: OnceCell<u64> = OnceCell::const_new();
 static TOPOLOGY: OnceCell<NymTopology> = OnceCell::const_new();
@@ -138,6 +135,9 @@ struct Args {
 
     #[arg(long, env = "DATABASE_URL")]
     database_url: Option<String>,
+
+    #[arg(long, env = "NYM_APIS")]
+    nym_apis: Option<Vec<String>>,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -155,7 +155,7 @@ fn generate_key_pair() -> Result<()> {
     Ok(())
 }
 
-async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
+async fn nym_topology_forced_all_from_env() -> anyhow::Result<NymTopology> {
     let api_url = std::env::var(NYM_API)?;
 
     info!("Generating topology from {api_url}");
@@ -171,6 +171,18 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
 
     let mut topology = NymTopology::new_empty(rewarded_set);
     topology.add_skimmed_nodes(&nodes);
+
+    let node_ids = topology.node_details().keys().cloned().collect::<Vec<_>>();
+
+    // Force all nodes to active to participate in route selection
+    for (idx, node_id) in node_ids.iter().enumerate() {
+        match idx % 3 {
+            0 => topology.force_set_active(*node_id, Role::Layer1),
+            1 => topology.force_set_active(*node_id, Role::Layer2),
+            2 => topology.force_set_active(*node_id, Role::Layer3),
+            _ => unreachable!(), // Unreachable since idx % 3 can only be 0, 1, or 2
+        }
+    }
 
     Ok(topology)
 }
@@ -200,11 +212,15 @@ async fn main() -> Result<()> {
         PRIVATE_KEY.set(pk).ok();
     }
 
+    if let Some(nym_apis) = args.nym_apis {
+        NYM_API_URLS.set(nym_apis).ok();
+    }
+
     TOPOLOGY
         .set(if let Some(topology_file) = args.topology {
             NymTopology::new_from_file(topology_file)?
         } else {
-            nym_topology_from_env().await?
+            nym_topology_forced_all_from_env().await?
         })
         .ok();
 

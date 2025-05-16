@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                layer1 as \"layer1\",\n                layer2 as \"layer2\",\n                layer3 as \"layer3\",\n                gw as \"gw\",\n                success\n            FROM routes\n            WHERE timestamp >= ? AND timestamp <= ?\n            ORDER BY timestamp ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "layer1",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "layer2",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "layer3",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "gw",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "success",
+        "ordinal": 4,
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6b2479c02cf1ef5ae674ce0ab4d027595b91739f3579e1f289b0c722ea91bbcc"
+}

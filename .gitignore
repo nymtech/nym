@@ -62,3 +62,4 @@ nym-api/redocly/formatted-openapi.json
 
 **/settings.sql
 **/enter_db.sh
+CLAUDE.md

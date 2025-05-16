@@ -13,7 +13,7 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true }
-reqwest = { workspace = true, features = ["json", "gzip"] }
+reqwest = { workspace = true, features = ["json", "gzip", "deflate", "brotli", "zstd"] }
 http.workspace = true
 url = { workspace = true }
 once_cell = { workspace = true }

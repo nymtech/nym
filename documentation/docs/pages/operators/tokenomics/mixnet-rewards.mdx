@@ -6,6 +6,8 @@ import { VarInfo } from 'components/variable-info.tsx';
 import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
 import NyxPercentStake from 'components/outputs/nyx-outputs/nyx-percent-stake.md';
 import NyxTotalStake from 'components/outputs/nyx-outputs/nyx-total-stake.md';
+import EpochRewardBudget from 'components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md';
+import StakeSaturationSnippet from 'components/operators/snippets/stake-saturation.mdx';
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
@@ -19,9 +21,9 @@ import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
 <TimeNow />
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
-* For a more comprehensive overview, live data and supply graphs, visit [*nymtech.net/about/token*](https://nymtech.net/about/token)
+* For a more comprehensive overview, live data and supply graphs, visit [*explorer.nym.spectredao.net/token*](https://explorer.nym.spectredao.net/token)
 
-We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation and its detailed documentation. **The current design is called [*Naive rewarding*](#naive-rewarding).** It is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation and its detailed documentation. **The current design is called [*Naive rewarding*](#naive-rewarding).** It is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` [functionality](../nodes/nym-node/setup#functionality-mode), in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
 
 **Please read the [roadmap section below](#roadmap) to see the planned development.**
 
@@ -51,8 +53,8 @@ Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://
 
 This is a quick summary, to understand the full picture, please see detailed [*Rewards Logic & Calculation*](#rewards-logic--calculation) chapter below.
 
-* The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
-* A [rewarded set](../tokenomics.mdx#active-set) of `nym-nodes` selected for Nym network routing and mixing can be is currently 240 nodes in total and it's selected for each new epoch (60 min). The number can be adjusted - look here for the current value: [validator.nymtech.net/api/v1/epoch/reward_params](https://validator.nymtech.net/api/v1/epoch/reward_params)
+* The operators of `nym-node` get rewarded from [Mixmining pool](https://validator.nymtech.net/api/v1/epoch/reward_params), which emits <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM per hour.
+* The [rewarded set](../tokenomics.mdx#active-set) of `nym-nodes` selected for Nym network routing and mixing is currently 240 nodes in total and it's selected for each new epoch (60 min). The number can be adjusted - look here for the current value: [validator.nymtech.net/api/v1/epoch/reward_params](https://validator.nymtech.net/api/v1/epoch/reward_params)
 * `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, which are positioned into layers
 * NymVPN users can chose to route through Nym Network in two ways:
 	- Mixnet: 5 layers routing and mixing - full privacy
@@ -61,14 +63,14 @@ This is a quick summary, to understand the full picture, please see detailed [*R
 * In the final model, nodes will get rewarded based on their layer position and the work they do (collected user tickets), where and the reward distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
     - 5-hop: 16%-16%-16%-16%-36%
     - 2-hop: 33%-67%
-* Currently Gateways earn rewards only from taking a part in the rewarded set. The operators can sign up to a grant program as a substitution for 2-hop routing.
+* Currently Gateways earn rewards only from taking a part in the rewarded set. The operators can sign up to a grant program as a substitution for 2-hop (Wireguad) routing.
 * To read more about the final design and future implementation, see [*Roadmap*](#roadmap) chapter for more details.
 
 ## Rewards Logic & Calculation
 
-**Note that in the current intermediate model we use one active set to reward all nodes and they are asign same (naive) work factor of 1 / 240, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode. In reality it means that all nodes are rewarded within 5-hop reward scheme only.**
+**Note that in the current intermediate model we use one active set to reward all nodes and they are asigned same work factor of 1 / 240, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode (hence *naive rewarding*). In reality it means that all nodes are rewarded within 5-hop reward scheme only.**
 
-**However NymVPN client can chose any `nym-node --mode entry-gateway` and `--mode exit-gateway` in the network to route through the mixnet and as well as any of those which passed [wireguard probing test](https://harbourmaster.nymtech.net) to route as dVPN nodes.**
+**However NymVPN client can choose any `nym-node` with `--wireguard-enabled true` flag (which passed [wireguard probing test](https://harbourmaster.nymtech.net)) to route as dVPN Gateway, both entry and exit.**
 
 ### Nym Network rewarded set distribution
 
@@ -121,9 +123,8 @@ This is a quick summary, to understand the full picture, please see detailed [*R
 | **Network layer** | **1** | **2** |
 | :-- | :---: | :---: |
 | Node functionality in layer | Entry Gateway  | Exit Gateway |
-| Naive rewarding: Nodes in [active set](tokenomics.mdx#active-set) |  50  | 70 |
-| Naive rewarding: Rewards distribution per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
-| Final model: Active nodes | All following criteria for eligibility | All following criteria for eligibility |
+| Naive rewarding: Nodes in [active set](tokenomics.mdx#active-set) |  only Mixnet mode  | only Mixnet mode |
+| Naive rewarding: Rewards distribution per node | only Mixnet mode | only Mixnet mode |
 | Final model: Rewards distribution per node | 0.33 \* collected_user_tickets | 0.67 \* collected_user_tickets |
 
     </MyTab>
@@ -135,52 +136,171 @@ This is a quick summary, to understand the full picture, please see detailed [*R
 
 For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The Rewarded set is freshly selected at the start of each epoch (every 60 min), and it consists of 240 Nym nodes that are probabilistically chosen from all the available nodes. These 240 nodes include 120 gateways and 120 mixnodes (40 for each of 3 mixnet layers).
 
-Rewarded set nodes are randomly selected, and their selection chances increase with a node score that includes three parameters:
+Nodes selected into the rewarded set are chosen probabilisticaly are randomly selected, and their selection chances increase the larger nodes weight is. Weight value is always between `0` and `1` and it's calculated from these parameters:
 
-1. [Config score](#config-score-calculation): highest (`1`) when the node is running the latest version of the software with [T&C's accepted](../nodes/nym-node/setup.mdx#terms--conditions)
-2. [Performance](#performance-calculation): highest (`1`) when the node is consistently online and correctly processes all the received traffic
-3. [Stake saturation](../tokenomics.mdx#stake-saturation): including bond and delegated stake
+1. [Performance](#node-performance-calculation): This value consists of:
+- [Config score](#config-score-calculation): highest (`1`) when the node is running the latest version of the software, has [T&C's accepted](../nodes/nym-node/setup.mdx#terms--conditions) and self described API endpoint available
+- [Routing ](#routing-score-calculation): highest (`1`) when the node is consistently online and correctly processes all the received traffic
+2. [Stake saturation](#stake-saturation): including bond and delegated stake
 
-Besides these values, the API is also looking whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
 
-**The node score is calculated with this formula:**
+**Node weight is calculated with this formula:**
 
 <Callout type="info" emoji="📌">
-> **active_set_selection_probability = total_stake \* (( config_score \* node_performance ) ^ 20 )**
+> **active_set_selection_weight = stake_saturation \* ( node_performance ^ 20 )**
 </Callout>
 
-Note that the score helps prioritize some nodes over others. If all available nodes have the same score, then the selection is done uniformly at random. By raising the config and performance components to 20, values of these parameters that are below one incur a heavy penalization for the node’s selection chances.
+For the rewarded set selection weight, good [performance](#node-performance-calculation) is much more essential than [stake saturation](#stake-saturation), because it's lifted to 20th power in the selection algorhitm.
 
-Besides these values, the API is also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set. Thus, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
+For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them [`config_score`](#config-score-calculation)) = 1 for simplification):
+
+<br />
+<AccordionTemplate name="✏️ Calculation example: performance ^ 20 * node_stake_saturation">
+> node_1 = 1.00 ^ 20 \* 1.0 = **1** <br />
+> node_2 = 1.00 ^ 20 \* 0.5 = **0.5** <br />
+> node_3 = 0.99 ^ 20 \* 1.0 = **0.818** <br />
+> node_4 = 0.95 ^ 20 \* 1.0 = **0.358** <br />
+> node_5 = 0.90 ^ 20 \* 1.0 = **0.122** <br />
+</AccordionTemplate>
+
+As you can see the performance is much more important during the Rewarded set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance and 100% stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
+
+The nodes are chosen probababilistically in each epoch (60 min), so even nodes with lower performance will eventually be chosen, just much less often, as their chances decrease.
+Note that the score helps prioritize some nodes over others. If all available nodes have the same score, then the selection is done uniformly at random. By raising the node performance to 20, values of these parameters that are below one incur a heavy penalization for the node’s selection chances.
+
+<br />
+<AccordionTemplate name="✏️ Explanation & Example: Rewarded set probabilistic selection">
+**Explanation**
+
+The nodes are selected probabilistically, that means that even nodes with lower weight have a small chace to get slected. The probabilistic alorithm follows this logic:
+
+1. Summarize all nodes weight together
+2. Make a random selection roll for the first slot in the active set
+3. If a node is selected, take all its weight away from the draft queue
+4. Repeat points 1. - 3. for each slot in the active set
+
+**Example**
+
+We know that nodes weight is a float between 0 and 1. For simplification we will use integers in this example and much smaller set.
+
+- Total nodes:  8
+- Rewarded set: 4
+- Nodes weight:
+    - node1 =  5
+    - node2 =  5
+    - node3 = 10
+    - node4 = 10
+    - node5 = 20
+    - node6 = 40
+    - node7 = 50
+    - node8 = 60
+
+1. Summarize all nodes weight together:
+```
+weight_total = 5 + 5 + 10 + 10 + 20 + 40 + 50 + 60
+weight_total = 200
+```
+2. Roll a dice from 1 to 200:
+- Imagine the nodes are in line each representing the weight like index:
+    - node1 =   1-5
+    - node2 =   6-10
+    - node3 =  11-20
+    - node4 =  21-30
+    - node5 =  31-50
+    - node6 =  51-90
+    - node7 =  91-150
+    - node8 = 151-200
+- Say the function resulted in number 170
+3. Add node8 to the rewarded set and take it out of the lottery, summarize all the weights again:
+```
+weight_total = 5 + 5 + 10 + 10 + 20 + 40 + 50
+weight_total = 140
+```
+4. Roll a dice from 1 to 140:
+- Say the function resulted in number 4
+5. Add node1 to the rewarded set and take it out of the lottery, summarize all the weights again:
+```
+weight_total = 5 + 10 + 10 + 20 + 40 + 50
+weight_total = 135
+```
+6. Roll a dice from 1 to 135:
+- Say the function resulted in number 72
+7. Add node6 to the rewarded set and take it out of the lottery, summarize all the weights again:
+```
+weight_total = 5 + 10 + 10 + 20 + 50
+weight_total = 95
+```
+8. Roll a dice from 1 to 95:
+- Say the function resulted in number 21
+9. Add node4 to the rewarded set
+10. Rewarded set of 4 nodes is selected with these nodes to be chosen:
+    1. node8
+    2. node1
+    3. node6
+    4. node4
+11. After an epoch - 60 minutes - pull all bonded nodes and repeat the exact same process with their current weights
+
+In reality we have mixing nodes selected into 3 layers. To increase security, there is an additional function in place where a node cannot be assigned to the same layer in two following epochs.
+</AccordionTemplate>
+
+Below we break down [performance calculation](#node-performance-calculation) and show examples.
+
+
+### Node Performance Calculation
+
+Performance is a value between `0` and `1`. The final performance number is a result of multiplying [config score](#config-score-calculation) and [routing score](#routing-score-calculation).
+
+<Callout type="info" emoji="📌">
+> **node_performance = config_score \* routing_score**
+</Callout>
+
+Performance value is an average of last 24h.
+
+<Callout>
+All parameters regarding performance score can be browsed or pull live from:
+
+`https://validator.nymtech.net/api/v1/nym-nodes/annotation/<NODE_ID>`
+
+In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
+</Callout>
 
 #### Config Score Calculation
 
-The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks into three paramteres:
+Config score is in place to ensure that the node configuration is done properly so the node is eligible for taking part in Nym network. The API looks into these paramteres:
 
 1. If the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`): `1` if `True`, `0` if `False`
 2. If [Terms & Conditions](../nodes/nym-node/setup.mdx#terms--conditions) are accepted: `1` if `True`, `0` if `False`
-3. Version of `nym-node` binary: decreasing weight for outdated versions, as explained below
+3. If the nodes self described endpoint is available: `1` if `True`, `0` if `False`
+4. Version of `nym-node` binary: decreasing weight for outdated versions, as [explained below](#versions-behind-calculation)
 
-**The `config_score` parameter calculation formula:**
+**The `config_score` calculation formula:**
 
 <Callout type="info" emoji="📌">
-> **config_score = is_tc_accepted \* is_nym-node_binary \* ( 0.995 ^ ( ( X * versions_behind) ^ 1.65 ) )**
+> **config_score = is_tc_accepted \* is_nym-node_binary \* self_described_api_available \* ( 0.995 ^ ( ( X * versions_behind) ^ 1.65 ) )**
 </Callout>
 
-First two points have binary values of either 0 or 1, with a following logic:
+First three points have binary values of either `0` or `1`, with a following logic:
 
-| **Run `nym-node` binary** | **T&C's accepted** | **Value**          |
-| :--                       | :--                | ---:               |
-| True                      | True               | 1                  |
-| True                      | False              | 0                  |
-| False                     | True               | 0                  |
-| False                     | False              | 0                  |
+| **Run `nym-node` binary** | **T&C's accepted** | **Self described available** | **Value** |
+| :--                       | :--                | :--                          | ---:      |
+| **True**                  | **True**           | **True**                     | **1**     |
+| True                      | False              | False                        | 0         |
+| True                      | True               | False                        | 0         |
+| False                     | True               | True                         | 0         |
+| False                     | False              | True                         | 0         |
+| True                      | False              | True                         | 0         |
+| False                     | False              | False                        | 0         |
+| False                     | True               | False                        | 0         |
 
-Only if both conditions above are `True` the node can have any chance to be selected, as otherwise the probability will always be 0.
+**Only if ALL conditions above are `True` the node can have any chance to be selected, as otherwise the probability will always be 0.**
 
-**The `versions_behind` parameter in `config_score` calculation**
+<Callout type="info" emoji="ℹ️">
+Besides these values, the API also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set. Thus, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
+</ Callout>
 
-From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version. The "current version" is the one marked as `Latest` in our repository. The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with the formula:
+##### Versions Behind Calculation
+
+From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version (denoted as `versions_behind`). The "current version" is the one marked as `Latest` in our repository. The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with this formula:
 
 <Callout type="info" emoji="📌">
 > **0.995 ^ ( ( X * versions_behind ) ^ 1.65 )**
@@ -213,30 +333,86 @@ Note that the `X` multiplier heavily lowers the `config_score` when nodes are ou
 
 As you can see above, the algorithm is designed to give maximum selection score (`1`) to the latest version, while non-upgraded nodes receive a lower score. The score decreases faster when the node has failed to make a major version upgrade, and slower when the node is behind only with minor updates. This scoring de-prioritizes the selection of outdated nodes, even if their saturation and performance are high. Nodes are selected probabilistically in each epoch (60 min), according to their scores, to be part of the Rewarded set. This scoring mechanism gives priority to the operators running up-to-date nodes, ensuring that the network is as updated as possible.
 
-#### Performance Calculation
+#### Routing Score Calculation
 
-Performance is measured by Nym Network Monitor which sends thousands of packages through different routes every 15 minutes and measures how many were dropped on the way. Test result represents percentage of packets succesfully returned (can be anything between 0 and 1). Performance value is nodes average of these tests in last 24h.
+Routing score is measured by Nym Network Monitor which sends thousands of packages through different routes every 15 minutes and measures how many were dropped on the way. Test result represents percentage of packets succesfully returned which are then converted into floats bettween `0` and `1`.
 
-Good performance is much more essential than [total stake](../tokenomics.mdx#stake-saturation), because it's lifted to 20th power in the selection formula.
+### Stake Saturation
 
-For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1 for simplification):
+> If you want to understand more about NYM supply, read [tokenomics page](../tokenomics#tokenomics) first.
 
-<br />
-<AccordionTemplate name="✏️  Example: Performance ^ 20 * total_stake calculation">
-> node_1 = 1.00 ^ 20 \* 1.0 = 1 <br />
-> node_2 = 1.00 ^ 20 \* 0.5 = 0.5 <br />
-> node_3 = 0.99 ^ 20 \* 1.0 = 0.818 <br />
-> node_4 = 0.95 ^ 20 \* 1.0 = 0.358 <br />
-> node_5 = 0.90 ^ 20 \* 1.0 = 0.122 <br />
-</AccordionTemplate>
+<StakeSaturationSnippet />
 
-As you can see the performance (also known as *Routing score*) is much more important during the Rewarded set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
 
-The nodes are chosen probababilistically in each epoch (60 min), so even nodes with lower performance will eventually be chosen, just much less often, as their chances decrease.
+### Rewards Calculation
 
-### Layer Distribution
+Once the rewarded set (currently 120 Mixnodes and 120 Gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
 
-Once the rewarded set (currently 120 Mixnodes and 120 Gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
+If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](../tokenomics.mdx#stake-saturation) and [performance](#performance-calculation). This is how rewards get distributed between nodes in the rewarded set.
+
+**Rewards distribution formula:**
+
+<Callout type="info" emoji="📌">
+> **node_epoch_rewards = reward_budget * 1 / active_set_size * (stake_saturation * performance)**
+>
+> In the current state:
+>
+> **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> * 1 / 240 * (stake_saturation * performance)**
+</Callout>
+
+Performance and stake saturation play an equally decisive role in the size of rewards earned after the epoch. The closer a node is to maximum value (`1`) of each of these parameters, the more rewards it will get.
+
+Given that there is a highly unlikely chance of all nodes having maximum stake saturation and performance, in majority of cases there will be some part of the reward budget left undistributed. This "change" is then kept in the [Mixmining reserve](../tokenomics#tokenomics).
+
+<Callout>
+All parameters regarding performance score can be browsed or pull live from:
+
+`https://validator.nymtech.net/api/v1/nym-nodes/annotation/<NODE_ID>`
+
+In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
+</Callout>
+
+**Rewards are send to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](#rewards-distribution).
+
+#### Rewards Distribution
+
+Once the [rewards are asigned per each node](#rewards-calculation) they need to be distributed between the operator of the node and delegators (people who staked their NYM on that node). The distribution is pretty straightforward and it happens in the following order:
+
+
+1. **Operators Cost (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](#nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
+2. **Profit Margin (P.M.)**: What's the extra % cut the operator requests (this value is set by the operator in the bonding wallet node settings)
+3. **Bond & Stake proportionaly**: The remaining rewards are distributed proportionaly to the weight of every stake (including self bond, self delegation and each delegation).
+
+##### Nyx Epoch vs Interval
+
+<Callout type="info" emoji="📌">
+> **1 epoch = 60 min** <br />
+> **1 interval = 720 epochs**
+>
+> The logic is that interval is 30 days: <br />
+> 24 epochs * 30 days = 720
+</ Callout>
+
+The Operators Cost (O.C). is a value denominated in NYM, that a node operator requires to get paid before the rewards get distributed. The cost is estimated per one month. However, it's paid only in epochs when the node is active. To calculate how O.C. works, we use a value called `interval` which represents 30 days (approximate month), or more precisely 720 epochs. To get covered a full O.C, the node would have to be active for the entire month.
+
+**O.C. real revenue formula**
+
+Therefore every epoch a node is active, the operator gets:
+<Callout type="info" emoji="📌">
+> **epoch_operator_cost_revenue = operators_cost / epochs_per_interval**
+>
+> that is:
+>
+> **epoch_operator_cost_revenue = operators_cost / 720**
+</ Callout>
+
+To calculate O.C. per month, multiply it by number of active epochs:
+<Callout type="info" emoji="📌">
+> **monthly_operator_cost_revenue = ( operator_cost / 720 ) * active_epochs**
+</Callout>
+
+{/*
+#### Final Layer Distribution (under development)
 
 We are working on the final design with the ratio implementing a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
 
@@ -248,7 +424,6 @@ We are working on the final design with the ratio implementing a [decision made 
 > 33%; 67%
 </Callout>
 
-{/*
 In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compartmentalisation is 960 NYM for Entry Gateway layer and each Mixnode layer and 2160 NYM for Exit Gateway layer. The calculation is in the example below:
 
 <Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
@@ -271,11 +446,9 @@ $33\% - 67\%$
 
 ## Roadmap
 
-We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation. The current design is called [*Naive rewarding*](#naive-rewarding). This is an intermediate step, expecting operators to migrate to `nym-node` in Mixnet smart contract and be able to recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation, following the [decision made by the node operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407). The current design is called [*Naive rewarding*](#naive-rewarding). This is an intermediate step, expecting operators to migrate to `nym-node` in Mixnet smart contract and be able to recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
 
-On November 5th, we presented a release roadmap in live [Operators Townhall](https://www.youtube.com/watch?v=3G1pJqvO2VM) where we explained in detail the steps of Nym node and tokenomics development and the effect it will have on node operators and put it into a rough timeline.
-
-![](/images/operators/tokenomics/roadmap_24-q4.png)
+On November 5th 2024, we presented a release roadmap in live [Operators Townhall](https://www.youtube.com/watch?v=3G1pJqvO2VM) where we explained in detail the steps of Nym node and tokenomics development and the effect it will have on node operators and put it into a rough timeline.
 
 ### Naive Rewarding
 

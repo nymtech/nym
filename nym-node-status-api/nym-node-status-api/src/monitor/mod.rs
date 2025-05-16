@@ -12,25 +12,30 @@ use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
-use nym_validator_client::models::{
-    LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription,
+use nym_validator_client::{
+    client::{NodeId, NymApiClientExt, NymNodeDetails},
+    models::{LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription},
 };
-use nym_validator_client::nym_nodes::{NodeRole, SkimmedNode};
-use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
-use nym_validator_client::nyxd::{AccountId, NyxdClient};
-use nym_validator_client::NymApiClient;
-use reqwest::Url;
-use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
-use tokio::time::Duration;
+use nym_validator_client::{
+    nym_nodes::{NodeRole, SkimmedNode},
+    nyxd::{contract_traits::PagedMixnetQueryClient, AccountId},
+    NymApiClient, QueryHttpRpcNyxdClient,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+    sync::Arc,
+};
+use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
 pub(crate) use geodata::IpInfoClient;
+pub(crate) use node_delegations::DelegationsCache;
 
 mod geodata;
+mod node_delegations;
 
-const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
+const MONITOR_FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
@@ -38,9 +43,10 @@ struct Monitor {
     db_pool: DbPool,
     network_details: NymNetworkDetails,
     nym_api_client_timeout: Duration,
-    nyxd_addr: Url,
+    nyxd_client: QueryHttpRpcNyxdClient,
     ipinfo: IpInfoClient,
     geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
 }
 
 // TODO dz: query many NYM APIs:
@@ -49,19 +55,22 @@ struct Monitor {
 pub(crate) async fn spawn_in_background(
     db_pool: DbPool,
     nym_api_client_timeout: Duration,
-    nyxd_addr: Url,
+    nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
     refresh_interval: Duration,
     ipinfo_api_token: String,
     geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
 ) {
     let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
+
     let mut monitor = Monitor {
         db_pool,
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
         nym_api_client_timeout,
-        nyxd_addr,
+        nyxd_client,
         ipinfo,
         geocache,
+        node_delegations,
     };
 
     loop {
@@ -70,10 +79,9 @@ pub(crate) async fn spawn_in_background(
         if let Err(e) = monitor.run().await {
             tracing::error!(
                 "Monitor run failed: {e}, retrying in {}s...",
-                FAILURE_RETRY_DELAY.as_secs()
+                MONITOR_FAILURE_RETRY_DELAY.as_secs()
             );
-            // TODO dz implement some sort of backoff
-            tokio::time::sleep(FAILURE_RETRY_DELAY).await;
+            tokio::time::sleep(MONITOR_FAILURE_RETRY_DELAY).await;
         } else {
             tracing::info!(
                 "Info successfully collected, sleeping for {}s...",
@@ -151,7 +159,7 @@ impl Monitor {
             })?;
 
         // refresh geodata for all nodes
-        for (_, node_description) in described_nodes.iter() {
+        for node_description in described_nodes.values() {
             self.location_cached(node_description).await;
         }
 
@@ -193,8 +201,7 @@ impl Monitor {
             .nodes
             .data;
 
-        let delegation_program_members =
-            get_delegation_program_details(&self.network_details, &self.nyxd_addr).await?;
+        let delegation_program_members = self.get_delegation_program_details().await?;
 
         // keep stats for later
         let assigned_entry_count = nym_nodes
@@ -233,7 +240,9 @@ impl Monitor {
                 tracing::debug!("{} mixnode info written to DB!", mixnodes_count);
             })?;
 
-        let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
+        self.refresh_node_delegations(&bonded_nym_nodes).await;
+
+        let (all_historical_gateways, all_historical_mixnodes) = historical_count(&pool).await?;
 
         //
         // write summary keys and values to table
@@ -295,7 +304,7 @@ impl Monitor {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "info", skip_all)]
     async fn location_cached(&mut self, node: &NymNodeDescription) -> Location {
         let node_id = node.node_id;
 
@@ -457,9 +466,34 @@ impl Monitor {
             }
         }
     }
+
+    #[instrument(level = "info", skip_all)]
+    async fn refresh_node_delegations(&mut self, bonded_nodes: &HashMap<NodeId, NymNodeDetails>) {
+        let delegations_per_node = node_delegations::refresh(&self.nyxd_client, bonded_nodes).await;
+
+        // update after refreshing all to avoid holding write lock for too long
+        *self.node_delegations.write().await = delegations_per_node;
+    }
+
+    async fn get_delegation_program_details(&self) -> anyhow::Result<Vec<NodeId>> {
+        let account_id = AccountId::from_str(DELEGATION_PROGRAM_WALLET)
+            .map_err(|e| anyhow!("Invalid bech32 address: {}", e))?;
+
+        let delegations = self
+            .nyxd_client
+            .get_all_delegator_delegations(&account_id)
+            .await?;
+
+        let mix_ids: Vec<NodeId> = delegations
+            .iter()
+            .map(|delegation| delegation.node_id)
+            .collect();
+
+        Ok(mix_ids)
+    }
 }
 
-async fn calculate_stats(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
+async fn historical_count(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
     let mut conn = pool.acquire().await?;
 
     let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
@@ -473,26 +507,4 @@ async fn calculate_stats(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
         .cast_checked()?;
 
     Ok((all_historical_gateways, all_historical_mixnodes))
-}
-
-async fn get_delegation_program_details(
-    network_details: &NymNetworkDetails,
-    nyxd_addr: &Url,
-) -> anyhow::Result<Vec<u32>> {
-    let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(network_details)?;
-
-    let client = NyxdClient::connect(config, nyxd_addr.as_str())
-        .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
-
-    let account_id = AccountId::from_str(DELEGATION_PROGRAM_WALLET)
-        .map_err(|e| anyhow!("Invalid bech32 address: {}", e))?;
-
-    let delegations = client.get_all_delegator_delegations(&account_id).await?;
-
-    let mix_ids: Vec<u32> = delegations
-        .iter()
-        .map(|delegation| delegation.node_id)
-        .collect();
-
-    Ok(mix_ids)
 }

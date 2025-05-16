@@ -1211,9 +1211,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.36"
+version = "4.5.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2df961d8c8a0d08aa9945718ccf584145eee3f3aa06cddbeac12933781102e04"
+checksum = "eccb054f56cbd38340b380d4a8e69ef1f02f1af43db2f0cc817a4774d80ae071"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1221,9 +1221,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.36"
+version = "4.5.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "132dbda40fb6753878316a489d5a1242a8ef2f0d9e47ba01c951ea8aa7d013a5"
+checksum = "efd9466fac8543255d3b1fcad4762c5e116ffe808c8a3043d4263cd4fd4862a2"
 dependencies = [
  "anstream",
  "anstyle",
@@ -4733,7 +4733,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.56"
+version = "1.1.57"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4760,6 +4760,7 @@ dependencies = [
  "humantime-serde",
  "itertools 0.14.0",
  "k256",
+ "moka",
  "nym-api-requests",
  "nym-bandwidth-controller",
  "nym-bin-common",
@@ -4987,7 +4988,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.54"
+version = "1.1.55"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5070,7 +5071,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.54"
+version = "1.1.55"
 dependencies = [
  "bs58",
  "clap",
@@ -6068,7 +6069,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.55"
+version = "1.1.56"
 dependencies = [
  "addr",
  "anyhow",
@@ -6119,7 +6120,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6252,7 +6253,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "2.1.0"
+version = "2.3.0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6269,6 +6270,8 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-http-api-common",
+ "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-metrics",
  "nym-node-requests",
@@ -6513,7 +6516,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.54"
+version = "1.1.55"
 dependencies = [
  "bs58",
  "clap",
@@ -7117,7 +7120,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "anyhow",
  "bytes",

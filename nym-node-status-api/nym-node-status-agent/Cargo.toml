@@ -20,7 +20,7 @@ nym-bin-common = { path = "../../common/bin-common", features = ["models"]}
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 rand = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "process"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "process", "fs"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 

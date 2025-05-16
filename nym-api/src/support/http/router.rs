@@ -17,7 +17,7 @@ use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
-use nym_http_api_common::middleware::logging::logger;
+use nym_http_api_common::middleware::logging::log_request_info;
 use tokio::net::TcpListener;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 use tower_http::cors::CorsLayer;
@@ -91,7 +91,7 @@ impl RouterBuilder {
     fn finalize_routes(self) -> Router<AppState> {
         self.unfinished_router
             .layer(setup_cors())
-            .layer(axum::middleware::from_fn(logger))
+            .layer(axum::middleware::from_fn(log_request_info))
     }
 }
 

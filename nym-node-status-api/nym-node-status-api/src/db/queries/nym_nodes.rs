@@ -4,12 +4,16 @@ use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::NymNodeDescription,
 };
+use sqlx::{pool::PoolConnection, Sqlite};
 use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::db::{
-    models::{NymNodeDto, NymNodeInsertRecord},
-    DbPool,
+use crate::{
+    db::{
+        models::{NymNodeDto, NymNodeInsertRecord},
+        DbPool,
+    },
+    mixnet_scraper::helpers::NodeDescriptionResponse,
 };
 
 pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNodeDto>> {
@@ -194,6 +198,8 @@ pub(crate) async fn get_node_self_description(
             nym_nodes
         WHERE
             self_described IS NOT NULL
+        ORDER BY
+            node_id
         "#,
     )
     .fetch_all(&mut *conn)
@@ -254,5 +260,36 @@ pub(crate) async fn get_bonded_node_description(
             })
             .collect::<HashMap<NodeId, NodeDescription>>()
     })
+    .map_err(From::from)
+}
+
+pub(crate) async fn insert_nym_node_description(
+    conn: &mut PoolConnection<Sqlite>,
+    node_id: &i64,
+    description: &NodeDescriptionResponse,
+    timestamp: i64,
+) -> anyhow::Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO nym_node_descriptions (
+            node_id, moniker, website, security_contact, details, last_updated_utc
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (node_id) DO UPDATE SET
+            moniker = excluded.moniker,
+            website = excluded.website,
+            security_contact = excluded.security_contact,
+            details = excluded.details,
+            last_updated_utc = excluded.last_updated_utc
+        "#,
+        node_id,
+        description.moniker,
+        description.website,
+        description.security_contact,
+        description.details,
+        timestamp,
+    )
+    .execute(conn.as_mut())
+    .await
+    .map(drop)
     .map_err(From::from)
 }

@@ -47,9 +47,72 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.8-tourist`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.8-tourist)
+- [`nym-node`](nodes/nym-node.mdx) version `1.10.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-04-29T11:36:50.614557168Z
+Build Version:      1.10.0
+Commit SHA:         e594630314d4676cbe9bba9ab07bd405a9cf679a
+Commit Date:        2025-04-29T12:19:54.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+### Operators Updates & Tools
+
+- [New Nym wallet](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.18) is out: Release version `1.2.18`
+
+**Documentation Updates**
+
+- [Tokenomics page](tokenomics.mdx) updated
+- [Node operators rewards page](tokenomics/mixnet-rewards.mdx) updated with new parts added:
+    - [Node performance calculation](tokenomics/mixnet-rewards#node-performance-calculation)
+    - [Stake saturation calculation](tokenomics/mixnet-rewards#stake-saturation)
+    - [Rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
+    - [Rewards distribution](tokenomics/mixnet-rewards#rewards-distribution)
+
+### Features
+
+- [Adding fresh nym-api tests and workflow](https://github.com/nymtech/nym/pull/5659)
+
+- [Replay protection](https://github.com/nymtech/nym/pull/5682): Introduces replay detection into a `nym-node`. Currently it uses a bloomfilter that's reset every 25h. In the future this will be controlled by the key rotation. The bloomfilter is also periodically flushed to disk in order to be able to recover from a crash/shutdown. 
+
+- [Tauri V2 - Wallet Migration](https://github.com/nymtech/nym/pull/5687): 
+  - The core of the lifting was done via the migrate command
+  - A lot of API's changed
+  - Improved styling
+  - Pipelines are fixed for all platforms
+  
+- [Make mix hops optional for Mixnet Client](https://github.com/nymtech/nym/pull/5696): As is the route selection for packets, reply SURBs, and acknowledgements are selected deep withing the `MixnetClient` machinery. This makes custom route selection (i.e. for authenticating / registering wiregaurd mode vpn clients) is not supported. This PR adds configuration toggle that allows `MixnetClient` to be built where packets are sent direct through entry to Exit Gateway nodes -- no mix hops. 
+
+- [Bump the `nym-vpn deb` metapackage to `1.0`](https://github.com/nymtech/nym/pull/5697)
+
+- [Updated sphinx payload keys](https://github.com/nymtech/nym/pull/5698): This PR uses the new version of the `sphinx-packet` that allows us to derive payload encryption keys from the seed rather than having to attach the keys themselves. In practice each reply surb is now ~60% smaller. However, currently all of those functionalities are **DISABLED** by default. It is because it required nodes to actually understand the new scheme. it shouldn't be enabled until sufficient number of nodes, particularly mixnodes, had upgraded.
+
+- [Allow copy and paste on logins fields for the wallet](https://github.com/nymtech/nym/pull/5699): Allow shell open for url links (some platforms it's not working as expected)
+
+- [Removed old explorer-api](https://github.com/nymtech/nym/pull/5701)
+
+- [Peer handle should die more gracefully](https://github.com/nymtech/nym/pull/5704)
+
+- [Update `hickory` DNS `0.24.4` to `0.25`](https://github.com/nymtech/nym/pull/5709): Update the dependency on `hickory` DNS to the latest minor version 
+
+- [Remove inactive peers](https://github.com/nymtech/nym/pull/5721)
+
+- [Add reserved byte to reply surb serialisation](https://github.com/nymtech/nym/pull/5731)
+
+### Bugfix
+
+
 ## `v2025.7-tex`
 
-- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.9-tex)
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.7-tex)
 - [`nym-node`](nodes/nym-node.mdx) version `1.9.0`
 
 ```shell

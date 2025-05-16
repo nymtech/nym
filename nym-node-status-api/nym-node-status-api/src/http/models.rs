@@ -1,4 +1,5 @@
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Addr, Coin, Decimal};
+use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::client::NodeId;
 use serde::{Deserialize, Serialize};
@@ -55,13 +56,13 @@ pub(crate) struct ExtendedNymNode {
     #[schema(value_type = String)]
     pub(crate) total_stake: Decimal,
     pub(crate) original_pledge: u128,
-    pub(crate) bonding_address: String,
+    pub(crate) bonding_address: Option<String>,
     pub(crate) bonded: bool,
-    pub(crate) node_type: String,
+    pub(crate) node_type: nym_validator_client::models::DescribedNodeType,
     pub(crate) ip_address: String,
     pub(crate) accepted_tnc: bool,
-    pub(crate) self_description: serde_json::Value,
-    pub(crate) rewarding_details: serde_json::Value,
+    pub(crate) self_description: nym_validator_client::models::NymNodeData,
+    pub(crate) rewarding_details: Option<nym_mixnet_contract_common::NodeRewarding>,
     pub(crate) description: NodeDescription,
     pub(crate) geoip: Option<NodeGeoData>,
 }
@@ -119,4 +120,28 @@ pub struct SessionStats {
     pub vpn_sessions: Option<serde_json::Value>,
     pub mixnet_sessions: Option<serde_json::Value>,
     pub unknown_sessions: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct NodeDelegation {
+    #[schema(value_type = CoinSchema)]
+    pub amount: Coin,
+    pub cumulative_reward_ratio: String,
+    pub block_height: u64,
+    #[schema(value_type = String)]
+    pub owner: Addr,
+    #[schema(value_type = Option<String>)]
+    pub proxy: Option<Addr>,
+}
+
+impl From<nym_mixnet_contract_common::Delegation> for NodeDelegation {
+    fn from(value: nym_mixnet_contract_common::Delegation) -> Self {
+        Self {
+            amount: value.amount,
+            cumulative_reward_ratio: value.cumulative_reward_ratio.to_string(),
+            block_height: value.height,
+            owner: value.owner,
+            proxy: value.proxy,
+        }
+    }
 }

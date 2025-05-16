@@ -1,7 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::http::helpers::PaginationRequest;
+use crate::unstable_routes::v1;
 use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 use nym_http_api_common::Output;
 use serde::Deserialize;
@@ -25,6 +26,20 @@ pub(crate) struct NodesParamsWithRole {
     pub(crate) output: Option<Output>,
 }
 
+impl From<v1::nym_nodes::helpers::NodesParamsWithRole> for NodesParamsWithRole {
+    fn from(value: v1::nym_nodes::helpers::NodesParamsWithRole) -> Self {
+        NodesParamsWithRole {
+            role: value.role,
+            semver_compatibility: value.semver_compatibility,
+            no_legacy: value.no_legacy,
+            page: value.page,
+            per_page: value.per_page,
+            epoch_id: value.epoch_id,
+            output: value.output,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(crate) struct NodesParams {
@@ -39,6 +54,19 @@ pub(crate) struct NodesParams {
     // instead of wasting bandwidth serving an unchanged topology.
     pub(crate) epoch_id: Option<u32>,
     pub(crate) output: Option<Output>,
+}
+
+impl From<v1::nym_nodes::helpers::NodesParams> for NodesParams {
+    fn from(value: v1::nym_nodes::helpers::NodesParams) -> Self {
+        NodesParams {
+            semver_compatibility: value.semver_compatibility,
+            no_legacy: value.no_legacy,
+            page: value.page,
+            per_page: value.per_page,
+            epoch_id: value.epoch_id,
+            output: value.output,
+        }
+    }
 }
 
 impl From<NodesParamsWithRole> for NodesParams {

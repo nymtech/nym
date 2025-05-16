@@ -33,6 +33,13 @@ impl<T> ResponseWrapper<T> {
         }
     }
 
+    pub(crate) fn map<U, F: FnOnce(T) -> U>(self, op: F) -> ResponseWrapper<U> {
+        ResponseWrapper {
+            data: op(self.data),
+            headers: self.headers,
+        }
+    }
+
     #[must_use]
     pub(crate) fn with_header(
         mut self,
@@ -57,6 +64,15 @@ impl<T> FormattedResponse<T> {
             FormattedResponse::Json(inner) => inner.0.data,
             FormattedResponse::Yaml(inner) => inner.0.data,
             FormattedResponse::Bincode(inner) => inner.0.data,
+        }
+    }
+
+    pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> FormattedResponse<U> {
+        match self {
+            FormattedResponse::Json(inner) => FormattedResponse::Json(inner.map(op)),
+            FormattedResponse::Yaml(inner) => FormattedResponse::Yaml(inner.map(op)),
+            #[cfg(feature = "bincode")]
+            FormattedResponse::Bincode(inner) => FormattedResponse::Bincode(inner.map(op)),
         }
     }
 

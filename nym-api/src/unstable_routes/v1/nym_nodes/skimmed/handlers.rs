@@ -30,6 +30,7 @@ use nym_http_api_common::FormattedResponse;
     ),
 )]
 #[deprecated(note = "use '/v1/unstable/nym-nodes/entry-gateways/skimmed/all' instead")]
+#[allow(deprecated)]
 pub(crate) async fn deprecated_gateways_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -43,7 +44,7 @@ pub(crate) async fn deprecated_gateways_basic(
 
     // 3. return result
     Ok(output.to_response(CachedNodesResponse {
-        refreshed_at: all_gateways.metadata.refreshed_at,
+        refreshed_at: all_gateways.refreshed_at,
         // 2. remove pagination
         nodes: all_gateways.nodes.data,
     }))
@@ -65,6 +66,7 @@ pub(crate) async fn deprecated_gateways_basic(
     ),
 )]
 #[deprecated(note = "use '/v1/unstable/nym-nodes/skimmed/mixnodes/active' instead")]
+#[allow(deprecated)]
 pub(crate) async fn deprecated_mixnodes_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -78,7 +80,7 @@ pub(crate) async fn deprecated_mixnodes_basic(
 
     // 3. return result
     Ok(output.to_response(CachedNodesResponse {
-        refreshed_at: active_mixnodes.metadata.refreshed_at,
+        refreshed_at: active_mixnodes.refreshed_at,
         // 2. remove pagination
         nodes: active_mixnodes.nodes.data,
     }))
@@ -100,6 +102,8 @@ pub(crate) async fn deprecated_mixnodes_basic(
         ))
     ),
 )]
+#[deprecated(note = "use '/v2/unstable/nym-nodes/skimmed' instead")]
+#[allow(deprecated)]
 pub(crate) async fn nodes_basic_all(
     state: State<AppState>,
     Query(query_params): Query<NodesParamsWithRole>,
@@ -137,6 +141,8 @@ pub(crate) async fn nodes_basic_all(
         ))
     ),
 )]
+#[deprecated]
+#[allow(deprecated)]
 pub(crate) async fn nodes_basic_active(
     state: State<AppState>,
     Query(query_params): Query<NodesParamsWithRole>,
@@ -174,6 +180,7 @@ pub(crate) async fn nodes_basic_active(
         ))
     ),
 )]
+#[deprecated(note = "use '/v2/unstable/nym-nodes/skimmed/mixnodes/all' instead")]
 pub(crate) async fn mixnodes_basic_all(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -197,6 +204,7 @@ pub(crate) async fn mixnodes_basic_all(
         ))
     ),
 )]
+#[deprecated(note = "use '/v2/unstable/nym-nodes/skimmed/mixnodes/active' instead")]
 pub(crate) async fn mixnodes_basic_active(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -220,6 +228,7 @@ pub(crate) async fn mixnodes_basic_active(
         ))
     ),
 )]
+#[deprecated]
 pub(crate) async fn entry_gateways_basic_active(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -243,6 +252,7 @@ pub(crate) async fn entry_gateways_basic_active(
         ))
     ),
 )]
+#[deprecated(note = "use '/v2/unstable/nym-nodes/skimmed/entry-gateways' instead")]
 pub(crate) async fn entry_gateways_basic_all(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -266,6 +276,7 @@ pub(crate) async fn entry_gateways_basic_all(
         ))
     ),
 )]
+#[deprecated]
 pub(crate) async fn exit_gateways_basic_active(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -289,6 +300,7 @@ pub(crate) async fn exit_gateways_basic_active(
         ))
     ),
 )]
+#[deprecated(note = "use '/v2/unstable/nym-nodes/skimmed/exit-gateways' instead")]
 pub(crate) async fn exit_gateways_basic_all(
     state: State<AppState>,
     query_params: Query<NodesParams>,

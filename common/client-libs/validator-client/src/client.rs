@@ -48,6 +48,46 @@ use crate::rpc::http_client;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcValidatorClient, HttpRpcClient, QueryHttpRpcValidatorClient};
 
+// a simple helper macro to define to repeatedly call a paged query until a full response is constructed
+macro_rules! collect_paged_skimmed_v2 {
+    ( $self:ident, $f: ident ) => {{
+        // unroll first loop iteration in order to obtain the metadata
+        let mut page = 0;
+        let res = $self
+            .nym_api
+            .$f(false, Some(page), None, $self.use_bincode)
+            .await?;
+        let mut nodes = res.nodes.data;
+        let metadata = res.metadata;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let mut res = $self
+                .nym_api
+                .$f(false, Some(page), None, $self.use_bincode)
+                .await?;
+
+            if metadata != res.metadata {
+                return Err(ValidatorClientError::InconsistentPagedMetadata);
+            }
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+    }};
+}
+
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -431,50 +471,15 @@ impl NymApiClient {
     pub async fn get_all_basic_entry_assigned_nodes(
         &self,
     ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
-        self.get_all_basic_entry_assigned_nodes_with_metadata()
+        self.get_all_basic_entry_assigned_nodes_v2()
             .await
             .map(|res| res.nodes)
     }
 
-    pub async fn get_all_basic_entry_assigned_nodes_with_metadata(
+    pub async fn get_all_basic_entry_assigned_nodes_v2(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
-        let mut page = 0;
-
-        // unroll first loop iteration in order to obtain the metadata
-        let res = self
-            .nym_api
-            .get_basic_entry_assigned_nodes(false, Some(page), None, self.use_bincode)
-            .await?;
-        let mut nodes = res.nodes.data;
-        let metadata = res.metadata;
-
-        if res.nodes.pagination.total == nodes.len() {
-            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
-        }
-
-        page += 1;
-
-        loop {
-            let mut res = self
-                .nym_api
-                .get_basic_entry_assigned_nodes(false, Some(page), None, self.use_bincode)
-                .await?;
-
-            if metadata != res.metadata {
-                return Err(ValidatorClientError::InconsistentPagedMetadata);
-            }
-
-            nodes.append(&mut res.nodes.data);
-            if nodes.len() < res.nodes.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+        collect_paged_skimmed_v2!(self, get_basic_entry_assigned_nodes_v2)
     }
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
@@ -491,42 +496,7 @@ impl NymApiClient {
     pub async fn get_all_basic_active_mixing_assigned_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
-        let mut page = 0;
-
-        // unroll first loop iteration in order to obtain the metadata
-        let res = self
-            .nym_api
-            .get_basic_active_mixing_assigned_nodes(false, Some(page), None, self.use_bincode)
-            .await?;
-        let mut nodes = res.nodes.data;
-        let metadata = res.metadata;
-
-        if res.nodes.pagination.total == nodes.len() {
-            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
-        }
-
-        page += 1;
-
-        loop {
-            let mut res = self
-                .nym_api
-                .get_basic_active_mixing_assigned_nodes(false, Some(page), None, self.use_bincode)
-                .await?;
-
-            if metadata != res.metadata {
-                return Err(ValidatorClientError::InconsistentPagedMetadata);
-            }
-
-            nodes.append(&mut res.nodes.data);
-            if nodes.len() < res.nodes.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+        collect_paged_skimmed_v2!(self, get_basic_active_mixing_assigned_nodes_v2)
     }
 
     /// retrieve basic information for nodes are capable of operating as a mixnode
@@ -543,42 +513,7 @@ impl NymApiClient {
     pub async fn get_all_basic_mixing_capable_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
-        let mut page = 0;
-
-        // unroll first loop iteration in order to obtain the metadata
-        let res = self
-            .nym_api
-            .get_basic_mixing_capable_nodes(false, Some(page), None, self.use_bincode)
-            .await?;
-        let mut nodes = res.nodes.data;
-        let metadata = res.metadata;
-
-        if res.nodes.pagination.total == nodes.len() {
-            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
-        }
-
-        page += 1;
-
-        loop {
-            let mut res = self
-                .nym_api
-                .get_basic_mixing_capable_nodes(false, Some(page), None, self.use_bincode)
-                .await?;
-
-            if metadata != res.metadata {
-                return Err(ValidatorClientError::InconsistentPagedMetadata);
-            }
-
-            nodes.append(&mut res.nodes.data);
-            if nodes.len() < res.nodes.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+        collect_paged_skimmed_v2!(self, get_basic_mixing_capable_nodes_v2)
     }
 
     /// retrieve basic information for all bonded nodes on the network
@@ -592,42 +527,7 @@ impl NymApiClient {
     pub async fn get_all_basic_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
-        let mut page = 0;
-
-        // unroll first loop iteration in order to obtain the metadata
-        let res = self
-            .nym_api
-            .get_basic_nodes(false, Some(page), None, self.use_bincode)
-            .await?;
-        let mut nodes = res.nodes.data;
-        let metadata = res.metadata;
-
-        if res.nodes.pagination.total == nodes.len() {
-            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
-        }
-
-        page += 1;
-
-        loop {
-            let mut res = self
-                .nym_api
-                .get_basic_nodes(false, Some(page), None, self.use_bincode)
-                .await?;
-
-            if metadata != res.metadata {
-                return Err(ValidatorClientError::InconsistentPagedMetadata);
-            }
-
-            nodes.append(&mut res.nodes.data);
-            if nodes.len() < res.nodes.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+        collect_paged_skimmed_v2!(self, get_basic_nodes_v2)
     }
 
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {

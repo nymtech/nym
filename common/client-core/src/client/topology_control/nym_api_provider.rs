@@ -124,7 +124,7 @@ impl NymApiTopologyProvider {
             // TODO: we really should be getting ACTIVE gateways only
             let gateways_fut = self
                 .validator_client
-                .get_all_basic_entry_assigned_nodes_with_metadata();
+                .get_all_basic_entry_assigned_nodes_v2();
 
             let (rewarded_set, mixnodes_res, gateways_res) =
                 futures::try_join!(rewarded_set_fut, mixnodes_fut, gateways_fut)

@@ -24,14 +24,16 @@ use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::nym_nodes::full_fat::nodes_detailed;
 use crate::unstable_routes::v1::nym_nodes::handlers::nodes_by_addresses;
 use crate::unstable_routes::v1::nym_nodes::semi_skimmed::nodes_expanded;
+use axum::routing::{get, post};
+use axum::Router;
+use tower_http::compression::CompressionLayer;
+
+#[allow(deprecated)]
 use crate::unstable_routes::v1::nym_nodes::skimmed::{
     entry_gateways_basic_active, entry_gateways_basic_all, exit_gateways_basic_active,
     exit_gateways_basic_all, mixnodes_basic_active, mixnodes_basic_all, nodes_basic_active,
     nodes_basic_all,
 };
-use axum::routing::{get, post};
-use axum::Router;
-use tower_http::compression::CompressionLayer;
 
 pub(crate) mod full_fat;
 pub(crate) mod handlers;

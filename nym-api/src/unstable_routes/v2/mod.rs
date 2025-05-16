@@ -4,6 +4,8 @@
 use crate::support::http::state::AppState;
 use axum::Router;
 
+pub(crate) mod nym_nodes;
+
 pub(crate) fn unstable_routes_v2() -> Router<AppState> {
-    Router::new()
+    Router::new().nest("/nym-nodes", nym_nodes::routes())
 }

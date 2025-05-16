@@ -108,13 +108,13 @@ impl AddressInfoCache {
             address: account_id.to_string(),
             balance: balance.into(),
             delegations: delegation_data
-                .delegations()
                 .into_iter()
                 .map(|d| NyxAccountDelegationDetails {
-                    delegated: d.amount,
-                    height: d.height,
-                    node_id: d.node_id,
-                    proxy: d.proxy,
+                    delegated: d.details().amount.clone(),
+                    height: d.details().height,
+                    node_id: d.details().node_id,
+                    proxy: d.details().proxy.clone(),
+                    node_bonded: d.is_node_bonded(),
                 })
                 .collect(),
             accumulated_rewards,

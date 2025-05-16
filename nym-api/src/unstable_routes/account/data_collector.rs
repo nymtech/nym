@@ -8,10 +8,9 @@ use crate::{
 };
 use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;
-use nym_topology::NodeId;
 use nym_validator_client::nyxd::AccountId;
 use std::collections::{HashMap, HashSet};
-use tracing::warn;
+use tracing::error;
 
 pub(crate) struct AddressDataCollector {
     nyxd_client: crate::nyxd::Client,
@@ -56,18 +55,18 @@ impl AddressDataCollector {
         Ok(balance)
     }
 
-    pub(crate) async fn get_delegations(&mut self) -> AxumResult<AddressDelegationInfo> {
+    pub(crate) async fn get_delegations(&mut self) -> AxumResult<Vec<AddressDelegationInfo>> {
         let og_delegations = self
             .nyxd_client
             .get_all_delegator_delegations(&self.account_id)
-            .await?;
+            .await?
+            .into_iter()
+            .map(|delegation| (delegation.node_id, delegation))
+            .collect::<HashMap<_, _>>();
 
-        let delegated_to_nodes = og_delegations
-            .iter()
-            .map(|d| d.node_id)
-            .collect::<HashSet<_>>();
+        let mut node_delegation_info = Vec::new();
 
-        let nym_nodes = self
+        let delegated_to_nodes_bonded = self
             .nym_contract_cache
             .all_cached_nym_nodes()
             .await
@@ -85,60 +84,74 @@ impl AddressDataCollector {
                     // add to totals
                     self.total_value += pending_operator_reward;
                 }
-                if delegated_to_nodes.contains(&node_details.node_id()) {
-                    Some((
-                        node_details.node_id(),
-                        // avoid cloning node data which we don't need
-                        (
-                            node_details.rewarding_details.clone(),
-                            node_details.is_unbonding(),
-                        ),
-                    ))
+                if let Some(delegation) = og_delegations.get(&node_details.node_id()) {
+                    node_delegation_info.push(AddressDelegationInfo {
+                        details: delegation.clone(),
+                        node_reward_info: NodeBondStatus::Bonded {
+                            rewarding_info: node_details.rewarding_details.to_owned(),
+                            unbonding: node_details.is_unbonding(),
+                        },
+                    });
+
+                    Some(node_details.node_id())
                 } else {
                     None
                 }
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<HashSet<_>>();
 
-        Ok(AddressDelegationInfo {
-            delegations: og_delegations,
-            delegated_to_nodes: nym_nodes,
-        })
+        for (node_id, delegation) in og_delegations {
+            if !delegated_to_nodes_bonded.contains(&node_id) {
+                node_delegation_info.push(AddressDelegationInfo {
+                    details: delegation.clone(),
+                    node_reward_info: NodeBondStatus::UnBonded,
+                });
+            }
+        }
+
+        Ok(node_delegation_info)
     }
 
     pub(crate) async fn calculate_rewards(
         &mut self,
-        delegation_data: &AddressDelegationInfo,
+        delegation_data: &Vec<AddressDelegationInfo>,
     ) -> AxumResult<Vec<NyxAccountDelegationRewardDetails>> {
         let mut accumulated_rewards = Vec::new();
-        for delegation in delegation_data.delegations.iter() {
-            let node_id = &delegation.node_id;
+        for delegation in delegation_data {
+            let node_id = delegation.details.node_id;
 
-            if let Some((rewarding_details, is_unbonding)) =
-                delegation_data.delegated_to_nodes.get(node_id)
-            {
-                match rewarding_details.determine_delegation_reward(delegation) {
-                    Ok(delegation_reward) => {
-                        let reward = NyxAccountDelegationRewardDetails {
-                            node_id: delegation.node_id,
-                            rewards: decimal_to_coin(delegation_reward, &self.base_denom),
-                            amount_staked: delegation.amount.clone(),
-                            node_still_fully_bonded: !is_unbonding,
-                        };
-                        // 4. sum the rewards and delegations
-                        self.total_delegations += delegation.amount.amount.u128();
-                        self.total_value += delegation.amount.amount.u128();
-                        self.total_value += reward.rewards.amount.u128();
-                        self.claimable_rewards += reward.rewards.amount.u128();
+            match &delegation.node_reward_info {
+                NodeBondStatus::Bonded {
+                    rewarding_info,
+                    unbonding,
+                } => {
+                    match rewarding_info.determine_delegation_reward(&delegation.details) {
+                        Ok(delegation_reward) => {
+                            let reward = NyxAccountDelegationRewardDetails {
+                                node_id,
+                                rewards: decimal_to_coin(delegation_reward, &self.base_denom),
+                                amount_staked: delegation.details.amount.clone(),
+                                node_still_fully_bonded: !unbonding,
+                            };
+                            // 4. sum the rewards and delegations
+                            self.total_delegations += delegation.details.amount.amount.u128();
+                            self.total_value += delegation.details.amount.amount.u128();
+                            self.total_value += reward.rewards.amount.u128();
+                            self.claimable_rewards += reward.rewards.amount.u128();
 
-                        accumulated_rewards.push(reward);
+                            accumulated_rewards.push(reward);
+                        }
+                        Err(err) => {
+                            error!(
+                                "Couldn't determine delegations for {} on node {}: {}",
+                                &self.account_id, node_id, err
+                            )
+                        }
                     }
-                    Err(err) => {
-                        warn!(
-                            "Couldn't determine delegations for {} on node {}: {}",
-                            &self.account_id, node_id, err
-                        )
-                    }
+                }
+                NodeBondStatus::UnBonded => {
+                    // directory cache doesn't store node details required to
+                    // calculate rewarding for unbonded nodes
                 }
             }
         }
@@ -171,17 +184,27 @@ impl AddressDataCollector {
 }
 
 pub(crate) struct AddressDelegationInfo {
-    delegations: Vec<nym_mixnet_contract_common::Delegation>,
-    delegated_to_nodes: HashMap<NodeId, RewardAndBondInfo>,
+    details: nym_mixnet_contract_common::Delegation,
+    node_reward_info: NodeBondStatus,
 }
 
 impl AddressDelegationInfo {
-    pub(crate) fn delegations(self) -> Vec<nym_mixnet_contract_common::Delegation> {
-        self.delegations
+    pub(crate) fn details(&self) -> &nym_mixnet_contract_common::Delegation {
+        &self.details
+    }
+
+    pub(crate) fn is_node_bonded(&self) -> bool {
+        matches!(self.node_reward_info, NodeBondStatus::Bonded { .. })
     }
 }
 
-type RewardAndBondInfo = (NodeRewarding, bool);
+pub(crate) enum NodeBondStatus {
+    Bonded {
+        rewarding_info: NodeRewarding,
+        unbonding: bool,
+    },
+    UnBonded,
+}
 
 fn decimal_to_coin(decimal: Decimal, denom: impl Into<String>) -> Coin {
     Coin::new(decimal.to_uint_floor(), denom)
@@ -189,6 +212,7 @@ fn decimal_to_coin(decimal: Decimal, denom: impl Into<String>) -> Coin {
 
 #[cfg(test)]
 mod test {
+
     use super::*;
 
     #[tokio::test]

@@ -21,6 +21,7 @@ pub struct NyxAccountDelegationDetails {
     pub height: u64,
     #[schema(value_type = Option<String>)]
     pub proxy: Option<Addr>,
+    pub node_bonded: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
@@ -41,6 +42,9 @@ pub struct NyxAccountDetails {
     #[schema(value_type = CoinSchema)]
     pub total_value: Coin,
     pub delegations: Vec<NyxAccountDelegationDetails>,
+    /// Shows rewards from delegations to **currently** bonded nodes.
+    /// Rewards from nodes that user delegated to, but were later unbonded,
+    /// are claimable, but not shown here.
     pub accumulated_rewards: Vec<NyxAccountDelegationRewardDetails>,
     #[schema(value_type = String)]
     pub total_delegations: Coin,

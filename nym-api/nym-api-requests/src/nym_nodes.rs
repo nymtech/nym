@@ -74,35 +74,39 @@ impl NodesResponseMetadata {
     }
 }
 
-const TODO: &str =
-    "create new endpoints with metadata after poc works for backwards bincode compat...";
-
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 // can't add any new fields here, even with #[serde(default)] and whatnot,
 // because it will break all clients using bincode : (
-pub struct LegacyPaginatedCachedNodesResponse<T> {
+pub struct PaginatedCachedNodesResponseV1<T> {
     pub status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct PaginatedCachedNodesResponse<T> {
-    // make sure to flatten it to preserve backwards compatibility!!
-    #[serde(flatten)]
+pub struct PaginatedCachedNodesResponseV2<T> {
     pub metadata: NodesResponseMetadata,
-
     pub nodes: PaginatedResponse<T>,
 }
 
-impl<T> PaginatedCachedNodesResponse<T> {
+impl<T> From<PaginatedCachedNodesResponseV2<T>> for PaginatedCachedNodesResponseV1<T> {
+    fn from(res: PaginatedCachedNodesResponseV2<T>) -> Self {
+        PaginatedCachedNodesResponseV1 {
+            status: res.metadata.status,
+            refreshed_at: res.metadata.refreshed_at,
+            nodes: res.nodes,
+        }
+    }
+}
+
+impl<T> PaginatedCachedNodesResponseV2<T> {
     pub fn new_full(
         absolute_epoch_id: EpochId,
         rotation_id: u32,
         refreshed_at: impl Into<OffsetDateTimeJsonSchemaWrapper>,
         nodes: Vec<T>,
     ) -> Self {
-        PaginatedCachedNodesResponse {
+        PaginatedCachedNodesResponseV2 {
             nodes: PaginatedResponse {
                 pagination: Pagination {
                     total: nodes.len(),
@@ -126,7 +130,7 @@ impl<T> PaginatedCachedNodesResponse<T> {
     }
 
     pub fn no_updates(absolute_epoch_id: EpochId, rotation_id: u32) -> Self {
-        PaginatedCachedNodesResponse {
+        PaginatedCachedNodesResponseV2 {
             nodes: PaginatedResponse {
                 pagination: Pagination {
                     total: 0,

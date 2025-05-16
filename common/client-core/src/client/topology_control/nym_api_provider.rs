@@ -130,7 +130,7 @@ impl NymApiTopologyProvider {
             // TODO: we really should be getting ACTIVE gateways only
             let res = self
                 .validator_client
-                .get_all_basic_entry_assigned_nodes_with_metadata()
+                .get_all_basic_entry_assigned_nodes_v2()
                 .await
                 .inspect_err(|err| error!("failed to get network gateways: {err}"))
                 .ok()?;

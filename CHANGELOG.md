@@ -4,6 +4,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.9-appenzeller] (2025-05-13)
+
+- build(deps): bump clap from 4.5.36 to 4.5.37 in the patch-updates group ([#5722])
+- build(deps): bump golang.org/x/net from 0.36.0 to 0.38.0 in /wasm/mix-fetch/go-mix-conn ([#5720])
+- build(deps-dev): bump http-proxy-middleware from 2.0.6 to 2.0.9 in /wasm/client/internal-dev ([#5719])
+- Add /account/{address} ([#5673])
+- Add contains ticketbook data db query ([#5670])
+
+[#5722]: https://github.com/nymtech/nym/pull/5722
+[#5720]: https://github.com/nymtech/nym/pull/5720
+[#5719]: https://github.com/nymtech/nym/pull/5719
+[#5673]: https://github.com/nymtech/nym/pull/5673
+[#5670]: https://github.com/nymtech/nym/pull/5670
+
 ## [2025.8-tourist] (2025-04-29)
 
 - add reserved byte to reply surb serialisation ([#5731])

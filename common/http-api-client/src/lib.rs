@@ -290,11 +290,7 @@ impl ClientBuilder {
         let reqwest_client_builder = {
             let r = reqwest::ClientBuilder::new();
 
-            // Note this is extra as the `gzip` feature for `reqwest` crate should be enabled which
-            // `"Enable[s] auto gzip decompression by checking the Content-Encoding response header."`
-            //
-            // I am going to leave it here anyways so that gzip decompression is attempted even if
-            // that feature is removed.
+            // We enable gzip explicitly to ensure that compiling reqwest without the corresponding feature would error at compile time.
             r.gzip(true)
         };
 
@@ -562,7 +558,7 @@ impl ApiClientCore for Client {
         // Indicate that compressed responses are preferred, but if not supported other encodings are fine.
         // TODO: Down the road we can be more selective about adding this, but it's inclusion here guarantees
         // that we use compression when available.
-        request = request.header(reqwest::header::ACCEPT_ENCODING, "gzip;q=1.0, *;q=0.5");
+        request = request.header(reqwest::header::ACCEPT_ENCODING, "gzip");
 
         if let Some(body) = json_body {
             request = request.json(body);

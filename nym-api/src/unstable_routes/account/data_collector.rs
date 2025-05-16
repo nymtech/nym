@@ -87,10 +87,10 @@ impl AddressDataCollector {
                 if let Some(delegation) = og_delegations.get(&node_details.node_id()) {
                     node_delegation_info.push(AddressDelegationInfo {
                         details: delegation.clone(),
-                        node_reward_info: NodeBondStatus::Bonded(
-                            node_details.rewarding_details.to_owned(),
-                            node_details.is_unbonding(),
-                        ),
+                        node_reward_info: NodeBondStatus::Bonded {
+                            rewarding_info: node_details.rewarding_details.to_owned(),
+                            unbonding: node_details.is_unbonding(),
+                        },
                     });
 
                     Some(node_details.node_id())
@@ -121,14 +121,17 @@ impl AddressDataCollector {
             let node_id = delegation.details.node_id;
 
             match &delegation.node_reward_info {
-                NodeBondStatus::Bonded(node_rewarding, is_unbonding) => {
-                    match node_rewarding.determine_delegation_reward(&delegation.details) {
+                NodeBondStatus::Bonded {
+                    rewarding_info,
+                    unbonding,
+                } => {
+                    match rewarding_info.determine_delegation_reward(&delegation.details) {
                         Ok(delegation_reward) => {
                             let reward = NyxAccountDelegationRewardDetails {
                                 node_id,
                                 rewards: decimal_to_coin(delegation_reward, &self.base_denom),
                                 amount_staked: delegation.details.amount.clone(),
-                                node_still_fully_bonded: !is_unbonding,
+                                node_still_fully_bonded: !unbonding,
                             };
                             // 4. sum the rewards and delegations
                             self.total_delegations += delegation.details.amount.amount.u128();
@@ -191,13 +194,15 @@ impl AddressDelegationInfo {
     }
 
     pub(crate) fn is_node_bonded(&self) -> bool {
-        matches!(self.node_reward_info, NodeBondStatus::Bonded(_, _))
+        matches!(self.node_reward_info, NodeBondStatus::Bonded { .. })
     }
 }
 
 pub(crate) enum NodeBondStatus {
-    /// bool: is node in the process of unbonding
-    Bonded(NodeRewarding, bool),
+    Bonded {
+        rewarding_info: NodeRewarding,
+        unbonding: bool,
+    },
     UnBonded,
 }
 

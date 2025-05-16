@@ -136,9 +136,11 @@
 //! ```
 #![warn(missing_docs)]
 
+pub use reqwest::{IntoUrl, StatusCode};
+
 use async_trait::async_trait;
 use reqwest::header::HeaderValue;
-use reqwest::{RequestBuilder, Response, StatusCode};
+use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -151,7 +153,6 @@ use bytes::Bytes;
 use http::header::CONTENT_TYPE;
 use http::HeaderMap;
 use mime::Mime;
-pub use reqwest::IntoUrl;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
@@ -219,6 +220,28 @@ pub enum HttpClientError<E: Display = String> {
     #[cfg(target_arch = "wasm32")]
     #[error("the request has timed out")]
     RequestTimeout,
+}
+
+impl HttpClientError {
+    /// Returns true if the error is a timeout.
+    pub fn is_timeout(&self) -> bool {
+        match self {
+            HttpClientError::ReqwestClientError { source } => source.is_timeout(),
+            #[cfg(target_arch = "wasm32")]
+            HttpClientError::RequestTimeout => true,
+            _ => false,
+        }
+    }
+
+    /// Returns the HTTP status code if available.
+    pub fn status_code(&self) -> Option<StatusCode> {
+        match self {
+            HttpClientError::RequestFailure { status } => Some(*status),
+            HttpClientError::EmptyResponse { status } => Some(*status),
+            HttpClientError::EndpointFailure { status, .. } => Some(*status),
+            _ => None,
+        }
+    }
 }
 
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently

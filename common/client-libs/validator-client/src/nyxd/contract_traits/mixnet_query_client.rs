@@ -12,8 +12,8 @@ use nym_mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, Preassi
 use nym_mixnet_contract_common::nym_node::{
     EpochAssignmentResponse, NodeDetailsByIdentityResponse, NodeDetailsResponse,
     NodeOwnershipResponse, NodeRewardingDetailsResponse, PagedNymNodeBondsResponse,
-    PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, Role, RolesMetadataResponse,
-    StakeSaturationResponse, UnbondedNodeResponse, UnbondedNymNode,
+    PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, RewardedSetMetadata, Role,
+    RolesMetadataResponse, StakeSaturationResponse, UnbondedNodeResponse, UnbondedNymNode,
 };
 use nym_mixnet_contract_common::reward_params::WorkFactor;
 use nym_mixnet_contract_common::{
@@ -683,11 +683,19 @@ pub trait MixnetQueryClientExt: MixnetQueryClient {
     async fn get_rewarded_set(&self) -> Result<EpochRewardedSet, NyxdError> {
         let error_response = |message| Err(NyxdError::extension_query_failure("mixnet", message));
 
+        // bypass for catch 22 for fresh contracts. we can't refresh cache because there's no rewarded set,
+        // but we can't set the rewarded set because we didn't refresh the cache
         let metadata = self.get_rewarded_set_metadata().await?;
-        if !metadata.metadata.fully_assigned {
+
+        let is_default = metadata.metadata == RewardedSetMetadata::default();
+        if !metadata.metadata.fully_assigned && !is_default {
             return error_response("the rewarded set hasn't been fully assigned for this epoch");
         }
         let expected_epoch_id = metadata.metadata.epoch_id;
+
+        if is_default {
+            return Ok(Default::default());
+        }
 
         // if we have to query those things more frequently, we could do it concurrently,
         // but as it stands now, it happens so infrequently it might as well be sequential

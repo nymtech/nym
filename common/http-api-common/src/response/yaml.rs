@@ -30,6 +30,10 @@ impl<T> Yaml<T> {
         self.0.headers.insert(name, value.into());
         self
     }
+
+    pub(crate) fn map<U, F: FnOnce(T) -> U>(self, op: F) -> Yaml<U> {
+        Yaml(self.0.map(op))
+    }
 }
 
 impl<T> IntoResponse for Yaml<T>

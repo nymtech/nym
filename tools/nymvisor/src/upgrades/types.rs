@@ -152,7 +152,7 @@ impl UpgradePlan {
         let mut upgrade_plan: UpgradePlan = fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+                    .map_err(io::Error::other)
             })
             .map_err(|source| NymvisorError::UpgradePlanLoadFailure {
                 path: path.to_path_buf(),
@@ -276,7 +276,7 @@ impl UpgradeInfo {
         fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+                    .map_err(io::Error::other)
             })
             .map_err(|source| NymvisorError::UpgradeInfoLoadFailure {
                 path: path.to_path_buf(),
@@ -428,7 +428,7 @@ impl UpgradeHistory {
         let mut history: UpgradeHistory = fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+                    .map_err(io::Error::other)
             })
             .map_err(|source| NymvisorError::UpgradeHistoryLoadFailure {
                 path: path.to_path_buf(),
@@ -483,7 +483,7 @@ impl CurrentVersionInfo {
         fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+                    .map_err(io::Error::other)
             })
             .map_err(|source| NymvisorError::CurrentVersionInfoLoadFailure {
                 path: path.to_path_buf(),

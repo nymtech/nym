@@ -212,19 +212,18 @@ where
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::result::Result<usize, std::io::Error>> {
-        ready!(self.tx.poll_ready_unpin(cx)).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
-        })?;
+        ready!(self.tx.poll_ready_unpin(cx))
+            .map_err(|_| std::io::Error::other("failed to send packet to mixnet"))?;
 
         let input_message = self
             .message_translator
             .to_input_message(buf)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            .map_err(std::io::Error::other)?;
 
         // Pass it to the mixnet sender
-        self.tx.start_send_unpin(input_message).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
-        })?;
+        self.tx
+            .start_send_unpin(input_message)
+            .map_err(|_| std::io::Error::other("failed to send packet to mixnet"))?;
 
         Poll::Ready(Ok(buf.len()))
     }
@@ -233,9 +232,8 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<std::result::Result<(), std::io::Error>> {
-        ready!(self.tx.poll_flush_unpin(cx)).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "failed to send packet to mixnet")
-        })?;
+        ready!(self.tx.poll_flush_unpin(cx))
+            .map_err(|_| std::io::Error::other("failed to send packet to mixnet"))?;
         Poll::Ready(Ok(()))
     }
 

@@ -48,8 +48,7 @@ pub mod nym_config {
             log::trace!("Loading from file: {:#?}", filepath.as_ref().to_owned());
             let config_contents = fs::read_to_string(filepath)?;
 
-            toml::from_str(&config_contents)
-                .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+            toml::from_str(&config_contents).map_err(io::Error::other)
         }
     }
 }

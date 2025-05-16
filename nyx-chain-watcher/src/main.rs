@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use clap::{crate_name, crate_version, Parser};
 use nym_bin_common::bin_info_owned;
 use nym_bin_common::logging::maybe_print_banner;

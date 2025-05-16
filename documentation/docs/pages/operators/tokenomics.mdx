@@ -12,6 +12,7 @@ import StakingTarget from 'components/outputs/api-scraping-outputs/nyx-outputs/s
 import StakingScaleFactor from 'components/outputs/api-scraping-outputs/nyx-outputs/staking-scale-factor.md';
 import StakeSaturation from 'components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md';
 import StakeSaturationSnippet from 'components/operators/snippets/stake-saturation.mdx';
+import StakingSupply from 'components/outputs/api-scraping-outputs/nyx-outputs/staking_supply.md';
 import EpochRewardBudget from 'components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md';
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
@@ -53,9 +54,9 @@ Besides the Mixnet itself, Nym Network is secured by its own blockchain Nyx (IBC
 
 * **Incentives:** Distribute rewards to decentralised nodes based on mixing and routing (work). This dynamic ensures that the network is as robust as possible - the nodes are chosen every hour according to their performance.
 
-* **Network take over defense:** Another decisive factor for a node to be chosen to the network active set is reputation. Reputation is a size of stake (delegation) where delegators earn proportional percentage of nodes rewards. Nodes without reputation are not chosen to take part in the network active set.
+* **Network take over defense:** Another decisive factor for a node to be chosen to the network active set is reputation. Reputation is a size of stake (self bond + delegation stake) where delegators earn proportional percentage of nodes rewards. Nodes without reputation are not chosen to take part in the network active set.
 
-* **Centralisation defense:** Any node can only have a certain stake (called stake saturation) to earn maximum rewards, increasing stake level per node leads to decreasing rewards for the operator and all delegators. This feature makes it more difficult for whales to over-stake their nodes or to attract more delegators (stakers) as they would become dis-advantaged.
+* **Centralisation defense:** Any node can only have a certain stake called [stake saturation](#stake-saturation) (self bond + delegation stake) to earn maximum rewards, increasing node stake level beyond this point leads to decreasing rewards for the operator and all delegators. This feature makes it more difficult for whales to over-stake their nodes or to attract more delegators (stakers) as they would become dis-advantaged.
 
 To learn more about rewards calculation and distribution, read the next page [*Nym Mixnet Rewards*](tokenomics/mixnet-rewards.mdx).
 
@@ -117,9 +118,15 @@ A number of aimed NYM tokens to be staked in the network. The staking target a i
 > **staking_target = staking_supply_scale_factor \* circulating_supply**
 </Callout>
 
+{/*
 Staking supply scale factor is currently it's set to be <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>.
 
-The value of this variable can be changed to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>, <b>the staking target is <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM.</b>
+The value of this variable can is changed from time to time to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>, <b>the staking target is <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM.</b>
+*/}
+
+Staking supply scale factor is currently at 30.5%.
+
+The value of this variable is changed from time to time to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor 30.5%, <b>the staking target is <span style={{display: 'inline-block'}}><StakingSupply /></span> NYM.</b>
 
 #### Stake saturation
 

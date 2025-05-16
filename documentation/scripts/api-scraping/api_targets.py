@@ -269,7 +269,7 @@ def parser_main():
             action="store_true",
             help="A multiplier of staking supply scale factor and circulating supply"
             )
-
+            
     parser_calculate.add_argument(
             "-s", "--separator",
             type=str,

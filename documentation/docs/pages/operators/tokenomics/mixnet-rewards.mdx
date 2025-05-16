@@ -55,14 +55,14 @@ Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://
 </Callout>
 
 
-## Rewards Logic & Calculation
+## Rewards Logic & Overview
 
 This is a quick overview, to understand the logic behind fundamentals like [rewarded set selection](#rewarded-set-selection), [node performance](#node-performance-calculation), [stake saturation](#stake-saturation), or [rewards calculation](#rewards-calculation), please read the chapters below.
 
 * **The current reward system is called [*Naive rewarding*](#naive-rewarding) - an intermediate step - where the operators of `nym-node` get rewarded from [Mixmining pool](https://validator.nymtech.net/api/v1/epoch/reward_params), which emits <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM per hour**
 * **Only nodes selected to [rewarded set](../tokenomics.mdx#active-set) of Mixnet receive rewards**
-* The [rewarded set](../tokenomics.mdx#active-set) of `nym-nodes` is currently **240 nodes in total and it's selected for each new epoch (60 min)** 
-* Each node get's the same proportion of work factor because of the *naive* distribution of work
+* The [rewarded set](../tokenomics.mdx#active-set) of the Mixnet is currently **240 nodes in total and it's selected for each new epoch (60 min)**, from all the nodes registered (bonded) in the network 
+* Each node gets the same proportion of work factor because of the *naive* distribution of work
 * In the [final model](#roadmap), nodes will get rewarded based on their layer position and the work they do (collected user tickets), where the work factor distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as [listed below](#nym-network-rewarded-set-distribution)
 * If a node is selected to the rewarded set, it will be rewarded in the end of the epoch, based on this reward calculation formula:
 
@@ -433,9 +433,9 @@ Difference between the smallest possible bond 100 NYM and a maximum bond 1mm NYM
 
 <RewardsCalculator />
 
-> Nym documentation pages are rendered statically (like in Nextra or Next.js static export mode), that's why they cannot fetch from APIs at runtime by default, therefore on chain data must be filled manually.
+> Nym documentation pages are rendered statically (like in Nextra or Next.js static export mode), that's why we don't fetch from APIs at runtime, therefore on chain data must be filled by the user at the moment to ensure they are up to date.
 
-**Rewards are send to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](#rewards-distribution).
+**Rewards are sent to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](#rewards-distribution).
 
 Given that there is a highly unlikely chance of all nodes having maximum stake saturation and performance, in majority of cases there will be some part of the reward budget left undistributed. This "change" is then kept in the [Mixmining reserve](../tokenomics#tokenomics).
 
@@ -453,7 +453,7 @@ In case you don't know your nodes `NODE_ID`, it's easy to find as long as your n
 Once the [rewards are assigned per each node](#rewards-calculation) they need to be distributed between the operator of the node and delegators (people who staked their NYM on that node). The distribution is pretty straightforward and it happens in the following order:
 
 1. **Operators Cost (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](#nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
-2. **Profit Margin (P.M.)**: What's the extra % cut that the operator requests (this value is set by the operator in the bonding wallet node settings, smallest value is 20% to prevent race to bottom)
+2. **Profit Margin (P.M.)**: The extra % cut that the operator requests (this value is set by the operator in the bonding wallet node settings, smallest value is 20% to prevent race to bottom)
 3. **Bond & Stake proportionally**: The remaining rewards are distributed proportionally to the weight of every stake (including self bond, self delegation and each delegation).
 
 #### Nyx Epoch vs Interval

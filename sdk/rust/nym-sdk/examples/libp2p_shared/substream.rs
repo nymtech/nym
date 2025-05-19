@@ -68,7 +68,7 @@ impl Substream {
     }
 
     fn check_closed(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Result<(), IoError> {
-        let closed_err = IoError::new(ErrorKind::Other, "stream closed");
+        let closed_err = IoError::other("stream closed");
 
         // close_rx will return an error if the channel is closed (ie. sender was dropped),
         // or if it's empty
@@ -172,12 +172,7 @@ impl AsyncWrite for Substream {
                     ),
                 }),
             })
-            .map_err(|e| {
-                IoError::new(
-                    ErrorKind::Other,
-                    format!("poll_write outbound_tx error: {}", e),
-                )
-            })?;
+            .map_err(|e| IoError::other(format!("poll_write outbound_tx error: {}", e)))?;
 
         Poll::Ready(Ok(buf.len()))
     }
@@ -195,7 +190,7 @@ impl AsyncWrite for Substream {
 
         let mut closed = self.closed.lock();
         if *closed {
-            return Poll::Ready(Err(IoError::new(ErrorKind::Other, "stream closed")));
+            return Poll::Ready(Err(IoError::other("stream closed")));
         }
 
         *closed = true;
@@ -210,12 +205,7 @@ impl AsyncWrite for Substream {
                     message: SubstreamMessage::new_close(self.substream_id.clone()),
                 }),
             })
-            .map_err(|e| {
-                IoError::new(
-                    ErrorKind::Other,
-                    format!("poll_close outbound_rx error: {}", e),
-                )
-            })?;
+            .map_err(|e| IoError::other(format!("poll_close outbound_rx error: {}", e)))?;
 
         Poll::Ready(Ok(()))
     }

@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::result_large_err)]
+
 use std::error::Error;
 
 use clap::{crate_name, crate_version, Parser};

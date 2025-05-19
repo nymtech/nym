@@ -150,10 +150,7 @@ impl UpgradePlan {
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
         let mut upgrade_plan: UpgradePlan = fs::File::open(path)
-            .and_then(|file| {
-                serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
-            })
+            .and_then(|file| serde_json::from_reader(file).map_err(io::Error::other))
             .map_err(|source| NymvisorError::UpgradePlanLoadFailure {
                 path: path.to_path_buf(),
                 source,
@@ -274,10 +271,7 @@ impl UpgradeInfo {
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
         fs::File::open(path)
-            .and_then(|file| {
-                serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
-            })
+            .and_then(|file| serde_json::from_reader(file).map_err(io::Error::other))
             .map_err(|source| NymvisorError::UpgradeInfoLoadFailure {
                 path: path.to_path_buf(),
                 source,
@@ -426,10 +420,7 @@ impl UpgradeHistory {
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
         let mut history: UpgradeHistory = fs::File::open(path)
-            .and_then(|file| {
-                serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
-            })
+            .and_then(|file| serde_json::from_reader(file).map_err(io::Error::other))
             .map_err(|source| NymvisorError::UpgradeHistoryLoadFailure {
                 path: path.to_path_buf(),
                 source,
@@ -481,10 +472,7 @@ impl CurrentVersionInfo {
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
         fs::File::open(path)
-            .and_then(|file| {
-                serde_json::from_reader(file)
-                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
-            })
+            .and_then(|file| serde_json::from_reader(file).map_err(io::Error::other))
             .map_err(|source| NymvisorError::CurrentVersionInfoLoadFailure {
                 path: path.to_path_buf(),
                 source,

@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CARGO_TERM_COLOR: always
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +28,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          # pinned due to issues building contracts
+          toolchain: 1.86.0
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy

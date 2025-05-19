@@ -1,6 +1,11 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// fine in test code
+#![allow(clippy::panic)]
+#![allow(clippy::unreachable)]
+#![allow(clippy::unimplemented)]
+
 #[cfg(test)]
 pub mod fixtures;
 pub(crate) mod legacy;

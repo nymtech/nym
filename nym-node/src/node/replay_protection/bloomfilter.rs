@@ -238,18 +238,21 @@ impl ReplayProtectionBloomfilters {
     }
 }
 
+// map from particular rotation id to vector of results, based on the order of requests received
+type BatchCheckResult = HashMap<u32, Vec<bool>>;
+
 impl ReplayProtectionBloomfilters {
     pub(crate) fn batch_try_check_and_set(
         &self,
         reply_tags: &HashMap<u32, Vec<&[u8; REPLAY_TAG_SIZE]>>,
-    ) -> Option<Result<HashMap<u32, Vec<bool>>, PoisonError<()>>> {
+    ) -> Option<Result<BatchCheckResult, PoisonError<()>>> {
         let mut guard = match self.inner.try_lock() {
             Ok(guard) => guard,
             Err(TryLockError::Poisoned(_)) => return Some(Err(PoisonError::new(()))),
             Err(TryLockError::WouldBlock) => return None,
         };
 
-        Some(Ok(guard.batch_check_and_set(&reply_tags)))
+        Some(Ok(guard.batch_check_and_set(reply_tags)))
     }
 
     pub(crate) fn batch_check_and_set(
@@ -260,7 +263,7 @@ impl ReplayProtectionBloomfilters {
             return Err(PoisonError::new(()));
         };
 
-        Ok(guard.batch_check_and_set(&reply_tags))
+        Ok(guard.batch_check_and_set(reply_tags))
     }
 }
 

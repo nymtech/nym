@@ -10,8 +10,8 @@ use thiserror::Error;
 // - packet_version (starting with v1.1.0)
 // - packet_size indicator
 // - packet_type
-// - sphinx key rotation (starting with v1.11.0)
-const TODO: &str = "update the ^ version number when this PR is almost ready";
+// - sphinx key rotation (starting with v1.12.0/v1.13.0 - either Cheddar or Dolcelatte release)
+
 // it also just so happens that the only valid values for packet_size indicator include values 1-6
 // therefore if we receive byte `7` (or larger than that) we'll know we received a versioned packet,
 // otherwise we should treat it as legacy

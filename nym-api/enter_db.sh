@@ -1,2 +1,2 @@
 #!/bin/sh
-sqlite3 -init settings.sql /Users/jedrzej/workspace/nym/target/debug/build/nym-api-c386c70ee22514b7/out/nym-api-example.sqlite
+sqlite3 -init settings.sql /Users/jedrzej/workspace/nym/target/debug/build/nym-api-4f01f56c8e0188a3/out/nym-api-example.sqlite

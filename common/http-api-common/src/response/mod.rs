@@ -14,10 +14,9 @@ pub mod bincode;
 pub mod json;
 pub mod yaml;
 
+pub use bincode::Bincode;
 pub use json::Json;
 pub use yaml::Yaml;
-
-pub use bincode::Bincode;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ResponseWrapper<T> {
@@ -71,7 +70,6 @@ impl<T> FormattedResponse<T> {
         match self {
             FormattedResponse::Json(inner) => FormattedResponse::Json(inner.map(op)),
             FormattedResponse::Yaml(inner) => FormattedResponse::Yaml(inner.map(op)),
-            #[cfg(feature = "bincode")]
             FormattedResponse::Bincode(inner) => FormattedResponse::Bincode(inner.map(op)),
         }
     }

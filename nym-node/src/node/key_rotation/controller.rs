@@ -11,7 +11,7 @@ use nym_validator_client::models::{KeyRotationInfoResponse, KeyRotationState};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{interval, sleep, Instant};
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 pub(crate) struct RotationConfig {
     epoch_duration: Duration,
@@ -60,7 +60,7 @@ impl NextAction {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum KeyRotationActionState {
     // generate and pre-announce new key to the nym-api(s)
     PreAnnounce { rotation_id: u32 },
@@ -100,6 +100,10 @@ impl KeyRotationController {
     async fn determine_next_action(&self) -> NextAction {
         loop {
             if let Some(next) = self.try_determine_next_action().await {
+                debug!(
+                    "next key rotation action to take: {:?} at {}",
+                    next.typ, next.deadline
+                );
                 return next;
             }
 
@@ -110,8 +114,12 @@ impl KeyRotationController {
 
     async fn try_determine_next_action(&self) -> Option<NextAction> {
         let key_rotation_info = self.try_get_key_rotation_info().await?;
-        let current_rotation = key_rotation_info.current_key_rotation_id();
+        if key_rotation_info.is_epoch_stuck() {
+            warn!("the epoch is stuck - can't progress with key rotation");
+            return None;
+        }
 
+        let current_rotation = key_rotation_info.current_key_rotation_id();
         let current_epoch = key_rotation_info.current_absolute_epoch_id;
         let next_rotation_epoch = key_rotation_info.next_rotation_starting_epoch_id();
         let current_rotation_epoch = key_rotation_info.current_rotation_starting_epoch_id();
@@ -172,6 +180,7 @@ impl KeyRotationController {
     }
 
     async fn pre_announce_new_key(&self, rotation_id: u32) {
+        info!("pre-announcing new key for rotation {rotation_id}");
         if let Err(err) = self.managed_keys.generate_key_for_new_rotation(rotation_id) {
             error!("failed to generate and store new sphinx key: {err}");
             return;
@@ -192,6 +201,7 @@ impl KeyRotationController {
     }
 
     fn swap_default_key(&self) {
+        info!("attempting to swap the primary key to the previously generated one");
         if let Err(err) = self.managed_keys.rotate_keys() {
             error!("failed to perform sphinx key swap: {err}")
         };
@@ -207,6 +217,7 @@ impl KeyRotationController {
     }
 
     fn purge_old_rotation_data(&self) {
+        info!("purging data associated with the old sphinx key");
         if let Err(err) = self.managed_keys.remove_overlap_key() {
             error!("failed to remove old sphinx key: {err}");
         };

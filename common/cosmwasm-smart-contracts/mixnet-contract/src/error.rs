@@ -193,6 +193,9 @@ pub enum MixnetContractError {
     #[error("attempted to perform the operation with 0 coins. This is not allowed")]
     ZeroCoinAmount,
 
+    #[error("key rotation validity below minimum value")]
+    TooShortRotationInterval,
+
     #[error("this validator ({current_validator}) is not the one responsible for advancing this epoch. It's responsibility of {chosen_validator}.")]
     RewardingValidatorMismatch {
         current_validator: Addr,

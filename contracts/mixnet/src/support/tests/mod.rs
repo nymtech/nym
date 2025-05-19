@@ -1858,6 +1858,7 @@ pub mod test_helpers {
             version_score_params: Default::default(),
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),
+            key_validity_in_epochs: None,
         };
         let env = mock_env();
         let info = sender("creator");

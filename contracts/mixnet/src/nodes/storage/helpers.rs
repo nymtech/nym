@@ -103,7 +103,10 @@ pub(crate) fn next_nymnode_id_counter(store: &mut dyn Storage) -> StdResult<Node
     Ok(id)
 }
 
-pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), MixnetContractError> {
+pub(crate) fn initialise_storage(
+    storage: &mut dyn Storage,
+    key_rotation_validity: u32,
+) -> Result<(), MixnetContractError> {
     let active_bucket = RoleStorageBucket::default();
     let inactive_bucket = active_bucket.other();
 
@@ -128,7 +131,7 @@ pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), Mixnet
     KEY_ROTATION_STATE.save(
         storage,
         &KeyRotationState {
-            validity_epochs: 24,
+            validity_epochs: key_rotation_validity,
             initial_epoch_id: 0,
         },
     )?;

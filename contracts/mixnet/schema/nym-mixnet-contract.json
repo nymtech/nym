@@ -41,6 +41,15 @@
           }
         ]
       },
+      "key_validity_in_epochs": {
+        "default": null,
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "uint32",
+        "minimum": 0.0
+      },
       "profit_margin": {
         "default": {
           "maximum": "1",

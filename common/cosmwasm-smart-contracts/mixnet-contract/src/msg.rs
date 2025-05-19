@@ -82,6 +82,18 @@ pub struct InstantiateMsg {
 
     #[serde(default)]
     pub interval_operating_cost: OperatingCostRange,
+
+    #[serde(default)]
+    pub key_validity_in_epochs: Option<u32>,
+}
+
+impl InstantiateMsg {
+    // needs to give us enough time to pre-announce key for following epoch
+    // and have an overlap with the preceding epoch
+    pub const MIN_KEY_ROTATION_VALIDITY: u32 = 3;
+    pub fn key_validity_in_epochs(&self) -> u32 {
+        self.key_validity_in_epochs.unwrap_or(24)
+    }
 }
 
 #[cw_serde]

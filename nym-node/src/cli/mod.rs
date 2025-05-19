@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::commands::{
-    bonding_information, build_info, migrate, node_details, run, sign, test_throughput,
+    bonding_information, build_info, migrate, node_details, reset_sphinx_keys, run, sign,
+    test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use crate::logging::setup_tracing_logger;
@@ -68,6 +69,9 @@ impl Cli {
             Commands::Migrate(args) => migrate::execute(*args)?,
             Commands::Sign(args) => { Self::execute_async(sign::execute(args))? }?,
             Commands::TestThroughput(args) => test_throughput::execute(args)?,
+            Commands::UnsafeResetSphinxKeys(args) => {
+                { Self::execute_async(reset_sphinx_keys::execute(args))? }?
+            }
         }
         Ok(())
     }
@@ -92,6 +96,9 @@ pub(crate) enum Commands {
 
     /// Use identity key of this node to sign provided message.
     Sign(sign::Args),
+
+    /// UNSAFE: reset existing sphinx keys and attempt to generate fresh one for the current network state
+    UnsafeResetSphinxKeys(reset_sphinx_keys::Args),
 
     /// Attempt to approximate the maximum mixnet throughput if nym-node
     /// was running on this machine in mixnet mode

@@ -148,6 +148,9 @@ pub enum NymNodeError {
     #[error("failed to resolve nym-api query - no nodes returned a valid response")]
     NymApisExhausted,
 
+    #[error("the current epoch appears to be stuck")]
+    StuckEpoch,
+
     // this should never happen in normal usage, but it's better to throw it than to panic
     // in case of bugs
     #[error("sphinx keys have already been consumed to spawn the node tasks")]

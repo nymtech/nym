@@ -83,6 +83,11 @@ pub fn instantiate(
         });
     }
 
+    let key_rotation_validity = msg.key_validity_in_epochs();
+    if key_rotation_validity < InstantiateMsg::MIN_KEY_ROTATION_VALIDITY {
+        return Err(MixnetContractError::TooShortRotationInterval);
+    }
+
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
@@ -110,7 +115,7 @@ pub fn instantiate(
         msg.current_nym_node_version,
     )?;
     RewardingStorage::new().initialise(deps.storage, reward_params)?;
-    nymnodes_storage::initialise_storage(deps.storage)?;
+    nymnodes_storage::initialise_storage(deps.storage, key_rotation_validity)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
@@ -690,6 +695,7 @@ mod tests {
                 minimum: "1000".parse().unwrap(),
                 maximum: "10000".parse().unwrap(),
             },
+            key_validity_in_epochs: None,
         };
 
         let sender = message_info(&deps.api.addr_make("sender"), &[]);

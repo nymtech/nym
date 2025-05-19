@@ -142,7 +142,7 @@ impl Config {
             let location = Self::config_file_path(None);
 
             match toml::to_string_pretty(&global)
-                .map_err(|toml_err| io::Error::other(toml_err))
+                .map_err(io::Error::other)
                 .map(|toml| fs::write(location.clone(), toml))
             {
                 Ok(_) => log::debug!("Writing to: {:#?}", location),
@@ -162,7 +162,7 @@ impl Config {
 
             let location = Self::config_file_path(Some(network));
             match toml::to_string_pretty(config)
-                .map_err(|toml_err| io::Error::other(toml_err))
+                .map_err(io::Error::other)
                 .map(|toml| fs::write(location.clone(), toml))
             {
                 Ok(_) => log::debug!("Writing to: {:#?}", location),
@@ -367,9 +367,8 @@ fn load_from_file<T>(file: PathBuf) -> Result<T, io::Error>
 where
     T: DeserializeOwned,
 {
-    fs::read_to_string(file).and_then(|contents| {
-        toml::from_str::<T>(&contents).map_err(|toml_err| io::Error::other(toml_err))
-    })
+    fs::read_to_string(file)
+        .and_then(|contents| toml::from_str::<T>(&contents).map_err(io::Error::other))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]

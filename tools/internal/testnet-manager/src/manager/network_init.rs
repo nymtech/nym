@@ -127,6 +127,7 @@ impl NetworkManager {
         &self,
         ctx: &InitCtx,
         custom_epoch_duration: Option<Duration>,
+        key_validity_in_epochs: Option<u32>,
     ) -> Result<nym_mixnet_contract_common::InstantiateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::InstantiateMsg {
             rewarding_validator_address: ctx
@@ -165,6 +166,7 @@ impl NetworkManager {
             version_score_params: Default::default(),
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),
+            key_validity_in_epochs,
         })
     }
 
@@ -408,6 +410,7 @@ impl NetworkManager {
         &self,
         ctx: &mut InitCtx,
         custom_epoch_duration: Option<Duration>,
+        key_validity_in_epochs: Option<u32>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💽 {}Instantiating all the contracts...",
@@ -422,7 +425,8 @@ impl NetworkManager {
         let code_id = ctx.network.contracts.mixnet.upload_info()?.code_id;
         let admin = ctx.network.contracts.mixnet.admin()?.address.clone();
         ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
-        let init_msg = self.mixnet_init_message(ctx, custom_epoch_duration)?;
+        let init_msg =
+            self.mixnet_init_message(ctx, custom_epoch_duration, key_validity_in_epochs)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
             &init_msg,
@@ -694,6 +698,7 @@ impl NetworkManager {
         contracts: P,
         network_name: Option<String>,
         custom_epoch_duration: Option<Duration>,
+        key_validity_in_epochs: Option<u32>,
     ) -> Result<Network, NetworkManagerError> {
         let network_name = self.get_network_name(network_name);
         let mut ctx = InitCtx::new(network_name, self.admin.deref().clone(), &self.rpc_endpoint)?;
@@ -702,7 +707,7 @@ impl NetworkManager {
         self.upload_contracts(&mut ctx).await?;
         self.create_contract_admins_mnemonics(&mut ctx)?;
         self.transfer_admin_tokens(&ctx).await?;
-        self.instantiate_contracts(&mut ctx, custom_epoch_duration)
+        self.instantiate_contracts(&mut ctx, custom_epoch_duration, key_validity_in_epochs)
             .await?;
         self.perform_final_migrations(&mut ctx).await?;
         self.get_build_info(&mut ctx).await?;

@@ -130,6 +130,7 @@ impl NetworkManager {
         &self,
         ctx: &mut DkgSkipCtx,
         api_endpoints: Vec<Url>,
+        mut prime_api: Option<Account>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "📝 {}Generating ecash keys for all signers...",
@@ -144,12 +145,23 @@ impl NetworkManager {
 
         let mut ecash_signers = Vec::new();
         let mut rng = OsRng;
-        for (endpoint, ecash_keypair) in api_endpoints.into_iter().zip(ecash_keys.into_iter()) {
+        for (i, (endpoint, ecash_keypair)) in api_endpoints
+            .into_iter()
+            .zip(ecash_keys.into_iter())
+            .enumerate()
+        {
+            // if available, use provided account for the first api (so that it would be permitted to do rewarding, etc.)
+            let cosmos_account = if i == 0 {
+                prime_api.take().unwrap_or(Account::new())
+            } else {
+                Account::new()
+            };
+
             let ed25519_keypair = ed25519::KeyPair::new(&mut rng);
             let data = EcashSigner {
                 ed25519_keypair,
                 ecash_keypair,
-                cosmos_account: Account::new(),
+                cosmos_account,
                 endpoint,
             };
             ctx.println(format!(
@@ -451,7 +463,11 @@ impl NetworkManager {
 
         let mut ctx = DkgSkipCtx::new(network)?;
 
-        self.generate_ecash_signer_data(&mut ctx, api_endpoints)?;
+        self.generate_ecash_signer_data(
+            &mut ctx,
+            api_endpoints,
+            Some(network.auxiliary_addresses.mixnet_rewarder.clone()),
+        )?;
         let current_code_id = self.validate_existing_contracts(&ctx).await?;
         self.persist_dkg_keys(&mut ctx, data_output_dir).await?;
         let new_code_id = self

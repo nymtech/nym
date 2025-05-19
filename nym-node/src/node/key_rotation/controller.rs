@@ -125,18 +125,23 @@ impl KeyRotationController {
         let current_rotation_epoch = key_rotation_info.current_rotation_starting_epoch_id();
 
         let secondary_rotation_id = self.managed_keys.keys.secondary_key_rotation_id();
+
+        let next_rotation_id = current_rotation + 1;
+        // edge case for rotation 0
+        let prev_rotation_id = current_rotation.checked_sub(1);
+
         let (action, execution_epoch) = match secondary_rotation_id {
             None => {
                 // we don't have any secondary key, meaning the next thing we could possibly do is to pre-announce new key
                 // an epoch before next rotation
-                let rotation_id = current_rotation + 1;
+                let rotation_id = next_rotation_id;
 
                 (
                     KeyRotationActionState::PreAnnounce { rotation_id },
                     next_rotation_epoch - 1,
                 )
             }
-            Some(id) if id == current_rotation - 1 => {
+            Some(id) if Some(id) == prev_rotation_id => {
                 // our secondary key is from the previous rotation, meaning the next thing we have to do
                 // is to remove it (we have clearly already rotated)
                 (KeyRotationActionState::PurgeOld, current_rotation_epoch + 1)
@@ -146,7 +151,7 @@ impl KeyRotationController {
                 // next rotation, and we have to swap it into the primary
                 (KeyRotationActionState::SwapDefault, current_rotation_epoch)
             }
-            Some(id) if id == current_rotation + 1 => {
+            Some(id) if id == next_rotation_id => {
                 // our secondary key is from the upcoming rotation, meaning it's the pre-announced key, meaning
                 // the next thing we have to do is to swap it into the primary
                 (KeyRotationActionState::SwapDefault, next_rotation_epoch)

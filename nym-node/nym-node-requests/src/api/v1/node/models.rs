@@ -128,11 +128,13 @@ pub struct HostKeys {
     /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
     #[schemars(with = "String")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    #[serde(with = "bs58_ed25519_pubkey")]
     pub ed25519_identity: ed25519::PublicKey,
 
     #[deprecated(note = "use explicit primary_x25519_sphinx_key instead")]
     #[schemars(with = "String")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    #[serde(with = "bs58_x25519_pubkey")]
     pub x25519_sphinx: x25519::PublicKey,
 
     /// Current, active, x25519 sphinx key clients are expected to use when constructing packets
@@ -412,5 +414,12 @@ mod tests {
 
         let res = serde_json::from_str::<SignedHostInformation>(legacy_raw);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn current_host_information_deserialisation_and_verification() {
+        let current_raw = r#"
+        
+        "#;
     }
 }

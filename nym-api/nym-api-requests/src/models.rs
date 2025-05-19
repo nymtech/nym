@@ -1484,6 +1484,10 @@ impl KeyRotationInfoResponse {
             // if epoch hasn't progressed for more than 20% of its duration, mark is as stuck
             let threshold = Duration::from_secs_f32(self.epoch_duration.as_secs_f32() * 0.2);
             if diff > threshold {
+                // SAFETY: the value is positive
+                #[allow(clippy::unwrap_used)]
+                let std_dur = std::time::Duration::try_from(diff).unwrap();
+                warn!("the current epoch is expected to have been over by {expected_epoch_end}. it's already {} overdue!", humantime_serde::re::humantime::format_duration(std_dur));
                 return true;
             }
         }

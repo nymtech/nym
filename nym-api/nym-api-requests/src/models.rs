@@ -1475,6 +1475,21 @@ impl KeyRotationInfoResponse {
         self.key_rotation_state
             .current_rotation_starting_epoch_id(self.current_absolute_epoch_id)
     }
+
+    pub fn is_epoch_stuck(&self) -> bool {
+        let now = OffsetDateTime::now_utc();
+        let expected_epoch_end = self.current_epoch_start + self.epoch_duration;
+        if now > expected_epoch_end {
+            let diff = now - expected_epoch_end;
+            // if epoch hasn't progressed for more than 20% of its duration, mark is as stuck
+            let threshold = Duration::from_secs_f32(self.epoch_duration.as_secs_f32() * 0.2);
+            if diff > threshold {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]

@@ -5,10 +5,12 @@ use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::node_describe_cache::NodeDescribeCacheError;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::{DescribedNodeType, NymNodeDescription};
+use nym_bin_common::bin_info;
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_requests::api::client::NymNodeApiClientExt;
+use nym_validator_client::UserAgent;
 use std::time::Duration;
 use tracing::debug;
 
@@ -122,7 +124,7 @@ async fn try_get_client(
         let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
             b.with_timeout(Duration::from_secs(5))
                 .no_hickory_dns()
-                .with_user_agent("nym-api-describe-cache")
+                .with_user_agent(UserAgent::from(bin_info!()))
                 .build()
         }) {
             Ok(client) => client,

@@ -84,11 +84,11 @@ private_ed25519_identity_key_file = '{{ storage_paths.keys.private_ed25519_ident
 # Path to file containing ed25519 identity public key.
 public_ed25519_identity_key_file = '{{ storage_paths.keys.public_ed25519_identity_key_file }}'
 
-# Path to file containing x25519 sphinx private key.
-private_x25519_sphinx_key_file = '{{ storage_paths.keys.private_x25519_sphinx_key_file }}'
+# Path to file containing the primary x25519 sphinx private key.
+primary_x25519_sphinx_key_file = '{{ storage_paths.keys.primary_x25519_sphinx_key_file }}'
 
-# Path to file containing x25519 sphinx public key.
-public_x25519_sphinx_key_file = '{{ storage_paths.keys.public_x25519_sphinx_key_file }}'
+# Path to file containing the secondary x25519 sphinx private key.
+secondary_x25519_sphinx_key_file = '{{ storage_paths.keys.secondary_x25519_sphinx_key_file }}'
 
 # Path to file containing x25519 noise private key.
 private_x25519_noise_key_file = '{{ storage_paths.keys.private_x25519_noise_key_file }}'

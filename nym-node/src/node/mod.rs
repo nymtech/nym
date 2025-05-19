@@ -547,6 +547,7 @@ impl NymNode {
         self.x25519_noise_keys.public_key()
     }
 
+    #[track_caller]
     pub(crate) fn active_sphinx_keys(&self) -> Result<ActiveSphinxKeys, NymNodeError> {
         Ok(self.sphinx_keys()?.keys.clone())
     }
@@ -985,6 +986,7 @@ impl NymNode {
         NymApisClient::new(&self.config.mixnet.nym_api_urls)
     }
 
+    #[track_caller]
     fn sphinx_keys(&self) -> Result<&SphinxKeyManager, NymNodeError> {
         self.sphinx_key_manager
             .as_ref()
@@ -1136,9 +1138,6 @@ impl NymNode {
             )
             .await?;
 
-        self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
-            .await?;
-
         let metrics_sender = self.setup_metrics_backend(
             active_clients_store.clone(),
             active_egress_mixnet_connections,
@@ -1153,6 +1152,9 @@ impl NymNode {
             self.shutdown_manager.subscribe_legacy("gateway-tasks"),
         )
         .await?;
+
+        self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
+            .await?;
 
         network_refresher.start();
 

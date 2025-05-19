@@ -124,6 +124,7 @@ impl InnerClient {
                 }
             });
 
+        let todo = "this fails ";
         if timeout(timeout_duration, broadcast_fut).await.is_err() {
             warn!("timed out while attempting to broadcast data to known nym apis")
         }

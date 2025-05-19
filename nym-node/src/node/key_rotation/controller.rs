@@ -58,6 +58,13 @@ impl NextAction {
             Duration::from_nanos(0)
         })
     }
+
+    fn wait(duration: Duration) -> NextAction {
+        NextAction {
+            typ: KeyRotationActionState::Wait,
+            deadline: OffsetDateTime::now_utc() + duration,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -68,10 +75,13 @@ enum KeyRotationActionState {
     // perform the following exchange
     // primary -> secondary
     // pre_announced -> primary
-    SwapDefault,
+    SwapDefault { expected_new_rotation: u32 },
 
     // remove the old overlap key and purge associated data like the replay detection bloomfilter
     PurgeOld,
+
+    // a no-op action that has only a single purpose - wait (used to handle slight desyncs)
+    Wait,
 }
 
 impl KeyRotationController {
@@ -97,34 +107,46 @@ impl KeyRotationController {
         }
     }
 
-    async fn determine_next_action(&self) -> NextAction {
-        loop {
-            if let Some(next) = self.try_determine_next_action().await {
-                debug!(
-                    "next key rotation action to take: {:?} at {}",
-                    next.typ, next.deadline
-                );
-                return next;
-            }
+    async fn try_determine_next_action(&self) -> NextAction {
+        let Some(key_rotation_info) = self.try_get_key_rotation_info().await else {
+            warn!("failed to retrieve key rotation information");
+            return NextAction::wait(Duration::from_secs(240));
+        };
 
-            warn!("failed to determine next key rotation action; will try again in 2min");
-            sleep(Duration::from_secs(120)).await;
-        }
-    }
-
-    async fn try_determine_next_action(&self) -> Option<NextAction> {
-        let key_rotation_info = self.try_get_key_rotation_info().await?;
         if key_rotation_info.is_epoch_stuck() {
             warn!("the epoch is stuck - can't progress with key rotation");
-            return None;
+            return NextAction::wait(Duration::from_secs(240));
         }
 
-        let current_rotation = key_rotation_info.current_key_rotation_id();
         let current_epoch = key_rotation_info.current_absolute_epoch_id;
+
+        // current rotation id as determined by the current epoch id
+        let current_rotation = key_rotation_info.current_key_rotation_id();
+
+        // expected rotation id as determined by the current TIME
+        // used to determined epoch stalling or clocks being slightly out of sync
+        let expected_current_rotation = key_rotation_info.expected_current_rotation_id();
+
+        if current_rotation != expected_current_rotation {
+            warn!("the current rotation is {current_rotation} whilst we expected {expected_current_rotation}");
+            // if we got here, it means epoch is most likely NOT stuck (we're within the threshold)
+            // so probably we prematurely called this method before nym-api(s) got to advancing
+            // the epoch and thus the rotation, so wait a bit instead.
+            return NextAction::wait(Duration::from_secs(30));
+        }
+
+        // epoch id of when the new rotation id is meant to start
         let next_rotation_epoch = key_rotation_info.next_rotation_starting_epoch_id();
+
+        // epoch id of when the current rotation has started
         let current_rotation_epoch = key_rotation_info.current_rotation_starting_epoch_id();
 
         let secondary_rotation_id = self.managed_keys.keys.secondary_key_rotation_id();
+
+        debug!(
+            "current: {current_rotation}, primary: {}, secondary: {secondary_rotation_id:?}",
+            self.managed_keys.keys.primary_key_rotation_id()
+        );
 
         let next_rotation_id = current_rotation + 1;
         // edge case for rotation 0
@@ -132,6 +154,7 @@ impl KeyRotationController {
 
         let (action, execution_epoch) = match secondary_rotation_id {
             None => {
+                debug!("no secondary key - need to pre-announce one");
                 // we don't have any secondary key, meaning the next thing we could possibly do is to pre-announce new key
                 // an epoch before next rotation
                 let rotation_id = next_rotation_id;
@@ -141,20 +164,33 @@ impl KeyRotationController {
                     next_rotation_epoch - 1,
                 )
             }
-            Some(id) if Some(id) == prev_rotation_id => {
+            Some(secondary_id) if Some(secondary_id) == prev_rotation_id => {
+                debug!("secondary key is from the previous rotation - need to remove it now");
                 // our secondary key is from the previous rotation, meaning the next thing we have to do
                 // is to remove it (we have clearly already rotated)
                 (KeyRotationActionState::PurgeOld, current_rotation_epoch + 1)
             }
-            Some(id) if id == current_rotation => {
+            Some(secondary_id) if secondary_id == current_rotation => {
+                debug!("secondary key is from THIS rotation - we need to swap into it");
                 // our secondary key is from the current epoch, meaning (hopefully) we just have gone into the
                 // next rotation, and we have to swap it into the primary
-                (KeyRotationActionState::SwapDefault, current_rotation_epoch)
+                (
+                    KeyRotationActionState::SwapDefault {
+                        expected_new_rotation: current_rotation,
+                    },
+                    current_rotation_epoch,
+                )
             }
-            Some(id) if id == next_rotation_id => {
+            Some(secondary_id) if secondary_id == next_rotation_id => {
+                debug!("secondary key is for the NEXT rotation - we need to swap into it");
                 // our secondary key is from the upcoming rotation, meaning it's the pre-announced key, meaning
                 // the next thing we have to do is to swap it into the primary
-                (KeyRotationActionState::SwapDefault, next_rotation_epoch)
+                (
+                    KeyRotationActionState::SwapDefault {
+                        expected_new_rotation: next_rotation_id,
+                    },
+                    next_rotation_epoch,
+                )
             }
             Some(other) => {
                 // this situation should have never occurred, our secondary key is completely unusable,
@@ -169,10 +205,10 @@ impl KeyRotationController {
         let until_execution_epoch =
             execution_epoch.saturating_sub(current_epoch) * key_rotation_info.epoch_duration;
 
-        Some(NextAction {
+        NextAction {
             typ: action,
             deadline: now - since_epoch_start + until_execution_epoch,
-        })
+        }
     }
 
     async fn try_get_key_rotation_info(&self) -> Option<KeyRotationInfoResponse> {
@@ -204,9 +240,9 @@ impl KeyRotationController {
         // self-described endpoints of all nodes before the key rotation epoch rolls over
     }
 
-    fn swap_default_key(&self) {
+    fn swap_default_key(&self, expected_new_rotation: u32) {
         info!("attempting to swap the primary key to the previously generated one");
-        if let Err(err) = self.managed_keys.rotate_keys() {
+        if let Err(err) = self.managed_keys.rotate_keys(expected_new_rotation) {
             error!("failed to perform sphinx key swap: {err}")
         };
         if self
@@ -235,10 +271,13 @@ impl KeyRotationController {
             KeyRotationActionState::PreAnnounce { rotation_id } => {
                 self.pre_announce_new_key(rotation_id).await
             }
-            KeyRotationActionState::SwapDefault => self.swap_default_key(),
+            KeyRotationActionState::SwapDefault {
+                expected_new_rotation,
+            } => self.swap_default_key(expected_new_rotation),
             KeyRotationActionState::PurgeOld => {
                 self.purge_old_rotation_data();
             }
+            KeyRotationActionState::Wait => {}
         }
     }
 
@@ -248,7 +287,11 @@ impl KeyRotationController {
         let mut polling_interval = interval(self.regular_polling_interval);
         polling_interval.reset();
 
-        let mut next_action = self.determine_next_action().await;
+        let mut next_action = self.try_determine_next_action().await;
+        debug!(
+            "next key rotation action to take: {:?} at {}",
+            next_action.typ, next_action.deadline
+        );
         let state_update_future = sleep(next_action.until_deadline());
         pin_mut!(state_update_future);
 
@@ -265,7 +308,11 @@ impl KeyRotationController {
                 }
             }
 
-            next_action = self.determine_next_action().await;
+            next_action = self.try_determine_next_action().await;
+            debug!(
+                "next key rotation action to take: {:?} at {}",
+                next_action.typ, next_action.deadline
+            );
             state_update_future
                 .as_mut()
                 .reset(Instant::now() + next_action.until_deadline());

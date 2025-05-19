@@ -1490,6 +1490,27 @@ impl KeyRotationInfoResponse {
 
         false
     }
+
+    // based on the current **TIME**, determine what's the expected current rotation id
+    pub fn expected_current_rotation_id(&self) -> u32 {
+        let now = OffsetDateTime::now_utc();
+        let current_end = now + self.epoch_duration;
+        if now < current_end {
+            return self
+                .key_rotation_state
+                .key_rotation_id(self.current_absolute_epoch_id);
+        }
+
+        let diff = now - current_end;
+        let passed_epochs = diff / self.epoch_duration;
+        let expected_current_epoch = self.current_absolute_epoch_id + passed_epochs.floor() as u32;
+
+        println!("expected_current_epoch: {}", expected_current_epoch);
+        println!("current_epoch: {}", self.current_absolute_epoch_id);
+
+        self.key_rotation_state
+            .key_rotation_id(expected_current_epoch)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]

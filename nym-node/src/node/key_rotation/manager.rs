@@ -99,13 +99,10 @@ impl SphinxKeyManager {
         Ok(pub_key)
     }
 
-    pub(crate) fn rotate_keys(&self) -> Result<(), NymNodeError> {
-        if !self.keys.rotate() {
-            // we failed to perform the rotation because the secondary key somehow didn't exist
-            // we can't do much here, but just generate a brand-new key to rotate into
-            let primary = self.keys.primary().rotation_id();
-            self.generate_key_for_new_rotation(primary + 1)?;
-            self.keys.rotate();
+    pub(crate) fn rotate_keys(&self, expected_new_rotation: u32) -> Result<(), NymNodeError> {
+        if !self.keys.rotate(expected_new_rotation) {
+            self.generate_key_for_new_rotation(expected_new_rotation)?;
+            self.keys.rotate(expected_new_rotation);
         }
         Self::swap_key_files(&self.primary_key_path, &self.secondary_key_path)
     }

@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KeyRotationState",
+  "type": "object",
+  "required": [
+    "initial_epoch_id",
+    "validity_epochs"
+  ],
+  "properties": {
+    "initial_epoch_id": {
+      "description": "Records the initial epoch_id when the key rotation has been introduced (0 for fresh contracts). It is used for determining when rotation is meant to advance.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "validity_epochs": {
+      "description": "Defines how long each key rotation is valid for (in terms of epochs)",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

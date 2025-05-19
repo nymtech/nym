@@ -447,6 +447,9 @@ impl Client {
         Client {
             base_url: new_url,
             reqwest_client: self.reqwest_client.clone(),
+
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: self.request_timeout,
         }
     }
 

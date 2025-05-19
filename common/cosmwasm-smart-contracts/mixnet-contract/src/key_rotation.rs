@@ -22,8 +22,7 @@ pub struct KeyRotationState {
 impl KeyRotationState {
     pub fn key_rotation_id(&self, current_epoch_id: EpochId) -> KeyRotationId {
         let diff = current_epoch_id.saturating_sub(self.initial_epoch_id);
-        let full_rots = diff / self.validity_epochs;
-        full_rots
+        diff / self.validity_epochs
     }
 
     pub fn next_rotation_starting_epoch_id(&self, current_epoch_id: EpochId) -> EpochId {

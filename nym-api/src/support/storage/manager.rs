@@ -12,9 +12,9 @@ use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
 use nym_types::monitoring::{NodeResult, RouteResult};
 use sqlx::FromRow;
+use std::collections::HashMap;
 use time::{Date, OffsetDateTime};
 use tracing::info;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
@@ -106,7 +106,11 @@ impl StorageManager {
         for corrected_node_info in corrected_reliabilities {
             // Check if this node_id is a mixnode by attempting to fetch its identity key as a mixnode.
             // This relies on get_mixnode_identity_key returning Some for mixnodes and None (or error) for non-mixnodes.
-            if self.get_mixnode_identity_key(corrected_node_info.node_id).await?.is_some() {
+            if self
+                .get_mixnode_identity_key(corrected_node_info.node_id)
+                .await?
+                .is_some()
+            {
                 avg_mix_reliabilities.push(AvgMixnodeReliability {
                     mix_id: corrected_node_info.node_id,
                     value: Some(corrected_node_info.reliability as f32),
@@ -131,8 +135,13 @@ impl StorageManager {
 
         for corrected_node_info in corrected_reliabilities {
             // Check if this node_id is a gateway.
-            if self.get_gateway_identity_key(corrected_node_info.node_id).await?.is_some() {
-                let total_samples = corrected_node_info.pos_samples_in_interval + corrected_node_info.neg_samples_in_interval;
+            if self
+                .get_gateway_identity_key(corrected_node_info.node_id)
+                .await?
+                .is_some()
+            {
+                let total_samples = corrected_node_info.pos_samples_in_interval
+                    + corrected_node_info.neg_samples_in_interval;
                 let reliability_value = if total_samples <= 3 {
                     100.0 // Default to 100% if 3 or fewer samples
                 } else {
@@ -1421,7 +1430,15 @@ impl StorageManager {
 
         Ok(db_routes
             .into_iter()
-            .map(|r| (r.layer1 as NodeId, r.layer2 as NodeId, r.layer3 as NodeId, r.gw as NodeId, r.success.unwrap_or_default()))
+            .map(|r| {
+                (
+                    r.layer1 as NodeId,
+                    r.layer2 as NodeId,
+                    r.layer3 as NodeId,
+                    r.gw as NodeId,
+                    r.success.unwrap_or_default(),
+                )
+            })
             .collect())
     }
 
@@ -1491,7 +1508,8 @@ impl StorageManager {
 
             // Attempt to fetch identity, first as mixnode, then as gateway if not found.
             // This assumes get_mixnode_identity_key and get_gateway_identity_key return Result<Option<String>, sqlx::Error>
-            let mut identity: Option<String> = self.get_mixnode_identity_key(node_id).await.unwrap_or(None);
+            let mut identity: Option<String> =
+                self.get_mixnode_identity_key(node_id).await.unwrap_or(None);
             if identity.is_none() {
                 identity = self.get_gateway_identity_key(node_id).await.unwrap_or(None);
             }

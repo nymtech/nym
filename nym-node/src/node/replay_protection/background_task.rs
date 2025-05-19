@@ -51,6 +51,10 @@ impl ReplayProtectionDiskFlush {
             path: bloomfilters_directory.clone(),
         };
 
+        if !bloomfilters_directory.exists() {
+            fs::create_dir_all(&bloomfilters_directory).map_err(dir_read_err)?;
+        }
+
         let available_filters_dir = fs::read_dir(&bloomfilters_directory).map_err(dir_read_err)?;
 
         // figure out what bloomfilters we have available on disk

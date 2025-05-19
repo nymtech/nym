@@ -52,13 +52,11 @@ impl SphinxKeyManager {
         let tmp_path = primary_path.as_ref().with_extension("tmp");
 
         // 1. COPY: primary -> temp
-        fs::copy(primary_path.as_ref(), secondary_path.as_ref()).map_err(|err| {
-            KeyIOFailure::KeyCopyFailure {
-                key: "old x25519 sphinx primary".to_string(),
-                source: primary_path.as_ref().to_path_buf(),
-                destination: secondary_path.as_ref().to_path_buf(),
-                err,
-            }
+        fs::copy(primary_path.as_ref(), &tmp_path).map_err(|err| KeyIOFailure::KeyCopyFailure {
+            key: "old x25519 sphinx primary".to_string(),
+            source: primary_path.as_ref().to_path_buf(),
+            destination: tmp_path.clone(),
+            err,
         })?;
 
         // 2. MOVE: secondary -> primary
@@ -81,12 +79,6 @@ impl SphinxKeyManager {
             }
         })?;
 
-        // 4. REMOVE: temp
-        fs::remove_file(&tmp_path).map_err(|err| KeyIOFailure::KeyRemovalFailure {
-            key: "old x25519 sphinx primary (temp location)".to_string(),
-            path: tmp_path,
-            err,
-        })?;
         Ok(())
     }
 

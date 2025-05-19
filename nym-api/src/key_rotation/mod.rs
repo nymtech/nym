@@ -62,8 +62,6 @@ pub(crate) struct KeyRotationController {
     pub(crate) contract_cache: NymContractCache,
 }
 
-const todo: &str = "remove those println";
-
 impl KeyRotationController {
     pub(crate) fn new(
         describe_cache_refresher: RefreshRequester,
@@ -90,16 +88,12 @@ impl KeyRotationController {
     }
 
     async fn handle_contract_cache_update(&mut self) {
-        println!("contract cache refreshed - checking rotation status");
-
         let updated = self.get_contract_data().await;
-        println!("status: {updated:#?}");
 
         // if we're only 1/4 epoch away from the next rotation, and we haven't yet performed the refresh,
         // update the self-described cache, as all nodes should have already pre-announced their new sphinx keys
         if let Some(remaining) = updated.epochs_until_next_rotation() {
             debug!("{remaining} epoch(s) remaining until next key rotation");
-            println!("{remaining} epoch(s) remaining until next key rotation");
             let expected = Some(updated.upcoming_rotation_id());
             if remaining < 0.25 && self.last_described_refreshed_for != expected {
                 info!("{remaining} epoch(s) remaining until next key rotation - requesting full refresh of self-described cache");

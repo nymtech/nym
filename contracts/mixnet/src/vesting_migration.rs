@@ -212,6 +212,7 @@ pub(crate) fn try_migrate_vested_delegation(
     )?))
 }
 
+#[allow(clippy::panic)]
 #[cfg(test)]
 mod tests {
     use super::*;

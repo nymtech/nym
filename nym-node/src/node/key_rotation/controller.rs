@@ -198,7 +198,6 @@ impl KeyRotationController {
         {
             // mutex poisoning - we have to exit
             self.shutdown_token.cancel();
-            return;
         }
 
         // no need to send the information explicitly to nym-apis, as they're scheduled to refresh
@@ -217,7 +216,6 @@ impl KeyRotationController {
         {
             // mutex poisoning - we have to exit
             self.shutdown_token.cancel();
-            return;
         }
     }
 
@@ -229,7 +227,6 @@ impl KeyRotationController {
         if self.replay_protection_manager.purge_secondary().is_err() {
             // mutex poisoning - we have to exit
             self.shutdown_token.cancel();
-            return;
         }
     }
 

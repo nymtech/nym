@@ -703,7 +703,7 @@ impl NymNode {
             &self.config,
             self.x25519_sphinx_keys.public_key(),
             &VersionedNoiseKey {
-                version: nym_noise::NOISE_VERSION,
+                version: nym_noise::LATEST_NOISE_VERSION,
                 x25519_pubkey: *self.x25519_noise_keys.public_key(),
             },
             &self.ed25519_identity_keys,

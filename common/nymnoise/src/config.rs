@@ -5,6 +5,7 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     sync::Arc,
+    time::Duration,
 };
 
 use arc_swap::ArcSwap;
@@ -91,16 +92,22 @@ pub struct NoiseConfig {
 
     pub(crate) local_key: Arc<x25519::KeyPair>,
     pub(crate) pattern: NoisePattern,
+    pub(crate) timeout: Duration,
 
     pub(crate) unsafe_disabled: bool, // allows for nodes to not attempt to do a noise handshake, VERY UNSAFE, FOR DEBUG PURPOSE ONLY
 }
 
 impl NoiseConfig {
-    pub fn new(noise_key: Arc<x25519::KeyPair>, network: NoiseNetworkView) -> Self {
+    pub fn new(
+        noise_key: Arc<x25519::KeyPair>,
+        network: NoiseNetworkView,
+        timeout: Duration,
+    ) -> Self {
         NoiseConfig {
             network,
             local_key: noise_key,
             pattern: Default::default(),
+            timeout,
             unsafe_disabled: false,
         }
     }

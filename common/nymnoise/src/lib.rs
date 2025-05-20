@@ -38,7 +38,9 @@ async fn upgrade_noise_initiator_v1(
     let secret_hash = generate_psk_v1(remote_pub_key);
     let noise_stream = NoiseStream::new_initiator(conn, config, remote_pub_key, &secret_hash)?;
 
-    Ok(Connection::Noise(noise_stream.perform_handshake().await?))
+    Ok(Connection::Noise(
+        tokio::time::timeout(config.timeout, noise_stream.perform_handshake()).await??,
+    ))
 }
 
 pub async fn upgrade_noise_initiator(
@@ -84,7 +86,9 @@ async fn upgrade_noise_responder_v1(
     let secret_hash = generate_psk_v1(config.local_key.public_key());
     let noise_stream = NoiseStream::new_responder(conn, config, &secret_hash)?;
 
-    Ok(Connection::Noise(noise_stream.perform_handshake().await?))
+    Ok(Connection::Noise(
+        tokio::time::timeout(config.timeout, noise_stream.perform_handshake()).await??,
+    ))
 }
 
 pub async fn upgrade_noise_responder(

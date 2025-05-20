@@ -343,6 +343,7 @@ mod tests {
             NoiseConfig::new(
                 Arc::new(x25519::KeyPair::new(&mut rng)),
                 NoiseNetworkView::new_empty(),
+                Duration::from_millis(1_500),
             ),
             Default::default(),
         )

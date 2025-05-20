@@ -1014,6 +1014,7 @@ impl NymNode {
         &self,
         active_clients_store: &ActiveClientsStore,
         routing_filter: F,
+        noise_config: NoiseConfig,
         shutdown: ShutdownToken,
     ) -> Result<(MixForwardingSender, ActiveConnections), NymNodeError>
     where
@@ -1037,6 +1038,7 @@ impl NymNode {
         );
         let mixnet_client = nym_mixnet_client::Client::new(
             mixnet_client_config,
+            noise_config.clone(),
             self.metrics
                 .network
                 .active_egress_mixnet_connections_counter(),
@@ -1064,6 +1066,7 @@ impl NymNode {
             replay_protection_bloomfilter,
             mix_packet_sender.clone(),
             final_hop_data,
+            noise_config,
             self.metrics.clone(),
             shutdown,
         );
@@ -1073,9 +1076,16 @@ impl NymNode {
     }
 
     pub(crate) async fn run_minimal_mixnet_processing(self) -> Result<(), NymNodeError> {
+        let noise_config = nym_noise::config::NoiseConfig::new(
+            self.x25519_noise_keys.clone(),
+            NoiseNetworkView::new_empty(),
+        )
+        .with_unsafe_disabled(true);
+
         self.start_mixnet_listener(
             &ActiveClientsStore::new(),
             OpenFilter,
+            noise_config,
             self.shutdown_manager.clone_token("mixnet-traffic"),
         )
         .await?;
@@ -1115,10 +1125,17 @@ impl NymNode {
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
 
+        let noise_config = nym_noise::config::NoiseConfig::new(
+            self.x25519_noise_keys.clone(),
+            network_refresher.noise_view(),
+        )
+        .with_unsafe_disabled(self.config.mixnet.debug.unsafe_disable_noise);
+
         let (mix_packet_sender, active_egress_mixnet_connections) = self
             .start_mixnet_listener(
                 &active_clients_store,
                 network_refresher.routing_filter(),
+                noise_config,
                 self.shutdown_manager.clone_token("mixnet-traffic"),
             )
             .await?;

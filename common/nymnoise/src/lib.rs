@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use snow::{error::Prerequisite, Builder, Error};
 use tokio::net::TcpStream;
 use tracing::*;
+use zeroize::Zeroizing;
 
 pub mod config;
 pub mod connection;
@@ -21,6 +22,13 @@ const NOISE_PSK_PREFIX: &[u8] = b"NYMTECH_NOISE_dQw4w9WgXcQ";
 
 pub const LATEST_NOISE_VERSION: NoiseVersion = NoiseVersion::V1;
 
+fn generate_psk_v1(responder_pub_key: &x25519::PublicKey) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(NOISE_PSK_PREFIX);
+    hasher.update(responder_pub_key.to_bytes());
+    hasher.finalize().into()
+}
+
 async fn upgrade_noise_initiator_v1(
     conn: TcpStream,
     config: &NoiseConfig,
@@ -28,15 +36,10 @@ async fn upgrade_noise_initiator_v1(
 ) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, initiator side");
 
-    let secret = [
-        NOISE_PSK_PREFIX.to_vec(),
-        remote_pub_key.to_bytes().to_vec(),
-    ]
-    .concat();
-    let secret_hash = Sha256::digest(secret);
+    let secret_hash = generate_psk_v1(remote_pub_key);
 
     let handshake = Builder::new(config.pattern.as_str().parse()?)
-        .local_private_key(&config.local_key.private_key().to_bytes())
+        .local_private_key(Zeroizing::new(config.local_key.private_key().to_bytes()).as_ref())
         .remote_public_key(&remote_pub_key.to_bytes())
         .psk(config.pattern.psk_position(), &secret_hash)
         .build_initiator()?;
@@ -86,12 +89,7 @@ async fn upgrade_noise_responder_v1(
 ) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, responder side");
 
-    let secret = [
-        NOISE_PSK_PREFIX.to_vec(),
-        config.local_key.public_key().to_bytes().to_vec(),
-    ]
-    .concat();
-    let secret_hash = Sha256::digest(secret);
+    let secret_hash = generate_psk_v1(config.local_key.public_key());
 
     let handshake = Builder::new(config.pattern.as_str().parse()?)
         .local_private_key(&config.local_key.private_key().to_bytes())

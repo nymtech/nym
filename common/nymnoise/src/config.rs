@@ -115,19 +115,11 @@ impl NoiseConfig {
     // Only for phased update
     //SW This can lead to some troubles if two nodes shares the same IP and one support Noise but not the other. This in only for the progressive update though and there is no workaround
     pub(crate) fn get_noise_support(&self, ip_addr: IpAddr) -> Option<NoiseVersion> {
-        self.network
-            .support
-            .inner
-            .load()
-            .get(&ip_addr)
-            .copied()
-            .or_else(|| {
-                self.network
-                    .support
-                    .inner
-                    .load()
-                    .get(&ip_addr.to_canonical()) // SW default bind address being [::]:1789, it can happen that a responder sees the ipv6-mapped address of the initiator, this check for that
-                    .copied()
-            })
+        let plain_ip_support = self.network.support.inner.load().get(&ip_addr).copied();
+
+        // SW default bind address being [::]:1789, it can happen that a responder sees the ipv6-mapped address of the initiator, this check for that
+        let canonical_ip = &ip_addr.to_canonical();
+        let canonical_ip_support = self.network.support.inner.load().get(canonical_ip).copied();
+        plain_ip_support.or(canonical_ip_support)
     }
 }

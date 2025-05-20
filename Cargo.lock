@@ -6422,16 +6422,15 @@ dependencies = [
  "arc-swap",
  "bytes",
  "futures",
- "log",
  "nym-crypto",
  "nym-noise-keys",
  "pin-project",
- "serde",
- "sha2 0.10.9",
+ "sha2 0.10.8",
  "snow",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]

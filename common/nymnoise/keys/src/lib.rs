@@ -5,28 +5,25 @@ use nym_crypto::asymmetric::x25519;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[serde(from = "u8", into = "u8")]
 pub enum NoiseVersion {
-    V1,
-    Unknown(u8), //Implies a newer version we don't know
+    V1 = 1,
+    Unknown,
 }
 
 impl From<u8> for NoiseVersion {
     fn from(value: u8) -> Self {
         match value {
             1 => NoiseVersion::V1,
-            other => NoiseVersion::Unknown(other),
+            _ => NoiseVersion::Unknown,
         }
     }
 }
 
 impl From<NoiseVersion> for u8 {
     fn from(version: NoiseVersion) -> Self {
-        match version {
-            NoiseVersion::V1 => 1,
-            NoiseVersion::Unknown(other) => other,
-        }
+        version as u8
     }
 }
 
@@ -34,7 +31,7 @@ impl From<NoiseVersion> for u8 {
 pub struct VersionedNoiseKey {
     #[schemars(with = "u8")]
     #[schema(value_type = u8)]
-    pub supported_version: NoiseVersion,
+    pub version: NoiseVersion,
 
     #[schemars(with = "String")]
     #[serde(with = "bs58_x25519_pubkey")]

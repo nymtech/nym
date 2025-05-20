@@ -6777,28 +6777,26 @@ dependencies = [
 name = "nym-noise"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "arc-swap",
  "bytes",
  "futures",
- "nym-crypto 0.4.0",
+ "log",
+ "nym-crypto",
  "nym-noise-keys",
  "pin-project",
- "rand_chacha 0.3.1",
- "sha2 0.10.9",
+ "serde",
+ "sha2 0.10.8",
  "snow",
- "strum 0.26.3",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
- "tracing",
 ]
 
 [[package]]
 name = "nym-noise-keys"
 version = "0.1.0"
 dependencies = [
- "nym-crypto 0.4.0",
+ "nym-crypto",
  "schemars",
  "serde",
  "utoipa",
@@ -10097,7 +10095,7 @@ dependencies = [
  "curve25519-dalek",
  "rand_core 0.6.4",
  "rustc_version 0.4.1",
- "sha2 0.10.9",
+ "sha2 0.10.8",
  "subtle 2.6.1",
 ]
 

@@ -1,63 +1,59 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::{NoiseConfig, NoisePattern};
+use crate::connection::Connection;
+use crate::error::NoiseError;
+use crate::stream::NoiseStream;
+use log::*;
+use nym_crypto::asymmetric::x25519;
 use nym_noise_keys::NoiseVersion;
-use snow::error::Prerequisite;
-use snow::Error;
+use sha2::{Digest, Sha256};
+use snow::{error::Prerequisite, Builder, Error};
 use tokio::net::TcpStream;
-use tracing::{error, warn};
 
 pub mod config;
 pub mod connection;
 pub mod error;
 pub mod stream;
 
-use crate::config::NoiseConfig;
-use crate::connection::Connection;
-use crate::error::NoiseError;
-use crate::stream::NoiseStreamBuilder;
-
 const NOISE_PSK_PREFIX: &[u8] = b"NYMTECH_NOISE_dQw4w9WgXcQ";
 
-pub const LATEST_NOISE_VERSION: NoiseVersion = NoiseVersion::V1;
+pub const NOISE_VERSION: NoiseVersion = NoiseVersion::V1;
 
-// TODO: this should be behind some trait because presumably, depending on the version,
-// other arguments would be needed
-mod psk_gen {
-    use crate::error::NoiseError;
-    use crate::stream::Psk;
-    use crate::NOISE_PSK_PREFIX;
-    use nym_crypto::asymmetric::x25519;
-    use nym_noise_keys::NoiseVersion;
-    use sha2::{Digest, Sha256};
+async fn upgrade_noise_initiator_v1(
+    conn: TcpStream,
+    pattern: NoisePattern,
+    local_private_key: &x25519::PrivateKey,
+    remote_pub_key: &x25519::PublicKey,
+) -> Result<Connection, NoiseError> {
+    trace!("Perform Noise Handshake, initiator side");
 
-    pub(crate) fn generate_psk(
-        responder_pub_key: x25519::PublicKey,
-        version: NoiseVersion,
-    ) -> Result<Psk, NoiseError> {
-        match version {
-            NoiseVersion::V1 => Ok(generate_psk_v1(responder_pub_key)),
-            NoiseVersion::Unknown(noise_version) => {
-                Err(NoiseError::PskGenerationFailure { noise_version })
-            }
-        }
-    }
+    let secret = [
+        NOISE_PSK_PREFIX.to_vec(),
+        remote_pub_key.to_bytes().to_vec(),
+    ]
+    .concat();
+    let secret_hash = Sha256::digest(secret);
 
-    fn generate_psk_v1(responder_pub_key: x25519::PublicKey) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        hasher.update(NOISE_PSK_PREFIX);
-        hasher.update(responder_pub_key.to_bytes());
-        hasher.finalize().into()
-    }
+    let handshake = Builder::new(pattern.as_str().parse()?)
+        .local_private_key(&local_private_key.to_bytes())
+        .remote_public_key(&remote_pub_key.to_bytes())
+        .psk(pattern.psk_position(), &secret_hash)
+        .build_initiator()?;
+
+    let noise_stream = NoiseStream::new(conn, handshake);
+
+    Ok(Connection::Noise(noise_stream.perform_handshake().await?))
 }
 
 pub async fn upgrade_noise_initiator(
     conn: TcpStream,
     config: &NoiseConfig,
-) -> Result<Connection<TcpStream>, NoiseError> {
+) -> Result<Connection, NoiseError> {
     if config.unsafe_disabled {
         warn!("Noise is disabled in the config. Not attempting any handshake");
-        return Ok(Connection::Raw(conn));
+        return Ok(Connection::Tcp(conn));
     }
 
     //Get init material
@@ -66,34 +62,67 @@ pub async fn upgrade_noise_initiator(
         Error::Prereq(Prerequisite::RemotePublicKey)
     })?;
 
-    let Some(key) = config.get_noise_key(&responder_addr) else {
-        warn!("{responder_addr} can't speak Noise yet, falling back to TCP");
-        return Ok(Connection::Raw(conn));
-    };
-
-    let handshake_version = match key.supported_version {
-        NoiseVersion::V1 => NoiseVersion::V1,
-
-        // We're talking to a more recent node, but we can't adapt. Let's try to do our best and if it fails, it fails.
-        // If that node sees we're older, it will try to adapt too.
-        NoiseVersion::Unknown(version) => {
-            warn!("{responder_addr} is announcing an v{version} version of Noise that we don't know how to parse, we will attempt to downgrade to our current highest supported version");
-            LATEST_NOISE_VERSION
+    match config.get_noise_key(&responder_addr) {
+        Some(key) => match key.version {
+            NoiseVersion::V1 => {
+                upgrade_noise_initiator_v1(
+                    conn,
+                    config.pattern,
+                    config.local_key.private_key(),
+                    &key.x25519_pubkey,
+                )
+                .await
+            }
+            NoiseVersion::Unknown => {
+                error!(
+                    "{:?} is announcing an unknown version of Noise",
+                    responder_addr
+                );
+                Err(NoiseError::UnknownVersion)
+            }
+        },
+        None => {
+            warn!(
+                "{:?} can't speak Noise yet, falling back to TCP",
+                responder_addr
+            );
+            Ok(Connection::Tcp(conn))
         }
-    };
-
-    NoiseStreamBuilder::new(conn)
-        .perform_initiator_handshake(config, handshake_version, key.x25519_pubkey)
-        .await
-        .map(|stream| Connection::Noise(Box::new(stream)))
+    }
 }
+
+async fn upgrade_noise_responder_v1(
+    conn: TcpStream,
+    pattern: NoisePattern,
+    local_public_key: &x25519::PublicKey,
+    local_private_key: &x25519::PrivateKey,
+) -> Result<Connection, NoiseError> {
+    trace!("Perform Noise Handshake, responder side");
+
+    let secret = [
+        NOISE_PSK_PREFIX.to_vec(),
+        local_public_key.to_bytes().to_vec(),
+    ]
+    .concat();
+    let secret_hash = Sha256::digest(secret);
+
+    let handshake = Builder::new(pattern.as_str().parse()?)
+        .local_private_key(&local_private_key.to_bytes())
+        .psk(pattern.psk_position(), &secret_hash)
+        .build_responder()?;
+
+    let noise_stream = NoiseStream::new(conn, handshake);
+
+    Ok(Connection::Noise(noise_stream.perform_handshake().await?))
+}
+
 pub async fn upgrade_noise_responder(
     conn: TcpStream,
     config: &NoiseConfig,
-) -> Result<Connection<TcpStream>, NoiseError> {
+) -> Result<Connection, NoiseError> {
     if config.unsafe_disabled {
         warn!("Noise is disabled in the config. Not attempting any handshake");
-        return Ok(Connection::Raw(conn));
+        return Ok(Connection::Tcp(conn));
     }
 
     //Get init material
@@ -105,14 +134,25 @@ pub async fn upgrade_noise_responder(
         }
     };
 
-    // if responder doesn't announce noise support, we fallback to tcp
-    if config.get_noise_support(initiator_addr.ip()).is_none() {
-        warn!("{initiator_addr} can't speak Noise yet, falling back to TCP",);
-        return Ok(Connection::Raw(conn));
-    };
-
-    NoiseStreamBuilder::new(conn)
-        .perform_responder_handshake(config)
-        .await
-        .map(|stream| Connection::Noise(Box::new(stream)))
+    // Port is random and we just need the support info
+    match config.get_noise_support(initiator_addr.ip()) {
+        None => {
+            warn!(
+                "{:?} can't speak Noise yet, falling back to TCP",
+                initiator_addr
+            );
+            Ok(Connection::Tcp(conn))
+        }
+        //responder's info on version is shaky, so initiator has to adapt. This behavior can change in the future
+        Some(_) => {
+            //Existing node supporting Noise
+            upgrade_noise_responder_v1(
+                conn,
+                config.pattern,
+                config.local_key.public_key(),
+                config.local_key.private_key(),
+            )
+            .await
+        }
+    }
 }

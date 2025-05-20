@@ -9,11 +9,11 @@ license.workspace = true
 arc-swap = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
-tracing = { workspace = true }
+log = { workspace = true }
 pin-project = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 sha2 = { workspace = true }
 snow = { workspace = true }
-strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util", "time"] }
 tokio-util = { workspace = true, features = ["codec"] }
@@ -21,13 +21,3 @@ tokio-util = { workspace = true, features = ["codec"] }
 # internal
 nym-crypto = { path = "../crypto" }
 nym-noise-keys = { path = "keys" }
-
-[dev-dependencies]
-anyhow = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-rand_chacha = { workspace = true }
-nym-crypto = { path = "../crypto", features = ["rand"] }
-
-
-[lints]
-workspace = true

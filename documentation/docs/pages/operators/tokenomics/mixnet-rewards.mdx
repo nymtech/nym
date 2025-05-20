@@ -57,11 +57,11 @@ Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://
 
 ## Rewards Logic & Overview
 
-This is a quick overview, to understand the logic behind fundamentals like [rewarded set selection](#rewarded-set-selection), [node performance](#node-performance-calculation), [stake saturation](#stake-saturation), or [rewards calculation](#rewards-calculation), please read the chapters below.
+This is a quick summary, to understand the logic behind fundamentals like [rewarded set selection](#rewarded-set-selection), [node performance](#node-performance-calculation), [stake saturation](#stake-saturation), or [rewards calculation](#rewards-calculation), please read the chapters below.
 
 * **The current reward system is called [*Naive rewarding*](#naive-rewarding) - an intermediate step - where the operators of `nym-node` get rewarded from [Mixmining pool](https://validator.nymtech.net/api/v1/epoch/reward_params), which emits <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM per hour**
 * **Only nodes selected to [rewarded set](../tokenomics.mdx#active-set) of Mixnet receive rewards**
-* The [rewarded set](../tokenomics.mdx#active-set) of the Mixnet is currently **240 nodes in total and it's selected for each new epoch (60 min)**, from all the nodes registered (bonded) in the network 
+* The [rewarded set](../tokenomics.mdx#active-set) of the Mixnet is currently **240 nodes in total and it's selected for each new epoch (60 min)**, from all the nodes registered (bonded) in the network
 * Each node gets the same proportion of work factor because of the *naive* distribution of work
 * In the [final model](#roadmap), nodes will get rewarded based on their layer position and the work they do (collected user tickets), where the work factor distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as [listed below](#nym-network-rewarded-set-distribution)
 * If a node is selected to the rewarded set, it will be rewarded in the end of the epoch, based on this reward calculation formula:
@@ -73,7 +73,7 @@ This is a quick overview, to understand the logic behind fundamentals like [rewa
 > **[total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span>** <br/>
 > **<abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> = 1 / active_set_size** <br/>
 > **[active_set_size](https://validator.nymtech.net/api/v1/epoch/reward_params) = 240**
-> 
+>
 > Therefore: <br/>
 > **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> \* 1 / 240 \* [node_stake_saturation](#stake-saturation) \* [node_performance](#node-performance-calculation)**
 </Callout>
@@ -81,7 +81,7 @@ This is a quick overview, to understand the logic behind fundamentals like [rewa
 In reality there is a an additional value called **&alpha;**, giving a premium to nodes with a higher self bond. And additionally an operator gets more rewards based on [*Operators cost*](#rewards-distribution) and [*Profit margin*](#rewards-distribution) size. **Read chapter [Rewards calculation](#rewards-calculation) to be able to navigate in all the details relevant for operators and delegators.**
 
 <Callout type="info" emoji="ℹ️">
-**In the current intermediate model we use one active set to reward all nodes and they are assigned same work factor of 1 / 240**, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode (hence *naive rewarding*). 
+**In the current intermediate model we use one active set to reward all nodes and they are assigned same work factor of 1 / 240**, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode (hence *naive rewarding*).
 
 **In reality it means that all nodes are rewarded within the [Mixnet (5-hop) reward set](#rewarded-set-selection) only.**
 
@@ -159,14 +159,15 @@ In reality there is a an additional value called **&alpha;**, giving a premium t
 
 ## Rewarded Set Selection
 
-For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The Rewarded set is freshly selected at the start of each epoch (every 60 min), and it consists of 240 Nym nodes that are probabilistically chosen from all the available nodes. These 240 nodes include 120 gateways and 120 mixnodes (40 for each of 3 mixnet layers).
+For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The Rewarded set is freshly selected at the start of each epoch (every 60 min), and it consists of 240 Nym nodes that are probabilistically chosen from all the available nodes. These 240 nodes are composed of 120 gateways (50 entry and 70 exit) and 120 mixnodes (40 for each of 3 mixnet layers).
 
-Nodes selected into the rewarded set are chosen probabilisticaly are randomly selected, and their selection chances increase the larger nodes weight is. Weight value is always between `0` and `1` and it's calculated from these parameters, each of them having a value between `0` and `1` (some are floats, some are binary):
+Nodes selected into the rewarded set are chosen probabilisticaly, and their selection chances increase the larger nodes weight is. Weight value is always between `0` and `1` and it's calculated by multiplying these parameters, each of them also having a value between `0` and `1` (some are floats, some are binary):
 
-1. [Performance](#node-performance-calculation): This value consists of:
+**1. [Performance](#node-performance-calculation):** This value consists of:
 - [Config score](#config-score-calculation): highest (`1`) when the node is running the latest version of the software, has [T&C's accepted](../nodes/nym-node/setup.mdx#terms--conditions) and self described API endpoint available
 - [Routing ](#routing-score-calculation): highest (`1`) when the node is consistently online and correctly processes all the received traffic (100% of time)
-2. [Stake saturation](#stake-saturation): combining bond and delegated stake (a float number representing percentage)
+
+**2. [Stake saturation](#stake-saturation):** combining bond and delegated stake (a float number between `0` and `1` representing percentage)
 
 **Node weight is calculated with this formula:**
 
@@ -176,7 +177,7 @@ Nodes selected into the rewarded set are chosen probabilisticaly are randomly se
 
 For the rewarded set selection weight, good [performance](#node-performance-calculation) is much more essential than [stake saturation](#stake-saturation), because it's lifted to 20th power in the selection algorhitm.
 
-For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them [`config_score`](#config-score-calculation)) = 1 for simplification):
+For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them [`config_score`](#config-score-calculation) = `1` for simplification):
 
 <br />
 <AccordionTemplate name="✏️ Calculation examples: performance ^ 20 * node_stake_saturation">
@@ -324,7 +325,7 @@ Besides these values, the API also checks whether the node is bonded in Mixnet s
 
 #### Versions Behind Calculation
 
-From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version (denoted as `versions_behind`). The "current version" is the one marked as `Latest` in our repository. The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with this formula:
+From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version (denoted as `versions_behind`). The "current version" is the one marked as `Latest` in the [repository](https://github.com/nymtech/nym/releases/). The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with this formula:
 
 <Callout type="info" emoji="📌">
 > **0.995 ^ ( ( X * versions_behind ) ^ 1.65 )**
@@ -385,7 +386,7 @@ If a node is active in the rewarded set, it will receive rewards in the end of t
 > **[rewarded_set_size](https://validator.nymtech.net/api/v1/epoch/reward_params) = 240** <br/>
 > **[stake_saturation_level](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><StakeSaturation /></span>** <br/>
 > **&alpha; = <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr>**
-> 
+>
 > Therefore: <br/>
 > **node_epoch_rewards = <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> \* [node_performance](#node-performance-calculation) \* [node_stake_saturation](#stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">( 1 / 240 )</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> \* ( (  <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / <span style={{display: 'inline-block'}}><StakeSaturation /></span> ) / 240 ) ) \* 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> )**
 </Callout>
@@ -426,7 +427,7 @@ node2_epoch_rewards = 17.2275 NYM
 node3_epoch_rewards = 20.8333 NYM
 ```
 
-Difference between the smallest possible bond 100 NYM and a maximum bond 1mm NYM (equal full stake saturation point) is about 23% of increase in epoch rewards. 
+Difference between the smallest possible bond 100 NYM and a maximum bond 1mm NYM (equal full stake saturation point) is about 23% of increase in epoch rewards.
 </ AccordionTemplate>
 
 **Try to calculate rewards yourself**

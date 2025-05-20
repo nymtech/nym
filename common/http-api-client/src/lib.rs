@@ -163,6 +163,9 @@ pub use user_agent::UserAgent;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod dns;
+mod path;
+
+use crate::path::RequestPath;
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
@@ -454,14 +457,15 @@ impl Client {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ApiClientCore {
     /// Create an HTTP request using the host configured in this client.
-    fn create_request<B, K, V>(
+    fn create_request<P, B, K, V>(
         &self,
         method: reqwest::Method,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: Option<&B>,
     ) -> RequestBuilder
     where
+        P: RequestPath,
         B: Serialize + ?Sized,
         K: AsRef<str>,
         V: AsRef<str>;
@@ -512,7 +516,7 @@ pub trait ApiClientCore {
         };
         let params: Vec<(String, String)> = standin_url.query_pairs().into_owned().collect();
 
-        self.create_request(method, &path, &params, json_body)
+        self.create_request(method, path.as_slice(), &params, json_body)
     }
 
     /// Send a created HTTP request.
@@ -525,14 +529,15 @@ pub trait ApiClientCore {
         E: Display;
 
     /// Create and send a created HTTP request.
-    async fn send_request<B, K, V, E>(
+    async fn send_request<P, B, K, V, E>(
         &self,
         method: reqwest::Method,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: Option<&B>,
     ) -> Result<Response, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         B: Serialize + ?Sized + Sync,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
@@ -547,14 +552,15 @@ pub trait ApiClientCore {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ApiClientCore for Client {
     #[instrument(level = "debug", skip_all, fields(path=?path))]
-    fn create_request<B, K, V>(
+    fn create_request<P, B, K, V>(
         &self,
         method: reqwest::Method,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: Option<&B>,
     ) -> RequestBuilder
     where
+        P: RequestPath,
         B: Serialize + ?Sized,
         K: AsRef<str>,
         V: AsRef<str>,
@@ -722,12 +728,13 @@ pub trait ApiClient: ApiClientCore {
     /// into the provided type `T`.
     #[instrument(level = "debug", skip_all, fields(path=?path))]
     // TODO: deprecate in favour of get_response that works based on mime type in the response
-    async fn get_json<T, K, V, E>(
+    async fn get_json<P, T, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
     ) -> Result<T, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         for<'a> T: Deserialize<'a>,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
@@ -739,12 +746,13 @@ pub trait ApiClient: ApiClientCore {
     /// 'get' data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T` based on the content type header
-    async fn get_response<T, K, V, E>(
+    async fn get_response<P, T, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
     ) -> Result<T, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         for<'a> T: Deserialize<'a>,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
@@ -890,7 +898,7 @@ impl<C> ApiClient for C where C: ApiClientCore + Sync {}
 /// utility function that should solve the double slash problem in API urls forever.
 fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     base: &Url,
-    segments: PathSegments<'_>,
+    request_path: impl RequestPath,
     params: Params<'_, K, V>,
 ) -> Url {
     let mut url = base.clone();
@@ -900,10 +908,7 @@ fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
 
     path_segments.pop_if_empty();
 
-    for segment in segments {
-        let segment = segment.strip_prefix('/').unwrap_or(segment);
-        let segment = segment.strip_suffix('/').unwrap_or(segment);
-
+    for segment in request_path.to_sanitized_segments() {
         path_segments.push(segment);
     }
 
@@ -1047,6 +1052,12 @@ mod tests {
     #[test]
     fn sanitizing_urls() {
         let base_url: Url = "http://foomp.com".parse().unwrap();
+
+        // works with a full string
+        assert_eq!(
+            "http://foomp.com/foo/bar",
+            sanitize_url(&base_url, "/foo//bar/", NO_PARAMS).as_str()
+        );
 
         // works with 1 segment
         assert_eq!(

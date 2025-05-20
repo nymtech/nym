@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use futures::StreamExt;
 use nym_noise::config::NoiseConfig;
 use nym_noise::upgrade_noise_initiator;
-use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use std::io;
@@ -250,7 +250,7 @@ impl Client {
 
             connections_count.fetch_add(1, Ordering::SeqCst);
             ManagedConnection::new(
-                address,
+                address.into(),
                 noise_config,
                 receiver,
                 initial_connection_timeout,
@@ -332,7 +332,6 @@ mod tests {
             NoiseConfig::new(
                 Arc::new(x25519::KeyPair::new(&mut rng)),
                 NoiseNetworkView::new_empty(),
-                Duration::from_millis(1_500),
             ),
             Default::default(),
         )

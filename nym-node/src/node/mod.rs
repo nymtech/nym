@@ -44,6 +44,8 @@ use nym_network_requester::{
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
+use nym_noise::config::{NoiseConfig, NoiseNetworkView};
+use nym_noise_keys::VersionedNoiseKey;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, TaskClient};
@@ -700,7 +702,10 @@ impl NymNode {
         let host_details = sign_host_details(
             &self.config,
             self.x25519_sphinx_keys.public_key(),
-            self.x25519_noise_keys.public_key(),
+            &VersionedNoiseKey {
+                version: nym_noise::NOISE_VERSION,
+                x25519_pubkey: *self.x25519_noise_keys.public_key(),
+            },
             &self.ed25519_identity_keys,
         )?;
 

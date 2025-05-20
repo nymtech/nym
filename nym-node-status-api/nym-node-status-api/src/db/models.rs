@@ -421,7 +421,7 @@ impl ScraperNodeInfo {
 }
 
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
-#[derive(sqlx::Decode, Debug)]
+#[derive(FromRow, Debug)]
 pub(crate) struct NymNodeDto {
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,

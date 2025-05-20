@@ -4,7 +4,7 @@
 use nym_api_requests::models::{
     GatewayBondAnnotated, MalformedNodeBond, MixNodeBondAnnotated, OffsetDateTimeJsonSchemaWrapper,
 };
-use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
+use nym_api_requests::nym_nodes::{NodeRole, SemiSkimmedNode, SkimmedNode};
 use nym_mixnet_contract_common::reward_params::Performance;
 use time::OffsetDateTime;
 
@@ -14,6 +14,11 @@ pub(crate) trait LegacyAnnotation {
     fn identity(&self) -> &str;
 
     fn try_to_skimmed_node(&self, role: NodeRole) -> Result<SkimmedNode, MalformedNodeBond>;
+
+    fn try_to_semi_skimmed_node(
+        &self,
+        role: NodeRole,
+    ) -> Result<SemiSkimmedNode, MalformedNodeBond>;
 }
 
 impl LegacyAnnotation for MixNodeBondAnnotated {
@@ -28,6 +33,13 @@ impl LegacyAnnotation for MixNodeBondAnnotated {
     fn try_to_skimmed_node(&self, role: NodeRole) -> Result<SkimmedNode, MalformedNodeBond> {
         self.try_to_skimmed_node(role)
     }
+
+    fn try_to_semi_skimmed_node(
+        &self,
+        role: NodeRole,
+    ) -> Result<SemiSkimmedNode, MalformedNodeBond> {
+        self.try_to_semi_skimmed_node(role)
+    }
 }
 
 impl LegacyAnnotation for GatewayBondAnnotated {
@@ -41,6 +53,13 @@ impl LegacyAnnotation for GatewayBondAnnotated {
 
     fn try_to_skimmed_node(&self, role: NodeRole) -> Result<SkimmedNode, MalformedNodeBond> {
         self.try_to_skimmed_node(role)
+    }
+
+    fn try_to_semi_skimmed_node(
+        &self,
+        role: NodeRole,
+    ) -> Result<SemiSkimmedNode, MalformedNodeBond> {
+        self.try_to_semi_skimmed_node(role)
     }
 }
 

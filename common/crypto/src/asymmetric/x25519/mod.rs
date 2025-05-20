@@ -256,6 +256,10 @@ impl PrivateKey {
         self.0.to_bytes()
     }
 
+    pub fn as_bytes(&self) -> &[u8; PRIVATE_KEY_SIZE] {
+        self.0.as_bytes()
+    }
+
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PRIVATE_KEY_SIZE {
             return Err(KeyRecoveryError::InvalidSizePrivateKey {

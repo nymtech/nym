@@ -10,8 +10,11 @@ use std::{
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
 use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
+use snow::params::NoiseParams;
 
-#[derive(Default, Debug, Clone, Copy)]
+use strum::EnumIter;
+
+#[derive(Default, Debug, Clone, Copy, EnumIter)]
 pub enum NoisePattern {
     #[default]
     XKpsk3,
@@ -26,7 +29,7 @@ impl NoisePattern {
         }
     }
 
-    // SAFETY: if unwraps failed, it means hardcoded patterns were wrong
+    // SAFETY: we have tests to ensure that hardcoded pattern are correct
     #[allow(clippy::unwrap_used)]
     pub(crate) fn psk_position(&self) -> u8 {
         //automatic parsing, works for correct pattern, more convenient
@@ -38,6 +41,12 @@ impl NoisePattern {
             }
             None => 0,
         }
+    }
+
+    // SAFETY : we have tests to ensure that hardcoded pattern are correct
+    #[allow(clippy::unwrap_used)]
+    pub(crate) fn as_noise_params(&self) -> NoiseParams {
+        self.as_str().parse().unwrap()
     }
 }
 
@@ -121,5 +130,33 @@ impl NoiseConfig {
         let canonical_ip = &ip_addr.to_canonical();
         let canonical_ip_support = self.network.support.inner.load().get(canonical_ip).copied();
         plain_ip_support.or(canonical_ip_support)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use snow::params::NoiseParams;
+
+    use super::NoisePattern;
+    use std::str::FromStr;
+    use strum::IntoEnumIterator;
+
+    // The goal of these is to make sure every NoisePatterns are correct and unwrap can be used on them
+
+    #[test]
+    fn noise_patterns_are_valid() {
+        for pattern in NoisePattern::iter() {
+            assert!(NoiseParams::from_str(pattern.as_str()).is_ok())
+        }
+    }
+
+    #[test]
+    fn noise_patterns_psk_position_is_valid() {
+        for pattern in NoisePattern::iter() {
+            match pattern {
+                NoisePattern::XKpsk3 => assert_eq!(pattern.psk_position(), 3),
+                NoisePattern::IKpsk2 => assert_eq!(pattern.psk_position(), 2),
+            }
+        }
     }
 }

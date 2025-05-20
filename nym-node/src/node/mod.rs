@@ -828,10 +828,13 @@ impl NymNode {
         bin_info!().into()
     }
 
-    async fn try_refresh_remote_nym_api_cache(&self) -> Result<(), NymNodeError> {
+    async fn try_refresh_remote_nym_api_cache(
+        &self,
+        client: &NymApisClient,
+    ) -> Result<(), NymNodeError> {
         info!("attempting to request described cache refresh from nym-api(s)...");
 
-        NymApisClient::new(&self.config.mixnet.nym_api_urls)?
+        client
             .broadcast_force_refresh(self.ed25519_identity_keys.private_key())
             .await;
         Ok(())
@@ -983,7 +986,10 @@ impl NymNode {
 
     // I'm assuming this will be needed in other places, so it's explicitly extracted
     fn setup_nym_apis_client(&self) -> Result<NymApisClient, NymNodeError> {
-        NymApisClient::new(&self.config.mixnet.nym_api_urls)
+        NymApisClient::new(
+            &self.config.mixnet.nym_api_urls,
+            self.shutdown_manager.clone_token("nym-apis-client"),
+        )
     }
 
     #[track_caller]
@@ -1120,12 +1126,14 @@ impl NymNode {
             }
         });
 
-        self.try_refresh_remote_nym_api_cache().await?;
+        let nym_apis_client = self.setup_nym_apis_client()?;
+
+        self.try_refresh_remote_nym_api_cache(&nym_apis_client)
+            .await?;
         self.start_verloc_measurements();
 
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
-        let nym_apis_client = self.setup_nym_apis_client()?;
 
         let bloomfilters_manager = self.setup_replay_detection().await?;
 

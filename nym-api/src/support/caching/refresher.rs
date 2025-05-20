@@ -18,7 +18,6 @@ pub struct RefreshRequester(Arc<Notify>);
 
 impl RefreshRequester {
     pub(crate) fn request_cache_refresh(&self) {
-        warn!("REQUESTING SELF DESCRIBED REFRESH");
         self.0.notify_waiters()
     }
 }
@@ -176,8 +175,6 @@ where
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
                 _ = self.refresh_requester.0.notified() => {
-                    warn!("RECEIVED SELF DESCRIBED REFRESH REQUEST");
-
                     self.refresh(&mut task_client).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();

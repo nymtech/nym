@@ -7,7 +7,7 @@ use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
-use tracing::{debug, warn};
+use tracing::debug;
 
 #[derive(Debug, Error)]
 #[error("the cache item has not been initialised")]

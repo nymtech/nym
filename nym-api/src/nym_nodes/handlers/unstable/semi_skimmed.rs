@@ -28,6 +28,7 @@ fn build_nym_nodes_response<'a, NI>(
     rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
     annotations: &HashMap<NodeId, NodeAnnotation>,
+    active_only: bool,
 ) -> Vec<SemiSkimmedNode>
 where
     NI: Iterator<Item = &'a NymNodeDescription> + 'a,
@@ -37,6 +38,11 @@ where
         let node_id = nym_node.node_id;
 
         let role: NodeRole = rewarded_set.role(node_id).into();
+
+        // if the role is inactive, see if our filter allows it
+        if active_only && role.is_inactive() {
+            continue;
+        }
 
         // honestly, not sure under what exact circumstances this value could be missing,
         // but in that case just use 0 performance
@@ -109,7 +115,7 @@ pub(super) async fn nodes_expanded(
     let legacy_mixnodes = state.legacy_mixnode_annotations().await?;
     let legacy_gateways = state.legacy_gateways_annotations().await?;
 
-    let mut nodes = build_nym_nodes_response(&rewarded_set, all_nym_nodes, &annotations);
+    let mut nodes = build_nym_nodes_response(&rewarded_set, all_nym_nodes, &annotations, false);
 
     // add legacy gateways to the response
     add_legacy(&mut nodes, &rewarded_set, &describe_cache, &legacy_gateways);

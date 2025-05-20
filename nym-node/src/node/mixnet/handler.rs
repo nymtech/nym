@@ -484,7 +484,7 @@ impl ConnectionHandler {
 
     pub(crate) async fn handle_stream(
         &mut self,
-        mut mixnet_connection: Framed<Connection<TcpStream>, NymCodec>,
+        mut mixnet_connection: Framed<Connection, NymCodec>,
     ) {
         loop {
             tokio::select! {

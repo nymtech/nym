@@ -1,5 +1,5 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use std::{
     collections::HashMap,
@@ -26,6 +26,8 @@ impl NoisePattern {
         }
     }
 
+    // SAFETY: if unwraps failed, it means hardcoded patterns were wrong
+    #[allow(clippy::unwrap_used)]
     pub(crate) fn psk_position(&self) -> u8 {
         //automatic parsing, works for correct pattern, more convenient
         match self.as_str().find("psk") {
@@ -33,7 +35,6 @@ impl NoisePattern {
                 let psk_index = n + 3;
                 let psk_char = self.as_str().chars().nth(psk_index).unwrap();
                 psk_char.to_string().parse().unwrap()
-                //if this fails, it means hardcoded pattern are wrong
             }
             None => 0,
         }

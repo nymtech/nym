@@ -1,16 +1,16 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{NoiseConfig, NoisePattern};
 use crate::connection::Connection;
 use crate::error::NoiseError;
 use crate::stream::NoiseStream;
-use log::*;
 use nym_crypto::asymmetric::x25519;
 use nym_noise_keys::NoiseVersion;
 use sha2::{Digest, Sha256};
 use snow::{error::Prerequisite, Builder, Error};
 use tokio::net::TcpStream;
+use tracing::*;
 
 pub mod config;
 pub mod connection;
@@ -137,10 +137,7 @@ pub async fn upgrade_noise_responder(
     // Port is random and we just need the support info
     match config.get_noise_support(initiator_addr.ip()) {
         None => {
-            warn!(
-                "{:?} can't speak Noise yet, falling back to TCP",
-                initiator_addr
-            );
+            warn!("{initiator_addr} can't speak Noise yet, falling back to TCP",);
             Ok(Connection::Tcp(conn))
         }
         //responder's info on version is shaky, so initiator has to adapt. This behavior can change in the future

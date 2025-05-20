@@ -70,15 +70,6 @@ impl SignedHostInformation {
 
         // TODO: @JS: to remove downgrade support in future release(s)
 
-        let legacy_v3 = SignedData {
-            data: LegacyHostInformationV3::from(self.data.clone()),
-            signature: self.signature.clone(),
-        };
-
-        if legacy_v3.verify(&self.keys.ed25519_identity) {
-            return true;
-        }
-
         // attempt to verify legacy signatures
         let legacy_v3 = SignedData {
             data: LegacyHostInformationV3::from(self.data.clone()),
@@ -130,7 +121,7 @@ impl Display for ErrorResponse {
 mod tests {
 
     use super::*;
-    use crate::api::v1::node::models::{HostKeys, SphinxKey};
+    use crate::api::v1::node::models::HostInformation;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
     use rand_chacha::rand_core::SeedableRng;
@@ -404,6 +395,49 @@ mod tests {
         assert!(current_struct_no_noise.verify_host_information());
 
         assert!(!current_struct_noise.verify(ed22519.public_key()));
+        assert!(current_struct_noise.verify_host_information())
+    }
+
+    #[test]
+    fn dummy_current_signed_host_verification() {
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let ed22519 = ed25519::KeyPair::new(&mut rng);
+        let x25519_sphinx = x25519::KeyPair::new(&mut rng);
+        let x25519_noise = x25519::KeyPair::new(&mut rng);
+
+        let host_info_no_noise = HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: None,
+            },
+        };
+
+        let host_info_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: Some(VersionedNoiseKey {
+                    version: NoiseVersion::V1,
+                    x25519_pubkey: *x25519_noise.public_key(),
+                }),
+            },
+        };
+
+        // signature on legacy data
+        let current_struct_no_noise =
+            SignedData::new(host_info_no_noise, ed22519.private_key()).unwrap();
+        let current_struct_noise = SignedData::new(host_info_noise, ed22519.private_key()).unwrap();
+
+        assert!(current_struct_no_noise.verify(ed22519.public_key()));
+        assert!(current_struct_no_noise.verify_host_information());
+
+        // if noise key is present, the signature is actually valid
+        assert!(current_struct_noise.verify(ed22519.public_key()));
         assert!(current_struct_noise.verify_host_information())
     }
 

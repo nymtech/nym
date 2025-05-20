@@ -134,50 +134,12 @@ impl ClientBuilder {
 
         self
     }
-
-    // pub fn enable(self) -> Self {
-    //     if self.front.is_none() {
-    //         return self;
-    //     }
-
-    //     // it should no be possible for this to be panic
-    //     let front = self.front.as_ref().unwrap();
-    //     front.enabled.store(true, Ordering::Relaxed);
-    //     self
-    // }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{ApiClientCore, NO_PARAMS};
-
-    // #[tokio::test]
-    // async fn vpn_api_works() {
-    //     let opts = FrontOptions::default();
-    //     let fronts = vec!["https://www.as.com".parse().unwrap()]; // fastly
-    //     // let fronts = vec!["https://www.cdn77.com".parse().unwrap()]; // cdn77??
-
-    //     let client = ClientBuilder::new::<&str, &str>("https://nymvpn.com")
-    //     // let client = ClientBuilder::new::<&str, &str>("https://1287599755.rsc.cdn77.org")
-    //         .expect("bad url")
-    //         .with_fronting(fronts, opts)
-    //         .build::<&str>()
-    //         .expect("failed to build client");
-
-    //     let response = client
-    //         .send_request::<(), &str, &str, &str>(
-    //             reqwest::Method::GET,
-    //             &["api", "public", "v1", "directory", "gateways"],
-    //             NO_PARAMS,
-    //             None,
-    //         )
-    //         .await
-    //         .expect("failed get request");
-
-    //     println!("{response:?}");
-    //     assert_eq!(response.status(), 200);
-    // }
 
     #[tokio::test]
     async fn nym_api_works() {
@@ -202,7 +164,7 @@ mod tests {
             .await
             .expect("failed get request");
 
-        println!("{response:?}");
+        // println!("{response:?}");
         assert_eq!(response.status(), 200);
     }
 }

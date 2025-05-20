@@ -6261,10 +6261,10 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "futures",
- "nym-crypto 0.4.0",
+ "nym-crypto",
  "nym-noise",
- "nym-sphinx 0.1.0",
- "nym-task 0.1.0",
+ "nym-sphinx",
+ "nym-task",
  "rand 0.8.5",
  "tokio",
  "tokio-stream",

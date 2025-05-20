@@ -8,10 +8,9 @@ use crate::stream::NoiseStream;
 use nym_crypto::asymmetric::x25519;
 use nym_noise_keys::NoiseVersion;
 use sha2::{Digest, Sha256};
-use snow::{error::Prerequisite, Builder, Error};
+use snow::{error::Prerequisite, Error};
 use tokio::net::TcpStream;
 use tracing::*;
-use zeroize::Zeroizing;
 
 pub mod config;
 pub mod connection;
@@ -37,14 +36,7 @@ async fn upgrade_noise_initiator_v1(
     trace!("Perform Noise Handshake, initiator side");
 
     let secret_hash = generate_psk_v1(remote_pub_key);
-
-    let handshake = Builder::new(config.pattern.as_str().parse()?)
-        .local_private_key(Zeroizing::new(config.local_key.private_key().to_bytes()).as_ref())
-        .remote_public_key(&remote_pub_key.to_bytes())
-        .psk(config.pattern.psk_position(), &secret_hash)
-        .build_initiator()?;
-
-    let noise_stream = NoiseStream::new(conn, handshake);
+    let noise_stream = NoiseStream::new_initiator(conn, config, remote_pub_key, &secret_hash)?;
 
     Ok(Connection::Noise(noise_stream.perform_handshake().await?))
 }
@@ -90,13 +82,7 @@ async fn upgrade_noise_responder_v1(
     trace!("Perform Noise Handshake, responder side");
 
     let secret_hash = generate_psk_v1(config.local_key.public_key());
-
-    let handshake = Builder::new(config.pattern.as_str().parse()?)
-        .local_private_key(&config.local_key.private_key().to_bytes())
-        .psk(config.pattern.psk_position(), &secret_hash)
-        .build_responder()?;
-
-    let noise_stream = NoiseStream::new(conn, handshake);
+    let noise_stream = NoiseStream::new_responder(conn, config, &secret_hash)?;
 
     Ok(Connection::Noise(noise_stream.perform_handshake().await?))
 }

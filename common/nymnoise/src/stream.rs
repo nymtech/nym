@@ -1,11 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::NoiseError;
+use crate::{config::NoiseConfig, error::NoiseError};
 use bytes::BytesMut;
 use futures::{Sink, SinkExt, Stream, StreamExt};
+use nym_crypto::asymmetric::x25519;
 use pin_project::pin_project;
-use snow::{HandshakeState, TransportState};
+use snow::{Builder, HandshakeState, TransportState};
 use std::cmp::min;
 use std::io;
 use std::pin::Pin;
@@ -19,6 +20,8 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 const MAXMSGLEN: usize = 65535;
 const TAGLEN: usize = 16;
 
+pub(crate) type Psk = [u8; 32];
+
 /// Wrapper around a TcpStream
 #[pin_project]
 pub struct NoiseStream {
@@ -30,7 +33,33 @@ pub struct NoiseStream {
 }
 
 impl NoiseStream {
-    pub(crate) fn new(inner_stream: TcpStream, handshake: HandshakeState) -> NoiseStream {
+    pub(crate) fn new_initiator(
+        inner_stream: TcpStream,
+        config: &NoiseConfig,
+        remote_pub_key: &x25519::PublicKey,
+        psk: &Psk,
+    ) -> Result<NoiseStream, NoiseError> {
+        let handshake = Builder::new(config.pattern.as_noise_params())
+            .local_private_key(config.local_key.private_key().as_bytes())
+            .remote_public_key(&remote_pub_key.to_bytes())
+            .psk(config.pattern.psk_position(), psk)
+            .build_initiator()?;
+        Ok(NoiseStream::new_inner(inner_stream, handshake))
+    }
+
+    pub(crate) fn new_responder(
+        inner_stream: TcpStream,
+        config: &NoiseConfig,
+        psk: &Psk,
+    ) -> Result<NoiseStream, NoiseError> {
+        let handshake = Builder::new(config.pattern.as_noise_params())
+            .local_private_key(config.local_key.private_key().as_bytes())
+            .psk(config.pattern.psk_position(), psk)
+            .build_responder()?;
+        Ok(NoiseStream::new_inner(inner_stream, handshake))
+    }
+
+    fn new_inner(inner_stream: TcpStream, handshake: HandshakeState) -> NoiseStream {
         NoiseStream {
             inner_stream: LengthDelimitedCodec::builder()
                 .length_field_type::<u16>()
@@ -43,10 +72,9 @@ impl NoiseStream {
 
     pub(crate) async fn perform_handshake(mut self) -> Result<Self, NoiseError> {
         //Check if we are in the correct state
-        let Some(mut handshake) = self.handshake else {
+        let Some(mut handshake) = self.handshake.take() else {
             return Err(NoiseError::IncorrectStateError);
         };
-        self.handshake = None;
 
         while !handshake.is_handshake_finished() {
             if handshake.is_my_turn() {
@@ -107,7 +135,7 @@ impl AsyncRead for NoiseStream {
             }
 
             Poll::Ready(Some(Ok(noise_msg))) => {
-                //We have a new moise msg
+                // We have a new noise msg
                 let mut dec_msg = vec![0u8; MAXMSGLEN];
                 let len = match projected_self.noise {
                     Some(transport_state) => {

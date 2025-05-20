@@ -157,7 +157,6 @@ use http::HeaderMap;
 use mime::Mime;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
-#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
 #[cfg(feature = "tunneling")]
@@ -668,7 +667,7 @@ impl ApiClientCore for Client {
         V: AsRef<str>,
     {
         let url = self.current_url();
-        let mut url = sanitize_url(&url, path, params);
+        let mut url = sanitize_url(url, path, params);
 
         #[cfg(feature = "tunneling")]
         if let Some(ref front) = self.front {
@@ -701,35 +700,34 @@ impl ApiClientCore for Client {
     {
         let mut attempts = 0;
         loop {
+            // try_clone may fail if the body is a stream in which case using retries is not advised.
+            let r = request
+                .try_clone()
+                .ok_or(HttpClientError::GenericRequestFailure(
+                    "failed to send request".to_string(),
+                ))?;
+
+            // apply any changes based on the current state of the client wrt. hosts,
+            // fronting domains, etc.
+            let mut req = r.build()?;
+            self.update_request_for_send(&mut req);
+
             #[cfg(target_arch = "wasm32")]
-            let response = {
-                Ok(
-                    wasmtimer::tokio::timeout(self.request_timeout, request.send())
-                        .await
-                        .map_err(|_timeout| HttpClientError::RequestTimeout)??,
+            let response: Result<Response, HttpClientError<E>> = {
+                Ok(wasmtimer::tokio::timeout(
+                    self.request_timeout,
+                    self.reqwest_client.execute(req),
                 )
+                .await
+                .map_err(|_timeout| HttpClientError::RequestTimeout)??)
             };
 
             #[cfg(not(target_arch = "wasm32"))]
-            let response = {
-                let r = request
-                    .try_clone()
-                    .ok_or(HttpClientError::GenericRequestFailure(
-                        "failed retry".to_string(),
-                    ))?;
-
-                // apply any changes based on the current state of the client wrt. hosts,
-                // fronting domains, etc.
-                let mut req = r.build()?;
-                self.update_request_for_send(&mut req);
-
-                self.reqwest_client.execute(req).await
-            };
+            let response = self.reqwest_client.execute(req).await;
 
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(e) => {
-
                     // if we have multiple urls, update to the next
                     self.update_host();
 
@@ -742,7 +740,7 @@ impl ApiClientCore for Client {
                             front.update_front();
                         }
                     }
-                    
+
                     if attempts < self.retry_limit {
                         warn!("Retrying request due to http error: {}", e);
                         attempts += 1;

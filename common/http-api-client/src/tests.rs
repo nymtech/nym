@@ -90,20 +90,20 @@ fn sanitizing_urls() {
 
 #[tokio::test]
 async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
-    let client =
-        ClientBuilder::new_with_urls(vec!["http://broken.nym.badurl".parse()?, "http://example.com/".parse()?])
-            .with_retries(3)
-            .build::<HttpClientError>()?;
+    let client = ClientBuilder::new_with_urls(vec![
+        "http://broken.nym.badurl".parse()?,
+        "http://example.com/".parse()?,
+    ])
+    .with_retries(3)
+    .build::<HttpClientError>()?;
 
-	let req = client.create_get_request(&["/"], NO_PARAMS);
-	let resp = client
-		.send::<HttpClientError>(req)
-		.await?;
+    let req = client.create_get_request(&["/"], NO_PARAMS);
+    let resp = client.send::<HttpClientError>(req).await?;
 
-	assert_eq!(resp.status(), 200);
+    assert_eq!(resp.status(), 200);
 
-	// check that the url was updated
-	assert_eq!(client.current_url().as_str(), "http://example.com/");
+    // check that the url was updated
+    assert_eq!(client.current_url().as_str(), "http://example.com/");
 
-	Ok(())
+    Ok(())
 }

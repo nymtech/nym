@@ -75,19 +75,10 @@ impl Front {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct FrontOptions {
     pub policy: FrontPolicy,
     pub strategy: FrontUrlStrategy,
-}
-
-impl Default for FrontOptions {
-    fn default() -> Self {
-        Self {
-            policy: Default::default(),
-            strategy: Default::default(),
-        }
-    }
 }
 
 impl FrontOptions {

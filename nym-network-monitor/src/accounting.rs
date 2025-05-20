@@ -5,11 +5,13 @@ use std::{
 
 use anyhow::Result;
 use futures::{pin_mut, stream::FuturesUnordered, StreamExt};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{NymRouteProvider, RoutingNode};
 use nym_types::monitoring::{MonitorMessage, MonitorResults, NodeResult, RouteResult};
-use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
+use nym_validator_client::nym_api::routes::{
+    API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE, SUBMIT_ROUTE,
+};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -493,17 +495,21 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
 
     if let Some(private_key) = PRIVATE_KEY.get() {
         if let Some(nym_api_urls) = NYM_API_URLS.get() {
+            info!("Submitting metrics to {} nym apis", nym_api_urls.len());
             for nym_api_url in nym_api_urls {
+                info!("Submitting metrics to {}", nym_api_url);
                 let node_stats = monitor_mixnode_results().await?;
                 let gateway_stats = monitor_gateway_results().await?;
-
-                info!("Submitting metrics to {}", nym_api_url);
                 let client = reqwest::Client::new();
 
                 let node_submit_url =
-                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", nym_api_url);
-                let gateway_submit_url =
-                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", nym_api_url);
+                    format!("{}/api/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", nym_api_url);
+                let gateway_submit_url = format!(
+                    "{}/api/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}",
+                    nym_api_url
+                );
+                let route_submit_url =
+                    format!("{}/api/{API_VERSION}/{STATUS}/{SUBMIT_ROUTE}", nym_api_url);
 
                 info!("Submitting {} mixnode measurements", node_stats.len());
 
@@ -561,7 +567,7 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                             .collect::<Vec<RouteResult>>();
                         let monitor_results = MonitorResults::Route(route_results);
                         let monitor_message = MonitorMessage::new(monitor_results, private_key);
-                        client.post(&node_submit_url).json(&monitor_message).send()
+                        client.post(&route_submit_url).json(&monitor_message).send()
                     })
                     .collect::<FuturesUnordered<_>>()
                     .collect::<Vec<Result<_, _>>>()
@@ -580,6 +586,8 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                 };
             }
         }
+    } else {
+        warn!("No private key or nym api urls found");
     }
 
     NetworkAccount::empty_buffers();

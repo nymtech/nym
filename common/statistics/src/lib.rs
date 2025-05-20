@@ -26,9 +26,14 @@ pub mod report;
 pub mod types;
 
 const CLIENT_ID_PREFIX: &str = "client_stats_id";
+const VPN_CLIENT_ID_PREFIX: &str = "vpnclient_stats_id";
 
 pub fn generate_client_stats_id(id_key: ed25519::PublicKey) -> String {
     generate_stats_id(CLIENT_ID_PREFIX, id_key.to_base58_string())
+}
+
+pub fn generate_vpn_client_stats_id<M: AsRef<[u8]>>(seed: M) -> String {
+    generate_stats_id(VPN_CLIENT_ID_PREFIX, seed)
 }
 
 fn generate_stats_id<M: AsRef<[u8]>>(prefix: &str, id_seed: M) -> String {

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::report::{ClientStatsReport, OsInformation};
+use crate::report::client::{ClientStatsReport, OsInformation};
 
 use nym_task::TaskClient;
 use time::{OffsetDateTime, Time};

@@ -8,7 +8,7 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{EpochId, Interval, NodeId};
+use nym_mixnet_contract_common::{Interval, NodeId};
 use nym_noise_keys::VersionedNoiseKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

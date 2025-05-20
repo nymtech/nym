@@ -896,29 +896,7 @@ pub struct HostKeys {
     pub current_x25519_sphinx_key: SphinxKey,
 
     #[serde(default)]
-    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
-
-    #[serde(default)]
-    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-pub struct SphinxKey {
-    pub rotation_id: u32,
-
-    #[serde(with = "bs58_x25519_pubkey")]
-    #[schemars(with = "String")]
-    #[schema(value_type = String)]
-    pub public_key: x25519::PublicKey,
-}
-
-impl From<nym_node_requests::api::v1::node::models::SphinxKey> for SphinxKey {
-    fn from(value: nym_node_requests::api::v1::node::models::SphinxKey) -> Self {
-        SphinxKey {
-            rotation_id: value.rotation_id,
-            public_key: value.public_key,
-        }
-    }
+    pub x25519_noise: Option<VersionedNoiseKey>,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
@@ -1108,19 +1086,14 @@ impl NymNodeDescription {
 
     pub fn to_semi_skimmed_node(
         &self,
-        current_rotation_id: u32,
         role: NodeRole,
         performance: Performance,
     ) -> SemiSkimmedNode {
-        let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
+        let skimmed_node = self.to_skimmed_node(role, performance);
 
         SemiSkimmedNode {
             basic: skimmed_node,
-            x25519_noise_versioned_key: self
-                .description
-                .host_information
-                .keys
-                .x25519_versioned_noise,
+            x25519_noise_versioned_key: self.description.host_information.keys.x25519_noise,
         }
     }
 }

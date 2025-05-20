@@ -272,21 +272,21 @@ impl EpochAdvancer {
         info!("waiting for initial self-described cache values before we can start rewarding");
         self.described_cache.naive_wait_for_initial_values().await;
 
-        // while !shutdown.is_shutdown() {
-        //     let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
-        //         // received a shutdown
-        //         None => return Ok(()),
-        //         Some(interval) => interval,
-        //     };
-        //     if let Err(err) = self.update_legacy_node_blacklist(&interval_details).await {
-        //         error!("failed to update the node blacklist - {err}");
-        //         continue;
-        //     }
-        //     if let Err(err) = self.perform_epoch_operations(interval_details).await {
-        //         error!("failed to perform epoch operations - {err}");
-        //         sleep(Duration::from_secs(30)).await;
-        //     }
-        // }
+        while !shutdown.is_shutdown() {
+            //     let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
+            //         // received a shutdown
+            //         None => return Ok(()),
+            //         Some(interval) => interval,
+            //     };
+            //     if let Err(err) = self.update_legacy_node_blacklist(&interval_details).await {
+            //         error!("failed to update the node blacklist - {err}");
+            //         continue;
+            //     }
+            //     if let Err(err) = self.perform_epoch_operations(interval_details).await {
+            //         error!("failed to perform epoch operations - {err}");
+            //         sleep(Duration::from_secs(30)).await;
+            //     }
+        }
 
         Ok(())
     }

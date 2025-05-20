@@ -568,8 +568,14 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                     .into_iter()
                     .collect::<Result<Vec<_>, _>>()
                 {
-                    Ok(_) => info!("Successfully submitted accounting routes to db"),
-                    Err(e) => error!("Error submitting accounting routes to db: {}", e),
+                    Ok(_) => info!(
+                        "Successfully submitted accounting routes to {}",
+                        nym_api_url
+                    ),
+                    Err(e) => error!(
+                        "Error submitting accounting routes to {}: {}",
+                        nym_api_url, e
+                    ),
                 };
             }
         }

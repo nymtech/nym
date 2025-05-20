@@ -6,6 +6,7 @@ use crate::node::NymNode;
 use futures::{stream, StreamExt};
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::Client;
+use nym_task::ShutdownToken;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;
@@ -15,8 +16,8 @@ use rand::thread_rng;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tokio::time::timeout;
-use tracing::warn;
+use tokio::time::sleep;
+use tracing::{debug, warn};
 use url::Url;
 
 #[derive(Clone)]
@@ -24,16 +25,18 @@ pub struct NymApisClient {
     inner: Arc<RwLock<InnerClient>>,
 }
 
-const TODO: &str = "add shutdown signal to cancel any queries if received";
-
 struct InnerClient {
     active_client: NymApiClient,
     available_urls: Vec<Url>,
+    shutdown_token: ShutdownToken,
     currently_used_api: usize,
 }
 
 impl NymApisClient {
-    pub(crate) fn new(nym_apis: &[Url]) -> Result<Self, NymNodeError> {
+    pub(crate) fn new(
+        nym_apis: &[Url],
+        shutdown_token: ShutdownToken,
+    ) -> Result<Self, NymNodeError> {
         if nym_apis.is_empty() {
             return Err(NymNodeError::NoNymApiUrls);
         }
@@ -51,6 +54,7 @@ impl NymApisClient {
             inner: Arc::new(RwLock::new(InnerClient {
                 active_client: NymApiClient::from(active_client),
                 available_urls: urls,
+                shutdown_token,
                 currently_used_api: 0,
             })),
         })
@@ -127,9 +131,19 @@ impl InnerClient {
                 }
             });
 
-        let todo = "this fails ";
-        if timeout(timeout_duration, broadcast_fut).await.is_err() {
-            warn!("timed out while attempting to broadcast data to known nym apis")
+        let timeout_fut = sleep(timeout_duration);
+
+        tokio::select! {
+            _ = broadcast_fut => {
+                debug!("managed to broadcast data to all nym apis")
+            }
+            _ = timeout_fut => {
+                warn!("timed out while attempting to broadcast data to known nym apis")
+
+            }
+            _ = self.shutdown_token.cancelled() => {
+                debug!("received shutdown while attempting to broadcast data to known nym apis")
+            }
         }
     }
 
@@ -155,13 +169,27 @@ impl InnerClient {
             .chain(self.available_urls.iter().enumerate().take(last_working))
         {
             let nym_api = self.active_client.nym_api.clone_with_new_url(url.clone());
-            match timeout(timeout_duration, req(nym_api)).await {
-                Ok(Ok(res)) => return Ok((res, idx)),
-                Ok(Err(err)) => {
-                    warn!("failed to resolve query for {url}: {err}")
+
+            let timeout_fut = sleep(timeout_duration);
+            let query_fut = req(nym_api);
+
+            tokio::select! {
+                res = query_fut => {
+                    debug!("managed to broadcast data to all nym apis");
+                    match res {
+                        Ok(res) => return Ok((res, idx)),
+                        Err(err) => {
+                             warn!("failed to resolve query for {url}: {err}");
+                        }
+                    }
                 }
-                Err(_timeout) => {
+                _ = timeout_fut => {
                     warn!("timed out while attempting to query {url}")
+
+                }
+                _ = self.shutdown_token.cancelled() => {
+                    debug!("received shutdown while attempting to query {url}");
+                    return Err(NymNodeError::ShutdownReceived)
                 }
             }
         }

@@ -415,11 +415,4 @@ mod tests {
         let res = serde_json::from_str::<SignedHostInformation>(legacy_raw);
         assert!(res.is_ok());
     }
-
-    #[test]
-    fn current_host_information_deserialisation_and_verification() {
-        let current_raw = r#"
-        
-        "#;
-    }
 }

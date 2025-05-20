@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 
 export default function RewardsCalculator() {
-  const [a, setA] = useState(0)
+  const [a, setA] = useState(5241)
   const [b, setB] = useState(0)
   const [c, setC] = useState(0)
   const [d, setD] = useState(0)
-  const [e, setE] = useState(0)
+  const [e, setE] = useState(1034081)
 
   const result =
     e !== 0
@@ -117,4 +117,3 @@ export default function RewardsCalculator() {
     </div>
   )
 }
-

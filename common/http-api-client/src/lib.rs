@@ -1059,6 +1059,12 @@ mod tests {
             sanitize_url(&base_url, "/foo//bar/", NO_PARAMS).as_str()
         );
 
+        // (and leading slash doesn't matter)
+        assert_eq!(
+            "http://foomp.com/foo/bar",
+            sanitize_url(&base_url, "foo//bar/", NO_PARAMS).as_str()
+        );
+
         // works with 1 segment
         assert_eq!(
             "http://foomp.com/foo",

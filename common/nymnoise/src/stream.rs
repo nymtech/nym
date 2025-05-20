@@ -17,8 +17,8 @@ use tokio::{
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-const MAXMSGLEN: usize = 65535;
 const TAGLEN: usize = 16;
+const HANDSHAKE_MAX_LEN: usize = 1024; // using this constant to limit the handshake's buffer size
 
 pub(crate) type Psk = [u8; 32];
 
@@ -66,7 +66,7 @@ impl NoiseStream {
                 .new_framed(inner_stream),
             handshake: Some(handshake),
             noise: None,
-            dec_buffer: BytesMut::with_capacity(MAXMSGLEN),
+            dec_buffer: BytesMut::new(),
         }
     }
 
@@ -92,7 +92,7 @@ impl NoiseStream {
         &mut self,
         handshake: &mut HandshakeState,
     ) -> Result<(), NoiseError> {
-        let mut buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
+        let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN); // we're in the handshake, we can afford a smaller buffer
         let len = handshake.write_message(&[], &mut buf)?;
         buf.truncate(len);
         self.inner_stream.send(buf.into()).await?;
@@ -105,7 +105,7 @@ impl NoiseStream {
     ) -> Result<(), NoiseError> {
         match self.inner_stream.next().await {
             Some(Ok(msg)) => {
-                let mut buf = vec![0u8; MAXMSGLEN];
+                let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN); // we're in the handshake, we can afford a smaller buffer
                 handshake.read_message(&msg, &mut buf)?;
                 Ok(())
             }
@@ -136,7 +136,7 @@ impl AsyncRead for NoiseStream {
 
             Poll::Ready(Some(Ok(noise_msg))) => {
                 // We have a new noise msg
-                let mut dec_msg = vec![0u8; MAXMSGLEN];
+                let mut dec_msg = BytesMut::zeroed(noise_msg.len() - TAGLEN);
                 let len = match projected_self.noise {
                     Some(transport_state) => {
                         match transport_state.read_message(&noise_msg, &mut dec_msg) {
@@ -187,7 +187,7 @@ impl AsyncWrite for NoiseStream {
         ready!(projected_self.inner_stream.as_mut().poll_ready(cx))?;
 
         // Ready to send, encrypting message
-        let mut noise_buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
+        let mut noise_buf = BytesMut::zeroed(buf.len() + TAGLEN);
 
         let Ok(len) = (match projected_self.noise {
             Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),

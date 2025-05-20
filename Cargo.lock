@@ -6428,7 +6428,7 @@ dependencies = [
  "nym-crypto",
  "nym-noise-keys",
  "pin-project",
- "sha2 0.10.8",
+ "sha2 0.10.9",
  "snow",
  "strum 0.26.3",
  "thiserror 2.0.12",

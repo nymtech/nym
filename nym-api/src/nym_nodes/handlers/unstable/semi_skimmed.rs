@@ -7,7 +7,6 @@ use crate::nym_nodes::handlers::unstable::helpers::{refreshed_at, LegacyAnnotati
 use crate::nym_nodes::handlers::unstable::NodesParamsWithRole;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
-use axum::Json;
 use nym_api_requests::models::{
     NodeAnnotation, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
 };
@@ -99,12 +98,16 @@ pub struct PaginatedCachedNodesExpandedResponseSchema {
     path = "",
     context_path = "/v1/unstable/nym-nodes/semi-skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesExpandedResponseSchema)
+        (status = 200, content(
+            (PaginatedCachedNodesExpandedResponseSchema = "application/json"),
+            (PaginatedCachedNodesExpandedResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesExpandedResponseSchema = "application/bincode")
+        ))
     )
 )]
 pub(super) async fn nodes_expanded(
     state: State<AppState>,
-    _query_params: Query<NodesParamsWithRole>,
+    query_params: Query<NodesParamsWithRole>,
 ) -> PaginatedSemiSkimmedNodes {
     // 1. grab all relevant described nym-nodes
     let rewarded_set = state.rewarded_set().await?;
@@ -132,8 +135,6 @@ pub(super) async fn nodes_expanded(
         legacy_gateways.timestamp(),
     ]);
 
-    Ok(Json(PaginatedCachedNodesResponse::new_full(
-        refreshed_at,
-        nodes,
-    )))
+    let output = query_params.output.unwrap_or_default();
+    Ok(output.to_response(PaginatedCachedNodesResponse::new_full(refreshed_at, nodes)))
 }

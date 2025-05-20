@@ -7,10 +7,10 @@ use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::x25519;
 use pin_project::pin_project;
 use snow::{Builder, HandshakeState, TransportState};
-use std::cmp::min;
 use std::io;
 use std::pin::Pin;
 use std::task::Poll;
+use std::{cmp::min, task::ready};
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::TcpStream,
@@ -183,34 +183,28 @@ impl AsyncWrite for NoiseStream {
     ) -> Poll<Result<usize, std::io::Error>> {
         let mut projected_self = self.project();
 
-        match projected_self.inner_stream.as_mut().poll_ready(cx) {
-            Poll::Pending => Poll::Pending,
+        // returns on Poll::Pending and Poll:Ready(Err)
+        ready!(projected_self.inner_stream.as_mut().poll_ready(cx))?;
 
-            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+        // Ready to send, encrypting message
+        let mut noise_buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
 
-            Poll::Ready(Ok(())) => {
-                let mut noise_buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
+        let Ok(len) = (match projected_self.noise {
+            Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
+            None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
+        }) else {
+            return Poll::Ready(Err(io::ErrorKind::InvalidInput.into()));
+        };
+        noise_buf.truncate(len);
 
-                let Ok(len) = (match projected_self.noise {
-                    Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
-                    None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
-                }) else {
-                    return Poll::Ready(Err(io::ErrorKind::InvalidInput.into()));
-                };
-                noise_buf.truncate(len);
-                match projected_self
-                    .inner_stream
-                    .as_mut()
-                    .start_send(noise_buf.into())
-                {
-                    Ok(()) => match projected_self.inner_stream.poll_flush(cx) {
-                        Poll::Pending => Poll::Pending, // A return value of Poll::Pending means the waking is already scheduled
-                        Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-                        Poll::Ready(Ok(())) => Poll::Ready(Ok(buf.len())),
-                    },
-                    Err(e) => Poll::Ready(Err(e)),
-                }
-            }
+        // Tokio uses the same `start_send ` in their SinkWriter implementation. https://docs.rs/tokio-util/latest/src/tokio_util/io/sink_writer.rs.html#104
+        match projected_self
+            .inner_stream
+            .as_mut()
+            .start_send(noise_buf.into())
+        {
+            Ok(()) => Poll::Ready(Ok(buf.len())),
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 

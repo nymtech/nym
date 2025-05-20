@@ -6,14 +6,15 @@ use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use async_trait::async_trait;
 use nym_gateway::node::UserAgent;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
+use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
 use nym_topology::{EpochRewardedSet, NymTopology, Role, TopologyProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
+use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SemiSkimmedNode};
 use nym_validator_client::{NymApiClient, ValidatorClientError};
-use std::collections::HashSet;
-use std::net::IpAddr;
+use std::collections::{HashMap, HashSet};
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -53,10 +54,10 @@ impl NodesQuerier {
         res
     }
 
-    async fn current_nymnodes(&mut self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+    async fn current_nymnodes(&mut self) -> Result<Vec<SemiSkimmedNode>, ValidatorClientError> {
         let res = self
             .client
-            .get_all_basic_nodes()
+            .get_all_expanded_nodes()
             .await
             .inspect_err(|err| error!("failed to get network nodes: {err}"));
 
@@ -112,13 +113,19 @@ impl TopologyProvider for CachedTopologyProvider {
         let self_node = self.gateway_node.identity_key;
 
         let mut topology = NymTopology::new_empty(network_guard.rewarded_set.clone())
-            .with_additional_nodes(network_guard.network_nodes.iter().filter(|node| {
-                if node.supported_roles.mixnode {
-                    node.performance.round_to_integer() >= self.min_mix_performance
-                } else {
-                    true
-                }
-            }));
+            .with_additional_nodes(
+                network_guard
+                    .network_nodes
+                    .iter()
+                    .map(|node| &node.basic)
+                    .filter(|node| {
+                        if node.supported_roles.mixnode {
+                            node.performance.round_to_integer() >= self.min_mix_performance
+                        } else {
+                            true
+                        }
+                    }),
+            );
 
         if !topology.has_node_details(self.gateway_node.node_id) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
@@ -148,7 +155,7 @@ impl CachedNetwork {
 
 struct CachedNetworkInner {
     rewarded_set: EpochRewardedSet,
-    network_nodes: Vec<SkimmedNode>,
+    network_nodes: Vec<SemiSkimmedNode>,
 }
 
 pub struct NetworkRefresher {
@@ -159,6 +166,7 @@ pub struct NetworkRefresher {
 
     network: CachedNetwork,
     routing_filter: NetworkRoutingFilter,
+    noise_view: NoiseNetworkView,
 }
 
 impl NetworkRefresher {
@@ -186,6 +194,7 @@ impl NetworkRefresher {
             shutdown_token,
             network: CachedNetwork::new_empty(),
             routing_filter: NetworkRoutingFilter::new_empty(testnet),
+            noise_view: NoiseNetworkView::new_empty(),
         };
 
         this.obtain_initial_network().await?;
@@ -240,7 +249,7 @@ impl NetworkRefresher {
         // collect all known/allowed nodes information
         let known_nodes = nodes
             .iter()
-            .flat_map(|n| n.ip_addresses.iter())
+            .flat_map(|n| n.basic.ip_addresses.iter())
             .copied()
             .collect::<HashSet<_>>();
 
@@ -262,6 +271,22 @@ impl NetworkRefresher {
         self.routing_filter.resolved.swap_allowed(known_nodes);
         self.routing_filter.resolved.swap_denied(current_denied);
         self.routing_filter.pending.clear().await;
+
+        //update noise Noise Nodes
+        let noise_nodes = nodes
+            .iter()
+            .filter(|n| n.x25519_noise_versioned_key.is_some())
+            .flat_map(|n| {
+                n.basic.ip_addresses.iter().map(|ip_addr| {
+                    (
+                        SocketAddr::new(*ip_addr, n.basic.mix_port),
+                        #[allow(clippy::unwrap_used)]
+                        n.x25519_noise_versioned_key.unwrap(), // SAFETY : we filtered out nodes where this option can be None
+                    )
+                })
+            })
+            .collect::<HashMap<_, _>>();
+        self.noise_view.swap_view(noise_nodes);
 
         let mut network_guard = self.network.inner.write().await;
         network_guard.network_nodes = nodes;
@@ -294,6 +319,10 @@ impl NetworkRefresher {
 
     pub(crate) fn cached_network(&self) -> CachedNetwork {
         self.network.clone()
+    }
+
+    pub(crate) fn noise_view(&self) -> NoiseNetworkView {
+        self.noise_view.clone()
     }
 
     pub(crate) async fn run(&mut self) {

@@ -139,11 +139,13 @@
 pub use reqwest::{IntoUrl, StatusCode};
 
 use async_trait::async_trait;
+use itertools::Itertools;
 use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
@@ -158,6 +160,8 @@ use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
+#[cfg(feature = "tunneling")]
+mod fronted;
 mod user_agent;
 pub use user_agent::UserAgent;
 
@@ -247,12 +251,18 @@ impl HttpClientError {
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
 /// and state tracked across subsequent requests.
 pub struct ClientBuilder {
-    url: Url,
+    urls: Vec<Url>,
+
     timeout: Option<Duration>,
     custom_user_agent: bool,
     reqwest_client_builder: reqwest::ClientBuilder,
     #[allow(dead_code)] // not dead code, just unused in wasm
     use_secure_dns: bool,
+
+    #[cfg(feature = "tunneling")]
+    front: Option<fronted::Front>,
+
+    retry_limit: usize,
 }
 
 impl ClientBuilder {
@@ -273,15 +283,13 @@ impl ClientBuilder {
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
-            Ok(Self::new_with_url(url.into_url()?))
+            Ok(Self::new_with_urls(vec![url.into_url()?]))
         }
     }
 
     /// Constructs a new http `ClientBuilder` from a valid url.
-    pub fn new_with_url(url: Url) -> Self {
-        if !url.scheme().starts_with("http") {
-            warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
-        }
+    pub fn new_with_urls(urls: Vec<Url>) -> Self {
+        let urls = Self::check_urls(urls);
 
         #[cfg(target_arch = "wasm32")]
         let reqwest_client_builder = reqwest::ClientBuilder::new();
@@ -303,12 +311,30 @@ impl ClientBuilder {
         };
 
         ClientBuilder {
-            url,
+            urls,
             timeout: None,
             custom_user_agent: false,
             reqwest_client_builder,
             use_secure_dns: true,
+            #[cfg(feature = "tunneling")]
+            front: None,
+
+            retry_limit: 0,
         }
+    }
+
+    fn check_urls(mut urls: Vec<Url>) -> Vec<Url> {
+        // remove any duplicate URLs
+        urls = urls.into_iter().unique().collect();
+
+        // warn about any invalid URLs
+        urls.iter()
+            .filter(|url| url.scheme().starts_with("http"))
+            .for_each(|url| {
+                warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
+            });
+
+        urls
     }
 
     /// Enables a total request timeout other than the default.
@@ -318,6 +344,18 @@ impl ClientBuilder {
     /// Default is [`DEFAULT_TIMEOUT`].
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
+        self
+    }
+
+    /// Sets the maximum number of retries for a request. This defaults to 0, indicating no retries.
+    ///
+    /// Note that setting a retry limit of 3 (for example) will result in 4 attempts to send the
+    /// request in the case that all are unsuccessful.
+    ///
+    /// If multiple urls (or fronting configurations if enabled) are available, retried requests
+    /// will be sent to the next URL in the list.
+    pub fn with_retries(mut self, retry_limit: usize) -> Self {
+        self.retry_limit = retry_limit;
         self
     }
 
@@ -378,24 +416,40 @@ impl ClientBuilder {
             builder.build()?
         };
 
-        Ok(Client {
-            base_url: self.url,
+        let client = Client {
+            base_urls: self.urls,
+            current_idx: Arc::new(AtomicUsize::new(0)),
+            next_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
+
+            #[cfg(feature = "tunneling")]
+            front: self.front,
 
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
-        })
+            retry_limit: self.retry_limit,
+        };
+        client.update_host();
+
+        Ok(client)
     }
 }
 
 /// A simple extendable client wrapper for http request with extra url sanitization.
 #[derive(Debug, Clone)]
 pub struct Client {
-    base_url: Url,
+    base_urls: Vec<Url>,
+    current_idx: Arc<AtomicUsize>,
+    next_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
+
+    #[cfg(feature = "tunneling")]
+    front: Option<fronted::Front>,
 
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
+
+    retry_limit: usize,
 }
 
 impl Client {
@@ -434,14 +488,68 @@ impl Client {
         ClientBuilder::new(url)
     }
 
-    /// Update the host that this client uses when sending API requests.
-    pub fn change_base_url(&mut self, new_url: Url) {
-        self.base_url = new_url
+    /// Update the set of hosts that this client uses when sending API requests.
+    pub fn change_base_urls(&mut self, new_urls: Vec<Url>) {
+        self.base_urls = new_urls
     }
 
     /// Get the currently configured host that this client uses when sending API requests.
     pub fn current_url(&self) -> &Url {
-        &self.base_url
+        &self.base_urls[self.current_idx.load(std::sync::atomic::Ordering::Relaxed)]
+    }
+
+    /// Get the currently configured host that this client uses when sending API requests.
+    pub fn base_urls(&self) -> &[Url] {
+        &self.base_urls
+    }
+
+    /// Change the currently configured limit on the number of retries for a request.
+    pub fn change_retry_limit(&mut self, limit: usize) {
+        self.retry_limit = limit;
+    }
+
+    /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
+    fn update_host(&self) {
+        if self.base_urls.len() > 1 {
+            let next = self.next_idx.load(Ordering::Relaxed);
+            self.current_idx.store(next, Ordering::Relaxed);
+            self.next_idx
+                .store((next + 1) % self.base_urls.len(), Ordering::Relaxed);
+        }
+    }
+
+    /// Make modifications to the request to apply the current state of this client i.e. the
+    /// currently configured host. This is required as a caller may use this client to create a
+    /// request, but then have the state of the client change before the caller uses the client to
+    /// send their request.
+    ///
+    /// This enures that the outgoing requests benefit from the configured fallback mechanisms, even
+    /// for requests that were created before the state of the client changed.
+    ///
+    /// This method assumes that any updates to the state of the client are made before the call to
+    /// this method. For example, if the client is configured to rotate hosts after each error, this
+    /// method should be called after the host has been updated -- i.e. as part of the subsequent
+    /// send.
+    fn update_request_for_send(&self, r: &mut reqwest::Request) {
+        let url = self.current_url();
+        r.url_mut().set_host(url.host_str()).unwrap();
+
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            if front.is_enabled() {
+                // this should never fail as we are transplanting the host from one url to another
+                r.url_mut().set_host(front.host_str()).unwrap();
+
+                let actual_host: HeaderValue = url
+                    .host_str()
+                    .unwrap_or("")
+                    .parse()
+                    .unwrap_or(HeaderValue::from_static(""));
+                // If the map did have this key present, the new value is associated with the key
+                // and all previous values are removed. (reqwest HeaderMap docs)
+                _ = r.headers_mut().insert(reqwest::header::HOST, actual_host);
+            }
+        }
     }
 }
 
@@ -559,9 +667,26 @@ impl ApiClientCore for Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = sanitize_url(&self.base_url, path, params);
+        let url = self.current_url();
+        let mut url = sanitize_url(&url, path, params);
 
-        let mut request = self.reqwest_client.request(method.clone(), url);
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            if front.is_enabled() {
+                // this should never fail as we are transplanting the host from one url to another
+                url.set_host(front.host_str()).unwrap();
+            }
+        }
+
+        let mut request = self.reqwest_client.request(method.clone(), url.clone());
+
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            if front.is_enabled() {
+                let actual_host = url.host_str().unwrap_or("").to_string();
+                request = request.header(reqwest::header::HOST, actual_host);
+            }
+        }
 
         if let Some(body) = json_body {
             request = request.json(body);
@@ -574,18 +699,60 @@ impl ApiClientCore for Client {
     where
         E: Display,
     {
-        #[cfg(target_arch = "wasm32")]
-        {
-            Ok(
-                wasmtimer::tokio::timeout(self.request_timeout, request.send())
-                    .await
-                    .map_err(|_timeout| HttpClientError::RequestTimeout)??,
-            )
-        }
+        let mut attempts = 0;
+        loop {
+            #[cfg(target_arch = "wasm32")]
+            let response = {
+                Ok(
+                    wasmtimer::tokio::timeout(self.request_timeout, request.send())
+                        .await
+                        .map_err(|_timeout| HttpClientError::RequestTimeout)??,
+                )
+            };
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(request.send().await?)
+            #[cfg(not(target_arch = "wasm32"))]
+            let response = {
+                let r = request
+                    .try_clone()
+                    .ok_or(HttpClientError::GenericRequestFailure(
+                        "failed retry".to_string(),
+                    ))?;
+
+                // apply any changes based on the current state of the client wrt. hosts,
+                // fronting domains, etc.
+                let mut req = r.build()?;
+                self.update_request_for_send(&mut req);
+
+                self.reqwest_client.execute(req).await
+            };
+
+            match response {
+                Ok(resp) => return Ok(resp),
+                Err(e) => {
+
+                    // if we have multiple urls, update to the next
+                    self.update_host();
+
+                    #[cfg(feature = "tunneling")]
+                    if let Some(ref front) = self.front {
+                        front.retry_enable();
+
+                        if front.is_enabled() {
+                            // if we are using fronting, try updating to the next front
+                            front.update_front();
+                        }
+                    }
+                    
+                    if attempts < self.retry_limit {
+                        warn!("Retrying request due to http error: {}", e);
+                        attempts += 1;
+                        continue;
+                    }
+
+                    // if we have exhausted our attempts, return the error
+                    return Err(e.into());
+                }
+            }
         }
     }
 }
@@ -1041,76 +1208,4 @@ fn try_get_mime_type(headers: &HeaderMap) -> Option<Mime> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sanitizing_urls() {
-        let base_url: Url = "http://foomp.com".parse().unwrap();
-
-        // works with 1 segment
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["foo"], NO_PARAMS).as_str()
-        );
-
-        // works with 2 segments
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo", "bar"], NO_PARAMS).as_str()
-        );
-
-        // works with leading slash
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["/foo"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["/foo", "bar"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo", "/bar"], NO_PARAMS).as_str()
-        );
-
-        // works with trailing slash
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["foo/"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo/", "bar"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo", "bar/"], NO_PARAMS).as_str()
-        );
-
-        // works with both leading and trailing slash
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["/foo/"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["/foo/", "/bar/"], NO_PARAMS).as_str()
-        );
-
-        // adds params
-        assert_eq!(
-            "http://foomp.com/foo/bar?foomp=baz",
-            sanitize_url(&base_url, &["foo", "bar"], &[("foomp", "baz")]).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar?arg1=val1&arg2=val2",
-            sanitize_url(
-                &base_url,
-                &["/foo/", "/bar/"],
-                &[("arg1", "val1"), ("arg2", "val2")]
-            )
-            .as_str()
-        );
-    }
-}
+mod tests;

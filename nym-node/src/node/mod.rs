@@ -830,7 +830,7 @@ impl NymNode {
             info!("trying {nym_api_url}...");
 
             let nym_api =
-                match nym_http_api_client::ClientBuilder::new_with_url(nym_api_url.clone())
+                match nym_http_api_client::ClientBuilder::new_with_urls(vec![nym_api_url.clone()])
                     .no_hickory_dns()
                     .with_user_agent(self.user_agent())
                     .build::<&str>()

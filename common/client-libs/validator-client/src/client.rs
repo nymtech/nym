@@ -204,7 +204,7 @@ impl<C, S> Client<C, S> {
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_base_url(new_endpoint)
+        self.nym_api.change_base_urls(vec![new_endpoint])
     }
 
     #[deprecated]
@@ -406,7 +406,7 @@ impl NymApiClient {
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_base_url(new_endpoint);
+        self.nym_api.change_base_urls(vec![new_endpoint]);
     }
 
     #[deprecated(note = "use get_all_basic_active_mixing_assigned_nodes instead")]

@@ -105,7 +105,7 @@ impl Monitor {
             .clone()
             .expect("rust sdk mainnet default missing api_url");
 
-        let nym_api = nym_http_api_client::ClientBuilder::new_with_url(default_api_url)
+        let nym_api = nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url])
             .no_hickory_dns()
             .with_timeout(self.nym_api_client_timeout)
             .build::<&str>()?;

@@ -33,7 +33,8 @@ members = [
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-dkg",
-    "common/cosmwasm-smart-contracts/contracts-common", "common/cosmwasm-smart-contracts/easy_addr",
+    "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/easy_addr",
     "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
@@ -64,6 +65,8 @@ members = [
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
+    "common/nymnoise",
+    "common/nymnoise/keys",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -131,7 +134,8 @@ members = [
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
-    "tools/internal/testnet-manager/dkg-bypass-contract", "tools/internal/validator-status-check",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
     "tools/nym-nr-query",
@@ -305,6 +309,7 @@ serde_with = "3.9.0"
 serde_yaml = "0.9.25"
 sha2 = "0.10.9"
 si-scale = "0.2.3"
+snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.7.4"
 strum = "0.26"

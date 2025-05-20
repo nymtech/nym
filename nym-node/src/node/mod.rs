@@ -702,6 +702,16 @@ impl NymNode {
     }
 
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
+        let host_details = sign_host_details(
+            &self.config,
+            self.x25519_sphinx_keys.public_key(),
+            &VersionedNoiseKey {
+                version: nym_noise::NOISE_VERSION,
+                x25519_pubkey: *self.x25519_noise_keys.public_key(),
+            },
+            &self.ed25519_identity_keys,
+        )?;
+
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
             announce_ports: AnnouncePorts {

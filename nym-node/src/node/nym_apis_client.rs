@@ -24,6 +24,8 @@ pub struct NymApisClient {
     inner: Arc<RwLock<InnerClient>>,
 }
 
+const TODO: &str = "add shutdown signal to cancel any queries if received";
+
 struct InnerClient {
     active_client: NymApiClient,
     available_urls: Vec<Url>,
@@ -42,6 +44,7 @@ impl NymApisClient {
         let active_client = nym_http_api_client::Client::builder(urls[0].clone())?
             .no_hickory_dns()
             .with_user_agent(NymNode::user_agent())
+            .with_timeout(Duration::from_secs(5))
             .build()?;
 
         Ok(NymApisClient {

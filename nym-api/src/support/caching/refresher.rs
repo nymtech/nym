@@ -18,6 +18,7 @@ pub struct RefreshRequester(Arc<Notify>);
 
 impl RefreshRequester {
     pub(crate) fn request_cache_refresh(&self) {
+        warn!("REQUESTING SELF DESCRIBED REFRESH");
         self.0.notify_waiters()
     }
 }
@@ -108,21 +109,44 @@ where
     // TODO: in the future offer 2 options of refreshing cache. either provide `T` directly
     // or via `FnMut(&mut T)` closure
     async fn do_refresh_cache(&self) {
-        match self.provider.try_refresh().await {
-            Ok(updated_items) => {
-                self.shared_cache.update(updated_items).await;
-                if !self.refresh_notification_sender.is_closed()
-                    && self
-                        .refresh_notification_sender
-                        .send(CacheNotification::Updated)
-                        .is_err()
-                {
-                    warn!("failed to send cache update notification");
-                }
-            }
+        let mut updated_items = match self.provider.try_refresh().await {
             Err(err) => {
-                error!("{}: failed to refresh the cache: {err}", self.name)
+                error!("{}: failed to refresh the cache: {err}", self.name);
+                return;
             }
+            Ok(items) => items,
+        };
+
+        let mut failures = 0;
+        loop {
+            match self
+                .shared_cache
+                .try_update(updated_items, &self.name)
+                .await
+            {
+                Ok(_) => break,
+                Err(returned) => {
+                    failures += 1;
+                    updated_items = returned
+                }
+            };
+            if failures % 10 == 0 {
+                warn!(
+                    "failed to obtain write permit for {} cache {failures} times in a row!",
+                    self.name
+                );
+            }
+
+            tokio::time::sleep(Duration::from_secs_f32(0.5)).await
+        }
+
+        if !self.refresh_notification_sender.is_closed()
+            && self
+                .refresh_notification_sender
+                .send(CacheNotification::Updated)
+                .is_err()
+        {
+            warn!("failed to send cache update notification");
         }
     }
 
@@ -152,6 +176,8 @@ where
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
                 _ = self.refresh_requester.0.notified() => {
+                    warn!("RECEIVED SELF DESCRIBED REFRESH REQUEST");
+
                     self.refresh(&mut task_client).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();

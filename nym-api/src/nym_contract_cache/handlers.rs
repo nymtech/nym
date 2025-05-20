@@ -490,7 +490,7 @@ async fn get_current_epoch(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/epoch/key-rotation-info",
+    path = "/key-rotation-info",
     context_path = "/v1/epoch",
     responses(
         (status = 200, content(

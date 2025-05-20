@@ -17,17 +17,11 @@ pub(crate) struct AddressInfoCache {
 }
 
 impl AddressInfoCache {
-    pub(crate) fn new() -> Self {
-        // epoch duration = 1 hour
-        // cache TTL is slightly lower than that to avoid too stale data in case
-        // cache was refreshed JUST BEFORE epoch transition
-        let cache_ttl = Duration::from_secs(60 * 30);
-        let max_capacity = 1000;
-
+    pub(crate) fn new(cache_ttl: Duration, capacity: u64) -> Self {
         AddressInfoCache {
             inner: Cache::builder()
                 .time_to_live(cache_ttl)
-                .max_capacity(max_capacity)
+                .max_capacity(capacity)
                 .build(),
         }
     }

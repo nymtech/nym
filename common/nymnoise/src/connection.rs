@@ -11,6 +11,7 @@ use tokio::{
 
 use crate::stream::NoiseStream;
 
+//SW once plain TCP support is dropped, this whole enum can be dropped, and we can only propagate NoiseStream
 #[pin_project(project = ConnectionProj)]
 pub enum Connection {
     Tcp(#[pin] TcpStream),

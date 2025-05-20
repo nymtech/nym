@@ -16,13 +16,10 @@ use nym_topology::{
     TopologyProvider,
 };
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::nym_nodes::{
-    NodesByAddressesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata,
-};
+use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SemiSkimmedNode};
 use nym_validator_client::{NymApiClient, ValidatorClientError};
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
-use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -64,9 +61,7 @@ impl NodesQuerier {
         res
     }
 
-    async fn current_nymnodes(
-        &mut self,
-    ) -> Result<SemiSkimmedNodesWithMetadata, ValidatorClientError> {
+    async fn current_nymnodes(&mut self) -> Result<Vec<SemiSkimmedNode>, ValidatorClientError> {
         let res = self
             .client
             .get_all_expanded_nodes()
@@ -148,24 +143,20 @@ impl TopologyProvider for CachedTopologyProvider {
         let network_guard = self.cached_network.inner.read().await;
         let self_node = self.gateway_node.identity_key;
 
-        let mut topology = NymTopology::new(
-            network_guard.topology_metadata,
-            network_guard.rewarded_set.clone(),
-            Vec::new(),
-        )
-        .with_additional_nodes(
-            network_guard
-                .network_nodes
-                .iter()
-                .map(|node| &node.basic)
-                .filter(|node| {
-                    if node.supported_roles.mixnode {
-                        node.performance.round_to_integer() >= self.min_mix_performance
-                    } else {
-                        true
-                    }
-                }),
-        );
+        let mut topology = NymTopology::new_empty(network_guard.rewarded_set.clone())
+            .with_additional_nodes(
+                network_guard
+                    .network_nodes
+                    .iter()
+                    .map(|node| &node.basic)
+                    .filter(|node| {
+                        if node.supported_roles.mixnode {
+                            node.performance.round_to_integer() >= self.min_mix_performance
+                        } else {
+                            true
+                        }
+                    }),
+            );
 
         if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
@@ -196,7 +187,6 @@ impl CachedNetwork {
 
 struct CachedNetworkInner {
     rewarded_set: EpochRewardedSet,
-    topology_metadata: NymTopologyMetadata,
     network_nodes: Vec<SemiSkimmedNode>,
 }
 

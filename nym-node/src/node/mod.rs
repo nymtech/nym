@@ -1110,7 +1110,6 @@ impl NymNode {
         let noise_config = nym_noise::config::NoiseConfig::new(
             self.x25519_noise_keys.clone(),
             NoiseNetworkView::new_empty(),
-            self.config.mixnet.debug.initial_connection_timeout,
         )
         .with_unsafe_disabled(true);
 
@@ -1161,12 +1160,9 @@ impl NymNode {
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
 
-        let bloomfilters_manager = self.setup_replay_detection().await?;
-
         let noise_config = nym_noise::config::NoiseConfig::new(
             self.x25519_noise_keys.clone(),
             network_refresher.noise_view(),
-            self.config.mixnet.debug.initial_connection_timeout,
         )
         .with_unsafe_disabled(self.config.mixnet.debug.unsafe_disable_noise);
 

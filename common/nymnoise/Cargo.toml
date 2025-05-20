@@ -16,6 +16,7 @@ snow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util", "time"] }
 tokio-util = { workspace = true, features = ["codec"] }
+zeroize = { workspace = true }
 
 # internal
 nym-crypto = { path = "../crypto" }

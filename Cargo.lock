@@ -6789,6 +6789,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]

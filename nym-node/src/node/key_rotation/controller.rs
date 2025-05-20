@@ -51,6 +51,10 @@ struct NextAction {
 }
 
 impl NextAction {
+    fn new(typ: KeyRotationActionState, deadline: OffsetDateTime) -> Self {
+        NextAction { typ, deadline }
+    }
+
     fn until_deadline(&self) -> Duration {
         let now = OffsetDateTime::now_utc();
         Duration::try_from(self.deadline - now).unwrap_or_else(|_| {
@@ -60,10 +64,30 @@ impl NextAction {
     }
 
     fn wait(duration: Duration) -> NextAction {
-        NextAction {
-            typ: KeyRotationActionState::Wait,
-            deadline: OffsetDateTime::now_utc() + duration,
-        }
+        NextAction::new(
+            KeyRotationActionState::Wait,
+            OffsetDateTime::now_utc() + duration,
+        )
+    }
+
+    fn pre_announce(rotation_id: u32, deadline: OffsetDateTime) -> Self {
+        NextAction::new(
+            KeyRotationActionState::PreAnnounce { rotation_id },
+            deadline,
+        )
+    }
+
+    fn swap_default(expected_new_rotation: u32, deadline: OffsetDateTime) -> Self {
+        NextAction::new(
+            KeyRotationActionState::SwapDefault {
+                expected_new_rotation,
+            },
+            deadline,
+        )
+    }
+
+    fn purge_secondary(deadline: OffsetDateTime) -> Self {
+        NextAction::new(KeyRotationActionState::PurgeOld, deadline)
     }
 }
 
@@ -108,107 +132,137 @@ impl KeyRotationController {
     }
 
     async fn try_determine_next_action(&self) -> NextAction {
+        let now = OffsetDateTime::now_utc();
         let Some(key_rotation_info) = self.try_get_key_rotation_info().await else {
             warn!("failed to retrieve key rotation information");
             return NextAction::wait(Duration::from_secs(240));
         };
 
+        // check if we think the epoch is stuck (we're already 20% or more into following epoch with no advancement)
         if key_rotation_info.is_epoch_stuck() {
             warn!("the epoch is stuck - can't progress with key rotation");
             return NextAction::wait(Duration::from_secs(240));
         }
 
-        let current_epoch = key_rotation_info.current_absolute_epoch_id;
+        // >>>>> START: determine if we called this method pre-maturely due to clock skew
 
         // current rotation id as determined by the current epoch id
-        let current_rotation = key_rotation_info.current_key_rotation_id();
+        let current_rotation_id = key_rotation_info.current_key_rotation_id();
 
         // expected rotation id as determined by the current TIME
         // used to determined epoch stalling or clocks being slightly out of sync
-        let expected_current_rotation = key_rotation_info.expected_current_rotation_id();
+        let expected_current_rotation_id = key_rotation_info.expected_current_rotation_id();
 
-        if current_rotation != expected_current_rotation {
-            warn!("the current rotation is {current_rotation} whilst we expected {expected_current_rotation}");
+        if current_rotation_id != expected_current_rotation_id {
+            warn!("the current rotation is {current_rotation_id} whilst we expected {expected_current_rotation_id}");
             // if we got here, it means epoch is most likely NOT stuck (we're within the threshold)
             // so probably we prematurely called this method before nym-api(s) got to advancing
             // the epoch and thus the rotation, so wait a bit instead.
             return NextAction::wait(Duration::from_secs(30));
         }
+        // >>>>> END: determine if we called this method pre-maturely due to clock skew
 
-        // epoch id of when the new rotation id is meant to start
-        let next_rotation_epoch = key_rotation_info.next_rotation_starting_epoch_id();
+        // if we're less than 30s until next rotation, we probably started our binary in a rather
+        // unfortunate time, just wait until the next rotation rather than do all the work only to throw it
+        // away immediately
+        let Some(until_next_rotation) = key_rotation_info.until_next_rotation() else {
+            warn!("failed to determine time remaining until the next key rotation");
+            return NextAction::wait(Duration::from_secs(30));
+        };
+        if until_next_rotation < Duration::from_secs(30) {
+            debug!("less than 30s until next rotation - waiting until until then");
+            return NextAction::wait(Duration::from_secs(30));
+        }
+
+        let current_epoch = key_rotation_info.current_absolute_epoch_id;
 
         // epoch id of when the current rotation has started
-        let current_rotation_epoch = key_rotation_info.current_rotation_starting_epoch_id();
+        let current_rotation_start_epoch = key_rotation_info.current_rotation_starting_epoch_id();
 
-        let secondary_rotation_id = self.managed_keys.keys.secondary_key_rotation_id();
+        // epoch id of when the new rotation id is meant to start
+        let next_rotation_start_epoch = key_rotation_info.next_rotation_starting_epoch_id();
+
+        let secondary_key_rotation_id = self.managed_keys.keys.secondary_key_rotation_id();
+        let primary_key_rotation_id = self.managed_keys.keys.primary_key_rotation_id();
 
         debug!(
-            "current: {current_rotation}, primary: {}, secondary: {secondary_rotation_id:?}",
+            "current rotation: {current_rotation_id}, primary: {}, secondary: {secondary_key_rotation_id:?}",
             self.managed_keys.keys.primary_key_rotation_id()
         );
 
-        let next_rotation_id = current_rotation + 1;
-        // edge case for rotation 0
-        let prev_rotation_id = current_rotation.checked_sub(1);
+        let rotates_next_epoch = next_rotation_start_epoch == current_epoch + 1;
+        let next_rotation_id = current_rotation_id + 1;
 
-        let (action, execution_epoch) = match secondary_rotation_id {
-            None => {
-                debug!("no secondary key - need to pre-announce one");
-                // we don't have any secondary key, meaning the next thing we could possibly do is to pre-announce new key
-                // an epoch before next rotation
-                let rotation_id = next_rotation_id;
+        let Some(secondary_key_rotation_id) = secondary_key_rotation_id else {
+            debug!("we don't have a secondary key");
+            // figure out if we already have appropriate key (like we crashed or this is the first time node is running)
+            // or whether we have to regenerate anything or, which is the most likely case, we're waiting to
+            // pre-announce new key for the following rotation
 
-                (
-                    KeyRotationActionState::PreAnnounce { rotation_id },
-                    next_rotation_epoch - 1,
-                )
+            if primary_key_rotation_id != current_rotation_id {
+                warn!("current primary key does not correspond to the current rotation - immediately pre-announcing new key (rotates next epoch: {rotates_next_epoch}");
+                // we don't have a secondary key and our current key is already outdated -
+                // preannounce a key for either this or the next rotation
+                // (and next time this method is called, it will be promoted to primary)
+                return if rotates_next_epoch {
+                    NextAction::pre_announce(next_rotation_id, now)
+                } else {
+                    NextAction::pre_announce(current_rotation_id, now)
+                };
             }
-            Some(secondary_id) if Some(secondary_id) == prev_rotation_id => {
-                debug!("secondary key is from the previous rotation - need to remove it now");
-                // our secondary key is from the previous rotation, meaning the next thing we have to do
-                // is to remove it (we have clearly already rotated)
-                (KeyRotationActionState::PurgeOld, current_rotation_epoch + 1)
-            }
-            Some(secondary_id) if secondary_id == current_rotation => {
-                debug!("secondary key is from THIS rotation - we need to swap into it");
-                // our secondary key is from the current epoch, meaning (hopefully) we just have gone into the
-                // next rotation, and we have to swap it into the primary
-                (
-                    KeyRotationActionState::SwapDefault {
-                        expected_new_rotation: current_rotation,
-                    },
-                    current_rotation_epoch,
-                )
-            }
-            Some(secondary_id) if secondary_id == next_rotation_id => {
-                debug!("secondary key is for the NEXT rotation - we need to swap into it");
-                // our secondary key is from the upcoming rotation, meaning it's the pre-announced key, meaning
-                // the next thing we have to do is to swap it into the primary
-                (
-                    KeyRotationActionState::SwapDefault {
-                        expected_new_rotation: next_rotation_id,
-                    },
-                    next_rotation_epoch,
-                )
-            }
-            Some(other) => {
-                // this situation should have never occurred, our secondary key is completely unusable,
-                // so we should just remove it immediately and try again
-                error!("inconsistent secondary key state. it's marked for rotation {other} while the current value is {current_rotation}");
-                (KeyRotationActionState::PurgeOld, current_epoch)
-            }
+
+            // we have a primary key corresponding to the current rotation, so we just have to pre-announce
+            // a key for the next rotation an epoch before the rotation
+            let deadline = key_rotation_info.epoch_start_time(next_rotation_start_epoch - 1);
+            debug!(
+                "going to pre-announce secondary key for rotation {next_rotation_id} on {deadline}"
+            );
+            return NextAction::pre_announce(next_rotation_id, deadline);
         };
 
-        let now = OffsetDateTime::now_utc();
-        let since_epoch_start = now - key_rotation_info.current_epoch_start;
-        let until_execution_epoch =
-            execution_epoch.saturating_sub(current_epoch) * key_rotation_info.epoch_duration;
+        // the current secondary key corresponds to the next rotation, i.e. this is the pre-announced key
+        if secondary_key_rotation_id == next_rotation_id {
+            debug!("secondary key is for the NEXT rotation - we need to swap into it");
 
-        NextAction {
-            typ: action,
-            deadline: now - since_epoch_start + until_execution_epoch,
+            let deadline = key_rotation_info.epoch_start_time(next_rotation_start_epoch);
+            return NextAction::swap_default(next_rotation_id, deadline);
         }
+
+        if secondary_key_rotation_id == current_rotation_id {
+            debug!("secondary key is for the CURRENT rotation - we need to swap into it");
+
+            return NextAction::swap_default(current_rotation_id, now);
+        }
+
+        if secondary_key_rotation_id < current_rotation_id {
+            let deadline = if secondary_key_rotation_id == current_rotation_id - 1 {
+                debug!("secondary key is from the PREVIOUS rotations - we need to purge it");
+                // we purge the key after the end of overlap period, i.e. during the 2nd epoch of a rotation
+                key_rotation_info.epoch_start_time(current_rotation_start_epoch + 1)
+            } else {
+                debug!("secondary key is from AN OLD rotation - we need to purge it");
+                // the key is from some old rotation, we were probably offline for some time - we need to pre-announce new key
+                // for the upcoming rotation, so start off by purging this key immediately
+                now
+            };
+
+            return NextAction::purge_secondary(deadline);
+        }
+
+        // at this point all branches should have been covered, i.e. missing secondary key,
+        // secondary key == next rotation
+        // secondary key == current rotation
+        // secondary key < current rotation
+        // the only, theoretical, branch is if secondary key was from few rotations in the future,
+        // but this would require some weird chain shenanigans
+        error!("this code branch should have been unreachable - please report if you see this error with the following information:\
+            primary_key_rotation = {primary_key_rotation_id},
+            secondary_key_rotation = {secondary_key_rotation_id},
+            current_rotation = {current_rotation_id},
+            next_rotation = {next_rotation_id},
+            raw_response = {key_rotation_info:?}");
+
+        NextAction::wait(Duration::from_secs(240))
     }
 
     async fn try_get_key_rotation_info(&self) -> Option<KeyRotationInfoResponse> {

@@ -26,9 +26,7 @@ impl KeyRotationState {
     }
 
     pub fn next_rotation_starting_epoch_id(&self, current_epoch_id: EpochId) -> EpochId {
-        let current_rotation_id = self.key_rotation_id(current_epoch_id);
-
-        self.initial_epoch_id + self.validity_epochs * (current_rotation_id + 1)
+        self.current_rotation_starting_epoch_id(current_epoch_id) + self.validity_epochs
     }
 
     pub fn current_rotation_starting_epoch_id(&self, current_epoch_id: EpochId) -> EpochId {

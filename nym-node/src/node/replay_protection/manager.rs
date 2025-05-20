@@ -90,7 +90,7 @@ impl ReplayProtectionBloomfiltersManager {
 
         let primary = self.filters.primary_metadata()?;
         let time_delta = OffsetDateTime::now_utc() - primary.creation_time;
-        let received_since_creation = received - primary.packets_received_at_creation;
+        let received_since_creation = received.saturating_sub(primary.packets_received_at_creation);
         let received_per_second =
             (received_since_creation as f64 / time_delta.as_seconds_f64()).round() as usize;
 

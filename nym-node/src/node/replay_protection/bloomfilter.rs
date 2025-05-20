@@ -80,13 +80,16 @@ impl ReplayProtectionBloomfilters {
     pub(crate) fn new(primary: RotationFilter, secondary: Option<RotationFilter>) -> Self {
         // figure out if the secondary filter is the overlap or pre_announced filter
         let primary_id = primary.metadata.rotation_id;
+
+        let next = primary_id + 1;
+        let previous = primary_id.checked_sub(1);
         let (overlap, pre_announced) = match secondary {
             None => (None, None),
             Some(secondary_filter) => {
                 let secondary_id = secondary_filter.metadata.rotation_id;
-                if secondary_id == primary_id + 1 {
+                if secondary_id == next {
                     (None, Some(secondary_filter))
-                } else if secondary_id == primary_id - 1 {
+                } else if Some(secondary_id) == previous {
                     (Some(secondary_filter), None)
                 } else {
                     warn!("{secondary_id} is not valid for either pre_announced or overlap bloomfilter given primary rotation of {primary_id}");

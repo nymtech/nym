@@ -212,12 +212,17 @@ impl EpochAdvancer {
 
         // SAFETY: the cache MUST HAVE been initialised before now
         #[allow(clippy::unwrap_used)]
+        warn!("⚠️⚠️⚠️⚠️⚠️ TRYING TO GET DESCRIBE CACHE");
         let described_cache = self.described_cache.get().await.unwrap();
+
+        warn!("⚠️⚠️⚠️⚠️⚠️ TRYING TO GET STATUS CACHE");
 
         let Some(status_cache) = self.status_cache.node_annotations().await else {
             warn!("there are no node annotations available");
             return Vec::new();
         };
+
+        warn!("⚠️⚠️⚠️⚠️⚠️ GOT CACHES");
 
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();

@@ -291,8 +291,8 @@ pub(crate) async fn nodes_basic(
     ]);
 
     Ok(output.to_response(PaginatedCachedNodesResponseV2::new_full(
-        current_key_rotation,
         interval.current_epoch_absolute_id(),
+        current_key_rotation,
         refreshed_at,
         nodes,
     )))

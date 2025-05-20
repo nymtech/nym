@@ -32,6 +32,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::net::IpAddr;
@@ -39,7 +40,7 @@ use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
-use tracing::warn;
+use tracing::{error, warn};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
 pub use nym_mixnet_contract_common::KeyRotationState;
@@ -1476,18 +1477,22 @@ impl KeyRotationInfoResponse {
             .current_rotation_starting_epoch_id(self.current_absolute_epoch_id)
     }
 
+    fn current_epoch_progress(&self, now: OffsetDateTime) -> f32 {
+        let elapsed = (now - self.current_epoch_start).as_seconds_f32();
+        elapsed / self.epoch_duration.as_secs_f32()
+    }
+
     pub fn is_epoch_stuck(&self) -> bool {
         let now = OffsetDateTime::now_utc();
-        let expected_epoch_end = self.current_epoch_start + self.epoch_duration;
-        if now > expected_epoch_end {
-            let diff = now - expected_epoch_end;
+        let progress = self.current_epoch_progress(now);
+        if progress > 1. {
+            let into_next = 1. - progress;
             // if epoch hasn't progressed for more than 20% of its duration, mark is as stuck
-            let threshold = Duration::from_secs_f32(self.epoch_duration.as_secs_f32() * 0.2);
-            if diff > threshold {
-                // SAFETY: the value is positive
-                #[allow(clippy::unwrap_used)]
-                let std_dur = std::time::Duration::try_from(diff).unwrap();
-                warn!("the current epoch is expected to have been over by {expected_epoch_end}. it's already {} overdue!", humantime_serde::re::humantime::format_duration(std_dur));
+            if into_next > 0.2 {
+                let diff_time =
+                    Duration::from_secs_f32(into_next * self.epoch_duration.as_secs_f32());
+                let expected_epoch_end = self.current_epoch_start + self.epoch_duration;
+                warn!("the current epoch is expected to have been over by {expected_epoch_end}. it's already {} overdue!", humantime_serde::re::humantime::format_duration(diff_time));
                 return true;
             }
         }
@@ -1509,11 +1514,39 @@ impl KeyRotationInfoResponse {
         let passed_epochs = diff / self.epoch_duration;
         let expected_current_epoch = self.current_absolute_epoch_id + passed_epochs.floor() as u32;
 
-        println!("expected_current_epoch: {}", expected_current_epoch);
-        println!("current_epoch: {}", self.current_absolute_epoch_id);
-
         self.key_rotation_state
             .key_rotation_id(expected_current_epoch)
+    }
+
+    pub fn until_next_rotation(&self) -> Option<Duration> {
+        let current_epoch_progress = self.current_epoch_progress(OffsetDateTime::now_utc());
+        if current_epoch_progress > 1. {
+            return None;
+        }
+
+        let next_rotation_epoch = self.next_rotation_starting_epoch_id();
+        let full_remaining =
+            (next_rotation_epoch - self.current_absolute_epoch_id).checked_add(1)?;
+
+        let epochs_until_next_rotation = (1. - current_epoch_progress) + full_remaining as f32;
+
+        Some(Duration::from_secs_f32(
+            epochs_until_next_rotation * self.epoch_duration.as_secs_f32(),
+        ))
+    }
+
+    pub fn epoch_start_time(&self, absolute_epoch_id: EpochId) -> OffsetDateTime {
+        match absolute_epoch_id.cmp(&self.current_absolute_epoch_id) {
+            Ordering::Less => {
+                let diff = self.current_absolute_epoch_id - absolute_epoch_id;
+                self.current_epoch_start - diff * self.epoch_duration
+            }
+            Ordering::Equal => self.current_epoch_start,
+            Ordering::Greater => {
+                let diff = absolute_epoch_id - self.current_absolute_epoch_id;
+                self.current_epoch_start + diff * self.epoch_duration
+            }
+        }
     }
 }
 

@@ -6000,8 +6000,11 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "futures",
+ "nym-crypto",
+ "nym-noise",
  "nym-sphinx",
  "nym-task",
+ "rand 0.8.5",
  "tokio",
  "tokio-stream",
  "tokio-util",

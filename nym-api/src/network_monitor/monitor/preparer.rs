@@ -159,13 +159,6 @@ impl PacketPreparer {
         self.contract_cache.naive_wait_for_initial_values().await;
         self.described_cache.naive_wait_for_initial_values().await;
 
-        #[allow(clippy::expect_used)]
-        let described_nodes = self
-            .described_cache
-            .get()
-            .await
-            .expect("the self-describe cache should have been initialised!");
-
         // now wait for at least `minimum_full_routes` mixnodes per layer and `minimum_full_routes` gateway to be online
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
@@ -173,6 +166,13 @@ impl PacketPreparer {
             let gateways = self.contract_cache.legacy_gateways_all().await;
             let mixnodes = self.contract_cache.legacy_mixnodes_all_basic().await;
             let nym_nodes = self.contract_cache.nym_nodes().await;
+
+            #[allow(clippy::expect_used)]
+            let described_nodes = self
+                .described_cache
+                .get()
+                .await
+                .expect("the self-describe cache should have been initialised!");
 
             let mut gateways_count = gateways.len();
             let mut mixnodes_count = mixnodes.len();

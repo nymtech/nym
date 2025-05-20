@@ -90,6 +90,13 @@ impl KeyRotationController {
     async fn handle_contract_cache_update(&mut self) {
         let updated = self.get_contract_data().await;
 
+        info!(
+            "current rotation: {}",
+            updated
+                .key_rotation_state
+                .key_rotation_id(updated.interval.current_epoch_absolute_id())
+        );
+
         // if we're only 1/4 epoch away from the next rotation, and we haven't yet performed the refresh,
         // update the self-described cache, as all nodes should have already pre-announced their new sphinx keys
         if let Some(remaining) = updated.epochs_until_next_rotation() {

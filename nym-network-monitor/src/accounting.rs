@@ -543,6 +543,7 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
 
                 let network_account = NetworkAccount::finalize()?;
                 let accounting_routes = network_account.accounting_routes;
+                info!("Submitting {} accounting routes", accounting_routes.len());
                 match accounting_routes
                     .chunks(10)
                     .map(|chunk| {

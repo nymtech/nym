@@ -85,6 +85,9 @@ pub enum NymNodeError {
         source: io::Error,
     },
 
+    #[error("received shutdown signal while attempting to complete the action")]
+    ShutdownReceived,
+
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
 

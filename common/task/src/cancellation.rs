@@ -70,6 +70,10 @@ impl ShutdownToken {
         }
     }
 
+    pub fn ephemeral() -> Self {
+        ShutdownToken::new("ephemeral-token")
+    }
+
     // Creates a ShutdownToken which will get cancelled whenever the current token gets cancelled.
     // Unlike a cloned/forked ShutdownToken, cancelling a child token does not cancel the parent token.
     #[must_use]

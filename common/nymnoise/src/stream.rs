@@ -7,7 +7,6 @@ use futures::{Sink, SinkExt, Stream, StreamExt};
 use pin_project::pin_project;
 use snow::{HandshakeState, TransportState};
 use std::cmp::min;
-use std::collections::VecDeque;
 use std::io;
 use std::pin::Pin;
 use std::task::Poll;
@@ -27,7 +26,7 @@ pub struct NoiseStream {
     inner_stream: Framed<TcpStream, LengthDelimitedCodec>,
     handshake: Option<HandshakeState>,
     noise: Option<TransportState>,
-    dec_buffer: VecDeque<u8>,
+    dec_buffer: BytesMut,
 }
 
 impl NoiseStream {
@@ -38,7 +37,7 @@ impl NoiseStream {
                 .new_framed(inner_stream),
             handshake: Some(handshake),
             noise: None,
-            dec_buffer: VecDeque::with_capacity(MAXMSGLEN),
+            dec_buffer: BytesMut::with_capacity(MAXMSGLEN),
         }
     }
 
@@ -100,10 +99,11 @@ impl AsyncRead for NoiseStream {
     ) -> Poll<std::io::Result<()>> {
         let projected_self = self.project();
 
-        match projected_self.inner_stream.poll_next(cx) {
+        let pending = match projected_self.inner_stream.poll_next(cx) {
             Poll::Pending => {
-                //no new data, waking is already scheduled.
+                //no new data, a return value of Poll::Pending means the waking is already scheduled
                 //Nothing new to decrypt, only check if we can return something from dec_storage, happens after
+                true
             }
 
             Poll::Ready(Some(Ok(noise_msg))) => {
@@ -119,28 +119,31 @@ impl AsyncRead for NoiseStream {
                     None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
                 };
                 projected_self.dec_buffer.extend(&dec_msg[..len]);
+                false
             }
 
             Poll::Ready(Some(Err(err))) => return Poll::Ready(Err(err)),
 
-            //Stream is done, return Ok with nothing in buf
-            Poll::Ready(None) => return Poll::Ready(Ok(())),
-        }
+            Poll::Ready(None) => {
+                //Stream is done, we might still have data in the buffer though, happens afterwards
+                false
+            }
+        };
 
-        //check and return what we can
+        // Checking if there is something to return from the buffer
         let read_len = min(buf.remaining(), projected_self.dec_buffer.len());
         if read_len > 0 {
-            buf.put_slice(
-                &projected_self
-                    .dec_buffer
-                    .drain(..read_len)
-                    .collect::<Vec<u8>>(),
-            );
+            buf.put_slice(&projected_self.dec_buffer.split_to(read_len));
             return Poll::Ready(Ok(()));
         }
 
-        //If we end up here, it must mean the previous poll_next was pending as well, otherwise something was returned. Hence waking is already scheduled
-        Poll::Pending
+        // buf.remaining == 0 or nothing in the buffer, we must return the value we had from the inner_stream
+        if pending {
+            //If we end up here, it means the previous poll_next was pending as well, hence waking is already scheduled
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(()))
+        }
     }
 }
 
@@ -167,8 +170,16 @@ impl AsyncWrite for NoiseStream {
                     return Poll::Ready(Err(io::ErrorKind::InvalidInput.into()));
                 };
                 noise_buf.truncate(len);
-                match projected_self.inner_stream.start_send(noise_buf.into()) {
-                    Ok(()) => Poll::Ready(Ok(buf.len())),
+                match projected_self
+                    .inner_stream
+                    .as_mut()
+                    .start_send(noise_buf.into())
+                {
+                    Ok(()) => match projected_self.inner_stream.poll_flush(cx) {
+                        Poll::Pending => Poll::Pending, // A return value of Poll::Pending means the waking is already scheduled
+                        Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+                        Poll::Ready(Ok(())) => Poll::Ready(Ok(buf.len())),
+                    },
                     Err(e) => Poll::Ready(Err(e)),
                 }
             }

@@ -10,10 +10,14 @@ license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default=["tunneling"]
+tunneling=[]
+
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true }
-reqwest = { workspace = true, features = ["json", "gzip", "deflate", "brotli", "zstd"] }
+reqwest = { workspace = true, features = ["json", "gzip", "deflate", "brotli", "zstd", "rustls-tls"] }
 http.workspace = true
 url = { workspace = true }
 once_cell = { workspace = true }
@@ -21,6 +25,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+itertools = { workspace = true }
 
 # used for decoding text responses (they were already implicitly included)
 bytes = { workspace = true }

@@ -262,33 +262,33 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring is enabled
-    // if config.network_monitor.enabled {
-    //     network_monitor::start::<SphinxMessageReceiver>(
-    //         config,
-    //         &nym_contract_cache_state,
-    //         described_nodes_cache.clone(),
-    //         node_status_cache_state.clone(),
-    //         &storage,
-    //         nyxd_client.clone(),
-    //         &task_manager,
-    //     )
-    //     .await;
+    if config.network_monitor.enabled {
+        network_monitor::start::<SphinxMessageReceiver>(
+            config,
+            &nym_contract_cache_state,
+            described_nodes_cache.clone(),
+            node_status_cache_state.clone(),
+            &storage,
+            nyxd_client.clone(),
+            &task_manager,
+        )
+        .await;
 
-    //     HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
+        HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
 
-    //     // start 'rewarding' if its enabled
-    //     if config.rewarding.enabled {
-    //         epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-    //         EpochAdvancer::start(
-    //             nyxd_client,
-    //             &nym_contract_cache_state,
-    //             &node_status_cache_state,
-    //             described_nodes_cache.clone(),
-    //             &storage,
-    //             &task_manager,
-    //         );
-    //     }
-    // }
+        // start 'rewarding' if its enabled
+        if config.rewarding.enabled {
+            epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+            EpochAdvancer::start(
+                nyxd_client,
+                &nym_contract_cache_state,
+                &node_status_cache_state,
+                described_nodes_cache.clone(),
+                &storage,
+                &task_manager,
+            );
+        }
+    }
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;

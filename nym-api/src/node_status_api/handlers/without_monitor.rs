@@ -21,7 +21,7 @@ use nym_api_requests::models::{
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::{MonitorMessage, MonitorResults};
-use tracing::error;
+use tracing::{error, info};
 
 pub(super) fn mandatory_routes() -> Router<AppState> {
     Router::new()
@@ -77,6 +77,8 @@ pub(crate) async fn submit_route_monitoring_results(
     State(state): State<AppState>,
     Json(message): Json<MonitorMessage>,
 ) -> AxumResult<()> {
+    info!("############ Received route monitoring results");
+
     if !message.is_in_allowed() {
         return Err(AxumErrorResponse::forbidden(
             "Monitor not registered to submit results",
@@ -93,8 +95,15 @@ pub(crate) async fn submit_route_monitoring_results(
 
     match message.results() {
         MonitorResults::Route(results) => {
+            info!(
+                "############ Submitting {} route monitoring results",
+                results.len()
+            );
             match state.storage.submit_route_monitoring_results(results).await {
-                Ok(_) => Ok(()),
+                Ok(_) => {
+                    info!("############ Successfully submitted route monitoring results");
+                    Ok(())
+                }
                 Err(err) => {
                     error!("failed to submit node monitoring results: {err}");
                     Err(AxumErrorResponse::internal_msg(

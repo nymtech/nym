@@ -170,7 +170,7 @@ async fn nodes_noise(
             n.description
                 .host_information
                 .keys
-                .x25519_noise
+                .x25519_versioned_noise
                 .map(|noise_key| (noise_key, n))
         })
         .map(|(noise_key, node)| NoiseDetails {

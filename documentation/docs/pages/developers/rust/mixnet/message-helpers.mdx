@@ -1,5 +1,15 @@
 # Message Helpers
 
+import { Callout } from 'nextra/components';
+
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
+
 ## Handling incoming messages
 When listening out for a response to a sent message (e.g. if you have sent a request to a service, and are awaiting the response) you will want to await [non-empty messages (if you don't know why, read the info on this here)](./troubleshooting#client-receives-empty-messages-when-listening-for-response). This can be done with something like the helper functions here:
 

@@ -1,4 +1,4 @@
-# Mixnet Module
+# Builder Patterns
 import { Callout } from 'nextra/components';
 
 <Callout type="warning">
@@ -8,7 +8,4 @@ This upgrade will affect the interface of the SDK dramatically, and will be coup
 
 It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
 </Callout>
-
-This module exposes the logic of creating and interacting with clients and Mixnet messages. This is recommended for those wanting to either start playing around with the Mixnet and how it works, or build connection logic.
-
-> For developers wanting something more 'plug and play' we recommend the [`TcpProxy` module](./tcpproxy).
+Since there are two ways of creating an SDK client - ephemeral and with-storage - then there are two ways of applying the Builder Pattern to client creation.

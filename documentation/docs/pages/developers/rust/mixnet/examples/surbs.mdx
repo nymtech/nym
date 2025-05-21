@@ -1,4 +1,14 @@
 # Anonymous Replies with SURBs (Single Use Reply Blocks)
+
+import { Callout } from 'nextra/components'
+
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
 Both functions used to send messages through the mixnet (`send_message` and `send_plain_message`) send a pre-determined number of SURBs along with their messages by default.
 
 You can read more about how SURBs function under the hood [here](../../../../network/traffic/anonymous-replies).

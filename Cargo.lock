@@ -6830,6 +6830,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.9",
+ "axum-extra",
  "clap",
  "nym-bin-common",
  "nym-http-api-common",

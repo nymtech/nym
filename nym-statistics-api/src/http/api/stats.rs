@@ -4,11 +4,15 @@ use axum::{
     extract::{ConnectInfo, State},
     Json, Router,
 };
+use axum_extra::{headers::UserAgent, TypedHeader};
 use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
 
-use crate::http::{
-    error::{HttpError, HttpResult},
-    state::AppState,
+use crate::{
+    http::{
+        error::{HttpError, HttpResult},
+        state::AppState,
+    },
+    storage::models::{ConnectionInfoDto, DailyActiveDeviceDto},
 };
 
 pub(crate) fn routes() -> Router<AppState> {
@@ -27,13 +31,18 @@ pub(crate) fn routes() -> Router<AppState> {
 async fn submit_stats_report(
     State(mut state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    TypedHeader(user_agent): TypedHeader<UserAgent>,
     Json(report): Json<VpnClientStatsReport>,
 ) -> HttpResult<Json<()>> {
     // SW TODO use addr to whitelist gateways
 
+    let now = time::OffsetDateTime::now_utc();
+    let active_device = DailyActiveDeviceDto::new(now, &report, user_agent);
+    let maybe_connection_info = ConnectionInfoDto::maybe_new(now, &report, addr);
+
     state
         .storage()
-        .store_vpn_client_report(report, time::OffsetDateTime::now_utc(), addr)
+        .store_vpn_client_report(active_device, maybe_connection_info)
         .await
         .map_err(HttpError::internal_with_logging)?;
 

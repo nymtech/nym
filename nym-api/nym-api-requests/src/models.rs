@@ -896,7 +896,7 @@ pub struct HostKeys {
     pub current_x25519_sphinx_key: SphinxKey,
 
     #[serde(default)]
-    pub x25519_noise: Option<VersionedNoiseKey>,
+    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
@@ -904,8 +904,6 @@ impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
         HostKeys {
             ed25519: value.ed25519_identity,
             x25519: value.x25519_sphinx,
-            current_x25519_sphinx_key: value.primary_x25519_sphinx_key.into(),
-            pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key.map(Into::into),
             x25519_versioned_noise: value.x25519_versioned_noise,
         }
     }
@@ -1093,7 +1091,11 @@ impl NymNodeDescription {
 
         SemiSkimmedNode {
             basic: skimmed_node,
-            x25519_noise_versioned_key: self.description.host_information.keys.x25519_noise,
+            x25519_noise_versioned_key: self
+                .description
+                .host_information
+                .keys
+                .x25519_versioned_noise,
         }
     }
 }

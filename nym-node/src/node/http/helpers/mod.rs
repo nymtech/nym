@@ -14,13 +14,13 @@ pub mod system_info;
 pub(crate) fn sign_host_details(
     config: &Config,
     x22519_sphinx: &x25519::PublicKey,
-    x25519_noise: &VersionedNoiseKey,
+    x25519_versioned_noise: &VersionedNoiseKey,
     ed22519_identity: &ed25519::KeyPair,
 ) -> Result<SignedHostInformation, NymNodeError> {
-    let x25519_noise = if config.mixnet.debug.unsafe_disable_noise {
+    let x25519_versioned_noise = if config.mixnet.debug.unsafe_disable_noise {
         None
     } else {
-        Some(*x25519_noise)
+        Some(*x25519_versioned_noise)
     };
 
     let host_info = api_requests::v1::node::models::HostInformation {
@@ -29,7 +29,7 @@ pub(crate) fn sign_host_details(
         keys: api_requests::v1::node::models::HostKeys {
             ed25519_identity: *ed22519_identity.public_key(),
             x25519_sphinx: *x22519_sphinx,
-            x25519_noise,
+            x25519_versioned_noise,
         },
     };
 

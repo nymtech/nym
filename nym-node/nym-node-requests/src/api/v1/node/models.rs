@@ -3,7 +3,9 @@
 
 use celes::Country;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
-use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
+use nym_crypto::asymmetric::x25519::{
+    self, serde_helpers::bs58_x25519_pubkey, serde_helpers::option_bs58_x25519_pubkey,
+};
 use nym_noise_keys::VersionedNoiseKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -144,7 +146,22 @@ pub struct HostKeys {
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
-    pub x25519_noise: Option<VersionedNoiseKey>,
+    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
+}
+
+#[derive(Serialize)]
+pub struct LegacyHostKeysV3 {
+    #[serde(alias = "ed25519")]
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub ed25519_identity: ed25519::PublicKey,
+
+    #[serde(alias = "x25519")]
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub x25519_sphinx: x25519::PublicKey,
+
+    #[serde(default)]
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    pub x25519_noise: Option<x25519::PublicKey>,
 }
 
 #[derive(Serialize)]
@@ -164,7 +181,7 @@ impl From<HostKeys> for LegacyHostKeysV3 {
     fn from(value: HostKeys) -> Self {
         LegacyHostKeysV3 {
             ed25519_identity: value.ed25519_identity,
-            x25519_sphinx: value.primary_x25519_sphinx_key.public_key,
+            x25519_sphinx: value.x25519_sphinx,
             x25519_noise: value.x25519_versioned_noise.map(|k| k.x25519_pubkey),
         }
     }
@@ -177,7 +194,7 @@ impl From<LegacyHostKeysV3> for LegacyHostKeysV2 {
             x25519_sphinx: value.x25519_sphinx.to_base58_string(),
             x25519_noise: value
                 .x25519_noise
-                .map(|k| k.x25519_pubkey.to_base58_string())
+                .map(|k| k.to_base58_string())
                 .unwrap_or_default(),
         }
     }

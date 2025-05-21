@@ -5,20 +5,23 @@ import RewardParams from 'components/outputs/api-scraping-outputs/reward-params.
 
 export default function RewardsCalculator() {
   const [a, setA] = useState(
-    Math.round(Number(RewardParams.interval.epoch_reward_budget) / 1_000_000)
+    Number(
+      (Number(RewardParams.interval.epoch_reward_budget) / 1_000_000).toFixed(6)
+    )
   )
   const [b, setB] = useState(0)
   const [c, setC] = useState(0)
   const [d, setD] = useState(0)
   const [e, setE] = useState(
-    Math.round(Number(RewardParams.interval.stake_saturation_point) / 1_000_000)
+    Number(
+      (Number(RewardParams.interval.stake_saturation_point) / 1_000_000).toFixed(6)
+    )
   )
-
   const result =
     e !== 0
       ? `${(
           a * b * c * ((1 / 240) + 0.3 * ((d / e) / 240)) * 1 / (1 + 0.3)
-        ).toFixed(4)} NYM`
+        ).toFixed(6)} NYM`
       : '—'
 
   return (

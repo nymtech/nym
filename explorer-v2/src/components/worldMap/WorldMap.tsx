@@ -33,7 +33,17 @@ export const WorldMap = (): JSX.Element => {
   }>({ coordinates: [0, 0], zoom: 1 });
 
   const {
-    data: countries = [],
+    data: {
+      countries = [],
+      totalCountries = 0,
+      uniqueLocations = 0,
+      totalServers = 0,
+    } = {
+      countries: [],
+      totalCountries: 0,
+      uniqueLocations: 0,
+      totalServers: 0,
+    },
     isLoading: isLoadingCountries,
     isError: isCountriesError,
   } = useQuery({
@@ -129,221 +139,268 @@ export const WorldMap = (): JSX.Element => {
   }
 
   return (
-    <ExplorerCard
-      label="Nym server locations"
-      sx={{
-        width: "100%",
-        position: "relative",
-        p: { xs: 2, sm: 3 },
-        "& > .MuiCardContent-root": {
-          height: {
-            xs: "200px",
-            sm: "auto",
-          },
-          aspectRatio: {
-            xs: "unset",
-            sm: "16/7",
-          },
-        },
-      }}
-    >
-      <Box
+    <>
+      <ExplorerCard
+        label="Nym server locations"
         sx={{
-          position: "relative",
           width: "100%",
-          height: "100%",
-          overflow: "hidden",
-          margin: "0 auto",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          position: "relative",
+          p: { xs: 2, sm: 3 },
+          "& > .MuiCardContent-root": {
+            height: {
+              xs: "200px",
+              sm: "auto",
+            },
+            aspectRatio: {
+              xs: "unset",
+              sm: "16/7",
+            },
+          },
         }}
       >
-        <ComposableMap
-          data-tip=""
-          style={{
-            backgroundColor: isDarkMode ? "#000000" : theme.palette.pine[25],
+        <Box
+          sx={{
+            position: "relative",
             width: "100%",
             height: "100%",
-          }}
-          viewBox="0 0 800 400"
-          projection="geoMercator"
-          projectionConfig={{
-            scale: 130,
-          }}
-        >
-          <ZoomableGroup
-            center={position.coordinates}
-            zoom={position.zoom}
-            minZoom={1}
-            maxZoom={8}
-            translateExtent={[
-              [-800, -400],
-              [800, 400],
-            ]}
-            onMoveEnd={({
-              coordinates,
-              zoom,
-            }: {
-              coordinates: [number, number];
-              zoom: number;
-            }) => {
-              setPosition({ coordinates, zoom });
-            }}
-            onClick={(e: React.MouseEvent) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <Geographies geography={MAP_TOPOJSON}>
-              {({ geographies }: { geographies: GeoJSON.Feature[] }) =>
-                geographies.map((geo) => {
-                  const d = Array.isArray(countries)
-                    ? { nodes: 0 }
-                    : (countries as CountryDataResponse)[
-                        geo.properties?.ISO_A3 as string
-                      ] || { nodes: 0 };
-                  return (
-                    <Geography
-                      key={`${geo.properties?.ISO_A3 || ""}-${geo.id}-${
-                        geo.properties?.NAME_LONG || ""
-                      }`}
-                      geography={geo}
-                      fill={colorScale(d?.nodes || 0)}
-                      stroke={
-                        theme.palette.mode === "dark"
-                          ? theme.palette.pine[800]
-                          : theme.palette.pine[200]
-                      }
-                      strokeWidth={0.2}
-                      data-tooltip-id="map-tooltip"
-                      onMouseEnter={() => {
-                        const { NAME_LONG } = geo.properties as {
-                          NAME_LONG: string;
-                        };
-                        setTooltipContent(`${NAME_LONG} | ${d?.nodes || 0}`);
-                      }}
-                      onMouseLeave={() => {
-                        setTooltipContent("");
-                      }}
-                      style={{
-                        hover: countries
-                          ? {
-                              fill: theme.palette.accent.main,
-                              outline: "white",
-                              cursor: "pointer",
-                            }
-                          : undefined,
-                        default: {
-                          outline: "none",
-                        },
-                        pressed: {
-                          outline: "none",
-                        },
-                      }}
-                    />
-                  );
-                })
-              }
-            </Geographies>
-          </ZoomableGroup>
-        </ComposableMap>
-
-        <div
-          style={{
-            position: "absolute",
-            top: 10,
-            left: 10,
-            zIndex: 1000,
+            overflow: "hidden",
+            margin: "0 auto",
             display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-            backgroundColor: isDarkMode
-              ? "rgba(0,0,0,0.5)"
-              : "rgba(255,255,255,0.5)",
-            padding: "4px",
-            borderRadius: "4px",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <IconButton
-            size="small"
-            onClick={() =>
-              setPosition((prev) => ({
-                ...prev,
-                zoom: Math.min(prev.zoom + 0.5, 8),
-              }))
-            }
-            sx={{
-              backgroundColor: isDarkMode
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)",
-              "&:hover": {
-                backgroundColor: isDarkMode
-                  ? "rgba(255,255,255,0.2)"
-                  : "rgba(0,0,0,0.2)",
-              },
+          <ComposableMap
+            data-tip=""
+            style={{
+              backgroundColor: isDarkMode ? "#000000" : theme.palette.pine[25],
+              width: "100%",
+              height: "100%",
+            }}
+            viewBox="0 0 800 400"
+            projection="geoMercator"
+            projectionConfig={{
+              scale: 130,
             }}
           >
-            <AddIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() =>
-              setPosition((prev) => ({
-                ...prev,
-                zoom: Math.max(prev.zoom - 0.5, 1),
-              }))
-            }
-            sx={{
+            <ZoomableGroup
+              center={position.coordinates}
+              zoom={position.zoom}
+              minZoom={1}
+              maxZoom={8}
+              translateExtent={[
+                [-800, -400],
+                [800, 400],
+              ]}
+              onMoveEnd={({
+                coordinates,
+                zoom,
+              }: {
+                coordinates: [number, number];
+                zoom: number;
+              }) => {
+                setPosition({ coordinates, zoom });
+              }}
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <Geographies geography={MAP_TOPOJSON}>
+                {({ geographies }: { geographies: GeoJSON.Feature[] }) =>
+                  geographies.map((geo) => {
+                    const d = Array.isArray(countries)
+                      ? { nodes: 0 }
+                      : (countries as CountryDataResponse)[
+                          geo.properties?.ISO_A3 as string
+                        ] || { nodes: 0 };
+                    return (
+                      <Geography
+                        key={`${geo.properties?.ISO_A3 || ""}-${geo.id}-${
+                          geo.properties?.NAME_LONG || ""
+                        }`}
+                        geography={geo}
+                        fill={colorScale(d?.nodes || 0)}
+                        stroke={
+                          theme.palette.mode === "dark"
+                            ? theme.palette.pine[800]
+                            : theme.palette.pine[200]
+                        }
+                        strokeWidth={0.2}
+                        data-tooltip-id="map-tooltip"
+                        onMouseEnter={() => {
+                          const { NAME_LONG } = geo.properties as {
+                            NAME_LONG: string;
+                          };
+                          setTooltipContent(`${NAME_LONG} | ${d?.nodes || 0}`);
+                        }}
+                        onMouseLeave={() => {
+                          setTooltipContent("");
+                        }}
+                        style={{
+                          hover: countries
+                            ? {
+                                fill: theme.palette.accent.main,
+                                outline: "white",
+                                cursor: "pointer",
+                              }
+                            : undefined,
+                          default: {
+                            outline: "none",
+                          },
+                          pressed: {
+                            outline: "none",
+                          },
+                        }}
+                      />
+                    );
+                  })
+                }
+              </Geographies>
+            </ZoomableGroup>
+          </ComposableMap>
+
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              zIndex: 1000,
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
               backgroundColor: isDarkMode
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)",
-              "&:hover": {
-                backgroundColor: isDarkMode
-                  ? "rgba(255,255,255,0.2)"
-                  : "rgba(0,0,0,0.2)",
-              },
+                ? "rgba(0,0,0,0.5)"
+                : "rgba(255,255,255,0.5)",
+              padding: "4px",
+              borderRadius: "4px",
             }}
           >
-            <RemoveIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => setPosition({ coordinates: [0, 0], zoom: 1 })}
-            sx={{
-              backgroundColor: isDarkMode
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)",
-              "&:hover": {
+            <IconButton
+              size="small"
+              onClick={() =>
+                setPosition((prev) => ({
+                  ...prev,
+                  zoom: Math.min(prev.zoom + 0.5, 8),
+                }))
+              }
+              sx={{
                 backgroundColor: isDarkMode
-                  ? "rgba(255,255,255,0.2)"
-                  : "rgba(0,0,0,0.2)",
-              },
-            }}
-          >
-            <RestartAltIcon fontSize="small" />
-          </IconButton>
-        </div>
-      </Box>
-      <Tooltip
-        id="map-tooltip"
-        content={tooltipContent}
-        float={true}
-        style={{
-          fontSize: "12px",
-          padding: "4px 8px",
-          backgroundColor:
-            theme.palette.mode === "dark"
-              ? theme.palette.pine[800]
-              : theme.palette.pine[200],
-          color:
-            theme.palette.mode === "dark"
-              ? theme.palette.base.white
-              : theme.palette.pine[950],
-          borderRadius: "4px",
-          zIndex: 9999,
+                  ? "rgba(255,255,255,0.1)"
+                  : "rgba(0,0,0,0.1)",
+                "&:hover": {
+                  backgroundColor: isDarkMode
+                    ? "rgba(255,255,255,0.2)"
+                    : "rgba(0,0,0,0.2)",
+                },
+              }}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() =>
+                setPosition((prev) => ({
+                  ...prev,
+                  zoom: Math.max(prev.zoom - 0.5, 1),
+                }))
+              }
+              sx={{
+                backgroundColor: isDarkMode
+                  ? "rgba(255,255,255,0.1)"
+                  : "rgba(0,0,0,0.1)",
+                "&:hover": {
+                  backgroundColor: isDarkMode
+                    ? "rgba(255,255,255,0.2)"
+                    : "rgba(0,0,0,0.2)",
+                },
+              }}
+            >
+              <RemoveIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => setPosition({ coordinates: [0, 0], zoom: 1 })}
+              sx={{
+                backgroundColor: isDarkMode
+                  ? "rgba(255,255,255,0.1)"
+                  : "rgba(0,0,0,0.1)",
+                "&:hover": {
+                  backgroundColor: isDarkMode
+                    ? "rgba(255,255,255,0.2)"
+                    : "rgba(0,0,0,0.2)",
+                },
+              }}
+            >
+              <RestartAltIcon fontSize="small" />
+            </IconButton>
+          </div>
+        </Box>
+        <Tooltip
+          id="map-tooltip"
+          content={tooltipContent}
+          float={true}
+          style={{
+            fontSize: "12px",
+            padding: "4px 8px",
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? theme.palette.pine[800]
+                : theme.palette.pine[200],
+            color:
+              theme.palette.mode === "dark"
+                ? theme.palette.base.white
+                : theme.palette.pine[950],
+            borderRadius: "4px",
+            zIndex: 9999,
+          }}
+        />
+      </ExplorerCard>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(3, 1fr)",
+          },
+          gap: 2,
+          mt: 2,
         }}
-      />
-    </ExplorerCard>
+      >
+        <ExplorerCard label="Number of all servers">
+          <Typography
+            variant="h4"
+            sx={{
+              color: isDarkMode ? "base.white" : "pine.950",
+              letterSpacing: 0.7,
+            }}
+          >
+            {totalServers}
+          </Typography>
+        </ExplorerCard>
+        <ExplorerCard label="Number of countries">
+          <Typography
+            variant="h4"
+            sx={{
+              color: isDarkMode ? "base.white" : "pine.950",
+              letterSpacing: 0.7,
+            }}
+          >
+            {totalCountries}
+          </Typography>
+        </ExplorerCard>
+        <ExplorerCard label="Number of locations">
+          <Typography
+            variant="h4"
+            sx={{
+              color: isDarkMode ? "base.white" : "pine.950",
+              letterSpacing: 0.7,
+            }}
+          >
+            {uniqueLocations}
+          </Typography>
+        </ExplorerCard>
+      </Box>
+    </>
   );
 };

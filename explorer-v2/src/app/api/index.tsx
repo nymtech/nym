@@ -253,41 +253,57 @@ export const fetchNSApiNodes = async (): Promise<NS_NODE[]> => {
   return allNodes;
 };
 
-export const fetchWorldMapCountries =
-  async (): Promise<CountryDataResponse> => {
-    // Fetch all nodes from the NS API
-    const nodes = await fetchNSApiNodes();
+export const fetchWorldMapCountries = async (): Promise<{
+  countries: CountryDataResponse;
+  totalCountries: number;
+  uniqueLocations: number;
+  totalServers: number;
+}> => {
+  // Fetch all nodes from the NS API
+  const nodes = await fetchNSApiNodes();
 
-    // Create a map to count nodes by country
-    const countryCounts: Record<string, number> = {};
+  // Create a map to count nodes by country
+  const countryCounts: Record<string, number> = {};
+  // Set to track unique cities
+  const uniqueCities = new Set<string>();
 
-    // Process each node
-    for (const node of nodes) {
-      // Get the 2-letter country code from the node's geoip data
-      const twoLetterCode = node.geoip?.country;
+  // Process each node
+  for (const node of nodes) {
+    // Get the 2-letter country code from the node's geoip data
+    const twoLetterCode = node.geoip?.country;
 
-      if (twoLetterCode) {
-        // Convert to 3-letter country code
-        const threeLetterCode = countryCodeMap[twoLetterCode] || twoLetterCode;
+    if (twoLetterCode) {
+      // Convert to 3-letter country code
+      const threeLetterCode = countryCodeMap[twoLetterCode] || twoLetterCode;
 
-        // Increment the count for this country
-        countryCounts[threeLetterCode] =
-          (countryCounts[threeLetterCode] || 0) + 1;
-      } else {
-        // If no geoip data, count it as unknown
-        countryCounts[""] = (countryCounts[""] || 0) + 1;
+      // Increment the count for this country
+      countryCounts[threeLetterCode] =
+        (countryCounts[threeLetterCode] || 0) + 1;
+
+      // Add city to unique cities set if it exists
+      if (node.geoip?.city) {
+        uniqueCities.add(node.geoip.city);
       }
+    } else {
+      // If no geoip data, count it as unknown
+      countryCounts[""] = (countryCounts[""] || 0) + 1;
     }
+  }
 
-    // Convert the counts to the required format
-    const result: CountryDataResponse = {};
+  // Convert the counts to the required format
+  const result: CountryDataResponse = {};
 
-    for (const [threeLetterCode, count] of Object.entries(countryCounts)) {
-      result[threeLetterCode] = {
-        ISO3: threeLetterCode,
-        nodes: count,
-      };
-    }
+  for (const [threeLetterCode, count] of Object.entries(countryCounts)) {
+    result[threeLetterCode] = {
+      ISO3: threeLetterCode,
+      nodes: count,
+    };
+  }
 
-    return result;
+  return {
+    countries: result,
+    totalCountries: Object.keys(countryCounts).length,
+    uniqueLocations: uniqueCities.size,
+    totalServers: nodes.length,
   };
+};

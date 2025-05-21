@@ -1,0 +1,18 @@
+{
+  "total_supply": {
+    "denom": "unym",
+    "amount": "1000000000000000"
+  },
+  "mixmining_reserve": {
+    "denom": "unym",
+    "amount": "188691142067690"
+  },
+  "vesting_tokens": {
+    "denom": "unym",
+    "amount": "0"
+  },
+  "circulating_supply": {
+    "denom": "unym",
+    "amount": "811308857932310"
+  }
+}

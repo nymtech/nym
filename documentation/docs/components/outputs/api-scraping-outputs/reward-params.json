@@ -1,0 +1,18 @@
+{
+  "interval": {
+    "reward_pool": "188691142067690.265566584946684804",
+    "staking_supply": "248179643769563.241524591796100959",
+    "staking_supply_scale_factor": "0.5",
+    "epoch_reward_budget": "5241420612.991396265738470741",
+    "stake_saturation_point": "1034081849039.84683968579915042",
+    "sybil_resistance": "0.3",
+    "active_set_work_factor": "10",
+    "interval_pool_emission": "0.02"
+  },
+  "rewarded_set": {
+    "entry_gateways": 50,
+    "exit_gateways": 70,
+    "mixnodes": 120,
+    "standby": 0
+  }
+}

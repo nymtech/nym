@@ -1,11 +1,18 @@
 import React, { useState } from 'react'
+import CirculatingSupply from 'components/outputs/api-scraping-outputs/circulating-supply.json'
+import RewardParams from 'components/outputs/api-scraping-outputs/reward-params.json'
+
 
 export default function RewardsCalculator() {
-  const [a, setA] = useState(5241)
+  const [a, setA] = useState(
+    Math.round(Number(RewardParams.interval.epoch_reward_budget) / 1_000_000)
+  )
   const [b, setB] = useState(0)
   const [c, setC] = useState(0)
   const [d, setD] = useState(0)
-  const [e, setE] = useState(1034081)
+  const [e, setE] = useState(
+    Math.round(Number(RewardParams.interval.stake_saturation_point) / 1_000_000)
+  )
 
   const result =
     e !== 0

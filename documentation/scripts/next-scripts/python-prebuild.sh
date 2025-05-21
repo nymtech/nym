@@ -29,6 +29,10 @@ python api_targets.py time_now > ../../docs/components/outputs/api-scraping-outp
 
 python api_targets.py calculate --staking_target --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md &&
 
+curl -L https://validator.nymtech.net/api/v1/circulating-supply | jq > ../../docs/components/outputs/api-scraping-outputs/circulating-supply.json &&
+
+curl -L https://validator.nymtech.net/api/v1/epoch/reward_params | jq > ../../docs/components/outputs/api-scraping-outputs/reward-params.json &&
+
 cd ../../../scripts &&
 echo '```python' > ../documentation/docs/components/outputs/command-outputs/node-api-check-query-help.md &&
 python node_api_check.py query_stats --help >> ../documentation/docs/components/outputs/command-outputs/node-api-check-query-help.md &&

@@ -367,7 +367,7 @@ export const WorldMap = (): JSX.Element => {
           mt: 2,
         }}
       >
-        <ExplorerCard label="Number of all servers">
+        <ExplorerCard label="Nym servers around the world">
           <Typography
             variant="h4"
             sx={{
@@ -378,7 +378,7 @@ export const WorldMap = (): JSX.Element => {
             {totalServers}
           </Typography>
         </ExplorerCard>
-        <ExplorerCard label="Number of countries">
+        <ExplorerCard label="Countries with Nym servers">
           <Typography
             variant="h4"
             sx={{
@@ -389,7 +389,7 @@ export const WorldMap = (): JSX.Element => {
             {totalCountries}
           </Typography>
         </ExplorerCard>
-        <ExplorerCard label="Number of locations">
+        <ExplorerCard label="Nym Server Locations">
           <Typography
             variant="h4"
             sx={{

@@ -5,6 +5,7 @@ import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { useEffect } from "react";
 import CopyFile from "../icons/CopyFile";
 import CopyFileDark from "../icons/CopyFileDark";
+import CheckIcon from "@mui/icons-material/Check";
 
 const CLEAR_AFTER_MS = 10_000;
 
@@ -34,12 +35,8 @@ const CopyToClipboard = ({
 
   if (hasCopied) {
     return (
-      <Typography
-        sx={{ color: isDarkMode ? "base.white" : "pine.950" }}
-        variant="h6"
-        color="textSecondary"
-      >
-        Copied
+      <Typography sx={{ color: isDarkMode ? "base.white" : "pine.950" }}>
+        <CheckIcon fontSize="small" />
       </Typography>
     );
   }

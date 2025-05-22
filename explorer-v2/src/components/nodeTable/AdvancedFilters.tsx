@@ -75,7 +75,7 @@ export default function AdvancedFilters({
           color:
             theme.palette.mode === "light"
               ? theme.palette.common.black
-              : theme.palette.text.secondary,
+              : theme.palette.common.white,
           mb: 2,
         }}
       >

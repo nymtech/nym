@@ -1,4 +1,14 @@
 # Send and Receive in Different Tasks
+
+import { Callout } from 'nextra/components'
+
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
 If you need to split the different actions of your client across different tasks, you can do so like this. You can think of this analogously to spliting a Tcp Stream into read/write. This functionality is also useful for embedding a sending and receiving client into different tasks.
 
 > You can find this code [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/examples/parallel_sending_and_receiving.rs)

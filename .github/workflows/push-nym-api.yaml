@@ -1,0 +1,51 @@
+name: Build and upload Nym APU container to harbor.nymte.ch
+on:
+  workflow_dispatch:
+
+env:
+  WORKING_DIRECTORY: "."
+  CONTAINER_NAME: "nym-api"
+
+jobs:
+  build-container:
+    runs-on: arc-ubuntu-22.04-dind
+    steps:
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.nymte.ch
+          username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
+          password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "lawrence@nymtech.net"
+          git config --global user.name "Lawrence Stalder"
+
+      - name: Get version from cargo.toml
+        uses: mikefarah/yq@v4.45.4
+        id: get_version
+        with:
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/nym-api/Cargo.toml
+
+      - name: Remove existing tag if exists
+        run: |
+          echo "Checking if tag ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} exists..."
+          if git rev-parse ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
+            echo "Tag ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} already exists"
+            git push --delete origin ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }}
+            git tag -d ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }}
+          fi
+
+      - name: Create tag
+        run: |
+          git tag -a ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} -m "Version ${{ steps.get_version.outputs.result }}"
+          git push origin ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }}
+          
+      - name: BuildAndPushImageOnHarbor
+        run: |
+          docker build -f nym-api.dockerfile ${{ env.WORKING_DIRECTORY }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

@@ -25,11 +25,11 @@ pub(crate) struct Cli {
     pub(crate) database_url: String,
 
     /// Username for the database.
-    #[clap(long, env = "PGUSER")]
+    #[clap(long, env = "POSTGRES_USER")]
     pub(crate) username: String,
 
     /// Password for the database.
-    #[clap(long, env = "PGPASSWORD")]
+    #[clap(long, env = "POSTGRES_PASSWORD")]
     pub(crate) password: String,
 
     /// PgSQL port for the database.

@@ -67,13 +67,13 @@ impl StatisticsStorage {
     async fn store_device(&self, active_device: DailyActiveDeviceDto) -> Result<()> {
         sqlx::query(
             "INSERT INTO active_device (
-                day, 
-                device_id, 
-                os_type, 
-                os_version, 
-                architecture, 
+                day,
+                device_id,
+                os_type,
+                os_version,
+                architecture,
                 app_version,
-                user_agent) 
+                user_agent)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (device_id, day) DO NOTHING",
         )
@@ -107,13 +107,14 @@ impl StatisticsStorage {
         // .execute(&self.connection_pool)
         // .await?;
 
+        // bond_info as "bond_info: serde_json::Value"
         sqlx::query!(
-            "INSERT INTO connection_stats (
+            r#"INSERT INTO connection_stats (
                 received_at,
                 connection_time_ms,
                 two_hop,
                 gateway_ip,
-                country_code) VALUES ($1, $2, $3, $4,$5)",
+                country_code) VALUES ($1, $2, $3, $4,$5)"#,
             connection_info.received_at,
             connection_info.connection_time_ms,
             connection_info.two_hop,
@@ -128,13 +129,13 @@ impl StatisticsStorage {
     async fn store_unknown_device(&self, device_report: DailyActiveDeviceDto) -> Result<()> {
         sqlx::query(
             "INSERT INTO unknown_active_device (
-                day, 
-                device_id, 
-                os_type, 
-                os_version, 
-                architecture, 
+                day,
+                device_id,
+                os_type,
+                os_version,
+                architecture,
                 app_version,
-                user_agent) 
+                user_agent)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (device_id, day) DO NOTHING",
         )
@@ -157,9 +158,9 @@ impl StatisticsStorage {
     ) -> Result<()> {
         sqlx::query(
             "INSERT INTO unknown_connection_stats (
-                received_at, 
-                connection_time_ms, 
-                two_hop, 
+                received_at,
+                connection_time_ms,
+                two_hop,
                 source_ip) VALUES ($1, $2, $3, $4)",
         )
         .bind(connection_info.received_at)

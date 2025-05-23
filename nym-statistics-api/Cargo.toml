@@ -46,3 +46,8 @@ nym-http-api-common = { path = "../common/http-api-common", features = [
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+
+[build-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }

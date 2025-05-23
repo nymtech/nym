@@ -1,5 +1,17 @@
 # Client Pool Architecture
 
+
+import { Callout } from 'nextra/components';
+
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
+
+
 ## Motivations
 In situations where multiple connections are expected, and the number of connections can vary greatly, the Client Pool reduces time spent waiting for the creation of a Mixnet Client blocking your code sending traffic through the Mixnet. Instead, a configurable number of Clients can be generated and run in the background which can be very quickly grabbed, used, and disconnected.
 

@@ -39,6 +39,10 @@ pub(crate) struct Args {
     #[clap(long)]
     custom_epoch_duration_secs: Option<u64>,
 
+    /// Specifies custom number of epochs sphinx keys are going to be valid for
+    #[clap(long)]
+    key_validity_in_epochs: Option<u32>,
+
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -51,6 +55,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
             args.built_contracts,
             args.network_name,
             args.custom_epoch_duration_secs.map(Duration::from_secs),
+            args.key_validity_in_epochs,
         )
         .await?
         .into();

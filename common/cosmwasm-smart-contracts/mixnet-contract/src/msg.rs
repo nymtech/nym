@@ -35,6 +35,7 @@ use crate::{
         PreassignedGatewayIdsResponse,
     },
     interval::{CurrentIntervalResponse, EpochStatus},
+    key_rotation::{KeyRotationIdResponse, KeyRotationState},
     mixnode::{
         MixOwnershipResponse, MixStakeSaturationResponse, MixnodeDetailsByIdentityResponse,
         MixnodeDetailsResponse, MixnodeRewardingDetailsResponse, PagedMixnodeBondsResponse,
@@ -81,6 +82,18 @@ pub struct InstantiateMsg {
 
     #[serde(default)]
     pub interval_operating_cost: OperatingCostRange,
+
+    #[serde(default)]
+    pub key_validity_in_epochs: Option<u32>,
+}
+
+impl InstantiateMsg {
+    // needs to give us enough time to pre-announce key for following epoch
+    // and have an overlap with the preceding epoch
+    pub const MIN_KEY_ROTATION_VALIDITY: u32 = 3;
+    pub fn key_validity_in_epochs(&self) -> u32 {
+        self.key_validity_in_epochs.unwrap_or(24)
+    }
 }
 
 #[cw_serde]
@@ -857,6 +870,15 @@ pub enum QueryMsg {
         /// Cosmos address used for the query of the signing nonce.
         address: String,
     },
+
+    // sphinx key rotation-related
+    #[cfg_attr(feature = "schema", returns(KeyRotationState))]
+    /// Gets the current state config of the key rotation (i.e. starting epoch id and validity duration)
+    GetKeyRotationState {},
+
+    /// Gets the current key rotation id
+    #[cfg_attr(feature = "schema", returns(KeyRotationIdResponse))]
+    GetKeyRotationId {},
 }
 
 #[cw_serde]

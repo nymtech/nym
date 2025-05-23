@@ -18,6 +18,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command;
+use tracing::error;
 use zeroize::Zeroizing;
 
 struct LocalNodesCtx<'a> {
@@ -158,8 +159,8 @@ impl NetworkManager {
             &output_file_path.display().to_string(),
         ])
         .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .stdin(Stdio::null())
-        .stderr(Stdio::null())
         .kill_on_drop(true);
 
         if is_gateway {
@@ -169,10 +170,12 @@ impl NetworkManager {
             cmd.args(["--mode", "mixnode"]);
         }
 
-        let mut child = cmd.spawn()?;
-        let child_fut = child.wait();
+        let child = cmd.spawn()?;
+        let child_fut = child.wait_with_output();
         let out = ctx.async_with_progress(child_fut).await?;
-        if !out.success() {
+        if !out.status.success() {
+            error!("nym node failure");
+            println!("{}", String::from_utf8_lossy(&out.stderr));
             return Err(NetworkManagerError::NymNodeExecutionFailure);
         }
 
@@ -196,14 +199,16 @@ impl NetworkManager {
                 "--output",
                 "json",
             ])
-            .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null())
             .kill_on_drop(true)
             .output();
 
         let out = ctx.async_with_progress(child).await?;
         if !out.status.success() {
+            error!("nym node failure");
+            println!("{}", String::from_utf8_lossy(&out.stderr));
             return Err(NetworkManagerError::NymNodeExecutionFailure);
         }
         let signature: ReducedSignatureOut = serde_json::from_slice(&out.stdout)?;

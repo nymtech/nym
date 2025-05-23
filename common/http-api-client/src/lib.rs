@@ -439,6 +439,17 @@ impl Client {
         self.base_url = new_url
     }
 
+    /// Create new instance of `Client` using the provided base url and existing client config
+    pub fn clone_with_new_url(&self, new_url: Url) -> Self {
+        Client {
+            base_url: new_url,
+            reqwest_client: self.reqwest_client.clone(),
+
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: self.request_timeout,
+        }
+    }
+
     /// Get the currently configured host that this client uses when sending API requests.
     pub fn current_url(&self) -> &Url {
         &self.base_url

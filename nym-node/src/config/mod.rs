@@ -530,6 +530,9 @@ pub struct Mixnet {
     pub replay_protection: ReplayProtection,
 
     #[serde(default)]
+    pub key_rotation: KeyRotation,
+
+    #[serde(default)]
     pub debug: MixnetDebug,
 }
 
@@ -639,12 +642,6 @@ pub struct ReplayProtectionDebug {
     /// It's performed in case the traffic rates increase before the next bloomfilter update.
     pub bloomfilter_size_multiplier: f64,
 
-    // NOTE: this field is temporary until replay detection bloomfilter rotation is tied
-    // to key rotation
-    /// Specifies how often the bloomfilter is cleared
-    #[serde(with = "humantime_serde")]
-    pub bloomfilter_reset_rate: Duration,
-
     /// Specifies how often the bloomfilter is flushed to disk for recovery in case of a crash
     #[serde(with = "humantime_serde")]
     pub bloomfilter_disk_flushing_rate: Duration,
@@ -660,9 +657,6 @@ impl ReplayProtectionDebug {
 
     // 10^-5
     pub const DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE: f64 = 1e-5;
-
-    // 25h (key rotation will be happening every 24h + 1h of overlap)
-    pub const DEFAULT_REPLAY_DETECTION_BF_RESET_RATE: Duration = Duration::from_secs(25 * 60 * 60);
 
     // we must have some reasonable balance between losing values and trashing the disk.
     // since on average HDD it would take ~30s to save a 2GB bloomfilter
@@ -680,8 +674,12 @@ impl ReplayProtectionDebug {
             ));
         }
 
+        // ideally we would have pulled the exact information from the network,
+        // but making async calls really doesn't play around with this method
+        // so we do second best: assume 24h rotation with 1h overlap (which realistically won't ever change)
+
         let items_in_filter = items_in_bloomfilter(
-            self.bloomfilter_reset_rate,
+            Duration::from_secs(25 * 60 * 60),
             self.initial_expected_packets_per_second,
         );
         let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
@@ -717,8 +715,33 @@ impl Default for ReplayProtectionDebug {
             bloomfilter_minimum_packets_per_second_size:
                 Self::DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE,
             bloomfilter_size_multiplier: Self::DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER,
-            bloomfilter_reset_rate: Self::DEFAULT_REPLAY_DETECTION_BF_RESET_RATE,
             bloomfilter_disk_flushing_rate: Self::DEFAULT_BF_DISK_FLUSHING_RATE,
+        }
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotation {
+    pub debug: KeyRotationDebug,
+}
+
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotationDebug {
+    /// Specifies how often the node should poll for any changes in the key rotation global state.
+    #[serde(with = "humantime_serde")]
+    pub rotation_state_poling_interval: Duration,
+}
+
+impl KeyRotationDebug {
+    pub const DEFAULT_ROTATION_STATE_POLLING_INTERVAL: Duration = Duration::from_secs(4 * 60 * 60);
+}
+
+impl Default for KeyRotationDebug {
+    fn default() -> Self {
+        KeyRotationDebug {
+            rotation_state_poling_interval: Self::DEFAULT_ROTATION_STATE_POLLING_INTERVAL,
         }
     }
 }
@@ -773,6 +796,7 @@ impl Mixnet {
             nym_api_urls,
             nyxd_urls,
             replay_protection: ReplayProtection::new_default(data_dir),
+            key_rotation: Default::default(),
             debug: Default::default(),
         }
     }

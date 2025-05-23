@@ -205,7 +205,10 @@ impl StorageManager {
     ) -> Result<Vec<StoredReplySurb>, sqlx::Error> {
         sqlx::query_as!(
             StoredReplySurb,
-            "SELECT * FROM reply_surb WHERE reply_surb_sender_id = ?",
+            r#"
+                SELECT reply_surb_sender_id, reply_surb, encoded_key_rotation as "encoded_key_rotation: u8" FROM reply_surb 
+                WHERE reply_surb_sender_id = ?
+            "#,
             sender_id
         )
         .fetch_all(&self.connection_pool)
@@ -230,10 +233,11 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO reply_surb(reply_surb_sender_id, reply_surb) VALUES (?, ?);
+                INSERT INTO reply_surb(reply_surb_sender_id, reply_surb, encoded_key_rotation) VALUES (?, ?, ?);
             "#,
             stored_reply_surb.reply_surb_sender_id,
-            stored_reply_surb.reply_surb
+            stored_reply_surb.reply_surb,
+            stored_reply_surb.encoded_key_rotation
         )
         .execute(&self.connection_pool)
         .await?;

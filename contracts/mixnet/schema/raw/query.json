@@ -1486,6 +1486,34 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Gets the current state config of the key rotation (i.e. starting epoch id and validity duration)",
+      "type": "object",
+      "required": [
+        "get_key_rotation_state"
+      ],
+      "properties": {
+        "get_key_rotation_state": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the current key rotation id",
+      "type": "object",
+      "required": [
+        "get_key_rotation_id"
+      ],
+      "properties": {
+        "get_key_rotation_id": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {

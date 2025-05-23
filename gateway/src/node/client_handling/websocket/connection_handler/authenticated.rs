@@ -314,7 +314,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
             }
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx { packet } => {
+                BinaryRequest::ForwardSphinx { packet }
+                | BinaryRequest::ForwardSphinxV2 { packet } => {
                     self.handle_forward_sphinx(packet).await.into_ws_message()
                 }
                 _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),

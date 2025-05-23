@@ -6,4 +6,4 @@ pub mod reply_surb;
 pub mod requests;
 
 pub use encryption_key::{SurbEncryptionKey, SurbEncryptionKeySize};
-pub use reply_surb::{ReplySurb, ReplySurbError};
+pub use reply_surb::{ReplySurb, ReplySurbError, ReplySurbWithKeyRotation};

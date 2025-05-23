@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::data::NodeStatusCacheData;
+use crate::support::caching::cache::UninitialisedCache;
 use crate::support::caching::Cache;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
 use nym_contracts_common::IdentityKey;
@@ -22,14 +23,17 @@ pub mod refresher;
 
 #[derive(Debug, Error)]
 enum NodeStatusCacheError {
-    #[error("failed to simulate selection probabilities for mixnodes, not updating cache")]
-    SimulationFailed,
-
     #[error("the current interval information is not available at the moment")]
     SourceDataMissing,
 
     #[error("the self-described cache data is not available")]
     UnavailableDescribedCache,
+}
+
+impl From<UninitialisedCache> for NodeStatusCacheError {
+    fn from(_: UninitialisedCache) -> Self {
+        NodeStatusCacheError::SourceDataMissing
+    }
 }
 
 /// A node status cache suitable for caching values computed in one sweep, such as active set

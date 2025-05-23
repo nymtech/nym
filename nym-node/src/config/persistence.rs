@@ -13,8 +13,8 @@ use zeroize::Zeroizing;
 // Global:
 pub const DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_identity";
 pub const DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_identity.pub";
-pub const DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME: &str = "x25519_sphinx";
-pub const DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME: &str = "x25519_sphinx.pub";
+pub const DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME: &str = "x25519_sphinx_primary";
+pub const DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME: &str = "x25519_sphinx_secondary";
 pub const DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME: &str = "x25519_noise";
 pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
@@ -59,7 +59,6 @@ pub const DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME: &str = "x25519_wg_dh.pub";
 pub const DEFAULT_RD_BLOOMFILTER_SUBDIR: &str = "replay-detection";
 pub const DEFAULT_RD_BLOOMFILTER_FILE_EXT: &str = "bloom";
 pub const DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT: &str = "flush";
-pub const CURRENT_RD_BLOOMFILTER_FILENAME: &str = "current";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -82,7 +81,6 @@ impl NymNodePaths {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct KeysPaths {
     /// Path to file containing ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
@@ -90,11 +88,11 @@ pub struct KeysPaths {
     /// Path to file containing ed25519 identity public key.
     pub public_ed25519_identity_key_file: PathBuf,
 
-    /// Path to file containing x25519 sphinx private key.
-    pub private_x25519_sphinx_key_file: PathBuf,
+    /// Path to file containing the primary x25519 sphinx private key.
+    pub primary_x25519_sphinx_key_file: PathBuf,
 
-    /// Path to file containing x25519 sphinx public key.
-    pub public_x25519_sphinx_key_file: PathBuf,
+    /// Path to file containing the secondary x25519 sphinx private key.
+    pub secondary_x25519_sphinx_key_file: PathBuf,
 
     /// Path to file containing x25519 noise private key.
     pub private_x25519_noise_key_file: PathBuf,
@@ -112,9 +110,10 @@ impl KeysPaths {
                 .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),
             public_ed25519_identity_key_file: data_dir
                 .join(DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME),
-            private_x25519_sphinx_key_file: data_dir
-                .join(DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME),
-            public_x25519_sphinx_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME),
+            primary_x25519_sphinx_key_file: data_dir
+                .join(DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME),
+            secondary_x25519_sphinx_key_file: data_dir
+                .join(DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME),
             private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
             public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
         }
@@ -124,13 +123,6 @@ impl KeysPaths {
         nym_pemstore::KeyPairPath::new(
             &self.private_ed25519_identity_key_file,
             &self.public_ed25519_identity_key_file,
-        )
-    }
-
-    pub fn x25519_sphinx_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_sphinx_key_file,
-            &self.public_x25519_sphinx_key_file,
         )
     }
 
@@ -502,20 +494,6 @@ impl WireguardPaths {
 pub struct ReplayProtectionPaths {
     /// Path to the directory storing currently used bloomfilter(s).
     pub current_bloomfilters_directory: PathBuf,
-}
-
-impl ReplayProtectionPaths {
-    pub fn current_bloomfilter_filepath(&self) -> PathBuf {
-        self.current_bloomfilters_directory
-            .join(CURRENT_RD_BLOOMFILTER_FILENAME)
-            .with_extension(DEFAULT_RD_BLOOMFILTER_FILE_EXT)
-    }
-
-    pub fn current_bloomfilter_being_flushed_filepath(&self) -> PathBuf {
-        self.current_bloomfilters_directory
-            .join(CURRENT_RD_BLOOMFILTER_FILENAME)
-            .with_extension(DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT)
-    }
 }
 
 impl ReplayProtectionPaths {

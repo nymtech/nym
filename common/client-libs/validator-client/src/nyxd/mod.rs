@@ -138,6 +138,14 @@ impl NyxdClient<HttpClient> {
             config,
         })
     }
+
+    pub fn connect_to_default_env<U>(endpoint: U) -> Result<QueryHttpRpcNyxdClient, NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        let config = Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env())?;
+        Self::connect(config, endpoint)
+    }
 }
 
 impl NyxdClient<ReqwestRpcClient> {

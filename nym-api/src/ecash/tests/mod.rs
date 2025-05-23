@@ -7,17 +7,19 @@ use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
 use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
-use crate::support::http::state::{AppState, ChainStatusCache, ForcedRefresh};
+use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::force_refresh::ForcedRefresh;
+use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
-use crate::unstable_routes::account::cache::AddressInfoCache;
+use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;
@@ -58,8 +60,8 @@ use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklist
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::routes::{
-    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
-    ECASH_ISSUED_TICKETBOOKS_FOR, ECASH_ROUTES,
+    ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT, ECASH_ISSUED_TICKETBOOKS_FOR,
+    ECASH_ROUTES, V1_API_VERSION,
 };
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
@@ -1421,7 +1423,9 @@ impl TestFixture {
     async fn issue_ticketbook(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
         let response = self
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
             .json(&req)
             .await;
 
@@ -1436,7 +1440,7 @@ impl TestFixture {
         let response = self
             .axum
             .get(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_FOR}/{expiration_date}"
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_FOR}/{expiration_date}"
             ))
             .await;
 
@@ -1452,7 +1456,7 @@ impl TestFixture {
         let dummy_keypair = ed25519::KeyPair::new(&mut OsRng);
         self.axum
             .post(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
             ))
             .json(
                 &IssuedTicketbooksChallengeCommitmentRequestBody {
@@ -1519,7 +1523,9 @@ mod credential_tests {
 
         let response = test_fixture
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
             .json(&request_body)
             .await;
 
@@ -1703,7 +1709,9 @@ mod credential_tests {
 
         let response = test
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
             .json(&request_body)
             .await;
 

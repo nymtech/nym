@@ -33,7 +33,6 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
 
-cosmwasm-derive = { workspace = true }
 cw-controllers = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
@@ -41,8 +40,6 @@ cw-storage-plus = { workspace = true }
 bs58 = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 semver = { workspace = true }
-thiserror = { workspace = true }
-time = { version = "0.3", features = ["macros"] }
 
 [dev-dependencies]
 anyhow.workspace = true
@@ -55,3 +52,6 @@ easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
 schema-gen = ["mixnet-contract-common/schema", "cosmwasm-schema"]
+
+[lints]
+workspace = true

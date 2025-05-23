@@ -322,6 +322,7 @@ impl From<HistoricalUptime> for OldHistoricalUptimeResponse {
 
 // TODO rocket remove smurf name after eliminating `rocket`
 pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
+pub(crate) type ApiResult<T> = AxumResult<T>;
 
 // #[derive(ToSchema, ToResponse)]
 // #[schema(title = "ErrorResponse")]

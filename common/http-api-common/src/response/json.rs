@@ -32,6 +32,10 @@ impl<T> Json<T> {
         self.0.headers.insert(name, value.into());
         self
     }
+
+    pub(crate) fn map<U, F: FnOnce(T) -> U>(self, op: F) -> Json<U> {
+        Json(self.0.map(op))
+    }
 }
 
 impl<T> IntoResponse for Json<T>

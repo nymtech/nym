@@ -10,6 +10,7 @@ use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::mixnet::PacketKind;
 use nym_node_metrics::NymNodeMetrics;
+use nym_noise::config::NoiseConfig;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::processing::{
     MixPacketVersion, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
@@ -75,6 +76,9 @@ pub(crate) struct SharedData {
     // data specific to the final hop (gateway) processing
     pub(super) final_hop: SharedFinalHopData,
 
+    // for establishing a Noise connection
+    pub(super) noise_config: NoiseConfig,
+
     pub(super) metrics: NymNodeMetrics,
     pub(super) shutdown: ShutdownToken,
 }
@@ -87,12 +91,14 @@ fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
 }
 
 impl SharedData {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         processing_config: ProcessingConfig,
         x25519_keys: Arc<x25519::KeyPair>,
         replay_protection_filter: ReplayProtectionBloomfilter,
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
+        noise_config: NoiseConfig,
         metrics: NymNodeMetrics,
         shutdown: ShutdownToken,
     ) -> Self {
@@ -102,6 +108,7 @@ impl SharedData {
             replay_protection_filter,
             mixnet_forwarder,
             final_hop,
+            noise_config,
             metrics,
             shutdown,
         }
@@ -164,8 +171,9 @@ impl SharedData {
         match accepted {
             Ok((socket, remote_addr)) => {
                 debug!("accepted incoming mixnet connection from: {remote_addr}");
-                let mut handler = ConnectionHandler::new(self, socket, remote_addr);
-                let join_handle = tokio::spawn(async move { handler.handle_stream().await });
+                let mut handler = ConnectionHandler::new(self, remote_addr);
+                let join_handle =
+                    tokio::spawn(async move { handler.handle_connection(socket).await });
                 self.log_connected_clients();
                 Some(join_handle)
             }

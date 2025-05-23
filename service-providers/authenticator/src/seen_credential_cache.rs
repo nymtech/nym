@@ -54,6 +54,7 @@ impl SeenCredentialCache {
         let now = SystemTime::now();
         self.cached_credentials.retain(|_, value| {
             let Ok(cache_time) = now.duration_since(value.timestamp) else {
+                log::warn!("Got decreasing consecutive system timestamps");
                 return false;
             };
             cache_time < SEEN_CREDENTIAL_CACHE_TIME

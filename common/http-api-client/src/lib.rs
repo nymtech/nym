@@ -136,7 +136,7 @@
 //! ```
 #![warn(missing_docs)]
 
-pub use reqwest::{IntoUrl, StatusCode};
+pub use reqwest::StatusCode;
 
 use crate::path::RequestPath;
 use async_trait::async_trait;
@@ -154,7 +154,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
-use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
@@ -162,6 +161,8 @@ use std::sync::Arc;
 
 #[cfg(feature = "tunneling")]
 mod fronted;
+mod url;
+pub use url::{IntoUrl, Url};
 mod user_agent;
 pub use user_agent::UserAgent;
 
@@ -197,7 +198,7 @@ pub enum HttpClientError<E: Display = String> {
     },
 
     #[error("failed to deserialize received response: {source}")]
-    ResponseDeserialisationFailure { source: serde_json::Error },
+    ResponseDeserializationFailure { source: serde_json::Error },
 
     #[error("provided url is malformed: {source}")]
     MalformedUrl {
@@ -250,6 +251,106 @@ impl HttpClientError {
     }
 }
 
+/// Core functionality required for types acting as API clients.
+///
+/// This trait defines the "skinny waist" of behaviors that are required by an API client. More
+/// likely downstream libraries should use functions from the [`ApiClient`] interface which provide
+/// a more ergonomic set of functionalities.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait ApiClientCore {
+    /// Create an HTTP request using the host configured in this client.
+    fn create_request<P, B, K, V>(
+        &self,
+        method: reqwest::Method,
+        path: P,
+        params: Params<'_, K, V>,
+        json_body: Option<&B>,
+    ) -> RequestBuilder
+    where
+        P: RequestPath,
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>;
+
+    /// Create an HTTP request using the host configured in this client and an API endpoint (i.e.
+    /// `"/api/v1/mixnodes?since=12345"`). If the provided endpoint fails to parse as path (and
+    /// optionally query parameters).
+    ///
+    /// Endpoint Examples
+    /// - `"/api/v1/mixnodes?since=12345"`
+    /// - `"/api/v1/mixnodes"`
+    /// - `"/api/v1/mixnodes/img.png"`
+    /// - `"/api/v1/mixnodes/img.png?since=12345"`
+    /// - `"/"`
+    /// - `"/?since=12345"`
+    /// - `""`
+    /// - `"?since=12345"`
+    ///
+    /// for more information about URL percent encodings see [`url::Url::set_path()`]
+    fn create_request_endpoint<B, S>(
+        &self,
+        method: reqwest::Method,
+        endpoint: S,
+        json_body: Option<&B>,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        S: AsRef<str>,
+    {
+        // Use a stand-in url to extract the path and queries from the provided endpoint string
+        // which could potentially fail.
+        //
+        // This parse cannot fail
+        let mut standin_url: Url = "http://example.com".parse().unwrap();
+
+        match endpoint.as_ref().split_once("?") {
+            Some((path, query)) => {
+                standin_url.set_path(path);
+                standin_url.set_query(Some(query));
+            }
+            // There is no query in the provided endpoint
+            None => standin_url.set_path(endpoint.as_ref()),
+        }
+
+        let path: Vec<&str> = match standin_url.path_segments() {
+            Some(segments) => segments.collect(),
+            None => Vec::new(),
+        };
+        let params: Vec<(String, String)> = standin_url.query_pairs().into_owned().collect();
+
+        self.create_request(method, path.as_slice(), &params, json_body)
+    }
+
+    /// Send a created HTTP request.
+    ///
+    /// A [`RequestBuilder`] can be created with [`ApiClientCore::create_request`] or
+    /// [`ApiClientCore::create_request_endpoint`] or if absolutely necessary, using reqwest
+    /// tooling directly.
+    async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
+    where
+        E: Display;
+
+    /// Create and send a created HTTP request.
+    async fn send_request<P, B, K, V, E>(
+        &self,
+        method: reqwest::Method,
+        path: P,
+        params: Params<'_, K, V>,
+        json_body: Option<&B>,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        P: RequestPath + Send + Sync,
+        B: Serialize + ?Sized + Sync,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display,
+    {
+        let req = self.create_request(method, path, params, json_body);
+        self.send(req).await
+    }
+}
+
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
 /// and state tracked across subsequent requests.
 pub struct ClientBuilder {
@@ -285,7 +386,8 @@ impl ClientBuilder {
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
-            Ok(Self::new_with_urls(vec![url.into_url()?]))
+            let url = url.to_url()?;
+            Ok(Self::new_with_urls(vec![url]))
         }
     }
 
@@ -421,7 +523,6 @@ impl ClientBuilder {
         let client = Client {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
-            next_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
 
             #[cfg(feature = "tunneling")]
@@ -431,7 +532,6 @@ impl ClientBuilder {
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
             retry_limit: self.retry_limit,
         };
-        client.update_host();
 
         Ok(client)
     }
@@ -442,7 +542,6 @@ impl ClientBuilder {
 pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
-    next_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
 
     #[cfg(feature = "tunneling")]
@@ -460,7 +559,7 @@ impl Client {
     //
     // In order to prevent interference in API requests at the DNS phase we default to a resolver
     // that uses DoT and DoH.
-    pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
+    pub fn new(base_url: ::url::Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",
         )
@@ -492,6 +591,7 @@ impl Client {
 
     /// Update the set of hosts that this client uses when sending API requests.
     pub fn change_base_urls(&mut self, new_urls: Vec<Url>) {
+        self.current_idx.store(0, Ordering::Relaxed);
         self.base_urls = new_urls
     }
 
@@ -512,11 +612,41 @@ impl Client {
 
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
     fn update_host(&self) {
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            if front.is_enabled() {
+                // if we are using fronting, try updating to the next front
+                let url = self.current_url();
+
+                // try to update the current host to use a next front, if one is available, otherwise
+                // we move on and try the next base url (if one is available)
+                if url.has_front() && !url.update() {
+                    // we swapped to the next front for the current host
+                    return;
+                }
+            }
+        }
+
         if self.base_urls.len() > 1 {
-            let next = self.next_idx.load(Ordering::Relaxed);
+            let orig = self.current_idx.load(Ordering::Relaxed);
+            let mut next = (orig + 1) % self.base_urls.len();
+
+            // if fronting is enabled we want to update to a host that has fronts configured
+            #[cfg(feature = "tunneling")]
+            if let Some(ref front) = self.front {
+                if front.is_enabled() {
+                    while next != orig {
+                        if self.base_urls[next].has_front() {
+                            // we have a front for the next host, so we can use it
+                            break;
+                        }
+
+                        next = (next + 1) % self.base_urls.len();
+                    }
+                }
+            }
+
             self.current_idx.store(next, Ordering::Relaxed);
-            self.next_idx
-                .store((next + 1) % self.base_urls.len(), Ordering::Relaxed);
         }
     }
 
@@ -532,7 +662,7 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    fn update_request_for_send(&self, r: &mut reqwest::Request) {
+    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) {
         let url = self.current_url();
         r.url_mut().set_host(url.host_str()).unwrap();
 
@@ -540,7 +670,7 @@ impl Client {
         if let Some(ref front) = self.front {
             if front.is_enabled() {
                 // this should never fail as we are transplanting the host from one url to another
-                r.url_mut().set_host(front.host_str()).unwrap();
+                r.url_mut().set_host(url.front_str()).unwrap();
 
                 let actual_host: HeaderValue = url
                     .host_str()
@@ -552,106 +682,6 @@ impl Client {
                 _ = r.headers_mut().insert(reqwest::header::HOST, actual_host);
             }
         }
-    }
-}
-
-/// Core functionality required for types acting as API clients.
-///
-/// This trait defines the "skinny waist" of behaviors that are required by an API client. More
-/// likely downstream libraries should use functions from the [`ApiClient`] interface which provide
-/// a more ergonomic set of functionalities.
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ApiClientCore {
-    /// Create an HTTP request using the host configured in this client.
-    fn create_request<P, B, K, V>(
-        &self,
-        method: reqwest::Method,
-        path: P,
-        params: Params<'_, K, V>,
-        json_body: Option<&B>,
-    ) -> RequestBuilder
-    where
-        P: RequestPath,
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>;
-
-    /// Create an HTTP request using the host configured in this client and an API endpoint (i.e.
-    /// `"/api/v1/mixnodes?since=12345"`). If the provided endpoint fails to parse as path (and
-    /// optionally query parameters).
-    ///
-    /// Endpoint Examples
-    /// - `"/api/v1/mixnodes?since=12345"`
-    /// - `"/api/v1/mixnodes"`
-    /// - `"/api/v1/mixnodes/img.png"`
-    /// - `"/api/v1/mixnodes/img.png?since=12345"`
-    /// - `"/"`
-    /// - `"/?since=12345"`
-    /// - `""`
-    /// - `"?since=12345"`
-    ///
-    /// for more information about URL percent encodings see [`url::Url::set_path()`]
-    fn create_request_endpoint<B, S>(
-        &self,
-        method: reqwest::Method,
-        endpoint: S,
-        json_body: Option<&B>,
-    ) -> RequestBuilder
-    where
-        B: Serialize + ?Sized,
-        S: AsRef<str>,
-    {
-        // Use a stand-in url to extract the path and queries from the provided endpoint string
-        // which could potentially fail.
-        //
-        // This parse cannot fail
-        let mut standin_url: Url = "http://example.com".parse().unwrap();
-
-        match endpoint.as_ref().split_once("?") {
-            Some((path, query)) => {
-                standin_url.set_path(path);
-                standin_url.set_query(Some(query));
-            }
-            // There is no query in the provided endpoint
-            None => standin_url.set_path(endpoint.as_ref()),
-        }
-
-        let path: Vec<&str> = match standin_url.path_segments() {
-            Some(segments) => segments.collect(),
-            None => Vec::new(),
-        };
-        let params: Vec<(String, String)> = standin_url.query_pairs().into_owned().collect();
-
-        self.create_request(method, path.as_slice(), &params, json_body)
-    }
-
-    /// Send a created HTTP request.
-    ///
-    /// A [`RequestBuilder`] can be created with [`ApiClientCore::create_request`] or
-    /// [`ApiClientCore::create_request_endpoint`] or if absolutely necessary, using reqwest
-    /// tooling directly.
-    async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
-    where
-        E: Display;
-
-    /// Create and send a created HTTP request.
-    async fn send_request<P, B, K, V, E>(
-        &self,
-        method: reqwest::Method,
-        path: P,
-        params: Params<'_, K, V>,
-        json_body: Option<&B>,
-    ) -> Result<Response, HttpClientError<E>>
-    where
-        P: RequestPath + Send + Sync,
-        B: Serialize + ?Sized + Sync,
-        K: AsRef<str> + Sync,
-        V: AsRef<str> + Sync,
-        E: Display,
-    {
-        let req = self.create_request(method, path, params, json_body);
-        self.send(req).await
     }
 }
 
@@ -673,31 +703,19 @@ impl ApiClientCore for Client {
         V: AsRef<str>,
     {
         let url = self.current_url();
-        let mut url = sanitize_url(url, path, params);
+        let url = sanitize_url(url, path, params);
 
-        #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            if front.is_enabled() {
-                // this should never fail as we are transplanting the host from one url to another
-                url.set_host(front.host_str()).unwrap();
-            }
-        }
+        let mut req = reqwest::Request::new(method, url.into());
 
-        let mut request = self.reqwest_client.request(method.clone(), url.clone());
+        self.apply_hosts_to_req(&mut req);
 
-        #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            if front.is_enabled() {
-                let actual_host = url.host_str().unwrap_or("").to_string();
-                request = request.header(reqwest::header::HOST, actual_host);
-            }
-        }
+        let mut rb = RequestBuilder::from_parts(self.reqwest_client.clone(), req);
 
         if let Some(body) = json_body {
-            request = request.json(body);
+            rb = rb.json(body);
         }
 
-        request
+        rb
     }
 
     async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
@@ -716,7 +734,7 @@ impl ApiClientCore for Client {
             // apply any changes based on the current state of the client wrt. hosts,
             // fronting domains, etc.
             let mut req = r.build()?;
-            self.update_request_for_send(&mut req);
+            self.apply_hosts_to_req(&mut req);
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError<E>> = {
@@ -739,12 +757,9 @@ impl ApiClientCore for Client {
 
                     #[cfg(feature = "tunneling")]
                     if let Some(ref front) = self.front {
+                        // If fronting is set to be enabled on error, enable domain fronting as we
+                        // have encountered an error.
                         front.retry_enable();
-
-                        if front.is_enabled() {
-                            // if we are using fronting, try updating to the next front
-                            front.update_front();
-                        }
                     }
 
                     if attempts < self.retry_limit {

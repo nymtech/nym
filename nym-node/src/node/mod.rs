@@ -829,18 +829,19 @@ impl NymNode {
         for nym_api_url in &self.config.mixnet.nym_api_urls {
             info!("trying {nym_api_url}...");
 
-            let nym_api =
-                match nym_http_api_client::ClientBuilder::new_with_urls(vec![nym_api_url.clone()])
-                    .no_hickory_dns()
-                    .with_user_agent(self.user_agent())
-                    .build::<&str>()
-                {
-                    Ok(b) => b,
-                    Err(e) => {
-                        warn!("failed to build http client for \"{nym_api_url}\": {e}",);
-                        continue;
-                    }
-                };
+            let nym_api = match nym_http_api_client::ClientBuilder::new_with_urls(vec![nym_api_url
+                .clone()
+                .into()])
+            .no_hickory_dns()
+            .with_user_agent(self.user_agent())
+            .build::<&str>()
+            {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!("failed to build http client for \"{nym_api_url}\": {e}",);
+                    continue;
+                }
+            };
 
             let client = NymApiClient::from(nym_api);
 

@@ -200,11 +200,11 @@ impl<C, S> Client<C, S> {
 #[allow(deprecated)]
 impl<C, S> Client<C, S> {
     pub fn api_url(&self) -> &Url {
-        self.nym_api.current_url()
+        self.nym_api.current_url().as_ref()
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_base_url(new_endpoint)
+        self.nym_api.change_base_urls(vec![new_endpoint.into()])
     }
 
     #[deprecated]
@@ -402,11 +402,11 @@ impl NymApiClient {
     }
 
     pub fn api_url(&self) -> &Url {
-        self.nym_api.current_url()
+        self.nym_api.current_url().as_ref()
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_base_url(new_endpoint);
+        self.nym_api.change_base_urls(vec![new_endpoint.into()]);
     }
 
     #[deprecated(note = "use get_all_basic_active_mixing_assigned_nodes instead")]

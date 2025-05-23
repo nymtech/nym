@@ -1,4 +1,3 @@
-use crate::fronted::Front;
 
 use super::*;
 
@@ -163,7 +162,7 @@ fn fronted_host_updating() {
     let url = Url::new("http://example.com", Some(vec!["http://front1.com"])).unwrap();
     let mut client = ClientBuilder::new::<_, &str>(url)
         .unwrap()
-        .with_fronting(crate::fronted::FrontOptions::always())
+        .with_fronting(crate::fronted::FrontPolicy::Always)
         .build::<&str>()
         .unwrap();
 

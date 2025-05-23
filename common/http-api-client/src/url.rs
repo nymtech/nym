@@ -1,8 +1,7 @@
 //! Url handling for the HTTP API client.
-//! 
+//!
 //! This module provides a `Url` struct that wraps around the `url::Url` type and adds
 //! functionality for handling front domains, which are used for reverse proxying.
-
 
 use std::fmt::Display;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -174,6 +173,16 @@ impl Url {
         Ok(url)
     }
 
+    /// Parse an absolute URL from a string.
+    pub fn parse(s: &str) -> Result<Self, ParseError> {
+        let url = url::Url::parse(s)?;
+        Ok(Self {
+            url,
+            fronts: None,
+            current_front: Arc::new(AtomicUsize::new(0)),
+        })
+    }
+
     /// Returns true if the URL has a front domain set
     pub fn has_front(&self) -> bool {
         if let Some(fronts) = &self.fronts {
@@ -244,7 +253,7 @@ impl Url {
         self.url.set_path(path);
     }
 
-	/// Change this URL’s scheme.
+    /// Change this URL’s scheme.
     pub fn set_scheme(&mut self, scheme: &str) {
         self.url.set_scheme(scheme).unwrap();
     }
@@ -275,7 +284,7 @@ impl Url {
     /// Return an object with methods to manipulate this URL’s path segments.
     ///
     /// Return Err(()) if this URL is cannot-be-a-base.
-	#[allow(clippy::result_unit_err)]
+    #[allow(clippy::result_unit_err)]
     pub fn path_segments_mut(&mut self) -> Result<::url::PathSegmentsMut<'_>, ()> {
         self.url.path_segments_mut()
     }

@@ -554,7 +554,7 @@ impl Client {
     //
     // In order to prevent interference in API requests at the DNS phase we default to a resolver
     // that uses DoT and DoH.
-    pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
+    pub fn new(base_url: ::url::Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",
         )

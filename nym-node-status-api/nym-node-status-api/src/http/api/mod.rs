@@ -15,6 +15,7 @@ pub(crate) mod nym_nodes;
 pub(crate) mod services;
 pub(crate) mod summary;
 pub(crate) mod testruns;
+pub(crate) mod dvpn;
 
 pub(crate) struct RouterBuilder {
     unfinished_router: Router<AppState>,
@@ -43,6 +44,10 @@ impl RouterBuilder {
             .nest(
                 "/explorer/v3",
                 Router::new().nest("/nym-nodes", nym_nodes::routes()),
+            )
+            .nest(
+                "/dvpn/v1",
+                Router::new().nest("/directory/gateways", dvpn::routes()),
             )
             .nest(
                 "/internal",

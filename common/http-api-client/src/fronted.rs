@@ -4,45 +4,41 @@
 //! Utilities for and implementation of request tunneling
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use tracing::warn;
 
-use crate::ClientBuilder;
-
-use url::Url;
+use crate::{ClientBuilder, Url};
 
 // #[cfg(feature = "tunneling")]
 #[derive(Debug)]
 pub(crate) struct Front {
     pub(crate) opts: FrontOptions,
-    pub(crate) fronts: Vec<Url>,
+    // pub(crate) fronts: Vec<Url>,
 
-    current_front_idx: AtomicUsize,
-    next_front_idx: AtomicUsize,
+    // current_front_idx: AtomicUsize,
+    // next_front_idx: AtomicUsize,
     enabled: AtomicBool,
 }
 
-#[cfg(feature = "tunneling")]
 impl Clone for Front {
     fn clone(&self) -> Self {
         Self {
             opts: self.opts.clone(),
-            fronts: self.fronts.clone(),
-            current_front_idx: AtomicUsize::new(self.current_front_idx.load(Ordering::Relaxed)),
-            next_front_idx: AtomicUsize::new(self.next_front_idx.load(Ordering::Relaxed)),
+            // fronts: self.fronts.clone(),
+            // current_front_idx: AtomicUsize::new(self.current_front_idx.load(Ordering::Relaxed)),
+            // next_front_idx: AtomicUsize::new(self.next_front_idx.load(Ordering::Relaxed)),
             enabled: AtomicBool::new(self.enabled.load(Ordering::Relaxed)),
         }
     }
 }
 
-#[cfg(feature = "tunneling")]
 impl Front {
-    #[cfg(feature = "tunneling")]
-    pub(crate) fn host_str(&self) -> Option<&str> {
-        self.fronts
-            .get(self.current_front_idx.load(Ordering::Relaxed))
-            .and_then(|url| url.host_str())
-    }
+    // #[cfg(feature = "tunneling")]
+    // pub(crate) fn host_str(&self) -> Option<&str> {
+    //     self.fronts
+    //         .get(self.current_front_idx.load(Ordering::Relaxed))
+    //         .and_then(|url| url.host_str())
+    // }
 
-    #[cfg(feature = "tunneling")]
     pub(crate) fn is_enabled(&self) -> bool {
         match self.opts.policy {
             FrontPolicy::Off => false,
@@ -62,17 +58,17 @@ impl Front {
         }
     }
 
-    #[cfg(feature = "tunneling")]
-    pub(crate) fn update_front(&self) {
-        match self.opts.strategy {
-            FrontUrlStrategy::RoundRobin => {
-                let current = self.next_front_idx.load(Ordering::Relaxed);
-                self.current_front_idx.store(current, Ordering::Relaxed);
-                let next = current + 1 % self.fronts.len();
-                self.next_front_idx.store(next, Ordering::Relaxed);
-            }
-        }
-    }
+    // #[cfg(feature = "tunneling")]
+    // pub(crate) fn update_front(&self) {
+    //     match self.opts.strategy {
+    //         FrontUrlStrategy::RoundRobin => {
+    //             let current = self.next_front_idx.load(Ordering::Relaxed);
+    //             self.current_front_idx.store(current, Ordering::Relaxed);
+    //             let next = current + 1 % self.fronts.len();
+    //             self.next_front_idx.store(next, Ordering::Relaxed);
+    //         }
+    //     }
+    // }
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -85,6 +81,13 @@ impl FrontOptions {
     pub fn on_retry() -> Self {
         Self {
             policy: FrontPolicy::OnRetry,
+            ..Default::default()
+        }
+    }
+
+    pub fn always() -> Self {
+        Self {
+            policy: FrontPolicy::Always,
             ..Default::default()
         }
     }
@@ -109,17 +112,20 @@ pub enum FrontUrlStrategy {
 impl ClientBuilder {
     /// Enable and configure request tunneling for API requests.
     #[cfg(feature = "tunneling")]
-    pub fn with_fronting(mut self, fronts: Vec<Url>, opts: FrontOptions) -> Self {
+    pub fn with_fronting(mut self, opts: FrontOptions) -> Self {
         let pre_enable = opts.policy == FrontPolicy::Always;
         let front = Front {
             opts,
-            fronts,
-            current_front_idx: AtomicUsize::new(0_usize),
-            next_front_idx: AtomicUsize::new(0_usize), // Fine to start as 0, as we update it immediately
+            // fronts,
+            // current_front_idx: AtomicUsize::new(0_usize),
+            // next_front_idx: AtomicUsize::new(0_usize), // Fine to start as 0, as we update it immediately
             enabled: AtomicBool::new(pre_enable),
         };
 
-        front.update_front();
+        // Check if any of the supplied urls even support fronting
+        if self.urls.iter().filter(|url| url.has_front()).count() == 0 {
+            warn!("fronting is enabled, but none of the supplied urls have configured fronting domains");
+        }
 
         self.front = Some(front);
 
@@ -134,14 +140,21 @@ mod tests {
 
     #[tokio::test]
     async fn nym_api_works() {
-        let opts = FrontOptions::default();
-        let fronts = vec!["https://yelp.global.ssl.fastly.net".parse().unwrap()]; // fastly
-                                                                                  // let fronts = vec!["https://cdn77.com".parse().unwrap()]; // cdn77
+        let opts = FrontOptions::always();
+        let url1 = Url::new(
+            "https://validator.global.ssl.fastly.net",
+            Some(vec!["https://yelp.global.ssl.fastly.net"]),
+        )
+        .unwrap(); // fastly
 
-        // let client = ClientBuilder::new::<&str, &str>("https://validator.nymtech.net")
-        let client = ClientBuilder::new::<&str, &str>("https://validator.global.ssl.fastly.net")
+        // let url2 = Url::new(
+        //     "https://validator.nymtech.net",
+        //     Some(vec!["https://cdn77.com"]),
+        // ).unwrap(); // cdn77
+
+        let client = ClientBuilder::new::<_, &str>(url1)
             .expect("bad url")
-            .with_fronting(fronts, opts)
+            .with_fronting(opts)
             .build::<&str>()
             .expect("failed to build client");
 

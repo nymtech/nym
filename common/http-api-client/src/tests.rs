@@ -1,3 +1,5 @@
+use crate::fronted::Front;
+
 use super::*;
 
 #[test]
@@ -94,4 +96,119 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(client.current_url().as_str(), "http://example.com/");
 
     Ok(())
+}
+
+#[test]
+fn host_updating() {
+    let url = Url::new("http://example.com", None).unwrap();
+    let mut client = ClientBuilder::new::<_, &str>(url)
+        .unwrap()
+        .build::<&str>()
+        .unwrap();
+
+    // check that the url is set correctly
+    let current_url = client.current_url();
+    assert_eq!(current_url.as_str(), "http://example.com/");
+    assert_eq!(current_url.front_str(), None);
+
+    // update the url
+    client.update_host();
+
+    // check that the url is still the same since there is one URL
+    assert_eq!(client.current_url().as_str(), "http://example.com/");
+
+    // =======================================
+    // we rotate through urls when available
+
+    let new_urls = vec![
+        Url::new("http://example.com", None).unwrap(),
+        Url::new("http://example.org", None).unwrap(),
+    ];
+    client.change_base_urls(new_urls);
+    assert_eq!(client.current_url().as_str(), "http://example.com/");
+
+    client.update_host();
+
+    // check that the url got updated now that there are multiple URLs
+    assert_eq!(client.current_url().as_str(), "http://example.org/");
+    assert_eq!(client.current_url().front_str(), None);
+
+    client.update_host();
+    assert_eq!(client.current_url().as_str(), "http://example.com/");
+
+    // =======================================
+    // we rotate through urls when available if fronting is disabled
+
+    let new_urls = vec![
+        Url::new(
+            "http://example.com",
+            Some(vec!["http://front1.com", "http://front2.com"]),
+        )
+        .unwrap(),
+        Url::new("http://example.org", None).unwrap(),
+    ];
+    client.change_base_urls(new_urls);
+
+    assert_eq!(client.current_url().as_str(), "http://example.com/");
+
+    client.update_host();
+
+    // check that the url got updated now that there are multiple URLs
+    assert_eq!(client.current_url().as_str(), "http://example.org/");
+}
+
+#[test]
+#[cfg(feature = "tunneling")]
+fn fronted_host_updating() {
+    let url = Url::new("http://example.com", Some(vec!["http://front1.com"])).unwrap();
+    let mut client = ClientBuilder::new::<_, &str>(url)
+        .unwrap()
+        .with_fronting(crate::fronted::FrontOptions::always())
+        .build::<&str>()
+        .unwrap();
+
+    // check that the url is set correctly
+    let current_url = client.current_url();
+    assert_eq!(current_url.as_str(), "http://example.com/");
+    assert_eq!(current_url.front_str(), Some("front1.com"));
+
+    // update the url
+    client.update_host();
+
+    // check that the url is still the same since there is one URL and one front
+    let current_url = client.current_url();
+    assert_eq!(current_url.as_str(), "http://example.com/");
+    assert_eq!(current_url.front_str(), Some("front1.com"));
+
+    // =======================================
+    // we rotate through front urls when available if fronting is enabled
+
+    let new_urls = vec![
+        Url::new(
+            "http://example.com",
+            Some(vec!["http://front1.com", "http://front2.com"]),
+        )
+        .unwrap(),
+        Url::new("http://example.org", None).unwrap(),
+    ];
+    client.change_base_urls(new_urls);
+
+    let current_url = client.current_url();
+    assert_eq!(current_url.as_str(), "http://example.com/");
+    assert_eq!(current_url.front_str(), Some("front1.com"));
+
+    // update the url - this should keep the same host but change the front
+    client.update_host();
+
+    let current_url = client.current_url();
+    // check that the url is still the same since there is one URL
+    assert_eq!(current_url.as_str(), "http://example.com/");
+    assert_eq!(current_url.front_str(), Some("front2.com"));
+
+    // update the url - this should wrap around to the first front as the second url is not fronted
+    client.update_host();
+
+    let current_url = client.current_url();
+    assert_eq!(current_url.as_str(), "http://example.com/");
+    assert_eq!(current_url.front_str(), Some("front1.com"));
 }

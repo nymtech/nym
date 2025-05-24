@@ -17,7 +17,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct StorageManager {
-    pub connection_pool: sqlx::SqlitePool,
+    connection_pool: sqlx::SqlitePool,
 }
 
 // all SQL goes here
@@ -54,11 +54,17 @@ impl StorageManager {
             .await
         {
             error!("Failed to initialize SQLx database: {err}");
+            connection_pool.close().await;
             return Err(err.into());
         }
 
         info!("Database migration finished!");
         Ok(StorageManager { connection_pool })
+    }
+
+    /// Close connection pool waiting for all connections to be closed.
+    pub async fn close_pool(&self) {
+        self.connection_pool.close().await;
     }
 
     #[allow(dead_code)]

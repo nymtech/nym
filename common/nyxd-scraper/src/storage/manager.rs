@@ -111,7 +111,7 @@ impl StorageManager {
         consensus_address: &str,
         start_height: i64,
         end_height: i64,
-    ) -> Result<i32, sqlx::Error> {
+    ) -> Result<i64, sqlx::Error> {
         trace!("get_signed_between");
         let start = Instant::now();
 

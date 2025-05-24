@@ -170,7 +170,7 @@ impl ScraperStorage {
         consensus_address: &str,
         start_height: i64,
         end_height: i64,
-    ) -> Result<i32, ScraperError> {
+    ) -> Result<i64, ScraperError> {
         Ok(self
             .manager
             .get_signed_between(consensus_address, start_height, end_height)
@@ -182,7 +182,7 @@ impl ScraperStorage {
         consensus_address: &str,
         start_time: OffsetDateTime,
         end_time: OffsetDateTime,
-    ) -> Result<i32, ScraperError> {
+    ) -> Result<i64, ScraperError> {
         let Some(block_start) = self.get_first_block_height_after(start_time).await? else {
             return Ok(0);
         };

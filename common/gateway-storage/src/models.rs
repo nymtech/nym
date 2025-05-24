@@ -1,6 +1,8 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::time::SystemTime;
+
 use crate::error::GatewayStorageError;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
@@ -113,7 +115,7 @@ pub struct WireguardPeer {
     pub preshared_key: Option<String>,
     pub protocol_version: Option<i64>,
     pub endpoint: Option<String>,
-    pub last_handshake: Option<sqlx::types::chrono::NaiveDateTime>,
+    pub last_handshake: Option<OffsetDateTime>,
     pub tx_bytes: i64,
     pub rx_bytes: i64,
     pub persistent_keepalive_interval: Option<i64>,
@@ -128,18 +130,7 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
             preshared_key: value.preshared_key.as_ref().map(|k| k.to_string()),
             protocol_version: value.protocol_version.map(|v| v as i64),
             endpoint: value.endpoint.map(|e| e.to_string()),
-            last_handshake: value.last_handshake.and_then(|t| {
-                if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
-                    if let Ok(millis) = d.as_millis().try_into() {
-                        sqlx::types::chrono::DateTime::from_timestamp_millis(millis)
-                            .map(|d| d.naive_utc())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }),
+            last_handshake: value.last_handshake.map(OffsetDateTime::from),
             tx_bytes: value.tx_bytes as i64,
             rx_bytes: value.rx_bytes as i64,
             persistent_keepalive_interval: value.persistent_keepalive_interval.map(|v| v as i64),
@@ -180,15 +171,7 @@ impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
                 .map(|e| e.parse())
                 .transpose()
                 .map_err(|e| Self::Error::TypeConversion(format!("endpoint {e}")))?,
-            last_handshake: value.last_handshake.and_then(|t| {
-                let unix_time = std::time::UNIX_EPOCH;
-                if let Ok(millis) = t.and_utc().timestamp_millis().try_into() {
-                    let duration = std::time::Duration::from_millis(millis);
-                    unix_time.checked_add(duration)
-                } else {
-                    None
-                }
-            }),
+            last_handshake: value.last_handshake.map(SystemTime::from),
             tx_bytes: value
                 .tx_bytes
                 .try_into()

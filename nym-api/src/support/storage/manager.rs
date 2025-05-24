@@ -747,7 +747,7 @@ impl StorageManager {
         &self,
         db_mixnode_id: i64,
         since: i64,
-    ) -> Result<i32, sqlx::Error> {
+    ) -> Result<i64, sqlx::Error> {
         let count = sqlx::query!(
             r#"
                 SELECT COUNT(*) as count FROM
@@ -786,7 +786,7 @@ impl StorageManager {
         &self,
         gateway_id: i64,
         since: i64,
-    ) -> Result<i32, sqlx::Error> {
+    ) -> Result<i64, sqlx::Error> {
         let count = sqlx::query!(
             r#"
                 SELECT COUNT(*) as count FROM
@@ -966,7 +966,7 @@ impl StorageManager {
         &self,
         since: i64,
         until: i64,
-    ) -> Result<i32, sqlx::Error> {
+    ) -> Result<i64, sqlx::Error> {
         let count = sqlx::query!(
             "SELECT COUNT(*) as count FROM monitor_run WHERE timestamp > ? AND timestamp < ?",
             since,
@@ -1227,7 +1227,7 @@ impl StorageManager {
             .await
     }
 
-    pub(super) async fn get_mixnode_statuses_count(&self, db_id: i64) -> Result<i32, sqlx::Error> {
+    pub(super) async fn get_mixnode_statuses_count(&self, db_id: i64) -> Result<i64, sqlx::Error> {
         sqlx::query!(
             r#"
                 SELECT COUNT(*) as count
@@ -1279,7 +1279,7 @@ impl StorageManager {
         .await
     }
 
-    pub(super) async fn get_gateway_statuses_count(&self, db_id: i64) -> Result<i32, sqlx::Error> {
+    pub(super) async fn get_gateway_statuses_count(&self, db_id: i64) -> Result<i64, sqlx::Error> {
         sqlx::query!(
             r#"
                 SELECT COUNT(*) as count

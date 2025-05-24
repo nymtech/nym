@@ -47,12 +47,14 @@ impl StorageManager {
                 StorageError::DatabaseConnectionError { source }
             })?;
 
-        sqlx::migrate!("./fs_gateways_migrations")
+        if let Err(err) = sqlx::migrate!("./fs_gateways_migrations")
             .run(&connection_pool)
             .await
-            .inspect_err(|err| {
-                error!("Failed to initialize SQLx database: {err}");
-            })?;
+        {
+            error!("Failed to initialize SQLx database: {err}");
+            connection_pool.close().await;
+            return Err(err)?;
+        }
 
         debug!("Database migration finished!");
         Ok(StorageManager { connection_pool })

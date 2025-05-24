@@ -105,7 +105,7 @@ impl MixnodeStatus {
 )]
 pub struct MixnodeCoreStatusResponse {
     pub mix_id: NodeId,
-    pub count: i32,
+    pub count: i64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -119,7 +119,7 @@ pub struct MixnodeCoreStatusResponse {
 )]
 pub struct GatewayCoreStatusResponse {
     pub identity: String,
-    pub count: i32,
+    pub count: i64,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

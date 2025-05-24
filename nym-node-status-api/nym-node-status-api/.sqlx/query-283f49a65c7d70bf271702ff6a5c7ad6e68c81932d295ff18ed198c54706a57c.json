@@ -6,7 +6,7 @@
       {
         "name": "node_id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "ed25519_identity_pubkey",
@@ -16,7 +16,7 @@
       {
         "name": "total_stake",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "ip_addresses!: serde_json::Value",
@@ -26,7 +26,7 @@
       {
         "name": "mix_port",
         "ordinal": 4,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "x25519_sphinx_pubkey",

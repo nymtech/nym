@@ -6,7 +6,7 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "tx_hash",
@@ -16,12 +16,12 @@
       {
         "name": "height",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "message_index",
         "ordinal": 3,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "sender",

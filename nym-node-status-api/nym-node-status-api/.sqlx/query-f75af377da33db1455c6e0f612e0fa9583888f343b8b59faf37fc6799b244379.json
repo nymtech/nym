@@ -6,22 +6,22 @@
       {
         "name": "mix_id!",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "bonded: bool",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "is_dp_delegatee: bool",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "total_stake!",
         "ordinal": 3,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "full_details!",
@@ -36,7 +36,7 @@
       {
         "name": "last_updated_utc!",
         "ordinal": 6,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "moniker!",

@@ -1,20 +1,18 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::{
-    fs_backend, CombinedReplyStorage, ReplyStorageBackend,
+use crate::{
+    client::replies::reply_storage::{fs_backend, CombinedReplyStorage, ReplyStorageBackend},
+    config,
+    config::Config,
+    error::ClientCoreError,
 };
-use crate::config;
-use crate::config::Config;
-use crate::error::ClientCoreError;
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_validator_client::nyxd;
-use nym_validator_client::QueryHttpRpcNyxdClient;
-use std::path::Path;
-use std::{fs, io};
+use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
+use std::{io, path::Path, time::Duration};
 use time::OffsetDateTime;
 use url::Url;
 
@@ -22,11 +20,14 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
-    info!("creating fresh surb database");
+    info!(
+        "creating fresh surb database: {}",
+        db_path.as_ref().display()
+    );
     let mut storage_backend = match fs_backend::Backend::init(db_path).await {
         Ok(backend) => backend,
         Err(err) => {
-            error!("failed to setup persistent storage backend for our reply needs: {err}");
+            error!("setup_fresh_backend: Failed to setup persistent storage backend for our reply needs: {err}");
             return Err(ClientCoreError::SurbStorageError {
                 source: Box::new(err),
             });
@@ -40,14 +41,15 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
         surb_config.minimum_reply_surb_storage_threshold,
         surb_config.maximum_reply_surb_storage_threshold,
     );
-    storage_backend
-        .init_fresh(&mem_store)
-        .await
-        .map_err(|err| ClientCoreError::SurbStorageError {
-            source: Box::new(err),
-        })?;
-
-    Ok(storage_backend)
+    match storage_backend.init_fresh(&mem_store).await {
+        Ok(()) => Ok(storage_backend),
+        Err(err) => {
+            storage_backend.shutdown().await;
+            Err(ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            })
+        }
+    }
 }
 
 // fn setup_inactive_backend(surb_config: &config::ReplySurbs) -> fs_backend::Backend {
@@ -58,7 +60,7 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
 //     )
 // }
 
-fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
+async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
     let db_path = db_path.as_ref();
     debug_assert!(db_path.exists());
 
@@ -76,7 +78,37 @@ fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
     let mut renamed = db_path.to_owned();
     renamed.set_extension(new_extension);
 
-    fs::rename(db_path, renamed)
+    // On Windows the sqlite file can be still in use after closing sqlite connection pool
+    // Poll for a bit until the db file is released.
+    // See: https://github.com/launchbadge/sqlx/issues/3217
+    for _ in 0..10 {
+        match tokio::fs::rename(db_path, &renamed).await {
+            Err(e) => {
+                #[cfg(target_os = "windows")]
+                {
+                    const FILE_IN_USE_ERR: i32 = 32;
+
+                    if e.raw_os_error() == Some(FILE_IN_USE_ERR) {
+                        debug!("File {} is still open. Sleep and retry", db_path.display());
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                }
+
+                tracing::error!(
+                    "Failed to rename corrupt database file: {} to {}",
+                    db_path.display(),
+                    renamed.display()
+                );
+                return Err(e);
+            }
+            Ok(()) => {
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
@@ -87,13 +119,12 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     // the existing one
     let db_path = db_path.as_ref();
     if db_path.exists() {
-        info!("loading existing surb database");
+        info!("Loading existing surb database: {}", db_path.display());
         match fs_backend::Backend::try_load(db_path, surb_config.fresh_sender_tags).await {
             Ok(backend) => Ok(backend),
             Err(err) => {
-                error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
-
-                archive_corrupted_database(db_path)?;
+                error!("setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
+                archive_corrupted_database(db_path).await?;
                 setup_fresh_backend(db_path, surb_config).await
             }
         }

@@ -11,7 +11,7 @@
       {
         "name": "uptime!",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

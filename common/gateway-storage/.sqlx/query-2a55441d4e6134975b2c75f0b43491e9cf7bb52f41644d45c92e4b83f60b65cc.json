@@ -16,7 +16,7 @@
       {
         "name": "protocol_version",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "endpoint",
@@ -31,17 +31,17 @@
       {
         "name": "tx_bytes",
         "ordinal": 5,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "rx_bytes",
         "ordinal": 6,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "persistent_keepalive_interval",
         "ordinal": 7,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "allowed_ips",
@@ -51,7 +51,7 @@
       {
         "name": "client_id",
         "ordinal": 9,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

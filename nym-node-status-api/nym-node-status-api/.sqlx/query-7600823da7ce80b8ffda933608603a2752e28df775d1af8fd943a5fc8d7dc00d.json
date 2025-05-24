@@ -6,7 +6,7 @@
       {
         "name": "id!",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "date!",
@@ -16,7 +16,7 @@
       {
         "name": "timestamp_utc!",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "value_json!",

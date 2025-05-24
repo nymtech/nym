@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE shared_keys SET last_used_authentication = ? WHERE client_id = ?;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "451158af8f5602e30445986a8de22d2e065c4e9dce4e7463a875ca8c21ac97c1"
+}

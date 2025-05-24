@@ -61,7 +61,8 @@ pub(crate) async fn get_raw_node_stats(
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
         ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            sqlx::query_as!(
+            // FIXME: we must find a way to switch back to query_as!
+            sqlx::query_as_unchecked!(
                 NodeStats,
                 r#"
                 SELECT
@@ -80,7 +81,8 @@ pub(crate) async fn get_raw_node_stats(
         }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
-            sqlx::query_as!(
+            // FIXME: we must find a way to switch back to query_as!
+            sqlx::query_as_unchecked!(
                 NodeStats,
                 r#"
                 SELECT

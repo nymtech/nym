@@ -6,26 +6,26 @@
       {
         "name": "packets_received",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Null"
       },
       {
         "name": "packets_sent",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Null"
       },
       {
         "name": "packets_dropped",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Null"
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      false,
-      false,
-      false
+      null,
+      null,
+      null
     ]
   },
   "hash": "97f4b340bb0f6c9c78d77b24d4f9d3d13ab61cbaac6f8c3cfc06c95e0f13252f"

@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use axum_extra::headers::UserAgent;
+use celes::Country;
 use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
 use time::{Date, OffsetDateTime};
 
@@ -41,6 +42,7 @@ pub(crate) struct ConnectionInfoDto {
     pub(crate) received_from: String,
     pub(crate) connection_time_ms: Option<i32>,
     pub(crate) two_hop: bool,
+    pub(crate) country_code: Option<String>,
 }
 
 impl ConnectionInfoDto {
@@ -48,12 +50,14 @@ impl ConnectionInfoDto {
         received_at: OffsetDateTime,
         stats_report: &VpnClientStatsReport,
         received_from: SocketAddr,
+        maybe_country: Option<Country>,
     ) -> Option<Self> {
         stats_report.basic_usage.as_ref().map(|usage_report| Self {
             received_at,
             received_from: received_from.ip().to_string(),
             connection_time_ms: usage_report.connection_time_ms,
             two_hop: usage_report.two_hop,
+            country_code: maybe_country.map(|c| c.alpha2.into()),
         })
     }
 }

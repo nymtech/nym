@@ -1,9 +1,11 @@
 use clap::Parser;
-use nym_task::signal::wait_for_signal;
+use network_view::NetworkRefresher;
+use nym_task::ShutdownManager;
 
 mod cli;
 mod http;
 mod logging;
+mod network_view;
 mod storage;
 
 #[tokio::main]
@@ -22,18 +24,30 @@ async fn main() -> anyhow::Result<()> {
         args.pg_port,
     )
     .await?;
+    tracing::info!("Connection to database successful");
 
-    let shutdown_handles = http::server::start_http_api(storage, args.http_port)
-        .await
-        .expect("Failed to start server");
+    let shutdown_manager = ShutdownManager::new("nym-statistics-api");
+
+    let network_refresher = NetworkRefresher::initialise_new(
+        args.nym_api_url,
+        shutdown_manager.child_token("network-refresher"),
+    )
+    .await?;
+
+    let http_server =
+        http::server::build_http_api(storage, network_refresher.network_view(), args.http_port)
+            .await
+            .expect("Failed to build http server");
+    let server_shutdown = shutdown_manager.clone_token("http-api-server");
+
+    // Starting tasks
+    shutdown_manager.spawn(async move { http_server.run(server_shutdown).await });
+    network_refresher.start();
 
     tracing::info!("Started HTTP server on port {}", args.http_port);
 
-    wait_for_signal().await;
-
-    if let Err(err) = shutdown_handles.shutdown().await {
-        tracing::error!("{err}");
-    };
+    shutdown_manager.close();
+    shutdown_manager.wait_for_shutdown_signal().await;
 
     Ok(())
 }

@@ -22,7 +22,7 @@ pub(crate) fn routes() -> Router<AppState> {
 
 #[utoipa::path(
     post,
-    request_body = u32,
+    request_body = VpnClientStatsReport,
     path = "/v1/stats/report",
     responses(
         (status = 200)

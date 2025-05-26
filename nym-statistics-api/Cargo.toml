@@ -43,7 +43,9 @@ nym-http-api-client = { path = "../common/http-api-client" }
 nym-http-api-common = { path = "../common/http-api-common", features = [
     "middleware",
 ] }
-nym-statistics-common = { path = "../common/statistics" }
+nym-statistics-common = { path = "../common/statistics", features = [
+    "openapi",
+] }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 

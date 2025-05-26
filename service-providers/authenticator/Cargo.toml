@@ -51,3 +51,6 @@ nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
 nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types" }
+
+[dev-dependencies]
+mock_instant = "0.5.3"

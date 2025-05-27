@@ -3,7 +3,7 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::{NymTopology, RoutingNode, SupportedRoles};
+use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles};
 
 #[tokio::main]
 async fn main() {
@@ -76,7 +76,10 @@ async fn main() {
     // during client initialisation to make sure we are able to send to ourselves : )  )
     let gateways = starting_topology.topology.entry_capable_nodes();
 
-    let mut custom_topology = NymTopology::new_empty(rewarded_set);
+    // you should have obtained valid metadata information, in particular the key rotation ID!
+    let metadata = NymTopologyMetadata::new(u32::MAX, 123);
+
+    let mut custom_topology = NymTopology::new(metadata, rewarded_set, Vec::new());
     custom_topology.add_routing_nodes(nodes);
     custom_topology.add_routing_nodes(gateways);
 

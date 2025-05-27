@@ -157,6 +157,7 @@ pub async fn generate(args: Args) {
             minimum: args.minimum_interval_operating_cost.amount.into(),
             maximum: args.maximum_interval_operating_cost.amount.into(),
         },
+        key_validity_in_epochs: None,
     };
 
     debug!("instantiate_msg: {:?}", instantiate_msg);

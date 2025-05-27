@@ -134,6 +134,8 @@ impl Monitor {
             })
             .collect::<Vec<_>>();
 
+        tracing::info!("🟣 🚪 gateway nodes: {}", gateways.len());
+
         let bonded_nym_nodes = api_client
             .get_all_bonded_nym_nodes()
             .await?
@@ -457,11 +459,7 @@ impl Monitor {
     async fn check_ipinfo_bandwidth(&self) {
         match self.ipinfo.check_remaining_bandwidth().await {
             Ok(bandwidth) => {
-                tracing::info!(
-                    "ipinfo monthly bandwidth: {}/{} spent",
-                    bandwidth.month,
-                    bandwidth.limit
-                );
+                tracing::info!("ipinfo monthly bandwidth: {} spent", bandwidth.month);
             }
             Err(err) => {
                 tracing::debug!("Couldn't check ipinfo bandwidth: {}", err);

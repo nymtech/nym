@@ -91,6 +91,14 @@ pub struct DVpnGateway {
     pub build_information: Option<BuildInformation>,
 }
 
+impl TryFrom<Gateway> for DVpnGateway {
+    type Error = ();
+
+    fn try_from(value: Gateway) -> Result<Self, Self::Error> {
+        Self::try_from(&value)
+    }
+}
+
 impl TryFrom<&Gateway> for DVpnGateway
 {
     type Error = ();

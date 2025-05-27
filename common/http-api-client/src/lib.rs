@@ -769,6 +769,7 @@ impl ApiClientCore for Client {
                     }
 
                     // if we have exhausted our attempts, return the error
+                    #[allow(clippy::useless_conversion)] // conversion considered useless in wasm
                     return Err(e.into());
                 }
             }

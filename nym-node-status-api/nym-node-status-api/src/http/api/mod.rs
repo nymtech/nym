@@ -8,6 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::{server::HttpServer, state::AppState};
 
+pub(crate) mod dvpn;
 pub(crate) mod gateways;
 pub(crate) mod metrics;
 pub(crate) mod mixnodes;
@@ -15,7 +16,6 @@ pub(crate) mod nym_nodes;
 pub(crate) mod services;
 pub(crate) mod summary;
 pub(crate) mod testruns;
-pub(crate) mod dvpn;
 
 pub(crate) struct RouterBuilder {
     unfinished_router: Router<AppState>,

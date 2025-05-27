@@ -974,7 +974,7 @@ mod tests {
                 .get_nym_node_version_history_paged(start_after, limit)
                 .ignore(),
             QueryMsg::GetKeyRotationState {} => client.get_key_rotation_state().ignore(),
-            QueryMsg::GetKeyRotationId {} => client.get_key_rotation_id(),
+            QueryMsg::GetKeyRotationId {} => client.get_key_rotation_id().ignore(),
         }
     }
 }

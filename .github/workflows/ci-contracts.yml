@@ -27,6 +27,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          # pinned due to issues building contracts
           toolchain: 1.86.0
           target: wasm32-unknown-unknown
           override: true

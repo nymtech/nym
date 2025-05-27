@@ -1,4 +1,5 @@
 use cosmwasm_std::Decimal;
+use itertools::Itertools;
 use moka::{future::Cache, Entry};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
@@ -10,7 +11,9 @@ use tracing::instrument;
 
 use crate::{
     db::{queries, DbPool},
-    http::models::{DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory},
+    http::models::{
+        DVpnGateway, DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory,
+    },
     monitor::{DelegationsCache, NodeGeoCache},
 };
 
@@ -77,6 +80,7 @@ impl AppState {
 }
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
+static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
@@ -88,6 +92,7 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
+    dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
@@ -99,6 +104,10 @@ impl HttpCache {
     pub async fn new(ttl_seconds: u64) -> Self {
         HttpCache {
             gateways: Cache::builder()
+                .max_capacity(2)
+                .time_to_live(Duration::from_secs(ttl_seconds))
+                .build(),
+            dvpn_gateways: Cache::builder()
                 .max_capacity(2)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
@@ -158,10 +167,85 @@ impl HttpCache {
                 let gateways = crate::db::queries::get_all_gateways(db)
                     .await
                     .unwrap_or_default();
-                self.upsert_gateway_list(gateways.clone()).await;
+
+                if gateways.is_empty() {
+                    tracing::warn!("Database: gateway list is empty");
+                } else {
+                    self.upsert_gateway_list(gateways.clone()).await;
+                }
+
+                gateways
+            }
+        }
+    }
+
+    pub async fn upsert_dvpn_gateway_list(
+        &self,
+        new_gateway_list: Vec<DVpnGateway>,
+    ) -> Entry<String, Arc<RwLock<Vec<DVpnGateway>>>> {
+        self.dvpn_gateways
+            .entry_by_ref(DVPN_GATEWAYS_LIST_KEY)
+            .and_upsert_with(|maybe_entry| async {
+                if let Some(entry) = maybe_entry {
+                    let v = entry.into_value();
+                    let mut guard = v.write().await;
+                    *guard = new_gateway_list;
+                    v.clone()
+                } else {
+                    Arc::new(RwLock::new(new_gateway_list))
+                }
+            })
+            .await
+    }
+
+    pub async fn get_dvpn_gateway_list(&self, db: &DbPool) -> Vec<DVpnGateway> {
+        match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
+            Some(guard) => {
+                tracing::trace!("Fetching from cache...");
+                let read_lock = guard.read().await;
+                read_lock.clone()
+            }
+            None => {
+                tracing::trace!("No gateways (dVPN) in cache, refreshing from DB...");
+
+                let mut failed_to_convert_gw_count = 0;
+                let gateways: Vec<DVpnGateway> = self
+                    .get_gateway_list(db)
+                    .await
+                    .into_iter()
+                    .filter(|gw| gw.bonded)
+                    .filter_map(|d| {
+                        d.try_into()
+                            .inspect_err(|_| failed_to_convert_gw_count += 1)
+                            .ok()
+                    })
+                    .filter(|g: &DVpnGateway| {
+                        // gateways must have a country
+                        g.location.two_letter_iso_country_code.len() == 2
+                    })
+                    // sort by country, then by identity key
+                    .sorted_by_key(|item| {
+                        // for some reason, closure on this owned iterator takes
+                        // reference, but returns owned element, which means
+                        // we have to clone despite having access to owned data
+                        (
+                            item.identity_key.clone(),
+                            item.location.two_letter_iso_country_code.clone(),
+                        )
+                    })
+                    .collect();
+
+                if failed_to_convert_gw_count > 0 {
+                    tracing::error!(
+                        "Failed to convert {} DB gateways to dVPN form",
+                        failed_to_convert_gw_count
+                    );
+                }
 
                 if gateways.is_empty() {
                     tracing::warn!("Database contains 0 gateways");
+                } else {
+                    self.upsert_dvpn_gateway_list(gateways.clone()).await;
                 }
 
                 gateways
@@ -201,10 +285,11 @@ impl HttpCache {
                 let mixnodes = crate::db::queries::get_all_mixnodes(db)
                     .await
                     .unwrap_or_default();
-                self.upsert_mixnode_list(mixnodes.clone()).await;
 
                 if mixnodes.is_empty() {
                     tracing::warn!("Database contains 0 mixnodes");
+                } else {
+                    self.upsert_mixnode_list(mixnodes.clone()).await;
                 }
 
                 mixnodes
@@ -245,14 +330,13 @@ impl HttpCache {
             None => {
                 tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
 
-                let nym_nodes = aggregate_node_info_from_db(db, node_geocache)
-                    .await
-                    .inspect(|nym_nodes| {
-                        if nym_nodes.is_empty() {
-                            tracing::warn!("Database contains 0 nym nodes");
-                        }
-                    })?;
-                self.upsert_nym_node_list(nym_nodes.clone()).await;
+                let nym_nodes = aggregate_node_info_from_db(db, node_geocache).await?;
+
+                if nym_nodes.is_empty() {
+                    tracing::warn!("Database contains 0 nym nodes");
+                } else {
+                    self.upsert_nym_node_list(nym_nodes.clone()).await;
+                }
 
                 Ok(nym_nodes)
             }

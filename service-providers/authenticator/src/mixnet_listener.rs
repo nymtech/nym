@@ -731,7 +731,7 @@ impl MixnetListener {
                 "bandwidth entry should have just been created".to_string(),
             ))?;
 
-        let available_bandwidth = if self.received_retry(&msg) {
+        let available_bandwidth = if self.received_retry(&*msg) {
             // don't process the credential and just return the current bandwidth
             bandwidth.available
         } else {
@@ -789,7 +789,7 @@ impl MixnetListener {
         Ok((bytes, reply_to))
     }
 
-    fn received_retry(&self, msg: &Box<dyn TopUpMessage + Send + Sync + 'static>) -> bool {
+    fn received_retry(&self, msg: &(dyn TopUpMessage + Send + Sync + 'static)) -> bool {
         if let Some(peer_pub_key) = self
             .seen_credential_cache
             .get_peer_pub_key(&msg.credential())
@@ -860,10 +860,11 @@ impl MixnetListener {
         sender_tag: Option<AnonymousSenderTag>,
     ) -> Result<()> {
         let input_message = create_input_message(recipient, sender_tag, response)?;
-        self.mixnet_client
-            .send(input_message)
-            .await
-            .map_err(|err| AuthenticatorError::FailedToSendPacketToMixnet { source: err })
+        self.mixnet_client.send(input_message).await.map_err(|err| {
+            AuthenticatorError::FailedToSendPacketToMixnet {
+                source: Box::new(err),
+            }
+        })
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {

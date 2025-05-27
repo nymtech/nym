@@ -132,7 +132,9 @@ pub(crate) async fn execute(args: &Request) -> Result<(), AuthenticatorError> {
             None,
         ))
         .await
-        .map_err(|source| AuthenticatorError::FailedToSendPacketToMixnet { source })?;
+        .map_err(|source| AuthenticatorError::FailedToSendPacketToMixnet {
+            source: Box::new(source),
+        })?;
 
     log::info!("Sent request, sleeping 60 seconds or until killed");
     sleep(Duration::from_secs(60)).await;

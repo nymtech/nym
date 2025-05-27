@@ -54,14 +54,11 @@ where
     let key_pem = read_pem_file(path)?;
 
     if T::pem_type() != key_pem.tag {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "unexpected key pem tag. Got '{}', expected: '{}'",
-                key_pem.tag,
-                T::pem_type()
-            ),
-        ));
+        return Err(io::Error::other(format!(
+            "unexpected key pem tag. Got '{}', expected: '{}'",
+            key_pem.tag,
+            T::pem_type()
+        )));
     }
 
     let key = match T::from_bytes(&key_pem.contents) {
@@ -84,7 +81,7 @@ fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<Pem> {
     let mut pem_bytes = File::open(filepath)?;
     let mut buf = Vec::new();
     pem_bytes.read_to_end(&mut buf)?;
-    pem::parse(&buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+    pem::parse(&buf).map_err(io::Error::other)
 }
 
 fn write_pem_file<P: AsRef<Path>>(filepath: P, data: Vec<u8>, tag: &str) -> io::Result<()> {

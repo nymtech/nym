@@ -25,10 +25,8 @@ fn map_ws_error(err: WebSocketError) -> WsError {
         // TODO: are we preserving correct semantics?
         WebSocketError::ConnectionError => WsError::ConnectionClosed,
         WebSocketError::ConnectionClose(_event) => WsError::ConnectionClosed,
-        WebSocketError::MessageSendError(err) => {
-            WsError::Io(io::Error::new(io::ErrorKind::Other, err.to_string()))
-        }
-        _ => WsError::Io(io::Error::new(io::ErrorKind::Other, "new websocket error")),
+        WebSocketError::MessageSendError(err) => WsError::Io(io::Error::other(err.to_string())),
+        _ => WsError::Io(io::Error::other("new websocket error")),
     }
 }
 

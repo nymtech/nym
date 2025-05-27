@@ -213,6 +213,7 @@ async fn main() -> Result<()> {
     }
 
     if let Some(nym_apis) = args.nym_apis {
+        info!("Using nym apis: {:?}", nym_apis);
         NYM_API_URLS.set(nym_apis).ok();
     }
 

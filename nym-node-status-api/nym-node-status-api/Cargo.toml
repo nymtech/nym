@@ -40,6 +40,7 @@ rand = { workspace = true }
 rand_chacha = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_json_path = { workspace = true }

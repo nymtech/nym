@@ -4,30 +4,30 @@
 use std::io;
 
 use pin_project::pin_project;
-use tokio::{
-    io::{AsyncRead, AsyncWrite},
-    net::TcpStream,
-};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::stream::NoiseStream;
 
 //SW once plain TCP support is dropped, this whole enum can be dropped, and we can only propagate NoiseStream
 #[pin_project(project = ConnectionProj)]
-pub enum Connection {
-    Tcp(#[pin] TcpStream),
-    Noise(#[pin] NoiseStream),
+pub enum Connection<C> {
+    Raw(#[pin] C),
+    Noise(#[pin] NoiseStream<C>),
 }
 
-impl Connection {
-    pub fn peer_addr(&self) -> Result<std::net::SocketAddr, io::Error> {
-        match self {
-            Self::Noise(stream) => stream.peer_addr(),
-            Self::Tcp(stream) => stream.peer_addr(),
-        }
-    }
-}
+// impl<C> Connection<C> {
+//     pub fn peer_addr(&self) -> Result<std::net::SocketAddr, io::Error> {
+//         match self {
+//             Self::Noise(stream) => stream.peer_addr(),
+//             Self::Tcp(stream) => stream.peer_addr(),
+//         }
+//     }
+// }
 
-impl AsyncRead for Connection {
+impl<C> AsyncRead for Connection<C>
+where
+    C: AsyncRead,
+{
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -35,12 +35,15 @@ impl AsyncRead for Connection {
     ) -> std::task::Poll<io::Result<()>> {
         match self.project() {
             ConnectionProj::Noise(stream) => stream.poll_read(cx, buf),
-            ConnectionProj::Tcp(stream) => stream.poll_read(cx, buf),
+            ConnectionProj::Raw(stream) => stream.poll_read(cx, buf),
         }
     }
 }
 
-impl AsyncWrite for Connection {
+impl<C> AsyncWrite for Connection<C>
+where
+    C: AsyncWrite,
+{
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -48,7 +51,7 @@ impl AsyncWrite for Connection {
     ) -> std::task::Poll<Result<usize, io::Error>> {
         match self.project() {
             ConnectionProj::Noise(stream) => stream.poll_write(cx, buf),
-            ConnectionProj::Tcp(stream) => stream.poll_write(cx, buf),
+            ConnectionProj::Raw(stream) => stream.poll_write(cx, buf),
         }
     }
     fn poll_flush(
@@ -57,7 +60,7 @@ impl AsyncWrite for Connection {
     ) -> std::task::Poll<Result<(), io::Error>> {
         match self.project() {
             ConnectionProj::Noise(stream) => stream.poll_flush(cx),
-            ConnectionProj::Tcp(stream) => stream.poll_flush(cx),
+            ConnectionProj::Raw(stream) => stream.poll_flush(cx),
         }
     }
 
@@ -67,7 +70,7 @@ impl AsyncWrite for Connection {
     ) -> std::task::Poll<Result<(), io::Error>> {
         match self.project() {
             ConnectionProj::Noise(stream) => stream.poll_shutdown(cx),
-            ConnectionProj::Tcp(stream) => stream.poll_shutdown(cx),
+            ConnectionProj::Raw(stream) => stream.poll_shutdown(cx),
         }
     }
 }

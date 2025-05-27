@@ -22,5 +22,12 @@ tokio-util = { workspace = true, features = ["codec"] }
 nym-crypto = { path = "../crypto" }
 nym-noise-keys = { path = "keys" }
 
+[dev-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+rand_chacha = { workspace = true }
+nym-crypto = { path = "../crypto", features = ["rand"] }
+
+
 [lints]
 workspace = true

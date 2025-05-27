@@ -13,17 +13,19 @@ use nym_crypto::asymmetric::x25519;
 use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
 use snow::params::NoiseParams;
 
-use strum::EnumIter;
+use strum::{EnumIter, FromRepr};
 
-#[derive(Default, Debug, Clone, Copy, EnumIter)]
+#[derive(Default, Debug, Clone, Copy, EnumIter, FromRepr)]
+#[repr(u8)]
+#[non_exhaustive]
 pub enum NoisePattern {
     #[default]
-    XKpsk3,
-    IKpsk2,
+    XKpsk3 = 1,
+    IKpsk2 = 2,
 }
 
 impl NoisePattern {
-    pub(crate) fn as_str(&self) -> &'static str {
+    pub(crate) const fn as_str(&self) -> &'static str {
         match self {
             Self::XKpsk3 => "Noise_XKpsk3_25519_AESGCM_SHA256",
             Self::IKpsk2 => "Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s", //Wireguard handshake (not exactly though)

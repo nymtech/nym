@@ -6429,12 +6429,14 @@ dependencies = [
 name = "nym-noise"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "arc-swap",
  "bytes",
  "futures",
  "nym-crypto",
  "nym-noise-keys",
  "pin-project",
+ "rand_chacha 0.3.1",
  "sha2 0.10.9",
  "snow",
  "strum 0.26.3",

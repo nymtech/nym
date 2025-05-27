@@ -25,6 +25,9 @@ pub enum NoiseError {
     #[error("Unknown noise version")]
     UnknownVersion,
 
+    #[error("unknown noise pattern")]
+    UnknownPattern,
+
     #[error("Handshake timeout")]
     HandshakeTimeout(#[from] tokio::time::error::Elapsed),
 }

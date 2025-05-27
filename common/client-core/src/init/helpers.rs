@@ -329,7 +329,7 @@ pub(super) async fn register_with_gateway(
         log::warn!("Failed to establish connection with gateway!");
         ClientCoreError::GatewayClientError {
             gateway_id: gateway_id.to_base58_string(),
-            source: err,
+            source: Box::new(err),
         }
     })?;
     let auth_response = gateway_client
@@ -339,7 +339,7 @@ pub(super) async fn register_with_gateway(
             log::warn!("Failed to register with the gateway {gateway_id}: {err}");
             ClientCoreError::GatewayClientError {
                 gateway_id: gateway_id.to_base58_string(),
-                source: err,
+                source: Box::new(err),
             }
         })?;
 

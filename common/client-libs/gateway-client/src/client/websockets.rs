@@ -56,7 +56,7 @@ pub(crate) async fn connect_async(
         }
         .map_err(|err| GatewayClientError::NetworkConnectionFailed {
             address: endpoint.to_owned(),
-            source: err.into(),
+            source: Box::new(tungstenite::Error::from(err)),
         })?;
 
         #[cfg(unix)]
@@ -72,7 +72,7 @@ pub(crate) async fn connect_async(
             Err(err) => {
                 stream = Err(GatewayClientError::NetworkConnectionFailed {
                     address: endpoint.to_owned(),
-                    source: err.into(),
+                    source: Box::new(tungstenite::Error::from(err)),
                 });
                 continue;
             }
@@ -83,6 +83,6 @@ pub(crate) async fn connect_async(
         .await
         .map_err(|error| GatewayClientError::NetworkConnectionFailed {
             address: endpoint.to_owned(),
-            source: error,
+            source: Box::new(error),
         })
 }

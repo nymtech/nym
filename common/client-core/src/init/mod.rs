@@ -232,7 +232,7 @@ where
         } => {
             log::debug!("GatewaySetup::ReuseConnection");
             Ok(reuse_gateway_connection(
-                authenticated_ephemeral_client,
+                *authenticated_ephemeral_client,
                 *gateway_details,
                 managed_keys,
             ))

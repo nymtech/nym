@@ -218,7 +218,7 @@ pub enum GatewaySetup {
 
     ReuseConnection {
         /// The authenticated ephemeral client that was created during `init`
-        authenticated_ephemeral_client: InitGatewayClient,
+        authenticated_ephemeral_client: Box<InitGatewayClient>,
 
         // Details of this pre-initialised client (i.e. gateway and keys)
         gateway_details: Box<GatewayRegistration>,
@@ -261,7 +261,7 @@ impl GatewaySetup {
     pub fn try_reuse_connection(init_res: InitialisationResult) -> Result<Self, ClientCoreError> {
         if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
             Ok(GatewaySetup::ReuseConnection {
-                authenticated_ephemeral_client,
+                authenticated_ephemeral_client: Box::new(authenticated_ephemeral_client),
                 gateway_details: Box::new(init_res.gateway_registration),
                 client_keys: init_res.client_keys,
             })

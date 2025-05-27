@@ -218,7 +218,7 @@ where
         let input_message = self
             .message_translator
             .to_input_message(buf)
-            .map_err(|err| std::io::Error::other(err))?;
+            .map_err(std::io::Error::other)?;
 
         // Pass it to the mixnet sender
         self.tx

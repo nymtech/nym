@@ -860,10 +860,11 @@ impl MixnetListener {
         sender_tag: Option<AnonymousSenderTag>,
     ) -> Result<()> {
         let input_message = create_input_message(recipient, sender_tag, response)?;
-        self.mixnet_client
-            .send(input_message)
-            .await
-            .map_err(|err| AuthenticatorError::FailedToSendPacketToMixnet { source: err })
+        self.mixnet_client.send(input_message).await.map_err(|err| {
+            AuthenticatorError::FailedToSendPacketToMixnet {
+                source: Box::new(err),
+            }
+        })
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {

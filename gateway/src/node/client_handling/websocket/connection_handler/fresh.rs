@@ -83,7 +83,7 @@ pub(crate) enum InitialAuthenticationError {
     UnexpectedMessageType { typ: String },
 
     #[error("Experienced connection error: {0}")]
-    ConnectionError(#[from] WsError),
+    ConnectionError(Box<WsError>),
 
     #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
     IncompatibleProtocol { client: Option<u8>, current: u8 },
@@ -91,7 +91,7 @@ pub(crate) enum InitialAuthenticationError {
     #[error("failed to send authentication response: {source}")]
     ResponseSendFailure {
         #[source]
-        source: WsError,
+        source: Box<WsError>,
     },
 
     #[error("possibly received a sphinx packet without prior authentication. Request is going to be ignored")]
@@ -103,7 +103,7 @@ pub(crate) enum InitialAuthenticationError {
     #[error("failed to obtain message from websocket stream: {source}")]
     FailedToReadMessage {
         #[source]
-        source: WsError,
+        source: Box<WsError>,
     },
 
     #[error("timed out while waiting for initial data")]
@@ -111,6 +111,12 @@ pub(crate) enum InitialAuthenticationError {
 
     #[error("could not establish client details")]
     EmptyClientDetails,
+}
+
+impl From<WsError> for InitialAuthenticationError {
+    fn from(error: WsError) -> Self {
+        InitialAuthenticationError::ConnectionError(Box::new(error))
+    }
 }
 
 pub(crate) struct FreshHandler<R, S> {
@@ -163,7 +169,7 @@ impl<R, S> FreshHandler<R, S> {
                 SocketStream::RawTcp(conn) => {
                     // TODO: perhaps in the future, rather than panic here (and uncleanly shut tcp stream)
                     // return a result with an error?
-                    let ws_stream = tokio_tungstenite::accept_async(conn).await?;
+                    let ws_stream = Box::new(tokio_tungstenite::accept_async(conn).await?);
                     SocketStream::UpgradedWebSocket(ws_stream)
                 }
                 other => other,
@@ -342,7 +348,7 @@ impl<R, S> FreshHandler<R, S> {
             // push them to the client
             if let Err(err) = self.push_packets_to_client(shared_keys, messages).await {
                 warn!("We failed to send stored messages to fresh client - {err}",);
-                return Err(InitialAuthenticationError::ConnectionError(err));
+                return Err(InitialAuthenticationError::ConnectionError(Box::new(err)));
             } else {
                 // if it was successful - remove them from the store
                 self.shared_state.storage.remove_messages(ids).await?;
@@ -880,7 +886,9 @@ impl<R, S> FreshHandler<R, S> {
             .await
         {
             debug!("failed to send authentication response: {source}");
-            return Err(InitialAuthenticationError::ResponseSendFailure { source });
+            return Err(InitialAuthenticationError::ResponseSendFailure {
+                source: Box::new(source),
+            });
         }
 
         let Some(client_details) = auth_result.client_details else {
@@ -963,7 +971,9 @@ impl<R, S> FreshHandler<R, S> {
             Ok(Some(Ok(msg))) => msg,
             Ok(Some(Err(source))) => {
                 debug!("failed to obtain message from websocket stream! stopping connection handler: {source}");
-                return Err(InitialAuthenticationError::FailedToReadMessage { source });
+                return Err(InitialAuthenticationError::FailedToReadMessage {
+                    source: Box::new(source),
+                });
             }
             Ok(None) => return Err(InitialAuthenticationError::ClosedConnection),
             Err(_timeout) => return Err(InitialAuthenticationError::Timeout),

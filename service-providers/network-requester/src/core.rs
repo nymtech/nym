@@ -576,7 +576,9 @@ async fn create_mixnet_client(
     let mut client_builder =
         nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
             .await
-            .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
+            .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient {
+                source: Box::new(err),
+            })?
             .network_details(NymNetworkDetails::new_from_env())
             .debug_config(debug_config)
             .custom_shutdown(shutdown)
@@ -591,12 +593,16 @@ async fn create_mixnet_client(
         client_builder = client_builder.custom_topology_provider(topology_provider);
     }
 
-    let mixnet_client = client_builder
-        .build()
-        .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;
+    let mixnet_client =
+        client_builder
+            .build()
+            .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient {
+                source: Box::new(err),
+            })?;
 
-    mixnet_client
-        .connect_to_mixnet()
-        .await
-        .map_err(|err| NetworkRequesterError::FailedToConnectToMixnet { source: err })
+    mixnet_client.connect_to_mixnet().await.map_err(|err| {
+        NetworkRequesterError::FailedToConnectToMixnet {
+            source: Box::new(err),
+        }
+    })
 }

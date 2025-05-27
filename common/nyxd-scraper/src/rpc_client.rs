@@ -29,7 +29,7 @@ impl RpcClient {
         let http_client = HttpClient::new(url.as_str()).map_err(|source| {
             ScraperError::HttpConnectionFailure {
                 url: url.to_string(),
-                source,
+                source: Box::new(source),
             }
         })?;
 
@@ -90,7 +90,10 @@ impl RpcClient {
         self.inner
             .block(height)
             .await
-            .map_err(|source| ScraperError::BlockQueryFailure { height, source })
+            .map_err(|source| ScraperError::BlockQueryFailure {
+                height,
+                source: Box::new(source),
+            })
     }
 
     #[instrument(skip(self), err(Display))]
@@ -100,31 +103,37 @@ impl RpcClient {
     ) -> Result<block_results::Response, ScraperError> {
         debug!("getting block results");
 
-        self.inner
-            .block_results(height)
-            .await
-            .map_err(|source| ScraperError::BlockResultsQueryFailure { height, source })
+        self.inner.block_results(height).await.map_err(|source| {
+            ScraperError::BlockResultsQueryFailure {
+                height,
+                source: Box::new(source),
+            }
+        })
     }
 
     pub(crate) async fn current_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting current block height");
 
-        let info = self
-            .inner
-            .abci_info()
-            .await
-            .map_err(|source| ScraperError::AbciInfoQueryFailure { source })?;
+        let info =
+            self.inner
+                .abci_info()
+                .await
+                .map_err(|source| ScraperError::AbciInfoQueryFailure {
+                    source: Box::new(source),
+                })?;
         Ok(info.last_block_height.value())
     }
 
     pub(crate) async fn earliest_available_block_height(&self) -> Result<u64, ScraperError> {
         debug!("getting earliest available block height");
 
-        let status = self
-            .inner
-            .status()
-            .await
-            .map_err(|source| ScraperError::AbciInfoQueryFailure { source })?;
+        let status =
+            self.inner
+                .status()
+                .await
+                .map_err(|source| ScraperError::AbciInfoQueryFailure {
+                    source: Box::new(source),
+                })?;
         Ok(status.sync_info.earliest_block_height.value())
     }
 
@@ -167,7 +176,7 @@ impl RpcClient {
             .await
             .map_err(|source| ScraperError::TxResultsQueryFailure {
                 hash: tx_hash,
-                source,
+                source: Box::new(source),
             })
     }
 
@@ -181,6 +190,9 @@ impl RpcClient {
         self.inner
             .validators(height, Paging::All)
             .await
-            .map_err(|source| ScraperError::ValidatorsQueryFailure { height, source })
+            .map_err(|source| ScraperError::ValidatorsQueryFailure {
+                height,
+                source: Box::new(source),
+            })
     }
 }

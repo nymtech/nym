@@ -52,7 +52,7 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.86.0
           override: true
 
       - name: Build all binaries

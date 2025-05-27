@@ -7,7 +7,6 @@ use crate::db::models::{
     NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
-use crate::monitor::geodata::{ExplorerPrettyBond, Location};
 use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
@@ -29,7 +28,7 @@ use std::{
 use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
-pub(crate) use geodata::IpInfoClient;
+pub(crate) use geodata::{ExplorerPrettyBond, IpInfoClient, Location};
 pub(crate) use node_delegations::DelegationsCache;
 
 mod geodata;

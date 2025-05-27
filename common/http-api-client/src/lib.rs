@@ -138,7 +138,12 @@
 
 pub use reqwest::{IntoUrl, StatusCode};
 
+use crate::path::RequestPath;
 use async_trait::async_trait;
+use bytes::Bytes;
+use http::header::CONTENT_TYPE;
+use http::HeaderMap;
+use mime::Mime;
 use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
@@ -149,10 +154,6 @@ use thiserror::Error;
 use tracing::{debug, instrument, warn};
 use url::Url;
 
-use bytes::Bytes;
-use http::header::CONTENT_TYPE;
-use http::HeaderMap;
-use mime::Mime;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
@@ -165,7 +166,6 @@ pub use user_agent::UserAgent;
 mod dns;
 mod path;
 
-use crate::path::RequestPath;
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
@@ -603,12 +603,9 @@ impl ApiClientCore for Client {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ApiClient: ApiClientCore {
     /// Create an HTTP GET Request with the provided path and parameters
-    fn create_get_request<K, V>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> RequestBuilder
+    fn create_get_request<P, K, V>(&self, path: P, params: Params<'_, K, V>) -> RequestBuilder
     where
+        P: RequestPath,
         K: AsRef<str>,
         V: AsRef<str>,
     {
@@ -616,13 +613,14 @@ pub trait ApiClient: ApiClientCore {
     }
 
     /// Create an HTTP POST Request with the provided path, parameters, and json body
-    fn create_post_request<B, K, V>(
+    fn create_post_request<P, B, K, V>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> RequestBuilder
     where
+        P: RequestPath,
         B: Serialize + ?Sized,
         K: AsRef<str>,
         V: AsRef<str>,
@@ -631,12 +629,9 @@ pub trait ApiClient: ApiClientCore {
     }
 
     /// Create an HTTP DELETE Request with the provided path and parameters
-    fn create_delete_request<K, V>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> RequestBuilder
+    fn create_delete_request<P, K, V>(&self, path: P, params: Params<'_, K, V>) -> RequestBuilder
     where
+        P: RequestPath,
         K: AsRef<str>,
         V: AsRef<str>,
     {
@@ -644,13 +639,14 @@ pub trait ApiClient: ApiClientCore {
     }
 
     /// Create an HTTP PATCH Request with the provided path, parameters, and json body
-    fn create_patch_request<B, K, V>(
+    fn create_patch_request<P, B, K, V>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> RequestBuilder
     where
+        P: RequestPath,
         B: Serialize + ?Sized,
         K: AsRef<str>,
         V: AsRef<str>,
@@ -660,12 +656,13 @@ pub trait ApiClient: ApiClientCore {
 
     /// Create and send an HTTP GET Request with the provided path and parameters
     #[instrument(level = "debug", skip_all, fields(path=?path))]
-    async fn send_get_request<K, V, E>(
+    async fn send_get_request<P, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
     ) -> Result<Response, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
         E: Display,
@@ -675,13 +672,14 @@ pub trait ApiClient: ApiClientCore {
     }
 
     /// Create and send an HTTP POST Request with the provided path, parameters, and json data
-    async fn send_post_request<B, K, V, E>(
+    async fn send_post_request<P, B, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> Result<Response, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         B: Serialize + ?Sized + Sync,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
@@ -692,12 +690,13 @@ pub trait ApiClient: ApiClientCore {
     }
 
     /// Create and send an HTTP DELETE Request with the provided path and parameters
-    async fn send_delete_request<K, V, E>(
+    async fn send_delete_request<P, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
     ) -> Result<Response, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
         E: Display,
@@ -707,13 +706,14 @@ pub trait ApiClient: ApiClientCore {
     }
 
     /// Create and send an HTTP PATCH Request with the provided path, parameters, and json data
-    async fn send_patch_request<B, K, V, E>(
+    async fn send_patch_request<P, B, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> Result<Response, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         B: Serialize + ?Sized + Sync,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
@@ -767,13 +767,14 @@ pub trait ApiClient: ApiClientCore {
     /// 'post' json data to the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T`.
-    async fn post_json<B, T, K, V, E>(
+    async fn post_json<P, B, T, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> Result<T, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         B: Serialize + ?Sized + Sync,
         for<'a> T: Deserialize<'a>,
         K: AsRef<str> + Sync,
@@ -789,12 +790,13 @@ pub trait ApiClient: ApiClientCore {
     /// 'delete' json data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with
     /// tuple defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the
     /// response into the provided type `T`.
-    async fn delete_json<T, K, V, E>(
+    async fn delete_json<P, T, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
     ) -> Result<T, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         for<'a> T: Deserialize<'a>,
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
@@ -809,13 +811,14 @@ pub trait ApiClient: ApiClientCore {
     /// 'patch' json data at the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T`.
-    async fn patch_json<B, T, K, V, E>(
+    async fn patch_json<P, B, T, K, V, E>(
         &self,
-        path: PathSegments<'_>,
+        path: P,
         params: Params<'_, K, V>,
         json_body: &B,
     ) -> Result<T, HttpClientError<E>>
     where
+        P: RequestPath + Send + Sync,
         B: Serialize + ?Sized + Sync,
         for<'a> T: Deserialize<'a>,
         K: AsRef<str> + Sync,

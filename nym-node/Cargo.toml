@@ -84,7 +84,7 @@ tower-http = { workspace = true, features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
+nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa", "output", "middleware"] }
 nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"] }
 nym-node-metrics = { path = "nym-node-metrics" }
 

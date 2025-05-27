@@ -2,63 +2,37 @@ use axum::{
     extract::{Path, Query, State},
     Json, Router,
 };
-use itertools::Itertools;
 use serde::Deserialize;
 use tracing::instrument;
 use utoipa::IntoParams;
 
-use crate::http::{error::{HttpError, HttpResult}, models::{Gateway}, state::AppState};
 use crate::http::models::DVpnGateway;
+use crate::http::{
+    error::{HttpError, HttpResult},
+    state::AppState,
+};
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
-        .route("/", axum::routing::get(gateways))
+        .route("/", axum::routing::get(dvpn_gateways))
         .route(
             "/country/:two_letter_country_code",
             axum::routing::get(gateways_by_country),
         )
 }
 
-async fn get_gateways_from_cache(
-    State(state): State<AppState>,
-) -> Vec<DVpnGateway> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
-
-    // TODO: parse
-    let MINIMUM_NYM_NODE_VERSION = "1.6.2";
-
-    // TODO: cache the output of this filter
-    let output: Vec<DVpnGateway> = res.iter()
-        .filter(|g| {
-            // gateways must be bonded and not blacklisted
-            if !g.bonded {
-                return false;
-            }
-
-            // gateways must meet minimum semver
-            // if g.self_described.something_something < MINIMUM_NYM_NODE_VERSION {
-            //     return false;
-            // }
-
-            true
-        })
-        .map(|d| d.try_into())
-        .filter_map(Result::ok)
-        .filter(|g: &DVpnGateway| {
-            // gateways must have a country
-            g.location.two_letter_iso_country_code.len() == 2
-        })
-        // TODO: sort by two-letter country code, then by identity key
-        // .sorted_by(...)
-        .collect();
-
-    output
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct MinNodeVersionQuery {
+    min_node_version: Option<String>,
 }
 
 #[utoipa::path(
     tag = "dVPN Directory Cache",
     get,
+    params(
+        MinNodeVersionQuery
+    ),
     path = "/directory/gateways",
     summary = "Gets available entry and exit gateways from the Nym network directory",
     context_path = "/dvpn/v1",
@@ -66,11 +40,18 @@ async fn get_gateways_from_cache(
         (status = 200, body = Vec<DVpnGateway>)
     )
 )]
-#[instrument(level = tracing::Level::INFO, skip_all)]
-async fn gateways(
+#[instrument(level = tracing::Level::INFO, skip(state))]
+async fn dvpn_gateways(
+    Query(MinNodeVersionQuery { min_node_version }): Query<MinNodeVersionQuery>,
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
-    let res = get_gateways_from_cache(state).await;
+    let min_node_version: String = min_node_version.unwrap_or_else(|| String::from("1.6.2"));
+    let min_node_version = semver::Version::parse(&min_node_version)
+        .map_err(|_| HttpError::invalid_input("Min version must be valid semver"))?;
+
+    let db = state.db_pool();
+    let res = state.cache().get_dvpn_gateway_list(db).await;
+
     Ok(Json(res))
 }
 
@@ -97,14 +78,17 @@ struct TwoLetterCountryCodeParam {
 )]
 #[instrument(level = tracing::Level::INFO, skip(state), fields(two_letter_country_code = two_letter_country_code))]
 async fn gateways_by_country(
-    Path(TwoLetterCountryCodeParam { two_letter_country_code}): Path<TwoLetterCountryCodeParam>,
+    Path(TwoLetterCountryCodeParam {
+        two_letter_country_code,
+    }): Path<TwoLetterCountryCodeParam>,
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
     match two_letter_country_code.len() {
-        2 => {
-            let res = get_gateways_from_cache(state).await;
-            Ok(Json(res))
-        }
-        _ => Err(HttpError::invalid_input("Only two letter country code is allowed")),
+        2 => Ok(Json(
+            state.cache().get_dvpn_gateway_list(state.db_pool()).await,
+        )),
+        _ => Err(HttpError::invalid_input(
+            "Only two letter country code is allowed",
+        )),
     }
 }

@@ -104,9 +104,7 @@ fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<ZeroizingPem> {
     let mut pem_bytes = File::open(filepath)?;
     let mut buf = Zeroizing::new(Vec::new());
     pem_bytes.read_to_end(&mut buf)?;
-    pem::parse(&buf)
-        .map(ZeroizingPem)
-        .map_err(io::Error::other)
+    pem::parse(&buf).map(ZeroizingPem).map_err(io::Error::other)
 }
 
 fn write_pem_file<P: AsRef<Path>>(filepath: P, mut data: Vec<u8>, tag: &str) -> io::Result<()> {

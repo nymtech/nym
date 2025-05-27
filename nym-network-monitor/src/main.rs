@@ -172,7 +172,12 @@ async fn nym_topology_forced_all_from_env() -> anyhow::Result<NymTopology> {
     let mut topology = NymTopology::new_empty(rewarded_set);
     topology.add_skimmed_nodes(&nodes);
 
-    let node_ids = topology.node_details().keys().cloned().collect::<Vec<_>>();
+    let node_ids = topology
+        .node_details()
+        .iter()
+        .filter(|(_node_id, node)| node.supported_roles.mixnode)
+        .map(|(node_id, _)| *node_id)
+        .collect::<Vec<_>>();
 
     // Force all nodes to active to participate in route selection
     for (idx, node_id) in node_ids.iter().enumerate() {

@@ -4,6 +4,58 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.10-brie] (2025-05-27)
+
+- Backport PR 5779 ([#5801])
+- Expanded Accept Encoding for `reqwest` ([#5779])
+- Teach HttpClientError how to report its status code and timeout ([#5770])
+- Skip refreshing the topology on startup as we already have an initial set ([#5768])
+- Fetch the topology from the nym-api concurrently ([#5767])
+- feat: use bincode by default in NymApiClient + remove feature-lock ([#5761])
+- Instrument create_request ([#5760])
+- Add node_bonded field to delegations ([#5759])
+- build(deps): bump mikefarah/yq from 4.45.1 to 4.45.4 ([#5758])
+- Raw route submissions ([#5756])
+- feat: expires header for `/active` nym-api responses ([#5755])
+- Decrease default average packet delay to 15 ms ([#5754])
+- build(deps): bump the patch-updates group across 1 directory with 12 updates ([#5753])
+- Remove pretty_env_logger and switch remaining crates to use tracing ([#5749])
+- Update pretty_env_logger to latest to not depend on unmaintained crate atty ([#5748])
+- Upgrade prometheus crate to fix security warning ([#5747])
+- Downgrade deranged crate to 0.4.0 ([#5746])
+- feat: nym-api bincode + yaml support ([#5745])
+- fix parallel feature in ecash crate with send + sync ([#5744])
+- Remove old test directory - Update validator docker ([#5743])
+- [Feature] `RememberMe` is the new don't `ForgetMe` ([#5742])
+- build(deps): bump ammonia from 4.0.0 to 4.1.0 ([#5739])
+- build(deps): bump base-x from 3.0.9 to 3.0.11 in /testnet-faucet ([#5737])
+- build(deps): bump http-proxy-middleware from 2.0.8 to 2.0.9 ([#5730])
+
+[#5801]: https://github.com/nymtech/nym/pull/5801
+[#5779]: https://github.com/nymtech/nym/pull/5779
+[#5770]: https://github.com/nymtech/nym/pull/5770
+[#5768]: https://github.com/nymtech/nym/pull/5768
+[#5767]: https://github.com/nymtech/nym/pull/5767
+[#5761]: https://github.com/nymtech/nym/pull/5761
+[#5760]: https://github.com/nymtech/nym/pull/5760
+[#5759]: https://github.com/nymtech/nym/pull/5759
+[#5758]: https://github.com/nymtech/nym/pull/5758
+[#5756]: https://github.com/nymtech/nym/pull/5756
+[#5755]: https://github.com/nymtech/nym/pull/5755
+[#5754]: https://github.com/nymtech/nym/pull/5754
+[#5753]: https://github.com/nymtech/nym/pull/5753
+[#5749]: https://github.com/nymtech/nym/pull/5749
+[#5748]: https://github.com/nymtech/nym/pull/5748
+[#5747]: https://github.com/nymtech/nym/pull/5747
+[#5746]: https://github.com/nymtech/nym/pull/5746
+[#5745]: https://github.com/nymtech/nym/pull/5745
+[#5744]: https://github.com/nymtech/nym/pull/5744
+[#5743]: https://github.com/nymtech/nym/pull/5743
+[#5742]: https://github.com/nymtech/nym/pull/5742
+[#5739]: https://github.com/nymtech/nym/pull/5739
+[#5737]: https://github.com/nymtech/nym/pull/5737
+[#5730]: https://github.com/nymtech/nym/pull/5730
+
 ## [2025.9-appenzeller] (2025-05-13)
 
 - build(deps): bump clap from 4.5.36 to 4.5.37 in the patch-updates group ([#5722])

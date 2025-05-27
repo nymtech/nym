@@ -1275,7 +1275,7 @@ impl TestFixture {
         AppState {
             nyxd_client,
             chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
-            address_info_cache: AddressInfoCache::new(),
+            address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
             nym_contract_cache: NymContractCache::new(),
             node_status_cache: NodeStatusCache::new(),

@@ -973,6 +973,8 @@ mod tests {
             QueryMsg::GetNymNodeVersionHistory { limit, start_after } => client
                 .get_nym_node_version_history_paged(start_after, limit)
                 .ignore(),
+            QueryMsg::GetKeyRotationState {} => client.get_key_rotation_state().ignore(),
+            QueryMsg::GetKeyRotationId {} => client.get_key_rotation_id(),
         }
     }
 }

@@ -16,6 +16,7 @@ pub(crate) struct DailyActiveDeviceDto {
     pub(crate) os_arch: String,
     pub(crate) app_version: String,
     pub(crate) user_agent: String,
+    pub(crate) from_mixnet: bool,
 }
 
 impl DailyActiveDeviceDto {
@@ -23,6 +24,7 @@ impl DailyActiveDeviceDto {
         received_at: OffsetDateTime,
         stats_report: &VpnClientStatsReport,
         user_agent: UserAgent,
+        from_mixnet: bool,
     ) -> Self {
         Self {
             day: received_at.date(),
@@ -32,6 +34,7 @@ impl DailyActiveDeviceDto {
             os_arch: stats_report.static_information.os_arch.clone(),
             app_version: stats_report.static_information.app_version.clone(),
             user_agent: user_agent.to_string(),
+            from_mixnet,
         }
     }
 }
@@ -43,6 +46,7 @@ pub(crate) struct ConnectionInfoDto {
     pub(crate) connection_time_ms: Option<i32>,
     pub(crate) two_hop: bool,
     pub(crate) country_code: Option<String>,
+    pub(crate) from_mixnet: bool,
 }
 
 impl ConnectionInfoDto {
@@ -51,6 +55,7 @@ impl ConnectionInfoDto {
         stats_report: &VpnClientStatsReport,
         received_from: SocketAddr,
         maybe_country: Option<Country>,
+        from_mixnet: bool,
     ) -> Option<Self> {
         stats_report.basic_usage.as_ref().map(|usage_report| Self {
             received_at,
@@ -58,6 +63,7 @@ impl ConnectionInfoDto {
             connection_time_ms: usage_report.connection_time_ms,
             two_hop: usage_report.two_hop,
             country_code: maybe_country.map(|c| c.alpha2.into()),
+            from_mixnet,
         })
     }
 }

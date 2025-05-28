@@ -36,33 +36,26 @@ async fn submit_stats_report(
     Json(report): Json<VpnClientStatsReport>,
 ) -> HttpResult<Json<()>> {
     let now = time::OffsetDateTime::now_utc();
-    match state.network_view().get_country_by_ip(&addr.ip()).await {
-        // Report received from a node in the network
-        Some(maybe_location) => {
-            debug!("Received a report from the network");
-            let active_device = DailyActiveDeviceDto::new(now, &report, user_agent);
-            let maybe_connection_info =
-                ConnectionInfoDto::maybe_new(now, &report, addr, maybe_location);
+    let gateway_record = state.network_view().get_country_by_ip(&addr.ip()).await;
 
-            state
-                .storage()
-                .store_vpn_client_report(active_device, maybe_connection_info)
-                .await
-                .map_err(HttpError::internal_with_logging)?;
-        }
+    let from_mixnet = gateway_record.is_some();
+    let maybe_location = gateway_record.unwrap_or_default();
 
-        // Report received from elsewhere, do we still keep them? What if we don't have a network view?
-        None => {
-            debug!("Received a report from outside of the network");
-            let device_report = DailyActiveDeviceDto::new(now, &report, user_agent);
-            let maybe_connection_info = ConnectionInfoDto::maybe_new(now, &report, addr, None);
-            state
-                .storage()
-                .store_unknown_report(device_report, maybe_connection_info)
-                .await
-                .map_err(HttpError::internal_with_logging)?;
-        }
+    if from_mixnet {
+        debug!("Received a report from the network");
+    } else {
+        debug!("Received a report from outside of the network");
     }
+
+    let active_device = DailyActiveDeviceDto::new(now, &report, user_agent, from_mixnet);
+    let maybe_connection_info =
+        ConnectionInfoDto::maybe_new(now, &report, addr, maybe_location, from_mixnet);
+
+    state
+        .storage()
+        .store_vpn_client_report(active_device, maybe_connection_info)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
 
     Ok(Json(()))
 }

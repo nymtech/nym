@@ -24,7 +24,14 @@ pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
         .from_env_lossy();
 
     // these crates are more granularly filtered
-    let warn_crates = ["rustls", "sqlx", "tower_http", "axum"];
+    let warn_crates = [
+        "rustls",
+        "sqlx",
+        "tower_http",
+        "axum",
+        "reqwest",
+        "hyper_util",
+    ];
     for crate_name in warn_crates {
         filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name))?);
     }

@@ -49,6 +49,18 @@ impl StatisticsStorage {
         Ok(())
     }
 
+    pub(crate) async fn store_unknown_report(
+        &mut self,
+        device_report: DailyActiveDeviceDto,
+        connection_info: Option<ConnectionInfoDto>,
+    ) -> Result<()> {
+        self.store_unknown_device(device_report).await?;
+        if let Some(connection_info) = connection_info {
+            self.store_unknown_connection_stats(connection_info).await?;
+        }
+        Ok(())
+    }
+
     // Interestingly enough, because gateway-storage is using the `chrono` feature of sqlx and in 0.7.4 it takes priority over the `time` one, we cannot use the query! macro here.
     // Due to features unification, the binary will not compile when built from the workspace root because it will expect `chrono` types.
     // As a consequence, there is no compile time verification of these queries.
@@ -84,7 +96,55 @@ impl StatisticsStorage {
                 received_at, 
                 connection_time_ms, 
                 two_hop, 
-                gateway_ip) VALUES ($1, $2, $3, $4)",
+                gateway_ip,
+                country_code) VALUES ($1, $2, $3, $4,$5)",
+        )
+        .bind(connection_info.received_at)
+        .bind(connection_info.connection_time_ms)
+        .bind(connection_info.two_hop)
+        .bind(connection_info.received_from)
+        .bind(connection_info.country_code)
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn store_unknown_device(&self, device_report: DailyActiveDeviceDto) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO unknown_active_device (
+                day, 
+                device_id, 
+                os_type, 
+                os_version, 
+                architecture, 
+                app_version,
+                user_agent) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (device_id, day) DO NOTHING",
+        )
+        .bind(device_report.day)
+        .bind(device_report.stats_id)
+        .bind(device_report.os_type)
+        .bind(device_report.os_version)
+        .bind(device_report.os_arch)
+        .bind(device_report.app_version)
+        .bind(device_report.user_agent)
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    // We're cannot use the query! macro because of the above comment
+    async fn store_unknown_connection_stats(
+        &self,
+        connection_info: ConnectionInfoDto,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO unknown_connection_stats (
+                received_at, 
+                connection_time_ms, 
+                two_hop, 
+                source_ip) VALUES ($1, $2, $3, $4)",
         )
         .bind(connection_info.received_at)
         .bind(connection_info.connection_time_ms)

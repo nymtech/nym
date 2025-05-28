@@ -7935,6 +7935,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "proc_pidinfo"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1724fdb3f7349e4c58806dfb29dbc3b5e2f8b0997bb5117acf8db6e555867a91"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "prometheus"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9517,6 +9526,16 @@ dependencies = [
  "time",
  "tracing",
  "whoami",
+]
+
+[[package]]
+name = "sqlx-pool-guard"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "proc_pidinfo",
+ "sqlx",
+ "tokio",
 ]
 
 [[package]]

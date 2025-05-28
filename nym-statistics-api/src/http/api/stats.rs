@@ -51,7 +51,7 @@ async fn submit_stats_report(
                 .map_err(HttpError::internal_with_logging)?;
         }
 
-        // Report received from elsewhere
+        // Report received from elsewhere, do we still keep them? What if we don't have a network view?
         None => {
             debug!("Received a report from outside of the network");
             let device_report = DailyActiveDeviceDto::new(now, &report, user_agent);

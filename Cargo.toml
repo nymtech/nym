@@ -64,7 +64,7 @@ members = [
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nym-id",
-    "common/nym-psq-kkr",
+    "common/nym-psq-kkt",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
     "common/nymnoise",

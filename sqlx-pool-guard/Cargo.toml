@@ -1,0 +1,16 @@
+[package]
+name = "sqlx-pool-guard"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "fs"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+log.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+proc_pidinfo.workspace = true

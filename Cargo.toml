@@ -124,7 +124,7 @@ members = [
     "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
-    "service-providers/network-requester",
+    "service-providers/network-requester", "sqlx-pool-guard",
     "tools/echo-server",
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
@@ -286,6 +286,7 @@ petgraph = "0.6.5"
 pin-project = "1.1"
 pin-project-lite = "0.2.16"
 publicsuffix = "2.3.0"
+proc_pidinfo = "0.1"
 quote = "1"
 rand = "0.8.5"
 rand_chacha = "0.3"

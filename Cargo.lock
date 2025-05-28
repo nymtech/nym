@@ -6872,6 +6872,7 @@ dependencies = [
  "nym-metrics",
  "nym-sphinx",
  "nym-task",
+ "schemars",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -6881,6 +6882,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "utoipa",
  "wasmtimer",
 ]
 

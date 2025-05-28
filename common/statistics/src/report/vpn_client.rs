@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 const KIND: &str = "vpn_client_stats_report";
 const VERSION: &str = "v1";
 
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VpnClientStatsReport {
     pub kind: String,
@@ -36,7 +37,7 @@ impl VpnClientStatsReport {
         self
     }
 }
-
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticInformationReport {
     pub os_type: String,
@@ -45,6 +46,7 @@ pub struct StaticInformationReport {
     pub app_version: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageReport {
     pub connection_time_ms: Option<i32>,

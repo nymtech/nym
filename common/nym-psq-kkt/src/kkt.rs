@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use std::marker::PhantomData;
 
 use nym_crypto::asymmetric::ed25519;

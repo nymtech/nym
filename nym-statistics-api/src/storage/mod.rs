@@ -91,19 +91,35 @@ impl StatisticsStorage {
 
     // We're cannot use the query! macro because of the above comment
     async fn store_connection_stats(&self, connection_info: ConnectionInfoDto) -> Result<()> {
-        sqlx::query(
+        // sqlx::query(
+        //     "INSERT INTO connection_stats (
+        //         received_at,
+        //         connection_time_ms,
+        //         two_hop,
+        //         gateway_ip,
+        //         country_code) VALUES ($1, $2, $3, $4,$5)",
+        // )
+        // .bind(connection_info.received_at)
+        // .bind(connection_info.connection_time_ms)
+        // .bind(connection_info.two_hop)
+        // .bind(connection_info.received_from)
+        // .bind(connection_info.country_code)
+        // .execute(&self.connection_pool)
+        // .await?;
+
+        sqlx::query!(
             "INSERT INTO connection_stats (
-                received_at, 
-                connection_time_ms, 
-                two_hop, 
+                received_at,
+                connection_time_ms,
+                two_hop,
                 gateway_ip,
                 country_code) VALUES ($1, $2, $3, $4,$5)",
+            connection_info.received_at,
+            connection_info.connection_time_ms,
+            connection_info.two_hop,
+            connection_info.received_from,
+            connection_info.country_code
         )
-        .bind(connection_info.received_at)
-        .bind(connection_info.connection_time_ms)
-        .bind(connection_info.two_hop)
-        .bind(connection_info.received_from)
-        .bind(connection_info.country_code)
         .execute(&self.connection_pool)
         .await?;
         Ok(())

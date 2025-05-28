@@ -35,8 +35,6 @@ async fn submit_stats_report(
     TypedHeader(user_agent): TypedHeader<UserAgent>,
     Json(report): Json<VpnClientStatsReport>,
 ) -> HttpResult<Json<()>> {
-    // SW TODO use addr to whitelist gateways
-
     let now = time::OffsetDateTime::now_utc();
     match state.network_view().get_country_by_ip(&addr.ip()).await {
         // Report received from a node in the network

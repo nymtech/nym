@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 const KIND: &str = "vpn_client_stats_report";
 const VERSION: &str = "v1";
 
-#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VpnClientStatsReport {
     pub kind: String,
@@ -15,9 +15,6 @@ pub struct VpnClientStatsReport {
     pub static_information: StaticInformationReport,
     //SW called it basic so we can swap it easily down the line for more data
     pub basic_usage: Option<UsageReport>,
-    // pub censorship: CensorshipReport,
-
-    // pub gateway_quality: GatewayQualityReport,
 }
 
 impl VpnClientStatsReport {
@@ -37,7 +34,7 @@ impl VpnClientStatsReport {
         self
     }
 }
-#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticInformationReport {
     pub os_type: String,
@@ -46,15 +43,9 @@ pub struct StaticInformationReport {
     pub app_version: String,
 }
 
-#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageReport {
     pub connection_time_ms: Option<i32>,
     pub two_hop: bool,
 }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct CensorshipReport {}
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct GatewayQualityReport {}

@@ -9,8 +9,8 @@ export DATABASE_URL="postgres://${PGUSER}:${PGPASSWORD}@localhost:${PGPORT}/${DB
 
 cat <<EOF > .env
 SQLX_OFFLINE=true
-PGUSER=$PGUSER
-PGPASSWORD=$PGPASSWORD
+POSTGRES_USER=$PGUSER
+POSTGRES_PASSWORD=$PGPASSWORD
 PGPORT=$PGPORT
 DB_NAME=$DB_NAME
 DATABASE_URL=$DATABASE_URL
@@ -27,4 +27,4 @@ docker run --rm -it \
 
 
 # sqlx migrate run
-# cargl sqlx prepare
+# cargo sqlx prepare

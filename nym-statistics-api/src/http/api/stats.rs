@@ -23,12 +23,14 @@ pub(crate) fn routes() -> Router<AppState> {
 #[utoipa::path(
     post,
     request_body = VpnClientStatsReport,
-    path = "/v1/stats/report",
+    tag = "Stats",
+    path = "/report",
+    context_path = "/v1/stats",
     responses(
         (status = 200)
     )
 )]
-#[tracing::instrument(level = "debug", skip_all)]
+#[tracing::instrument(level = "info", skip_all)]
 async fn submit_stats_report(
     State(mut state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,

@@ -12,7 +12,7 @@ fn pretty_build_info_static() -> &'static str {
 #[derive(Clone, Debug, Parser)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
-    /// URL for the NS API to get a network view from
+    /// URL for the NYM API to get a network view from
     #[clap(long, env = "NYM_API_URL")]
     pub(crate) nym_api_url: Option<Url>,
 

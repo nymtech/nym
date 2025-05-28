@@ -76,6 +76,8 @@ cargo Profile:      release
   - [Restore proxy conf](nodes/maintenance#restoring-proxy-configuration)
   - [Move a node](nodes/maintenance#moving-a-node)
 
+-  Nym Squad League (NSL) now supports monthly payments. Report your monthly contributions before the end of the week (May 30, Friday) to get your tokens next week. Alternatively, you can report everything all at once at the end Spring Season (Deadline: Wednesday, June 18). Read more about NSL at [forum.nym.com](https://forum.nym.com/).
+
 ### Features
 
 - [`RememberMe` is the new don't `ForgetMe`](https://github.com/nymtech/nym/pull/5742): Sessions stats collected from gateway proved themselves to be incredibly noisy. In an effort to reduce the noise, `ForgetMe` was introduced at the end of sessions to prompt gateways to forget a specific session. This flag helped reduce the amount of noise, but alone it's not enough (e.g. `ForgetMe` can't be sent by non-sdk client). Therefore we're turning the whole thing and around and introducing a `RememberMe` flag, to prompt the gateways to actually remember said session. Read more in the [dev description of the PR](https://github.com/nymtech/nym/pull/5742).

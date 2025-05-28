@@ -254,6 +254,10 @@ impl PrivateKey {
         PrivateKey(x25519_secret)
     }
 
+    pub fn inner(&self) -> &x25519_dalek::StaticSecret {
+        &self.0
+    }
+
     pub fn public_key(&self) -> PublicKey {
         self.into()
     }

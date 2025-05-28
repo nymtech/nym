@@ -8,22 +8,25 @@ use serde::{Deserialize, Serialize};
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(from = "u8", into = "u8")]
 pub enum NoiseVersion {
-    V1 = 1,
-    Unknown, //Implies a newer version we don't know
+    V1,
+    Unknown(u8), //Implies a newer version we don't know
 }
 
 impl From<u8> for NoiseVersion {
     fn from(value: u8) -> Self {
         match value {
             1 => NoiseVersion::V1,
-            _ => NoiseVersion::Unknown,
+            other => NoiseVersion::Unknown(other),
         }
     }
 }
 
 impl From<NoiseVersion> for u8 {
     fn from(version: NoiseVersion) -> Self {
-        version as u8
+        match version {
+            NoiseVersion::V1 => 1,
+            NoiseVersion::Unknown(other) => other,
+        }
     }
 }
 
@@ -31,7 +34,7 @@ impl From<NoiseVersion> for u8 {
 pub struct VersionedNoiseKey {
     #[schemars(with = "u8")]
     #[schema(value_type = u8)]
-    pub version: NoiseVersion,
+    pub supported_version: NoiseVersion,
 
     #[schemars(with = "String")]
     #[serde(with = "bs58_x25519_pubkey")]

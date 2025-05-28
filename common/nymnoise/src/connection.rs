@@ -12,21 +12,12 @@ use crate::stream::NoiseStream;
 #[pin_project(project = ConnectionProj)]
 pub enum Connection<C> {
     Raw(#[pin] C),
-    Noise(#[pin] NoiseStream<C>),
+    Noise(#[pin] Box<NoiseStream<C>>),
 }
-
-// impl<C> Connection<C> {
-//     pub fn peer_addr(&self) -> Result<std::net::SocketAddr, io::Error> {
-//         match self {
-//             Self::Noise(stream) => stream.peer_addr(),
-//             Self::Tcp(stream) => stream.peer_addr(),
-//         }
-//     }
-// }
 
 impl<C> AsyncRead for Connection<C>
 where
-    C: AsyncRead,
+    C: AsyncRead + AsyncWrite + Unpin,
 {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
@@ -42,7 +33,7 @@ where
 
 impl<C> AsyncWrite for Connection<C>
 where
-    C: AsyncWrite,
+    C: AsyncWrite + AsyncRead + Unpin,
 {
     fn poll_write(
         self: std::pin::Pin<&mut Self>,

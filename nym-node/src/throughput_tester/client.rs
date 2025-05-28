@@ -170,7 +170,7 @@ impl ThroughputTestingClient {
         // by tagging the packet
         let shared_secret = node_keys
             .private_key()
-            .as_ref()
+            .inner()
             .diffie_hellman(&header.shared_secret);
         let payload_key = rederive_lioness_payload_key(shared_secret.as_bytes());
 

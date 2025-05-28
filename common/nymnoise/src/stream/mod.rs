@@ -1,12 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::NoisePattern;
+use crate::config::{NoiseConfig, NoisePattern};
 use crate::error::NoiseError;
+use crate::psk_gen::generate_psk;
 use crate::stream::codec::NymNoiseCodec;
-use bytes::BytesMut;
+use crate::stream::framing::NymNoiseFrame;
+use bytes::{Bytes, BytesMut};
 use futures::{Sink, SinkExt, Stream, StreamExt};
-use pin_project::pin_project;
+use nym_crypto::asymmetric::x25519;
+use nym_noise_keys::NoiseVersion;
 use snow::{Builder, HandshakeState, TransportState};
 use std::io;
 use std::pin::Pin;
@@ -23,35 +26,27 @@ const HANDSHAKE_MAX_LEN: usize = 1024; // using this constant to limit the hands
 
 pub(crate) type Psk = [u8; 32];
 
-/// Wrapper around a TcpStream
-#[pin_project]
-pub struct NoiseStream<C> {
-    #[pin]
+pub(crate) struct NoiseStreamBuilder<C> {
     inner_stream: Framed<C, NymNoiseCodec>,
-    handshake: Option<HandshakeState>,
-    noise: Option<TransportState>,
-    dec_buffer: BytesMut,
 }
 
-impl<C> NoiseStream<C> {
-    fn new_inner(inner_stream: C, handshake: HandshakeState) -> NoiseStream<C>
+impl<C> NoiseStreamBuilder<C> {
+    pub(crate) fn new(inner_stream: C) -> Self
     where
         C: AsyncRead + AsyncWrite,
     {
-        NoiseStream {
+        NoiseStreamBuilder {
             inner_stream: Framed::new(inner_stream, NymNoiseCodec::new()),
-            handshake: Some(handshake),
-            noise: None,
-            dec_buffer: BytesMut::new(),
         }
     }
 
-    pub(crate) fn new_initiator(
-        inner_stream: C,
+    async fn perform_initiator_handshake_inner(
+        self,
         pattern: NoisePattern,
         local_private_key: impl AsRef<[u8]>,
         remote_pub_key: impl AsRef<[u8]>,
-        psk: &Psk,
+        psk: Psk,
+        version: NoiseVersion,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
@@ -59,91 +54,254 @@ impl<C> NoiseStream<C> {
         let handshake = Builder::new(pattern.as_noise_params())
             .local_private_key(local_private_key.as_ref())
             .remote_public_key(remote_pub_key.as_ref())
-            .psk(pattern.psk_position(), psk)
+            .psk(pattern.psk_position(), &psk)
             .build_initiator()?;
-        Ok(NoiseStream::new_inner(inner_stream, handshake))
+
+        self.perform_handshake(handshake, version, pattern).await
     }
 
-    pub(crate) fn new_responder(
-        inner_stream: C,
-        pattern: NoisePattern,
-        local_private_key: impl AsRef<[u8]>,
-        psk: &Psk,
+    pub(crate) async fn perform_initiator_handshake(
+        self,
+        config: &NoiseConfig,
+        version: NoiseVersion,
+        remote_pub_key: x25519::PublicKey,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        let handshake = Builder::new(pattern.as_noise_params())
-            .local_private_key(local_private_key.as_ref())
-            .psk(pattern.psk_position(), psk)
-            .build_responder()?;
-        Ok(NoiseStream::new_inner(inner_stream, handshake))
+        let psk = generate_psk(remote_pub_key, version)?;
+
+        let timeout = config.timeout;
+        tokio::time::timeout(
+            timeout,
+            self.perform_initiator_handshake_inner(
+                config.pattern,
+                config.local_key.private_key(),
+                remote_pub_key,
+                psk,
+                version,
+            ),
+        )
+        .await?
     }
 
-    pub(crate) async fn perform_handshake(mut self) -> Result<Self, NoiseError>
+    async fn perform_responder_handshake_inner(
+        mut self,
+        noise_pattern: NoisePattern,
+        local_private_key: impl AsRef<[u8]>,
+        local_pub_key: x25519::PublicKey,
+    ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        //Check if we are in the correct state
-        let Some(mut handshake) = self.handshake.take() else {
-            return Err(NoiseError::IncorrectStateError);
-        };
+        // 1. we read the first message from the initiator to establish noise version and pattern
+        // and determine if we can continue with the handshake
+        let initial_frame = self
+            .inner_stream
+            .next()
+            .await
+            .ok_or(NoiseError::IoError(io::ErrorKind::BrokenPipe.into()))??;
 
-        while !handshake.is_handshake_finished() {
-            if handshake.is_my_turn() {
-                self.send_handshake_msg(&mut handshake)
-                    .await
-                    .inspect_err(|err| println!("send failure: {err}"))?;
-            } else {
-                self.recv_handshake_msg(&mut handshake)
-                    .await
-                    .inspect_err(|err| println!("receive failure: {err}"))?;
-            }
+        if !initial_frame.is_handshake_message() {
+            return Err(NoiseError::NonHandshakeMessageReceived);
         }
 
-        self.noise = Some(handshake.into_transport_mode()?);
-        Ok(self)
+        let pattern = initial_frame.noise_pattern();
+
+        // I can imagine we should be able to handle multiple patterns here, but I guess there's a reason a value is set in the config
+        // but refactoring this shouldn't be too difficult
+        if pattern != noise_pattern {
+            return Err(NoiseError::UnexpectedNoisePattern {
+                configured: noise_pattern.as_str(),
+                received: pattern.as_str(),
+            });
+        }
+
+        // 2. generate psk and handshake state
+        let psk = generate_psk(local_pub_key, initial_frame.header.version)?;
+
+        let mut handshake = Builder::new(pattern.as_noise_params())
+            .local_private_key(local_private_key.as_ref())
+            .psk(pattern.psk_position(), &psk)
+            .build_responder()?;
+
+        // update handshake state with initial frame
+        let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN);
+        handshake.read_message(&initial_frame.data, &mut buf)?;
+
+        // 3. run handshake to completion
+        self.perform_handshake(handshake, initial_frame.version(), pattern)
+            .await
     }
 
-    async fn send_handshake_msg(&mut self, handshake: &mut HandshakeState) -> Result<(), NoiseError>
+    pub(crate) async fn perform_responder_handshake(
+        self,
+        config: &NoiseConfig,
+    ) -> Result<NoiseStream<C>, NoiseError>
+    where
+        C: AsyncRead + AsyncWrite + Unpin,
+    {
+        let timeout = config.timeout;
+        tokio::time::timeout(
+            timeout,
+            self.perform_responder_handshake_inner(
+                config.pattern,
+                config.local_key.private_key(),
+                *config.local_key.public_key(),
+            ),
+        )
+        .await?
+    }
+
+    async fn send_handshake_msg(
+        &mut self,
+        handshake: &mut HandshakeState,
+        version: NoiseVersion,
+        pattern: NoisePattern,
+    ) -> Result<(), NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
         let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN); // we're in the handshake, we can afford a smaller buffer
         let len = handshake.write_message(&[], &mut buf)?;
         buf.truncate(len);
-        self.inner_stream.send(buf.into()).await?;
+
+        let frame = NymNoiseFrame::new_handshake_frame(buf.freeze(), version, pattern)?;
+        self.inner_stream.send(frame).await?;
         Ok(())
     }
 
-    async fn recv_handshake_msg(&mut self, handshake: &mut HandshakeState) -> Result<(), NoiseError>
+    async fn recv_handshake_msg(
+        &mut self,
+        handshake: &mut HandshakeState,
+        version: NoiseVersion,
+        pattern: NoisePattern,
+    ) -> Result<(), NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
         match self.inner_stream.next().await {
-            Some(Ok(msg)) => {
+            Some(Ok(frame)) => {
+                // validate the frame
+                if !frame.is_handshake_message() {
+                    return Err(NoiseError::NonHandshakeMessageReceived);
+                }
+                if frame.version() != version {
+                    return Err(NoiseError::UnexpectedHandshakeVersion {
+                        initial: version,
+                        received: frame.version(),
+                    });
+                }
+                if frame.noise_pattern() != pattern {
+                    return Err(NoiseError::UnexpectedNoisePattern {
+                        configured: pattern.as_str(),
+                        received: frame.noise_pattern().as_str(),
+                    });
+                }
+
                 let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN); // we're in the handshake, we can afford a smaller buffer
-                handshake.read_message(&msg, &mut buf)?;
+                handshake.read_message(&frame.data, &mut buf)?;
                 Ok(())
             }
-            Some(Err(err)) => Err(NoiseError::IoError(err)),
+            Some(Err(err)) => Err(err),
             None => Err(NoiseError::HandshakeError),
+        }
+    }
+
+    async fn perform_handshake(
+        mut self,
+        mut handshake_state: HandshakeState,
+        version: NoiseVersion,
+        pattern: NoisePattern,
+    ) -> Result<NoiseStream<C>, NoiseError>
+    where
+        C: AsyncRead + AsyncWrite + Unpin,
+    {
+        while !handshake_state.is_handshake_finished() {
+            if handshake_state.is_my_turn() {
+                self.send_handshake_msg(&mut handshake_state, version, pattern)
+                    .await?;
+            } else {
+                self.recv_handshake_msg(&mut handshake_state, version, pattern)
+                    .await?;
+            }
+        }
+
+        let transport = handshake_state.into_transport_mode()?;
+        Ok(NoiseStream {
+            inner_stream: self.inner_stream,
+            negotiated_pattern: pattern,
+            negotiated_version: version,
+            transport,
+            dec_buffer: Default::default(),
+        })
+    }
+}
+
+/// Wrapper around a TcpStream
+pub struct NoiseStream<C> {
+    inner_stream: Framed<C, NymNoiseCodec>,
+
+    negotiated_pattern: NoisePattern,
+    negotiated_version: NoiseVersion,
+
+    transport: TransportState,
+    dec_buffer: BytesMut,
+}
+
+impl<C> NoiseStream<C> {
+    fn validate_data_frame(&self, frame: NymNoiseFrame) -> Result<Bytes, NoiseError> {
+        if !frame.is_data_message() {
+            return Err(NoiseError::NonDataMessageReceived);
+        }
+        // validate the frame
+        if !frame.is_data_message() {
+            return Err(NoiseError::NonDataMessageReceived);
+        }
+        if frame.version() != self.negotiated_version {
+            return Err(NoiseError::UnexpectedDataVersion {
+                initial: self.negotiated_version,
+                received: frame.version(),
+            });
+        }
+        if frame.noise_pattern() != self.negotiated_pattern {
+            return Err(NoiseError::UnexpectedNoisePattern {
+                configured: self.negotiated_pattern.as_str(),
+                received: frame.noise_pattern().as_str(),
+            });
+        };
+
+        Ok(frame.data)
+    }
+
+    fn poll_data_frame(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<io::Result<Bytes>>>
+    where
+        C: AsyncRead + AsyncWrite + Unpin,
+    {
+        match ready!(Pin::new(&mut self.inner_stream).poll_next(cx)) {
+            None => Poll::Ready(None),
+            Some(Err(err)) => Poll::Ready(Some(Err(err.naive_to_io_error()))),
+            Some(Ok(frame)) => match self.validate_data_frame(frame) {
+                Err(err) => Poll::Ready(Some(Err(err.naive_to_io_error()))),
+                Ok(data) => Poll::Ready(Some(Ok(data))),
+            },
         }
     }
 }
 
 impl<C> AsyncRead for NoiseStream<C>
 where
-    C: AsyncRead,
+    C: AsyncRead + AsyncWrite + Unpin,
 {
     fn poll_read(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        let projected_self = self.project();
-
-        let pending = match projected_self.inner_stream.poll_next(cx) {
+        let pending = match self.poll_data_frame(cx) {
             Poll::Pending => {
                 //no new data, a return value of Poll::Pending means the waking is already scheduled
                 //Nothing new to decrypt, only check if we can return something from dec_storage, happens after
@@ -153,31 +311,29 @@ where
             Poll::Ready(Some(Ok(noise_msg))) => {
                 // We have a new noise msg
                 let mut dec_msg = BytesMut::zeroed(noise_msg.len() - TAGLEN);
-                let len = match projected_self.noise {
-                    Some(transport_state) => {
-                        match transport_state.read_message(&noise_msg, &mut dec_msg) {
-                            Ok(len) => len,
-                            Err(_) => return Poll::Ready(Err(io::ErrorKind::InvalidInput.into())),
-                        }
-                    }
-                    None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
+
+                let len = match self.transport.read_message(&noise_msg, &mut dec_msg) {
+                    Ok(len) => len,
+                    Err(_) => return Poll::Ready(Err(io::ErrorKind::InvalidInput.into())),
                 };
-                projected_self.dec_buffer.extend(&dec_msg[..len]);
+
+                self.dec_buffer.extend(&dec_msg[..len]);
+
                 false
             }
 
             Poll::Ready(Some(Err(err))) => return Poll::Ready(Err(err)),
 
             Poll::Ready(None) => {
-                //Stream is done, we might still have data in the buffer though, happens afterwards
+                //Stream is done, we might still have data in the buffer though, happens afterward
                 false
             }
         };
 
         // Checking if there is something to return from the buffer
-        let read_len = min(buf.remaining(), projected_self.dec_buffer.len());
+        let read_len = min(buf.remaining(), self.dec_buffer.len());
         if read_len > 0 {
-            buf.put_slice(&projected_self.dec_buffer.split_to(read_len));
+            buf.put_slice(&self.dec_buffer.split_to(read_len));
             return Poll::Ready(Ok(()));
         }
 
@@ -193,59 +349,61 @@ where
 
 impl<C> AsyncWrite for NoiseStream<C>
 where
-    C: AsyncWrite,
+    C: AsyncWrite + Unpin,
 {
     fn poll_write(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
-        let mut projected_self = self.project();
-
         // returns on Poll::Pending and Poll:Ready(Err)
-        ready!(projected_self.inner_stream.as_mut().poll_ready(cx))?;
+        ready!(Pin::new(&mut self.inner_stream).poll_ready(cx))
+            .map_err(|err| err.naive_to_io_error())?;
 
         // Ready to send, encrypting message
         let mut noise_buf = BytesMut::zeroed(buf.len() + TAGLEN);
 
-        let Ok(len) = (match projected_self.noise {
-            Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
-            None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
-        }) else {
+        let Ok(len) = self.transport.write_message(buf, &mut noise_buf) else {
             return Poll::Ready(Err(io::ErrorKind::InvalidInput.into()));
         };
         noise_buf.truncate(len);
 
+        let frame = NymNoiseFrame::new_data_frame(
+            noise_buf.freeze(),
+            self.negotiated_version,
+            self.negotiated_pattern,
+        )
+        .map_err(|err| err.naive_to_io_error())?;
+
         // Tokio uses the same `start_send ` in their SinkWriter implementation. https://docs.rs/tokio-util/latest/src/tokio_util/io/sink_writer.rs.html#104
-        match projected_self
-            .inner_stream
-            .as_mut()
-            .start_send(noise_buf.into())
-        {
+        match Pin::new(&mut self.inner_stream).start_send(frame) {
             Ok(()) => Poll::Ready(Ok(buf.len())),
-            Err(e) => Poll::Ready(Err(e)),
+            Err(e) => Poll::Ready(Err(e.naive_to_io_error())),
         }
     }
 
     fn poll_flush(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().inner_stream.poll_flush(cx)
+        Pin::new(&mut self.inner_stream)
+            .poll_flush(cx)
+            .map_err(|err| err.naive_to_io_error())
     }
 
     fn poll_shutdown(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().inner_stream.poll_close(cx)
+        Pin::new(&mut self.inner_stream)
+            .poll_close(cx)
+            .map_err(|err| err.naive_to_io_error())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generate_psk_v1;
     use nym_crypto::asymmetric::x25519;
     use rand_chacha::rand_core::SeedableRng;
     use std::io::Error;
@@ -277,6 +435,17 @@ mod tests {
 
     struct MockStream {
         inner: MockStreamInner,
+    }
+
+    #[allow(dead_code)]
+    impl MockStream {
+        fn unchecked_tx_data(&self) -> Vec<u8> {
+            self.inner.tx.try_lock().unwrap().data.clone()
+        }
+
+        fn unchecked_rx_data(&self) -> Vec<u8> {
+            self.inner.rx.try_lock().unwrap().data.clone()
+        }
     }
 
     struct MockStreamInner {
@@ -344,7 +513,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn noise_naive_handshake() -> anyhow::Result<()> {
+    async fn noise_handshake() -> anyhow::Result<()> {
         let dummy_seed = [42u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
@@ -353,51 +522,49 @@ mod tests {
 
         let (initiator_stream, responder_stream) = mock_streams();
 
-        let psk = generate_psk_v1(*responder_keys.public_key());
+        let psk = generate_psk(*responder_keys.public_key(), NoiseVersion::V1)?;
+        let pattern = NoisePattern::default();
 
-        let stream_initiator = NoiseStream::new_initiator(
-            initiator_stream,
-            NoisePattern::default(),
-            initiator_keys.private_key(),
-            responder_keys.public_key(),
-            &psk,
-        )?;
+        let stream_initiator = NoiseStreamBuilder::new(initiator_stream)
+            .perform_initiator_handshake_inner(
+                pattern,
+                initiator_keys.private_key().to_bytes(),
+                responder_keys.public_key().to_bytes(),
+                psk,
+                NoiseVersion::V1,
+            );
 
-        let stream_responder = NoiseStream::new_responder(
-            responder_stream,
-            NoisePattern::default(),
-            responder_keys.private_key(),
-            &psk,
-        )?;
+        let stream_responder = NoiseStreamBuilder::new(responder_stream)
+            .perform_responder_handshake_inner(
+                pattern,
+                responder_keys.private_key().to_bytes(),
+                *responder_keys.public_key(),
+            );
 
         let initiator_fut =
-            tokio::spawn(async move { stream_initiator.perform_handshake().await.unwrap() });
+            tokio::spawn(
+                async move { timeout(Duration::from_millis(200), stream_initiator).await },
+            );
         let responder_fut =
-            tokio::spawn(async move { stream_responder.perform_handshake().await.unwrap() });
+            tokio::spawn(
+                async move { timeout(Duration::from_millis(200), stream_responder).await },
+            );
 
         let (initiator, responder) = join!(initiator_fut, responder_fut);
 
-        let mut initiator = initiator?;
-        let mut responder = responder?;
+        let mut initiator = initiator???;
+        let mut responder = responder???;
 
         let msg = b"hello there";
         // if noise was successful we should be able to write a proper message across
-        timeout(Duration::from_millis(100), initiator.write_all(msg)).await??;
+        timeout(Duration::from_millis(200), initiator.write_all(msg)).await??;
 
         initiator.inner_stream.flush().await?;
 
-        let inner_buf = initiator
-            .inner_stream
-            .get_mut()
-            .inner
-            .tx
-            .lock()
-            .await
-            .data
-            .clone();
+        let inner_buf = initiator.inner_stream.get_ref().unchecked_tx_data();
 
         let mut buf = [0u8; 11];
-        timeout(Duration::from_millis(100), responder.read(&mut buf)).await??;
+        timeout(Duration::from_millis(200), responder.read(&mut buf)).await??;
 
         assert_eq!(&buf[..], msg);
 

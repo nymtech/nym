@@ -15,7 +15,7 @@ use snow::params::NoiseParams;
 
 use strum::{EnumIter, FromRepr};
 
-#[derive(Default, Debug, Clone, Copy, EnumIter, FromRepr)]
+#[derive(Default, Debug, Clone, Copy, EnumIter, FromRepr, Eq, PartialEq)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum NoisePattern {
@@ -81,7 +81,7 @@ impl NoiseNetworkView {
     pub fn swap_view(&self, new: HashMap<SocketAddr, VersionedNoiseKey>) {
         let noise_support = new
             .iter()
-            .map(|(s_addr, key)| (s_addr.ip(), key.version))
+            .map(|(s_addr, key)| (s_addr.ip(), key.supported_version))
             .collect::<HashMap<_, _>>();
         self.keys.inner.store(Arc::new(new));
         self.support.inner.store(Arc::new(noise_support));

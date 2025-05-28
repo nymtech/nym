@@ -3,6 +3,7 @@ import StakingScaleFactor from 'components/outputs/api-scraping-outputs/nyx-outp
 import StakeSaturation from 'components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md';
 import CirculatingSupply from 'components/outputs/api-scraping-outputs/nyx-outputs/circulating-supply.md';
 import { Callout } from 'nextra/components';
+import StakingSupply from 'components/outputs/api-scraping-outputs/nyx-outputs/staking_supply.md';
  
 Stake saturation is a node reputation done in a form of self bond or stakers delegation. Optimal stake saturation level is calculated as:
 
@@ -12,7 +13,11 @@ Stake saturation is a node reputation done in a form of self bond or stakers del
 > **rewarded_set_size = active_set_size + standby_set_size**
 </Callout>
 
+{/*
 With current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM, staking target of <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM, divided by the sum of nodes in the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params), <b>the stake saturation level is <span style={{display: 'inline-block'}}><StakeSaturation /></span> NYM per node.</b> 
+*/}
+
+With current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM, staking target of <span style={{display: 'inline-block'}}><StakingSupply /></span> NYM, divided by the sum of nodes in the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params), <b>the stake saturation level is <span style={{display: 'inline-block'}}><StakeSaturation /></span> NYM per node.</b> 
 
 Node stake saturation is a value between `0` and `1` following this logic.
 

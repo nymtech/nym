@@ -23,7 +23,7 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_client_core::config::{DebugConfig, ForgetMe, StatsReporting};
+use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::setup_gateway;
@@ -65,6 +65,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
 
     storage: S,
     forget_me: ForgetMe,
+    remember_me: RememberMe,
     derivation_material: Option<DerivationMaterial>,
 }
 
@@ -103,6 +104,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             #[cfg(unix)]
             connection_fd_callback: None,
             forget_me: Default::default(),
+            remember_me: Default::default(),
             derivation_material: None,
         })
     }
@@ -136,6 +138,7 @@ where
             gateway_endpoint_config_path: None,
             storage,
             forget_me: Default::default(),
+            remember_me: Default::default(),
             derivation_material: None,
         }
     }
@@ -158,6 +161,7 @@ where
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
             forget_me: self.forget_me,
+            remember_me: self.remember_me,
             derivation_material: self.derivation_material,
         }
     }
@@ -180,6 +184,12 @@ where
     #[must_use]
     pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
         self.forget_me = forget_me;
+        self
+    }
+
+    #[must_use]
+    pub fn with_remember_me(mut self, remember_me: RememberMe) -> Self {
+        self.remember_me = remember_me;
         self
     }
 
@@ -323,6 +333,7 @@ where
             client.connection_fd_callback = self.connection_fd_callback;
         }
         client.forget_me = self.forget_me;
+        client.remember_me = self.remember_me;
         client.derivation_material = self.derivation_material;
         Ok(client)
     }
@@ -379,6 +390,8 @@ where
 
     forget_me: ForgetMe,
 
+    remember_me: RememberMe,
+
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
 }
@@ -419,6 +432,7 @@ where
         };
 
         let forget_me = config.debug_config.forget_me;
+        let remember_me = config.debug_config.remember_me;
 
         Ok(DisconnectedMixnetClient {
             config,
@@ -435,6 +449,7 @@ where
             #[cfg(unix)]
             connection_fd_callback: None,
             forget_me,
+            remember_me,
             derivation_material: None,
         })
     }
@@ -662,6 +677,7 @@ where
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me)
+                .with_remember_me(&self.remember_me)
                 .with_derivation_material(self.derivation_material);
 
         if let Some(user_agent) = self.user_agent {
@@ -821,6 +837,7 @@ where
             None,
             started_client.client_request_sender,
             started_client.forget_me,
+            started_client.remember_me,
         ))
     }
 }

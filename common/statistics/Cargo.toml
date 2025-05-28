@@ -20,6 +20,7 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 si-scale = { workspace = true }
+strum = { workspace = true }
 
 nym-crypto = { path = "../crypto" }
 nym-sphinx = { path = "../nymsphinx" }

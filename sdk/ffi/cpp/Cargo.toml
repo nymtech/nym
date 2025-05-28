@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 tokio = { workspace = true, features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
 nym-sdk = { path = "../../rust/nym-sdk/" }
-nym-bin-common = { path = "../../../common/bin-common" }
+nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
 nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 nym-ffi-shared = { path = "../shared" }
 lazy_static = { workspace = true }

@@ -70,6 +70,10 @@ impl NymApiTopologyProvider {
         }
     }
 
+    pub fn disable_bincode(&mut self) {
+        self.validator_client.use_bincode = false;
+    }
+
     fn use_next_nym_api(&mut self) {
         if self.nym_api_urls.len() == 1 {
             warn!("There's only a single nym API available - it won't be possible to use a different one");
@@ -82,20 +86,13 @@ impl NymApiTopologyProvider {
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
-        let rewarded_set = self
-            .validator_client
-            .get_current_rewarded_set()
-            .await
-            .inspect_err(|err| error!("failed to get current rewarded set: {err}"))
-            .ok()?;
+        let rewarded_set_fut = self.validator_client.get_current_rewarded_set();
 
-        let mut topology = NymTopology::new_empty(rewarded_set);
+        let topology = if self.config.use_extended_topology {
+            let all_nodes_fut = self.validator_client.get_all_basic_nodes();
 
-        if self.config.use_extended_topology {
-            let all_nodes = self
-                .validator_client
-                .get_all_basic_nodes()
-                .await
+            // Join rewarded_set_fut and all_nodes_fut concurrently
+            let (rewarded_set, all_nodes) = futures::try_join!(rewarded_set_fut, all_nodes_fut)
                 .inspect_err(|err| error!("failed to get network nodes: {err}"))
                 .ok()?;
 
@@ -103,26 +100,28 @@ impl NymApiTopologyProvider {
                 "there are {} nodes on the network (before filtering)",
                 all_nodes.len()
             );
+            let mut topology = NymTopology::new_empty(rewarded_set);
             topology.add_additional_nodes(all_nodes.iter().filter(|n| {
                 n.performance.round_to_integer() >= self.config.min_node_performance()
             }));
+
+            topology
         } else {
             // if we're not using extended topology, we're only getting active set mixnodes and gateways
 
-            let mixnodes = self
+            let mixnodes_fut = self
                 .validator_client
-                .get_all_basic_active_mixing_assigned_nodes()
-                .await
-                .inspect_err(|err| error!("failed to get network mixnodes: {err}"))
-                .ok()?;
+                .get_all_basic_active_mixing_assigned_nodes();
 
             // TODO: we really should be getting ACTIVE gateways only
-            let gateways = self
-                .validator_client
-                .get_all_basic_entry_assigned_nodes()
-                .await
-                .inspect_err(|err| error!("failed to get network gateways: {err}"))
-                .ok()?;
+            let gateways_fut = self.validator_client.get_all_basic_entry_assigned_nodes();
+
+            let (rewarded_set, mixnodes, gateways) =
+                futures::try_join!(rewarded_set_fut, mixnodes_fut, gateways_fut)
+                    .inspect_err(|err| {
+                        error!("failed to get network nodes: {err}");
+                    })
+                    .ok()?;
 
             debug!(
                 "there are {} mixnodes and {} gateways in total (before performance filtering)",
@@ -130,12 +129,15 @@ impl NymApiTopologyProvider {
                 gateways.len()
             );
 
+            let mut topology = NymTopology::new_empty(rewarded_set);
             topology.add_additional_nodes(mixnodes.iter().filter(|m| {
                 m.performance.round_to_integer() >= self.config.min_mixnode_performance
             }));
             topology.add_additional_nodes(gateways.iter().filter(|m| {
                 m.performance.round_to_integer() >= self.config.min_gateway_performance
             }));
+
+            topology
         };
 
         if !topology.is_minimally_routable() {

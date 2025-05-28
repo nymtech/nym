@@ -9,7 +9,7 @@ use nym_validator_client::{
 };
 use time::OffsetDateTime;
 
-use nym_node_metrics::entry::SessionType;
+use nym_statistics_common::types::SessionType;
 use std::collections::HashMap;
 use tokio::time::Duration;
 use tracing::instrument;
@@ -62,7 +62,7 @@ async fn run(
         .with_timeout(nym_api_client_timeout)
         .build::<&str>()?;
 
-    let api_client = NymApiClient { nym_api };
+    let api_client = NymApiClient::from(nym_api);
 
     //SW TBC what nodes exactly need to be scraped, the skimmed node endpoint seems to return more nodes
     let bonded_nodes = api_client.get_all_bonded_nym_nodes().await?;

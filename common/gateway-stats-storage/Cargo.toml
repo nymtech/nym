@@ -22,7 +22,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 nym-sphinx = { path = "../nymsphinx" }
-nym-credentials-interface = { path = "../credentials-interface" }
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 nym-statistics-common = { path = "../statistics" }
 

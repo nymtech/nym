@@ -123,7 +123,6 @@ members = [
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "tools/echo-server",
-    "tools/echo-server",
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/mixnet-connectivity-check",
@@ -161,12 +160,7 @@ default-members = [
     "tools/nymvisor",
 ]
 
-exclude = [
-    "explorer",
-    "contracts",
-    "nym-wallet",
-    "cpu-cycles",
-]
+exclude = ["explorer", "contracts", "nym-wallet", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
@@ -209,9 +203,9 @@ celes = "2.6.0"
 cfg-if = "1.0.0"
 chacha20 = "0.9.0"
 chacha20poly1305 = "0.10.1"
-chrono = "0.4.40"
+chrono = "0.4.41"
 cipher = "0.4.3"
-clap = "4.5.37"
+clap = "4.5.38"
 clap_complete = "4.5"
 clap_complete_fig = "4.5"
 colored = "2.2"
@@ -286,7 +280,6 @@ pem = "0.8"
 petgraph = "0.6.5"
 pin-project = "1.1"
 pin-project-lite = "0.2.16"
-pretty_env_logger = "0.4.0"
 publicsuffix = "2.3.0"
 quote = "1"
 rand = "0.8.5"
@@ -310,7 +303,7 @@ serde_json_path = "0.7.2"
 serde_repr = "0.1"
 serde_with = "3.9.0"
 serde_yaml = "0.9.25"
-sha2 = "0.10.8"
+sha2 = "0.10.9"
 si-scale = "0.2.3"
 sphinx-packet = "=0.6.0"
 sqlx = "0.7.4"
@@ -330,8 +323,8 @@ tokio-stream = "0.1.17"
 tokio-test = "0.4.4"
 tokio-tun = "0.11.5"
 tokio-tungstenite = { version = "0.20.1" }
-tokio-util = "0.7.14"
-toml = "0.8.20"
+tokio-util = "0.7.15"
+toml = "0.8.22"
 tower = "0.5.2"
 tower-http = "0.5.2"
 tracing = "0.1.41"
@@ -342,7 +335,7 @@ tracing-tree = "0.2.2"
 tracing-indicatif = "0.3.9"
 ts-rs = "10.1.0"
 tungstenite = { version = "0.20.1", default-features = false }
-uniffi = "0.29.1"
+uniffi = "0.29.2"
 uniffi_build = "0.29.0"
 url = "2.5"
 utoipa = "5.2"
@@ -355,7 +348,7 @@ wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
 
-prometheus = { version = "0.13.0" }
+prometheus = { version = "0.14.0" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
@@ -385,15 +378,15 @@ bip32 = { version = "0.5.3", default-features = false }
 
 
 cosmrs = { version = "0.21.1" }
-tendermint = "0.40.3"
-tendermint-rpc = "0.40.3"
+tendermint = "0.40.4"
+tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"
 gloo-net = "0.6.0"
 
-indexed_db_futures = "0.6.1"
+indexed_db_futures = "0.6.4"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"

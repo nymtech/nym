@@ -21,6 +21,8 @@ python api_targets.py validator --api mainnet --endpoint epoch/reward_params --v
 
 python api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval stake_saturation_point --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/stake-saturation.md &&
 
+python api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval staking_supply --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking_supply.md &&
+
 python api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval epoch_reward_budget --format markdown --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md &&
 
 python api_targets.py time_now > ../../docs/components/outputs/api-scraping-outputs/time-now.md &&

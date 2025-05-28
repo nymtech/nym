@@ -5,6 +5,7 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_config::serde_helpers::{de_maybe_stringified, ser_maybe_stringified};
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
+use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -22,7 +23,7 @@ const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
 const DEFAULT_ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(20);
-const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
+const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
 const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // every 5min
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
 
@@ -375,14 +376,12 @@ pub struct Traffic {
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    #[serde(with = "humantime_serde")]
     pub message_sending_average_delay: Duration,
 
     /// Controls whether the main packet stream constantly produces packets according to the predefined
@@ -718,6 +717,9 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to the forget me flag.
     pub forget_me: ForgetMe,
+
+    /// Defines all configuration options related to the remember me flag.
+    pub remember_me: RememberMe,
 }
 
 impl DebugConfig {
@@ -741,6 +743,7 @@ impl Default for DebugConfig {
             reply_surbs: Default::default(),
             stats_reporting: Default::default(),
             forget_me: Default::default(),
+            remember_me: Default::default(),
         }
     }
 }
@@ -804,5 +807,59 @@ impl ForgetMe {
             client: false,
             stats: false,
         }
+    }
+}
+
+#[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
+pub struct RememberMe {
+    /// Signal that this client should be accounted for in the stats
+    stats: bool,
+
+    /// Type of the session to remember, if it should be remembered
+    session_type: SessionType,
+}
+
+impl RememberMe {
+    pub fn new_vpn() -> Self {
+        Self {
+            stats: true,
+            session_type: SessionType::Vpn,
+        }
+    }
+
+    pub fn new_mixnet() -> Self {
+        Self {
+            stats: true,
+            session_type: SessionType::Mixnet,
+        }
+    }
+
+    pub fn new_native() -> Self {
+        Self {
+            stats: true,
+            session_type: SessionType::Native,
+        }
+    }
+
+    pub fn new(stats: bool, session_type: SessionType) -> Self {
+        Self {
+            stats,
+            session_type,
+        }
+    }
+
+    pub fn new_none() -> Self {
+        Self {
+            stats: false,
+            session_type: SessionType::Unknown,
+        }
+    }
+
+    pub fn session_type(&self) -> SessionType {
+        self.session_type
+    }
+
+    pub fn stats(&self) -> bool {
+        self.stats
     }
 }

@@ -8,7 +8,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use nym_bin_common::logging::setup_logging;
+use nym_bin_common::logging::setup_tracing_logger;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, Params, StoreCipher, Version, ARGON2_SALT_SIZE,
     CURRENT_VERSION,
@@ -52,7 +52,7 @@ enum ParseMode {
 }
 
 fn main() -> Result<()> {
-    setup_logging();
+    setup_tracing_logger();
     let args = Args::parse();
     let file = File::open(args.file)?;
     let parse = if args.raw {

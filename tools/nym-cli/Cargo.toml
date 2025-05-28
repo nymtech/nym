@@ -1,6 +1,6 @@
 [package]
 name = "nym-cli"
-version = "1.1.55"
+version = "1.1.56"
 authors.workspace = true
 edition = "2021"
 license.workspace = true
@@ -14,7 +14,6 @@ clap_complete_fig = { workspace = true }
 dotenvy = { workspace = true }
 inquire = { workspace = true }
 log = { workspace = true }
-pretty_env_logger = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt-multi-thread", "macros", "signal"] }
@@ -23,7 +22,7 @@ anyhow = { workspace = true }
 tap = { workspace = true }
 
 nym-cli-commands = { path = "../../common/commands" }
-nym-bin-common = { path = "../../common/bin-common"}
+nym-bin-common = { path = "../../common/bin-common", features = ["basic_tracing"] }
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["http-client"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 

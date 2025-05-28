@@ -157,6 +157,12 @@ impl TopologyRefresher {
             let mut interval =
                 gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
 
+            // We already have an initial topology, so no need to refresh it immediately.
+            // My understanding is that js setInterval does not fire immediately, so it's not
+            // needed there.
+            #[cfg(not(target_arch = "wasm32"))]
+            interval.next().await;
+
             while !self.task_client.is_shutdown() {
                 tokio::select! {
                     _ = interval.next() => {

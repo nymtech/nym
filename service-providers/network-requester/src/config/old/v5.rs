@@ -3,10 +3,9 @@
 
 use crate::config::persistence::old::v3::NetworkRequesterPathsV3;
 use crate::config::persistence::NetworkRequesterPaths;
-use crate::config::Config;
 use crate::config::{default_config_filepath, Debug, NetworkRequester};
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::Config as BaseClientConfig;
+use nym_client_core::config::old_config_v1_1_54::ConfigV1_1_54 as BaseConfigV1_1_54;
 use nym_config::read_config_from_toml_file;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_network_defaults::mainnet;
@@ -15,6 +14,8 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 use url::Url;
+
+use super::v6::ConfigV6;
 
 pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
@@ -27,7 +28,7 @@ pub struct ConfigV5 {
     // and then just make type alias for the current one, i.e. `type Config = ConfigV2`.
     // then in 'old' configs we could simply use the underlying type as opposed to the alias for easier upgrades.
     #[serde(flatten)]
-    pub base: BaseClientConfig,
+    pub base: BaseConfigV1_1_54,
 
     #[serde(default)]
     pub network_requester: NetworkRequesterV5,
@@ -51,10 +52,10 @@ impl ConfigV5 {
     }
 }
 
-impl From<ConfigV5> for Config {
+impl From<ConfigV5> for ConfigV6 {
     fn from(value: ConfigV5) -> Self {
-        Config {
-            base: value.base,
+        ConfigV6 {
+            base: value.base.into(),
             network_requester: value.network_requester.into(),
             storage_paths: NetworkRequesterPaths {
                 common_paths: value.storage_paths.common_paths,

@@ -8,7 +8,6 @@ use crate::nym_nodes::handlers::unstable::{NodesParams, NodesParamsWithRole};
 use crate::support::caching::Cache;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
-use axum::Json;
 use nym_api_requests::models::{
     NodeAnnotation, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
 };
@@ -16,15 +15,18 @@ use nym_api_requests::nym_nodes::{
     CachedNodesResponse, NodeRole, NodeRoleQueryParam, PaginatedCachedNodesResponse, SkimmedNode,
 };
 use nym_api_requests::pagination::PaginatedResponse;
+use nym_http_api_common::{FormattedResponse, Output};
 use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::future::Future;
+use std::time::Duration;
 use tokio::sync::RwLockReadGuard;
 use tracing::trace;
 use utoipa::ToSchema;
 
-pub type PaginatedSkimmedNodes = AxumResult<Json<PaginatedCachedNodesResponse<SkimmedNode>>>;
+pub type PaginatedSkimmedNodes =
+    AxumResult<FormattedResponse<PaginatedCachedNodesResponse<SkimmedNode>>>;
 
 /// Given all relevant caches, build part of response for JUST Nym Nodes
 fn build_nym_nodes_response<'a, NI>(
@@ -97,6 +99,7 @@ async fn build_skimmed_nodes_response<'a, NI, LG, Fut, LN>(
     nym_nodes_subset: NI,
     annotated_legacy_nodes_getter: LG,
     active_only: bool,
+    output: Output,
 ) -> PaginatedSkimmedNodes
 where
     // iterator returning relevant subset of nym-nodes (like mixing nym-nodes, entries, etc.)
@@ -124,18 +127,20 @@ where
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
     let describe_cache = state.describe_nodes_cache_data().await?;
 
-    let maybe_interval = state
+    let Some(interval) = state
         .nym_contract_cache()
         .current_interval()
         .await
-        .to_owned();
+        .to_owned()
+    else {
+        // if we can't obtain interval information, it means caches are not valid
+        return Err(AxumErrorResponse::service_unavailable());
+    };
 
     // 4.0 If the client indicates that they already know about the current topology send empty response
     if let Some(client_known_epoch) = query_params.epoch_id {
-        if let Some(ref interval) = maybe_interval {
-            if client_known_epoch == interval.current_epoch_id() {
-                return Ok(Json(PaginatedCachedNodesResponse::no_updates()));
-            }
+        if client_known_epoch == interval.current_epoch_id() {
+            return Ok(output.to_response(PaginatedCachedNodesResponse::no_updates()));
         }
     }
 
@@ -152,8 +157,8 @@ where
             describe_cache.timestamp(),
         ]);
 
-        return Ok(Json(
-            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
+        return Ok(output.to_response(
+            PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(Some(interval)),
         ));
     }
 
@@ -176,9 +181,19 @@ where
         annotated_legacy_nodes.timestamp(),
     ]);
 
-    Ok(Json(
-        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(maybe_interval),
-    ))
+    let base_response = output.to_response(
+        PaginatedCachedNodesResponse::new_full(refreshed_at, nodes).fresh(Some(interval)),
+    );
+
+    if !active_only {
+        return Ok(base_response);
+    }
+
+    // if caller requested only active nodes, the response is valid until the epoch changes
+    // (but add 2 minutes due to epoch transition not being instantaneous
+    let epoch_end = interval.current_epoch_end();
+    let expiration = epoch_end + Duration::from_secs(120);
+    Ok(base_response.with_expires_header(expiration))
 }
 
 /// Deprecated query that gets ALL gateways
@@ -189,22 +204,30 @@ where
     path = "/gateways/skimmed",
     context_path = "/v1/unstable/nym-nodes",
     responses(
-        (status = 200, body = CachedNodesResponse<SkimmedNode>)
-    )
+        (status = 200, content(
+            (CachedNodesResponse<SkimmedNode> = "application/json"),
+            (CachedNodesResponse<SkimmedNode> = "application/yaml"),
+            (CachedNodesResponse<SkimmedNode> = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated(note = "use '/v1/unstable/nym-nodes/entry-gateways/skimmed/all' instead")]
 pub(super) async fn deprecated_gateways_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
-) -> AxumResult<Json<CachedNodesResponse<SkimmedNode>>> {
+) -> AxumResult<FormattedResponse<CachedNodesResponse<SkimmedNode>>> {
+    let output = query_params.output.unwrap_or_default();
+
     // 1. call '/v1/unstable/skimmed/entry-gateways/all'
-    let all_gateways = entry_gateways_basic_all(state, query_params).await?;
+    let all_gateways = entry_gateways_basic_all(state, query_params)
+        .await?
+        .into_inner();
 
     // 3. return result
-    Ok(Json(CachedNodesResponse {
+    Ok(output.to_response(CachedNodesResponse {
         refreshed_at: all_gateways.refreshed_at,
         // 2. remove pagination
-        nodes: all_gateways.0.nodes.data,
+        nodes: all_gateways.nodes.data,
     }))
 }
 
@@ -216,30 +239,40 @@ pub(super) async fn deprecated_gateways_basic(
     path = "/mixnodes/skimmed",
     context_path = "/v1/unstable/nym-nodes",
     responses(
-        (status = 200, body = CachedNodesResponse<SkimmedNode>)
-    )
+        (status = 200, content(
+            (CachedNodesResponse<SkimmedNode> = "application/json"),
+            (CachedNodesResponse<SkimmedNode> = "application/yaml"),
+            (CachedNodesResponse<SkimmedNode> = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated(note = "use '/v1/unstable/nym-nodes/skimmed/mixnodes/active' instead")]
 pub(super) async fn deprecated_mixnodes_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
-) -> AxumResult<Json<CachedNodesResponse<SkimmedNode>>> {
+) -> AxumResult<FormattedResponse<CachedNodesResponse<SkimmedNode>>> {
+    let output = query_params.output.unwrap_or_default();
+
     // 1. call '/v1/unstable/nym-nodes/skimmed/mixnodes/active'
-    let active_mixnodes = mixnodes_basic_active(state, query_params).await?;
+    let active_mixnodes = mixnodes_basic_active(state, query_params)
+        .await?
+        .into_inner();
 
     // 3. return result
-    Ok(Json(CachedNodesResponse {
+    Ok(output.to_response(CachedNodesResponse {
         refreshed_at: active_mixnodes.refreshed_at,
         // 2. remove pagination
-        nodes: active_mixnodes.0.nodes.data,
+        nodes: active_mixnodes.nodes.data,
     }))
 }
 
 async fn nodes_basic(
     state: State<AppState>,
-    Query(_query_params): Query<NodesParams>,
+    Query(query_params): Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
+    let output = query_params.output.unwrap_or_default();
+
     // unfortunately we have to build the response semi-manually here as we need to add two sources of legacy nodes
 
     // 1. grab all relevant described nym-nodes
@@ -281,10 +314,7 @@ async fn nodes_basic(
         legacy_gateways.timestamp(),
     ]);
 
-    Ok(Json(PaginatedCachedNodesResponse::new_full(
-        refreshed_at,
-        nodes,
-    )))
+    Ok(output.to_response(PaginatedCachedNodesResponse::new_full(refreshed_at, nodes)))
 }
 
 #[allow(dead_code)] // not dead, used in OpenAPI docs
@@ -305,8 +335,12 @@ pub struct PaginatedCachedNodesResponseSchema {
     path = "",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn nodes_basic_all(
     state: State<AppState>,
@@ -338,8 +372,12 @@ pub(super) async fn nodes_basic_all(
     path = "/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn nodes_basic_active(
     state: State<AppState>,
@@ -367,6 +405,8 @@ async fn mixnodes_basic(
     query_params: Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
+    let output = query_params.output.unwrap_or_default();
+
     // 1. grab all relevant described nym-nodes
     let describe_cache = state.describe_nodes_cache_data().await?;
     let mixing_nym_nodes = describe_cache.mixing_nym_nodes();
@@ -377,6 +417,7 @@ async fn mixnodes_basic(
         mixing_nym_nodes,
         |state| state.legacy_mixnode_annotations(),
         active_only,
+        output,
     )
     .await
 }
@@ -390,8 +431,12 @@ async fn mixnodes_basic(
     path = "/mixnodes/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn mixnodes_basic_all(
     state: State<AppState>,
@@ -409,8 +454,12 @@ pub(super) async fn mixnodes_basic_all(
     path = "/mixnodes/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn mixnodes_basic_active(
     state: State<AppState>,
@@ -424,6 +473,8 @@ async fn entry_gateways_basic(
     query_params: Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
+    let output = query_params.output.unwrap_or_default();
+
     // 1. grab all relevant described nym-nodes
     let describe_cache = state.describe_nodes_cache_data().await?;
     let mixing_nym_nodes = describe_cache.entry_capable_nym_nodes();
@@ -434,6 +485,7 @@ async fn entry_gateways_basic(
         mixing_nym_nodes,
         |state| state.legacy_gateways_annotations(),
         active_only,
+        output,
     )
     .await
 }
@@ -447,8 +499,12 @@ async fn entry_gateways_basic(
     path = "/entry-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn entry_gateways_basic_active(
     state: State<AppState>,
@@ -466,8 +522,12 @@ pub(super) async fn entry_gateways_basic_active(
     path = "/entry-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn entry_gateways_basic_all(
     state: State<AppState>,
@@ -481,6 +541,8 @@ async fn exit_gateways_basic(
     query_params: Query<NodesParams>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
+    let output = query_params.output.unwrap_or_default();
+
     // 1. grab all relevant described nym-nodes
     let describe_cache = state.describe_nodes_cache_data().await?;
     let mixing_nym_nodes = describe_cache.exit_capable_nym_nodes();
@@ -491,6 +553,7 @@ async fn exit_gateways_basic(
         mixing_nym_nodes,
         |state| state.legacy_gateways_annotations(),
         active_only,
+        output,
     )
     .await
 }
@@ -504,8 +567,12 @@ async fn exit_gateways_basic(
     path = "/exit-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn exit_gateways_basic_active(
     state: State<AppState>,
@@ -523,8 +590,12 @@ pub(super) async fn exit_gateways_basic_active(
     path = "/exit-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
-        (status = 200, body = PaginatedCachedNodesResponseSchema)
-    )
+        (status = 200, content(
+            (PaginatedCachedNodesResponseSchema = "application/json"),
+            (PaginatedCachedNodesResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesResponseSchema = "application/bincode")
+        ))
+    ),
 )]
 pub(super) async fn exit_gateways_basic_all(
     state: State<AppState>,

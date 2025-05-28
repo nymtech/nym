@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::persistence::ClientPaths;
-use crate::client::config::{default_config_filepath, Config, Socket, SocketType};
+use crate::client::config::{default_config_filepath, Socket, SocketType};
 use crate::error::ClientError;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;
@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
+
+use super::old_config_v1_1_54::ConfigV1_1_54;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct ClientPathsV1_1_33 {
@@ -33,6 +35,21 @@ pub struct ConfigV1_1_33 {
     pub logging: LoggingSettings,
 }
 
+impl TryFrom<ConfigV1_1_33> for ConfigV1_1_54 {
+    type Error = ClientError;
+
+    fn try_from(value: ConfigV1_1_33) -> Result<Self, Self::Error> {
+        Ok(ConfigV1_1_54 {
+            base: value.base.into(),
+            socket: value.socket.into(),
+            storage_paths: ClientPaths {
+                common_paths: value.storage_paths.common_paths.upgrade_default()?,
+            },
+            logging: value.logging,
+        })
+    }
+}
+
 impl ConfigV1_1_33 {
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         read_config_from_toml_file(path)
@@ -40,17 +57,6 @@ impl ConfigV1_1_33 {
 
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
         Self::read_from_toml_file(default_config_filepath(id))
-    }
-
-    pub fn try_upgrade(self) -> Result<Config, ClientError> {
-        Ok(Config {
-            base: self.base.into(),
-            socket: self.socket.into(),
-            storage_paths: ClientPaths {
-                common_paths: self.storage_paths.common_paths.upgrade_default()?,
-            },
-            logging: self.logging,
-        })
     }
 }
 

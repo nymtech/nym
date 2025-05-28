@@ -3,8 +3,9 @@
 
 use error::StatsStorageError;
 use models::StoredFinishedSession;
-use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
+use nym_node_metrics::entry::{ActiveSession, FinishedSession};
 use nym_sphinx::DestinationAddressBytes;
+use nym_statistics_common::types::SessionType;
 use sessions::SessionManager;
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
@@ -144,6 +145,16 @@ impl PersistentStatsStorage {
                 session.start,
                 session.typ.to_string(),
             )
+            .await?)
+    }
+
+    pub async fn remember_active_session(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StatsStorageError> {
+        Ok(self
+            .session_manager
+            .remember_active_session(client_address.as_base58_string())
             .await?)
     }
 

@@ -110,7 +110,7 @@ impl Monitor {
             .with_timeout(self.nym_api_client_timeout)
             .build::<&str>()?;
 
-        let api_client = NymApiClient { nym_api };
+        let api_client = NymApiClient::from(nym_api);
 
         let described_nodes = api_client
             .get_all_described_nodes()
@@ -195,7 +195,7 @@ impl Monitor {
         tracing::info!("🟣 mixnodes_described: {}", mixnodes_described.len());
         let mixing_assigned_nodes = api_client
             .nym_api
-            .get_basic_active_mixing_assigned_nodes(false, None, None)
+            .get_basic_active_mixing_assigned_nodes(false, None, None, false)
             .await
             .log_error("get_basic_active_mixing_assigned_nodes")?
             .nodes

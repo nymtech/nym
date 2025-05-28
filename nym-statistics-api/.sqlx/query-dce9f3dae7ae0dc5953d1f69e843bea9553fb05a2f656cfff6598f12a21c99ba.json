@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO connection_stats (\n                received_at,\n                connection_time_ms,\n                two_hop,\n                source_ip,\n                country_code,\n                from_mixnet) VALUES ($1::timestamptz, $2, $3, $4, $5, $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int4",
+        "Bool",
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dce9f3dae7ae0dc5953d1f69e843bea9553fb05a2f656cfff6598f12a21c99ba"
+}

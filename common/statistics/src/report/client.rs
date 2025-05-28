@@ -6,7 +6,7 @@ use crate::clients::{
     nym_api_statistics::NymApiStats, packet_statistics::PacketStatistics,
 };
 
-use super::error::StatsError;
+use crate::error::StatsError;
 
 use serde::{Deserialize, Serialize};
 use sysinfo::System;

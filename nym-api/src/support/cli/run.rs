@@ -102,6 +102,15 @@ pub(crate) struct Args {
     #[clap(long)]
     pub(crate) bind_address: Option<SocketAddr>,
 
+    /// account/address cache TTL: should be lower than epoch length (1 hour)
+    /// because, at worst, data will be stale for <epoch_length> + <cache_ttl> seconds
+    #[clap(long, env = "ADDRESS_CACHE_REFRESH_INTERVAL_S")]
+    pub(crate) address_cache_ttl_seconds: Option<u64>,
+
+    /// number of addresses that are cached on account/address endpoint
+    #[clap(long, env = "ADDRESS_CACHE_CAPACITY")]
+    pub(crate) address_cache_capacity: Option<u64>,
+
     #[clap(hide = true, long, default_value_t = false)]
     pub(crate) allow_illegal_ips: bool,
 }
@@ -194,7 +203,10 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     let router = router.with_state(AppState {
         nyxd_client: nyxd_client.clone(),
         chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-        address_info_cache: AddressInfoCache::new(),
+        address_info_cache: AddressInfoCache::new(
+            config.address_cache.time_to_live,
+            config.address_cache.capacity,
+        ),
         forced_refresh: ForcedRefresh::new(
             config.topology_cacher.debug.node_describe_allow_illegal_ips,
         ),

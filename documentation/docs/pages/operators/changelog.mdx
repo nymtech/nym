@@ -47,6 +47,98 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.10-brie`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.10-brie)
+- [`nym-node`](nodes/nym-node.mdx) version `1.12.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-05-27T10:13:18.511075453Z
+Build Version:      1.12.0
+Commit SHA:         1c6db86259d08d80e8bcfbc4fcc71ccb147fcfd0
+Commit Date:        2025-05-27T12:11:13.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--calculation): A quick app to calculate rewards for any node included in the Mixnet active set
+- **Backup your nodes**: Stark Industries Solutions and its subsidy PQ.Hosting were added to EU's sanction list. Everyone running a node on PQ or Stark in Europe should get additional service free of charge and back up their node there. 
+- **We recommend operators using Stark Industries Solutions and PQ.Hosting to start looking for alternatives.** Here are some useful pages:
+  - [Backup a node](nodes/maintenance#backup-a-node)
+  - [Backup proxy conf](nodes/maintenance#backup-proxy-configuration)
+  - [Restore a node](nodes/maintenance#restoring-a-node)
+  - [Restore proxy conf](nodes/maintenance#restoring-proxy-configuration)
+  - [Move a node](nodes/maintenance#moving-a-node)
+
+### Features
+
+- [`RememberMe` is the new don't `ForgetMe`](https://github.com/nymtech/nym/pull/5742): Sessions stats collected from gateway proved themselves to be incredibly noisy. In an effort to reduce the noise, `ForgetMe` was introduced at the end of sessions to prompt gateways to forget a specific session. This flag helped reduce the amount of noise, but alone it's not enough (e.g. `ForgetMe` can't be sent by non-sdk client). Therefore we're turning the whole thing and around and introducing a `RememberMe` flag, to prompt the gateways to actually remember said session. Read more in the [dev description of the PR](https://github.com/nymtech/nym/pull/5742).
+
+- [Remove old test directory - Update validator docker](https://github.com/nymtech/nym/pull/5743): The docker directory was extremely old - replaced it with a validator start up with docker compose
+
+- [`nym-api` `bincode` and `yaml` support](https://github.com/nymtech/nym/pull/5745): Support for `nym-api` to return responses as either `bincode` or `yaml` (on top of existing, default, `json`). Furthermore, initial client support for nodes-related queries is introduced. further endpoints can be enhanced by simply pushing `("output", "bincode")` params. Here is the sample response size difference when using `json` vs `bincode` (with and without `gzip` enabled on top of it):
+
+| Endpoint                                            | `json`    | `json` + `gzip` | `bincode` | `bincode` + `gzip` |
+| --------------------------------------------------- | ------- | ----------- | ------- | -------------- |
+| `/v1/nym-nodes/described`                           | 882,684 | 204,265     | 437,204 | 192,752        |
+| `/v1/unstable/nym-nodes/skimmed/entry-gateways/all` | 116,268 | 27,991      | 39,755  | 25,589         |
+| `/v1/unstable/nym-nodes/skimmed/mixnodes/active`    | 44,646  | 11,371      | 14,021  | 10,235         |
+| `/v1/ecash/aggregated-coin-indices-signatures`      | 11,669  | 6,037       | 4,952   | 4,980          |
+| `/v1/network/chain-status`                          | 1,523   | 828         | 1,004   | 585            |
+| `/v1/nym-nodes/rewarded-set`                        | 1,221   | 616         | 679     | 529            |
+
+- [Decrease default average packet delay to 15 ms](https://github.com/nymtech/nym/pull/5754)
+
+- [Expires header for `/active` `nym-api` responses](https://github.com/nymtech/nym/pull/5755)
+
+- [Raw route submissions](https://github.com/nymtech/nym/pull/5756)
+
+- [Add `node_bonded` field to delegations](https://github.com/nymtech/nym/pull/5759): Clarifies whether the delegation is to a bonded or un-bonded node and include delegations to unbonded nodes in the returned list
+
+- [Instrument `create_request`](https://github.com/nymtech/nym/pull/5760): In the `vpn-api` client we create requests directly, so let's instrument them as well as the currently instrumented top-level function `get_json` doesn't capture that
+
+- [Use bincode by default in NymApiClient + remove feature-lock](https://github.com/nymtech/nym/pull/5761)
+
+- [Fetch the topology from the `nym-api` concurrently](https://github.com/nymtech/nym/pull/5767): When fetching the topology from the `nym-api`, multiple `GET` are done. We can do these concurrently as a simple way to speed things up. Some basic testing locally shows about 30% less time for the mixnet client to connect.
+
+- [Skip refreshing the topology on startup as we already have an initial set](https://github.com/nymtech/nym/pull/5768)
+
+- [Teach `HttpClientError` how to report its status code and timeout](https://github.com/nymtech/nym/pull/5770): Provide two delegated methods so that we don't have to use `reqwest` in the vpn client repo to access this information
+
+- [Expanded `Accept Encoding` for `reqwest`](https://github.com/nymtech/nym/pull/5779): The accept encoding that we are sending has a logic fallacy in that it is supposed to prefer `gzip`, and fall back to plaintext. What it actually requests is `gzip`, but if that isn't available, anything else is fine. This is an issue because some cloud cached API endpoints are optimistic about support for `br` and the `reqwest` client isn't  actually configured to handle decompressing that so it returns the still encoded value to the calling application instead of the expected json. Enable support for more content encoding types through `reqwest`. This gives the server side more flexibility, which it seems to want, and we now only request the specific `content-encodings` that we will definitely be able to parse. Applications using the api client should no longer receive data still encoded as `reqwest` should manage decompressing it for us.
+
+### Bugfix
+
+- [Fix parallel feature in ecash crate with `Send + Sync`](https://github.com/nymtech/nym/pull/5744): In the current state, the `nym-compact-ecash` crate doesn't compile with the feature flag `par_verify` and `par_signing` because generic type `B` is not `Send + Sync` and so `par_iter` can't be called on it.
+
+- [Downgrade deranged crate to `0.4.0`](https://github.com/nymtech/nym/pull/5746): Downgrade the crate `deranged` from `0.4.1` to `0.4.0`, as `0.4.1` was yanked
+ and is flagged by `cargo audit`
+ 
+- [Upgrade prometheus crate to fix security warning](https://github.com/nymtech/nym/pull/5747): Upgrade the `prometheus` crate to bump the version of the `protobuf`
+ crate, which is flagged by `cargo audit` as having a security issue:
+ 
+```bash
+ Crate:     protobuf
+ Version:   2.28.0
+ Title:     Crash due to uncontrolled recursion in protobuf crate
+ Date:      2024-12-12
+ ID:        RUSTSEC-2024-0437
+ URL:       https://rustsec.org/advisories/RUSTSEC-2024-0437
+ Solution:  Upgrade to >=3.7.2
+ Dependency tree:
+ protobuf 2.28.0
+ └── prometheus 0.13.4
+```
+- [Update `pretty_env_logger` to latest to not depend on unmaintained crate atty](https://github.com/nymtech/nym/pull/5748): The crate `atty` is flagged to be unmaintained and also having some security issues.
+
+- [Remove `pretty_env_logger` and switch remaining crates to use tracing](https://github.com/nymtech/nym/pull/5749) 
+
 ## `v2025.9-appenzeller`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.9-appenzeller)

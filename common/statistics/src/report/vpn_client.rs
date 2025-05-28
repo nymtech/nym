@@ -47,7 +47,7 @@ pub struct StaticInformationReport {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageReport {
-    pub connection_time_ms: Option<u128>,
+    pub connection_time_ms: Option<i32>,
     pub two_hop: bool,
 }
 

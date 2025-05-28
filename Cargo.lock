@@ -6832,6 +6832,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-statistics-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.9",
+ "clap",
+ "nym-bin-common",
+ "nym-http-api-common",
+ "nym-statistics-common",
+ "nym-task",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
+]
+
+[[package]]
 name = "nym-statistics-common"
 version = "0.1.0"
 dependencies = [

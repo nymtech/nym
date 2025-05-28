@@ -1,0 +1,37 @@
+[package]
+name = "nym-psq-kkt"
+version = "0.1.0"
+authors = ["Georgio Nicolas <georgio@nymtech.net>"]
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+arc-swap = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }
+pin-project = { workspace = true }
+sha2 = { workspace = true }
+snow = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["codec"] }
+
+# internal
+nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"]}
+
+libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
+libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux" }
+rand = "0.9.1"
+
+[dev-dependencies]
+criterion = {workspace = true}
+
+[[bench]]
+name = "benches"
+harness = false
+
+[lints]
+workspace = true

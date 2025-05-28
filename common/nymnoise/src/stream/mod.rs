@@ -360,10 +360,16 @@ where
         ready!(Pin::new(&mut self.inner_stream).poll_ready(cx))
             .map_err(|err| err.naive_to_io_error())?;
 
-        // Ready to send, encrypting message
-        let mut noise_buf = BytesMut::zeroed(buf.len() + TAGLEN);
+        // we can send at most u16::MAX bytes in a frame, but we also have to include the tag when encoding
+        let msg_len = min(u16::MAX as usize - TAGLEN, buf.len());
 
-        let Ok(len) = self.transport.write_message(buf, &mut noise_buf) else {
+        // Ready to send, encrypting message
+        let mut noise_buf = BytesMut::zeroed(msg_len + TAGLEN);
+
+        let Ok(len) = self
+            .transport
+            .write_message(&buf[..msg_len], &mut noise_buf)
+        else {
             return Poll::Ready(Err(io::ErrorKind::InvalidInput.into()));
         };
         noise_buf.truncate(len);
@@ -377,7 +383,7 @@ where
 
         // Tokio uses the same `start_send ` in their SinkWriter implementation. https://docs.rs/tokio-util/latest/src/tokio_util/io/sink_writer.rs.html#104
         match Pin::new(&mut self.inner_stream).start_send(frame) {
-            Ok(()) => Poll::Ready(Ok(buf.len())),
+            Ok(()) => Poll::Ready(Ok(msg_len)),
             Err(e) => Poll::Ready(Err(e.naive_to_io_error())),
         }
     }

@@ -128,8 +128,6 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let database_path = temp_dir.path().join("storage.sqlite");
 
-        println!("Database path: {}", database_path.display());
-
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)

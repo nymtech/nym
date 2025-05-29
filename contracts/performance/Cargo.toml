@@ -29,6 +29,7 @@ nym-performance-contract-common = { path = "../../common/cosmwasm-smart-contract
 
 [dev-dependencies]
 anyhow = { workspace = true }
+nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
 
 [features]
 schema-gen = ["nym-performance-contract-common/schema", "cosmwasm-schema"]

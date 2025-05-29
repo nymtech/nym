@@ -26,12 +26,13 @@ mod tests {
     #[cfg(test)]
     mod updating_contract_admin {
         use super::*;
+        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
         use cw_controllers::AdminError;
         use nym_performance_contract_common::ExecuteMsg;
 
         #[test]
         fn can_only_be_performed_by_current_admin() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let random_acc = test.generate_account();
             let new_admin = test.generate_account();
@@ -66,7 +67,7 @@ mod tests {
 
         #[test]
         fn requires_providing_valid_address() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let bad_account = "definitely-not-valid-account";
             let res = test.execute_raw(

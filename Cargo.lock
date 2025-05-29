@@ -6894,6 +6894,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-performance-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-pool-contract-common"
 version = "0.1.0"
 dependencies = [

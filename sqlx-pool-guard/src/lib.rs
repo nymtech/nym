@@ -50,7 +50,6 @@ impl SqlitePoolGuard {
     async fn close_pool_inner(&self) -> std::io::Result<()> {
         self.connection_pool.close().await;
 
-        #[cfg(target_os = "macos")]
         if let Err(e) = self.wait_io_close().await {
             log::error!("Failed to wait for file to close: {e}");
         }
@@ -84,6 +83,12 @@ impl SqlitePoolGuard {
     }
 
     /// Wait for I/O close to the database files
+    ///
+    /// - macOS: uses `proc_pidinfo` (`sys/proc_info.h`)
+    ///   See: http://blog.palominolabs.com/2012/06/19/getting-the-files-being-used-by-a-process-on-mac-os-x/
+    ///
+    /// - Linux, Android: uses `/proc/self/fd/` to list open file descriptors
+    ///   See: https://stackoverflow.com/a/59797198/351305
     async fn wait_io_close(&self) -> std::io::Result<()> {
         let database_files = self.all_database_files();
         let paths: Vec<&Path> = database_files.iter().map(PathBuf::as_path).collect();
@@ -105,9 +110,6 @@ impl SqlitePoolGuard {
     }
 
     /// Check if no more open file descriptors exist for the given files.
-    ///
-    /// On macOS this is done using `proc_pidinfo` (`sys/proc_info.h`)
-    /// See: http://blog.palominolabs.com/2012/06/19/getting-the-files-being-used-by-a-process-on-mac-os-x/
     #[cfg(target_os = "macos")]
     async fn check_io_close(file_paths: &[&Path]) -> io::Result<bool> {
         let fd_list = proc_pidinfo_list_self::<ProcFDInfo>()?;
@@ -141,22 +143,26 @@ impl SqlitePoolGuard {
     }
 
     /// Check if no more open file descriptors exist for the given files.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     async fn check_io_close(file_paths: &[&Path]) -> io::Result<bool> {
         let mut dir = tokio::fs::read_dir("/proc/self/fd/").await?;
 
         while let Ok(Some(entry)) = dir.next_entry().await {
-            // Looking for DT_LNK
             if entry
                 .file_type()
                 .await
                 .inspect_err(|e| log::warn!("entry.file_type() failure: {e}"))
                 .is_ok_and(|entry_type| entry_type.is_symlink())
             {
-                // atoi(d->d_name) to obtain open fd?
-                let path = PathBuf::from(entry.file_name());
-                if file_paths.contains(&path.as_ref()) {
-                    return Ok(true);
+                match tokio::fs::read_link(entry.path()).await {
+                    Ok(resolved_path) => {
+                        if file_paths.contains(&resolved_path.as_ref()) {
+                            return Ok(true);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to read symlink: {e}");
+                    }
                 }
             }
         }
@@ -176,7 +182,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_wait_close() {
-        let database_path = PathBuf::from("/tmp/storage.sqlite");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let database_path = temp_dir.path().join("storage.sqlite");
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
@@ -187,7 +194,6 @@ mod tests {
         let connection_pool = sqlx::SqlitePool::connect_with(opts).await.unwrap();
 
         let guard = SqlitePoolGuard::new(database_path, connection_pool);
-
         assert!(
             guard
                 .wait_io_close()

@@ -42,6 +42,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
     let mut reserved_memory = SYSTEM_HANDLE_INFORMATION_INITIAL_SIZE;
     let mut handle_table_info = HeapGuard::<SystemHandleInformation>::new(reserved_memory)?;
 
+    // Request system handle information
     let mut status: NTSTATUS = NTSTATUS::default();
     let mut return_len = reserved_memory as u32;
     for _ in 0..2 {
@@ -66,6 +67,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
     }
     status.ok()?;
 
+    // Convert returned data into slice
     let num_handles = unsafe { (*handle_table_info.inner).number_of_handles };
     let proc_entries = unsafe {
         std::slice::from_raw_parts(
@@ -74,11 +76,14 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
         )
     };
 
+    // Iterate over open file handle entries
     for entry in proc_entries {
         if entry.unique_process_id == current_pid {
             let file_handle = HANDLE(entry.handle_value as _);
 
+            // Filter everything except disk files
             if unsafe { GetFileType(file_handle) } == FILE_TYPE_DISK {
+                // Obtain canonical path for file handle
                 let mut file_handle_path = vec![0u16; MAX_PATH as usize];
                 let num_chars_without_nul = unsafe {
                     GetFinalPathNameByHandleW(
@@ -91,7 +96,6 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
                 if num_chars_without_nul > 0 {
                     let path_str = OsString::from_wide(&file_handle_path[0..num_chars_without_nul]);
                     let file_handle_pathbuf = PathBuf::from(path_str);
-
                     if file_paths.contains(&file_handle_pathbuf.as_path()) {
                         return Ok(false);
                     }

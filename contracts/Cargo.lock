@@ -1323,14 +1323,11 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
- "cw-multi-test",
  "cw-storage-plus",
  "cw2",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-pool-contract-common",
- "rand",
- "rand_chacha",
- "serde",
 ]
 
 [[package]]

@@ -68,7 +68,7 @@ impl ClientBuilder {
         let front = Front::new(policy);
 
         // Check if any of the supplied urls even support fronting
-        if self.urls.iter().filter(|url| url.has_front()).count() == 0 {
+        if !self.urls.iter().any(|url| url.has_front()) {
             warn!("fronting is enabled, but none of the supplied urls have configured fronting domains");
         }
 

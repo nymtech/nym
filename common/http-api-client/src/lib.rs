@@ -198,7 +198,7 @@ pub enum HttpClientError<E: Display = String> {
     },
 
     #[error("failed to deserialize received response: {source}")]
-    ResponseDeserializationFailure { source: serde_json::Error },
+    ResponseDeserialisationFailure { source: serde_json::Error },
 
     #[error("provided url is malformed: {source}")]
     MalformedUrl {
@@ -427,6 +427,12 @@ impl ClientBuilder {
         }
     }
 
+    /// Add an additional URL to the set usable by this constructed `Client`
+    pub fn add_url(mut self, url: Url) -> Self {
+        self.urls.push(url);
+        self
+    }
+
     fn check_urls(mut urls: Vec<Url>) -> Vec<Url> {
         // remove any duplicate URLs
         urls = urls.into_iter().unique().collect();
@@ -603,6 +609,11 @@ impl Client {
     /// Get the currently configured host that this client uses when sending API requests.
     pub fn base_urls(&self) -> &[Url] {
         &self.base_urls
+    }
+
+    /// Get a mutable reference to the hosts that this client uses when sending API requests.
+    pub fn base_urls_mut(&mut self) -> &mut [Url] {
+        &mut self.base_urls
     }
 
     /// Change the currently configured limit on the number of retries for a request.

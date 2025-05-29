@@ -218,6 +218,12 @@ impl From<PublicKey> for x25519_dalek::PublicKey {
     }
 }
 
+impl AsRef<[u8]> for PublicKey {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
@@ -248,12 +254,20 @@ impl PrivateKey {
         PrivateKey(x25519_secret)
     }
 
+    pub fn inner(&self) -> &x25519_dalek::StaticSecret {
+        &self.0
+    }
+
     pub fn public_key(&self) -> PublicKey {
         self.into()
     }
 
     pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
         self.0.to_bytes()
+    }
+
+    pub fn as_bytes(&self) -> &[u8; PRIVATE_KEY_SIZE] {
+        self.0.as_bytes()
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
@@ -332,6 +346,12 @@ impl From<x25519_dalek::StaticSecret> for PrivateKey {
 impl AsRef<x25519_dalek::StaticSecret> for PrivateKey {
     fn as_ref(&self) -> &x25519_dalek::StaticSecret {
         &self.0
+    }
+}
+
+impl AsRef<[u8]> for PrivateKey {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
     }
 }
 

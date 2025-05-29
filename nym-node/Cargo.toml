@@ -55,6 +55,8 @@ nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
+nym-noise = { path = "../common/nymnoise" }
+nym-noise-keys = { path = "../common/nymnoise/keys" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }

@@ -20,12 +20,12 @@ mod tests {
     #[cfg(test)]
     mod admin_query {
         use super::*;
-        use crate::testing::TestSetup;
+        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
         use nym_performance_contract_common::ExecuteMsg;
 
         #[test]
         fn returns_current_admin() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let initial_admin = test.admin_unchecked();
 

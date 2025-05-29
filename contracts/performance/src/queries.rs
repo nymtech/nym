@@ -20,7 +20,8 @@ mod tests {
     #[cfg(test)]
     mod admin_query {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::init_contract_tester;
+        use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, RandExt};
         use nym_performance_contract_common::ExecuteMsg;
 
         #[test]

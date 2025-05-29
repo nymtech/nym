@@ -262,21 +262,22 @@ pub fn try_remove_expired(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::TestSetup;
+    use crate::testing::{init_contract_tester, NymPoolContractTesterExt};
+    use nym_contracts_common_testing::{AdminExt, ContractOpts, DenomExt, RandExt};
     use nym_pool_contract_common::ExecuteMsg;
 
     #[cfg(test)]
     mod updating_contract_admin {
         use super::*;
-        use crate::testing::TestSetup;
         use cosmwasm_std::{Deps, Order};
         use cw_controllers::AdminError;
+        use nym_contracts_common_testing::{AdminExt, RandExt};
         use nym_pool_contract_common::{ExecuteMsg, GranterAddress, GranterInformation};
         use std::collections::HashMap;
 
         #[test]
         fn can_only_be_performed_by_current_admin() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let random_acc = test.generate_account();
             let new_admin = test.generate_account();
@@ -310,7 +311,7 @@ mod tests {
 
         #[test]
         fn requires_providing_valid_address() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let bad_account = "definitely-not-valid-account";
             let res = test.execute_raw(
@@ -347,7 +348,7 @@ mod tests {
                     .collect()
             }
 
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let current_admin = test.admin_unchecked();
             let new_admin = test.generate_account();
 
@@ -369,7 +370,7 @@ mod tests {
             //
             //
 
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let current_admin = test.admin_unchecked();
             let new_admin = test.generate_account();
             let old_granters = granters(test.deps());
@@ -392,13 +393,13 @@ mod tests {
     #[cfg(test)]
     mod granting_allowance {
         use super::*;
-        use crate::testing::TestSetup;
         use cosmwasm_std::StdError;
+        use nym_contracts_common_testing::{AdminExt, RandExt};
         use nym_pool_contract_common::BasicAllowance;
 
         #[test]
         fn requires_providing_valid_grantee_address() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let env = test.env();
             let admin = test.admin_msg();
@@ -433,12 +434,12 @@ mod tests {
     #[cfg(test)]
     mod revoking_allowance {
         use super::*;
-        use crate::testing::TestSetup;
         use cosmwasm_std::StdError;
+        use nym_contracts_common_testing::{AdminExt, RandExt};
 
         #[test]
         fn requires_providing_valid_grantee_address() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let env = test.env();
             let admin = test.admin_msg();
@@ -487,12 +488,12 @@ mod tests {
     #[cfg(test)]
     mod using_allowance {
         use super::*;
-        use crate::testing::TestSetup;
+        use nym_contracts_common_testing::{AdminExt, ChainOpts, RandExt};
         use nym_pool_contract_common::{BasicAllowance, ExecuteMsg};
 
         #[test]
         fn requires_at_least_a_single_coin_receiver() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
 
             let res = test.execute_raw(grantee, ExecuteMsg::UseAllowance { recipients: vec![] });
@@ -504,7 +505,7 @@ mod tests {
         #[test]
         fn requires_valid_coin_for_each_receiver() -> anyhow::Result<()> {
             // 1 bad receiver
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
 
             let res = test.execute_raw(
@@ -519,7 +520,7 @@ mod tests {
             assert!(res.is_err());
 
             // 3 receivers, one invalid
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
 
             let addr1 = test.generate_account();
@@ -547,7 +548,7 @@ mod tests {
             assert!(res.is_err());
 
             // all fine
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
 
             let res = test.execute_raw(
@@ -576,7 +577,7 @@ mod tests {
 
         #[test]
         fn requires_the_total_to_be_available_for_spending() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let recipient = test.generate_account();
 
             // contract balance < required
@@ -665,7 +666,7 @@ mod tests {
 
         #[test]
         fn requires_the_total_to_be_within_spend_limit() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: Some(test.coin(100)),
                 expiration_unix_timestamp: None,
@@ -712,7 +713,7 @@ mod tests {
 
         #[test]
         fn attaches_appropriate_bank_message_for_each_receiver() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let grantee = test.add_dummy_grant().grantee;
 
@@ -774,7 +775,7 @@ mod tests {
 
         #[test]
         fn requires_grant_to_not_be_expired() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let env = test.env();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: None,
@@ -810,13 +811,14 @@ mod tests {
     #[cfg(test)]
     mod withdrawing_from_allowance {
         use super::*;
-        use crate::testing::TestSetup;
+        use crate::testing::{init_contract_tester, NymPoolContractTesterExt};
         use cosmwasm_std::coin;
+        use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, DenomExt, RandExt};
         use nym_pool_contract_common::{BasicAllowance, ExecuteMsg};
 
         #[test]
         fn requires_valid_coin() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
 
             let res = test.execute_raw(
@@ -848,7 +850,7 @@ mod tests {
 
         #[test]
         fn requires_the_amount_to_be_available_for_spending() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             // contract balance < required
             let grantee = test.add_dummy_grant().grantee;
@@ -912,7 +914,7 @@ mod tests {
 
         #[test]
         fn requires_the_amount_to_be_within_spend_limit() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: Some(test.coin(100)),
                 expiration_unix_timestamp: None,
@@ -952,7 +954,7 @@ mod tests {
 
         #[test]
         fn attaches_appropriate_bank_message() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let grantee = test.add_dummy_grant().grantee;
 
@@ -978,7 +980,7 @@ mod tests {
 
         #[test]
         fn requires_grant_to_not_be_expired() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let env = test.env();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: None,
@@ -1011,7 +1013,7 @@ mod tests {
     #[test]
     fn locking_allowance() -> anyhow::Result<()> {
         // internals got tested in storage tests, so this is mostly about checking events (TODO)
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
         let grantee = test.add_dummy_grant().grantee;
 
         let res = test.execute_raw(
@@ -1035,7 +1037,7 @@ mod tests {
     #[test]
     fn unlocking_allowance() -> anyhow::Result<()> {
         // internals got tested in storage tests, so this is mostly about checking events (TODO)
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
         let grantee = test.add_dummy_grant().grantee;
         test.lock_allowance(&grantee, Uint128::new(100));
 
@@ -1060,11 +1062,12 @@ mod tests {
     #[cfg(test)]
     mod using_locked_allowance {
         use super::*;
+        use nym_contracts_common_testing::{AdminExt, ChainOpts, RandExt};
         use nym_pool_contract_common::BasicAllowance;
 
         #[test]
         fn requires_at_least_a_single_coin_receiver() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
 
             let res = test.execute_raw(
@@ -1079,7 +1082,7 @@ mod tests {
         #[test]
         fn requires_valid_coin_for_each_receiver() -> anyhow::Result<()> {
             // 1 bad receiver
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(10000));
 
@@ -1095,7 +1098,7 @@ mod tests {
             assert!(res.is_err());
 
             // 3 receivers, one invalid
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(10000));
 
@@ -1124,7 +1127,7 @@ mod tests {
             assert!(res.is_err());
 
             // all fine
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(10000));
 
@@ -1154,7 +1157,7 @@ mod tests {
 
         #[test]
         fn requires_the_total_to_be_locked_by_grantee() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(100));
 
@@ -1193,7 +1196,7 @@ mod tests {
 
         #[test]
         fn attaches_appropriate_bank_message_for_each_receiver() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(10000));
@@ -1256,7 +1259,7 @@ mod tests {
 
         #[test]
         fn requires_grant_to_not_be_expired() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let env = test.env();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: None,
@@ -1294,11 +1297,12 @@ mod tests {
     mod withdrawing_from_locked_allowance {
         use super::*;
         use cosmwasm_std::coin;
+        use nym_contracts_common_testing::{AdminExt, ChainOpts, RandExt};
         use nym_pool_contract_common::BasicAllowance;
 
         #[test]
         fn requires_valid_coin() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(10000));
 
@@ -1331,7 +1335,7 @@ mod tests {
 
         #[test]
         fn attaches_appropriate_bank_message() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(10000));
@@ -1358,7 +1362,7 @@ mod tests {
 
         #[test]
         fn requires_grant_to_not_be_expired() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let env = test.env();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: None,
@@ -1391,7 +1395,7 @@ mod tests {
 
         #[test]
         fn requires_the_amount_to_be_locked_by_grantee() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.add_dummy_grant().grantee;
             test.lock_allowance(&grantee, Uint128::new(100));
 
@@ -1424,7 +1428,7 @@ mod tests {
 
     #[test]
     fn adding_new_granter() -> anyhow::Result<()> {
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
         let bad_address = "foomp";
         let good_address = test.generate_account();
 
@@ -1456,7 +1460,7 @@ mod tests {
 
     #[test]
     fn revoking_granter() -> anyhow::Result<()> {
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
         let bad_address = "foomp";
         let good_address = test.generate_account();
         let granter_address = test.generate_account();
@@ -1500,10 +1504,12 @@ mod tests {
     #[cfg(test)]
     mod removing_expired {
         use super::*;
+        use crate::testing::{init_contract_tester, NymPoolContract, NymPoolContractTesterExt};
+        use nym_contracts_common_testing::{ChainOpts, ContractOpts, ContractTester, RandExt};
         use nym_pool_contract_common::{BasicAllowance, GranteeAddress};
 
-        fn setup_with_expired_grant() -> (TestSetup, GranteeAddress) {
-            let mut test = TestSetup::init();
+        fn setup_with_expired_grant() -> (ContractTester<NymPoolContract>, GranteeAddress) {
+            let mut test = init_contract_tester();
             let env = test.env();
             let allowance = Allowance::Basic(BasicAllowance {
                 spend_limit: None,
@@ -1543,7 +1549,7 @@ mod tests {
 
         #[test]
         fn requires_grant_to_actually_exist_and_be_expired() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let sender = test.generate_account();
             let grantee = test.add_dummy_grant().grantee;
             let not_grantee = test.generate_account();

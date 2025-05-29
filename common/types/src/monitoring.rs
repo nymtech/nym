@@ -12,6 +12,27 @@ static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
 });
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, ToSchema)]
+pub struct RouteResult {
+    pub layer1: u32,
+    pub layer2: u32,
+    pub layer3: u32,
+    pub gw: u32,
+    pub success: bool,
+}
+
+impl RouteResult {
+    pub fn new(layer1: u32, layer2: u32, layer3: u32, gw: u32, success: bool) -> Self {
+        RouteResult {
+            layer1,
+            layer2,
+            layer3,
+            gw,
+            success,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, ToSchema)]
 pub struct NodeResult {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
@@ -29,23 +50,23 @@ impl NodeResult {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(untagged)]
 pub enum MonitorResults {
-    Mixnode(Vec<NodeResult>),
-    Gateway(Vec<NodeResult>),
+    Node(Vec<NodeResult>),
+    Route(Vec<RouteResult>),
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MonitorMessage {
-    results: Vec<NodeResult>,
+    results: MonitorResults,
     signature: String,
     signer: String,
     timestamp: i64,
 }
 
 impl MonitorMessage {
-    fn message_to_sign(results: &[NodeResult], timestamp: i64) -> Vec<u8> {
+    fn message_to_sign(results: &MonitorResults, timestamp: i64) -> Vec<u8> {
         let mut msg = serde_json::to_vec(results).unwrap_or_default();
         msg.extend_from_slice(&timestamp.to_le_bytes());
         msg
@@ -60,7 +81,7 @@ impl MonitorMessage {
         now - self.timestamp < 5
     }
 
-    pub fn new(results: Vec<NodeResult>, private_key: &PrivateKey) -> Self {
+    pub fn new(results: MonitorResults, private_key: &PrivateKey) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("Time went backwards")
@@ -82,7 +103,7 @@ impl MonitorMessage {
         NETWORK_MONITORS.contains(&self.signer)
     }
 
-    pub fn results(&self) -> &[NodeResult] {
+    pub fn results(&self) -> &MonitorResults {
         &self.results
     }
 

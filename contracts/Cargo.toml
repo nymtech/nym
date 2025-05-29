@@ -9,6 +9,7 @@ members = [
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
     "vesting",
+    "performance",
 ]
 
 [workspace.package]

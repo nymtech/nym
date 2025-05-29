@@ -9541,6 +9541,7 @@ dependencies = [
  "log",
  "proc_pidinfo",
  "sqlx",
+ "tempfile",
  "tokio",
 ]
 

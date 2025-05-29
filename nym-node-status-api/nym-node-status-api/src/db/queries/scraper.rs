@@ -8,9 +8,9 @@ use crate::{
         DbPool,
     },
     mixnet_scraper::helpers::NodeDescriptionResponse,
+    utils::now_utc,
 };
 use anyhow::Result;
-use chrono::Utc;
 use nym_validator_client::nym_api::SkimmedNode;
 
 pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperNodeInfo>> {
@@ -124,7 +124,7 @@ pub(crate) async fn insert_scraped_node_description(
     node_kind: &ScrapeNodeKind,
     description: &NodeDescriptionResponse,
 ) -> Result<()> {
-    let timestamp = Utc::now().timestamp();
+    let timestamp = now_utc().unix_timestamp();
     let mut conn = pool.acquire().await?;
 
     match node_kind {

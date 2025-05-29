@@ -6319,7 +6319,6 @@ dependencies = [
  "anyhow",
  "axum 0.7.9",
  "bip39",
- "chrono",
  "clap",
  "cosmwasm-std",
  "envy",

@@ -1,19 +1,19 @@
 use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunStatus};
 use crate::testruns::models::TestRun;
+use crate::utils::now_utc;
 use anyhow::anyhow;
-use chrono::DateTime;
 use futures_util::TryStreamExt;
 use sqlx::pool::PoolConnection;
 use sqlx::Sqlite;
-use std::time::SystemTime;
 
 pub(crate) async fn try_queue_testrun(
     conn: &mut PoolConnection<Sqlite>,
     identity_key: String,
     ip_address: String,
 ) -> anyhow::Result<TestRun> {
-    let timestamp = now_utc().timestamp();
-    let timestamp_pretty = now_utc_as_rfc3339();
+    let now = now_utc();
+    let timestamp = now.unix_timestamp();
+    let timestamp_pretty = now.to_string();
 
     let items = sqlx::query_as!(
         GatewayInfoDto,
@@ -108,12 +108,4 @@ pub(crate) async fn try_queue_testrun(
         status: format!("{}", TestRunStatus::Queued),
         log,
     })
-}
-
-pub fn now_utc() -> DateTime<chrono::Utc> {
-    SystemTime::now().into()
-}
-
-pub fn now_utc_as_rfc3339() -> String {
-    now_utc().to_rfc3339()
 }

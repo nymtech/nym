@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     http::{self, models::SummaryHistory},
-    utils::{decimal_to_i64, NumericalCheckedCast},
+    utils::{decimal_to_i64, unix_timestamp_to_utc_rfc3339, NumericalCheckedCast},
 };
 use anyhow::Context;
 use nym_contracts_common::Percent;
@@ -64,12 +64,10 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         // number of successful testruns in the last 24h.
         let routing_score = 0f32;
         let config_score = 0u32;
-        let last_updated_utc =
-            timestamp_as_utc(value.last_updated_utc.cast_checked()?).to_rfc3339();
+        let last_updated_utc = unix_timestamp_to_utc_rfc3339(value.last_updated_utc);
         let last_testrun_utc = value
             .last_testrun_utc
-            .and_then(|i| i.cast_checked().ok())
-            .map(|t| timestamp_as_utc(t).to_rfc3339());
+            .map(|timestamp| unix_timestamp_to_utc_rfc3339(timestamp));
 
         let self_described = value.self_described.clone().unwrap_or("null".to_string());
         let explorer_pretty_bond = value
@@ -113,11 +111,6 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
     }
 }
 
-fn timestamp_as_utc(unix_timestamp: u64) -> chrono::DateTime<chrono::Utc> {
-    let d = std::time::UNIX_EPOCH + std::time::Duration::from_secs(unix_timestamp);
-    d.into()
-}
-
 pub(crate) struct MixnodeRecord {
     pub(crate) mix_id: u32,
     pub(crate) identity_key: String,
@@ -159,8 +152,7 @@ impl TryFrom<MixnodeDto> for http::models::Mixnode {
             .clone()
             .map(|v| serde_json::from_str(&v).unwrap_or(serde_json::Value::Null));
 
-        let last_updated_utc =
-            timestamp_as_utc(value.last_updated_utc.cast_checked()?).to_rfc3339();
+        let last_updated_utc = unix_timestamp_to_utc_rfc3339(value.last_updated_utc);
         let is_dp_delegatee = value.is_dp_delegatee;
         let moniker = value.moniker.clone();
         let website = value.website.clone();
@@ -218,7 +210,7 @@ impl TryFrom<SummaryHistoryDto> for SummaryHistory {
         Ok(SummaryHistory {
             value_json,
             date: value.date.clone(),
-            timestamp_utc: timestamp_as_utc(value.timestamp_utc.cast_checked()?).to_rfc3339(),
+            timestamp_utc: unix_timestamp_to_utc_rfc3339(value.timestamp_utc),
         })
     }
 }

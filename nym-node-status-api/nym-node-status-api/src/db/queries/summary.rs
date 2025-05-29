@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use futures_util::TryStreamExt;
 use std::collections::HashMap;
 use tracing::error;
@@ -19,6 +18,7 @@ use crate::{
         error::{HttpError, HttpResult},
         models::SummaryHistory,
     },
+    utils::unix_timestamp_to_utc_rfc3339,
 };
 
 pub(crate) async fn get_summary_history(pool: &DbPool) -> anyhow::Result<Vec<SummaryHistory>> {
@@ -162,10 +162,5 @@ fn to_count_i32(value: &SummaryDto) -> i32 {
 }
 
 fn to_timestamp(value: &SummaryDto) -> String {
-    timestamp_as_utc(value.last_updated_utc as u64).to_rfc3339()
-}
-
-fn timestamp_as_utc(unix_timestamp: u64) -> DateTime<Utc> {
-    let d = std::time::UNIX_EPOCH + std::time::Duration::from_secs(unix_timestamp);
-    d.into()
+    unix_timestamp_to_utc_rfc3339(value.last_updated_utc)
 }

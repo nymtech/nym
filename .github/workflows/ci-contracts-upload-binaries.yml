@@ -57,6 +57,7 @@ jobs:
           cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/nym_ecash.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/nym_pool_contract.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/nym_performance_contract.wasm $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

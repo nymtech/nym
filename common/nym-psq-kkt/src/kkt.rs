@@ -161,7 +161,7 @@ impl<'a> KKTResponder<'a, MlKem768> {
 #[cfg(test)]
 mod test {
 
-    use crate::kkt::{KKT_REQ_LEN, KKT_RES_LEN_MLKEM768, KKT_TAG_LEN, REQ_LEN, RES_LEN_MLKEM768};
+    use crate::kkt::{KKT_REQ_LEN, KKT_RES_LEN_MLKEM768, KKT_TAG_LEN};
 
     use super::{KKTInitiator, KKTResponder};
     use libcrux_psq::impls::MlKem768;

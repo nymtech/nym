@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::{execute, instantiate, migrate, query};
-use cosmwasm_std::Addr;
 use nym_contracts_common_testing::{
-    AdminExt, ContractFn, ContractTester, PermissionedFn, QueryFn, TestableNymContract,
+    AdminExt, ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractTester, DenomExt,
+    PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
@@ -44,14 +44,18 @@ impl TestableNymContract for PerformanceContract {
 
 pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
     PerformanceContract::init()
+        .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN)
 }
 
-pub(crate) trait PerformanceContractTesterExt {
-    fn admin_unchecked(&self) -> Addr;
-}
-
-impl PerformanceContractTesterExt for ContractTester<PerformanceContract> {
-    fn admin_unchecked(&self) -> Addr {
-        <Self as AdminExt>::admin_unchecked(self, storage_keys::CONTRACT_ADMIN)
-    }
+pub(crate) trait PerformanceContractTesterExt:
+    ContractOpts<
+        ExecuteMsg = ExecuteMsg,
+        QueryMsg = QueryMsg,
+        ContractError = NymPerformanceContractError,
+    > + ChainOpts
+    + AdminExt
+    + DenomExt
+    + RandExt
+{
+    //
 }

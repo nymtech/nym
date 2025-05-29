@@ -26,8 +26,9 @@ mod tests {
     #[cfg(test)]
     mod updating_contract_admin {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::init_contract_tester;
         use cw_controllers::AdminError;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
         use nym_performance_contract_common::ExecuteMsg;
 
         #[test]

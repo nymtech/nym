@@ -182,20 +182,22 @@ pub fn query_granters_paged(
 mod tests {
     use super::*;
     use crate::contract::instantiate;
-    use crate::testing::{TestSetup, TEST_DENOM};
+    use crate::testing::{init_contract_tester, NymPoolContractTesterExt, TEST_DENOM};
     use cosmwasm_std::testing::{message_info, mock_dependencies_with_balance, mock_env};
     use cosmwasm_std::{coin, Uint128};
+    use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, DenomExt, RandExt};
     use nym_pool_contract_common::{Allowance, BasicAllowance, GranterInformation, InstantiateMsg};
 
     #[cfg(test)]
     mod admin_query {
         use super::*;
-        use crate::testing::TestSetup;
+        use crate::testing::init_contract_tester;
+        use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, RandExt};
         use nym_pool_contract_common::ExecuteMsg;
 
         #[test]
         fn returns_current_admin() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let initial_admin = test.admin_unchecked();
 
@@ -255,7 +257,7 @@ mod tests {
 
     #[test]
     fn total_locked_tokens_query() {
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
 
         let locked = query_total_locked_tokens(test.deps()).unwrap().locked;
         assert!(locked.amount.is_zero());
@@ -271,7 +273,7 @@ mod tests {
 
     #[test]
     fn locked_tokens_query() {
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
 
         let grantee1 = test.add_dummy_grant().grantee;
         test.lock_allowance(grantee1.as_str(), Uint128::new(1234));
@@ -295,8 +297,13 @@ mod tests {
     #[cfg(test)]
     mod locked_tokens_paged_query {
         use super::*;
+        use crate::testing::NymPoolContract;
+        use nym_contracts_common_testing::ContractTester;
 
-        fn lock_sorted(test: &mut TestSetup, count: usize) -> Vec<LockedTokens> {
+        fn lock_sorted(
+            test: &mut ContractTester<NymPoolContract>,
+            count: usize,
+        ) -> Vec<LockedTokens> {
             let mut grantees = Vec::new();
 
             for _ in 0..count {
@@ -314,7 +321,7 @@ mod tests {
 
         #[test]
         fn obeys_limits() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _locked = lock_sorted(&mut test, 1000);
 
             let limit = 42;
@@ -324,7 +331,7 @@ mod tests {
 
         #[test]
         fn has_default_limit() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _locked = lock_sorted(&mut test, 1000);
 
             // query without explicitly setting a limit
@@ -337,7 +344,7 @@ mod tests {
 
         #[test]
         fn has_max_limit() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _locked = lock_sorted(&mut test, 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
@@ -352,7 +359,7 @@ mod tests {
 
         #[test]
         fn pagination_works() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let locked = lock_sorted(&mut test, 1000);
 
             // first page should return 2 results...
@@ -371,7 +378,7 @@ mod tests {
 
     #[test]
     fn grant_query() {
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
         let env = test.env();
 
         // bad address
@@ -433,7 +440,7 @@ mod tests {
 
     #[test]
     fn granter_query() {
-        let mut test = TestSetup::init();
+        let mut test = init_contract_tester();
         let admin = test.admin_unchecked();
         let env = test.env();
 
@@ -482,8 +489,13 @@ mod tests {
     #[cfg(test)]
     mod granters_paged_query {
         use super::*;
+        use crate::testing::NymPoolContract;
+        use nym_contracts_common_testing::ContractTester;
 
-        fn granters_sorted(test: &mut TestSetup, count: usize) -> Vec<GranterDetails> {
+        fn granters_sorted(
+            test: &mut ContractTester<NymPoolContract>,
+            count: usize,
+        ) -> Vec<GranterDetails> {
             let mut granters = Vec::new();
 
             for _ in 0..count {
@@ -504,7 +516,7 @@ mod tests {
 
         #[test]
         fn obeys_limits() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _granters = granters_sorted(&mut test, 1000);
 
             let limit = 42;
@@ -514,7 +526,7 @@ mod tests {
 
         #[test]
         fn has_default_limit() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _granters = granters_sorted(&mut test, 1000);
 
             // query without explicitly setting a limit
@@ -527,7 +539,7 @@ mod tests {
 
         #[test]
         fn has_max_limit() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _granters = granters_sorted(&mut test, 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
@@ -542,7 +554,7 @@ mod tests {
 
         #[test]
         fn pagination_works() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let locked = granters_sorted(&mut test, 1000);
 
             // first page should return 2 results...
@@ -562,8 +574,13 @@ mod tests {
     #[cfg(test)]
     mod grants_paged_query {
         use super::*;
+        use crate::testing::{init_contract_tester, NymPoolContract};
+        use nym_contracts_common_testing::{ContractOpts, ContractTester};
 
-        fn grants_sorted(test: &mut TestSetup, count: usize) -> Vec<GrantInformation> {
+        fn grants_sorted(
+            test: &mut ContractTester<NymPoolContract>,
+            count: usize,
+        ) -> Vec<GrantInformation> {
             let mut grantees = Vec::new();
 
             for _ in 0..count {
@@ -580,7 +597,7 @@ mod tests {
 
         #[test]
         fn obeys_limits() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _grantees = grants_sorted(&mut test, 1000);
 
             let limit = 42;
@@ -590,7 +607,7 @@ mod tests {
 
         #[test]
         fn has_default_limit() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _grantees = grants_sorted(&mut test, 1000);
 
             // query without explicitly setting a limit
@@ -603,7 +620,7 @@ mod tests {
 
         #[test]
         fn has_max_limit() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let _grantees = grants_sorted(&mut test, 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
@@ -619,7 +636,7 @@ mod tests {
 
         #[test]
         fn pagination_works() {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grants = grants_sorted(&mut test, 1000);
 
             // first page should return 2 results...

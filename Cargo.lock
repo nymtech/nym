@@ -6297,7 +6297,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.0.0-rc.2"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6313,13 +6313,12 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "2.3.2"
+version = "2.3.3"
 dependencies = [
  "ammonia",
  "anyhow",
  "axum 0.7.9",
  "bip39",
- "chrono",
  "clap",
  "cosmwasm-std",
  "envy",
@@ -6365,16 +6364,16 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-client"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bincode",
- "chrono",
  "nym-crypto",
  "nym-http-api-client",
  "reqwest 0.12.15",
  "serde",
  "serde_json",
+ "time",
  "tracing",
 ]
 

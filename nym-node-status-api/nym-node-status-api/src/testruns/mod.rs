@@ -7,7 +7,6 @@ use tracing::instrument;
 
 pub(crate) mod models;
 mod queue;
-pub(crate) use queue::now_utc;
 
 pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
     tokio::spawn(async move {
@@ -78,7 +77,7 @@ async fn run(pool: &DbPool) -> anyhow::Result<()> {
 
 #[instrument(level = "debug", skip_all)]
 async fn refresh_stale_testruns(pool: &DbPool, refresh_interval: Duration) -> anyhow::Result<()> {
-    let refresh_interval = chrono::Duration::from_std(refresh_interval)?;
+    let refresh_interval = time::Duration::try_from(refresh_interval)?;
     crate::db::queries::testruns::update_testruns_assigned_before(pool, refresh_interval).await?;
 
     Ok(())

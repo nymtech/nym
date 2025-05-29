@@ -2,6 +2,7 @@ use cosmwasm_std::Decimal;
 use itertools::Itertools;
 use rand::prelude::SliceRandom;
 use rand::SeedableRng;
+use tracing::error;
 
 // pub(crate) fn generate_node_name(identity: ed25519::PublicKey) -> String {
 pub(crate) fn generate_node_name(node_id: i64) -> String {
@@ -39,6 +40,22 @@ mod test {
         let node_name_same = generate_node_name(node_id);
         assert_eq!(node_name, node_name_same);
     }
+}
+
+pub(crate) fn now_utc() -> time::UtcDateTime {
+    time::UtcDateTime::now()
+}
+
+pub(crate) fn unix_timestamp_to_utc_rfc3339(unix_timestamp: i64) -> String {
+    let timestamp = time::UtcDateTime::UNIX_EPOCH + time::Duration::seconds(unix_timestamp);
+    timestamp
+        .format(&time::format_description::well_known::Rfc3339)
+        // unwrap: time-rs guarantees that output will be valid according to spec
+        // https://time-rs.github.io/book/api/well-known-format-descriptions.html
+        .unwrap_or_else(|e| {
+            error!("Formatting {} as RFC3339 failed: {}", timestamp, e);
+            String::from("invalid_date")
+        })
 }
 
 pub trait NumericalCheckedCast<T>

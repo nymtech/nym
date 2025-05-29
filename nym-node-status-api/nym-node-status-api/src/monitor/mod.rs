@@ -8,6 +8,7 @@ use crate::db::models::{
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{ExplorerPrettyBond, Location};
+use crate::utils::now_utc;
 use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
@@ -262,8 +263,8 @@ impl Monitor {
             (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
         ];
 
-        let last_updated = chrono::offset::Utc::now();
-        let last_updated_utc = last_updated.timestamp().to_string();
+        let last_updated = now_utc();
+        let last_updated_utc = last_updated.unix_timestamp().to_string();
         let network_summary = NetworkSummary {
             total_nodes: nym_nodes.len().cast_checked()?,
             mixnodes: mixnode::MixnodeSummary {
@@ -271,11 +272,11 @@ impl Monitor {
                     count: assigned_mixing_count.cast_checked()?,
                     self_described: described_nodes.len().cast_checked()?,
                     legacy: count_legacy_mixnodes.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc: last_updated_utc.clone(),
                 },
                 historical: mixnode::MixnodeSummaryHistorical {
                     count: all_historical_mixnodes.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc: last_updated_utc.clone(),
                 },
             },
             gateways: gateway::GatewaySummary {
@@ -283,11 +284,11 @@ impl Monitor {
                     count: count_bonded_gateways.cast_checked()?,
                     entry: assigned_entry_count.cast_checked()?,
                     exit: assigned_exit_count.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc: last_updated_utc.clone(),
                 },
                 historical: gateway::GatewaySummaryHistorical {
                     count: all_historical_gateways.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc,
                 },
             },
         };
@@ -367,7 +368,7 @@ impl Monitor {
         for gateway in described_gateways {
             let identity_key = gateway.ed25519_identity_key().to_base58_string();
             let bonded = bonded_nodes.contains_key(&gateway.node_id);
-            let last_updated_utc = chrono::offset::Utc::now().timestamp();
+            let last_updated_utc = now_utc().unix_timestamp();
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
@@ -433,7 +434,7 @@ impl Monitor {
             let self_described = mixnode_described.and_then(|v| serde_json::to_string(v).ok());
             let is_dp_delegatee = delegation_program_members.contains(&mix_id);
 
-            let last_updated_utc = chrono::offset::Utc::now().timestamp();
+            let last_updated_utc = now_utc().unix_timestamp();
 
             mixnode_records.push(MixnodeRecord {
                 mix_id,

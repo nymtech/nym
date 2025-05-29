@@ -65,9 +65,7 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         let routing_score = 0f32;
         let config_score = 0u32;
         let last_updated_utc = unix_timestamp_to_utc_rfc3339(value.last_updated_utc);
-        let last_testrun_utc = value
-            .last_testrun_utc
-            .map(|timestamp| unix_timestamp_to_utc_rfc3339(timestamp));
+        let last_testrun_utc = value.last_testrun_utc.map(unix_timestamp_to_utc_rfc3339);
 
         let self_described = value.self_described.clone().unwrap_or("null".to_string());
         let explorer_pretty_bond = value

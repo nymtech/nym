@@ -6368,12 +6368,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
- "chrono",
  "nym-crypto",
  "nym-http-api-client",
  "reqwest 0.12.15",
  "serde",
  "serde_json",
+ "time",
  "tracing",
 ]
 

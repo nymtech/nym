@@ -13,8 +13,8 @@ use anyhow::{anyhow, Result};
 use reqwest;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use time::UtcDateTime;
 use std::time::Duration;
+use time::UtcDateTime;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDescriptionResponse {

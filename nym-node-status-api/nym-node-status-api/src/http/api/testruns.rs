@@ -157,7 +157,7 @@ async fn submit_testrun(
     let created_at = unix_timestamp_to_utc_rfc3339(assigned_testrun.created_utc);
     let last_assigned = assigned_testrun
         .last_assigned_utc
-        .map(|timestamp| unix_timestamp_to_utc_rfc3339(timestamp))
+        .map(unix_timestamp_to_utc_rfc3339)
         .unwrap_or_else(|| String::from("never"));
     tracing::info!(
         "✅ Testrun row_id {} for gateway {} complete (last assigned {}, created at {})",

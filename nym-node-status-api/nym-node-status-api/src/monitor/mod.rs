@@ -288,7 +288,7 @@ impl Monitor {
                 },
                 historical: gateway::GatewaySummaryHistorical {
                     count: all_historical_gateways.cast_checked()?,
-                    last_updated_utc: last_updated_utc,
+                    last_updated_utc,
                 },
             },
         };

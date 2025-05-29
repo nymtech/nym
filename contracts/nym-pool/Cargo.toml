@@ -1,0 +1,37 @@
+[package]
+name = "nym-pool-contract"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+name = "nym_pool_contract"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cw2 = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-controllers = { workspace = true }
+
+cosmwasm-schema = { workspace = true, optional = true }
+
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-pool-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-pool-contract" }
+
+
+[dev-dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+rand_chacha = { workspace = true }
+rand = { workspace = true }
+cw-multi-test = { workspace = true }
+
+[features]
+schema-gen = ["nym-pool-contract-common/schema", "cosmwasm-schema"]

@@ -6480,6 +6480,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pool-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+ "time",
+]
+
+[[package]]
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [

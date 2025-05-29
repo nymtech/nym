@@ -313,6 +313,8 @@ pub(crate) fn try_update_rewarding_params(
     }
 }
 
+#[allow(clippy::panic)]
+#[allow(clippy::unreachable)]
 #[cfg(test)]
 pub mod tests {
     use super::*;

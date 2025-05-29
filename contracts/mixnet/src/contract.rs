@@ -5,6 +5,7 @@ use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
+use crate::queued_migrations::introduce_key_rotation_id;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -82,6 +83,11 @@ pub fn instantiate(
         });
     }
 
+    let key_rotation_validity = msg.key_validity_in_epochs();
+    if key_rotation_validity < InstantiateMsg::MIN_KEY_ROTATION_VALIDITY {
+        return Err(MixnetContractError::TooShortRotationInterval);
+    }
+
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
@@ -109,7 +115,7 @@ pub fn instantiate(
         msg.current_nym_node_version,
     )?;
     RewardingStorage::new().initialise(deps.storage, reward_params)?;
-    nymnodes_storage::initialise_storage(deps.storage)?;
+    nymnodes_storage::initialise_storage(deps.storage, key_rotation_validity)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
@@ -598,6 +604,14 @@ pub fn query(
         QueryMsg::GetSigningNonce { address } => to_json_binary(
             &crate::signing::queries::query_current_signing_nonce(deps, address)?,
         ),
+
+        // sphinx key rotation-related
+        QueryMsg::GetKeyRotationState {} => {
+            to_json_binary(&crate::nodes::queries::query_key_rotation_state(deps)?)
+        }
+        QueryMsg::GetKeyRotationId {} => {
+            to_json_binary(&crate::nodes::queries::query_key_rotation_id(deps)?)
+        }
     };
 
     Ok(query_res?)
@@ -605,18 +619,18 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
-    //
-    // if !skip_state_updates {
-    //
-    // }
+    let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
+
+    if !skip_state_updates {
+        introduce_key_rotation_id(deps.branch())?;
+    }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
@@ -681,6 +695,7 @@ mod tests {
                 minimum: "1000".parse().unwrap(),
                 maximum: "10000".parse().unwrap(),
             },
+            key_validity_in_epochs: None,
         };
 
         let sender = message_info(&deps.api.addr_make("sender"), &[]);

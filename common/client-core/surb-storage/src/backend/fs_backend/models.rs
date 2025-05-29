@@ -8,8 +8,10 @@ use nym_crypto::Digest;
 use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
 use nym_sphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
-use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryptionKeySize};
-use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
+use nym_sphinx::anonymous_replies::{
+    ReplySurb, ReplySurbWithKeyRotation, SurbEncryptionKey, SurbEncryptionKeySize,
+};
+use nym_sphinx::params::{ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 
 #[derive(Debug, Clone)]
 pub struct StoredSenderTag {
@@ -146,24 +148,40 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
 pub struct StoredReplySurb {
     pub reply_surb_sender_id: i64,
     pub reply_surb: Vec<u8>,
+
+    // encodes only whether it's 'even', 'odd' or 'unknown' (default)
+    // and not the whole id because that's redundant
+    pub encoded_key_rotation: u8,
 }
 
 impl StoredReplySurb {
-    pub fn new(reply_surb_sender_id: i64, reply_surb: &ReplySurb) -> Self {
+    pub fn new(reply_surb_sender_id: i64, reply_surb: &ReplySurbWithKeyRotation) -> Self {
         StoredReplySurb {
             reply_surb_sender_id,
-            reply_surb: reply_surb.to_bytes(),
+            reply_surb: reply_surb.inner_reply_surb().to_bytes(),
+            encoded_key_rotation: reply_surb.key_rotation() as u8,
         }
     }
 }
 
-impl TryFrom<StoredReplySurb> for ReplySurb {
+impl TryFrom<StoredReplySurb> for ReplySurbWithKeyRotation {
     type Error = StorageError;
 
     fn try_from(value: StoredReplySurb) -> Result<Self, Self::Error> {
-        ReplySurb::from_bytes(&value.reply_surb).map_err(|err| StorageError::CorruptedData {
-            details: format!("failed to recover the reply surb: {err}"),
-        })
+        let key_rotation =
+            SphinxKeyRotation::try_from(value.encoded_key_rotation).map_err(|err| {
+                StorageError::CorruptedData {
+                    details: format!("stored key rotation was malformed: {err}"),
+                }
+            })?;
+
+        let reply_surb = ReplySurb::from_bytes(&value.reply_surb).map_err(|err| {
+            StorageError::CorruptedData {
+                details: format!("failed to recover the reply surb: {err}"),
+            }
+        })?;
+
+        Ok(reply_surb.with_key_rotation(key_rotation))
     }
 }
 

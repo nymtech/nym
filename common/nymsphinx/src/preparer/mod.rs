@@ -13,13 +13,14 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use tracing::*;
 
+use nym_sphinx_anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
 
@@ -103,7 +104,7 @@ pub trait FragmentPreparer {
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         packet_sender: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
@@ -148,7 +149,7 @@ pub trait FragmentPreparer {
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
-        let (sphinx_packet, first_hop_address) = reply_surb
+        let applied_surb = reply_surb
             .apply_surb(packet_payload, packet_size, packet_type)
             .unwrap();
 
@@ -157,7 +158,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
             total_delay: expected_forward_delay + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, packet_type),
+            mix_packet: MixPacket::from_applied_surb(applied_surb, packet_type),
             fragment_identifier,
         })
     }
@@ -210,6 +211,9 @@ pub trait FragmentPreparer {
         // more gracefully is that this error should never be reached as it implies incorrect chunking
         let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
             .expect("the message has been incorrectly fragmented");
+
+        let rotation_id = topology.current_key_rotation();
+        let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);
 
         let fragment_identifier = fragment.fragment_identifier();
 
@@ -279,7 +283,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
+            mix_packet: MixPacket::new(first_hop_address, packet, packet_type, sphinx_key_rotation),
             fragment_identifier,
         })
     }
@@ -371,9 +375,11 @@ where
         use_legacy_reply_surb_format: bool,
         amount: usize,
         topology: &NymRouteProvider,
-    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+    ) -> Result<Vec<ReplySurbWithKeyRotation>, NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(amount);
         let disabled_mix_hops = self.mix_hops_disabled();
+
+        let key_rotation = SphinxKeyRotation::from(topology.current_key_rotation());
 
         for _ in 0..amount {
             let reply_surb = ReplySurb::construct(
@@ -383,7 +389,8 @@ where
                 use_legacy_reply_surb_format,
                 topology,
                 disabled_mix_hops, // TODO: support SURBs with no mix hops after changes to surb format / construction
-            )?;
+            )?
+            .with_key_rotation(key_rotation);
             reply_surbs.push(reply_surb)
         }
 
@@ -395,7 +402,7 @@ where
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;

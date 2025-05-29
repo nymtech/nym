@@ -72,7 +72,7 @@ fn print_signed_contract_msg(
 pub async fn execute(args: Args) -> anyhow::Result<()> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let identity_keypair =
-        load_ed25519_identity_keypair(config.storage_paths.keys.ed25519_identity_storage_paths())?;
+        load_ed25519_identity_keypair(&config.storage_paths.keys.ed25519_identity_storage_paths())?;
 
     // note: due to clap's ArgGroup, one (and only one) of those branches will be called
     if let Some(text) = args.text {

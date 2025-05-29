@@ -71,6 +71,13 @@ impl HostInformation {
 }
 
 #[derive(Serialize)]
+pub struct LegacyHostInformationV3 {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: LegacyHostKeysV3,
+}
+
+#[derive(Serialize)]
 pub struct LegacyHostInformationV2 {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
@@ -78,14 +85,24 @@ pub struct LegacyHostInformationV2 {
 }
 
 #[derive(Serialize)]
-pub struct LegacyHostInformation {
+pub struct LegacyHostInformationV1 {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
-    pub keys: LegacyHostKeys,
+    pub keys: LegacyHostKeysV1,
 }
 
-impl From<HostInformation> for LegacyHostInformationV2 {
+impl From<HostInformation> for LegacyHostInformationV3 {
     fn from(value: HostInformation) -> Self {
+        LegacyHostInformationV3 {
+            ip_address: value.ip_address,
+            hostname: value.hostname,
+            keys: value.keys.into(),
+        }
+    }
+}
+
+impl From<LegacyHostInformationV3> for LegacyHostInformationV2 {
+    fn from(value: LegacyHostInformationV3) -> Self {
         LegacyHostInformationV2 {
             ip_address: value.ip_address,
             hostname: value.hostname,
@@ -94,9 +111,9 @@ impl From<HostInformation> for LegacyHostInformationV2 {
     }
 }
 
-impl From<LegacyHostInformationV2> for LegacyHostInformation {
+impl From<LegacyHostInformationV2> for LegacyHostInformationV1 {
     fn from(value: LegacyHostInformationV2) -> Self {
-        LegacyHostInformation {
+        LegacyHostInformationV1 {
             ip_address: value.ip_address,
             hostname: value.hostname,
             keys: value.keys.into(),
@@ -106,27 +123,121 @@ impl From<LegacyHostInformationV2> for LegacyHostInformation {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(from = "HostKeysDeHelper")]
 pub struct HostKeys {
+    /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
+    #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub ed25519_identity: ed25519::PublicKey,
+
+    #[deprecated(note = "use explicit primary_x25519_sphinx_key instead")]
+    #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub x25519_sphinx: x25519::PublicKey,
+
+    /// Current, active, x25519 sphinx key clients are expected to use when constructing packets
+    /// with this node in the route.
+    pub primary_x25519_sphinx_key: SphinxKey,
+
+    /// Pre-announced x25519 sphinx key clients will use during the following key rotation
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
+
+    /// Base58-encoded x25519 public key of this node used for the noise protocol.
+    #[schemars(with = "Option<String>")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub x25519_noise: Option<x25519::PublicKey>,
+}
+
+// we need the intermediate struct to help us with the new explicit sphinx key fields
+#[allow(deprecated)]
+impl From<HostKeysDeHelper> for HostKeys {
+    fn from(value: HostKeysDeHelper) -> Self {
+        let primary_x25519_sphinx_key = match value.primary_x25519_sphinx_key {
+            None => {
+                // legacy
+                SphinxKey::new_legacy(value.x25519_sphinx)
+            }
+            Some(primary_x25519_sphinx_key) => primary_x25519_sphinx_key,
+        };
+
+        HostKeys {
+            ed25519_identity: value.ed25519_identity,
+            x25519_sphinx: value.x25519_sphinx,
+            primary_x25519_sphinx_key,
+            pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key,
+            x25519_noise: value.x25519_noise,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct HostKeysDeHelper {
     /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
     #[serde(alias = "ed25519")]
     #[serde(with = "bs58_ed25519_pubkey")]
+    pub ed25519_identity: ed25519::PublicKey,
+
+    #[deprecated(note = "use explicit primary_x25519_sphinx_key instead")]
+    #[serde(alias = "x25519")]
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub x25519_sphinx: x25519::PublicKey,
+
+    /// Current, active, x25519 sphinx key clients are expected to use when constructing packets
+    /// with this node in the route.
+    pub primary_x25519_sphinx_key: Option<SphinxKey>,
+
+    /// Pre-announced x25519 sphinx key clients will use during the following key rotation
+    #[serde(default)]
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
+
+    /// Base58-encoded x25519 public key of this node used for the noise protocol.
+    #[serde(default)]
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    pub x25519_noise: Option<x25519::PublicKey>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SphinxKey {
+    pub rotation_id: u32,
+
+    #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub public_key: x25519::PublicKey,
+}
+
+impl SphinxKey {
+    pub fn new_legacy(public_key: x25519::PublicKey) -> SphinxKey {
+        SphinxKey {
+            rotation_id: u32::MAX,
+            public_key,
+        }
+    }
+
+    pub fn is_legacy(&self) -> bool {
+        self.rotation_id == u32::MAX
+    }
+}
+
+#[derive(Serialize)]
+pub struct LegacyHostKeysV3 {
+    /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
+    #[serde(alias = "ed25519")]
+    #[serde(with = "bs58_ed25519_pubkey")]
     pub ed25519_identity: ed25519::PublicKey,
 
     /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
     /// Currently, it corresponds to either mixnode's or gateway's key.
     #[serde(alias = "x25519")]
     #[serde(with = "bs58_x25519_pubkey")]
-    #[schemars(with = "String")]
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub x25519_sphinx: x25519::PublicKey,
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
-    #[schemars(with = "Option<String>")]
-    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
@@ -138,13 +249,23 @@ pub struct LegacyHostKeysV2 {
 }
 
 #[derive(Serialize)]
-pub struct LegacyHostKeys {
+pub struct LegacyHostKeysV1 {
     pub ed25519: String,
     pub x25519: String,
 }
 
-impl From<HostKeys> for LegacyHostKeysV2 {
+impl From<HostKeys> for LegacyHostKeysV3 {
     fn from(value: HostKeys) -> Self {
+        LegacyHostKeysV3 {
+            ed25519_identity: value.ed25519_identity,
+            x25519_sphinx: value.primary_x25519_sphinx_key.public_key,
+            x25519_noise: value.x25519_noise,
+        }
+    }
+}
+
+impl From<LegacyHostKeysV3> for LegacyHostKeysV2 {
+    fn from(value: LegacyHostKeysV3) -> Self {
         LegacyHostKeysV2 {
             ed25519_identity: value.ed25519_identity.to_base58_string(),
             x25519_sphinx: value.x25519_sphinx.to_base58_string(),
@@ -156,9 +277,9 @@ impl From<HostKeys> for LegacyHostKeysV2 {
     }
 }
 
-impl From<LegacyHostKeysV2> for LegacyHostKeys {
+impl From<LegacyHostKeysV2> for LegacyHostKeysV1 {
     fn from(value: LegacyHostKeysV2) -> Self {
-        LegacyHostKeys {
+        LegacyHostKeysV1 {
             ed25519: value.ed25519_identity,
             x25519: value.x25519_sphinx,
         }
@@ -266,4 +387,32 @@ pub struct AuxiliaryDetails {
     // make sure to include the default deserialisation as this field hasn't existed when the struct was first created
     #[serde(default)]
     pub accepted_operator_terms_and_conditions: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_host_information_deserialisation() {
+        let legacy_raw = r#"
+        {
+          "data": {
+            "ip_address": [
+              "194.182.184.55"
+            ],
+            "hostname": null,
+            "keys": {
+              "ed25519_identity": "2RMWm7PoadaoWpk3KhT2tcFFfA4oKUyC44KwmVvjxNDS",
+              "x25519_sphinx": "Awn4R2AHX91tYeiMJMxW3mFfoePuHWzZYUFdDQnydZCD",
+              "x25519_noise": null
+            }
+          },
+          "signature": "5JcXh766JANhz3bu2hMBS8onTLihQn6vnGgduJg1qd8JAcPGPbXBwBTKmmQPYCVGeZYFHW4CMGhfHVBu2A1rE5f7"
+        }
+        "#;
+
+        let res = serde_json::from_str::<SignedHostInformation>(legacy_raw);
+        assert!(res.is_ok());
+    }
 }

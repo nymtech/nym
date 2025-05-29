@@ -10,7 +10,7 @@ use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_topology::{HardcodedTopologyProvider, NymTopology, NymTopologyMetadata};
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -167,12 +167,16 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let rewarded_set = client.get_current_rewarded_set().await?;
 
     // just get all nodes to make our lives easier because it's just one query for the whole duration of the monitor (?)
-    let nodes = client.get_all_basic_nodes().await?;
+    let nodes_response = client.get_all_basic_nodes_with_metadata().await?;
+    let nodes = nodes_response.nodes;
+    let metadata = nodes_response.metadata;
 
-    let mut topology = NymTopology::new_empty(rewarded_set);
-    topology.add_skimmed_nodes(&nodes);
-
-    Ok(topology)
+    Ok(NymTopology::new(
+        NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
+        rewarded_set,
+        Vec::new(),
+    )
+    .with_skimmed_nodes(&nodes))
 }
 
 #[tokio::main]

@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
-    NODE_ID_COUNTER_KEY, NYMNODE_ACTIVE_ROLE_ASSIGNMENT_KEY, NYMNODE_IDENTITY_IDX_NAMESPACE,
-    NYMNODE_OWNER_IDX_NAMESPACE, NYMNODE_PK_NAMESPACE, NYMNODE_REWARDED_SET_METADATA_NAMESPACE,
-    NYMNODE_ROLES_ASSIGNMENT_NAMESPACE, PENDING_NYMNODE_CHANGES_NAMESPACE,
-    UNBONDED_NYMNODE_IDENTITY_IDX_NAMESPACE, UNBONDED_NYMNODE_OWNER_IDX_NAMESPACE,
-    UNBONDED_NYMNODE_PK_NAMESPACE,
+    KEY_ROTATION_STATE_KEY, NODE_ID_COUNTER_KEY, NYMNODE_ACTIVE_ROLE_ASSIGNMENT_KEY,
+    NYMNODE_IDENTITY_IDX_NAMESPACE, NYMNODE_OWNER_IDX_NAMESPACE, NYMNODE_PK_NAMESPACE,
+    NYMNODE_REWARDED_SET_METADATA_NAMESPACE, NYMNODE_ROLES_ASSIGNMENT_NAMESPACE,
+    PENDING_NYMNODE_CHANGES_NAMESPACE, UNBONDED_NYMNODE_IDENTITY_IDX_NAMESPACE,
+    UNBONDED_NYMNODE_OWNER_IDX_NAMESPACE, UNBONDED_NYMNODE_PK_NAMESPACE,
 };
 use crate::nodes::storage::helpers::RoleStorageBucket;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
 use mixnet_contract_common::nym_node::{NymNodeBond, RewardedSetMetadata, Role, UnbondedNymNode};
-use mixnet_contract_common::{NodeId, PendingNodeChanges};
+use mixnet_contract_common::{KeyRotationState, NodeId, PendingNodeChanges};
 use nym_contracts_common::IdentityKey;
 
 pub(crate) mod helpers;
 
 pub(crate) use helpers::*;
+
+/// Item recording the current state of the key rotation setup
+pub const KEY_ROTATION_STATE: Item<KeyRotationState> = Item::new(KEY_ROTATION_STATE_KEY);
 
 // IMPORTANT NOTE: we're using the same storage key as we had for MIXNODE_ID_COUNTER,
 // so that we could start from the old values

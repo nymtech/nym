@@ -8,16 +8,13 @@ use nym_sphinx_addressing::nodes::{
     NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
 };
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{
     NymPacket, SURBMaterial, SphinxError, HEADER_SIZE, NODE_ADDRESS_LENGTH, SURB,
     X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
 };
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
-use serde::de::{Error as SerdeError, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Formatter};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -46,44 +43,6 @@ pub enum ReplySurbError {
 pub struct ReplySurb {
     pub(crate) surb: SURB,
     pub(crate) encryption_key: SurbEncryptionKey,
-}
-
-// Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
-// however, if we decided we needed it again, it's already here
-impl Serialize for ReplySurb {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_bytes(&self.to_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for ReplySurb {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct ReplySurbVisitor;
-
-        impl Visitor<'_> for ReplySurbVisitor {
-            type Value = ReplySurb;
-
-            fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                write!(formatter, "A replySURB must contain a valid symmetric encryption key and a correctly formed sphinx header")
-            }
-
-            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
-            where
-                E: SerdeError,
-            {
-                ReplySurb::from_bytes(bytes)
-                    .map_err(|_| SerdeError::invalid_length(bytes.len(), &self))
-            }
-        }
-
-        deserializer.deserialize_bytes(ReplySurbVisitor)
-    }
 }
 
 impl ReplySurb {
@@ -123,6 +82,7 @@ impl ReplySurb {
         Ok(ReplySurb {
             surb: surb_material.construct_SURB().unwrap(),
             encryption_key: SurbEncryptionKey::new(rng),
+            // used_key_rotation: SphinxKeyRotation::from(topology.current_key_rotation()),
         })
     }
 
@@ -198,8 +158,75 @@ impl ReplySurb {
             .use_surb(message_bytes, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
-        let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();
+        let first_hop_address = NymNodeRoutingAddress::try_from(first_hop)?;
 
         Ok((NymPacket::Sphinx(packet), first_hop_address))
+    }
+
+    pub fn to_legacy(self) -> ReplySurbWithKeyRotation {
+        self.with_key_rotation(SphinxKeyRotation::Unknown)
+    }
+
+    pub fn with_key_rotation(self, key_rotation: SphinxKeyRotation) -> ReplySurbWithKeyRotation {
+        ReplySurbWithKeyRotation {
+            inner: self,
+            key_rotation,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReplySurbWithKeyRotation {
+    pub(crate) inner: ReplySurb,
+    pub(crate) key_rotation: SphinxKeyRotation,
+}
+
+impl ReplySurbWithKeyRotation {
+    pub fn encryption_key(&self) -> &SurbEncryptionKey {
+        self.inner.encryption_key()
+    }
+
+    pub fn inner_reply_surb(&self) -> &ReplySurb {
+        &self.inner
+    }
+
+    pub fn key_rotation(&self) -> SphinxKeyRotation {
+        self.key_rotation
+    }
+
+    pub fn apply_surb<M: AsRef<[u8]>>(
+        self,
+        message: M,
+        packet_size: PacketSize,
+        _packet_type: PacketType,
+    ) -> Result<AppliedReplySurb, ReplySurbError> {
+        let (packet, first_hop_address) =
+            self.inner.apply_surb(message, packet_size, _packet_type)?;
+
+        Ok(AppliedReplySurb {
+            packet,
+            first_hop_address,
+            key_rotation: self.key_rotation,
+        })
+    }
+}
+
+pub struct AppliedReplySurb {
+    pub(crate) packet: NymPacket,
+    pub(crate) first_hop_address: NymNodeRoutingAddress,
+    pub(crate) key_rotation: SphinxKeyRotation,
+}
+
+impl AppliedReplySurb {
+    pub fn first_hop_address(&self) -> NymNodeRoutingAddress {
+        self.first_hop_address
+    }
+
+    pub fn key_rotation(&self) -> SphinxKeyRotation {
+        self.key_rotation
+    }
+
+    pub fn into_packet(self) -> NymPacket {
+        self.packet
     }
 }

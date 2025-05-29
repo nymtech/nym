@@ -84,6 +84,8 @@ pub enum TypesError {
     NotADelegationEvent,
     #[error("Unknown network - {0}")]
     UnknownNetwork(String),
+    #[error("the response metadata has changed between pages")]
+    InconsistentPagedMetadata,
 }
 
 impl Serialize for TypesError {
@@ -103,6 +105,9 @@ impl From<ValidatorClientError> for TypesError {
             ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured,
             ValidatorClientError::TendermintErrorRpc(err) => err.into(),
+            ValidatorClientError::InconsistentPagedMetadata => {
+                TypesError::InconsistentPagedMetadata
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::helpers::RewardedSetStatus;
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
@@ -9,7 +9,6 @@ use crate::nym_contract_cache::cache::data::ConfigScoreData;
 use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
-use nym_api_requests::models::DescribedNodeType::{LegacyGateway, LegacyMixnode, NymNode};
 use nym_api_requests::models::{
     ConfigScore, DescribedNodeType, DetailedNodePerformance, GatewayBondAnnotated,
     MixNodeBondAnnotated, NodeAnnotation, NodePerformance, NymNodeDescription, RoutingScore,
@@ -18,7 +17,7 @@ use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::{Interval, NodeId, VersionScoreFormulaParams};
 use nym_mixnet_contract_common::{NymNodeDetails, RewardingParams};
 use nym_topology::CachedEpochRewardedSet;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tracing::trace;
 
 pub(super) async fn get_mixnode_reliability_from_storage(
@@ -166,7 +165,6 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
     interval_reward_params: RewardingParams,
     current_interval: Interval,
     rewarded_set: &CachedEpochRewardedSet,
-    blacklist: &HashSet<NodeId>,
 ) -> HashMap<NodeId, MixNodeBondAnnotated> {
     let mut annotated = HashMap::new();
     for mixnode in mixnodes {
@@ -216,7 +214,8 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
         annotated.insert(
             mixnode.mix_id(),
             MixNodeBondAnnotated {
-                blacklisted: blacklist.contains(&mixnode.mix_id()),
+                // all legacy nodes are always blacklisted
+                blacklisted: true,
                 mixnode_details: mixnode,
                 stake_saturation,
                 uncapped_stake_saturation,
@@ -236,7 +235,6 @@ pub(crate) async fn annotate_legacy_gateways_with_details(
     storage: &NymApiStorage,
     gateway_bonds: Vec<LegacyGatewayBondWithId>,
     current_interval: Interval,
-    blacklist: &HashSet<NodeId>,
 ) -> HashMap<NodeId, GatewayBondAnnotated> {
     let mut annotated = HashMap::new();
     for gateway_bond in gateway_bonds {
@@ -263,7 +261,8 @@ pub(crate) async fn annotate_legacy_gateways_with_details(
         annotated.insert(
             gateway_bond.node_id,
             GatewayBondAnnotated {
-                blacklisted: blacklist.contains(&gateway_bond.node_id),
+                // all legacy nodes are always blacklisted
+                blacklisted: true,
                 gateway_bond,
                 self_described: None,
                 performance,
@@ -291,8 +290,13 @@ pub(crate) async fn produce_node_annotations(
     for legacy_mix in legacy_mixnodes {
         let node_id = legacy_mix.mix_id();
 
-        let routing_score =
-            get_routing_score(storage, node_id, LegacyMixnode, current_interval).await;
+        let routing_score = get_routing_score(
+            storage,
+            node_id,
+            DescribedNodeType::LegacyMixnode,
+            current_interval,
+        )
+        .await;
         let config_score =
             calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
 
@@ -317,8 +321,13 @@ pub(crate) async fn produce_node_annotations(
 
     for legacy_gateway in legacy_gateways {
         let node_id = legacy_gateway.node_id;
-        let routing_score =
-            get_routing_score(storage, node_id, LegacyGateway, current_interval).await;
+        let routing_score = get_routing_score(
+            storage,
+            node_id,
+            DescribedNodeType::LegacyGateway,
+            current_interval,
+        )
+        .await;
         let config_score =
             calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
 
@@ -343,7 +352,13 @@ pub(crate) async fn produce_node_annotations(
 
     for nym_node in nym_nodes {
         let node_id = nym_node.node_id();
-        let routing_score = get_routing_score(storage, node_id, NymNode, current_interval).await;
+        let routing_score = get_routing_score(
+            storage,
+            node_id,
+            DescribedNodeType::NymNode,
+            current_interval,
+        )
+        .await;
         let config_score =
             calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
 

@@ -5,12 +5,35 @@ use crate::traits::{PemStorableKey, PemStorableKeyPair};
 use pem::Pem;
 use std::fs::File;
 use std::io::{self, Read, Write};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use tracing::debug;
+use zeroize::{Zeroize, Zeroizing};
 
 pub mod traits;
 
-#[derive(Debug, Default)]
+struct ZeroizingPem(Pem);
+
+impl Zeroize for ZeroizingPem {
+    fn zeroize(&mut self) {
+        self.0.tag.zeroize();
+        self.0.contents.zeroize();
+    }
+}
+impl Drop for ZeroizingPem {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl Deref for ZeroizingPem {
+    type Target = Pem;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct KeyPairPath {
     pub private_key_path: PathBuf,
     pub public_key_path: PathBuf,
@@ -56,7 +79,7 @@ where
     if T::pem_type() != key_pem.tag {
         return Err(io::Error::other(format!(
             "unexpected key pem tag. Got '{}', expected: '{}'",
-            key_pem.tag,
+            key_pem.0.tag,
             T::pem_type()
         )));
     }
@@ -77,25 +100,31 @@ where
     write_pem_file(path, key.to_bytes(), T::pem_type())
 }
 
-fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<Pem> {
+fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<ZeroizingPem> {
     let mut pem_bytes = File::open(filepath)?;
-    let mut buf = Vec::new();
+    let mut buf = Zeroizing::new(Vec::new());
     pem_bytes.read_to_end(&mut buf)?;
-    pem::parse(&buf).map_err(io::Error::other)
+    pem::parse(&buf).map(ZeroizingPem).map_err(io::Error::other)
 }
 
-fn write_pem_file<P: AsRef<Path>>(filepath: P, data: Vec<u8>, tag: &str) -> io::Result<()> {
+fn write_pem_file<P: AsRef<Path>>(filepath: P, mut data: Vec<u8>, tag: &str) -> io::Result<()> {
     // ensure the whole directory structure exists
     if let Some(parent_dir) = filepath.as_ref().parent() {
-        std::fs::create_dir_all(parent_dir)?;
+        if let Err(err) = std::fs::create_dir_all(parent_dir) {
+            // in case of a failure, make sure to zeroize the data before returning
+            // (we can't wrap it in `Zeroize` due to `Pem` requirements)
+            data.zeroize();
+            return Err(err);
+        }
     }
-    let pem = Pem {
-        tag: tag.to_string(),
-        contents: data,
-    };
-    let key = pem::encode(&pem);
 
     let mut file = File::create(filepath.as_ref())?;
+
+    let pem = ZeroizingPem(Pem {
+        tag: tag.to_string(),
+        contents: data,
+    });
+    let key = Zeroizing::new(pem::encode(&pem));
     file.write_all(key.as_bytes())?;
 
     // note: this is only supported on unix (on different systems, like Windows, it will just

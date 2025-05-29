@@ -89,6 +89,8 @@ impl SqlitePoolGuard {
     ///
     /// - Linux, Android: uses `/proc/self/fd/` to list open file descriptors
     ///   See: https://stackoverflow.com/a/59797198/351305
+    ///
+    /// - Windows: attempts to open files to detect whether they are still open.
     async fn wait_io_close(&self) -> std::io::Result<()> {
         let database_files = self.all_database_files();
         let paths: Vec<&Path> = database_files.iter().map(PathBuf::as_path).collect();
@@ -98,8 +100,8 @@ impl SqlitePoolGuard {
                 .await
                 .inspect_err(|e| log::error!("check_io_close() failure: {e}"))
             {
-                Ok(true) | Err(_) => tokio::time::sleep(SQL_CLOSE_RETRY_DELAY).await,
-                Ok(false) => return Ok(()),
+                Ok(false) | Err(_) => tokio::time::sleep(SQL_CLOSE_RETRY_DELAY).await,
+                Ok(true) => return Ok(()),
             }
         }
 
@@ -135,11 +137,11 @@ impl SqlitePoolGuard {
                     log::warn!("vnode.path() failure: {e:?}");
                 })
             {
-                return Ok(true);
+                return Ok(false);
             }
         }
 
-        Ok(false)
+        Ok(true)
     }
 
     /// Check if no more open file descriptors exist for the given files.
@@ -157,7 +159,7 @@ impl SqlitePoolGuard {
                 match tokio::fs::read_link(entry.path()).await {
                     Ok(resolved_path) => {
                         if file_paths.contains(&resolved_path.as_ref()) {
-                            return Ok(true);
+                            return Ok(false);
                         }
                     }
                     Err(e) => {
@@ -167,7 +169,29 @@ impl SqlitePoolGuard {
             }
         }
 
-        Ok(false)
+        Ok(true)
+    }
+
+    #[cfg(windows)]
+    async fn check_io_close(file_paths: &[&Path]) -> io::Result<bool> {
+        // Error code returned when file is still in use.
+        const FILE_IN_USE_ERR: i32 = 32;
+
+        for file_path in file_paths {
+            if let Err(e) = tokio::fs::OpenOptions::new()
+                .read(true)
+                .open(file_path)
+                .await
+            {
+                if e.raw_os_error() == Some(FILE_IN_USE_ERR) {
+                    return Ok(false);
+                } else if e.kind() != io::ErrorKind::NotFound {
+                    log::error!("Failed to open file: {}", file_path.display());
+                }
+            }
+        }
+
+        Ok(true)
     }
 }
 

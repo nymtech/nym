@@ -81,14 +81,28 @@ impl PeerHandle {
             .inspect_err(|e| tracing::error!("Storage tx bytes could not be converted: {e}"))
             .ok()?;
 
-        let kernel_total = kernel_peer.rx_bytes + kernel_peer.tx_bytes;
-        let storage_total = storage_peer_rx_bytes + storage_peer_tx_bytes;
+        let kernel_total = kernel_peer
+            .rx_bytes
+            .checked_add(kernel_peer.tx_bytes)
+            .or_else(|| {
+                tracing::error!(
+                    "Overflow on kernel adding bytes: {} + {}",
+                    kernel_peer.rx_bytes,
+                    kernel_peer.tx_bytes
+                );
+                None
+            })?;
+        let storage_total = storage_peer_rx_bytes
+            .checked_add(storage_peer_tx_bytes)
+            .or_else(|| {
+                tracing::error!("Overflow on storage adding bytes: {storage_peer_rx_bytes} + {storage_peer_tx_bytes}");
+                None
+            })?;
 
-        let ret = kernel_total.checked_sub(storage_total);
-        if ret.is_none() {
-            tracing::error!("Invalid spent bandwidth subtraction: kernel - storage = {kernel_total} - {storage_total}");
-        }
-        ret
+        kernel_total.checked_sub(storage_total).or_else(|| {
+            tracing::error!("Overflow on spent bandwidth subtraction: kernel - storage = {kernel_total} - {storage_total}");
+            None
+        })
     }
 
     async fn active_peer(&mut self, kernel_peer: &Peer) -> Result<bool, Error> {

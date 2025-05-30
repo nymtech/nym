@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ApiUrlConst;
 #[cfg(feature = "network")]
 use crate::{DenomDetails, ValidatorDetails};
 
@@ -29,10 +30,30 @@ pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
-pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
+pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+pub const NYM_APIS: &[ApiUrlConst] = &[
+    ApiUrlConst {
+        url: NYM_API,
+        front_urls: None,
+    },
+    ApiUrlConst {
+        url: "https://validator.global.ssl.fastly.net/api/",
+        front_urls: Some(&["https://yelp.global.ssl.fastly.net"]),
+    },
+];
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
+    ApiUrlConst {
+        url: NYM_VPN_API,
+        front_urls: None,
+    },
+    ApiUrlConst {
+        url: "https://nymvpn.global.ssl.fastly.net/api/",
+        front_urls: Some(&["https://yelp.global.ssl.fastly.net"]),
+    },
+];
 
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
 pub const EXIT_POLICY_URL: &str =

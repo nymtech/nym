@@ -57,7 +57,9 @@ impl From<ApiUrlConst<'_>> for ApiUrl {
     fn from(value: ApiUrlConst) -> Self {
         ApiUrl {
             url: value.url.to_string(),
-            front_urls: value.front_urls.map(|slice| slice.iter().map(|s| s.to_string()).collect()),
+            front_urls: value
+                .front_urls
+                .map(|slice| slice.iter().map(|s| s.to_string()).collect()),
         }
     }
 }

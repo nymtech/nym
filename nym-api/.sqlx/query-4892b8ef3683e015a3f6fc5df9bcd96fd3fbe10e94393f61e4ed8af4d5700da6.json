@@ -6,12 +6,12 @@
       {
         "name": "absolute_epoch_id: u32",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "eligible_mixnodes: u32",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

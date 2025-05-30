@@ -6,19 +6,19 @@
       {
         "name": "id!",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "gateway_id",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {
       "Right": 3
     },
     "nullable": [
-      true,
+      false,
       false
     ]
   },

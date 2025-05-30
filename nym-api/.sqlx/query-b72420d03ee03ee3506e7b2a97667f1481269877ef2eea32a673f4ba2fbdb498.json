@@ -11,12 +11,12 @@
       {
         "name": "mix_id: NodeId",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "id",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

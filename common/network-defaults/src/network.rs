@@ -37,6 +37,31 @@ pub struct NymNetworkDetails {
     pub contracts: NymContracts,
     pub explorer_api: Option<String>,
     pub nym_vpn_api_url: Option<String>,
+    pub nym_api_urls: Option<Vec<ApiUrl>>,
+    pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub struct ApiUrl {
+    pub url: String,
+    pub front_urls: Option<Vec<String>>,
+}
+
+pub struct ApiUrlConst<'a> {
+    pub url: &'a str,
+    pub front_urls: Option<&'a [&'a str]>,
+}
+
+impl From<ApiUrlConst<'_>> for ApiUrl {
+    fn from(value: ApiUrlConst) -> Self {
+        ApiUrl {
+            url: value.url.to_string(),
+            front_urls: value
+                .front_urls
+                .map(|slice| slice.iter().map(|s| s.to_string()).collect()),
+        }
+    }
 }
 
 // by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
@@ -67,6 +92,8 @@ impl NymNetworkDetails {
             contracts: Default::default(),
             explorer_api: Default::default(),
             nym_vpn_api_url: Default::default(),
+            nym_api_urls: Default::default(),
+            nym_vpn_api_urls: Default::default(),
         }
     }
 
@@ -154,6 +181,8 @@ impl NymNetworkDetails {
             },
             explorer_api: parse_optional_str(mainnet::EXPLORER_API),
             nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
+            nym_api_urls: None,
+            nym_vpn_api_urls: None,
         }
     }
 

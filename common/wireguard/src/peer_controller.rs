@@ -45,6 +45,10 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<QueryBandwidthControlResponse>,
     },
+    GetClientBandwidth {
+        key: Key,
+        response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
+    },
 }
 
 pub struct AddPeerControlResponse {
@@ -63,6 +67,10 @@ pub struct QueryPeerControlResponse {
 pub struct QueryBandwidthControlResponse {
     pub success: bool,
     pub bandwidth_data: Option<RemainingBandwidthData>,
+}
+
+pub struct GetClientBandwidthControlResponse {
+    pub client_bandwidth: Option<ClientBandwidth>,
 }
 
 pub struct PeerController {
@@ -267,6 +275,14 @@ impl PeerController {
         }))
     }
 
+    async fn handle_get_client_bandwidth(&self, key: &Key) -> Option<ClientBandwidth> {
+        if let Some(Some(bandwidth_storage_manager)) = self.bw_storage_managers.get(key) {
+            Some(bandwidth_storage_manager.read().await.client_bandwidth())
+        } else {
+            return None;
+        }
+    }
+
     async fn update_metrics(&self, new_host: &Host) {
         let now = SystemTime::now();
         const ACTIVITY_THRESHOLD: Duration = Duration::from_secs(60);
@@ -362,6 +378,10 @@ impl PeerController {
                             } else {
                                 response_tx.send(QueryBandwidthControlResponse { success: false, bandwidth_data: None }).ok();
                             }
+                        }
+                        Some(PeerControlRequest::GetClientBandwidth { key, response_tx }) => {
+                            let client_bandwidth = self.handle_get_client_bandwidth(&key).await;
+                            response_tx.send(GetClientBandwidthControlResponse { client_bandwidth }).ok();
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");

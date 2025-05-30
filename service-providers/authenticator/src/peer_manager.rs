@@ -8,10 +8,11 @@ use nym_authenticator_requests::{
     latest::registration::{GatewayClient, RemainingBandwidthData},
     traits::QueryBandwidthMessage,
 };
+use nym_credential_verification::ClientBandwidth;
 use nym_wireguard::{
     peer_controller::{
-        AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,
-        QueryPeerControlResponse, RemovePeerControlResponse,
+        AddPeerControlResponse, GetClientBandwidthControlResponse, PeerControlRequest,
+        QueryBandwidthControlResponse, QueryPeerControlResponse, RemovePeerControlResponse,
     },
     WireguardGatewayData,
 };
@@ -109,14 +110,36 @@ impl PeerManager {
         let QueryBandwidthControlResponse {
             success,
             bandwidth_data,
-        } = response_rx
-            .await
-            .map_err(|_| AuthenticatorError::InternalError("no response for query".to_string()))?;
+        } = response_rx.await.map_err(|_| {
+            AuthenticatorError::InternalError("no response for query bandwidth".to_string())
+        })?;
         if !success {
             return Err(AuthenticatorError::InternalError(
                 "querying bandwidth could not be performed".to_string(),
             ));
         }
         Ok(bandwidth_data)
+    }
+
+    pub async fn query_client_bandwidth(
+        &mut self,
+        key: PeerPublicKey,
+    ) -> Result<Option<ClientBandwidth>> {
+        let key = Key::new(key.to_bytes());
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::GetClientBandwidth { key, response_tx };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
+
+        let GetClientBandwidthControlResponse { client_bandwidth } =
+            response_rx.await.map_err(|_| {
+                AuthenticatorError::InternalError(
+                    "no response for query client bandwidth".to_string(),
+                )
+            })?;
+        Ok(client_bandwidth)
     }
 }

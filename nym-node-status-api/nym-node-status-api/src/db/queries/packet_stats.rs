@@ -61,14 +61,13 @@ pub(crate) async fn get_raw_node_stats(
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
         ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            // FIXME: we must find a way to switch back to query_as!
-            sqlx::query_as_unchecked!(
+            sqlx::query_as!(
                 NodeStats,
                 r#"
                 SELECT
-                    COALESCE(packets_received, 0) as packets_received,
-                    COALESCE(packets_sent, 0) as packets_sent,
-                    COALESCE(packets_dropped, 0) as packets_dropped
+                    COALESCE(packets_received, 0) as "packets_received!: _",
+                    COALESCE(packets_sent, 0) as "packets_sent!: _",
+                    COALESCE(packets_dropped, 0) as "packets_dropped!: _"
                 FROM mixnode_packet_stats_raw
                 WHERE mix_id = ?
                 ORDER BY timestamp_utc DESC
@@ -81,14 +80,13 @@ pub(crate) async fn get_raw_node_stats(
         }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
-            // FIXME: we must find a way to switch back to query_as!
-            sqlx::query_as_unchecked!(
+            sqlx::query_as!(
                 NodeStats,
                 r#"
                 SELECT
-                    COALESCE(packets_received, 0) as packets_received,
-                    COALESCE(packets_sent, 0) as packets_sent,
-                    COALESCE(packets_dropped, 0) as packets_dropped
+                    COALESCE(packets_received, 0) as "packets_received!: _",
+                    COALESCE(packets_sent, 0) as "packets_sent!: _",
+                    COALESCE(packets_dropped, 0) as "packets_dropped!: _"
                 FROM nym_nodes_packet_stats_raw
                 WHERE node_id = ?
                 ORDER BY timestamp_utc DESC

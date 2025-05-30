@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    COALESCE(packets_received, 0) as \"packets_received!: _\",\n                    COALESCE(packets_sent, 0) as \"packets_sent!: _\",\n                    COALESCE(packets_dropped, 0) as \"packets_dropped!: _\"\n                FROM nym_nodes_packet_stats_raw\n                WHERE node_id = ?\n                ORDER BY timestamp_utc DESC\n                LIMIT 1 OFFSET 1\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "packets_received!: _",
+        "ordinal": 0,
+        "type_info": "Null"
+      },
+      {
+        "name": "packets_sent!: _",
+        "ordinal": 1,
+        "type_info": "Null"
+      },
+      {
+        "name": "packets_dropped!: _",
+        "ordinal": 2,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "8bdf85a61e443fa5f4835bffd0bffc8ed1011f56714fde6007e50951e569854b"
+}

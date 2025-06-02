@@ -78,3 +78,84 @@ impl NodeResults {
         }
     }
 }
+
+#[cw_serde]
+pub struct NodePerformanceResponse {
+    pub performance: Option<Percent>,
+}
+
+#[cw_serde]
+pub struct NodeMeasurementsResponse {
+    pub measurements: Option<NodeResults>,
+}
+
+#[cw_serde]
+#[derive(Copy)]
+pub struct EpochNodePerformance {
+    pub epoch: EpochId,
+    pub performance: Option<Percent>,
+}
+
+#[cw_serde]
+pub struct NodePerformancePagedResponse {
+    pub node_id: NodeId,
+    pub performance: Vec<EpochNodePerformance>,
+    pub start_next_after: Option<EpochId>,
+}
+
+#[cw_serde]
+pub struct EpochPerformancePagedResponse {
+    pub epoch_id: EpochId,
+    pub performance: Vec<NodePerformance>,
+    pub start_next_after: Option<NodeId>,
+}
+
+#[cw_serde]
+pub struct NodeMeasurement {
+    pub node_id: NodeId,
+    pub measurements: NodeResults,
+}
+
+#[cw_serde]
+pub struct EpochMeasurementsPagedResponse {
+    pub epoch_id: EpochId,
+    pub measurements: Vec<NodeMeasurement>,
+    pub start_next_after: Option<NodeId>,
+}
+
+#[cw_serde]
+#[derive(Copy)]
+pub struct HistoricalPerformance {
+    pub epoch_id: EpochId,
+    pub node_id: NodeId,
+    pub performance: Percent,
+}
+
+#[cw_serde]
+pub struct FullHistoricalPerformancePagedResponse {
+    pub performance: Vec<HistoricalPerformance>,
+    pub start_next_after: Option<(EpochId, NodeId)>,
+}
+
+#[cw_serde]
+pub struct NetworkMonitorInformation {
+    pub details: NetworkMonitorDetails,
+    pub current_submission_metadata: NetworkMonitorSubmissionMetadata,
+}
+
+#[cw_serde]
+pub struct NetworkMonitorResponse {
+    pub info: Option<NetworkMonitorInformation>,
+}
+
+#[cw_serde]
+pub struct NetworkMonitorsPagedResponse {
+    pub info: Vec<NetworkMonitorInformation>,
+    pub start_next_after: Option<String>,
+}
+
+#[cw_serde]
+pub struct RetiredNetworkMonitorsPagedResponse {
+    pub info: Vec<RetiredNetworkMonitor>,
+    pub start_next_after: Option<String>,
+}

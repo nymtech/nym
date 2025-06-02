@@ -281,11 +281,11 @@ impl PeerController {
         for (peer_key, peer) in new_host.peers.iter() {
             match old_host.peers.get(peer_key) {
                 // only consider pre-existing peers for the purposes of bandwidth accounting,
-                // do that the value would always be increasing.
+                // so that the value would always be increasing.
                 Some(prior) => {
                     // 1. determine bandwidth changes
                     let delta_rx = peer.rx_bytes.saturating_sub(prior.rx_bytes);
-                    let delta_tx = prior.tx_bytes.saturating_sub(prior.tx_bytes);
+                    let delta_tx = peer.tx_bytes.saturating_sub(prior.tx_bytes);
 
                     new_rx += delta_rx;
                     new_tx += delta_tx;

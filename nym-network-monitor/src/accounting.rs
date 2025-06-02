@@ -503,13 +503,13 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                 let client = reqwest::Client::new();
 
                 let node_submit_url =
-                    format!("{}/api/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", nym_api_url);
+                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", nym_api_url);
                 let gateway_submit_url = format!(
-                    "{}/api/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}",
+                    "{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}",
                     nym_api_url
                 );
                 let route_submit_url =
-                    format!("{}/api/{API_VERSION}/{STATUS}/{SUBMIT_ROUTE}", nym_api_url);
+                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_ROUTE}", nym_api_url);
 
                 info!("Submitting {} mixnode measurements", node_stats.len());
 

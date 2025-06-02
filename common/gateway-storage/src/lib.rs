@@ -108,7 +108,6 @@ impl GatewayStorage {
 
         if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             error!("Failed to perform migration on the SQLx database: {err}");
-            connection_pool.close().await;
             return Err(err.into());
         }
 

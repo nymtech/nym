@@ -3,8 +3,8 @@
 
 use crate::contract::{execute, instantiate, migrate, query};
 use nym_contracts_common_testing::{
-    AdminExt, ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractTester, DenomExt,
-    PermissionedFn, QueryFn, RandExt, TestableNymContract,
+    addr, AdminExt, ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractTester,
+    DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
@@ -38,7 +38,10 @@ impl TestableNymContract for PerformanceContract {
     }
 
     fn base_init_msg() -> Self::InitMsg {
-        InstantiateMsg {}
+        InstantiateMsg {
+            mixnet_contract_address: addr("mixnet-contract").to_string(),
+            authorised_network_monitors: vec![],
+        }
     }
 }
 

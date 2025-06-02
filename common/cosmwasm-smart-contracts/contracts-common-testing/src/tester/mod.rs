@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::tester::storage_wrapper::{ContractStorageWrapper, StorageWrapper};
-use crate::{test_rng, TEST_DENOM};
+use crate::{mock_api, test_rng, TEST_DENOM};
 use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::{coin, coins, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response};
 use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
@@ -78,7 +78,7 @@ pub trait TestableNymContract {
     {
         let storage = StorageWrapper::new();
 
-        let api = MockApi::default().with_prefix("n");
+        let api = mock_api();
         let master_address = api.addr_make("master-owner");
 
         let mut app = AppBuilder::new()

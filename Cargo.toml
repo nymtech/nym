@@ -370,9 +370,6 @@ subtle = "2.5.0"
 # cosmwasm-related
 cosmwasm-schema = "=2.2.2"
 cosmwasm-std = "=2.2.2"
-# use 1.0.1 as that's the version used by cosmwasm-std 2.2.1
-# (and ideally we don't want to pull the same dependency twice)
-serde-json-wasm = "=1.0.1"
 # same version as used by cosmwasm
 cw-utils = "=2.0.0"
 cw-storage-plus = "=2.0.0"

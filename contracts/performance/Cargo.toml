@@ -21,11 +21,13 @@ cosmwasm-std = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
+serde = { workspace = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-performance-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-performance-contract" }
+nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 
 [dev-dependencies]
 anyhow = { workspace = true }

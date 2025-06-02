@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
-use nym_performance_contract_common::NymPerformanceContractError;
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use nym_performance_contract_common::{EpochId, NodePerformance, NymPerformanceContractError};
 
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
@@ -17,6 +17,63 @@ pub fn try_update_contract_admin(
         .execute_update_admin(deps, info, Some(new_admin))?;
 
     Ok(res)
+}
+
+pub fn try_submit_performance_results(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    epoch_id: EpochId,
+    data: NodePerformance,
+) -> Result<Response, NymPerformanceContractError> {
+    NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(deps, &info.sender, epoch_id, data)?;
+
+    // TODO: emit events
+    Ok(Response::new())
+}
+
+pub fn try_batch_submit_performance_results(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    epoch_id: EpochId,
+    data: Vec<NodePerformance>,
+) -> Result<Response, NymPerformanceContractError> {
+    NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
+        deps,
+        &info.sender,
+        epoch_id,
+        data,
+    )?;
+
+    // TODO: emit events
+    Ok(Response::new())
+}
+
+pub fn try_authorise_network_monitor(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    address: String,
+) -> Result<Response, NymPerformanceContractError> {
+    let address = deps.api.addr_validate(&address)?;
+
+    NYM_PERFORMANCE_CONTRACT_STORAGE.authorise_network_monitor(deps, env, &info.sender, address)?;
+
+    // TODO: emit events
+    Ok(Response::new())
+}
+
+pub fn try_retire_network_monitor(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    address: String,
+) -> Result<Response, NymPerformanceContractError> {
+    let address = deps.api.addr_validate(&address)?;
+
+    NYM_PERFORMANCE_CONTRACT_STORAGE.retire_network_monitor(deps, env, &info.sender, address)?;
+
+    // TODO: emit events
+    Ok(Response::new())
 }
 
 #[cfg(test)]

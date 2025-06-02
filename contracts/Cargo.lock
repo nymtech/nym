@@ -1250,7 +1250,6 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
- "serde-json-wasm",
  "serde_repr",
  "thiserror 2.0.12",
  "time",
@@ -1300,7 +1299,9 @@ dependencies = [
  "cw2",
  "nym-contracts-common",
  "nym-contracts-common-testing",
+ "nym-mixnet-contract-common",
  "nym-performance-contract-common",
+ "serde",
 ]
 
 [[package]]
@@ -1310,6 +1311,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "nym-contracts-common",
  "schemars",
  "serde",
  "thiserror 2.0.12",

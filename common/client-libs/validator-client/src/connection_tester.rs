@@ -5,7 +5,6 @@ use crate::{NymApiClient, QueryHttpRpcNyxdClient, ValidatorClientError};
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
-// use nym_http_api_client::Url;
 use nym_network_defaults::NymNetworkDetails;
 use std::collections::HashMap;
 use std::hash::BuildHasher;

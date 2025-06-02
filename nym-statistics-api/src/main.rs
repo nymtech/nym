@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
         args.username,
         args.password,
         args.pg_port,
+        args.ssl_cert_path,
     )
     .await?;
     tracing::info!("Connection to database successful");

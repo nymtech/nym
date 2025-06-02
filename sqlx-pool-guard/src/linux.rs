@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::{io, path::Path};
+
 static PROC_SELF_FD_DIR: &str = "/proc/self/fd/";
 
 /// Check if there are no open file descriptors for the given files.

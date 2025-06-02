@@ -5,12 +5,12 @@ use crate::{NymApiClient, QueryHttpRpcNyxdClient, ValidatorClientError};
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
-use nym_http_api_client::Url;
 use nym_network_defaults::NymNetworkDetails;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::time::Duration;
 use tokio::time::timeout;
+use url::Url;
 
 const MAX_URLS_TESTED: usize = 200;
 const CONNECTION_TEST_TIMEOUT_SEC: u64 = 2;
@@ -88,7 +88,7 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
     });
 
     let api_connection_test_clients = api_urls.map(|(network, url)| {
-        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url.into()))
+        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url))
     });
 
     nyxd_connection_test_clients.chain(api_connection_test_clients)

@@ -439,7 +439,7 @@ impl ClientBuilder {
 
         // warn about any invalid URLs
         urls.iter()
-            .filter(|url| url.scheme().starts_with("http"))
+            .filter(|url| !url.scheme().contains("http") && !url.scheme().contains("https"))
             .for_each(|url| {
                 warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
             });

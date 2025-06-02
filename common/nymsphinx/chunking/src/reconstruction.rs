@@ -124,7 +124,7 @@ impl ReconstructionBuffer {
             // TODO: what to do in that case? give up on the message? overwrite it? panic?
             // it *might* be due to lock ack-packet, but let's keep the `warn` level in case
             // it could be somehow exploited
-            warn!(
+            debug!(
                 "duplicate fragment received! - frag - {} (set id: {})",
                 fragment.current_fragment(),
                 fragment.id()

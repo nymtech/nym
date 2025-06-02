@@ -17,7 +17,7 @@ use crate::support::storage::models::{
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
-use nym_types::monitoring::NodeResult;
+use nym_types::monitoring::{NodeResult, RouteResult};
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -831,6 +831,16 @@ impl NymApiStorage {
     ) -> Result<(), NymApiStorageError> {
         self.manager
             .submit_gateway_statuses_v2(gateway_results)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn submit_route_monitoring_results(
+        &self,
+        route_results: &[RouteResult],
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .submit_route_monitoring_results(route_results)
             .await?;
         Ok(())
     }

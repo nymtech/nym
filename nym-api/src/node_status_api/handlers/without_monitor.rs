@@ -20,7 +20,7 @@ use nym_api_requests::models::{
 };
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnet_contract_common::NodeId;
-use nym_types::monitoring::MonitorMessage;
+use nym_types::monitoring::{MonitorMessage, MonitorResults};
 use tracing::error;
 
 pub(super) fn mandatory_routes() -> Router<AppState> {
@@ -32,6 +32,10 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
         .route(
             "/submit-node-monitoring-results",
             post(submit_node_monitoring_results),
+        )
+        .route(
+            "/submit-route-monitoring-results",
+            post(submit_route_monitoring_results),
         )
         .nest(
             "/mixnode/:mix_id",
@@ -56,6 +60,53 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
                     .route("/active/detailed", get(get_active_set_detailed)),
             ),
         )
+}
+
+#[utoipa::path(
+    tag = "status",
+    post,
+    path = "/v1/status/submit-route-monitoring-results",
+    responses(
+        (status = 200),
+        (status = 400, body = String, description = "TBD"),
+        (status = 403, body = String, description = "TBD"),
+        (status = 500, body = String, description = "TBD"),
+    ),
+)]
+pub(crate) async fn submit_route_monitoring_results(
+    State(state): State<AppState>,
+    Json(message): Json<MonitorMessage>,
+) -> AxumResult<()> {
+    if !message.is_in_allowed() {
+        return Err(AxumErrorResponse::forbidden(
+            "Monitor not registered to submit results",
+        ));
+    }
+
+    if !message.timely() {
+        return Err(AxumErrorResponse::bad_request("Message is too old"));
+    }
+
+    if !message.verify() {
+        return Err(AxumErrorResponse::bad_request("invalid signature"));
+    }
+
+    match message.results() {
+        MonitorResults::Route(results) => {
+            match state.storage.submit_route_monitoring_results(results).await {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!("failed to submit node monitoring results: {err}");
+                    Err(AxumErrorResponse::internal_msg(
+                        "failed to submit node monitoring results",
+                    ))
+                }
+            }
+        }
+        MonitorResults::Node(_results) => Err(AxumErrorResponse::bad_request(
+            "Node monitoring results not supported for this endpoint",
+        )),
+    }
 }
 
 #[utoipa::path(
@@ -87,18 +138,21 @@ pub(crate) async fn submit_gateway_monitoring_results(
         return Err(AxumErrorResponse::bad_request("invalid signature"));
     }
 
-    match state
-        .storage
-        .submit_gateway_statuses_v2(message.results())
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("failed to submit gateway monitoring results: {err}");
-            Err(AxumErrorResponse::internal_msg(
-                "failed to submit gateway monitoring results",
-            ))
+    match message.results() {
+        MonitorResults::Node(results) => {
+            match state.storage.submit_gateway_statuses_v2(results).await {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!("failed to submit node monitoring results: {err}");
+                    Err(AxumErrorResponse::internal_msg(
+                        "failed to submit node monitoring results",
+                    ))
+                }
+            }
         }
+        MonitorResults::Route(_results) => Err(AxumErrorResponse::bad_request(
+            "Gateway monitoring results not supported for this endpoint",
+        )),
     }
 }
 
@@ -131,18 +185,21 @@ pub(crate) async fn submit_node_monitoring_results(
         return Err(AxumErrorResponse::bad_request("invalid signature"));
     }
 
-    match state
-        .storage
-        .submit_mixnode_statuses_v2(message.results())
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("failed to submit node monitoring results: {err}");
-            Err(AxumErrorResponse::internal_msg(
-                "failed to submit node monitoring results",
-            ))
+    match message.results() {
+        MonitorResults::Node(results) => {
+            match state.storage.submit_mixnode_statuses_v2(results).await {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!("failed to submit node monitoring results: {err}");
+                    Err(AxumErrorResponse::internal_msg(
+                        "failed to submit node monitoring results",
+                    ))
+                }
+            }
         }
+        MonitorResults::Route(_results) => Err(AxumErrorResponse::bad_request(
+            "Node monitoring results not supported for this endpoint",
+        )),
     }
 }
 

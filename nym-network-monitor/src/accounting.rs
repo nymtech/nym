@@ -5,11 +5,13 @@ use std::{
 
 use anyhow::Result;
 use futures::{pin_mut, stream::FuturesUnordered, StreamExt};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{NymRouteProvider, RoutingNode};
-use nym_types::monitoring::{MonitorMessage, NodeResult};
-use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
+use nym_types::monitoring::{MonitorMessage, MonitorResults, NodeResult, RouteResult};
+use nym_validator_client::nym_api::routes::{
+    API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE, SUBMIT_ROUTE,
+};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -17,7 +19,7 @@ use tokio::task::JoinHandle;
 use tokio_postgres::{binary_copy::BinaryCopyInWriter, types::Type, Client, NoTls};
 use utoipa::ToSchema;
 
-use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
+use crate::{NYM_API_URLS, PRIVATE_KEY, TOPOLOGY};
 
 struct HydratedRoute {
     mix_nodes: Vec<RoutingNode>,
@@ -439,6 +441,7 @@ async fn db_connection(database_url: Option<&String>) -> Result<Option<(Client, 
         Ok(None)
     }
 }
+
 pub async fn submit_metrics_to_db(database_url: Option<&String>) -> anyhow::Result<()> {
     if let Some((client, handle)) = db_connection(database_url).await? {
         let client = Arc::new(client);
@@ -491,49 +494,100 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
     }
 
     if let Some(private_key) = PRIVATE_KEY.get() {
-        let node_stats = monitor_mixnode_results().await?;
-        let gateway_stats = monitor_gateway_results().await?;
+        if let Some(nym_api_urls) = NYM_API_URLS.get() {
+            info!("Submitting metrics to {} nym apis", nym_api_urls.len());
+            for nym_api_url in nym_api_urls {
+                info!("Submitting metrics to {}", nym_api_url);
+                let node_stats = monitor_mixnode_results().await?;
+                let gateway_stats = monitor_gateway_results().await?;
+                let client = reqwest::Client::new();
 
-        info!("Submitting metrics to {}", *NYM_API_URL);
-        let client = reqwest::Client::new();
-
-        let node_submit_url = format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
-        let gateway_submit_url =
-            format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", &*NYM_API_URL);
-
-        info!("Submitting {} mixnode measurements", node_stats.len());
-
-        node_stats
-            .chunks(10)
-            .map(|chunk| {
-                let monitor_message = MonitorMessage::new(chunk.to_vec(), private_key);
-                client.post(&node_submit_url).json(&monitor_message).send()
-            })
-            .collect::<FuturesUnordered<_>>()
-            .collect::<Vec<Result<_, _>>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
-
-        info!("Submitting {} gateway measurements", gateway_stats.len());
-
-        gateway_stats
-            .chunks(10)
-            .map(|chunk| {
-                let monitor_message = MonitorMessage::new(
-                    chunk.to_vec(),
-                    PRIVATE_KEY.get().expect("We've set this!"),
+                let node_submit_url =
+                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", nym_api_url);
+                let gateway_submit_url = format!(
+                    "{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}",
+                    nym_api_url
                 );
-                client
-                    .post(&gateway_submit_url)
-                    .json(&monitor_message)
-                    .send()
-            })
-            .collect::<FuturesUnordered<_>>()
-            .collect::<Vec<Result<_, _>>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
+                let route_submit_url =
+                    format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_ROUTE}", nym_api_url);
+
+                info!("Submitting {} mixnode measurements", node_stats.len());
+
+                node_stats
+                    .chunks(10)
+                    .map(|chunk| {
+                        let monitor_results = MonitorResults::Node(chunk.to_vec());
+                        let monitor_message = MonitorMessage::new(monitor_results, private_key);
+                        client.post(&node_submit_url).json(&monitor_message).send()
+                    })
+                    .collect::<FuturesUnordered<_>>()
+                    .collect::<Vec<Result<_, _>>>()
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                info!("Submitting {} gateway measurements", gateway_stats.len());
+
+                gateway_stats
+                    .chunks(10)
+                    .map(|chunk| {
+                        let monitor_results = MonitorResults::Node(chunk.to_vec());
+                        let monitor_message = MonitorMessage::new(
+                            monitor_results,
+                            PRIVATE_KEY.get().expect("We've set this!"),
+                        );
+                        client
+                            .post(&gateway_submit_url)
+                            .json(&monitor_message)
+                            .send()
+                    })
+                    .collect::<FuturesUnordered<_>>()
+                    .collect::<Vec<Result<_, _>>>()
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let network_account = NetworkAccount::finalize()?;
+                let accounting_routes = network_account.accounting_routes;
+                info!("Submitting {} accounting routes", accounting_routes.len());
+                match accounting_routes
+                    .chunks(10)
+                    .map(|chunk| {
+                        let route_results = chunk
+                            .iter()
+                            .map(|route| {
+                                RouteResult::new(
+                                    route.mix_nodes.0,
+                                    route.mix_nodes.1,
+                                    route.mix_nodes.2,
+                                    route.gateway_node,
+                                    route.success,
+                                )
+                            })
+                            .collect::<Vec<RouteResult>>();
+                        let monitor_results = MonitorResults::Route(route_results);
+                        let monitor_message = MonitorMessage::new(monitor_results, private_key);
+                        client.post(&route_submit_url).json(&monitor_message).send()
+                    })
+                    .collect::<FuturesUnordered<_>>()
+                    .collect::<Vec<Result<_, _>>>()
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()
+                {
+                    Ok(_) => info!(
+                        "Successfully submitted accounting routes to {}",
+                        nym_api_url
+                    ),
+                    Err(e) => error!(
+                        "Error submitting accounting routes to {}: {}",
+                        nym_api_url, e
+                    ),
+                };
+            }
+        }
+    } else {
+        warn!("No private key or nym api urls found");
     }
 
     NetworkAccount::empty_buffers();

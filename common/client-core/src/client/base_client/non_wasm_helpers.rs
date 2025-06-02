@@ -7,15 +7,11 @@ use crate::{
     config::Config,
     error::ClientCoreError,
 };
-#[cfg(windows)]
-use log::debug;
 use log::{error, info, trace};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
-#[cfg(windows)]
-use std::time::Duration;
 use std::{io, path::Path};
 use time::OffsetDateTime;
 use url::Url;
@@ -24,10 +20,7 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
     surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
-    info!(
-        "creating fresh surb database: {}",
-        db_path.as_ref().display()
-    );
+    info!("Creating fresh surb database");
     let mut storage_backend = match fs_backend::Backend::init(db_path).await {
         Ok(backend) => backend,
         Err(err) => {
@@ -79,49 +72,13 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         };
     let renamed = db_path.with_extension(new_extension);
 
-    rename_db_file(&db_path, &renamed).await.inspect_err(|_| {
+    tokio::fs::rename(db_path, &renamed).await.inspect_err(|_| {
         tracing::error!(
             "Failed to rename corrupt database file: {} to {}",
             db_path.display(),
             renamed.display()
         );
     })
-}
-
-#[cfg(not(windows))]
-async fn rename_db_file(db_path: impl AsRef<Path>, renamed: impl AsRef<Path>) -> io::Result<()> {
-    tokio::fs::rename(db_path, &renamed).await
-}
-
-#[cfg(windows)]
-async fn rename_db_file(db_path: impl AsRef<Path>, renamed: impl AsRef<Path>) -> io::Result<()> {
-    // Due to bug in sqlx (https://github.com/launchbadge/sqlx/issues/3217),
-    // the sqlite file can be still in use after closing sqlite connection pool
-    // Poll for a bit until the db file is released.
-
-    // Max number of retries
-    const MAX_RETRY_ATTEMPTS: u32 = 10;
-    // Delay between retries
-    const WAIT_DELAY: Duration = Duration::from_millis(100);
-    // Error code returned when file is still in use.
-    const FILE_IN_USE_ERR: i32 = 32;
-
-    let mut retry_attempt = 0;
-    while let Err(e) = tokio::fs::rename(db_path.as_ref(), renamed.as_ref()).await {
-        retry_attempt += 1;
-
-        if e.raw_os_error() == Some(FILE_IN_USE_ERR) && retry_attempt < MAX_RETRY_ATTEMPTS {
-            debug!(
-                "File {} is still open. Sleep and retry",
-                db_path.as_ref().display()
-            );
-            tokio::time::sleep(WAIT_DELAY).await;
-        } else {
-            return Err(e);
-        }
-    }
-
-    Ok(())
 }
 
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
@@ -132,7 +89,7 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     // the existing one
     let db_path = db_path.as_ref();
     if db_path.exists() {
-        info!("Loading existing surb database: {}", db_path.display());
+        info!("Loading existing surb database");
         match fs_backend::Backend::try_load(db_path, surb_config.fresh_sender_tags).await {
             Ok(backend) => Ok(backend),
             Err(err) => {

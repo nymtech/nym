@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::{io, path::Path};
+
 use proc_pidinfo::{
     ProcFDInfo, ProcFDType, VnodeFdInfoWithPath, proc_pidfdinfo_self, proc_pidinfo_list_self,
 };

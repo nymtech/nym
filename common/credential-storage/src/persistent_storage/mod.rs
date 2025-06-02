@@ -37,6 +37,7 @@ use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
+use sqlx_pool_guard::SqlitePoolGuard;
 use std::path::Path;
 use zeroize::Zeroizing;
 
@@ -62,7 +63,7 @@ impl PersistentStorage {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
-            .filename(database_path)
+            .filename(&database_path)
             .create_if_missing(true)
             .disable_statement_logging();
 
@@ -74,14 +75,17 @@ impl PersistentStorage {
             }
         };
 
-        if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
+        let connection_pool =
+            SqlitePoolGuard::new(database_path.as_ref().to_path_buf(), connection_pool);
+
+        if let Err(err) = sqlx::migrate!("./migrations").run(&*connection_pool).await {
             error!("Failed to perform migration on the SQLx database: {err}");
             connection_pool.close().await;
             return Err(err.into());
         }
 
         Ok(PersistentStorage {
-            storage_manager: SqliteEcashTicketbookManager::new(connection_pool.clone()),
+            storage_manager: SqliteEcashTicketbookManager::new(connection_pool),
         })
     }
 }

@@ -12,8 +12,8 @@ use std::{
 #[path = "windows.rs"]
 mod imp;
 
-#[cfg(target_os = "macos")]
-#[path = "macos.rs"]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[path = "apple.rs"]
 mod imp;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -21,18 +21,25 @@ mod imp;
 mod imp;
 
 /// Max number of retry attempts
-const CHECK_FILES_CLOSED_MAX_ATTEMPTS: u8 = 10;
+const CHECK_FILES_CLOSED_MAX_ATTEMPTS: u8 = 20;
 
 /// Delay between file checks
 const CHECK_FILES_CLOSED_RETRY_DELAY: Duration = Duration::from_millis(100);
 
+/// `sqlx::SqlitePool` wrapper providing a workaround for the [known bug](https://github.com/launchbadge/sqlx/issues/3217).
+/// In principle after requesting to close the sqlite pool, the wrapper monitors open file descriptor and polls periodically until all database files are closed.
+#[derive(Debug, Clone)]
 pub struct SqlitePoolGuard {
+    /// Path to sqlite database file.
     database_path: PathBuf,
+
+    /// Inner connection pool.
     connection_pool: sqlx::SqlitePool,
 }
 
 impl Deref for SqlitePoolGuard {
     type Target = sqlx::SqlitePool;
+
     fn deref(&self) -> &Self::Target {
         &self.connection_pool
     }
@@ -53,8 +60,12 @@ impl SqlitePoolGuard {
     }
 
     /// Close udnerlying sqlite pool and wait for files to be closed before returning.
-    pub async fn close_pool(&self) {
-        _ = self.close_pool_inner();
+    pub async fn close(&self) {
+        // Avoid waiting for db files once the pool is marked closed to ensure that we don't wait on some other sqlite pool to close the database.
+        if !self.connection_pool.is_closed() {
+            log::info!("Closing sqlite pool: {}", self.database_path.display());
+            _ = self.close_pool_inner();
+        }
     }
 
     async fn close_pool_inner(&self) -> std::io::Result<()> {
@@ -126,7 +137,7 @@ mod tests {
     #[tokio::test]
     async fn test_wait_close() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let database_path = temp_dir.path().join("storage.sqlite");
+        let database_path = temp_dir.path().join("storage.db");
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)

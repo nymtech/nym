@@ -381,7 +381,7 @@ impl ClientBuilder {
 
         // a naive check: if the provided URL does not start with http(s), add that scheme
         if !str_url.starts_with("http") {
-            let alt = format!("http://{str_url}");
+            let alt = format!("https://{str_url}");
             warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
             // TODO: or should we maybe default to https?
             Self::new(alt)
@@ -439,7 +439,7 @@ impl ClientBuilder {
 
         // warn about any invalid URLs
         urls.iter()
-            .filter(|url| url.scheme().starts_with("http"))
+            .filter(|url| !url.scheme().contains("http") && !url.scheme().contains("https"))
             .for_each(|url| {
                 warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
             });

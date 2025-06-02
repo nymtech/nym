@@ -679,7 +679,7 @@ impl NymApiStorage {
         &self,
         mix_id: NodeId,
         since: Option<i64>,
-    ) -> Result<i32, NymApiStorageError> {
+    ) -> Result<i64, NymApiStorageError> {
         let db_id = self.manager.get_mixnode_database_id(mix_id).await?;
 
         if let Some(node_id) = db_id {
@@ -707,7 +707,7 @@ impl NymApiStorage {
         &self,
         identity: &str,
         since: Option<i64>,
-    ) -> Result<i32, NymApiStorageError> {
+    ) -> Result<i64, NymApiStorageError> {
         let node_id = self
             .manager
             .get_gateway_database_id_by_identity(identity)

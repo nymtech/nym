@@ -6,7 +6,7 @@
       {
         "name": "last_processed_height",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

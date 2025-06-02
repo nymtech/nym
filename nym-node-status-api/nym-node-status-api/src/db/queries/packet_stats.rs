@@ -65,9 +65,9 @@ pub(crate) async fn get_raw_node_stats(
                 NodeStats,
                 r#"
                 SELECT
-                    COALESCE(packets_received, 0) as packets_received,
-                    COALESCE(packets_sent, 0) as packets_sent,
-                    COALESCE(packets_dropped, 0) as packets_dropped
+                    COALESCE(packets_received, 0) as "packets_received!: _",
+                    COALESCE(packets_sent, 0) as "packets_sent!: _",
+                    COALESCE(packets_dropped, 0) as "packets_dropped!: _"
                 FROM mixnode_packet_stats_raw
                 WHERE mix_id = ?
                 ORDER BY timestamp_utc DESC
@@ -84,9 +84,9 @@ pub(crate) async fn get_raw_node_stats(
                 NodeStats,
                 r#"
                 SELECT
-                    COALESCE(packets_received, 0) as packets_received,
-                    COALESCE(packets_sent, 0) as packets_sent,
-                    COALESCE(packets_dropped, 0) as packets_dropped
+                    COALESCE(packets_received, 0) as "packets_received!: _",
+                    COALESCE(packets_sent, 0) as "packets_sent!: _",
+                    COALESCE(packets_dropped, 0) as "packets_dropped!: _"
                 FROM nym_nodes_packet_stats_raw
                 WHERE node_id = ?
                 ORDER BY timestamp_utc DESC

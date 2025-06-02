@@ -136,7 +136,7 @@ struct Args {
     #[arg(long, env = "DATABASE_URL")]
     database_url: Option<String>,
 
-    #[arg(long, env = "NYM_APIS")]
+    #[arg(long, env = "NYM_APIS", value_delimiter = ',')]
     nym_apis: Option<Vec<String>>,
 }
 

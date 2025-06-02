@@ -49,7 +49,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
         status = unsafe {
             NtQuerySystemInformation(
                 SYSTEM_HANDLE_INFORMATION_CLASS,
-                handle_table_info.inner as _,
+                handle_table_info.as_mut_ptr() as _,
                 return_len,
                 &mut return_len,
             )
@@ -70,7 +70,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
     let num_handles = unsafe { (*handle_table_info.inner).number_of_handles };
     let proc_entries = unsafe {
         std::slice::from_raw_parts(
-            (*handle_table_info.inner).handles.as_ptr(),
+            (*handle_table_info.as_mut_ptr()).handles.as_ptr(),
             num_handles as usize,
         )
     };
@@ -124,12 +124,14 @@ struct SystemHandleTableEntryInfo {
     pub granted_access: c_ulong,
 }
 
+/// Managed heap memory
 struct HeapGuard<T> {
-    pub inner: *mut T,
+    inner: *mut T,
     process_heap: HANDLE,
 }
 
 impl<T> HeapGuard<T> {
+    /// Allocate new memory using `HealAlloc`
     fn new(length: usize) -> io::Result<Self> {
         let process_heap = unsafe { GetProcessHeap()? };
         let inner: *mut T = unsafe { HeapAlloc(process_heap, HEAP_ZERO_MEMORY, length) as _ };
@@ -144,6 +146,10 @@ impl<T> HeapGuard<T> {
         }
     }
 
+    /// Reallocate existing chunk of memory
+    ///
+    /// On success: the internal memory pointer is replaced.
+    /// On failure: the internal memory pointer remains the same and still valid.
     fn reallocate(&mut self, new_length: usize) -> io::Result<()> {
         let new_ptr: *mut T = unsafe {
             HeapReAlloc(
@@ -161,10 +167,15 @@ impl<T> HeapGuard<T> {
             Ok(())
         }
     }
+
+    fn as_mut_ptr(&self) -> *mut T {
+        self.inner
+    }
 }
 
 impl<T> Drop for HeapGuard<T> {
     fn drop(&mut self) {
+        #[allow(clippy::expect_used)]
         unsafe {
             HeapFree(
                 self.process_heap,

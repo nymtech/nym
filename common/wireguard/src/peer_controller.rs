@@ -279,7 +279,7 @@ impl PeerController {
         if let Some(Some(bandwidth_storage_manager)) = self.bw_storage_managers.get(key) {
             Some(bandwidth_storage_manager.read().await.client_bandwidth())
         } else {
-            return None;
+            None
         }
     }
 

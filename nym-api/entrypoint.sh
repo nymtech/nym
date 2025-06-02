@@ -2,4 +2,5 @@
 
 set -e
 
-/usr/src/nym/target/release/nym-api init --mnemonic "$MNEMONIC" && /usr/src/nym/target/release/nym-api run --mnemonic "$MNEMONIC"
+# Init can fail if the mounted volume already has a config
+/usr/src/nym/target/release/nym-api init --mnemonic "$MNEMONIC" || true && /usr/src/nym/target/release/nym-api run --mnemonic "$MNEMONIC"

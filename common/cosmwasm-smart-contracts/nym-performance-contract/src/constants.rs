@@ -3,6 +3,7 @@
 
 pub mod storage_keys {
     pub const CONTRACT_ADMIN: &str = "contract-admin";
+    pub const INITIAL_EPOCH_ID: &str = "initial-epoch-id";
     pub const MIXNET_CONTRACT: &str = "mixnet-contract";
     pub const AUTHORISED_COUNT: &str = "authorised-count";
     pub const AUTHORISED: &str = "authorised";

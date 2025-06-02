@@ -5,6 +5,7 @@ use crate::helpers::MixnetContractQuerier;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, StdError, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
+use nym_contracts_common::Percent;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     EpochId, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodePerformance,
@@ -16,6 +17,7 @@ pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
 
 pub struct NymPerformanceContractStorage {
     pub(crate) contract_admin: Admin,
+    pub(crate) mixnet_epoch_id_at_creation: Item<EpochId>,
 
     pub(crate) mixnet_contract_address: Item<Addr>,
 
@@ -29,10 +31,22 @@ impl NymPerformanceContractStorage {
     const fn new() -> Self {
         NymPerformanceContractStorage {
             contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
+            mixnet_epoch_id_at_creation: Item::new(storage_keys::INITIAL_EPOCH_ID),
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT),
             network_monitors: NetworkMonitorsStorage::new(),
             performance_results: PerformanceResultsStorage::new(),
         }
+    }
+
+    pub fn current_mixnet_epoch_id(
+        &self,
+        deps: Deps,
+    ) -> Result<EpochId, NymPerformanceContractError> {
+        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
+        let current_epoch_id = deps
+            .querier
+            .query_current_absolute_mixnet_epoch_id(&mixnet_contract_address)?;
+        Ok(current_epoch_id)
     }
 
     pub fn initialise(
@@ -43,8 +57,13 @@ impl NymPerformanceContractStorage {
         mixnet_contract_address: Addr,
         initial_authorised_network_monitors: Vec<String>,
     ) -> Result<(), NymPerformanceContractError> {
-        let _ = deps;
         let _ = env;
+
+        let initial_epoch_id = self.current_mixnet_epoch_id(deps.as_ref())?;
+
+        // set the initial epoch id
+        self.mixnet_epoch_id_at_creation
+            .save(deps.storage, &initial_epoch_id)?;
 
         // set the contract admin
         self.contract_admin.set(deps.branch(), Some(admin))?;
@@ -186,10 +205,7 @@ impl NymPerformanceContractStorage {
             .insert_new(deps.branch(), env, sender, &network_monitor)?;
 
         // finally, set submission metadata to disallow this NM from submitting data for epochs before it was authorised
-        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
-        let current_epoch_id = deps
-            .querier
-            .query_current_absolute_mixnet_epoch_id(&mixnet_contract_address)?;
+        let current_epoch_id = self.current_mixnet_epoch_id(deps.as_ref())?;
 
         self.performance_results.submission_metadata.save(
             deps.storage,
@@ -213,6 +229,19 @@ impl NymPerformanceContractStorage {
 
         self.network_monitors
             .retire(deps, &env, sender, &network_monitor)
+    }
+
+    pub fn try_load_performance(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<Option<Percent>, NymPerformanceContractError> {
+        Ok(self
+            .performance_results
+            .results
+            .may_load(storage, (epoch_id, node_id))?
+            .map(|r| r.median()))
     }
 }
 
@@ -389,6 +418,26 @@ impl PerformanceResultsStorage {
         // if we're submitting for new epoch, node id doesn't matter
         Ok(())
     }
+}
+
+pub mod retrieval_limits {
+    pub const NODE_PERFORMANCE_DEFAULT_LIMIT: u32 = 100;
+    pub const NODE_PERFORMANCE_MAX_LIMIT: u32 = 200;
+
+    pub const NODE_EPOCH_PERFORMANCE_DEFAULT_LIMIT: u32 = 100;
+    pub const NODE_EPOCH_PERFORMANCE_MAX_LIMIT: u32 = 200;
+
+    pub const NODE_EPOCH_MEASUREMENTS_DEFAULT_LIMIT: u32 = 50;
+    pub const NODE_EPOCH_MEASUREMENTS_MAX_LIMIT: u32 = 100;
+
+    pub const NODE_HISTORICAL_PERFORMANCE_DEFAULT_LIMIT: u32 = 100;
+    pub const NODE_HISTORICAL_PERFORMANCE_MAX_LIMIT: u32 = 200;
+
+    pub const NETWORK_MONITORS_DEFAULT_LIMIT: u32 = 50;
+    pub const NETWORK_MONITORS_MAX_LIMIT: u32 = 100;
+
+    pub const RETIRED_NETWORK_MONITORS_DEFAULT_LIMIT: u32 = 50;
+    pub const RETIRED_NETWORK_MONITORS_MAX_LIMIT: u32 = 100;
 }
 
 #[cfg(test)]

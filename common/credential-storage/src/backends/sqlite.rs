@@ -7,10 +7,11 @@ use crate::models::{
 };
 use nym_ecash_time::Date;
 use sqlx::{Executor, Sqlite, Transaction};
+use sqlx_pool_guard::SqlitePoolGuard;
 
 #[derive(Clone)]
 pub struct SqliteEcashTicketbookManager {
-    connection_pool: sqlx::SqlitePool,
+    connection_pool: SqlitePoolGuard,
 }
 
 impl SqliteEcashTicketbookManager {
@@ -19,7 +20,7 @@ impl SqliteEcashTicketbookManager {
     /// # Arguments
     ///
     /// * `connection_pool`: database connection pool to use.
-    pub fn new(connection_pool: sqlx::SqlitePool) -> Self {
+    pub fn new(connection_pool: SqlitePoolGuard) -> Self {
         SqliteEcashTicketbookManager { connection_pool }
     }
 
@@ -33,7 +34,7 @@ impl SqliteEcashTicketbookManager {
             "DELETE FROM ecash_ticketbook WHERE expiration_date <= ?",
             deadline
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -60,7 +61,7 @@ impl SqliteEcashTicketbookManager {
             data,
             expiration_date,
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
 
         Ok(())
@@ -90,7 +91,7 @@ impl SqliteEcashTicketbookManager {
             epoch_id,
             total_tickets,
             used_tickets,
-        ).execute(&self.connection_pool).await?;
+        ).execute(&*self.connection_pool).await?;
 
         Ok(())
     }
@@ -106,7 +107,7 @@ impl SqliteEcashTicketbookManager {
             "#,
         )
         .bind(data)
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await?
         .is_some();
 
@@ -122,7 +123,7 @@ impl SqliteEcashTicketbookManager {
                     FROM ecash_ticketbook
                 "#,
         )
-        .fetch_all(&self.connection_pool)
+        .fetch_all(&*self.connection_pool)
         .await
     }
 
@@ -144,7 +145,7 @@ impl SqliteEcashTicketbookManager {
             ticketbook_id,
             expected_current_total_spent
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?
         .rows_affected();
         Ok(affected > 0)
@@ -154,7 +155,7 @@ impl SqliteEcashTicketbookManager {
         &self,
     ) -> Result<Vec<StoredPendingTicketbook>, sqlx::Error> {
         sqlx::query_as("SELECT * FROM pending_issuance")
-            .fetch_all(&self.connection_pool)
+            .fetch_all(&*self.connection_pool)
             .await
     }
 
@@ -166,7 +167,7 @@ impl SqliteEcashTicketbookManager {
             "DELETE FROM pending_issuance WHERE deposit_id = ?",
             pending_id
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -183,7 +184,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             epoch_id
         )
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await
     }
 
@@ -209,7 +210,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             epoch_id
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -226,7 +227,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             epoch_id
         )
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await
     }
 
@@ -252,7 +253,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             epoch_id,
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -270,7 +271,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             expiration_date
         )
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await
     }
 
@@ -299,7 +300,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             expiration_date
         )
-            .execute(&self.connection_pool)
+            .execute(&*self.connection_pool)
             .await?;
         Ok(())
     }

@@ -57,7 +57,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
 
         // Buffer is too small, resize memory and retry again.
         if status == STATUS_INFO_LENGTH_MISMATCH {
-            log::trace!("Buffer is too small ({reserved_memory}), resizing to {return_len}");
+            tracing::trace!("Buffer is too small ({reserved_memory}), resizing to {return_len}");
             reserved_memory = return_len as usize;
             handle_table_info.reallocate(reserved_memory)?;
         } else {

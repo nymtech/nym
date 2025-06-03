@@ -1529,6 +1529,7 @@ impl StorageManager {
 }
 
 pub(crate) mod v3_migration {
+    use crate::storage::models::{SimulatedNodePerformance, SimulatedReward, SimulatedRewardEpoch, SimulatedRouteAnalysis};
     use crate::support::storage::manager::StorageManager;
     use crate::support::storage::models::GatewayDetailsBeforeMigration;
     use nym_mixnet_contract_common::NodeId;
@@ -1607,6 +1608,236 @@ pub(crate) mod v3_migration {
             .execute(&self.connection_pool)
             .await?;
             Ok(())
+        }
+
+        // Simulated Rewarding System CRUD Methods
+
+        /// Creates a new simulated reward epoch and returns its ID
+        pub(crate) async fn create_simulated_reward_epoch(
+            &self,
+            epoch_id: u32,
+            calculation_method: &str,
+            start_timestamp: i64,
+            end_timestamp: i64,
+            description: Option<&str>,
+        ) -> Result<i64, sqlx::Error> {
+            let result = sqlx::query!(
+                r#"
+                    INSERT INTO simulated_reward_epochs 
+                    (epoch_id, calculation_method, start_timestamp, end_timestamp, description)
+                    VALUES (?, ?, ?, ?, ?)
+                "#,
+                epoch_id,
+                calculation_method,
+                start_timestamp,
+                end_timestamp,
+                description,
+            )
+            .execute(&self.connection_pool)
+            .await?;
+
+            Ok(result.last_insert_rowid())
+        }
+
+        /// Inserts simulated node performance data
+        pub(crate) async fn insert_simulated_node_performance(
+            &self,
+            performance_data: &[SimulatedNodePerformance],
+        ) -> Result<(), sqlx::Error> {
+            let mut tx = self.connection_pool.begin().await?;
+            
+            for performance in performance_data {
+                sqlx::query!(
+                    r#"
+                        INSERT INTO simulated_node_performance
+                        (simulated_epoch_id, node_id, node_type, identity_key, reliability_score,
+                         positive_samples, negative_samples, final_fail_sequence, work_factor, calculation_method)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    "#,
+                    performance.simulated_epoch_id,
+                    performance.node_id,
+                    performance.node_type,
+                    performance.identity_key,
+                    performance.reliability_score,
+                    performance.positive_samples,
+                    performance.negative_samples,
+                    performance.final_fail_sequence,
+                    performance.work_factor,
+                    performance.calculation_method,
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+            
+            tx.commit().await
+        }
+
+        /// Inserts simulated reward calculation results
+        pub(crate) async fn insert_simulated_rewards(
+            &self,
+            reward_data: &[SimulatedReward],
+        ) -> Result<(), sqlx::Error> {
+            let mut tx = self.connection_pool.begin().await?;
+            
+            for reward in reward_data {
+                sqlx::query!(
+                    r#"
+                        INSERT INTO simulated_rewards
+                        (simulated_epoch_id, node_id, node_type, calculated_reward_amount, reward_currency,
+                         performance_component, work_component, calculation_method)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    "#,
+                    reward.simulated_epoch_id,
+                    reward.node_id,
+                    reward.node_type,
+                    reward.calculated_reward_amount,
+                    reward.reward_currency,
+                    reward.performance_component,
+                    reward.work_component,
+                    reward.calculation_method,
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+            
+            tx.commit().await
+        }
+
+        /// Inserts route analysis metadata for a simulation
+        pub(crate) async fn insert_simulated_route_analysis(
+            &self,
+            analysis: &SimulatedRouteAnalysis,
+        ) -> Result<(), sqlx::Error> {
+            sqlx::query!(
+                r#"
+                    INSERT INTO simulated_route_analysis
+                    (simulated_epoch_id, calculation_method, total_routes_analyzed, successful_routes,
+                     failed_routes, average_route_reliability, time_window_hours, analysis_parameters)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                "#,
+                analysis.simulated_epoch_id,
+                analysis.calculation_method,
+                analysis.total_routes_analyzed,
+                analysis.successful_routes,
+                analysis.failed_routes,
+                analysis.average_route_reliability,
+                analysis.time_window_hours,
+                analysis.analysis_parameters,
+            )
+            .execute(&self.connection_pool)
+            .await?;
+            
+            Ok(())
+        }
+
+        /// Retrieves all simulated reward epochs
+        pub(crate) async fn get_simulated_reward_epochs(&self) -> Result<Vec<SimulatedRewardEpoch>, sqlx::Error> {
+            sqlx::query_as!(
+                SimulatedRewardEpoch,
+                r#"
+                    SELECT id as "id!", epoch_id as "epoch_id!: u32", calculation_method as "calculation_method!", 
+                           start_timestamp as "start_timestamp!", end_timestamp as "end_timestamp!", 
+                           description, created_at as "created_at!"
+                    FROM simulated_reward_epochs
+                    ORDER BY created_at DESC
+                "#
+            )
+            .fetch_all(&self.connection_pool)
+            .await
+        }
+
+        /// Retrieves node performance data for a specific simulation
+        pub(crate) async fn get_simulated_node_performance(
+            &self,
+            simulated_epoch_id: i64,
+            calculation_method: Option<&str>,
+        ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+            match calculation_method {
+                Some(method) => {
+                    sqlx::query_as!(
+                        SimulatedNodePerformance,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", identity_key, reliability_score as "reliability_score!", 
+                                   positive_samples as "positive_samples!: u32", negative_samples as "negative_samples!: u32", 
+                                   final_fail_sequence as "final_fail_sequence!: u32", work_factor, 
+                                   calculation_method as "calculation_method!", calculated_at as "calculated_at!"
+                            FROM simulated_node_performance
+                            WHERE simulated_epoch_id = ? AND calculation_method = ?
+                            ORDER BY node_id
+                        "#,
+                        simulated_epoch_id,
+                        method
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+                None => {
+                    sqlx::query_as!(
+                        SimulatedNodePerformance,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", identity_key, reliability_score as "reliability_score!", 
+                                   positive_samples as "positive_samples!: u32", negative_samples as "negative_samples!: u32", 
+                                   final_fail_sequence as "final_fail_sequence!: u32", work_factor, 
+                                   calculation_method as "calculation_method!", calculated_at as "calculated_at!"
+                            FROM simulated_node_performance
+                            WHERE simulated_epoch_id = ?
+                            ORDER BY calculation_method, node_id
+                        "#,
+                        simulated_epoch_id
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+            }
+        }
+
+        /// Retrieves simulated rewards for a specific simulation
+        pub(crate) async fn get_simulated_rewards(
+            &self,
+            simulated_epoch_id: i64,
+            calculation_method: Option<&str>,
+        ) -> Result<Vec<SimulatedReward>, sqlx::Error> {
+            match calculation_method {
+                Some(method) => {
+                    sqlx::query_as!(
+                        SimulatedReward,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", calculated_reward_amount as "calculated_reward_amount!", 
+                                   reward_currency as "reward_currency!", performance_component as "performance_component!", 
+                                   work_component as "work_component!", calculation_method as "calculation_method!", 
+                                   calculated_at as "calculated_at!"
+                            FROM simulated_rewards
+                            WHERE simulated_epoch_id = ? AND calculation_method = ?
+                            ORDER BY node_id
+                        "#,
+                        simulated_epoch_id,
+                        method
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+                None => {
+                    sqlx::query_as!(
+                        SimulatedReward,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", calculated_reward_amount as "calculated_reward_amount!", 
+                                   reward_currency as "reward_currency!", performance_component as "performance_component!", 
+                                   work_component as "work_component!", calculation_method as "calculation_method!", 
+                                   calculated_at as "calculated_at!"
+                            FROM simulated_rewards
+                            WHERE simulated_epoch_id = ?
+                            ORDER BY calculation_method, node_id
+                        "#,
+                        simulated_epoch_id
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+            }
         }
     }
 }

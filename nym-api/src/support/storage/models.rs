@@ -146,3 +146,65 @@ pub struct HistoricalUptime {
     pub date: Date,
     pub uptime: i64,
 }
+
+// Simulated Rewarding System Models
+// These models support comparison between old (24h cache-based) and new (1h route-based) rewarding
+
+/// Represents a simulated reward epoch run
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedRewardEpoch {
+    pub id: i64,
+    pub epoch_id: u32,
+    pub calculation_method: String, // 'old', 'new', or 'comparison'
+    pub start_timestamp: i64,
+    pub end_timestamp: i64,
+    pub description: Option<String>,
+    pub created_at: i64,
+}
+
+/// Node performance calculated using different methodologies
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedNodePerformance {
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub node_id: NodeId,
+    pub node_type: String, // 'mixnode' or 'gateway'
+    pub identity_key: Option<String>,
+    pub reliability_score: f64, // 0.0 to 100.0
+    pub positive_samples: u32,
+    pub negative_samples: u32,
+    pub final_fail_sequence: u32,
+    pub work_factor: Option<f64>, // 0.0 to 1.0
+    pub calculation_method: String, // 'old' or 'new'
+    pub calculated_at: i64,
+}
+
+/// Simulated reward calculation results
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedReward {
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub node_id: NodeId,
+    pub node_type: String, // 'mixnode' or 'gateway'
+    pub calculated_reward_amount: f64,
+    pub reward_currency: String, // typically 'nym'
+    pub performance_component: f64, // 0.0 to 100.0
+    pub work_component: f64, // 0.0 to 1.0
+    pub calculation_method: String, // 'old' or 'new'
+    pub calculated_at: i64,
+}
+
+/// Route analysis metadata for simulation runs
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedRouteAnalysis {
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub calculation_method: String, // 'old' or 'new'
+    pub total_routes_analyzed: u32,
+    pub successful_routes: u32,
+    pub failed_routes: u32,
+    pub average_route_reliability: Option<f64>, // 0.0 to 100.0
+    pub time_window_hours: u32, // 1 for new method, 24 for old method
+    pub analysis_parameters: Option<String>, // JSON with analysis config
+    pub calculated_at: i64,
+}

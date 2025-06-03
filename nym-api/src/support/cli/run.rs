@@ -61,9 +61,21 @@ pub(crate) struct Args {
         long,
         requires = "enable_monitor",
         requires = "mnemonic",
+        conflicts_with = "simulate_rewarding",
         env = "NYMAPI_ENABLE_REWARDING_ARG"
     )]
     pub(crate) enable_rewarding: Option<bool>,
+
+    /// Enable simulated rewarding mode to compare old vs new reward calculations
+    /// Requires monitoring but does NOT require mnemonic (no blockchain transactions)
+    /// default: None - config value will be used instead
+    #[clap(
+        long,
+        requires = "enable_monitor",
+        conflicts_with = "enable_rewarding",
+        env = "NYMAPI_SIMULATE_REWARDING_ARG"
+    )]
+    pub(crate) simulate_rewarding: Option<bool>,
 
     /// Endpoint to nyxd instance used for contract information.
     /// default: None - config value will be used instead

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                        INSERT INTO simulated_node_performance\n                        (simulated_epoch_id, node_id, node_type, identity_key, reliability_score,\n                         positive_samples, negative_samples, final_fail_sequence, work_factor, calculation_method)\n                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "ec4d3491a6f46fb187443493dc483eac678a50351433f4e6d7f2aee172c7df44"
+}

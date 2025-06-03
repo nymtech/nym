@@ -22,6 +22,7 @@ use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
+use simulation::SimulationConfig;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -32,6 +33,7 @@ mod event_reconciliation;
 mod helpers;
 mod rewarded_set_assignment;
 mod rewarding;
+pub(crate) mod simulation;
 mod transition_beginning;
 
 // naming things is difficult, ok?
@@ -42,6 +44,7 @@ pub struct EpochAdvancer {
     described_cache: SharedCache<DescribedNodes>,
     status_cache: NodeStatusCache,
     storage: NymApiStorage,
+    simulation_config: Option<SimulationConfig>,
 }
 
 impl EpochAdvancer {
@@ -57,6 +60,7 @@ impl EpochAdvancer {
         status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
+        simulation_config: Option<SimulationConfig>,
     ) -> Self {
         EpochAdvancer {
             nyxd_client,
@@ -64,6 +68,7 @@ impl EpochAdvancer {
             described_cache,
             status_cache,
             storage,
+            simulation_config,
         }
     }
 
@@ -145,6 +150,38 @@ impl EpochAdvancer {
             let should_continue = self.begin_epoch_transition().await?;
             if !should_continue {
                 return Ok(());
+            }
+        }
+
+        // Run simulation if enabled (before actual rewarding)
+        if let Some(simulation_config) = &self.simulation_config {
+            info!("Running reward simulation for epoch {}", interval.current_epoch_absolute_id());
+            let rewarded_set = match self.nyxd_client.get_rewarded_set_nodes().await {
+                Ok(rewarded_set) => rewarded_set,
+                Err(err) => {
+                    warn!("Failed to obtain current rewarded set for simulation: {err}. Falling back to cached version");
+                    self.nym_contract_cache
+                        .rewarded_set_owned()
+                        .await
+                        .into_inner()
+                        .into()
+                }
+            };
+
+            if let Some(reward_params) = self
+                .nym_contract_cache
+                .interval_reward_params()
+                .await
+                .into_inner()
+            {
+                let _ = self.run_simulation_if_enabled(
+                    &rewarded_set,
+                    reward_params,
+                    interval.current_epoch_absolute_id(),
+                    simulation_config.clone(),
+                ).await;
+            } else {
+                warn!("Could not obtain reward parameters for simulation");
             }
         }
 
@@ -297,6 +334,7 @@ impl EpochAdvancer {
         status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
+        simulation_config: Option<SimulationConfig>,
         shutdown: &TaskManager,
     ) {
         let mut rewarded_set_updater = EpochAdvancer::new(
@@ -305,6 +343,7 @@ impl EpochAdvancer {
             status_cache.to_owned(),
             described_cache,
             storage.to_owned(),
+            simulation_config,
         );
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });

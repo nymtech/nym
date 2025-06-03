@@ -505,8 +505,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
     },
     muiTableBodyRowProps: ({ row }) => ({
-      onClick: () => {
-        router.push(`/nym-node/${row.original.nodeId}`);
+      onClick: (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          window.open(`/explorer/nym-node/${row.original.nodeId}`, "_blank");
+        } else {
+          router.push(`/nym-node/${row.original.nodeId}`);
+        }
       },
       hover: true,
       sx: {

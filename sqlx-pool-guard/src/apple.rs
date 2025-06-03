@@ -20,7 +20,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
     {
         let Some(vnode) = proc_pidfdinfo_self::<VnodeFdInfoWithPath>(fd.proc_fd)
             .inspect_err(|e| {
-                log::warn!("proc_pidfdinfo_self::<VnodeFdInfoWithPath>() failure: {e}");
+                tracing::warn!("proc_pidfdinfo_self::<VnodeFdInfoWithPath>() failure: {e}");
             })
             .ok()
             .flatten()
@@ -32,7 +32,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
             .path()
             .map(|vnode_path| file_paths.contains(&vnode_path))
             .inspect_err(|e| {
-                log::warn!("vnode.path() failure: {e:?}");
+                tracing::warn!("vnode.path() failure: {e:?}");
             })
         {
             return Ok(false);

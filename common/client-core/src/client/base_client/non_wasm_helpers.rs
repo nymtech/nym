@@ -73,7 +73,7 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
     let renamed = db_path.with_extension(new_extension);
 
     tokio::fs::rename(db_path, &renamed).await.inspect_err(|_| {
-        tracing::error!(
+        error!(
             "Failed to rename corrupt database file: {} to {}",
             db_path.display(),
             renamed.display()

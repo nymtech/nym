@@ -26,6 +26,7 @@ pub struct NymApisClient {
 }
 
 struct InnerClient {
+    // NOTE: this was implemented before the internal http client supported multiple URLs
     active_client: NymApiClient,
     available_urls: Vec<Url>,
     shutdown_token: ShutdownToken,
@@ -122,7 +123,10 @@ impl InnerClient {
     {
         let broadcast_fut =
             stream::iter(self.available_urls.clone()).for_each_concurrent(None, |url| {
-                let nym_api = self.active_client.nym_api.clone_with_new_url(url.clone());
+                let nym_api = self
+                    .active_client
+                    .nym_api
+                    .clone_with_new_url(url.clone().into());
                 let req_fut = req(nym_api, request_body);
                 async move {
                     if let Err(err) = req_fut.await {
@@ -168,7 +172,10 @@ impl InnerClient {
             .skip(last_working)
             .chain(self.available_urls.iter().enumerate().take(last_working))
         {
-            let nym_api = self.active_client.nym_api.clone_with_new_url(url.clone());
+            let nym_api = self
+                .active_client
+                .nym_api
+                .clone_with_new_url(url.clone().into());
 
             let timeout_fut = sleep(timeout_duration);
             let query_fut = req(nym_api);

@@ -32,6 +32,7 @@ nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mix
 [dev-dependencies]
 anyhow = { workspace = true }
 nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-mixnet-contract = { path = "../mixnet", features = ["testable-mixnet-contract"] }
 
 [features]
 schema-gen = ["nym-performance-contract-common/schema", "cosmwasm-schema"]

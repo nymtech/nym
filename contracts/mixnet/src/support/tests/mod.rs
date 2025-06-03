@@ -51,11 +51,11 @@ pub mod test_helpers {
     use crate::support::helpers::ensure_no_existing_bond;
     use crate::support::tests;
     use crate::support::tests::fixtures::{
-        good_gateway_pledge, good_mixnode_pledge, good_node_plegge, TEST_COIN_DENOM,
+        good_gateway_pledge, good_mixnode_pledge, good_node_plegge,
     };
     use crate::support::tests::{legacy, test_helpers};
+    use crate::testable_mixnet_contract::MixnetContract;
     use cosmwasm_std::testing::message_info;
-    use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
@@ -74,22 +74,24 @@ pub mod test_helpers {
     use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{
-        NodeRewardingParameters, Performance, RewardedSetParams, RewardingParams, WorkFactor,
+        NodeRewardingParameters, Performance, RewardingParams, WorkFactor,
     };
     use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
         ContractStateParamsUpdate, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
-        Gateway, GatewayBondingPayload, IdentityKey, InitialRewardingParams, InstantiateMsg,
-        Interval, MixNode, MixNodeBond, MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode,
-        NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange,
-        OperatorsParamsUpdate, Percent, ProfitMarginRange, RoleAssignment,
-        SignableGatewayBondingMsg, SignableMixNodeBondingMsg, SignableNymNodeBondingMsg,
+        Gateway, GatewayBondingPayload, IdentityKey, Interval, MixNode, MixNodeBond,
+        MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode, NymNodeBond, NymNodeBondingPayload,
+        NymNodeDetails, OperatingCostRange, OperatorsParamsUpdate, ProfitMarginRange,
+        RoleAssignment, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+        SignableNymNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
     };
+    use nym_contracts_common_testing::TestableNymContract;
+    use nym_contracts_common_testing::{mock_api, mock_dependencies};
     use nym_crypto::asymmetric::ed25519;
     use nym_crypto::asymmetric::ed25519::KeyPair;
     use rand::distributions::WeightedIndex;
@@ -100,13 +102,12 @@ pub mod test_helpers {
     use std::collections::HashMap;
     use std::fmt::Debug;
     use std::str::FromStr;
-    use std::time::Duration;
 
     pub(crate) fn sorted_addresses(n: usize) -> Vec<Addr> {
         let mut rng = test_rng();
         let mut addrs = Vec::with_capacity(n);
         for i in 0..n {
-            addrs.push(MockApi::default().addr_make(&format!("addr{i}{}", rng.next_u64())));
+            addrs.push(mock_api().addr_make(&format!("addr{i}{}", rng.next_u64())));
         }
         addrs.sort();
         addrs
@@ -1820,46 +1821,9 @@ pub mod test_helpers {
         SignableGatewayBondingMsg::new(nonce, content)
     }
 
-    fn intial_rewarded_set_params() -> RewardedSetParams {
-        RewardedSetParams {
-            entry_gateways: 50,
-            exit_gateways: 70,
-            mixnodes: 120,
-            standby: 50,
-        }
-    }
-
-    fn initial_rewarding_params() -> InitialRewardingParams {
-        let reward_pool = 250_000_000_000_000u128;
-        let staking_supply = 100_000_000_000_000u128;
-
-        InitialRewardingParams {
-            initial_reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(), // 250M * 1M (we're expressing it all in base tokens)
-            initial_staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
-            staking_supply_scale_factor: Percent::hundred(),
-            sybil_resistance: Percent::from_percentage_value(30).unwrap(),
-            active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
-            interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
-            rewarded_set_params: intial_rewarded_set_params(),
-        }
-    }
-
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies();
-        let msg = InstantiateMsg {
-            rewarding_validator_address: deps.api.addr_make("rewarder").to_string(),
-            vesting_contract_address: deps.api.addr_make("vesting-contract").to_string(),
-            rewarding_denom: TEST_COIN_DENOM.to_string(),
-            epochs_in_interval: 720,
-            epoch_duration: Duration::from_secs(60 * 60),
-            initial_rewarding_params: initial_rewarding_params(),
-            current_nym_node_version: "1.1.10".to_string(),
-            version_score_weights: Default::default(),
-            version_score_params: Default::default(),
-            profit_margin: Default::default(),
-            interval_operating_cost: Default::default(),
-            key_validity_in_epochs: None,
-        };
+        let msg = MixnetContract::base_init_msg();
         let env = mock_env();
         let info = sender("creator");
         instantiate(deps.as_mut(), env, info, msg).unwrap();

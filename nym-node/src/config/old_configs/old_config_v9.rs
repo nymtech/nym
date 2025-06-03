@@ -1291,6 +1291,10 @@ impl ConfigV9 {
 }
 
 async fn upgrade_sphinx_key(old_cfg: &ConfigV9) -> Result<(PathBuf, PathBuf), NymNodeError> {
+    // we mark the current sphinx key as the primary and attach the current rotation id
+    let rotation_id =
+        get_current_rotation_id(&old_cfg.mixnet.nym_api_urls, &old_cfg.mixnet.nyxd_urls).await?;
+
     let current_sphinx_key_path = &old_cfg.storage_paths.keys.private_x25519_sphinx_key_file;
     let current_pubkey_path = &old_cfg.storage_paths.keys.public_x25519_sphinx_key_file;
 
@@ -1303,10 +1307,6 @@ async fn upgrade_sphinx_key(old_cfg: &ConfigV9) -> Result<(PathBuf, PathBuf), Ny
 
     let primary_key_path = keys_dir.join(DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME);
     let secondary_key_path = keys_dir.join(DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME);
-
-    // we mark the current sphinx key as the primary and attach the current rotation id
-    let rotation_id =
-        get_current_rotation_id(&old_cfg.mixnet.nym_api_urls, &old_cfg.mixnet.nyxd_urls).await?;
 
     let primary_key = SphinxPrivateKey::import(current_sphinx_key, rotation_id);
     store_key(&primary_key, &primary_key_path, "sphinx private key")?;

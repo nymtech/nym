@@ -37,26 +37,18 @@ pub struct SqlitePoolGuard {
     connection_pool: sqlx::SqlitePool,
 }
 
-impl Deref for SqlitePoolGuard {
-    type Target = sqlx::SqlitePool;
-
-    fn deref(&self) -> &Self::Target {
-        &self.connection_pool
-    }
-}
-
-impl DerefMut for SqlitePoolGuard {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.connection_pool
-    }
-}
-
 impl SqlitePoolGuard {
+    /// Create new instance providing path to database and connection pool
     pub fn new(database_path: PathBuf, connection_pool: sqlx::SqlitePool) -> Self {
         Self {
             database_path,
             connection_pool,
         }
+    }
+
+    /// Returns database path
+    pub fn database_path(&self) -> &Path {
+        &self.database_path
     }
 
     /// Close udnerlying sqlite pool and wait for files to be closed before returning.
@@ -125,6 +117,19 @@ impl SqlitePoolGuard {
     }
 }
 
+impl Deref for SqlitePoolGuard {
+    type Target = sqlx::SqlitePool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.connection_pool
+    }
+}
+
+impl DerefMut for SqlitePoolGuard {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.connection_pool
+    }
+}
 #[cfg(test)]
 mod tests {
     use sqlx::{

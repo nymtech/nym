@@ -1193,7 +1193,6 @@ version = "1.5.1"
 dependencies = [
  "anyhow",
  "bs58",
- "cosmwasm-derive",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1208,8 +1207,6 @@ dependencies = [
  "rand_chacha",
  "semver",
  "serde",
- "thiserror 2.0.12",
- "time",
 ]
 
 [[package]]
@@ -1262,6 +1259,7 @@ version = "0.3.0"
 dependencies = [
  "pem",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]

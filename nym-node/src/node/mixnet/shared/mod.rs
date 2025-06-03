@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilter;
-use nym_crypto::asymmetric::x25519;
+use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::mixnet::PacketKind;
@@ -18,7 +18,6 @@ use nym_sphinx_types::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
@@ -66,8 +65,8 @@ impl ProcessingConfig {
 // explicitly do NOT derive clone as we want to manually apply relevant suffixes to the task clients
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
-    pub(super) sphinx_keys: Arc<x25519::KeyPair>,
-    pub(super) replay_protection_filter: ReplayProtectionBloomfilter,
+    pub(super) sphinx_keys: ActiveSphinxKeys,
+    pub(super) replay_protection_filter: ReplayProtectionBloomfilters,
 
     // used for FORWARD mix packets and FINAL ack packets
     pub(super) mixnet_forwarder: MixForwardingSender,
@@ -89,8 +88,8 @@ fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
 impl SharedData {
     pub(crate) fn new(
         processing_config: ProcessingConfig,
-        x25519_keys: Arc<x25519::KeyPair>,
-        replay_protection_filter: ReplayProtectionBloomfilter,
+        sphinx_keys: ActiveSphinxKeys,
+        replay_protection_filter: ReplayProtectionBloomfilters,
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
         metrics: NymNodeMetrics,
@@ -98,7 +97,7 @@ impl SharedData {
     ) -> Self {
         SharedData {
             processing_config,
-            sphinx_keys: x25519_keys,
+            sphinx_keys,
             replay_protection_filter,
             mixnet_forwarder,
             final_hop,

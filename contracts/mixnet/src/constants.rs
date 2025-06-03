@@ -78,6 +78,7 @@ pub const NYMNODE_ROLES_ASSIGNMENT_NAMESPACE: &str = "roles";
 pub const NYMNODE_REWARDED_SET_METADATA_NAMESPACE: &str = "roles_metadata";
 pub const NYMNODE_ACTIVE_ROLE_ASSIGNMENT_KEY: &str = "active_roles";
 
+pub const KEY_ROTATION_STATE_KEY: &str = "key_rot_state";
 pub const NODE_ID_COUNTER_KEY: &str = "nic";
 pub const PENDING_MIXNODE_CHANGES_NAMESPACE: &str = "pmc";
 pub const MIXNODES_PK_NAMESPACE: &str = "mnn";

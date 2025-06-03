@@ -349,7 +349,6 @@ utoipauto = "0.2"
 uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
-wasm-bindgen-test = "0.3.49"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
 
@@ -397,6 +396,7 @@ serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
 wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
+wasm-bindgen-test = "0.3.49"
 wasmtimer = "0.4.1"
 web-sys = "0.3.76"
 

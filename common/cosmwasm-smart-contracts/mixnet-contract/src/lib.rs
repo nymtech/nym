@@ -1,10 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![warn(clippy::expect_used)]
-#![warn(clippy::unwrap_used)]
-#![warn(clippy::todo)]
-
 mod config_score;
 pub mod constants;
 pub mod delegation;
@@ -13,6 +9,7 @@ pub mod events;
 pub mod gateway;
 pub mod helpers;
 pub mod interval;
+pub mod key_rotation;
 pub mod mixnode;
 pub mod msg;
 pub mod nym_node;
@@ -37,6 +34,7 @@ pub use gateway::{
 pub use interval::{
     CurrentIntervalResponse, EpochId, EpochState, EpochStatus, Interval, IntervalId,
 };
+pub use key_rotation::*;
 pub use mixnode::{
     LegacyMixLayer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeDetails,
     MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NodeCostParams,

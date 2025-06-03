@@ -50,7 +50,7 @@ nym-bin-common = { path = "../common/bin-common", features = [
     "basic_tracing",
     "output_format",
 ] }
-nym-client-core-config-types = { path = "../common/client-core/config-types" }
+nym-client-core-config-types = { path = "../common/client-core/config-types", features = ["disk-persistence"] }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
@@ -115,6 +115,7 @@ cargo_metadata = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rand_chacha = { workspace = true }
 
 
 [lints]

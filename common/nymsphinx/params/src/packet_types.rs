@@ -11,7 +11,7 @@ use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-#[error("{received} is not a valid packet mode tag")]
+#[error("{received} is not a valid packet type tag")]
 pub struct InvalidPacketType {
     received: u8,
 }

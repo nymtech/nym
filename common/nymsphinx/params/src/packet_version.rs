@@ -10,13 +10,15 @@ use thiserror::Error;
 // - packet_version (starting with v1.1.0)
 // - packet_size indicator
 // - packet_type
+// - sphinx key rotation (starting with v1.12.0/v1.13.0 - either Cheddar or Dolcelatte release)
+
 // it also just so happens that the only valid values for packet_size indicator include values 1-6
 // therefore if we receive byte `7` (or larger than that) we'll know we received a versioned packet,
 // otherwise we should treat it as legacy
 /// Increment it whenever we perform any breaking change in the wire format!
 pub const INITIAL_PACKET_VERSION_NUMBER: u8 = 7;
-
-pub const CURRENT_PACKET_VERSION_NUMBER: u8 = INITIAL_PACKET_VERSION_NUMBER;
+pub const KEY_ROTATION_VERSION_NUMBER: u8 = 8;
+pub const CURRENT_PACKET_VERSION_NUMBER: u8 = KEY_ROTATION_VERSION_NUMBER;
 pub const CURRENT_PACKET_VERSION: PacketVersion =
     PacketVersion::unchecked(CURRENT_PACKET_VERSION_NUMBER);
 
@@ -36,6 +38,10 @@ pub struct InvalidPacketVersion;
 impl PacketVersion {
     pub fn new() -> Self {
         PacketVersion(CURRENT_PACKET_VERSION_NUMBER)
+    }
+
+    pub fn is_initial(&self) -> bool {
+        self.0 == INITIAL_PACKET_VERSION_NUMBER
     }
 
     const fn unchecked(version: u8) -> PacketVersion {

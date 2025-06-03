@@ -4042,6 +4042,7 @@ dependencies = [
  "tendermint-rpc",
  "thiserror 2.0.12",
  "time",
+ "tracing",
  "utoipa",
 ]
 
@@ -4309,6 +4310,7 @@ version = "0.3.0"
 dependencies = [
  "pem",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]

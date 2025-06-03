@@ -601,6 +601,21 @@ impl Client {
         self.base_urls = new_urls
     }
 
+    /// Create new instance of `Client` using the provided base url and existing client config
+    pub fn clone_with_new_url(&self, new_url: Url) -> Self {
+        Client {
+            base_urls: vec![new_url],
+            current_idx: Arc::new(Default::default()),
+            reqwest_client: self.reqwest_client.clone(),
+
+            front: self.front.clone(),
+            retry_limit: self.retry_limit,
+
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: self.request_timeout,
+        }
+    }
+
     /// Get the currently configured host that this client uses when sending API requests.
     pub fn current_url(&self) -> &Url {
         &self.base_urls[self.current_idx.load(std::sync::atomic::Ordering::Relaxed)]

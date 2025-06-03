@@ -22,6 +22,9 @@ pub enum ValidatorClientError {
     #[error("nyxd request failed: {0}")]
     NyxdError(#[from] crate::nyxd::error::NyxdError),
 
+    #[error("the response metadata has changed between pages")]
+    InconsistentPagedMetadata,
+
     #[error("No validator API url has been provided")]
     NoAPIUrlAvailable,
 }

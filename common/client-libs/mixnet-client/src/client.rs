@@ -3,11 +3,9 @@
 
 use dashmap::DashMap;
 use futures::StreamExt;
-use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
+use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
-use nym_sphinx::params::PacketType;
-use nym_sphinx::NymPacket;
 use std::io;
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -49,12 +47,7 @@ impl Config {
 pub trait SendWithoutResponse {
     // Without response in this context means we will not listen for anything we might get back (not
     // that we should get anything), including any possible io errors
-    fn send_without_response(
-        &self,
-        address: NymNodeRoutingAddress,
-        packet: NymPacket,
-        packet_type: PacketType,
-    ) -> io::Result<()>;
+    fn send_without_response(&self, packet: MixPacket) -> io::Result<()>;
 }
 
 pub struct Client {
@@ -65,7 +58,7 @@ pub struct Client {
 
 #[derive(Default, Clone)]
 pub struct ActiveConnections {
-    inner: Arc<DashMap<NymNodeRoutingAddress, ConnectionSender>>,
+    inner: Arc<DashMap<SocketAddr, ConnectionSender>>,
 }
 
 impl ActiveConnections {
@@ -82,7 +75,7 @@ impl ActiveConnections {
 }
 
 impl Deref for ActiveConnections {
-    type Target = DashMap<NymNodeRoutingAddress, ConnectionSender>;
+    type Target = DashMap<SocketAddr, ConnectionSender>;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -196,7 +189,7 @@ impl Client {
         }
     }
 
-    fn make_connection(&self, address: NymNodeRoutingAddress, pending_packet: FramedNymPacket) {
+    fn make_connection(&self, address: SocketAddr, pending_packet: FramedNymPacket) {
         let (sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // this CAN'T fail because we just created the channel which has a non-zero capacity
@@ -233,7 +226,7 @@ impl Client {
 
             connections_count.fetch_add(1, Ordering::SeqCst);
             ManagedConnection::new(
-                address.into(),
+                address,
                 receiver,
                 initial_connection_timeout,
                 current_reconnection_attempt,
@@ -246,18 +239,14 @@ impl Client {
 }
 
 impl SendWithoutResponse for Client {
-    fn send_without_response(
-        &self,
-        address: NymNodeRoutingAddress,
-        packet: NymPacket,
-        packet_type: PacketType,
-    ) -> io::Result<()> {
-        trace!("Sending packet to {address:?}");
-        let framed_packet = FramedNymPacket::new(packet, packet_type);
+    fn send_without_response(&self, packet: MixPacket) -> io::Result<()> {
+        let address = packet.next_hop_address();
+        trace!("Sending packet to {address}");
+        let framed_packet = FramedNymPacket::from(packet);
 
         let Some(sender) = self.active_connections.get_mut(&address) else {
             // there was never a connection to begin with
-            debug!("establishing initial connection to {}", address);
+            debug!("establishing initial connection to {address}");
             // it's not a 'big' error, but we did not manage to send the packet, but queue the packet
             // for sending for as soon as the connection is created
             self.make_connection(address, framed_packet);

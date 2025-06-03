@@ -1,9 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_network_defaults::NYM_API_VERSION;
-
-pub const API_VERSION: &str = NYM_API_VERSION;
+pub const V1_API_VERSION: &str = "v1";
+pub const V2_API_VERSION: &str = "v2";
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 pub const DESCRIBED: &str = "described";
@@ -79,3 +78,11 @@ pub const SERVICE_PROVIDERS: &str = "services";
 pub const DETAILS: &str = "details";
 pub const CHAIN_STATUS: &str = "chain-status";
 pub const NETWORK: &str = "network";
+
+pub const EPOCH: &str = "epoch";
+
+pub use epoch_routes::*;
+pub mod epoch_routes {
+    pub const CURRENT: &str = "current";
+    pub const KEY_ROTATION_INFO: &str = "key-rotation-info";
+}

@@ -34,5 +34,6 @@ pub fn default_mixnet_init_msg() -> nym_mixnet_contract_common::InstantiateMsg {
         version_score_params: Default::default(),
         profit_margin: Default::default(),
         interval_operating_cost: Default::default(),
+        key_validity_in_epochs: None,
     }
 }

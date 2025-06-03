@@ -32,6 +32,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::net::IpAddr;
@@ -39,8 +40,10 @@ use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
+use tracing::{error, warn};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
+pub use nym_mixnet_contract_common::KeyRotationState;
 pub use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
@@ -72,7 +75,9 @@ impl Display for RequestError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema, Default,
+)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -86,6 +91,7 @@ pub enum MixnodeStatus {
     Active,   // in both the active set and the rewarded set
     Standby,  // only in the rewarded set
     Inactive, // in neither the rewarded set nor the active set, but is bonded
+    #[default]
     NotFound, // doesn't even exist in the bonded set
 }
 impl MixnodeStatus {
@@ -860,10 +866,16 @@ pub struct HostKeys {
     #[schema(value_type = String)]
     pub ed25519: ed25519::PublicKey,
 
+    #[deprecated(note = "use the current_x25519_sphinx_key with explicit rotation information")]
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub x25519: x25519::PublicKey,
+
+    pub current_x25519_sphinx_key: SphinxKey,
+
+    #[serde(default)]
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
 
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
@@ -872,11 +884,32 @@ pub struct HostKeys {
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct SphinxKey {
+    pub rotation_id: u32,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub public_key: x25519::PublicKey,
+}
+
+impl From<nym_node_requests::api::v1::node::models::SphinxKey> for SphinxKey {
+    fn from(value: nym_node_requests::api::v1::node::models::SphinxKey) -> Self {
+        SphinxKey {
+            rotation_id: value.rotation_id,
+            public_key: value.public_key,
+        }
+    }
+}
+
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
     fn from(value: nym_node_requests::api::v1::node::models::HostKeys) -> Self {
         HostKeys {
             ed25519: value.ed25519_identity,
             x25519: value.x25519_sphinx,
+            current_x25519_sphinx_key: value.primary_x25519_sphinx_key.into(),
+            pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key.map(Into::into),
             x25519_noise: value.x25519_noise,
         }
     }
@@ -999,7 +1032,39 @@ impl NymNodeDescription {
         self.description.host_information.keys.ed25519
     }
 
-    pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
+    pub fn current_sphinx_key(&self, current_rotation_id: u32) -> x25519::PublicKey {
+        let keys = &self.description.host_information.keys;
+
+        if keys.current_x25519_sphinx_key.rotation_id == u32::MAX {
+            // legacy case (i.e. node doesn't support rotation)
+            return keys.current_x25519_sphinx_key.public_key;
+        }
+
+        if current_rotation_id == keys.current_x25519_sphinx_key.rotation_id {
+            // it's the 'current' key
+            return keys.current_x25519_sphinx_key.public_key;
+        }
+
+        if let Some(pre_announced) = &keys.pre_announced_x25519_sphinx_key {
+            if pre_announced.rotation_id == current_rotation_id {
+                return pre_announced.public_key;
+            }
+        }
+
+        warn!(
+            "unexpected key rotation {current_rotation_id} for node {}",
+            self.node_id
+        );
+        // this should never be reached, but just in case, return the fallback option
+        keys.current_x25519_sphinx_key.public_key
+    }
+
+    pub fn to_skimmed_node(
+        &self,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {
             Some(self.entry_information())
@@ -1012,7 +1077,7 @@ impl NymNodeDescription {
             ed25519_identity_pubkey: keys.ed25519,
             ip_addresses: self.description.host_information.ip_address.clone(),
             mix_port: self.description.mix_port(),
-            x25519_sphinx_pubkey: keys.x25519,
+            x25519_sphinx_pubkey: self.current_sphinx_key(current_rotation_id),
             // we can't use the declared roles, we have to take whatever was provided in the contract.
             // why? say this node COULD operate as an exit, but it might be the case the contract decided
             // to assign it an ENTRY role only. we have to use that one instead.
@@ -1378,6 +1443,110 @@ impl NodeRefreshBody {
         }
 
         false
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KeyRotationInfoResponse {
+    pub key_rotation_state: KeyRotationState,
+
+    #[schema(value_type = u32)]
+    pub current_absolute_epoch_id: EpochId,
+
+    #[serde(with = "time::serde::rfc3339")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub current_epoch_start: OffsetDateTime,
+
+    pub epoch_duration: Duration,
+}
+
+impl KeyRotationInfoResponse {
+    pub fn current_key_rotation_id(&self) -> u32 {
+        self.key_rotation_state
+            .key_rotation_id(self.current_absolute_epoch_id)
+    }
+
+    pub fn next_rotation_starting_epoch_id(&self) -> EpochId {
+        self.key_rotation_state
+            .next_rotation_starting_epoch_id(self.current_absolute_epoch_id)
+    }
+
+    pub fn current_rotation_starting_epoch_id(&self) -> EpochId {
+        self.key_rotation_state
+            .current_rotation_starting_epoch_id(self.current_absolute_epoch_id)
+    }
+
+    fn current_epoch_progress(&self, now: OffsetDateTime) -> f32 {
+        let elapsed = (now - self.current_epoch_start).as_seconds_f32();
+        elapsed / self.epoch_duration.as_secs_f32()
+    }
+
+    pub fn is_epoch_stuck(&self) -> bool {
+        let now = OffsetDateTime::now_utc();
+        let progress = self.current_epoch_progress(now);
+        if progress > 1. {
+            let into_next = 1. - progress;
+            // if epoch hasn't progressed for more than 20% of its duration, mark is as stuck
+            if into_next > 0.2 {
+                let diff_time =
+                    Duration::from_secs_f32(into_next * self.epoch_duration.as_secs_f32());
+                let expected_epoch_end = self.current_epoch_start + self.epoch_duration;
+                warn!("the current epoch is expected to have been over by {expected_epoch_end}. it's already {} overdue!", humantime_serde::re::humantime::format_duration(diff_time));
+                return true;
+            }
+        }
+
+        false
+    }
+
+    // based on the current **TIME**, determine what's the expected current rotation id
+    pub fn expected_current_rotation_id(&self) -> u32 {
+        let now = OffsetDateTime::now_utc();
+        let current_end = now + self.epoch_duration;
+        if now < current_end {
+            return self
+                .key_rotation_state
+                .key_rotation_id(self.current_absolute_epoch_id);
+        }
+
+        let diff = now - current_end;
+        let passed_epochs = diff / self.epoch_duration;
+        let expected_current_epoch = self.current_absolute_epoch_id + passed_epochs.floor() as u32;
+
+        self.key_rotation_state
+            .key_rotation_id(expected_current_epoch)
+    }
+
+    pub fn until_next_rotation(&self) -> Option<Duration> {
+        let current_epoch_progress = self.current_epoch_progress(OffsetDateTime::now_utc());
+        if current_epoch_progress > 1. {
+            return None;
+        }
+
+        let next_rotation_epoch = self.next_rotation_starting_epoch_id();
+        let full_remaining =
+            (next_rotation_epoch - self.current_absolute_epoch_id).checked_add(1)?;
+
+        let epochs_until_next_rotation = (1. - current_epoch_progress) + full_remaining as f32;
+
+        Some(Duration::from_secs_f32(
+            epochs_until_next_rotation * self.epoch_duration.as_secs_f32(),
+        ))
+    }
+
+    pub fn epoch_start_time(&self, absolute_epoch_id: EpochId) -> OffsetDateTime {
+        match absolute_epoch_id.cmp(&self.current_absolute_epoch_id) {
+            Ordering::Less => {
+                let diff = self.current_absolute_epoch_id - absolute_epoch_id;
+                self.current_epoch_start - diff * self.epoch_duration
+            }
+            Ordering::Equal => self.current_epoch_start,
+            Ordering::Greater => {
+                let diff = absolute_epoch_id - self.current_absolute_epoch_id;
+                self.current_epoch_start + diff * self.epoch_duration
+            }
+        }
     }
 }
 

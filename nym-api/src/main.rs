@@ -18,6 +18,7 @@ use tracing::{info, trace};
 mod circulating_supply_api;
 mod ecash;
 mod epoch_operations;
+mod key_rotation;
 pub(crate) mod network;
 mod network_monitor;
 pub(crate) mod node_describe_cache;

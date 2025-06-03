@@ -1,11 +1,6 @@
-use crate::{
-    node_status_api::models::AxumResult,
-    nym_contract_cache::cache::NymContractCache,
-    unstable_routes::{
-        account::data_collector::AddressDataCollector,
-        models::{NyxAccountDelegationDetails, NyxAccountDetails},
-    },
-};
+use crate::unstable_routes::v1::account::data_collector::AddressDataCollector;
+use crate::unstable_routes::v1::account::models::{NyxAccountDelegationDetails, NyxAccountDetails};
+use crate::{node_status_api::models::AxumResult, nym_contract_cache::cache::NymContractCache};
 use moka::{future::Cache, Entry};
 use nym_validator_client::nyxd::AccountId;
 use std::{sync::Arc, time::Duration};

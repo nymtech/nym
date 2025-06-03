@@ -12,7 +12,7 @@ use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
-use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
+use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -44,7 +44,10 @@ pub enum PreparationError {
 }
 
 impl PreparationError {
-    fn return_surbs(self, returned_surbs: Vec<ReplySurb>) -> SurbWrappedPreparationError {
+    fn return_surbs(
+        self,
+        returned_surbs: Vec<ReplySurbWithKeyRotation>,
+    ) -> SurbWrappedPreparationError {
         SurbWrappedPreparationError {
             source: self,
             returned_surbs: Some(returned_surbs),
@@ -58,7 +61,7 @@ pub struct SurbWrappedPreparationError {
     #[source]
     source: PreparationError,
 
-    returned_surbs: Option<Vec<ReplySurb>>,
+    returned_surbs: Option<Vec<ReplySurbWithKeyRotation>>,
 }
 
 impl<T> From<T> for SurbWrappedPreparationError
@@ -268,10 +271,10 @@ where
         }
     }
 
-    async fn generate_reply_surbs_with_keys(
+    async fn generate_reply_surbs(
         &mut self,
         amount: usize,
-    ) -> Result<(Vec<ReplySurb>, Vec<SurbEncryptionKey>), PreparationError> {
+    ) -> Result<Vec<ReplySurbWithKeyRotation>, PreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
@@ -281,19 +284,14 @@ where
             topology,
         )?;
 
-        let reply_keys = reply_surbs
-            .iter()
-            .map(|s| *s.encryption_key())
-            .collect::<Vec<_>>();
-
-        Ok((reply_surbs, reply_keys))
+        Ok(reply_surbs)
     }
 
     pub(crate) async fn try_send_single_surb_message(
         &mut self,
         target: AnonymousSenderTag,
         message: ReplyMessage,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         is_extra_surb_request: bool,
     ) -> Result<(), SurbWrappedPreparationError> {
         let msg = NymMessage::new_reply(message);
@@ -347,7 +345,7 @@ where
     pub(crate) async fn try_request_additional_reply_surbs(
         &mut self,
         from: AnonymousSenderTag,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         amount: u32,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("requesting {amount} reply SURBs from {from}");
@@ -387,7 +385,7 @@ where
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<FragmentWithMaxRetransmissions>,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
         // TODO: technically this is performing an unnecessary cloning, but in the grand scheme of things
@@ -404,7 +402,7 @@ where
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
@@ -541,8 +539,12 @@ where
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let (reply_surbs, reply_keys) =
-            self.generate_reply_surbs_with_keys(amount as usize).await?;
+        let reply_surbs = self.generate_reply_surbs(amount as usize).await?;
+
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
             self.config.use_legacy_sphinx_format,
@@ -579,9 +581,12 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let (reply_surbs, reply_keys) = self
-            .generate_reply_surbs_with_keys(num_reply_surbs as usize)
-            .await?;
+        let reply_surbs = self.generate_reply_surbs(num_reply_surbs as usize).await?;
+
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
 
         let message = NymMessage::new_repliable(RepliableMessage::new_data(
             self.config.use_legacy_sphinx_format,
@@ -629,7 +634,7 @@ where
     pub(crate) async fn prepare_reply_chunks_for_sending(
         &mut self,
         fragments: Vec<Fragment>,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
     ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
         debug_assert_eq!(
             fragments.len(),
@@ -665,7 +670,7 @@ where
 
     pub(crate) async fn try_prepare_single_reply_chunk_for_sending(
         &mut self,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         chunk: Fragment,
     ) -> Result<PreparedFragment, SurbWrappedPreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;

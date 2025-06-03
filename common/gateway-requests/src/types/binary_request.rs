@@ -11,6 +11,9 @@ use tungstenite::Message;
 #[non_exhaustive]
 pub enum BinaryRequest {
     ForwardSphinx { packet: MixPacket },
+
+    // identical to `ForwardSphinx`, but also contains information about sphinx key rotation used
+    ForwardSphinxV2 { packet: MixPacket },
 }
 
 #[repr(u8)]
@@ -18,6 +21,9 @@ pub enum BinaryRequest {
 #[non_exhaustive]
 pub enum BinaryRequestKind {
     ForwardSphinx = 1,
+
+    // identical to `ForwardSphinx`, but also contains information about sphinx key rotation used
+    ForwardSphinxV2 = 2,
 }
 
 // Right now the only valid `BinaryRequest` is a request to forward a sphinx packet.
@@ -29,6 +35,7 @@ impl BinaryRequest {
     pub fn kind(&self) -> BinaryRequestKind {
         match self {
             BinaryRequest::ForwardSphinx { .. } => BinaryRequestKind::ForwardSphinx,
+            BinaryRequest::ForwardSphinxV2 { .. } => BinaryRequestKind::ForwardSphinxV2,
         }
     }
 
@@ -38,8 +45,12 @@ impl BinaryRequest {
     ) -> Result<Self, GatewayRequestsError> {
         match kind {
             BinaryRequestKind::ForwardSphinx => {
-                let packet = MixPacket::try_from_bytes(plaintext)?;
+                let packet = MixPacket::try_from_v1_bytes(plaintext)?;
                 Ok(BinaryRequest::ForwardSphinx { packet })
+            }
+            BinaryRequestKind::ForwardSphinxV2 => {
+                let packet = MixPacket::try_from_v2_bytes(plaintext)?;
+                Ok(BinaryRequest::ForwardSphinxV2 { packet })
             }
         }
     }
@@ -58,7 +69,8 @@ impl BinaryRequest {
         let kind = self.kind();
 
         let plaintext = match self {
-            BinaryRequest::ForwardSphinx { packet } => packet.into_bytes()?,
+            BinaryRequest::ForwardSphinx { packet } => packet.into_v1_bytes()?,
+            BinaryRequest::ForwardSphinxV2 { packet } => packet.into_v2_bytes()?,
         };
 
         BinaryData::make_encrypted_blob(kind as u8, &plaintext, shared_key)
@@ -70,7 +82,9 @@ impl BinaryRequest {
     ) -> Result<Message, GatewayRequestsError> {
         // all variants are currently encrypted
         let blob = match self {
-            BinaryRequest::ForwardSphinx { .. } => self.into_encrypted_tagged_bytes(shared_key)?,
+            BinaryRequest::ForwardSphinx { .. } | BinaryRequest::ForwardSphinxV2 { .. } => {
+                self.into_encrypted_tagged_bytes(shared_key)?
+            }
         };
 
         Ok(Message::Binary(blob))

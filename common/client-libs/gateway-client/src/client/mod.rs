@@ -21,8 +21,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    SensitiveServerResponse, ServerResponse, SharedGatewayKey, SharedSymmetricKey,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    GatewayRequestsError, SensitiveServerResponse, ServerResponse, SharedGatewayKey,
+    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -662,12 +662,16 @@ impl<C, St> GatewayClient<C, St> {
 
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
+        let supports_key_rotation_info = gw_protocol.supports_key_rotation_packet();
 
         if !supports_aes_gcm_siv {
             warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
         }
         if !supports_auth_v2 {
             warn!("this gateway is on an old version that doesn't support authentication v2")
+        }
+        if !supports_key_rotation_info {
+            warn!("this gateway is on an old version that doesn't support key rotation packets")
         }
 
         if self.authenticated {
@@ -849,6 +853,22 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    fn mix_packet_to_ws_message(&self, packet: MixPacket) -> Result<Message, GatewayRequestsError> {
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
+        let req = if self.negotiated_protocol.supports_key_rotation_packet() {
+            BinaryRequest::ForwardSphinxV2 { packet }
+        } else {
+            BinaryRequest::ForwardSphinx { packet }
+        };
+
+        req.into_ws_message(
+            self.shared_key
+                .as_ref()
+                .expect("no shared key present even though we're authenticated!"),
+        )
+    }
+
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
@@ -877,13 +897,7 @@ impl<C, St> GatewayClient<C, St> {
 
         let messages: Result<Vec<_>, _> = packets
             .into_iter()
-            .map(|mix_packet| {
-                BinaryRequest::ForwardSphinx { packet: mix_packet }.into_ws_message(
-                    self.shared_key
-                        .as_ref()
-                        .expect("no shared key present even though we're authenticated!"),
-                )
-            })
+            .map(|mix_packet| self.mix_packet_to_ws_message(mix_packet))
             .collect();
 
         if let Err(err) = self
@@ -949,13 +963,8 @@ impl<C, St> GatewayClient<C, St> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
-        // be more explicit in the naming?
-        let msg = BinaryRequest::ForwardSphinx { packet: mix_packet }.into_ws_message(
-            self.shared_key
-                .as_ref()
-                .expect("no shared key present even though we're authenticated!"),
-        )?;
+
+        let msg = self.mix_packet_to_ws_message(mix_packet)?;
         self.send_with_reconnection_on_failure(msg).await
     }
 

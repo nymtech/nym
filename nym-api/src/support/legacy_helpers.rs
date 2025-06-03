@@ -4,12 +4,12 @@
 use nym_api_requests::legacy::{LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::NymNodeData;
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_crypto::aes::cipher::crypto_common::rand_core::OsRng;
 use nym_mixnet_contract_common::mixnode::LegacyPendingMixNodeChanges;
 use nym_mixnet_contract_common::{
     Gateway, GatewayBond, LegacyMixLayer, MixNode, MixNodeBond, NymNodeDetails,
 };
 use rand::prelude::SliceRandom;
+use rand::rngs::OsRng;
 use std::net::{IpAddr, ToSocketAddrs};
 use std::str::FromStr;
 
@@ -61,7 +61,12 @@ pub(crate) fn to_legacy_mixnode(
                         .node
                         .custom_http_port
                         .unwrap_or(DEFAULT_NYM_NODE_HTTP_PORT),
-                    sphinx_key: description.host_information.keys.x25519.to_base58_string(),
+                    sphinx_key: description
+                        .host_information
+                        .keys
+                        .current_x25519_sphinx_key
+                        .public_key
+                        .to_base58_string(),
                     identity_key: nym_node.bond_information.node.identity_key.clone(),
                     version: description.build_information.build_version.clone(),
                 },
@@ -95,7 +100,12 @@ pub(crate) fn to_legacy_gateway(
                 .location
                 .map(|c| c.to_string())
                 .unwrap_or_default(),
-            sphinx_key: description.host_information.keys.x25519.to_base58_string(),
+            sphinx_key: description
+                .host_information
+                .keys
+                .current_x25519_sphinx_key
+                .public_key
+                .to_base58_string(),
             identity_key: nym_node.bond_information.node.identity_key.clone(),
             version: description.build_information.build_version.clone(),
         },

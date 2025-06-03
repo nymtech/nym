@@ -5,6 +5,7 @@ use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
 use nym_http_api_client::HttpClientError;
 use nym_ip_packet_router::error::ClientCoreError;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::ValidatorClientError;
 use std::io;
 use std::net::IpAddr;
@@ -45,6 +46,32 @@ pub enum KeyIOFailure {
         #[source]
         err: io::Error,
     },
+
+    #[error("failed to move {key} key from '{}' to '{}': {err}", source.display(), destination.display())]
+    KeyMoveFailure {
+        key: String,
+        source: PathBuf,
+        destination: PathBuf,
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("failed to copy {key} key from '{}' to '{}': {err}", source.display(), destination.display())]
+    KeyCopyFailure {
+        key: String,
+        source: PathBuf,
+        destination: PathBuf,
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("failed to remove {key} key from '{}': {err}", path.display())]
+    KeyRemovalFailure {
+        key: String,
+        path: PathBuf,
+        #[source]
+        err: io::Error,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -57,6 +84,9 @@ pub enum NymNodeError {
         #[source]
         source: io::Error,
     },
+
+    #[error("received shutdown signal while attempting to complete the action")]
+    ShutdownReceived,
 
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
@@ -115,6 +145,23 @@ pub enum NymNodeError {
     #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]
     NoPublicIps,
 
+    #[error("there are no available nym api endpoints")]
+    NoNymApiUrls,
+
+    #[error("failed to resolve nym-api query - no nodes returned a valid response")]
+    NymApisExhausted,
+
+    #[error("the current epoch appears to be stuck")]
+    StuckEpoch,
+
+    // this should never happen in normal usage, but it's better to throw it than to panic
+    // in case of bugs
+    #[error("sphinx keys have already been consumed to spawn the node tasks")]
+    ConsumedSphinxKeys,
+
+    #[error("failed to resolve chain query: {0}")]
+    NyxdFailure(#[from] NyxdError),
+
     #[error("this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag.")]
     InvalidPublicIp { address: IpAddr },
 
@@ -156,6 +203,9 @@ pub enum NymNodeError {
 
     #[error("failed to save/load the bloomfilter: {source} using path: {}", path.display())]
     BloomfilterIoFailure { source: io::Error, path: PathBuf },
+
+    #[error("failed to deserialise bloomfilter metadata")]
+    BloomfilterMetadataDeserialisationFailure,
 
     #[error(transparent)]
     GatewayFailure(Box<nym_gateway::GatewayError>),

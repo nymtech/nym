@@ -1,12 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
-use crate::config::gateway_tasks::{
-    ClientBandwidthDebug, StaleMessageDebug, ZkNymTicketHandlerDebug,
-};
-use crate::config::service_providers::{
-    IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
+use crate::config::old_configs::old_config_v9::{
+    AuthenticatorDebugV9, AuthenticatorPathsV9, AuthenticatorV9, ClientBandwidthDebugV9, ConfigV9,
+    GatewayTasksConfigDebugV9, GatewayTasksConfigV9, GatewayTasksPathsV9, HostV9, HttpV9,
+    IpPacketRouterDebugV9, IpPacketRouterPathsV9, IpPacketRouterV9, KeysPathsV9, LoggingSettingsV9,
+    MixnetDebugV9, MixnetV9, NetworkRequesterDebugV9, NetworkRequesterPathsV9, NetworkRequesterV9,
+    NodeModesV9, NymNodePathsV9, ReplayProtectionV9, ServiceProvidersConfigDebugV9,
+    ServiceProvidersConfigV9, ServiceProvidersPathsV9, StaleMessageDebugV9, VerlocDebugV9,
+    VerlocV9, WireguardPathsV9, WireguardV9, ZkNymTicketHandlerDebugV9,
 };
 use crate::config::*;
 use crate::error::NymNodeError;
@@ -20,7 +22,6 @@ use nym_config::{
     serde_helpers::{de_maybe_port, de_maybe_stringified},
 };
 use nym_config::{parse_urls, read_config_from_toml_file};
-use persistence::*;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -1189,7 +1190,7 @@ impl ConfigV8 {
 pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV8>,
-) -> Result<Config, NymNodeError> {
+) -> Result<ConfigV9, NymNodeError> {
     debug!("attempting to load v8 config...");
 
     let old_cfg = if let Some(prev_config) = prev_config {
@@ -1205,26 +1206,26 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
         .parent()
         .ok_or(NymNodeError::DataDirDerivationFailure)?;
 
-    let cfg = Config {
+    let cfg = ConfigV9 {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
-        modes: NodeModes {
+        modes: NodeModesV9 {
             mixnode: old_cfg.modes.mixnode,
             entry: old_cfg.modes.entry,
             exit: old_cfg.modes.exit,
         },
-        host: Host {
+        host: HostV9 {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: Mixnet {
+        mixnet: MixnetV9 {
             bind_address: old_cfg.mixnet.bind_address,
             announce_port: old_cfg.mixnet.announce_port,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            replay_protection: ReplayProtection::new_default(data_dir),
-            debug: MixnetDebug {
+            replay_protection: ReplayProtectionV9::new_default(data_dir),
+            debug: MixnetDebugV9 {
                 maximum_forward_packet_delay: old_cfg.mixnet.debug.maximum_forward_packet_delay,
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
@@ -1239,8 +1240,8 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
             },
         },
-        storage_paths: NymNodePaths {
-            keys: KeysPaths {
+        storage_paths: NymNodePathsV9 {
+            keys: KeysPathsV9 {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1268,7 +1269,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
             },
             description: old_cfg.storage_paths.description,
         },
-        http: Http {
+        http: HttpV9 {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,
             access_token: old_cfg.http.access_token,
@@ -1277,10 +1278,10 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
             node_load_cache_ttl: old_cfg.http.node_load_cache_ttl,
         },
-        verloc: Verloc {
+        verloc: VerlocV9 {
             bind_address: old_cfg.verloc.bind_address,
             announce_port: old_cfg.verloc.announce_port,
-            debug: VerlocDebug {
+            debug: VerlocDebugV9 {
                 packets_per_node: old_cfg.verloc.debug.packets_per_node,
                 connection_timeout: old_cfg.verloc.debug.connection_timeout,
                 packet_timeout: old_cfg.verloc.debug.packet_timeout,
@@ -1290,7 +1291,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                 retry_timeout: old_cfg.verloc.debug.retry_timeout,
             },
         },
-        wireguard: Wireguard {
+        wireguard: WireguardV9 {
             enabled: old_cfg.wireguard.enabled,
             bind_address: old_cfg.wireguard.bind_address,
             private_ipv4: old_cfg.wireguard.private_ipv4,
@@ -1298,7 +1299,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
             announced_port: old_cfg.wireguard.announced_port,
             private_network_prefix_v4: old_cfg.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: old_cfg.wireguard.private_network_prefix_v6,
-            storage_paths: WireguardPaths {
+            storage_paths: WireguardPathsV9 {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
                     .storage_paths
@@ -1309,8 +1310,8 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
-        gateway_tasks: GatewayTasksConfig {
-            storage_paths: GatewayTasksPaths {
+        gateway_tasks: GatewayTasksConfigV9 {
+            storage_paths: GatewayTasksPathsV9 {
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
                 stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
@@ -1319,12 +1320,12 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
             ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,
             announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
             announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
-            debug: gateway_tasks::Debug {
+            debug: GatewayTasksConfigDebugV9 {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,
                 minimum_mix_performance: old_cfg.gateway_tasks.debug.minimum_mix_performance,
                 max_request_timestamp_skew: old_cfg.gateway_tasks.debug.max_request_timestamp_skew,
-                stale_messages: StaleMessageDebug {
+                stale_messages: StaleMessageDebugV9 {
                     cleaner_run_interval: old_cfg
                         .gateway_tasks
                         .debug
@@ -1332,7 +1333,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                         .cleaner_run_interval,
                     max_age: old_cfg.gateway_tasks.debug.stale_messages.max_age,
                 },
-                client_bandwidth: ClientBandwidthDebug {
+                client_bandwidth: ClientBandwidthDebugV9 {
                     max_flushing_rate: old_cfg
                         .gateway_tasks
                         .debug
@@ -1344,7 +1345,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                         .client_bandwidth
                         .max_delta_flushing_amount,
                 },
-                zk_nym_tickets: ZkNymTicketHandlerDebug {
+                zk_nym_tickets: ZkNymTicketHandlerDebugV9 {
                     revocation_bandwidth_penalty: old_cfg
                         .gateway_tasks
                         .debug
@@ -1369,11 +1370,11 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                 },
             },
         },
-        service_providers: ServiceProvidersConfig {
-            storage_paths: ServiceProvidersPaths {
+        service_providers: ServiceProvidersConfigV9 {
+            storage_paths: ServiceProvidersPathsV9 {
                 clients_storage: old_cfg.service_providers.storage_paths.clients_storage,
                 stats_storage: old_cfg.service_providers.storage_paths.stats_storage,
-                network_requester: NetworkRequesterPaths {
+                network_requester: NetworkRequesterPathsV9 {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1410,7 +1411,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPaths {
+                ip_packet_router: IpPacketRouterPathsV9 {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1447,7 +1448,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
-                authenticator: AuthenticatorPaths {
+                authenticator: AuthenticatorPathsV9 {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1487,8 +1488,8 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
             },
             open_proxy: old_cfg.service_providers.open_proxy,
             upstream_exit_policy_url: old_cfg.service_providers.upstream_exit_policy_url,
-            network_requester: NetworkRequester {
-                debug: NetworkRequesterDebug {
+            network_requester: NetworkRequesterV9 {
+                debug: NetworkRequesterDebugV9 {
                     enabled: old_cfg.service_providers.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1502,8 +1503,8 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                         .client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouter {
-                debug: IpPacketRouterDebug {
+            ip_packet_router: IpPacketRouterV9 {
+                debug: IpPacketRouterDebugV9 {
                     enabled: old_cfg.service_providers.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1517,8 +1518,8 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                         .client_debug,
                 },
             },
-            authenticator: Authenticator {
-                debug: AuthenticatorDebug {
+            authenticator: AuthenticatorV9 {
+                debug: AuthenticatorDebugV9 {
                     enabled: old_cfg.service_providers.authenticator.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1528,12 +1529,12 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                     client_debug: old_cfg.service_providers.authenticator.debug.client_debug,
                 },
             },
-            debug: service_providers::Debug {
+            debug: ServiceProvidersConfigDebugV9 {
                 message_retrieval_limit: old_cfg.service_providers.debug.message_retrieval_limit,
             },
         },
         metrics: Default::default(),
-        logging: LoggingSettings {},
+        logging: LoggingSettingsV9 {},
         debug: Default::default(),
     };
     Ok(cfg)

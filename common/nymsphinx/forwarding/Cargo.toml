@@ -11,5 +11,5 @@ repository = { workspace = true }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
-nym-outfox = { path = "../../../nym-outfox" }
+nym-sphinx-anonymous-replies = { path = "../anonymous-replies" }
 thiserror = { workspace = true }

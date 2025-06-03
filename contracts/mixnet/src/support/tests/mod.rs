@@ -1,6 +1,11 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// fine in test code
+#![allow(clippy::panic)]
+#![allow(clippy::unreachable)]
+#![allow(clippy::unimplemented)]
+
 #[cfg(test)]
 pub mod fixtures;
 pub(crate) mod legacy;
@@ -1853,6 +1858,7 @@ pub mod test_helpers {
             version_score_params: Default::default(),
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),
+            key_validity_in_epochs: None,
         };
         let env = mock_env();
         let info = sender("creator");

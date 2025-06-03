@@ -55,7 +55,7 @@ impl SqlitePoolGuard {
     pub async fn close(&self) {
         // Avoid waiting for db files once the pool is marked closed to ensure that we don't wait on some other sqlite pool to close the database.
         if !self.connection_pool.is_closed() {
-            log::info!("Closing sqlite pool: {}", self.database_path.display());
+            tracing::info!("Closing sqlite pool: {}", self.database_path.display());
             _ = self.close_pool_inner();
         }
     }
@@ -64,7 +64,7 @@ impl SqlitePoolGuard {
         self.connection_pool.close().await;
 
         if let Err(e) = self.wait_for_db_files_close().await {
-            log::error!("Failed to wait for file to close: {e}");
+            tracing::error!("Failed to wait for file to close: {e}");
         }
 
         Ok(())
@@ -77,7 +77,7 @@ impl SqlitePoolGuard {
             .database_path
             .canonicalize()
             .inspect_err(|e| {
-                log::error!(
+                tracing::error!(
                     "Failed to canonicalize path: {}. Cause: {e}",
                     self.database_path.display()
                 );
@@ -103,7 +103,7 @@ impl SqlitePoolGuard {
         for _ in 0..CHECK_FILES_CLOSED_MAX_ATTEMPTS {
             match imp::check_files_closed(&paths)
                 .await
-                .inspect_err(|e| log::error!("imp::check_files_closed() failure: {e}"))
+                .inspect_err(|e| tracing::error!("imp::check_files_closed() failure: {e}"))
             {
                 Ok(false) | Err(_) => tokio::time::sleep(CHECK_FILES_CLOSED_RETRY_DELAY).await,
                 Ok(true) => return Ok(()),

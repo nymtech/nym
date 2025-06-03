@@ -16,7 +16,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
         if entry
             .file_type()
             .await
-            .inspect_err(|e| log::warn!("entry.file_type() failure: {e}"))
+            .inspect_err(|e| tracing::warn!("entry.file_type() failure: {e}"))
             .is_ok_and(|entry_type| entry_type.is_symlink())
         {
             match tokio::fs::read_link(entry.path()).await {
@@ -26,7 +26,7 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
                     }
                 }
                 Err(e) => {
-                    log::error!("Failed to read symlink: {e}");
+                    tracing::error!("Failed to read symlink: {e}");
                 }
             }
         }

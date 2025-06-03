@@ -9534,11 +9534,11 @@ dependencies = [
 name = "sqlx-pool-guard"
 version = "0.1.0"
 dependencies = [
- "log",
  "proc_pidinfo",
  "sqlx",
  "tempfile",
  "tokio",
+ "tracing",
  "windows 0.61.1",
 ]
 

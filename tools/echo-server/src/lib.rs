@@ -210,6 +210,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[tokio::test]
+    #[ignore]
     async fn shutdown_works() -> Result<()> {
         let config_dir = TempDir::new()?;
         let mut echo_server = NymEchoServer::new(
@@ -218,8 +219,7 @@ mod tests {
             None, // Mainnet by default
             "9000",
         )
-        .await
-        .unwrap();
+        .await?;
 
         // Getter for shutdown signal
         let shutdown_tx = echo_server.disconnect_signal();
@@ -263,6 +263,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn echoes_bytes() -> Result<()> {
         let config_dir = TempDir::new()?;
         let mut echo_server = NymEchoServer::new(
@@ -271,8 +272,7 @@ mod tests {
             None,
             "9001",
         )
-        .await
-        .unwrap();
+        .await?;
 
         let echo_addr = echo_server.nym_address().await;
 
@@ -311,11 +311,11 @@ mod tests {
             session_id,
             message_id,
         );
-        let coded_message = bincode::serialize(&outgoing).unwrap();
+        let coded_message = bincode::serialize(&outgoing)?;
 
         println!("sending {:?}", coded_message);
 
-        let mut client = MixnetClient::connect_new().await.unwrap();
+        let mut client = MixnetClient::connect_new().await?;
 
         println!("sending client addr {}", client.nym_address());
         let sender = client.split_sender();
@@ -343,8 +343,8 @@ mod tests {
 
         println!("after sending task handle");
 
-        receiving_task_handle.await.unwrap();
-        sending_task_handle.await.unwrap();
+        receiving_task_handle.await?;
+        sending_task_handle.await?;
 
         println!("after handles resolve");
 

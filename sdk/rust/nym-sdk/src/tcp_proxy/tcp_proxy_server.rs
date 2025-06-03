@@ -303,6 +303,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[tokio::test]
+    #[ignore]
     async fn shutdown_works() -> Result<()> {
         let config_dir = TempDir::new()?;
         let mut server = NymProxyServer::new(

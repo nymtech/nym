@@ -50,6 +50,7 @@ pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
         .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN)
 }
 
+#[allow(dead_code)]
 pub(crate) trait PerformanceContractTesterExt:
     ContractOpts<
         ExecuteMsg = ExecuteMsg,

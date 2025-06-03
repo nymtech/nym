@@ -7,6 +7,7 @@ use nym_performance_contract_common::EpochId;
 use serde::de::DeserializeOwned;
 
 pub(crate) trait MixnetContractQuerier {
+    #[allow(dead_code)]
     fn query_mixnet_contract<T: DeserializeOwned>(
         &self,
         address: impl Into<String>,

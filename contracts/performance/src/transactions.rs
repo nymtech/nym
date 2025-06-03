@@ -56,7 +56,12 @@ pub fn try_authorise_network_monitor(
 ) -> Result<Response, NymPerformanceContractError> {
     let address = deps.api.addr_validate(&address)?;
 
-    NYM_PERFORMANCE_CONTRACT_STORAGE.authorise_network_monitor(deps, env, &info.sender, address)?;
+    NYM_PERFORMANCE_CONTRACT_STORAGE.authorise_network_monitor(
+        deps,
+        &env,
+        &info.sender,
+        address,
+    )?;
 
     // TODO: emit events
     Ok(Response::new())

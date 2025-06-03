@@ -57,8 +57,6 @@ impl NymPerformanceContractStorage {
         mixnet_contract_address: Addr,
         initial_authorised_network_monitors: Vec<String>,
     ) -> Result<(), NymPerformanceContractError> {
-        let _ = env;
-
         let initial_epoch_id = self.current_mixnet_epoch_id(deps.as_ref())?;
 
         // set the initial epoch id
@@ -66,7 +64,8 @@ impl NymPerformanceContractStorage {
             .save(deps.storage, &initial_epoch_id)?;
 
         // set the contract admin
-        self.contract_admin.set(deps.branch(), Some(admin))?;
+        self.contract_admin
+            .set(deps.branch(), Some(admin.clone()))?;
 
         // set the mixnet contract address
         self.mixnet_contract_address
@@ -76,6 +75,10 @@ impl NymPerformanceContractStorage {
         self.network_monitors.initialise(deps.branch())?;
 
         // add all initial network monitors
+        for network_monitor in initial_authorised_network_monitors {
+            let network_monitor = deps.api.addr_validate(&network_monitor)?;
+            self.authorise_network_monitor(deps.branch(), &env, &admin, network_monitor)?;
+        }
 
         Ok(())
     }
@@ -170,6 +173,7 @@ impl NymPerformanceContractStorage {
         Ok(())
     }
 
+    #[cfg(test)]
     fn is_admin(&self, deps: Deps, addr: &Addr) -> Result<bool, NymPerformanceContractError> {
         self.contract_admin.is_admin(deps, addr).map_err(Into::into)
     }
@@ -183,7 +187,7 @@ impl NymPerformanceContractStorage {
     pub fn authorise_network_monitor(
         &self,
         mut deps: DepsMut,
-        env: Env,
+        env: &Env,
         sender: &Addr,
         network_monitor: Addr,
     ) -> Result<(), NymPerformanceContractError> {
@@ -282,7 +286,7 @@ impl NetworkMonitorsStorage {
     fn insert_new(
         &self,
         deps: DepsMut,
-        env: Env,
+        env: &Env,
         sender: &Addr,
         address: &Addr,
     ) -> Result<(), NymPerformanceContractError> {

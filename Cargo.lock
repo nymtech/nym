@@ -1924,6 +1924,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-multi-test"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "533b31c94b9e10e77e2468a2b1559aa506505d18c4e52eb64cbfc624ca876ad2"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "itertools 0.14.0",
+ "prost 0.13.5",
+ "schemars",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "cw-storage-plus"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5479,6 +5499,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-contracts-common-testing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+]
+
+[[package]]
 name = "nym-cpp-ffi"
 version = "0.1.2"
 dependencies = [
@@ -6899,7 +6931,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
- "nym-contracts-common",
+ "nym-contracts-common 0.5.0",
  "schemars",
  "serde",
  "thiserror 2.0.12",

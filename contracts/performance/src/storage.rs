@@ -57,7 +57,9 @@ impl NymPerformanceContractStorage {
         mixnet_contract_address: Addr,
         initial_authorised_network_monitors: Vec<String>,
     ) -> Result<(), NymPerformanceContractError> {
-        let _ = env;
+        // set the mixnet contract address
+        self.mixnet_contract_address
+            .save(deps.storage, &mixnet_contract_address)?;
 
         let initial_epoch_id = self.current_mixnet_epoch_id(deps.as_ref())?;
 
@@ -66,16 +68,17 @@ impl NymPerformanceContractStorage {
             .save(deps.storage, &initial_epoch_id)?;
 
         // set the contract admin
-        self.contract_admin.set(deps.branch(), Some(admin))?;
-
-        // set the mixnet contract address
-        self.mixnet_contract_address
-            .save(deps.storage, &mixnet_contract_address)?;
+        self.contract_admin
+            .set(deps.branch(), Some(admin.clone()))?;
 
         // initialise the network monitors storage (by setting the current count to 0)
         self.network_monitors.initialise(deps.branch())?;
 
         // add all initial network monitors
+        for network_monitor in initial_authorised_network_monitors {
+            let network_monitor = deps.api.addr_validate(&network_monitor)?;
+            self.authorise_network_monitor(deps.branch(), &env, &admin, network_monitor)?;
+        }
 
         Ok(())
     }
@@ -170,6 +173,7 @@ impl NymPerformanceContractStorage {
         Ok(())
     }
 
+    #[cfg(test)]
     fn is_admin(&self, deps: Deps, addr: &Addr) -> Result<bool, NymPerformanceContractError> {
         self.contract_admin.is_admin(deps, addr).map_err(Into::into)
     }
@@ -183,7 +187,7 @@ impl NymPerformanceContractStorage {
     pub fn authorise_network_monitor(
         &self,
         mut deps: DepsMut,
-        env: Env,
+        env: &Env,
         sender: &Addr,
         network_monitor: Addr,
     ) -> Result<(), NymPerformanceContractError> {
@@ -282,7 +286,7 @@ impl NetworkMonitorsStorage {
     fn insert_new(
         &self,
         deps: DepsMut,
-        env: Env,
+        env: &Env,
         sender: &Addr,
         address: &Addr,
     ) -> Result<(), NymPerformanceContractError> {
@@ -447,40 +451,44 @@ mod tests {
     #[cfg(test)]
     mod performance_contract_storage {
         use super::*;
-        use cosmwasm_std::testing::{mock_dependencies, mock_env};
+        use crate::testing::PreInitContract;
 
         #[cfg(test)]
         mod initialisation {
             use super::*;
-            use cosmwasm_std::testing::{mock_dependencies, mock_env};
 
             #[test]
             fn sets_contract_admin() -> anyhow::Result<()> {
+                let mut pre_init = PreInitContract::new();
+                let env = pre_init.env();
+
+                let admin1 = pre_init.api.addr_make("first-admin");
+                let admin2 = pre_init.api.addr_make("second-admin");
+                let mixnet_contract = pre_init.mixnet_contract_address.clone();
                 let storage = NymPerformanceContractStorage::new();
-                let mut deps = mock_dependencies();
-                let env = mock_env();
-                let admin1 = deps.api.addr_make("first-admin");
-                let admin2 = deps.api.addr_make("second-admin");
-                let mixnet_contract = deps.api.addr_make("mixnet-contract");
+
+                let deps = pre_init.deps_mut();
 
                 storage.initialise(
-                    deps.as_mut(),
+                    deps,
                     env.clone(),
                     admin1.clone(),
                     mixnet_contract.clone(),
                     Vec::new(),
                 )?;
-                assert!(storage.ensure_is_admin(deps.as_ref(), &admin1).is_ok());
+                let deps = pre_init.deps();
+                assert!(storage.ensure_is_admin(deps, &admin1).is_ok());
 
-                let mut deps = mock_dependencies();
+                let deps = pre_init.deps_mut();
                 storage.initialise(
-                    deps.as_mut(),
+                    deps,
                     env.clone(),
                     admin2.clone(),
                     mixnet_contract,
                     Vec::new(),
                 )?;
-                assert!(storage.ensure_is_admin(deps.as_ref(), &admin2).is_ok());
+                let deps = pre_init.deps();
+                assert!(storage.ensure_is_admin(deps, &admin2).is_ok());
 
                 Ok(())
             }
@@ -488,22 +496,20 @@ mod tests {
 
         #[test]
         fn checking_for_admin() -> anyhow::Result<()> {
-            let storage = NymPerformanceContractStorage::new();
-            let mut deps = mock_dependencies();
-            let env = mock_env();
-            let admin = deps.api.addr_make("admin");
-            let non_admin = deps.api.addr_make("non-admin");
-            let mixnet_contract = deps.api.addr_make("mixnet-contract");
+            let mut pre_init = PreInitContract::new();
+            let env = pre_init.env();
+            let admin = pre_init.api.addr_make("admin");
+            let non_admin = pre_init.api.addr_make("non-admin");
+            let mixnet_contract = pre_init.mixnet_contract_address.clone();
 
-            storage.initialise(
-                deps.as_mut(),
-                env,
-                admin.clone(),
-                mixnet_contract,
-                Vec::new(),
-            )?;
-            assert!(storage.is_admin(deps.as_ref(), &admin)?);
-            assert!(!storage.is_admin(deps.as_ref(), &non_admin)?);
+            let storage = NymPerformanceContractStorage::new();
+
+            let deps = pre_init.deps_mut();
+            storage.initialise(deps, env, admin.clone(), mixnet_contract, Vec::new())?;
+
+            let deps = pre_init.deps();
+            assert!(storage.is_admin(deps, &admin)?);
+            assert!(!storage.is_admin(deps, &non_admin)?);
 
             Ok(())
         }
@@ -511,21 +517,19 @@ mod tests {
         #[test]
         fn ensuring_admin_privileges() -> anyhow::Result<()> {
             let storage = NymPerformanceContractStorage::new();
-            let mut deps = mock_dependencies();
-            let env = mock_env();
-            let admin = deps.api.addr_make("admin");
-            let non_admin = deps.api.addr_make("non-admin");
-            let mixnet_contract = deps.api.addr_make("mixnet-contract");
+            let mut pre_init = PreInitContract::new();
+            let env = pre_init.env();
 
-            storage.initialise(
-                deps.as_mut(),
-                env,
-                admin.clone(),
-                mixnet_contract,
-                Vec::new(),
-            )?;
-            assert!(storage.ensure_is_admin(deps.as_ref(), &admin).is_ok());
-            assert!(storage.ensure_is_admin(deps.as_ref(), &non_admin).is_err());
+            let admin = pre_init.api.addr_make("admin");
+            let non_admin = pre_init.api.addr_make("non-admin");
+            let mixnet_contract = pre_init.mixnet_contract_address.clone();
+
+            let deps = pre_init.deps_mut();
+            storage.initialise(deps, env, admin.clone(), mixnet_contract, Vec::new())?;
+
+            let deps = pre_init.deps();
+            assert!(storage.ensure_is_admin(deps, &admin).is_ok());
+            assert!(storage.ensure_is_admin(deps, &non_admin).is_err());
 
             Ok(())
         }

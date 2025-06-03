@@ -207,7 +207,7 @@ fn get_network_monitor_information(
     let Some(details) = NYM_PERFORMANCE_CONTRACT_STORAGE
         .network_monitors
         .authorised
-        .may_load(deps.storage, &address)?
+        .may_load(deps.storage, address)?
     else {
         return Ok(None);
     };

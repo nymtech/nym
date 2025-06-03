@@ -1,10 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::tester::storage_wrapper::{ContractStorageWrapper, StorageWrapper};
 use crate::{mock_api, test_rng, TEST_DENOM};
 use cosmwasm_std::testing::MockApi;
-use cosmwasm_std::{coin, coins, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response};
+use cosmwasm_std::{
+    coin, coins, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, QuerierWrapper, Response,
+};
 use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
@@ -15,6 +16,8 @@ use std::marker::PhantomData;
 
 pub use basic_traits::*;
 pub use extensions::*;
+
+pub use crate::tester::storage_wrapper::{ContractStorageWrapper, StorageWrapper};
 
 mod basic_traits;
 mod extensions;
@@ -76,12 +79,32 @@ pub trait TestableNymContract {
     where
         Self: Sized,
     {
+        ContractTesterBuilder::new()
+            .instantiate::<Self>(None)
+            .build()
+    }
+}
+
+pub struct ContractTesterBuilder<C> {
+    contract: PhantomData<C>,
+    master_address: Addr,
+    app: App<BankKeeper, MockApi, StorageWrapper>,
+    storage: StorageWrapper,
+    pub well_known_contracts: HashMap<&'static str, Addr>,
+}
+
+impl<C> ContractTesterBuilder<C> {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self
+    where
+        C: TestableNymContract,
+    {
         let storage = StorageWrapper::new();
 
         let api = mock_api();
         let master_address = api.addr_make("master-owner");
 
-        let mut app = AppBuilder::new()
+        let app = AppBuilder::new()
             .with_api(api)
             .with_storage(storage.clone())
             .build(|router, _api, storage| {
@@ -94,35 +117,78 @@ pub trait TestableNymContract {
                     )
                     .unwrap()
             });
-        let code_id = app.store_code(Self::dyn_contract());
-        let contract_address = app
+
+        ContractTesterBuilder {
+            contract: Default::default(),
+            master_address,
+            app,
+            storage,
+            well_known_contracts: Default::default(),
+        }
+    }
+
+    pub fn instantiate<D: TestableNymContract>(
+        mut self,
+        custom_init_msg: Option<D::InitMsg>,
+    ) -> ContractTesterBuilder<C> {
+        let code_id = self.app.store_code(D::dyn_contract());
+        let contract_address = self
+            .app
             .instantiate_contract(
                 code_id,
-                master_address.clone(),
-                &Self::base_init_msg(),
+                self.master_address.clone(),
+                &custom_init_msg.unwrap_or(D::base_init_msg()),
                 &[],
-                Self::NAME,
-                Some(master_address.to_string()),
+                D::NAME,
+                Some(self.master_address.to_string()),
             )
             .unwrap();
 
         // send some tokens to the contract
-        app.send_tokens(
-            master_address.clone(),
-            contract_address.clone(),
-            &[coin(100000000, TEST_DENOM)],
-        )
-        .unwrap();
+        self.app
+            .send_tokens(
+                self.master_address.clone(),
+                contract_address.clone(),
+                &[coin(100000000, TEST_DENOM)],
+            )
+            .unwrap();
+
+        self.well_known_contracts.insert(D::NAME, contract_address);
+        self
+    }
+
+    pub fn build(self) -> ContractTester<C>
+    where
+        C: TestableNymContract,
+    {
+        if !self.well_known_contracts.contains_key(C::NAME) {
+            panic!("{} contract has not been instantiated", C::NAME);
+        }
+
+        let contract_address = self.well_known_contracts[C::NAME].clone();
 
         ContractTester {
-            contract: Default::default(),
-            app,
+            contract: self.contract,
+            app: self.app,
             rng: test_rng(),
-            storage: storage.contract_storage_wrapper(&contract_address),
+            master_address: self.master_address,
+            storage: self.storage.contract_storage_wrapper(&contract_address),
             contract_address,
-            master_address,
             common_storage_keys: Default::default(),
+            well_known_contracts: self.well_known_contracts,
         }
+    }
+
+    pub fn contract_storage_wrapper(&self, contract: &Addr) -> ContractStorageWrapper {
+        self.storage.contract_storage_wrapper(contract)
+    }
+
+    pub fn api(&self) -> MockApi {
+        *self.app.api()
+    }
+
+    pub fn querier(&self) -> QuerierWrapper {
+        self.app.wrap()
     }
 }
 
@@ -140,6 +206,9 @@ pub struct ContractTester<C: TestableNymContract> {
     pub master_address: Addr,
     pub(crate) storage: ContractStorageWrapper,
     pub common_storage_keys: HashMap<CommonStorageKeys, Vec<u8>>,
+
+    // TODO: limitation: doesn't allow multiple contracts of the same type (but that's fine for the time being)
+    pub well_known_contracts: HashMap<&'static str, Addr>,
 }
 
 impl<C> ContractTester<C>

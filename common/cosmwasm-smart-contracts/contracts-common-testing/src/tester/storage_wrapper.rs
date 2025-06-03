@@ -24,7 +24,7 @@ impl StorageWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ContractStorageWrapper {
+pub struct ContractStorageWrapper {
     address: Addr,
     inner: StorageWrapper,
 }

@@ -688,7 +688,7 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) {
+    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
         let url = self.current_url();
         r.url_mut().set_host(url.host_str()).unwrap();
 
@@ -706,8 +706,31 @@ impl Client {
                 // If the map did have this key present, the new value is associated with the key
                 // and all previous values are removed. (reqwest HeaderMap docs)
                 _ = r.headers_mut().insert(reqwest::header::HOST, actual_host);
+
+                return (url.as_str(), url.front_str());
             }
         }
+        (url.as_str(), None)
+    }
+
+    fn is_current_url(&self, actual_url: &str, front_url: Option<&str>) -> bool {
+        let current_url = self.current_url();
+
+        if let Some(ref front) = self.front {
+            if front.is_enabled() && front_url.is_some() {
+                // if fronting is configured and enabled, we need to check the front url as well
+                return current_url.front_str() == front_url && current_url.as_str() == actual_url;
+            } else if front.is_enabled() && front_url.is_none() {
+                // Fronting is configured and enabled, but no front url is provided
+                return false;
+            } else {
+                // if fronting is configured but disabled and no front was provided, we only check the base url
+                return current_url.as_str() == actual_url;
+            }
+        }
+
+        // if fronting is not configured, we only check the base url and ensure no front url is provided
+        current_url.as_str() == actual_url && front_url.is_none()
     }
 }
 
@@ -760,7 +783,7 @@ impl ApiClientCore for Client {
             // apply any changes based on the current state of the client wrt. hosts,
             // fronting domains, etc.
             let mut req = r.build()?;
-            self.apply_hosts_to_req(&mut req);
+            let (actual_host, front_host) = self.apply_hosts_to_req(&mut req);
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError<E>> = {
@@ -779,7 +802,13 @@ impl ApiClientCore for Client {
                 Ok(resp) => return Ok(resp),
                 Err(e) => {
                     // if we have multiple urls, update to the next
-                    self.update_host();
+                    //
+                    // However, only update if the current host is still the same as the one for
+                    // which the error occurred. This prevents requests sent in parallel to a faulty
+                    // host from updating the host multiple times.
+                    if self.is_current_url(actual_host, front_host) {
+                        self.update_host();
+                    }
 
                     #[cfg(feature = "tunneling")]
                     if let Some(ref front) = self.front {

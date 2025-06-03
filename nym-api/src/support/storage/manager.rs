@@ -1730,21 +1730,6 @@ pub(crate) mod v3_migration {
             Ok(())
         }
 
-        /// Retrieves all simulated reward epochs
-        pub(crate) async fn get_simulated_reward_epochs(&self) -> Result<Vec<SimulatedRewardEpoch>, sqlx::Error> {
-            sqlx::query_as!(
-                SimulatedRewardEpoch,
-                r#"
-                    SELECT id as "id!", epoch_id as "epoch_id!: u32", calculation_method as "calculation_method!", 
-                           start_timestamp as "start_timestamp!", end_timestamp as "end_timestamp!", 
-                           description, created_at as "created_at!"
-                    FROM simulated_reward_epochs
-                    ORDER BY created_at DESC
-                "#
-            )
-            .fetch_all(&self.connection_pool)
-            .await
-        }
 
         /// Retrieves node performance data for a specific simulation
         pub(crate) async fn get_simulated_node_performance(
@@ -1838,6 +1823,172 @@ pub(crate) mod v3_migration {
                     .await
                 },
             }
+        }
+
+        /// Count simulated node performance records for a specific epoch
+        pub(crate) async fn count_simulated_node_performance_for_epoch(
+            &self,
+            simulated_epoch_id: i64,
+        ) -> Result<usize, sqlx::Error> {
+            let result = sqlx::query!(
+                "SELECT COUNT(*) as count FROM simulated_node_performance WHERE simulated_epoch_id = ?",
+                simulated_epoch_id
+            )
+            .fetch_one(&self.connection_pool)
+            .await?;
+            
+            Ok(result.count as usize)
+        }
+
+        /// Get available calculation methods for a specific epoch
+        pub(crate) async fn get_available_calculation_methods_for_epoch(
+            &self,
+            epoch_id: u32,
+        ) -> Result<Vec<String>, sqlx::Error> {
+            let methods = sqlx::query!(
+                "SELECT DISTINCT calculation_method FROM simulated_reward_epochs WHERE epoch_id = ?",
+                epoch_id
+            )
+            .fetch_all(&self.connection_pool)
+            .await?;
+            
+            Ok(methods.into_iter().map(|m| m.calculation_method).collect())
+        }
+
+        /// Get simulated reward epoch by ID
+        pub(crate) async fn get_simulated_reward_epoch(
+            &self,
+            id: i64,
+        ) -> Result<Option<SimulatedRewardEpoch>, sqlx::Error> {
+            sqlx::query_as!(
+                SimulatedRewardEpoch,
+                r#"
+                    SELECT id as "id!", epoch_id as "epoch_id!: u32", calculation_method as "calculation_method!", 
+                           start_timestamp as "start_timestamp!", end_timestamp as "end_timestamp!", 
+                           description, created_at as "created_at!"
+                    FROM simulated_reward_epochs
+                    WHERE id = ?
+                "#,
+                id
+            )
+            .fetch_optional(&self.connection_pool)
+            .await
+        }
+
+        /// Get simulated node performance for a specific epoch
+        pub(crate) async fn get_simulated_node_performance_for_epoch(
+            &self,
+            simulated_epoch_id: i64,
+        ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+            self.get_simulated_node_performance(simulated_epoch_id, None).await
+        }
+
+        /// Get simulated rewards for a specific epoch
+        pub(crate) async fn get_simulated_rewards_for_epoch(
+            &self,
+            simulated_epoch_id: i64,
+        ) -> Result<Vec<SimulatedReward>, sqlx::Error> {
+            self.get_simulated_rewards(simulated_epoch_id, None).await
+        }
+
+        /// Get simulated route analysis for a specific epoch
+        pub(crate) async fn get_simulated_route_analysis_for_epoch(
+            &self,
+            simulated_epoch_id: i64,
+        ) -> Result<Vec<SimulatedRouteAnalysis>, sqlx::Error> {
+            sqlx::query_as!(
+                SimulatedRouteAnalysis,
+                r#"
+                    SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", 
+                           calculation_method as "calculation_method!", total_routes_analyzed as "total_routes_analyzed!: u32", 
+                           successful_routes as "successful_routes!: u32", failed_routes as "failed_routes!: u32", 
+                           average_route_reliability, time_window_hours as "time_window_hours!: u32", 
+                           analysis_parameters, calculated_at as "calculated_at!"
+                    FROM simulated_route_analysis
+                    WHERE simulated_epoch_id = ?
+                    ORDER BY calculation_method
+                "#,
+                simulated_epoch_id
+            )
+            .fetch_all(&self.connection_pool)
+            .await
+        }
+
+        /// Get simulated node performance by method
+        pub(crate) async fn get_simulated_node_performance_by_method(
+            &self,
+            epoch_id: u32,
+            method: &str,
+        ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+            sqlx::query_as!(
+                SimulatedNodePerformance,
+                r#"
+                    SELECT snp.id as "id!", snp.simulated_epoch_id as "simulated_epoch_id!", 
+                           snp.node_id as "node_id!: NodeId", snp.node_type as "node_type!", 
+                           snp.identity_key, snp.reliability_score as "reliability_score!", 
+                           snp.positive_samples as "positive_samples!: u32", snp.negative_samples as "negative_samples!: u32", 
+                           snp.final_fail_sequence as "final_fail_sequence!: u32", snp.work_factor, 
+                           snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
+                    FROM simulated_node_performance snp
+                    JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id
+                    WHERE sre.epoch_id = ? AND snp.calculation_method = ?
+                    ORDER BY snp.node_id
+                "#,
+                epoch_id,
+                method
+            )
+            .fetch_all(&self.connection_pool)
+            .await
+        }
+
+        /// Get simulated route analysis by method
+        pub(crate) async fn get_simulated_route_analysis_by_method(
+            &self,
+            epoch_id: u32,
+            method: &str,
+        ) -> Result<Option<SimulatedRouteAnalysis>, sqlx::Error> {
+            sqlx::query_as!(
+                SimulatedRouteAnalysis,
+                r#"
+                    SELECT sra.id as "id!", sra.simulated_epoch_id as "simulated_epoch_id!", 
+                           sra.calculation_method as "calculation_method!", sra.total_routes_analyzed as "total_routes_analyzed!: u32", 
+                           sra.successful_routes as "successful_routes!: u32", sra.failed_routes as "failed_routes!: u32", 
+                           sra.average_route_reliability, sra.time_window_hours as "time_window_hours!: u32", 
+                           sra.analysis_parameters, sra.calculated_at as "calculated_at!"
+                    FROM simulated_route_analysis sra
+                    JOIN simulated_reward_epochs sre ON sra.simulated_epoch_id = sre.id
+                    WHERE sre.epoch_id = ? AND sra.calculation_method = ?
+                "#,
+                epoch_id,
+                method
+            )
+            .fetch_optional(&self.connection_pool)
+            .await
+        }
+
+        /// Get node performance history across simulation epochs
+        pub(crate) async fn get_simulated_node_performance_history(
+            &self,
+            node_id: NodeId,
+        ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+            sqlx::query_as!(
+                SimulatedNodePerformance,
+                r#"
+                    SELECT snp.id as "id!", snp.simulated_epoch_id as "simulated_epoch_id!", 
+                           snp.node_id as "node_id!: NodeId", snp.node_type as "node_type!", 
+                           snp.identity_key, snp.reliability_score as "reliability_score!", 
+                           snp.positive_samples as "positive_samples!: u32", snp.negative_samples as "negative_samples!: u32", 
+                           snp.final_fail_sequence as "final_fail_sequence!: u32", snp.work_factor, 
+                           snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
+                    FROM simulated_node_performance snp
+                    JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id
+                    WHERE snp.node_id = ?
+                    ORDER BY sre.epoch_id DESC, snp.calculation_method
+                "#,
+                node_id
+            )
+            .fetch_all(&self.connection_pool)
+            .await
         }
     }
 }

@@ -165,6 +165,7 @@ pub struct SimulatedRewardEpoch {
 /// Node performance calculated using different methodologies
 #[derive(FromRow, Debug, Clone)]
 pub struct SimulatedNodePerformance {
+    #[allow(dead_code)]
     pub id: i64,
     pub simulated_epoch_id: i64,
     pub node_id: NodeId,
@@ -182,6 +183,7 @@ pub struct SimulatedNodePerformance {
 /// Simulated reward calculation results
 #[derive(FromRow, Debug, Clone)]
 pub struct SimulatedReward {
+    #[allow(dead_code)]
     pub id: i64,
     pub simulated_epoch_id: i64,
     pub node_id: NodeId,
@@ -197,6 +199,7 @@ pub struct SimulatedReward {
 /// Route analysis metadata for simulation runs
 #[derive(FromRow, Debug, Clone)]
 pub struct SimulatedRouteAnalysis {
+    #[allow(dead_code)]
     pub id: i64,
     pub simulated_epoch_id: i64,
     pub calculation_method: String, // 'old' or 'new'

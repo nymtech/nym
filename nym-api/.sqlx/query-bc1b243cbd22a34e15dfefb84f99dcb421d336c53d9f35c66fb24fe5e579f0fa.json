@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT snp.id as \"id!\", snp.simulated_epoch_id as \"simulated_epoch_id!\", \n                           snp.node_id as \"node_id!: NodeId\", snp.node_type as \"node_type!\", \n                           snp.identity_key, snp.reliability_score as \"reliability_score!\", \n                           snp.positive_samples as \"positive_samples!: u32\", snp.negative_samples as \"negative_samples!: u32\", \n                           snp.final_fail_sequence as \"final_fail_sequence!: u32\", snp.work_factor, \n                           snp.calculation_method as \"calculation_method!\", snp.calculated_at as \"calculated_at!\"\n                    FROM simulated_node_performance snp\n                    JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id\n                    WHERE sre.epoch_id = ? AND snp.calculation_method = ?\n                    ORDER BY snp.node_id\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "simulated_epoch_id!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_id!: NodeId",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_type!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "identity_key",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "reliability_score!",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "positive_samples!: u32",
+        "ordinal": 6,
+        "type_info": "Int64"
+      },
+      {
+        "name": "negative_samples!: u32",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "final_fail_sequence!: u32",
+        "ordinal": 8,
+        "type_info": "Int64"
+      },
+      {
+        "name": "work_factor",
+        "ordinal": 9,
+        "type_info": "Float"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "calculated_at!",
+        "ordinal": 11,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "bc1b243cbd22a34e15dfefb84f99dcb421d336c53d9f35c66fb24fe5e579f0fa"
+}

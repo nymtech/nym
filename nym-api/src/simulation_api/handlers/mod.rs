@@ -1,0 +1,715 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! Handlers for simulation API endpoints
+
+use crate::simulation_api::models::{
+    SimulationApiError, SimulationEpochDetails, SimulationEpochSummary, SimulationEpochsResponse,
+    SimulationListQuery, NodeComparisonQuery, MethodComparisonResponse, NodeMethodComparison,
+    ComparisonSummaryStats, RouteAnalysisComparison, NodePerformanceData, NodeRewardData,
+    RouteAnalysisData, ExportFormat,
+};
+use crate::support::http::state::AppState;
+use crate::support::storage::NymApiStorage;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::{Json, Response};
+use axum::routing::get;
+use axum::Router;
+use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_mixnet_contract_common::NodeId;
+use serde::Deserialize;
+use std::collections::HashMap;
+use utoipa::IntoParams;
+
+type SimulationResult<T> = Result<T, SimulationApiError>;
+type AxumResult<T> = Result<T, (StatusCode, Json<SimulationApiError>)>;
+
+/// Create the simulation API router
+pub(crate) fn simulation_routes() -> Router<AppState> {
+    Router::new()
+        .route("/epochs", get(list_simulation_epochs))
+        .route("/epochs/:epoch_id", get(get_simulation_epoch_details))
+        .route("/epochs/:epoch_id/comparison", get(compare_methods))
+        .route("/epochs/:epoch_id/export", get(export_simulation_data))
+        .route("/nodes/:node_id/performance", get(get_node_performance_history))
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct EpochPathParam {
+    epoch_id: i64,
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct NodePathParam {
+    node_id: NodeId,
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+struct ExportQuery {
+    format: Option<ExportFormat>,
+}
+
+/// List all simulation epochs with optional filtering
+#[utoipa::path(
+    tag = "Simulation",
+    get,
+    path = "/epochs",
+    context_path = "/v1/simulation",
+    responses(
+        (status = 200, description = "List of simulation epochs", body = SimulationEpochsResponse),
+        (status = 500, description = "Internal server error", body = SimulationApiError)
+    ),
+    params(SimulationListQuery, OutputParams)
+)]
+async fn list_simulation_epochs(
+    Query(params): Query<SimulationListQuery>,
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<SimulationEpochsResponse>> {
+    let storage = state.storage();
+    let output = output.output.unwrap_or_default();
+    
+    // Apply defaults and validation
+    let limit = params.limit.unwrap_or(50).min(1000);
+    let offset = params.offset.unwrap_or(0);
+    
+    let epochs = get_simulation_epochs_with_filters(storage, &params, limit, offset)
+        .await
+        .map_err(to_axum_error)?;
+    
+    // Enhance epochs with additional metadata
+    let mut enhanced_epochs = Vec::new();
+    for mut epoch in epochs {
+        // Count nodes analyzed for this epoch
+        epoch.nodes_analyzed = count_nodes_for_epoch(storage, epoch.id)
+            .await
+            .map_err(to_axum_error)?;
+            
+        // Get available calculation methods for this epoch_id
+        epoch.available_methods = get_available_methods_for_epoch(storage, epoch.epoch_id)
+            .await
+            .map_err(to_axum_error)?;
+            
+        enhanced_epochs.push(epoch);
+    }
+    
+    let total_count = count_total_simulation_epochs(storage, &params)
+        .await
+        .map_err(to_axum_error)?;
+    
+    let response = SimulationEpochsResponse {
+        epochs: enhanced_epochs,
+        total_count,
+    };
+    
+    Ok(output.to_response(response))
+}
+
+/// Get detailed simulation data for a specific epoch
+#[utoipa::path(
+    tag = "Simulation",
+    get,
+    path = "/epochs/{epoch_id}",
+    context_path = "/v1/simulation",
+    responses(
+        (status = 200, description = "Detailed simulation epoch data", body = SimulationEpochDetails),
+        (status = 404, description = "Simulation epoch not found", body = SimulationApiError),
+        (status = 500, description = "Internal server error", body = SimulationApiError)
+    ),
+    params(
+        ("epoch_id" = i64, Path, description = "Simulation epoch ID"),
+        OutputParams
+    )
+)]
+async fn get_simulation_epoch_details(
+    Path(params): Path<EpochPathParam>,
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<SimulationEpochDetails>> {
+    let storage = state.storage();
+    let output = output.output.unwrap_or_default();
+    
+    let epoch = get_simulation_epoch_by_id(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?
+        .ok_or_else(|| to_axum_error(SimulationApiError::new("Simulation epoch not found")))?;
+    
+    let mut epoch_summary = SimulationEpochSummary::from(epoch);
+    epoch_summary.nodes_analyzed = count_nodes_for_epoch(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?;
+    epoch_summary.available_methods = get_available_methods_for_epoch(storage, epoch_summary.epoch_id)
+        .await
+        .map_err(to_axum_error)?;
+    
+    let node_performance = get_node_performance_for_epoch(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?;
+    
+    let rewards = get_rewards_for_epoch(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?;
+    
+    let route_analysis = get_route_analysis_for_epoch(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?;
+    
+    let details = SimulationEpochDetails {
+        epoch: epoch_summary,
+        node_performance,
+        rewards,
+        route_analysis,
+    };
+    
+    Ok(output.to_response(details))
+}
+
+/// Compare old vs new methods for a specific epoch
+#[utoipa::path(
+    tag = "Simulation",
+    get,
+    path = "/epochs/{epoch_id}/comparison",
+    context_path = "/v1/simulation",
+    responses(
+        (status = 200, description = "Method comparison results", body = MethodComparisonResponse),
+        (status = 404, description = "Simulation epoch not found", body = SimulationApiError),
+        (status = 500, description = "Internal server error", body = SimulationApiError)
+    ),
+    params(
+        ("epoch_id" = i64, Path, description = "Simulation epoch ID"),
+        NodeComparisonQuery,
+        OutputParams
+    )
+)]
+async fn compare_methods(
+    Path(params): Path<EpochPathParam>,
+    Query(query): Query<NodeComparisonQuery>,
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<MethodComparisonResponse>> {
+    let storage = state.storage();
+    let output = output.output.unwrap_or_default();
+    
+    // Get simulation epoch to extract actual epoch_id
+    let sim_epoch = get_simulation_epoch_by_id(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?
+        .ok_or_else(|| to_axum_error(SimulationApiError::new("Simulation epoch not found")))?;
+    
+    // Get performance data for both methods
+    let old_performance = get_performance_by_method(storage, sim_epoch.epoch_id, "old")
+        .await
+        .map_err(to_axum_error)?;
+    let new_performance = get_performance_by_method(storage, sim_epoch.epoch_id, "new")
+        .await
+        .map_err(to_axum_error)?;
+    
+    // Build node comparisons
+    let node_comparisons = build_node_comparisons(old_performance, new_performance, &query);
+    
+    // Calculate summary statistics
+    let summary_statistics = calculate_summary_statistics(&node_comparisons);
+    
+    // Get route analysis comparison
+    let route_analysis_comparison = get_route_analysis_comparison(storage, sim_epoch.epoch_id)
+        .await
+        .map_err(to_axum_error)?;
+    
+    let comparison = MethodComparisonResponse {
+        epoch_id: sim_epoch.epoch_id,
+        simulation_epoch_id: params.epoch_id,
+        node_comparisons,
+        summary_statistics,
+        route_analysis_comparison,
+    };
+    
+    Ok(output.to_response(comparison))
+}
+
+/// Export simulation data in various formats
+#[utoipa::path(
+    tag = "Simulation",
+    get,
+    path = "/epochs/{epoch_id}/export",
+    context_path = "/v1/simulation",
+    responses(
+        (status = 200, description = "Exported simulation data"),
+        (status = 404, description = "Simulation epoch not found", body = SimulationApiError),
+        (status = 500, description = "Internal server error", body = SimulationApiError)
+    ),
+    params(
+        ("epoch_id" = i64, Path, description = "Simulation epoch ID"),
+        ExportQuery
+    )
+)]
+async fn export_simulation_data(
+    Path(params): Path<EpochPathParam>,
+    Query(query): Query<ExportQuery>,
+    State(state): State<AppState>,
+) -> Result<Response, (StatusCode, Json<SimulationApiError>)> {
+    let storage = state.storage();
+    let format = query.format.unwrap_or(ExportFormat::Json);
+    
+    // Get detailed simulation data
+    let epoch_details = get_simulation_epoch_details_internal(storage, params.epoch_id)
+        .await
+        .map_err(to_axum_error)?
+        .ok_or_else(|| to_axum_error(SimulationApiError::new("Simulation epoch not found")))?;
+    
+    match format {
+        ExportFormat::Json => {
+            let json_data = serde_json::to_string_pretty(&epoch_details)
+                .map_err(|e| to_axum_error(SimulationApiError::with_details("JSON serialization failed", &e.to_string())))?;
+            
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .header("Content-Disposition", format!("attachment; filename=\"simulation_epoch_{}.json\"", params.epoch_id))
+                .body(json_data.into())
+                .map_err(|e| to_axum_error(SimulationApiError::with_details("Response building failed", &e.to_string())))
+        }
+        ExportFormat::Csv => {
+            let csv_data = convert_to_csv(&epoch_details)
+                .map_err(|e| to_axum_error(SimulationApiError::with_details("CSV conversion failed", &e.to_string())))?;
+            
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "text/csv")
+                .header("Content-Disposition", format!("attachment; filename=\"simulation_epoch_{}.csv\"", params.epoch_id))
+                .body(csv_data.into())
+                .map_err(|e| to_axum_error(SimulationApiError::with_details("Response building failed", &e.to_string())))
+        }
+    }
+}
+
+/// Get performance history for a specific node across simulation epochs
+#[utoipa::path(
+    tag = "Simulation",
+    get,
+    path = "/nodes/{node_id}/performance",
+    context_path = "/v1/simulation",
+    responses(
+        (status = 200, description = "Node performance history", body = Vec<NodePerformanceData>),
+        (status = 500, description = "Internal server error", body = SimulationApiError)
+    ),
+    params(
+        ("node_id" = NodeId, Path, description = "Node ID"),
+        OutputParams
+    )
+)]
+async fn get_node_performance_history(
+    Path(params): Path<NodePathParam>,
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<Vec<NodePerformanceData>>> {
+    let storage = state.storage();
+    let output = output.output.unwrap_or_default();
+    
+    let performance_history = get_node_performance_history_internal(storage, params.node_id)
+        .await
+        .map_err(to_axum_error)?;
+    
+    Ok(output.to_response(performance_history))
+}
+
+// Helper functions (implementations would be added here)
+
+async fn get_simulation_epochs_with_filters(
+    storage: &NymApiStorage,
+    _params: &SimulationListQuery,
+    limit: usize,
+    offset: usize,
+) -> SimulationResult<Vec<SimulationEpochSummary>> {
+    let limit_i64 = limit as i64;
+    let offset_i64 = offset as i64;
+    
+    let epochs = sqlx::query_as!(
+        crate::support::storage::models::SimulatedRewardEpoch,
+        "SELECT id as \"id!\", epoch_id as \"epoch_id!: u32\", calculation_method as \"calculation_method!\", 
+               start_timestamp as \"start_timestamp!\", end_timestamp as \"end_timestamp!\", 
+               description, created_at as \"created_at!\"
+         FROM simulated_reward_epochs 
+         ORDER BY created_at DESC 
+         LIMIT ? OFFSET ?",
+        limit_i64,
+        offset_i64
+    )
+    .fetch_all(&storage.manager.connection_pool)
+    .await
+    .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(epochs.into_iter().map(SimulationEpochSummary::from).collect())
+}
+
+async fn count_nodes_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<usize> {
+    storage
+        .manager
+        .count_simulated_node_performance_for_epoch(epoch_id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))
+}
+
+async fn get_available_methods_for_epoch(storage: &NymApiStorage, epoch_id: u32) -> SimulationResult<Vec<String>> {
+    storage
+        .manager
+        .get_available_calculation_methods_for_epoch(epoch_id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))
+}
+
+async fn count_total_simulation_epochs(storage: &NymApiStorage, _params: &SimulationListQuery) -> SimulationResult<usize> {
+    let result = sqlx::query!(
+        "SELECT COUNT(*) as count FROM simulated_reward_epochs"
+    )
+    .fetch_one(&storage.manager.connection_pool)
+    .await
+    .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(result.count as usize)
+}
+
+async fn get_simulation_epoch_by_id(storage: &NymApiStorage, id: i64) -> SimulationResult<Option<crate::support::storage::models::SimulatedRewardEpoch>> {
+    storage
+        .manager
+        .get_simulated_reward_epoch(id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))
+}
+
+async fn get_node_performance_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<Vec<NodePerformanceData>> {
+    let performance = storage
+        .manager
+        .get_simulated_node_performance_for_epoch(epoch_id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(performance.into_iter().map(NodePerformanceData::from).collect())
+}
+
+async fn get_rewards_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<Vec<NodeRewardData>> {
+    let rewards = storage
+        .manager
+        .get_simulated_rewards_for_epoch(epoch_id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(rewards.into_iter().map(NodeRewardData::from).collect())
+}
+
+async fn get_route_analysis_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<Vec<RouteAnalysisData>> {
+    let analysis = storage
+        .manager
+        .get_simulated_route_analysis_for_epoch(epoch_id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(analysis.into_iter().map(RouteAnalysisData::from).collect())
+}
+
+async fn get_performance_by_method(
+    storage: &NymApiStorage, 
+    epoch_id: u32, 
+    method: &str
+) -> SimulationResult<Vec<NodePerformanceData>> {
+    let performance = storage
+        .manager
+        .get_simulated_node_performance_by_method(epoch_id, method)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(performance.into_iter().map(NodePerformanceData::from).collect())
+}
+
+fn build_node_comparisons(
+    old_performance: Vec<NodePerformanceData>,
+    new_performance: Vec<NodePerformanceData>,
+    query: &NodeComparisonQuery,
+) -> Vec<NodeMethodComparison> {
+    let mut old_map: HashMap<NodeId, NodePerformanceData> = old_performance
+        .into_iter()
+        .map(|p| (p.node_id, p))
+        .collect();
+    
+    let mut new_map: HashMap<NodeId, NodePerformanceData> = new_performance
+        .into_iter()
+        .map(|p| (p.node_id, p))
+        .collect();
+    
+    let mut comparisons = Vec::new();
+    
+    // Get all unique node IDs from both methods
+    let mut all_node_ids: Vec<_> = old_map.keys().chain(new_map.keys()).cloned().collect();
+    all_node_ids.sort();
+    all_node_ids.dedup();
+    
+    for node_id in all_node_ids {
+        let old_perf = old_map.remove(&node_id);
+        let new_perf = new_map.remove(&node_id);
+        
+        // Apply filters
+        if let Some(filter_node_id) = query.node_id {
+            if node_id != filter_node_id {
+                continue;
+            }
+        }
+        
+        if let Some(ref filter_node_type) = query.node_type {
+            let node_type = old_perf.as_ref()
+                .or(new_perf.as_ref())
+                .map(|p| &p.node_type);
+            if node_type != Some(filter_node_type) {
+                continue;
+            }
+        }
+        
+        // Calculate differences
+        let reliability_difference = match (&old_perf, &new_perf) {
+            (Some(old), Some(new)) => Some(new.reliability_score - old.reliability_score),
+            _ => None,
+        };
+        
+        let performance_delta_percentage = match (&old_perf, &new_perf) {
+            (Some(old), Some(new)) if old.reliability_score != 0.0 => {
+                Some((new.reliability_score - old.reliability_score) / old.reliability_score * 100.0)
+            }
+            _ => None,
+        };
+        
+        // Apply delta filters
+        if let Some(min_delta) = query.min_delta {
+            if reliability_difference.map_or(true, |d| d < min_delta) {
+                continue;
+            }
+        }
+        
+        if let Some(max_delta) = query.max_delta {
+            if reliability_difference.map_or(true, |d| d > max_delta) {
+                continue;
+            }
+        }
+        
+        let node_type = old_perf.as_ref()
+            .or(new_perf.as_ref())
+            .map(|p| p.node_type.clone())
+            .unwrap_or_else(|| "unknown".to_string());
+        
+        let identity_key = old_perf.as_ref()
+            .or(new_perf.as_ref())
+            .and_then(|p| p.identity_key.clone());
+        
+        comparisons.push(NodeMethodComparison {
+            node_id,
+            node_type,
+            identity_key,
+            old_method: old_perf,
+            new_method: new_perf,
+            reliability_difference,
+            performance_delta_percentage,
+        });
+    }
+    
+    comparisons
+}
+
+fn calculate_summary_statistics(comparisons: &[NodeMethodComparison]) -> ComparisonSummaryStats {
+    let mut reliabilities_old = Vec::new();
+    let mut reliabilities_new = Vec::new();
+    let mut improvements = 0;
+    let mut degradations = 0;
+    let mut unchanged = 0;
+    let mut max_improvement: f64 = 0.0;
+    let mut max_degradation: f64 = 0.0;
+    
+    for comparison in comparisons {
+        if let Some(old) = &comparison.old_method {
+            reliabilities_old.push(old.reliability_score);
+        }
+        if let Some(new) = &comparison.new_method {
+            reliabilities_new.push(new.reliability_score);
+        }
+        
+        if let Some(diff) = comparison.reliability_difference {
+            if diff > 0.001 {
+                improvements += 1;
+                max_improvement = max_improvement.max(diff);
+            } else if diff < -0.001 {
+                degradations += 1;
+                max_degradation = max_degradation.min(diff); // This will be negative
+            } else {
+                unchanged += 1;
+            }
+        }
+    }
+    
+    let average_reliability_old = if reliabilities_old.is_empty() {
+        0.0
+    } else {
+        reliabilities_old.iter().sum::<f64>() / reliabilities_old.len() as f64
+    };
+    
+    let average_reliability_new = if reliabilities_new.is_empty() {
+        0.0
+    } else {
+        reliabilities_new.iter().sum::<f64>() / reliabilities_new.len() as f64
+    };
+    
+    // Calculate medians and standard deviations
+    let (median_reliability_old, reliability_std_dev_old) = calculate_median_and_std(&reliabilities_old);
+    let (median_reliability_new, reliability_std_dev_new) = calculate_median_and_std(&reliabilities_new);
+    
+    ComparisonSummaryStats {
+        total_nodes_compared: comparisons.len(),
+        nodes_improved: improvements,
+        nodes_degraded: degradations,
+        nodes_unchanged: unchanged,
+        average_reliability_old,
+        average_reliability_new,
+        median_reliability_old,
+        median_reliability_new,
+        reliability_std_dev_old,
+        reliability_std_dev_new,
+        max_improvement,
+        max_degradation,
+    }
+}
+
+fn calculate_median_and_std(values: &[f64]) -> (f64, f64) {
+    if values.is_empty() {
+        return (0.0, 0.0);
+    }
+    
+    let mut sorted = values.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let median = if sorted.len() % 2 == 0 {
+        (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
+    } else {
+        sorted[sorted.len() / 2]
+    };
+    
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    let variance = values.iter()
+        .map(|x| (x - mean).powi(2))
+        .sum::<f64>() / values.len() as f64;
+    let std_dev = variance.sqrt();
+    
+    (median, std_dev)
+}
+
+async fn get_route_analysis_comparison(
+    storage: &NymApiStorage,
+    epoch_id: u32,
+) -> SimulationResult<RouteAnalysisComparison> {
+    let old_analysis = storage
+        .manager
+        .get_simulated_route_analysis_by_method(epoch_id, "old")
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?
+        .map(RouteAnalysisData::from);
+    
+    let new_analysis = storage
+        .manager
+        .get_simulated_route_analysis_by_method(epoch_id, "new")
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?
+        .map(RouteAnalysisData::from);
+    
+    let time_window_difference_hours = match (&old_analysis, &new_analysis) {
+        (Some(old), Some(new)) => new.time_window_hours as i32 - old.time_window_hours as i32,
+        _ => 0,
+    };
+    
+    let route_coverage_difference = match (&old_analysis, &new_analysis) {
+        (Some(old), Some(new)) => new.total_routes_analyzed as i32 - old.total_routes_analyzed as i32,
+        _ => 0,
+    };
+    
+    let success_rate_difference = match (&old_analysis, &new_analysis) {
+        (Some(old), Some(new)) => {
+            let old_rate = old.successful_routes as f64 / old.total_routes_analyzed as f64;
+            let new_rate = new.successful_routes as f64 / new.total_routes_analyzed as f64;
+            Some(new_rate - old_rate)
+        }
+        _ => None,
+    };
+    
+    Ok(RouteAnalysisComparison {
+        old_method: old_analysis,
+        new_method: new_analysis,
+        time_window_difference_hours,
+        route_coverage_difference,
+        success_rate_difference,
+    })
+}
+
+async fn get_simulation_epoch_details_internal(
+    storage: &NymApiStorage,
+    epoch_id: i64,
+) -> SimulationResult<Option<SimulationEpochDetails>> {
+    let epoch = match get_simulation_epoch_by_id(storage, epoch_id).await? {
+        Some(epoch) => epoch,
+        None => return Ok(None),
+    };
+    
+    let mut epoch_summary = SimulationEpochSummary::from(epoch);
+    epoch_summary.nodes_analyzed = count_nodes_for_epoch(storage, epoch_id).await?;
+    epoch_summary.available_methods = get_available_methods_for_epoch(storage, epoch_summary.epoch_id).await?;
+    
+    let node_performance = get_node_performance_for_epoch(storage, epoch_id).await?;
+    let rewards = get_rewards_for_epoch(storage, epoch_id).await?;
+    let route_analysis = get_route_analysis_for_epoch(storage, epoch_id).await?;
+    
+    Ok(Some(SimulationEpochDetails {
+        epoch: epoch_summary,
+        node_performance,
+        rewards,
+        route_analysis,
+    }))
+}
+
+fn convert_to_csv(details: &SimulationEpochDetails) -> Result<String, Box<dyn std::error::Error>> {
+    // Simple CSV conversion - in a real implementation this would be more sophisticated
+    let mut csv = String::new();
+    
+    // Header
+    csv.push_str("data_type,node_id,node_type,reliability_score,reward_amount,calculation_method\n");
+    
+    // Performance data
+    for perf in &details.node_performance {
+        csv.push_str(&format!(
+            "performance,{},{},{},{},{}\n",
+            perf.node_id, perf.node_type, perf.reliability_score, "", perf.calculation_method
+        ));
+    }
+    
+    // Reward data
+    for reward in &details.rewards {
+        csv.push_str(&format!(
+            "reward,{},{},{},{},{}\n",
+            reward.node_id, reward.node_type, "", reward.calculated_reward_amount, reward.calculation_method
+        ));
+    }
+    
+    Ok(csv)
+}
+
+async fn get_node_performance_history_internal(
+    storage: &NymApiStorage,
+    node_id: NodeId,
+) -> SimulationResult<Vec<NodePerformanceData>> {
+    let performance = storage
+        .manager
+        .get_simulated_node_performance_history(node_id)
+        .await
+        .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
+    
+    Ok(performance.into_iter().map(NodePerformanceData::from).collect())
+}
+
+fn to_axum_error(error: SimulationApiError) -> (StatusCode, Json<SimulationApiError>) {
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
+}

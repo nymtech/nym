@@ -24,6 +24,7 @@ pub(crate) mod node_describe_cache;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
+pub(crate) mod simulation_api;
 mod status;
 pub(crate) mod support;
 mod unstable_routes;

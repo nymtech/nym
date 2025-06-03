@@ -41,22 +41,6 @@ impl Default for SimulationConfig {
     }
 }
 
-/// Results from a single calculation method
-#[derive(Debug, Clone)]
-pub struct MethodResults {
-    pub method_name: String,
-    pub node_performance: Vec<SimulatedNodePerformance>,
-    pub rewards: Vec<SimulatedReward>,
-    pub route_analysis: SimulatedRouteAnalysis,
-}
-
-/// Complete simulation results containing both methods
-#[derive(Debug, Clone)]
-pub struct SimulationResults {
-    pub epoch_id: i64,
-    pub old_method: Option<MethodResults>,
-    pub new_method: Option<MethodResults>,
-}
 
 /// Main simulation coordinator
 pub struct SimulationCoordinator<'a> {
@@ -76,7 +60,7 @@ impl<'a> SimulationCoordinator<'a> {
         rewarded_set: &EpochRewardedSet,
         reward_params: RewardingParams,
         current_epoch_id: u32,
-    ) -> Result<SimulationResults, RewardingError> {
+    ) -> Result<(), RewardingError> {
         let now = OffsetDateTime::now_utc();
         let end_timestamp = now.unix_timestamp();
         let start_timestamp = end_timestamp - (24 * 3600); // 24 hours ago for baseline
@@ -98,12 +82,6 @@ impl<'a> SimulationCoordinator<'a> {
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
-        let mut results = SimulationResults {
-            epoch_id: epoch_db_id,
-            old_method: None,
-            new_method: None,
-        };
-
         // Run old method simulation (24h cache-based)
         if self.config.run_both_methods {
             match self.run_old_method_simulation(
@@ -113,8 +91,7 @@ impl<'a> SimulationCoordinator<'a> {
                 epoch_db_id,
                 end_timestamp,
             ).await {
-                Ok(old_results) => {
-                    results.old_method = Some(old_results);
+                Ok(_) => {
                     info!("Old method simulation completed successfully");
                 }
                 Err(e) => {
@@ -131,8 +108,7 @@ impl<'a> SimulationCoordinator<'a> {
             epoch_db_id,
             end_timestamp,
         ).await {
-            Ok(new_results) => {
-                results.new_method = Some(new_results);
+            Ok(_) => {
                 info!("New method simulation completed successfully");
             }
             Err(e) => {
@@ -140,14 +116,8 @@ impl<'a> SimulationCoordinator<'a> {
             }
         }
 
-        info!(
-            "Simulation completed for epoch {}. Methods run: old={}, new={}",
-            current_epoch_id,
-            results.old_method.is_some(),
-            results.new_method.is_some()
-        );
-
-        Ok(results)
+        info!("Simulation completed for epoch {}", current_epoch_id);
+        Ok(())
     }
 
     /// Run simulation using old method (24h cache-based)
@@ -158,7 +128,7 @@ impl<'a> SimulationCoordinator<'a> {
         reward_params: RewardingParams,
         epoch_db_id: i64,
         end_timestamp: i64,
-    ) -> Result<MethodResults, RewardingError> {
+    ) -> Result<(), RewardingError> {
         debug!("Running old method simulation (24h cache-based)");
 
         // Get 24h performance data using existing cache-based method
@@ -239,12 +209,7 @@ impl<'a> SimulationCoordinator<'a> {
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
-        Ok(MethodResults {
-            method_name: "old".to_string(),
-            node_performance,
-            rewards,
-            route_analysis,
-        })
+        Ok(())
     }
 
     /// Run simulation using new method (1h route-based)
@@ -254,7 +219,7 @@ impl<'a> SimulationCoordinator<'a> {
         reward_params: RewardingParams,
         epoch_db_id: i64,
         end_timestamp: i64,
-    ) -> Result<MethodResults, RewardingError> {
+    ) -> Result<(), RewardingError> {
         debug!("Running new method simulation ({}h route-based)", self.config.new_method_time_window_hours);
 
         let time_window_secs = (self.config.new_method_time_window_hours as i64) * 3600;
@@ -347,12 +312,7 @@ impl<'a> SimulationCoordinator<'a> {
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
-        Ok(MethodResults {
-            method_name: "new".to_string(),
-            node_performance,
-            rewards,
-            route_analysis,
-        })
+        Ok(())
     }
 
     /// Calculate rewards for nodes using the provided performance data
@@ -480,18 +440,18 @@ impl EpochAdvancer {
         reward_params: RewardingParams,
         current_epoch_id: u32,
         simulation_config: SimulationConfig,
-    ) -> Result<Option<SimulationResults>, RewardingError> {
+    ) -> Result<(), RewardingError> {
         let coordinator = SimulationCoordinator::new(&self.storage, simulation_config);
         
         match coordinator.run_simulation(self, rewarded_set, reward_params, current_epoch_id).await {
-            Ok(results) => {
+            Ok(()) => {
                 info!("Simulation completed successfully for epoch {}", current_epoch_id);
-                Ok(Some(results))
+                Ok(())
             }
             Err(e) => {
                 error!("Simulation failed for epoch {}: {}", current_epoch_id, e);
                 // Don't fail the entire epoch operation due to simulation failure
-                Ok(None)
+                Ok(())
             }
         }
     }

@@ -399,7 +399,13 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             for (dealer_index, dealing) in dealings.into_iter() {
                 // attempt to decrypt our portion
                 let dk = self.state.dkg_keypair().private_key();
-                let share = match decrypt_share(dk, receiver_index, &dealing.ciphertexts, None) {
+                let share = match decrypt_share(
+                    dkg::params(),
+                    dk,
+                    receiver_index,
+                    &dealing.ciphertexts,
+                    None,
+                ) {
                     Ok(share) => share,
                     Err(err) => {
                         error!("failed to decrypt share {human_index}/{total} generated from dealer {dealer_index}: {err} - can't generate the full key");

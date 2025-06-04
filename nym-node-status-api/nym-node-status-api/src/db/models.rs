@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{
     http::{self, models::SummaryHistory},
     utils::{decimal_to_i64, unix_timestamp_to_utc_rfc3339, NumericalCheckedCast},
@@ -14,6 +12,7 @@ use nym_validator_client::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use std::str::FromStr;
 use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;

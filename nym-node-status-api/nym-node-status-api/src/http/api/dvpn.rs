@@ -46,20 +46,19 @@ async fn dvpn_gateways(
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
     let min_node_version: String = min_node_version.unwrap_or_else(|| String::from("1.6.2"));
-    let min_node_version = semver::Version::parse(&min_node_version)
+    let _min_node_version = semver::Version::parse(&min_node_version)
         .map_err(|_| HttpError::invalid_input("Min version must be valid semver"))?;
 
-    let db = state.db_pool();
-    let res = state.cache().get_dvpn_gateway_list(db).await;
-
-    Ok(Json(res))
+    Ok(Json(
+        state.cache().get_dvpn_gateway_list(state.db_pool()).await,
+    ))
 }
 
 #[allow(dead_code)] // clippy doesn't detect usage in utoipa macros
 #[derive(Deserialize, IntoParams)]
 #[into_params(parameter_in = Path)]
 struct TwoLetterCountryCodeParam {
-    #[param(minimum = 2, maximum = 2)]
+    #[param(min_length = 2, max_length = 2)]
     two_letter_country_code: String,
 }
 

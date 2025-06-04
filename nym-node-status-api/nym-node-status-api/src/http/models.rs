@@ -6,6 +6,7 @@ use nym_validator_client::{
     models::{
         AuthenticatorDetails, BinaryBuildInformationOwned, IpPacketRouterDetails, NymNodeData,
     },
+    nym_api::SkimmedNode,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
 use serde::{Deserialize, Serialize};
@@ -143,19 +144,9 @@ pub mod wg_outcome_versions {
     }
 }
 
-impl TryFrom<&Gateway> for DVpnGateway {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &Gateway) -> Result<Self, Self::Error> {
-        Self::try_from(value.to_owned())
-    }
-}
-
-impl TryFrom<Gateway> for DVpnGateway {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Gateway) -> Result<Self, Self::Error> {
-        let location = value
+impl DVpnGateway {
+    pub(crate) fn new(gateway: Gateway, skimmed_node: &SkimmedNode) -> anyhow::Result<Self> {
+        let location = gateway
             .explorer_pretty_bond
             .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
             .and_then(|value| {
@@ -163,50 +154,18 @@ impl TryFrom<Gateway> for DVpnGateway {
             })
             .map(|bond| bond.location)?;
 
-        let self_described = value
+        let self_described = gateway
             .self_described
             .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
             .and_then(|value| serde_json::from_value::<NymNodeData>(value).map_err(From::from))?;
 
-        let last_probe_result = value
+        let last_probe_result = gateway
             .last_probe_result
             .and_then(|value| serde_json::from_value::<LastProbeResult>(value).ok());
 
-        // TODO: polyfill `last_probe`, see below from VPN API
-        /*
-        const last_testrun_utc = item.last_testrun_utc;
-
-        const last_probe: DirectoryGatewayProbe | undefined =
-          last_testrun_utc && item.last_probe_result?.outcome
-            ? {
-                last_updated_utc: last_testrun_utc,
-                outcome: item.last_probe_result.outcome,
-              }
-            : undefined;
-
-        //
-        // reshape test probe
-        //
-        if (
-          last_probe?.outcome?.wg &&
-          isDirectoryGatewayProbeOutcome_WG_V2(last_probe?.outcome?.wg) &&
-          last_probe?.outcome?.wg?.can_handshake === undefined
-        ) {
-          last_probe.outcome.wg = {
-            ...last_probe.outcome.wg,
-            can_handshake: last_probe.outcome.wg.can_handshake_v4,
-            can_resolve_dns: last_probe.outcome.wg.can_resolve_dns_v4,
-            ping_hosts_performance:
-              last_probe.outcome.wg.ping_hosts_performance_v4,
-            ping_ips_performance: last_probe.outcome.wg.ping_ips_performance_v4,
-          };
-        }
-
-         */
-
         Ok(Self {
-            identity_key: value.gateway_identity_key,
-            name: value.description.moniker,
+            identity_key: gateway.gateway_identity_key,
+            name: gateway.description.moniker,
             ip_packet_router: self_described.ip_packet_router,
             authenticator: self_described.authenticator,
             location: Location {
@@ -215,12 +174,15 @@ impl TryFrom<Gateway> for DVpnGateway {
                 two_letter_iso_country_code: location.two_letter_iso_country_code,
             },
             last_probe: last_probe_result.map(|res| res.outcome),
-            // TODO
-            ip_addresses: vec![],           // value.ip_addresses (SkimmedNode),
-            mix_port: 0,                    // value.mix_port (SkimmedNode),
-            role: NodeRole::EntryGateway,   // value.role (SkimmedNode),
-            entry: None,                    // (SkimmedNode)
-            performance: value.performance, // (SkimmedNode)
+            ip_addresses: skimmed_node
+                .ip_addresses
+                .iter()
+                .map(|ip| ip.to_string())
+                .collect(),
+            mix_port: skimmed_node.mix_port,
+            role: skimmed_node.role.clone(),
+            entry: skimmed_node.entry.clone(),
+            performance: gateway.performance,
             build_information: self_described.build_information,
         })
     }

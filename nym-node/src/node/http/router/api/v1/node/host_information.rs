@@ -55,7 +55,7 @@ pub(crate) async fn host_information(
                 rotation_id: primary_key.rotation_id(),
                 public_key: primary_pubkey,
             },
-            x25519_noise: state.static_information.x25519_noise_key,
+            x25519_versioned_noise: state.static_information.x25519_versioned_noise_key,
             pre_announced_x25519_sphinx_key: pre_announced,
         },
     };

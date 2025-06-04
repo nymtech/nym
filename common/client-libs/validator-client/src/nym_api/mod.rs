@@ -649,7 +649,7 @@ pub trait NymApiClientExt: ApiClient {
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
-    ) -> Result<PaginatedCachedNodesResponse<SemiSkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SemiSkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -666,7 +666,7 @@ pub trait NymApiClientExt: ApiClient {
 
         self.get_json(
             &[
-                routes::API_VERSION,
+                routes::V2_API_VERSION,
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "semi-skimmed",

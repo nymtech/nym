@@ -802,16 +802,19 @@ impl NymNode {
             config.api.v1_config.node.roles.ip_packet_router_enabled = true;
         }
 
-        let x25519_noise_key = if self.config.mixnet.debug.unsafe_disable_noise {
+        let x25519_versioned_noise_key = if self.config.mixnet.debug.unsafe_disable_noise {
             None
         } else {
-            Some(*self.x25519_noise_keys.public_key())
+            Some(VersionedNoiseKey {
+                supported_version: nym_noise::LATEST_NOISE_VERSION,
+                x25519_pubkey: *self.x25519_noise_keys.public_key(),
+            })
         };
 
         let app_state = AppState::new(
             StaticNodeInformation {
                 ed25519_identity_keys: self.ed25519_identity_keys.clone(),
-                x25519_noise_key,
+                x25519_versioned_noise_key,
                 ip_addresses: self.config.host.public_ips.clone(),
                 hostname: self.config.host.hostname.clone(),
             },

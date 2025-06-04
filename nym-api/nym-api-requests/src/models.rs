@@ -1108,10 +1108,11 @@ impl NymNodeDescription {
 
     pub fn to_semi_skimmed_node(
         &self,
+        current_rotation_id: u32,
         role: NodeRole,
         performance: Performance,
     ) -> SemiSkimmedNode {
-        let skimmed_node = self.to_skimmed_node(role, performance);
+        let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
 
         SemiSkimmedNode {
             basic: skimmed_node,

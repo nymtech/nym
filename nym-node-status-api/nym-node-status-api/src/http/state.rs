@@ -7,7 +7,7 @@ use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nym_api::SkimmedNode;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
-use tracing::instrument;
+use tracing::{error, instrument, warn};
 
 use crate::{
     db::{queries, DbPool},
@@ -208,47 +208,84 @@ impl HttpCache {
             None => {
                 tracing::trace!("No gateways (dVPN) in cache, refreshing from DB...");
 
-                let mut failed_to_convert_gw_count = 0;
-                let gateways: Vec<DVpnGateway> = self
-                    .get_gateway_list(db)
+                let gateways = self.get_gateway_list(db).await;
+
+                let started_with = gateways.len();
+                let Ok(skimmed_nodes) = crate::db::queries::get_described_bonded_nym_nodes(db)
                     .await
+                    .map(|records| {
+                        records
+                            .into_iter()
+                            .filter_map(|dto| SkimmedNode::try_from(dto).ok())
+                            .map(|skimmed_node| {
+                                (
+                                    skimmed_node.ed25519_identity_pubkey.to_base58_string(),
+                                    skimmed_node,
+                                )
+                            })
+                            .collect::<HashMap<_, _>>()
+                    })
+                    .inspect_err(|err| {
+                        // this would fail only in case of internal error: log and return gracefully
+                        error!("Failed to get nym_nodes from DB: {err}");
+                    })
+                else {
+                    return Vec::new();
+                };
+
+                let res_gws = gateways
                     .into_iter()
                     .filter(|gw| gw.bonded)
-                    .filter_map(|d| {
-                        d.try_into()
-                            .inspect_err(|_| failed_to_convert_gw_count += 1)
-                            .ok()
+                    .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
+                        Some(skimmed_node) => Some((gw, skimmed_node)),
+                        None => {
+                            warn!(
+                                "No SkimmedNode data found for GW, identity_key={}",
+                                gw.gateway_identity_key
+                            );
+                            None
+                        }
                     })
-                    .filter(|g: &DVpnGateway| {
+                    .filter_map(
+                        |(gw, skimmed_node)| match DVpnGateway::new(gw, skimmed_node) {
+                            Ok(gw) => Some(gw),
+                            Err(err) => {
+                                error!(
+                                    "Failed to convert GW node_id={} to dVPN form: {}",
+                                    skimmed_node.node_id, err
+                                );
+                                None
+                            }
+                        },
+                    )
+                    .filter(|gw| {
                         // gateways must have a country
-                        g.location.two_letter_iso_country_code.len() == 2
+                        if gw.location.two_letter_iso_country_code.len() == 2 {
+                            true
+                        } else {
+                            warn!(
+                                "Invalid country code: {}",
+                                gw.location.two_letter_iso_country_code
+                            );
+                            false
+                        }
                     })
                     // sort by country, then by identity key
                     .sorted_by_key(|item| {
-                        // for some reason, closure on this owned iterator takes
-                        // reference, but returns owned element, which means
-                        // we have to clone despite having access to owned data
                         (
-                            item.identity_key.clone(),
                             item.location.two_letter_iso_country_code.clone(),
+                            item.identity_key.clone(),
                         )
                     })
-                    .collect();
+                    .collect::<Vec<_>>();
 
-                if failed_to_convert_gw_count > 0 {
-                    tracing::error!(
-                        "Failed to convert {} DB gateways to dVPN form",
-                        failed_to_convert_gw_count
-                    );
-                }
-
-                if gateways.is_empty() {
-                    tracing::warn!("Database contains 0 gateways");
+                if res_gws.is_empty() && started_with > 0 {
+                    tracing::warn!("Started with {}, got 0 gateways", started_with);
                 } else {
-                    self.upsert_dvpn_gateway_list(gateways.clone()).await;
+                    self.upsert_dvpn_gateway_list(res_gws.clone()).await;
                 }
 
-                gateways
+                res_gws
             }
         }
     }

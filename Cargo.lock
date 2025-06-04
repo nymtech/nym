@@ -2290,9 +2290,9 @@ dependencies = [
 
 [[package]]
 name = "dyn-clone"
-version = "1.0.18"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "feeef44e73baff3a26d371801df019877a9866a8c493d315ab00177843314f35"
+checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
 
 [[package]]
 name = "easy-addr"
@@ -5000,6 +5000,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -5600,9 +5601,11 @@ dependencies = [
 name = "nym-credential-verification"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bs58",
  "cosmwasm-std",
  "cw-utils",
+ "dyn-clone",
  "futures",
  "nym-api-requests 0.1.0",
  "nym-credentials",
@@ -5986,8 +5989,10 @@ dependencies = [
 name = "nym-gateway-storage"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bincode",
  "defguard_wireguard_rs",
+ "dyn-clone",
  "nym-credentials-interface 0.1.0",
  "nym-gateway-requests",
  "nym-sphinx 0.1.0",
@@ -7913,11 +7918,13 @@ dependencies = [
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "bincode",
  "chrono",
  "dashmap",
  "defguard_wireguard_rs",
+ "dyn-clone",
  "futures",
  "ip_network",
  "log",

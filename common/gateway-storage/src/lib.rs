@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use async_trait::async_trait;
 use bandwidth::BandwidthManager;
 use clients::{ClientManager, ClientType};
 use models::{
@@ -27,10 +28,13 @@ mod inboxes;
 pub mod models;
 mod shared_keys;
 mod tickets;
+pub mod traits;
 mod wireguard_peers;
 
 pub use error::GatewayStorageError;
 pub use inboxes::InboxManager;
+
+use crate::traits::{BandwidthGatewayStorage, InboxGatewayStorage, SharedKeyGatewayStorage};
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -69,6 +73,21 @@ impl GatewayStorage {
     #[allow(dead_code)]
     pub(crate) fn wireguard_peer_manager(&self) -> &wireguard_peers::WgPeerManager {
         &self.wireguard_peer_manager
+    }
+
+    pub async fn handle_forget_me(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), GatewayStorageError> {
+        let client_id = self.get_mixnet_client_id(client_address).await?;
+        self.inbox_manager()
+            .remove_messages_for_client(&client_address.as_base58_string())
+            .await?;
+        self.bandwidth_manager().remove_client(client_id).await?;
+        self.shared_key_manager()
+            .remove_shared_keys(&client_address.as_base58_string())
+            .await?;
+        Ok(())
     }
 
     /// Initialises `PersistentStorage` using the provided path.
@@ -123,8 +142,9 @@ impl GatewayStorage {
     }
 }
 
-impl GatewayStorage {
-    pub async fn get_mixnet_client_id(
+#[async_trait]
+impl SharedKeyGatewayStorage for GatewayStorage {
+    async fn get_mixnet_client_id(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<i64, GatewayStorageError> {
@@ -134,22 +154,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn handle_forget_me(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> Result<(), GatewayStorageError> {
-        let client_id = self.get_mixnet_client_id(client_address).await?;
-        self.inbox_manager()
-            .remove_messages_for_client(&client_address.as_base58_string())
-            .await?;
-        self.bandwidth_manager().remove_client(client_id).await?;
-        self.shared_key_manager()
-            .remove_shared_keys(&client_address.as_base58_string())
-            .await?;
-        Ok(())
-    }
-
-    pub async fn insert_shared_keys(
+    async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
         shared_keys: &SharedGatewayKey,
@@ -178,7 +183,7 @@ impl GatewayStorage {
         Ok(client_id)
     }
 
-    pub async fn get_shared_keys(
+    async fn get_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<Option<PersistedSharedKeys>, GatewayStorageError> {
@@ -190,7 +195,7 @@ impl GatewayStorage {
     }
 
     #[allow(dead_code)]
-    pub async fn remove_shared_keys(
+    async fn remove_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), GatewayStorageError> {
@@ -200,7 +205,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn update_last_used_authentication_timestamp(
+    async fn update_last_used_authentication_timestamp(
         &self,
         client_id: i64,
         last_used_authentication_timestamp: OffsetDateTime,
@@ -214,12 +219,15 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn get_client(&self, client_id: i64) -> Result<Option<Client>, GatewayStorageError> {
+    async fn get_client(&self, client_id: i64) -> Result<Option<Client>, GatewayStorageError> {
         let client = self.client_manager.get_client(client_id).await?;
         Ok(client)
     }
+}
 
-    pub async fn store_message(
+#[async_trait]
+impl InboxGatewayStorage for GatewayStorage {
+    async fn store_message(
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
@@ -230,7 +238,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn retrieve_messages(
+    async fn retrieve_messages(
         &self,
         client_address: DestinationAddressBytes,
         start_after: Option<i64>,
@@ -242,19 +250,22 @@ impl GatewayStorage {
         Ok(messages)
     }
 
-    pub async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), GatewayStorageError> {
+    async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), GatewayStorageError> {
         for id in ids {
             self.inbox_manager.remove_message(id).await?;
         }
         Ok(())
     }
+}
 
-    pub async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), GatewayStorageError> {
+#[async_trait]
+impl BandwidthGatewayStorage for GatewayStorage {
+    async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), GatewayStorageError> {
         self.bandwidth_manager.insert_new_client(client_id).await?;
         Ok(())
     }
 
-    pub async fn set_expiration(
+    async fn set_expiration(
         &self,
         client_id: i64,
         expiration: OffsetDateTime,
@@ -265,12 +276,12 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn reset_bandwidth(&self, client_id: i64) -> Result<(), GatewayStorageError> {
+    async fn reset_bandwidth(&self, client_id: i64) -> Result<(), GatewayStorageError> {
         self.bandwidth_manager.reset_bandwidth(client_id).await?;
         Ok(())
     }
 
-    pub async fn get_available_bandwidth(
+    async fn get_available_bandwidth(
         &self,
         client_id: i64,
     ) -> Result<Option<PersistedBandwidth>, GatewayStorageError> {
@@ -280,7 +291,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn increase_bandwidth(
+    async fn increase_bandwidth(
         &self,
         client_id: i64,
         amount: i64,
@@ -291,7 +302,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn revoke_ticket_bandwidth(
+    async fn revoke_ticket_bandwidth(
         &self,
         ticket_id: i64,
         amount: i64,
@@ -302,7 +313,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn decrease_bandwidth(
+    async fn decrease_bandwidth(
         &self,
         client_id: i64,
         amount: i64,
@@ -313,7 +324,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn insert_epoch_signers(
+    async fn insert_epoch_signers(
         &self,
         epoch_id: i64,
         signer_ids: Vec<i64>,
@@ -324,7 +335,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn insert_received_ticket(
+    async fn insert_received_ticket(
         &self,
         client_id: i64,
         received_at: OffsetDateTime,
@@ -344,11 +355,11 @@ impl GatewayStorage {
         Ok(ticket_id)
     }
 
-    pub async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, GatewayStorageError> {
+    async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, GatewayStorageError> {
         Ok(self.ticket_manager.has_ticket_data(serial_number).await?)
     }
 
-    pub async fn insert_ticket_verification(
+    async fn insert_ticket_verification(
         &self,
         ticket_id: i64,
         signer_id: i64,
@@ -361,7 +372,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), GatewayStorageError> {
+    async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), GatewayStorageError> {
         // set the ticket as rejected
         self.ticket_manager.set_rejected_ticket(ticket_id).await?;
 
@@ -372,7 +383,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), GatewayStorageError> {
+    async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), GatewayStorageError> {
         // 1. insert into verified table
         self.ticket_manager
             .insert_verified_ticket(ticket_id)
@@ -386,7 +397,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn remove_verified_ticket_binary_data(
+    async fn remove_verified_ticket_binary_data(
         &self,
         ticket_id: i64,
     ) -> Result<(), GatewayStorageError> {
@@ -396,7 +407,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn get_all_verified_tickets_with_sn(
+    async fn get_all_verified_tickets_with_sn(
         &self,
     ) -> Result<Vec<VerifiedTicket>, GatewayStorageError> {
         Ok(self
@@ -405,7 +416,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn get_all_proposed_tickets_with_sn(
+    async fn get_all_proposed_tickets_with_sn(
         &self,
         proposal_id: u32,
     ) -> Result<Vec<VerifiedTicket>, GatewayStorageError> {
@@ -415,7 +426,7 @@ impl GatewayStorage {
             .await?)
     }
 
-    pub async fn insert_redemption_proposal(
+    async fn insert_redemption_proposal(
         &self,
         tickets: &[VerifiedTicket],
         proposal_id: u32,
@@ -438,7 +449,7 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn clear_post_proposal_data(
+    async fn clear_post_proposal_data(
         &self,
         proposal_id: u32,
         resolved_at: OffsetDateTime,
@@ -462,13 +473,11 @@ impl GatewayStorage {
         Ok(())
     }
 
-    pub async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, GatewayStorageError> {
+    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, GatewayStorageError> {
         Ok(self.ticket_manager.get_latest_redemption_proposal().await?)
     }
 
-    pub async fn get_all_unverified_tickets(
-        &self,
-    ) -> Result<Vec<ClientTicket>, GatewayStorageError> {
+    async fn get_all_unverified_tickets(&self) -> Result<Vec<ClientTicket>, GatewayStorageError> {
         self.ticket_manager
             .get_unverified_tickets()
             .await?
@@ -477,21 +486,21 @@ impl GatewayStorage {
             .collect()
     }
 
-    pub async fn get_all_unresolved_proposals(&self) -> Result<Vec<i64>, GatewayStorageError> {
+    async fn get_all_unresolved_proposals(&self) -> Result<Vec<i64>, GatewayStorageError> {
         Ok(self
             .ticket_manager
             .get_all_unresolved_redemption_proposal_ids()
             .await?)
     }
 
-    pub async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, GatewayStorageError> {
+    async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, GatewayStorageError> {
         Ok(self
             .ticket_manager
             .get_verification_votes(ticket_id)
             .await?)
     }
 
-    pub async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, GatewayStorageError> {
+    async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, GatewayStorageError> {
         Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
     }
 
@@ -500,34 +509,20 @@ impl GatewayStorage {
     /// # Arguments
     ///
     /// * `peer`: wireguard peer data to be stored
-    /// * `with_client_id`: if the peer should have a corresponding client_id
-    ///   (created with entry wireguard ticket) or live without one (or with an
-    ///   exiting one), for temporary backwards compatibility.
-    pub async fn insert_wireguard_peer(
+    async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
-        with_client_id: bool,
-    ) -> Result<Option<i64>, GatewayStorageError> {
+        client_type: ClientType,
+    ) -> Result<i64, GatewayStorageError> {
         let client_id = match self
             .wireguard_peer_manager
             .retrieve_peer(&peer.public_key.to_string())
             .await?
         {
             Some(peer) => peer.client_id,
-            _ => {
-                if with_client_id {
-                    Some(
-                        self.client_manager
-                            .insert_client(ClientType::EntryWireguard)
-                            .await?,
-                    )
-                } else {
-                    None
-                }
-            }
+            None => self.client_manager.insert_client(client_type).await?,
         };
-        let mut peer = WireguardPeer::from(peer.clone());
-        peer.client_id = client_id;
+        let peer = WireguardPeer::from_defguard_peer(peer.clone(), client_id)?;
         self.wireguard_peer_manager.insert_peer(&peer).await?;
         Ok(client_id)
     }
@@ -537,7 +532,7 @@ impl GatewayStorage {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be retrieved.
-    pub async fn get_wireguard_peer(
+    async fn get_wireguard_peer(
         &self,
         peer_public_key: &str,
     ) -> Result<Option<WireguardPeer>, GatewayStorageError> {
@@ -549,7 +544,7 @@ impl GatewayStorage {
     }
 
     /// Retrieves all wireguard peers.
-    pub async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, GatewayStorageError> {
+    async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, GatewayStorageError> {
         let ret = self.wireguard_peer_manager.retrieve_all_peers().await?;
         Ok(ret)
     }
@@ -559,7 +554,7 @@ impl GatewayStorage {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
-    pub async fn remove_wireguard_peer(
+    async fn remove_wireguard_peer(
         &self,
         peer_public_key: &str,
     ) -> Result<(), GatewayStorageError> {

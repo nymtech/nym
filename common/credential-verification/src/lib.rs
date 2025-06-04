@@ -1,8 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ecash::traits::EcashManager;
 use bandwidth_storage_manager::BandwidthStorageManager;
-use ecash::EcashManager;
 use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
 use nym_gateway_requests::models::CredentialSpendingRequest;
@@ -20,14 +20,14 @@ pub mod error;
 
 pub struct CredentialVerifier {
     credential: CredentialSpendingRequest,
-    ecash_verifier: Arc<EcashManager>,
+    ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     bandwidth_storage_manager: BandwidthStorageManager,
 }
 
 impl CredentialVerifier {
     pub fn new(
         credential: CredentialSpendingRequest,
-        ecash_verifier: Arc<EcashManager>,
+        ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         bandwidth_storage_manager: BandwidthStorageManager,
     ) -> Self {
         CredentialVerifier {

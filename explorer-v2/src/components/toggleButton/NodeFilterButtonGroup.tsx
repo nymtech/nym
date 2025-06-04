@@ -1,13 +1,13 @@
 "use client";
-import { Button, ButtonGroup } from "@mui/material";
+import { Button, ButtonGroup, Stack } from "@mui/material";
 
 type Option = {
   label: string;
   isSelected: boolean;
-  value: "all" | "mixnodes" | "gateways";
+  value: "all" | "mixnodes" | "gateways" | "recommended";
 };
 
-type Options = [Option, Option, Option];
+type Options = [Option, Option, Option, Option];
 
 const NodeFilterButtonGroup = ({
   size = "small",
@@ -18,31 +18,72 @@ const NodeFilterButtonGroup = ({
   size?: "small" | "medium" | "large";
   options: Options;
   onPage: string;
-  onFilterChange: (filter: "all" | "mixnodes" | "gateways") => void;
+  onFilterChange: (
+    filter: "all" | "mixnodes" | "gateways" | "recommended"
+  ) => void;
 }) => {
-  const handleClick = (value: "all" | "mixnodes" | "gateways") => {
+  const handleClick = (
+    value: "all" | "mixnodes" | "gateways" | "recommended"
+  ) => {
     if (onPage === value) return;
     onFilterChange(value);
   };
+
+  const getMobileButtonStyles = (isSelected: boolean) => ({
+    color: isSelected ? "primary.contrastText" : "text.primary",
+    "&:hover": {
+      bgcolor: isSelected ? "primary.main" : "",
+    },
+    bgcolor: isSelected ? "primary.main" : "transparent",
+    width: "100%",
+    py: 1.5,
+    px: 2,
+  });
+
+  const getDesktopButtonStyles = (isSelected: boolean) => ({
+    color: isSelected ? "primary.contrastText" : "text.primary",
+    "&:hover": {
+      bgcolor: isSelected ? "primary.main" : "",
+    },
+    bgcolor: isSelected ? "primary.main" : "transparent",
+  });
+
   return (
-    <ButtonGroup size={size}>
-      {options.map((option) => (
-        <Button
-          key={option.label}
-          onClick={() => handleClick(option.value)}
-          sx={{
-            color: option.isSelected ? "primary.contrastText" : "text.primary",
-            "&:hover": {
-              bgcolor: option.isSelected ? "primary.main" : "",
-            },
-            bgcolor: option.isSelected ? "primary.main" : "transparent",
-          }}
-          variant="outlined"
-        >
-          {option.label}
-        </Button>
-      ))}
-    </ButtonGroup>
+    <>
+      {/* Mobile view - Stack */}
+      <Stack
+        spacing={1.5}
+        sx={{
+          display: { xs: "flex", sm: "none" },
+          width: "100%",
+        }}
+      >
+        {options.map((option) => (
+          <Button
+            key={option.label}
+            onClick={() => handleClick(option.value)}
+            sx={getMobileButtonStyles(option.isSelected)}
+            variant="outlined"
+          >
+            {option.label}
+          </Button>
+        ))}
+      </Stack>
+
+      {/* Desktop view - ButtonGroup */}
+      <ButtonGroup size={size} sx={{ display: { xs: "none", sm: "flex" } }}>
+        {options.map((option) => (
+          <Button
+            key={option.label}
+            onClick={() => handleClick(option.value)}
+            sx={getDesktopButtonStyles(option.isSelected)}
+            variant="outlined"
+          >
+            {option.label}
+          </Button>
+        ))}
+      </ButtonGroup>
+    </>
   );
 };
 

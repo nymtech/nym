@@ -15,6 +15,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import PercentIcon from "@mui/icons-material/Percent";
 import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
+import { RECOMMENDED_NODES } from "@/app/constants";
 
 type AdvancedFiltersProps = {
   uptime: [number, number];
@@ -26,8 +27,10 @@ type AdvancedFiltersProps = {
   open?: boolean;
   setOpen?: (open: boolean) => void;
   maxSaturation?: number;
-  activeFilter: "all" | "mixnodes" | "gateways";
-  setActiveFilter: (filter: "all" | "mixnodes" | "gateways") => void;
+  activeFilter: "all" | "mixnodes" | "gateways" | "recommended";
+  setActiveFilter: (
+    filter: "all" | "mixnodes" | "gateways" | "recommended"
+  ) => void;
   nodeCounts: {
     all: number;
     mixnodes: number;
@@ -259,6 +262,11 @@ export default function AdvancedFilters({
           <NodeFilterButtonGroup
             size="medium"
             options={[
+              {
+                label: `Recommended servers (${RECOMMENDED_NODES.length})`,
+                isSelected: activeFilter === "recommended",
+                value: "recommended",
+              },
               {
                 label: `All servers (${nodeCounts.all})`,
                 isSelected: activeFilter === "all",

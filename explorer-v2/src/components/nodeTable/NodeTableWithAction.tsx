@@ -9,6 +9,7 @@ import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
+import { RECOMMENDED_NODES } from "@/app/constants";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
@@ -91,10 +92,13 @@ export type MappedNymNode = MappedNymNodes[0];
 const NodeTableWithAction = () => {
   // All hooks at the top!
   const [activeFilter, setActiveFilter] = useState<
-    "all" | "mixnodes" | "gateways"
+    "all" | "mixnodes" | "gateways" | "recommended"
   >(() => {
     const stored = sessionStorage.getItem("nodeTableActiveFilter");
-    return (stored as "all" | "mixnodes" | "gateways") || "all";
+    return (
+      (stored as "all" | "mixnodes" | "gateways" | "recommended") ||
+      "recommended"
+    );
   });
   const [uptime, setUptime] = useState<[number, number]>(() => {
     const stored = sessionStorage.getItem("nodeTableUptime");
@@ -112,7 +116,7 @@ const NodeTableWithAction = () => {
 
   // Wrapper functions to handle filter changes and sessionStorage
   const handleActiveFilterChange = (
-    newFilter: "all" | "mixnodes" | "gateways"
+    newFilter: "all" | "mixnodes" | "gateways" | "recommended"
   ) => {
     setActiveFilter(newFilter);
     sessionStorage.setItem("nodeTableActiveFilter", newFilter);
@@ -240,6 +244,8 @@ const NodeTableWithAction = () => {
         return node.mixnode;
       case "gateways":
         return node.gateway;
+      case "recommended":
+        return RECOMMENDED_NODES.includes(node.nodeId);
       default:
         return true;
     }

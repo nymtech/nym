@@ -43,8 +43,6 @@ pub fn instantiate(
         msg.authorised_network_monitors,
     )?;
 
-    // deps.querier.query()
-
     Ok(Response::default())
 }
 
@@ -144,30 +142,37 @@ mod tests {
     use super::*;
 
     #[cfg(test)]
-    mod contract_instantiaton {
+    mod contract_instantiation {
         use super::*;
         use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-        use crate::testing::PerformanceContract;
-        use cosmwasm_std::testing::{message_info, mock_env};
-        use nym_contracts_common_testing::{mock_dependencies, TestableNymContract};
+        use crate::testing::PreInitContract;
+        use cosmwasm_std::testing::message_info;
 
         #[test]
         fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
-            let mut deps = mock_dependencies();
-            let env = mock_env();
-            let init_msg = PerformanceContract::base_init_msg();
+            // we need to mock dependencies in a state where mixnet contract has already been instantiated
+            // (we query it at init)
+            let mut pre_init = PreInitContract::new();
+            let env = pre_init.env();
+            let mixnet_contract_address = pre_init.mixnet_contract_address.to_string();
+            let some_sender = pre_init.addr_make("some_sender");
+            let deps = pre_init.deps_mut();
 
-            let some_sender = deps.api.addr_make("some_sender");
             instantiate(
-                deps.as_mut(),
+                deps,
                 env,
                 message_info(&some_sender, &[]),
-                init_msg,
+                InstantiateMsg {
+                    mixnet_contract_address,
+                    authorised_network_monitors: vec![],
+                },
             )?;
+
+            let deps = pre_init.deps();
 
             NYM_PERFORMANCE_CONTRACT_STORAGE
                 .contract_admin
-                .assert_admin(deps.as_ref(), &some_sender)?;
+                .assert_admin(deps, &some_sender)?;
 
             Ok(())
         }

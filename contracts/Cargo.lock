@@ -1205,7 +1205,6 @@ version = "1.5.1"
 dependencies = [
  "anyhow",
  "bs58",
- "cosmwasm-derive",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1213,15 +1212,15 @@ dependencies = [
  "cw2",
  "easy-addr",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "rand",
  "rand_chacha",
  "semver",
  "serde",
- "thiserror 2.0.12",
- "time",
 ]
 
 [[package]]
@@ -1287,6 +1286,7 @@ dependencies = [
  "cw2",
  "nym-contracts-common",
  "nym-contracts-common-testing",
+ "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-performance-contract-common",
  "serde",

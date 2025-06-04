@@ -635,7 +635,7 @@ pub fn migrate(
 mod tests {
     use super::*;
     use crate::rewards::storage as rewards_storage;
-    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Decimal, Uint128};
     use mixnet_contract_common::reward_params::{
         IntervalRewardParams, RewardedSetParams, RewardingParams,
@@ -643,6 +643,7 @@ mod tests {
     use mixnet_contract_common::{
         InitialRewardingParams, OperatingCostRange, Percent, ProfitMarginRange,
     };
+    use nym_contracts_common_testing::mock_dependencies;
     use std::time::Duration;
 
     #[test]

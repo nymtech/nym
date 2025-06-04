@@ -82,9 +82,18 @@ async fn gateways_by_country(
     }): Path<TwoLetterCountryCodeParam>,
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
+    let country_filter = two_letter_country_code.to_lowercase();
     match two_letter_country_code.len() {
         2 => Ok(Json(
-            state.cache().get_dvpn_gateway_list(state.db_pool()).await,
+            state
+                .cache()
+                .get_dvpn_gateway_list(state.db_pool())
+                .await
+                .into_iter()
+                .filter(|gw| {
+                    gw.location.two_letter_iso_country_code.to_lowercase() == country_filter
+                })
+                .collect(),
         )),
         _ => Err(HttpError::invalid_input(
             "Only two letter country code is allowed",

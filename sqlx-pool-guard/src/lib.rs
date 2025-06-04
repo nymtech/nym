@@ -141,6 +141,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_wait_close() {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .init();
+
         let temp_dir = tempfile::tempdir().unwrap();
         let database_path = temp_dir.path().join("storage.db");
 

@@ -99,6 +99,12 @@ pub enum DkgError {
         "The reshared dealing has different public constant coefficient than its prior variant"
     )]
     InvalidResharing,
+
+    #[error("Arithmetic Overflow: {info}")]
+    ArithmeticOverflow { info: &'static str },
+
+    #[error("Arithmetic Underflow: {info}")]
+    ArithmeticUnderflow { info: &'static str },
 }
 
 impl DkgError {

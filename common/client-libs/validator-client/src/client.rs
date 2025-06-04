@@ -26,7 +26,8 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::{
-    NodesByAddressesResponse, SkimmedNode, SkimmedNodesWithMetadata,
+    NodesByAddressesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata, SkimmedNode,
+    SkimmedNodesWithMetadata,
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
@@ -528,6 +529,32 @@ impl NymApiClient {
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
         collect_paged_skimmed_v2!(self, get_basic_nodes_v2)
+    }
+
+    /// retrieve expanded information for all bonded nodes on the network
+    pub async fn get_all_expanded_nodes(
+        //SW adapt this
+        &self,
+    ) -> Result<SemiSkimmedNodesWithMetadata, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut nodes = Vec::new();
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_expanded_nodes(false, Some(page), None)
+                .await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(nodes)
     }
 
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {

@@ -35,7 +35,7 @@ pub use nym_api_requests::{
         MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
         StakeSaturationResponse, UptimeResponse,
     },
-    nym_nodes::{CachedNodesResponse, SkimmedNode},
+    nym_nodes::{CachedNodesResponse, SemiSkimmedNode, SkimmedNode},
     NymNetworkDetailsResponse,
 };
 use nym_contracts_common::IdentityKey;
@@ -637,6 +637,39 @@ pub trait NymApiClientExt: ApiClient {
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
+            ],
+            &params,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_expanded_nodes(
+        &self,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponse<SemiSkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
+                "semi-skimmed",
             ],
             &params,
         )

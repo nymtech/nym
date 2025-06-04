@@ -18,18 +18,20 @@ mod test {
 
     #[test]
     fn test_kkt_psq_e2e() {
+        let mut rng = rand::rng();
+
         // generate ed25519 keys
         let mut secret_initiator: [u8; 32] = [0u8; 32];
-        rand::rng().fill_bytes(&mut secret_initiator);
+        rng.fill_bytes(&mut secret_initiator);
         let initiator_ed25519_keypair = ed25519::KeyPair::from_secret(secret_initiator, 0);
 
         let mut secret_responder: [u8; 32] = [0u8; 32];
-        rand::rng().fill_bytes(&mut secret_responder);
+        rng.fill_bytes(&mut secret_responder);
         let responder_ed25519_keypair = ed25519::KeyPair::from_secret(secret_responder, 1);
 
         // generate kem keypair
         let (responder_kem_private_key, responder_kem_public_key) =
-            libcrux_kem::key_gen(libcrux_kem::Algorithm::MlKem768, &mut rand::rng()).unwrap();
+            libcrux_kem::key_gen(libcrux_kem::Algorithm::MlKem768, &mut rng).unwrap();
 
         // initialize parties
         let kkt_initiator: KKTInitiator<MlKem768> =
@@ -78,7 +80,7 @@ mod test {
             PSQResponder::init(&responder_kem_private_key, &responder_kem_public_key);
 
         let initiator_psq_msg = psq_initiator
-            .initiator_message(&received_responder_key)
+            .initiator_message(&mut rng, &received_responder_key)
             .unwrap();
 
         let (responder_psk, responder_psq_msg) = psq_responder

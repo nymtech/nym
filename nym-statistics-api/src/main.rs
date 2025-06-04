@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
         args.nym_api_url,
         shutdown_manager.child_token("network-refresher"),
     )
-    .await?;
+    .await;
 
     let http_server =
         http::server::build_http_api(storage, network_refresher.network_view(), args.http_port)

@@ -71,15 +71,15 @@ impl NetworkRefresher {
     pub(crate) async fn initialise_new(
         maybe_nym_api_url: Option<Url>,
         shutdown_token: ShutdownToken,
-    ) -> Result<Self> {
+    ) -> Self {
         let node_querier = match maybe_nym_api_url {
-            Some(url) => Some(NodesQuerier {
-                client: nym_http_api_client::Client::builder::<_, anyhow::Error>(url)?
-                    .no_hickory_dns()
-                    .with_user_agent("node-statistics-api")
-                    .build::<anyhow::Error>()?
-                    .into(),
-            }),
+            Some(url) => match Self::build_http_api_client(url) {
+                Ok(client) => Some(NodesQuerier { client }),
+                Err(e) => {
+                    warn!("Failed to build Nym API client, no network view will be availabe : {e}");
+                    None
+                }
+            },
             None => {
                 warn!("No Nym API specified, network view is unavailable");
                 None
@@ -93,8 +93,20 @@ impl NetworkRefresher {
             network: NetworkView::new_empty(),
         };
 
-        this.refresh_network_nodes().await?;
-        Ok(this)
+        if let Err(e) = this.refresh_network_nodes().await {
+            warn!("Failed to fetch initial network nodes : {e}");
+        }
+        this
+    }
+
+    fn build_http_api_client(url: Url) -> Result<NymApiClient> {
+        Ok(
+            nym_http_api_client::Client::builder::<_, anyhow::Error>(url)?
+                .no_hickory_dns()
+                .with_user_agent("node-statistics-api")
+                .build::<anyhow::Error>()?
+                .into(),
+        )
     }
 
     async fn refresh_network_nodes(&mut self) -> Result<()> {

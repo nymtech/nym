@@ -23,7 +23,7 @@ nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"]}
 
 libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
 libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
-libcrux-psq = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["test-utils"] }
 rand = "0.9.1"
 
 [dev-dependencies]

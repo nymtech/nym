@@ -73,11 +73,47 @@ impl PeerHandle {
         Ok(success)
     }
 
-    async fn active_peer(
-        &mut self,
-        storage_peer: &WireguardPeer,
-        kernel_peer: &Peer,
-    ) -> Result<bool, Error> {
+    fn compute_spent_bandwidth(kernel_peer: &Peer, storage_peer: &WireguardPeer) -> Option<u64> {
+        let storage_peer_rx_bytes = u64::try_from(storage_peer.rx_bytes)
+            .inspect_err(|e| tracing::error!("Storage rx bytes could not be converted: {e}"))
+            .ok()?;
+        let storage_peer_tx_bytes = u64::try_from(storage_peer.tx_bytes)
+            .inspect_err(|e| tracing::error!("Storage tx bytes could not be converted: {e}"))
+            .ok()?;
+
+        let kernel_total = kernel_peer
+            .rx_bytes
+            .checked_add(kernel_peer.tx_bytes)
+            .or_else(|| {
+                tracing::error!(
+                    "Overflow on kernel adding bytes: {} + {}",
+                    kernel_peer.rx_bytes,
+                    kernel_peer.tx_bytes
+                );
+                None
+            })?;
+        let storage_total = storage_peer_rx_bytes
+            .checked_add(storage_peer_tx_bytes)
+            .or_else(|| {
+                tracing::error!("Overflow on storage adding bytes: {storage_peer_rx_bytes} + {storage_peer_tx_bytes}");
+                None
+            })?;
+
+        kernel_total.checked_sub(storage_total).or_else(|| {
+            tracing::error!("Overflow on spent bandwidth subtraction: kernel - storage = {kernel_total} - {storage_total}");
+            None
+        })
+    }
+
+    async fn active_peer(&mut self, kernel_peer: &Peer) -> Result<bool, Error> {
+        let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
+            log::debug!(
+                "Peer {:?} not in storage anymore, shutting down handle",
+                self.public_key
+            );
+            return Ok(false);
+        };
+
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
             if kernel_peer.last_handshake.is_none()
                 && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
@@ -91,8 +127,7 @@ impl PeerHandle {
                 );
                 return Ok(!success);
             }
-            let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
-                .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
+            let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, &storage_peer)
                 .unwrap_or_else(|| {
                     // if gateway restarted, the kernel values restart from 0
                     // and we should restart from 0 in storage as well
@@ -100,8 +135,10 @@ impl PeerHandle {
                         self.peer_storage_manager.peer_information.as_mut()
                     {
                         peer_information.force_sync = true;
+                        peer_information.peer.rx_bytes = kernel_peer.rx_bytes;
+                        peer_information.peer.tx_bytes = kernel_peer.tx_bytes;
                     }
-                    kernel_peer.rx_bytes + kernel_peer.tx_bytes
+                    0
                 })
                 .try_into()
                 .map_err(|_| Error::InconsistentConsumedBytes)?;
@@ -158,14 +195,7 @@ impl PeerHandle {
             // the host information hasn't beed updated yet
             return Ok(true);
         };
-        let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
-            log::debug!(
-                "Peer {:?} not in storage anymore, shutting down handle",
-                self.public_key
-            );
-            return Ok(false);
-        };
-        if !self.active_peer(&storage_peer, &kernel_peer).await? {
+        if !self.active_peer(&kernel_peer).await? {
             log::debug!(
                 "Peer {:?} is not active anymore, shutting down handle",
                 self.public_key

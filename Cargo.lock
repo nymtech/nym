@@ -6093,7 +6093,7 @@ dependencies = [
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
- "cargo_metadata 0.18.1",
+ "cargo_metadata 0.19.2",
  "dotenvy",
  "log",
  "regex",
@@ -6199,7 +6199,7 @@ dependencies = [
  "blake2 0.8.1",
  "bloomfilter",
  "bs58",
- "cargo_metadata 0.18.1",
+ "cargo_metadata 0.19.2",
  "celes",
  "chacha",
  "clap",

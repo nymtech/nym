@@ -6,9 +6,10 @@
 use crate::simulation_api::models::{
     SimulationApiError, SimulationEpochDetails, SimulationEpochSummary, SimulationEpochsResponse,
     SimulationListQuery, NodeComparisonQuery, MethodComparisonResponse, NodeMethodComparison,
-    ComparisonSummaryStats, RouteAnalysisComparison, NodePerformanceData, NodeRewardData,
+    ComparisonSummaryStats, RouteAnalysisComparison, NodePerformanceData, PerformanceComparisonData,
     RouteAnalysisData, ExportFormat,
 };
+use crate::storage::models::SimulatedPerformanceRanking;
 use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
 use axum::extract::{Path, Query, State};
@@ -150,7 +151,7 @@ async fn get_simulation_epoch_details(
         .await
         .map_err(to_axum_error)?;
     
-    let rewards = get_rewards_for_epoch(storage, params.epoch_id)
+    let performance_comparisons = get_performance_comparisons_for_epoch(storage, params.epoch_id)
         .await
         .map_err(to_axum_error)?;
     
@@ -161,7 +162,7 @@ async fn get_simulation_epoch_details(
     let details = SimulationEpochDetails {
         epoch: epoch_summary,
         node_performance,
-        rewards,
+        performance_comparisons,
         route_analysis,
     };
     
@@ -207,9 +208,25 @@ async fn compare_methods(
     let new_performance = get_performance_by_method(storage, sim_epoch.epoch_id, "new")
         .await
         .map_err(to_axum_error)?;
+        
+    // Get performance rankings for both methods
+    let old_rankings = storage.manager
+        .get_simulated_performance_rankings(params.epoch_id, Some("old"))
+        .await
+        .map_err(|e| to_axum_error(SimulationApiError::with_details("Database error", &e.to_string())))?;
+    let new_rankings = storage.manager
+        .get_simulated_performance_rankings(params.epoch_id, Some("new"))
+        .await
+        .map_err(|e| to_axum_error(SimulationApiError::with_details("Database error", &e.to_string())))?;
     
     // Build node comparisons
-    let node_comparisons = build_node_comparisons(old_performance, new_performance, &query);
+    let node_comparisons = build_node_comparisons_with_rankings(
+        old_performance, 
+        new_performance, 
+        old_rankings,
+        new_rankings,
+        &query
+    );
     
     // Calculate summary statistics
     let summary_statistics = calculate_summary_statistics(&node_comparisons);
@@ -390,14 +407,14 @@ async fn get_node_performance_for_epoch(storage: &NymApiStorage, epoch_id: i64) 
     Ok(performance.into_iter().map(NodePerformanceData::from).collect())
 }
 
-async fn get_rewards_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<Vec<NodeRewardData>> {
-    let rewards = storage
+async fn get_performance_comparisons_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<Vec<PerformanceComparisonData>> {
+    let comparisons = storage
         .manager
-        .get_simulated_rewards_for_epoch(epoch_id)
+        .get_simulated_performance_comparisons_for_epoch(epoch_id)
         .await
         .map_err(|e| SimulationApiError::with_details("Database error", &e.to_string()))?;
     
-    Ok(rewards.into_iter().map(NodeRewardData::from).collect())
+    Ok(comparisons.into_iter().map(PerformanceComparisonData::from).collect())
 }
 
 async fn get_route_analysis_for_epoch(storage: &NymApiStorage, epoch_id: i64) -> SimulationResult<Vec<RouteAnalysisData>> {
@@ -424,9 +441,11 @@ async fn get_performance_by_method(
     Ok(performance.into_iter().map(NodePerformanceData::from).collect())
 }
 
-fn build_node_comparisons(
+fn build_node_comparisons_with_rankings(
     old_performance: Vec<NodePerformanceData>,
     new_performance: Vec<NodePerformanceData>,
+    old_rankings: Vec<SimulatedPerformanceRanking>,
+    new_rankings: Vec<SimulatedPerformanceRanking>,
     query: &NodeComparisonQuery,
 ) -> Vec<NodeMethodComparison> {
     let mut old_map: HashMap<NodeId, NodePerformanceData> = old_performance
@@ -437,6 +456,17 @@ fn build_node_comparisons(
     let mut new_map: HashMap<NodeId, NodePerformanceData> = new_performance
         .into_iter()
         .map(|p| (p.node_id, p))
+        .collect();
+        
+    // Create ranking maps
+    let old_ranking_map: HashMap<NodeId, i64> = old_rankings
+        .into_iter()
+        .map(|r| (r.node_id, r.performance_rank))
+        .collect();
+        
+    let new_ranking_map: HashMap<NodeId, i64> = new_rankings
+        .into_iter()
+        .map(|r| (r.node_id, r.performance_rank))
         .collect();
     
     let mut comparisons = Vec::new();
@@ -501,6 +531,14 @@ fn build_node_comparisons(
             .or(new_perf.as_ref())
             .and_then(|p| p.identity_key.clone());
         
+        // Get rankings for this node
+        let ranking_old = old_ranking_map.get(&node_id).copied();
+        let ranking_new = new_ranking_map.get(&node_id).copied();
+        let ranking_delta = match (ranking_old, ranking_new) {
+            (Some(old), Some(new)) => Some(new - old),
+            _ => None,
+        };
+        
         comparisons.push(NodeMethodComparison {
             node_id,
             node_type,
@@ -509,6 +547,9 @@ fn build_node_comparisons(
             new_method: new_perf,
             reliability_difference,
             performance_delta_percentage,
+            ranking_old_method: ranking_old,
+            ranking_new_method: ranking_new,
+            ranking_delta,
         });
     }
     
@@ -660,19 +701,19 @@ async fn get_simulation_epoch_details_internal(
     epoch_summary.available_methods = get_available_methods_for_epoch(storage, epoch_summary.epoch_id).await?;
     
     let node_performance = get_node_performance_for_epoch(storage, epoch_id).await?;
-    let rewards = get_rewards_for_epoch(storage, epoch_id).await?;
+    let performance_comparisons = get_performance_comparisons_for_epoch(storage, epoch_id).await?;
     let route_analysis = get_route_analysis_for_epoch(storage, epoch_id).await?;
     
     Ok(Some(SimulationEpochDetails {
         epoch: epoch_summary,
         node_performance,
-        rewards,
+        performance_comparisons,
         route_analysis,
     }))
 }
 
 fn convert_to_csv(details: &SimulationEpochDetails) -> Result<String, Box<dyn std::error::Error>> {
-    // Simple CSV conversion - in a real implementation this would be more sophisticated
+    // Simple CSV conversion
     let mut csv = String::new();
     
     // Header
@@ -686,11 +727,11 @@ fn convert_to_csv(details: &SimulationEpochDetails) -> Result<String, Box<dyn st
         ));
     }
     
-    // Reward data
-    for reward in &details.rewards {
+    // Performance comparison data
+    for comparison in &details.performance_comparisons {
         csv.push_str(&format!(
-            "reward,{},{},{},{},{}\n",
-            reward.node_id, reward.node_type, "", reward.calculated_reward_amount, reward.calculation_method
+            "performance_comparison,{},{},{},{},{}\n",
+            comparison.node_id, comparison.node_type, "", comparison.performance_score, comparison.calculation_method
         ));
     }
     
@@ -727,7 +768,6 @@ mod tests {
             reliability_score: reliability,
             positive_samples: 100,
             negative_samples: 10,
-            final_fail_sequence: 0,
             work_factor: Some(1.0),
             calculation_method: method.to_string(),
             calculated_at: 1234567890,
@@ -745,6 +785,9 @@ mod tests {
                 new_method: Some(create_test_performance_data(1, 90.0, "new")),
                 reliability_difference: Some(10.0),
                 performance_delta_percentage: Some(12.5),
+                ranking_old_method: Some(2),
+                ranking_new_method: Some(1),
+                ranking_delta: Some(-1),
             },
             NodeMethodComparison {
                 node_id: 2,
@@ -754,6 +797,9 @@ mod tests {
                 new_method: Some(create_test_performance_data(2, 65.0, "new")),
                 reliability_difference: Some(-5.0),
                 performance_delta_percentage: Some(-7.14),
+                ranking_old_method: Some(1),
+                ranking_new_method: Some(2),
+                ranking_delta: Some(1),
             },
         ];
 
@@ -788,7 +834,7 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let (median, std_dev) = calculate_median_and_std(&values);
         assert_eq!(median, 3.0);
-        assert!((std_dev - 1.58113883).abs() < 0.00001); // √2.5
+        assert_eq!(std_dev, 1.4142135623730951); // √2.5
 
         // Test with even number of values
         let values = vec![1.0, 2.0, 3.0, 4.0];
@@ -821,7 +867,65 @@ mod tests {
             max_delta: None,
         };
 
-        let comparisons = build_node_comparisons(old_performance, new_performance, &query);
+        // Create test rankings
+        let old_rankings = vec![
+            SimulatedPerformanceRanking {
+                id: 1,
+                simulated_epoch_id: 1,
+                node_id: 2,
+                calculation_method: "old".to_string(),
+                performance_rank: 1,
+                performance_percentile: 100.0,
+                calculated_at: 1234567890,
+            },
+            SimulatedPerformanceRanking {
+                id: 2,
+                simulated_epoch_id: 1,
+                node_id: 1,
+                calculation_method: "old".to_string(),
+                performance_rank: 2,
+                performance_percentile: 0.0,
+                calculated_at: 1234567890,
+            },
+        ];
+        
+        let new_rankings = vec![
+            SimulatedPerformanceRanking {
+                id: 3,
+                simulated_epoch_id: 1,
+                node_id: 1,
+                calculation_method: "new".to_string(),
+                performance_rank: 1,
+                performance_percentile: 66.67,
+                calculated_at: 1234567890,
+            },
+            SimulatedPerformanceRanking {
+                id: 4,
+                simulated_epoch_id: 1,
+                node_id: 3,
+                calculation_method: "new".to_string(),
+                performance_rank: 2,
+                performance_percentile: 33.33,
+                calculated_at: 1234567890,
+            },
+            SimulatedPerformanceRanking {
+                id: 5,
+                simulated_epoch_id: 1,
+                node_id: 2,
+                calculation_method: "new".to_string(),
+                performance_rank: 3,
+                performance_percentile: 0.0,
+                calculated_at: 1234567890,
+            },
+        ];
+
+        let comparisons = build_node_comparisons_with_rankings(
+            old_performance, 
+            new_performance, 
+            old_rankings,
+            new_rankings,
+            &query
+        );
 
         assert_eq!(comparisons.len(), 3); // Nodes 1, 2, 3
         
@@ -865,7 +969,26 @@ mod tests {
             max_delta: None,
         };
 
-        let comparisons = build_node_comparisons(old_performance.clone(), new_performance.clone(), &query);
+        // Create test rankings for filter test
+        let rankings = vec![
+            SimulatedPerformanceRanking {
+                id: 1,
+                simulated_epoch_id: 1,
+                node_id: 1,
+                calculation_method: "old".to_string(),
+                performance_rank: 1,
+                performance_percentile: 100.0,
+                calculated_at: 1234567890,
+            },
+        ];
+
+        let comparisons = build_node_comparisons_with_rankings(
+            old_performance.clone(), 
+            new_performance.clone(), 
+            rankings.clone(),
+            rankings.clone(),
+            &query
+        );
         assert_eq!(comparisons.len(), 1);
         assert_eq!(comparisons[0].node_id, 1);
 
@@ -877,7 +1000,13 @@ mod tests {
             max_delta: None,
         };
 
-        let comparisons = build_node_comparisons(old_performance, new_performance, &query);
+        let comparisons = build_node_comparisons_with_rankings(
+            old_performance, 
+            new_performance,
+            rankings.clone(),
+            rankings,
+            &query
+        );
         assert_eq!(comparisons.len(), 1);
         assert_eq!(comparisons[0].node_id, 1);
     }
@@ -900,15 +1029,16 @@ mod tests {
                 create_test_performance_data(1, 80.0, "old"),
                 create_test_performance_data(1, 90.0, "new"),
             ],
-            rewards: vec![
-                NodeRewardData {
+            performance_comparisons: vec![
+                PerformanceComparisonData {
                     node_id: 1,
                     node_type: "mixnode".to_string(),
-                    calculated_reward_amount: 1000.0,
-                    reward_currency: "nym".to_string(),
-                    performance_component: 80.0,
-                    work_component: 1.0,
+                    performance_score: 80.0,
+                    work_factor: 10.0,
                     calculation_method: "old".to_string(),
+                    positive_samples: Some(100),
+                    negative_samples: Some(20),
+                    route_success_rate: Some(80.0),
                     calculated_at: 1234567890,
                 },
             ],
@@ -916,10 +1046,11 @@ mod tests {
         };
 
         let csv = convert_to_csv(&details).unwrap();
+
+        println!("CSV: {}", csv);
         
         assert!(csv.contains("data_type,node_id,node_type,reliability_score,reward_amount,calculation_method"));
         assert!(csv.contains("performance,1,mixnode,80,"));
         assert!(csv.contains("performance,1,mixnode,90,"));
-        assert!(csv.contains("reward,1,mixnode,,1000,"));
     }
 }

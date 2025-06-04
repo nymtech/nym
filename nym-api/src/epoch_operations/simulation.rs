@@ -1,16 +1,19 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Simulation coordinator for comparing old vs new rewarding methodologies
+//! Performance methodology comparison system
 //! 
-//! This module provides functionality to run simulated reward calculations without
-//! performing blockchain transactions, enabling safe comparison of:
+//! This module provides functionality to compare different performance calculation
+//! methodologies without affecting actual rewards, enabling analysis of:
 //! - Old method: 24-hour cache-based performance calculation  
 //! - New method: 1-hour route-based performance calculation
+//! 
+//! The system focuses on performance metrics and rankings rather than reward amounts,
+//! as actual rewards are calculated on-chain based on factors not available to the API.
 
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::RewardedNodeWithParams;
-use crate::storage::models::{SimulatedNodePerformance, SimulatedReward, SimulatedRouteAnalysis};
+use crate::storage::models::{SimulatedNodePerformance, SimulatedPerformanceComparison, SimulatedPerformanceRanking, SimulatedRouteAnalysis};
 use crate::support::storage::NymApiStorage;
 use crate::EpochAdvancer;
 use nym_contracts_common::types::NaiveFloat;
@@ -56,7 +59,6 @@ impl<'a> SimulationCoordinator<'a> {
     /// Run a complete simulation comparing old vs new rewarding methods
     pub async fn run_simulation(
         &self,
-        epoch_advancer: &EpochAdvancer,
         rewarded_set: &EpochRewardedSet,
         reward_params: RewardingParams,
         current_epoch_id: u32,
@@ -85,7 +87,6 @@ impl<'a> SimulationCoordinator<'a> {
         // Run old method simulation (24h cache-based)
         if self.config.run_both_methods {
             match self.run_old_method_simulation(
-                epoch_advancer,
                 rewarded_set,
                 reward_params,
                 epoch_db_id,
@@ -123,7 +124,6 @@ impl<'a> SimulationCoordinator<'a> {
     /// Run simulation using old method (24h cache-based)
     async fn run_old_method_simulation(
         &self,
-        _epoch_advancer: &EpochAdvancer,
         rewarded_set: &EpochRewardedSet,
         reward_params: RewardingParams,
         epoch_db_id: i64,
@@ -169,15 +169,20 @@ impl<'a> SimulationCoordinator<'a> {
         // Convert to simulation data structures
         let node_performance = self.convert_to_simulated_performance(
             &rewarded_nodes,
+            rewarded_set,
+            reward_params,
             epoch_db_id,
             "old",
-        );
+            None, // Old method doesn't have route sample data
+        ).await;
 
-        let rewards = self.convert_to_simulated_rewards(
+        let performance_comparisons = self.convert_to_performance_comparisons(
             &rewarded_nodes,
+            rewarded_set,
+            reward_params,
             epoch_db_id,
             "old",
-        );
+        ).await;
 
         // Create route analysis for old method
         let route_analysis = SimulatedRouteAnalysis {
@@ -200,7 +205,14 @@ impl<'a> SimulationCoordinator<'a> {
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
         self.storage.manager
-            .insert_simulated_rewards(&rewards)
+            .insert_simulated_performance_comparisons(&performance_comparisons)
+            .await
+            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
+            
+        // Calculate and store performance rankings
+        let rankings = self.calculate_performance_rankings(&performance_comparisons, epoch_db_id, "old");
+        self.storage.manager
+            .insert_simulated_performance_rankings(&rankings)
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
@@ -231,8 +243,9 @@ impl<'a> SimulationCoordinator<'a> {
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e })?;
 
-        // Convert to performance map
+        // Convert to performance map and build route reliability data
         let mut performance_map = HashMap::new();
+        let mut route_reliability_map = HashMap::new();
         let mut total_routes = 0u32;
         let mut successful_routes = 0u32;
         let mut reliability_sum = 0.0;
@@ -252,6 +265,12 @@ impl<'a> SimulationCoordinator<'a> {
                 node_reliability.node_id,
                 Performance::naive_try_from_f64(node_reliability.reliability / 100.0).unwrap_or_default()
             );
+            
+            // Store sample counts for detailed performance records
+            route_reliability_map.insert(
+                node_reliability.node_id,
+                (node_reliability.pos_samples_in_interval, node_reliability.neg_samples_in_interval)
+            );
         }
 
         // Calculate rewards using new method logic
@@ -264,15 +283,20 @@ impl<'a> SimulationCoordinator<'a> {
         // Convert to simulation data structures  
         let node_performance = self.convert_to_simulated_performance(
             &rewarded_nodes,
+            rewarded_set,
+            reward_params,
             epoch_db_id,
             "new",
-        );
+            Some(&route_reliability_map), // Pass route sample data for new method
+        ).await;
 
-        let rewards = self.convert_to_simulated_rewards(
+        let performance_comparisons = self.convert_to_performance_comparisons(
             &rewarded_nodes,
+            rewarded_set,
+            reward_params,
             epoch_db_id,
             "new",
-        );
+        ).await;
 
         // Create route analysis for new method
         let route_analysis = SimulatedRouteAnalysis {
@@ -303,7 +327,14 @@ impl<'a> SimulationCoordinator<'a> {
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
         self.storage.manager
-            .insert_simulated_rewards(&rewards)
+            .insert_simulated_performance_comparisons(&performance_comparisons)
+            .await
+            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
+            
+        // Calculate and store performance rankings
+        let rankings = self.calculate_performance_rankings(&performance_comparisons, epoch_db_id, "new");
+        self.storage.manager
+            .insert_simulated_performance_rankings(&rankings)
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
@@ -377,58 +408,160 @@ impl<'a> SimulationCoordinator<'a> {
         rewarded_nodes
     }
 
+    /// Determine node type and work factor from rewarded set position
+    fn determine_node_info(&self, node_id: NodeId, rewarded_set: &EpochRewardedSet, reward_params: RewardingParams) -> (String, f64) {
+        let nodes = &rewarded_set.assignment;
+        
+        // Check if node is in active mixnode layers
+        if nodes.layer1.contains(&node_id) || nodes.layer2.contains(&node_id) || nodes.layer3.contains(&node_id) {
+            return ("mixnode".to_string(), reward_params.active_node_work().naive_to_f64());
+        }
+        
+        // Check if node is in active gateways
+        if nodes.entry_gateways.contains(&node_id) || nodes.exit_gateways.contains(&node_id) {
+            return ("gateway".to_string(), reward_params.active_node_work().naive_to_f64());
+        }
+        
+        // Check if node is in standby (could be mixnode or gateway)
+        if nodes.standby.contains(&node_id) {
+            // Note: We cannot determine if standby nodes are mixnodes or gateways from the
+            // rewarded set data alone. This limitation exists in both old and new calculation
+            // methods and doesn't significantly impact the simulation since:
+            // 1. All standby nodes receive the same work factor regardless of type
+            // 2. The gateway 3-sample rule can't be applied to standby nodes in either method
+            // For consistency, we label all standby nodes as "mixnode" in the simulation data
+            return ("mixnode".to_string(), reward_params.standby_node_work().naive_to_f64());
+        }
+        
+        // Default case (shouldn't happen)
+        ("unknown".to_string(), 0.0)
+    }
+
     /// Convert rewarded nodes to simulated performance records
-    fn convert_to_simulated_performance(
+    async fn convert_to_simulated_performance(
         &self,
         rewarded_nodes: &[RewardedNodeWithParams],
+        rewarded_set: &EpochRewardedSet,
+        reward_params: RewardingParams,
         epoch_db_id: i64,
         method: &str,
+        route_reliability_map: Option<&HashMap<NodeId, (u32, u32)>>, // (positive_samples, negative_samples)
     ) -> Vec<SimulatedNodePerformance> {
         let now = OffsetDateTime::now_utc().unix_timestamp();
         
-        rewarded_nodes
-            .iter()
-            .map(|node| SimulatedNodePerformance {
+        let mut performance_records = Vec::with_capacity(rewarded_nodes.len());
+        
+        for node in rewarded_nodes {
+            let (node_type, _) = self.determine_node_info(node.node_id, rewarded_set, reward_params);
+            
+            // Try to get identity key from storage
+            let identity_key = match node_type.as_str() {
+                "mixnode" => self.storage
+                    .get_mixnode_identity_key(node.node_id)
+                    .await
+                    .ok()
+                    .flatten(),
+                "gateway" => self.storage
+                    .get_gateway_identity_key(node.node_id)
+                    .await
+                    .ok()
+                    .flatten(),
+                _ => None,
+            };
+            
+            // Extract sample counts from route reliability if available
+            let (positive_samples, negative_samples) = route_reliability_map
+                .and_then(|map| map.get(&node.node_id))
+                .copied()
+                .unwrap_or((0, 0));
+            
+            performance_records.push(SimulatedNodePerformance {
                 id: 0, // Will be set by database
                 simulated_epoch_id: epoch_db_id,
                 node_id: node.node_id,
-                node_type: "unknown".to_string(), // TODO: Determine from rewarded set position
-                identity_key: None, // TODO: Look up from storage if needed
+                node_type,
+                identity_key,
                 reliability_score: node.params.performance.naive_to_f64() * 100.0,
-                positive_samples: 0, // TODO: Extract from calculation if available
-                negative_samples: 0, // TODO: Extract from calculation if available  
-                final_fail_sequence: 0, // TODO: Extract from calculation if available
+                positive_samples,
+                negative_samples,
                 work_factor: Some(node.params.work_factor.naive_to_f64()),
                 calculation_method: method.to_string(),
                 calculated_at: now,
-            })
-            .collect()
+            });
+        }
+        
+        performance_records
     }
 
-    /// Convert rewarded nodes to simulated reward records
-    fn convert_to_simulated_rewards(
+    /// Convert rewarded nodes to performance comparison records
+    async fn convert_to_performance_comparisons(
         &self,
         rewarded_nodes: &[RewardedNodeWithParams],
+        rewarded_set: &EpochRewardedSet,
+        reward_params: RewardingParams,
         epoch_db_id: i64,
         method: &str,
-    ) -> Vec<SimulatedReward> {
+    ) -> Vec<SimulatedPerformanceComparison> {
         let now = OffsetDateTime::now_utc().unix_timestamp();
         
-        rewarded_nodes
-            .iter()
-            .map(|node| SimulatedReward {
+        let mut performance_records = Vec::with_capacity(rewarded_nodes.len());
+        
+        for node in rewarded_nodes {
+            let (node_type, _) = self.determine_node_info(node.node_id, rewarded_set, reward_params);
+            
+            performance_records.push(SimulatedPerformanceComparison {
                 id: 0, // Will be set by database
                 simulated_epoch_id: epoch_db_id,
                 node_id: node.node_id,
-                node_type: "unknown".to_string(), // TODO: Determine from rewarded set position
-                calculated_reward_amount: 0.0, // TODO: Calculate actual reward amount
-                reward_currency: "nym".to_string(),
-                performance_component: node.params.performance.naive_to_f64() * 100.0,
-                work_component: node.params.work_factor.naive_to_f64(),
+                node_type,
+                performance_score: node.params.performance.naive_to_f64() * 100.0,
+                work_factor: node.params.work_factor.naive_to_f64(),
                 calculation_method: method.to_string(),
+                positive_samples: None, // Will be populated from node performance data
+                negative_samples: None,
+                route_success_rate: None,
                 calculated_at: now,
-            })
-            .collect()
+            });
+        }
+        
+        performance_records
+    }
+    
+    /// Calculate performance rankings for a set of performance comparisons
+    fn calculate_performance_rankings(
+        &self,
+        performance_comparisons: &[SimulatedPerformanceComparison],
+        epoch_db_id: i64,
+        method: &str,
+    ) -> Vec<SimulatedPerformanceRanking> {
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let mut rankings = Vec::with_capacity(performance_comparisons.len());
+        
+        // Sort by performance score descending
+        let mut sorted_comparisons: Vec<_> = performance_comparisons.iter()
+            .enumerate()
+            .map(|(idx, comp)| (idx, comp.performance_score))
+            .collect();
+        sorted_comparisons.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        
+        let total_nodes = sorted_comparisons.len() as f64;
+        
+        for (rank, (original_idx, _score)) in sorted_comparisons.iter().enumerate() {
+            let comparison = &performance_comparisons[*original_idx];
+            let percentile = ((total_nodes - rank as f64 - 1.0) / total_nodes) * 100.0;
+            
+            rankings.push(SimulatedPerformanceRanking {
+                id: 0, // Will be set by database
+                simulated_epoch_id: epoch_db_id,
+                node_id: comparison.node_id,
+                calculation_method: method.to_string(),
+                performance_rank: (rank + 1) as i64,
+                performance_percentile: percentile,
+                calculated_at: now,
+            });
+        }
+        
+        rankings
     }
 }
 
@@ -443,7 +576,7 @@ impl EpochAdvancer {
     ) -> Result<(), RewardingError> {
         let coordinator = SimulationCoordinator::new(&self.storage, simulation_config);
         
-        match coordinator.run_simulation(self, rewarded_set, reward_params, current_epoch_id).await {
+        match coordinator.run_simulation(rewarded_set, reward_params, current_epoch_id).await {
             Ok(()) => {
                 info!("Simulation completed successfully for epoch {}", current_epoch_id);
                 Ok(())

@@ -1529,7 +1529,7 @@ impl StorageManager {
 }
 
 pub(crate) mod v3_migration {
-    use crate::storage::models::{SimulatedNodePerformance, SimulatedReward, SimulatedRewardEpoch, SimulatedRouteAnalysis};
+    use crate::storage::models::{SimulatedNodePerformance, SimulatedPerformanceComparison, SimulatedPerformanceRanking, SimulatedRewardEpoch, SimulatedRouteAnalysis};
     use crate::support::storage::manager::StorageManager;
     use crate::support::storage::models::GatewayDetailsBeforeMigration;
     use nym_mixnet_contract_common::NodeId;
@@ -1651,8 +1651,8 @@ pub(crate) mod v3_migration {
                     r#"
                         INSERT INTO simulated_node_performance
                         (simulated_epoch_id, node_id, node_type, identity_key, reliability_score,
-                         positive_samples, negative_samples, final_fail_sequence, work_factor, calculation_method)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         positive_samples, negative_samples, work_factor, calculation_method)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     "#,
                     performance.simulated_epoch_id,
                     performance.node_id,
@@ -1661,7 +1661,6 @@ pub(crate) mod v3_migration {
                     performance.reliability_score,
                     performance.positive_samples,
                     performance.negative_samples,
-                    performance.final_fail_sequence,
                     performance.work_factor,
                     performance.calculation_method,
                 )
@@ -1672,29 +1671,30 @@ pub(crate) mod v3_migration {
             tx.commit().await
         }
 
-        /// Inserts simulated reward calculation results
-        pub(crate) async fn insert_simulated_rewards(
+        /// Inserts performance comparison data for simulation analysis
+        pub(crate) async fn insert_simulated_performance_comparisons(
             &self,
-            reward_data: &[SimulatedReward],
+            performance_data: &[SimulatedPerformanceComparison],
         ) -> Result<(), sqlx::Error> {
             let mut tx = self.connection_pool.begin().await?;
             
-            for reward in reward_data {
+            for comparison in performance_data {
                 sqlx::query!(
                     r#"
-                        INSERT INTO simulated_rewards
-                        (simulated_epoch_id, node_id, node_type, calculated_reward_amount, reward_currency,
-                         performance_component, work_component, calculation_method)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO simulated_performance_comparisons
+                        (simulated_epoch_id, node_id, node_type, performance_score, work_factor,
+                         calculation_method, positive_samples, negative_samples, route_success_rate)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     "#,
-                    reward.simulated_epoch_id,
-                    reward.node_id,
-                    reward.node_type,
-                    reward.calculated_reward_amount,
-                    reward.reward_currency,
-                    reward.performance_component,
-                    reward.work_component,
-                    reward.calculation_method,
+                    comparison.simulated_epoch_id,
+                    comparison.node_id,
+                    comparison.node_type,
+                    comparison.performance_score,
+                    comparison.work_factor,
+                    comparison.calculation_method,
+                    comparison.positive_samples,
+                    comparison.negative_samples,
+                    comparison.route_success_rate,
                 )
                 .execute(&mut *tx)
                 .await?;
@@ -1703,6 +1703,34 @@ pub(crate) mod v3_migration {
             tx.commit().await
         }
 
+        /// Inserts performance rankings for simulation
+        pub(crate) async fn insert_simulated_performance_rankings(
+            &self,
+            rankings: &[SimulatedPerformanceRanking],
+        ) -> Result<(), sqlx::Error> {
+            let mut tx = self.connection_pool.begin().await?;
+            
+            for ranking in rankings {
+                sqlx::query!(
+                    r#"
+                        INSERT INTO simulated_performance_rankings
+                        (simulated_epoch_id, node_id, calculation_method, performance_rank,
+                         performance_percentile)
+                        VALUES (?, ?, ?, ?, ?)
+                    "#,
+                    ranking.simulated_epoch_id,
+                    ranking.node_id,
+                    ranking.calculation_method,
+                    ranking.performance_rank,
+                    ranking.performance_percentile,
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+            
+            tx.commit().await
+        }
+        
         /// Inserts route analysis metadata for a simulation
         pub(crate) async fn insert_simulated_route_analysis(
             &self,
@@ -1745,8 +1773,7 @@ pub(crate) mod v3_migration {
                             SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
                                    node_type as "node_type!", identity_key, reliability_score as "reliability_score!", 
                                    positive_samples as "positive_samples!: u32", negative_samples as "negative_samples!: u32", 
-                                   final_fail_sequence as "final_fail_sequence!: u32", work_factor, 
-                                   calculation_method as "calculation_method!", calculated_at as "calculated_at!"
+                                   work_factor, calculation_method as "calculation_method!", calculated_at as "calculated_at!"
                             FROM simulated_node_performance
                             WHERE simulated_epoch_id = ? AND calculation_method = ?
                             ORDER BY node_id
@@ -1764,8 +1791,7 @@ pub(crate) mod v3_migration {
                             SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
                                    node_type as "node_type!", identity_key, reliability_score as "reliability_score!", 
                                    positive_samples as "positive_samples!: u32", negative_samples as "negative_samples!: u32", 
-                                   final_fail_sequence as "final_fail_sequence!: u32", work_factor, 
-                                   calculation_method as "calculation_method!", calculated_at as "calculated_at!"
+                                   work_factor, calculation_method as "calculation_method!", calculated_at as "calculated_at!"
                             FROM simulated_node_performance
                             WHERE simulated_epoch_id = ?
                             ORDER BY calculation_method, node_id
@@ -1778,23 +1804,23 @@ pub(crate) mod v3_migration {
             }
         }
 
-        /// Retrieves simulated rewards for a specific simulation
-        pub(crate) async fn get_simulated_rewards(
+        /// Retrieves performance comparison data for a specific simulation
+        pub(crate) async fn get_simulated_performance_comparisons(
             &self,
             simulated_epoch_id: i64,
             calculation_method: Option<&str>,
-        ) -> Result<Vec<SimulatedReward>, sqlx::Error> {
+        ) -> Result<Vec<SimulatedPerformanceComparison>, sqlx::Error> {
             match calculation_method {
                 Some(method) => {
                     sqlx::query_as!(
-                        SimulatedReward,
+                        SimulatedPerformanceComparison,
                         r#"
                             SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
-                                   node_type as "node_type!", calculated_reward_amount as "calculated_reward_amount!", 
-                                   reward_currency as "reward_currency!", performance_component as "performance_component!", 
-                                   work_component as "work_component!", calculation_method as "calculation_method!", 
-                                   calculated_at as "calculated_at!"
-                            FROM simulated_rewards
+                                   node_type as "node_type!", performance_score as "performance_score!", 
+                                   work_factor as "work_factor!", calculation_method as "calculation_method!", 
+                                   positive_samples as "positive_samples?", negative_samples as "negative_samples?",
+                                   route_success_rate as "route_success_rate?", calculated_at as "calculated_at!"
+                            FROM simulated_performance_comparisons
                             WHERE simulated_epoch_id = ? AND calculation_method = ?
                             ORDER BY node_id
                         "#,
@@ -1806,14 +1832,14 @@ pub(crate) mod v3_migration {
                 },
                 None => {
                     sqlx::query_as!(
-                        SimulatedReward,
+                        SimulatedPerformanceComparison,
                         r#"
                             SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
-                                   node_type as "node_type!", calculated_reward_amount as "calculated_reward_amount!", 
-                                   reward_currency as "reward_currency!", performance_component as "performance_component!", 
-                                   work_component as "work_component!", calculation_method as "calculation_method!", 
-                                   calculated_at as "calculated_at!"
-                            FROM simulated_rewards
+                                   node_type as "node_type!", performance_score as "performance_score!", 
+                                   work_factor as "work_factor!", calculation_method as "calculation_method!", 
+                                   positive_samples as "positive_samples?", negative_samples as "negative_samples?",
+                                   route_success_rate as "route_success_rate?", calculated_at as "calculated_at!"
+                            FROM simulated_performance_comparisons
                             WHERE simulated_epoch_id = ?
                             ORDER BY calculation_method, node_id
                         "#,
@@ -1883,14 +1909,59 @@ pub(crate) mod v3_migration {
             self.get_simulated_node_performance(simulated_epoch_id, None).await
         }
 
-        /// Get simulated rewards for a specific epoch
-        pub(crate) async fn get_simulated_rewards_for_epoch(
+        /// Get performance comparisons for a specific epoch
+        pub(crate) async fn get_simulated_performance_comparisons_for_epoch(
             &self,
             simulated_epoch_id: i64,
-        ) -> Result<Vec<SimulatedReward>, sqlx::Error> {
-            self.get_simulated_rewards(simulated_epoch_id, None).await
+        ) -> Result<Vec<SimulatedPerformanceComparison>, sqlx::Error> {
+            self.get_simulated_performance_comparisons(simulated_epoch_id, None).await
         }
 
+        /// Get performance rankings for a specific epoch and method
+        pub(crate) async fn get_simulated_performance_rankings(
+            &self,
+            simulated_epoch_id: i64,
+            calculation_method: Option<&str>,
+        ) -> Result<Vec<SimulatedPerformanceRanking>, sqlx::Error> {
+            match calculation_method {
+                Some(method) => {
+                    sqlx::query_as!(
+                        SimulatedPerformanceRanking,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", 
+                                   node_id as "node_id!: NodeId", calculation_method as "calculation_method!", 
+                                   performance_rank as "performance_rank!", performance_percentile as "performance_percentile!",
+                                   calculated_at as "calculated_at!"
+                            FROM simulated_performance_rankings
+                            WHERE simulated_epoch_id = ? AND calculation_method = ?
+                            ORDER BY performance_rank
+                        "#,
+                        simulated_epoch_id,
+                        method
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+                None => {
+                    sqlx::query_as!(
+                        SimulatedPerformanceRanking,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", 
+                                   node_id as "node_id!: NodeId", calculation_method as "calculation_method!", 
+                                   performance_rank as "performance_rank!", performance_percentile as "performance_percentile!",
+                                   calculated_at as "calculated_at!"
+                            FROM simulated_performance_rankings
+                            WHERE simulated_epoch_id = ?
+                            ORDER BY calculation_method, performance_rank
+                        "#,
+                        simulated_epoch_id
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+            }
+        }
+        
         /// Get simulated route analysis for a specific epoch
         pub(crate) async fn get_simulated_route_analysis_for_epoch(
             &self,
@@ -1927,8 +1998,7 @@ pub(crate) mod v3_migration {
                            snp.node_id as "node_id!: NodeId", snp.node_type as "node_type!", 
                            snp.identity_key, snp.reliability_score as "reliability_score!", 
                            snp.positive_samples as "positive_samples!: u32", snp.negative_samples as "negative_samples!: u32", 
-                           snp.final_fail_sequence as "final_fail_sequence!: u32", snp.work_factor, 
-                           snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
+                           snp.work_factor, snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
                     FROM simulated_node_performance snp
                     JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id
                     WHERE sre.epoch_id = ? AND snp.calculation_method = ?
@@ -1978,8 +2048,7 @@ pub(crate) mod v3_migration {
                            snp.node_id as "node_id!: NodeId", snp.node_type as "node_type!", 
                            snp.identity_key, snp.reliability_score as "reliability_score!", 
                            snp.positive_samples as "positive_samples!: u32", snp.negative_samples as "negative_samples!: u32", 
-                           snp.final_fail_sequence as "final_fail_sequence!: u32", snp.work_factor, 
-                           snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
+                           snp.work_factor, snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
                     FROM simulated_node_performance snp
                     JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id
                     WHERE snp.node_id = ?

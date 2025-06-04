@@ -174,25 +174,39 @@ pub struct SimulatedNodePerformance {
     pub reliability_score: f64, // 0.0 to 100.0
     pub positive_samples: u32,
     pub negative_samples: u32,
-    pub final_fail_sequence: u32,
     pub work_factor: Option<f64>, // 0.0 to 1.0
     pub calculation_method: String, // 'old' or 'new'
     pub calculated_at: i64,
 }
 
-/// Simulated reward calculation results
+/// Performance comparison data for analyzing methodology differences
 #[derive(FromRow, Debug, Clone)]
-pub struct SimulatedReward {
+pub struct SimulatedPerformanceComparison {
     #[allow(dead_code)]
     pub id: i64,
     pub simulated_epoch_id: i64,
     pub node_id: NodeId,
     pub node_type: String, // 'mixnode' or 'gateway'
-    pub calculated_reward_amount: f64,
-    pub reward_currency: String, // typically 'nym'
-    pub performance_component: f64, // 0.0 to 100.0
-    pub work_component: f64, // 0.0 to 1.0
+    pub performance_score: f64, // 0.0 to 100.0
+    pub work_factor: f64, // Work factor applied (e.g., 10.0 for active, 1.0 for standby)
     pub calculation_method: String, // 'old' or 'new'
+    pub positive_samples: Option<i64>,
+    pub negative_samples: Option<i64>,
+    pub route_success_rate: Option<f64>, // 0.0 to 100.0, mainly for new method
+    pub calculated_at: i64,
+}
+
+/// Performance ranking data for nodes
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedPerformanceRanking {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub node_id: NodeId,
+    pub calculation_method: String,
+    pub performance_rank: i64,
+    pub performance_percentile: f64,
+    #[allow(dead_code)]
     pub calculated_at: i64,
 }
 

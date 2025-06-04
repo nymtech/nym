@@ -3,7 +3,7 @@
 
 //! API models for simulation data responses
 
-use crate::storage::models::{SimulatedNodePerformance, SimulatedReward, SimulatedRewardEpoch, SimulatedRouteAnalysis};
+use crate::storage::models::{SimulatedNodePerformance, SimulatedPerformanceComparison, SimulatedRewardEpoch, SimulatedRouteAnalysis};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -53,7 +53,7 @@ impl From<SimulatedRewardEpoch> for SimulationEpochSummary {
 pub struct SimulationEpochDetails {
     pub epoch: SimulationEpochSummary,
     pub node_performance: Vec<NodePerformanceData>,
-    pub rewards: Vec<NodeRewardData>,
+    pub performance_comparisons: Vec<PerformanceComparisonData>,
     pub route_analysis: Vec<RouteAnalysisData>,
 }
 
@@ -66,7 +66,6 @@ pub struct NodePerformanceData {
     pub reliability_score: f64,
     pub positive_samples: u32,
     pub negative_samples: u32,
-    pub final_fail_sequence: u32,
     pub work_factor: Option<f64>,
     pub calculation_method: String,
     pub calculated_at: i64,
@@ -81,7 +80,6 @@ impl From<SimulatedNodePerformance> for NodePerformanceData {
             reliability_score: perf.reliability_score,
             positive_samples: perf.positive_samples,
             negative_samples: perf.negative_samples,
-            final_fail_sequence: perf.final_fail_sequence,
             work_factor: perf.work_factor,
             calculation_method: perf.calculation_method,
             calculated_at: perf.calculated_at,
@@ -89,30 +87,32 @@ impl From<SimulatedNodePerformance> for NodePerformanceData {
     }
 }
 
-/// Node reward data for API responses
+/// Performance comparison data for API responses
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
-pub struct NodeRewardData {
+pub struct PerformanceComparisonData {
     pub node_id: NodeId,
     pub node_type: String,
-    pub calculated_reward_amount: f64,
-    pub reward_currency: String,
-    pub performance_component: f64,
-    pub work_component: f64,
+    pub performance_score: f64,
+    pub work_factor: f64,
     pub calculation_method: String,
+    pub positive_samples: Option<i64>,
+    pub negative_samples: Option<i64>,
+    pub route_success_rate: Option<f64>,
     pub calculated_at: i64,
 }
 
-impl From<SimulatedReward> for NodeRewardData {
-    fn from(reward: SimulatedReward) -> Self {
+impl From<SimulatedPerformanceComparison> for PerformanceComparisonData {
+    fn from(comparison: SimulatedPerformanceComparison) -> Self {
         Self {
-            node_id: reward.node_id,
-            node_type: reward.node_type,
-            calculated_reward_amount: reward.calculated_reward_amount,
-            reward_currency: reward.reward_currency,
-            performance_component: reward.performance_component,
-            work_component: reward.work_component,
-            calculation_method: reward.calculation_method,
-            calculated_at: reward.calculated_at,
+            node_id: comparison.node_id,
+            node_type: comparison.node_type,
+            performance_score: comparison.performance_score,
+            work_factor: comparison.work_factor,
+            calculation_method: comparison.calculation_method,
+            positive_samples: comparison.positive_samples,
+            negative_samples: comparison.negative_samples,
+            route_success_rate: comparison.route_success_rate,
+            calculated_at: comparison.calculated_at,
         }
     }
 }
@@ -165,6 +165,9 @@ pub struct NodeMethodComparison {
     pub new_method: Option<NodePerformanceData>,
     pub reliability_difference: Option<f64>, // new - old
     pub performance_delta_percentage: Option<f64>, // (new - old) / old * 100
+    pub ranking_old_method: Option<i64>,
+    pub ranking_new_method: Option<i64>,
+    pub ranking_delta: Option<i64>, // new ranking - old ranking (negative is improvement)
 }
 
 /// Summary statistics comparing old vs new methods

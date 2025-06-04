@@ -1048,5 +1048,21 @@ pub(crate) mod v3_migration {
         pub(crate) async fn make_node_id_not_null(&self) -> Result<(), NymApiStorageError> {
             Ok(self.manager.make_node_id_not_null().await?)
         }
+
+        /// Get mixnode identity key by node ID
+        pub(crate) async fn get_mixnode_identity_key(
+            &self,
+            mix_id: NodeId,
+        ) -> Result<Option<String>, NymApiStorageError> {
+            Ok(self.manager.get_mixnode_identity_key(mix_id).await?)
+        }
+
+        /// Get gateway identity key by node ID
+        pub(crate) async fn get_gateway_identity_key(
+            &self,
+            node_id: NodeId,
+        ) -> Result<Option<String>, NymApiStorageError> {
+            Ok(self.manager.get_gateway_identity_key(node_id).await?)
+        }
     }
 }

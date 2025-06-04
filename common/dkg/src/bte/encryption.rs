@@ -9,6 +9,7 @@ use crate::{Chunk, ChunkedShare, Share};
 use bls12_381::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
 use group::{Curve, Group, GroupEncoding};
+use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
@@ -191,7 +192,7 @@ impl HazmatRandomness {
 pub fn encrypt_shares(
     shares: &[(&Share, &PublicKey)],
     params: &Params,
-    mut rng: impl RngCore,
+    mut rng: impl RngCore + CryptoRng,
 ) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
 
@@ -574,7 +575,10 @@ mod tests {
 
     #[test]
     fn ciphertexts_roundtrip() {
-        fn random_ciphertexts(mut rng: impl RngCore, num_receivers: usize) -> Ciphertexts {
+        fn random_ciphertexts(
+            mut rng: impl RngCore + CryptoRng,
+            num_receivers: usize,
+        ) -> Ciphertexts {
             Ciphertexts {
                 rr: (0..NUM_CHUNKS)
                     .map(|_| G1Projective::random(&mut rng))

@@ -10,7 +10,7 @@ use crate::utils::{deserialize_scalar, RandomOracleBuilder};
 use bls12_381::{G1Projective, Scalar};
 use ff::Field;
 use group::{Group, GroupEncoding};
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use rand_core::{RngCore, SeedableRng};
 
 const CHUNKING_ORACLE_DOMAIN: &[u8] =
@@ -95,7 +95,7 @@ impl ProofOfChunking {
     // Scalar(-1) would in reality be Scalar(q - 1), which is greater than Scalar(1) and opposite to
     // what we wanted.
     pub fn construct(
-        mut rng: impl RngCore,
+        mut rng: impl RngCore + CryptoRng,
         instance: Instance,
         witness_r: &[Scalar; NUM_CHUNKS],
         witnesses_s: &[Share],
@@ -721,7 +721,9 @@ mod tests {
         ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
     }
 
-    fn setup(mut rng: impl RngCore) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
+    fn setup(
+        mut rng: impl RngCore + CryptoRng,
+    ) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
         let g1 = G1Projective::generator();
 
         let mut pks = Vec::with_capacity(NODES);

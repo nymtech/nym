@@ -14,6 +14,7 @@ use nym_dkg::bte::{
 };
 use nym_dkg::interpolation::polynomial::Polynomial;
 use nym_dkg::{combine_shares, Dealing, NodeIndex, Share, Threshold};
+use rand::CryptoRng;
 use rand_core::{RngCore, SeedableRng};
 use std::collections::BTreeMap;
 
@@ -31,7 +32,7 @@ pub fn precomputing_g2_generator_for_miller_loop(c: &mut Criterion) {
 }
 
 fn prepare_keys(
-    mut rng: impl RngCore,
+    mut rng: impl RngCore + CryptoRng,
     nodes: usize,
 ) -> (BTreeMap<NodeIndex, PublicKey>, Vec<DecryptionKey>) {
     let params = setup();
@@ -50,7 +51,7 @@ fn prepare_keys(
 }
 
 fn prepare_resharing(
-    mut rng: impl RngCore,
+    mut rng: impl RngCore + CryptoRng,
     params: &Params,
     nodes: usize,
     threshold: Threshold,

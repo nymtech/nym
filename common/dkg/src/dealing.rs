@@ -13,6 +13,7 @@ use crate::utils::deserialize_g2;
 use crate::{NodeIndex, Share, Threshold};
 use bls12_381::{G2Projective, Scalar};
 use group::GroupEncoding;
+use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
@@ -94,7 +95,7 @@ impl Dealing {
     // I'm not a big fan of this function signature, but I'm not clear on how to improve it while
     // allowing the dealer to skip decryption of its own share if it was also one of the receivers
     pub fn create(
-        mut rng: impl RngCore,
+        mut rng: impl RngCore + CryptoRng + CryptoRng,
         params: &Params,
         dealer_index: NodeIndex,
         threshold: Threshold,

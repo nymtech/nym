@@ -485,7 +485,7 @@ mod tests {
         for (i, (ref dk, _)) in full_keys.iter().enumerate() {
             let shares = dealings
                 .values()
-                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+                .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
                 .collect();
             derived_secrets.push(
                 combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap(),
@@ -594,7 +594,7 @@ mod tests {
         for (i, (dk, _)) in full_keys.iter().enumerate() {
             let shares = dealings
                 .values()
-                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+                .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
                 .collect();
 
             let recovered_secret = combine_shares(shares, &dealer_indices).unwrap();

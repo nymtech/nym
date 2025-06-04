@@ -69,7 +69,7 @@ fn prepare_resharing(
     for (i, ref mut dk) in dks.iter_mut().enumerate() {
         let shares = first_dealings
             .iter()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .map(|dealing| decrypt_share(params, dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret =
@@ -155,7 +155,9 @@ pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criteri
         |b| {
             b.iter(|| {
                 assert!(dealing.verify(&params, threshold, &receivers, None).is_ok());
-                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, None).unwrap());
+                black_box(
+                    decrypt_share(&params, first_key, 0, &dealing.ciphertexts, None).unwrap(),
+                );
             })
         },
     );
@@ -238,7 +240,9 @@ pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criter
         |b| {
             b.iter(|| {
                 assert!(dealing.verify(&params, threshold, &receivers, None).is_ok());
-                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, None).unwrap());
+                black_box(
+                    decrypt_share(&params, first_key, 0, &dealing.ciphertexts, None).unwrap(),
+                );
             })
         },
     );
@@ -321,7 +325,9 @@ pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Crite
         |b| {
             b.iter(|| {
                 assert!(dealing.verify(&params, threshold, &receivers, None).is_ok());
-                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, None).unwrap());
+                black_box(
+                    decrypt_share(&params, first_key, 0, &dealing.ciphertexts, None).unwrap(),
+                );
             })
         },
     );
@@ -548,7 +554,7 @@ pub fn share_decryption(c: &mut Criterion) {
     let (ciphertexts, _) = encrypt_shares(&[(&share, pk.public_key())], &params, &mut rng);
 
     c.bench_function("single share decryption", |b| {
-        b.iter(|| black_box(decrypt_share(&dk, 0, &ciphertexts, None)))
+        b.iter(|| black_box(decrypt_share(&params, &dk, 0, &ciphertexts, None)))
     });
 }
 

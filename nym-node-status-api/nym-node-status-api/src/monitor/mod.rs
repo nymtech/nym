@@ -151,7 +151,8 @@ impl Monitor {
             .await
             .log_error("get_all_basic_nodes")?;
 
-        tracing::info!("🟣 get_all_basic_nodes: {}", nym_nodes.len());
+        let nym_node_count = nym_nodes.len();
+        tracing::info!("🟣 get_all_basic_nodes: {}", nym_node_count);
 
         let nym_node_records =
             self.prepare_nym_node_data(nym_nodes.clone(), &bonded_nym_nodes, &described_nodes);
@@ -252,7 +253,7 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            (NYMNODE_COUNT, nym_nodes.len()),
+            (NYMNODE_COUNT, nym_node_count),
             (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
             (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
             (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
@@ -268,7 +269,7 @@ impl Monitor {
         let last_updated = now_utc();
         let last_updated_utc = last_updated.unix_timestamp().to_string();
         let network_summary = NetworkSummary {
-            total_nodes: nym_nodes.len().cast_checked()?,
+            total_nodes: nym_node_count.cast_checked()?,
             mixnodes: mixnode::MixnodeSummary {
                 bonded: mixnode::MixingNodesSummary {
                     count: assigned_mixing_count.cast_checked()?,

@@ -28,6 +28,7 @@ const SECURITY_PARAMETER: usize = 256;
 
 /// ceil(SECURITY_PARAMETER / PARALLEL_RUNS) in the paper
 const NUM_CHALLENGE_BITS: usize = SECURITY_PARAMETER.div_ceil(PARALLEL_RUNS);
+const EE: usize = 1 << NUM_CHALLENGE_BITS;
 
 // type alias for ease of use
 type FirstChallenge = Vec<Vec<Vec<u64>>>;
@@ -110,21 +111,20 @@ impl ProofOfChunking {
         // define bounds for the blinding factors
         let n = instance.public_keys.len();
         let m = NUM_CHUNKS;
-        let ee = 1 << NUM_CHALLENGE_BITS;
 
-        // CHUNK_MAX corresponds to paper's B
-        let ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1)) as u64;
-        let zz = (2 * (PARALLEL_RUNS as u64))
-            .checked_mul(ss)
-            .expect("overflow in Z = 2 * l * S");
+        // ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1))
+        // Z = 2 * l * S
+        let (ss, zz): (u64, u64) = compute_ss_zz(n, m)?;
 
         let ss_scalar = Scalar::from(ss);
 
         // rather than generating blinding factors in [-S, Z-1] directly,
         // do it via [0, Z - 1 + S + 1] and deal with the shift later.
-        let combined_upper_range = (zz - 1)
-            .checked_add(ss + 1)
-            .expect("overflow in Z - 1 + S + 1");
+        //  combined_upper_range = Z - 1 + S + 1
+
+        let combined_upper_range = zz.checked_add(ss).ok_or(DkgError::ArithmeticOverflow {
+            info: "ProofOfChunking::construct |  Z - 1 + S + 1",
+        })?;
 
         let mut betas = Vec::with_capacity(PARALLEL_RUNS);
         let mut bs = Vec::with_capacity(PARALLEL_RUNS);
@@ -178,12 +178,23 @@ impl ProofOfChunking {
             // I think this part is more readable with a range loop
             #[allow(clippy::needless_range_loop)]
             for l in 0..PARALLEL_RUNS {
-                let mut sum = 0;
+                let mut sum: u64 = 0;
 
                 for (i, witness_i) in witnesses_s.iter().enumerate() {
                     for (j, witness_ij) in witness_i.to_chunks().chunks.iter().enumerate() {
                         debug_assert!(std::mem::size_of::<Chunk>() <= std::mem::size_of::<u64>());
-                        sum += first_challenge[i][j][l] * (*witness_ij as u64)
+                        // sum += first_challenge[i][j][l] * (*witness_ij as u64)
+                        sum = sum
+                            .checked_add(
+                                first_challenge[i][j][l]
+                                    .checked_mul(*witness_ij as u64)
+                                    .ok_or(DkgError::ArithmeticOverflow {
+                                        info: "ProofOfChunking::construct | first_challenge[i][j][l] * witness_ij",
+                                    })?,
+                            )
+                            .ok_or(DkgError::ArithmeticOverflow {
+                                info: "ProofOfChunking::construct | sum + (first_challenge[i][j][l] * witness_ij)",
+                            })?;
                     }
                 }
 
@@ -191,7 +202,18 @@ impl ProofOfChunking {
                     continue 'retry_loop;
                 }
                 // shifted_blinding_factors[l] - ss restores it to "proper" [-S, Z - 1] range
-                let response = sum + shifted_blinding_factors[l] - ss;
+                // let response = sum + shifted_blinding_factors[l] - ss;
+                let response = sum
+                    .checked_add(shifted_blinding_factors[l])
+                    .ok_or(DkgError::ArithmeticOverflow {
+                        info:
+                            "ProofOfChunking::construct | sum + (shifted_blinding_factors[l] - ss)",
+                    })?
+                    .checked_sub(ss)
+                    .ok_or(DkgError::ArithmeticUnderflow {
+                        info: "ProofOfChunking::construct | shifted_blinding_factors[l] - ss",
+                    })?;
+
                 if response < zz {
                     responses_chunks.push(response)
                 } else {
@@ -276,11 +298,14 @@ impl ProofOfChunking {
         ensure_len!(&self.responses_r, n);
         ensure_len!(&self.responses_chunks, PARALLEL_RUNS);
 
-        let ee = 1 << NUM_CHALLENGE_BITS;
+        // ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1))
+        // Z = 2 * l * S
 
-        // CHUNK_MAX corresponds to paper's B
-        let ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1)) as u64;
-        let zz = 2 * (PARALLEL_RUNS as u64) * ss;
+        let zz: u64;
+        match compute_ss_zz(n, m) {
+            Ok((_, zz_res)) => zz = zz_res,
+            _ => return false,
+        };
 
         for response_chunk in &self.responses_chunks {
             if response_chunk >= &zz {
@@ -411,7 +436,7 @@ impl ProofOfChunking {
         random_oracle_builder.update(lambda_e.to_be_bytes());
 
         let mut oracle = rand_chacha::ChaCha20Rng::from_seed(random_oracle_builder.finalize());
-        let range_max_excl = 1 << NUM_CHALLENGE_BITS;
+        let range_max_excl = EE as u64;
 
         (0..n)
             .map(|_| {
@@ -635,6 +660,50 @@ impl ProofOfChunking {
             response_beta,
         })
     }
+}
+
+fn compute_ss_zz(n: usize, m: usize) -> Result<(u64, u64), DkgError> {
+    // let ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1)) as u64;
+    // CHUNK_MAX corresponds to paper's B
+
+    let ee = EE;
+
+    let ss = n
+        .checked_mul(m)
+        .ok_or(DkgError::ArithmeticOverflow {
+            info: "ProofOfChunking::compute_ss_zz | n * m",
+        })?
+        .checked_mul(
+            CHUNK_SIZE
+                .checked_sub(1)
+                .ok_or(DkgError::ArithmeticUnderflow {
+                    info: "ProofOfChunking::compute_ss_zz | (CHUNK_SIZE - 1)",
+                })?
+                .checked_mul(ee.checked_sub(1).ok_or(DkgError::ArithmeticUnderflow {
+                    info: "ProofOfChunking::compute_ss_zz | (ee - 1)",
+                })?)
+                .ok_or(DkgError::ArithmeticOverflow {
+                    info: "ProofOfChunking::compute_ss_zz | (CHUNK_SIZE - 1) * (ee - 1)",
+                })?,
+        )
+        .ok_or(DkgError::ArithmeticOverflow {
+            info: "ProofOfChunking::compute_ss_zz | ss_lhs * ss_rhs",
+        })? as u64;
+
+    // let zz = 2 * PARALLEL_RUNS as u64 * ss;
+    // Z = 2 * l * S
+
+    let zz = 2u64
+        .checked_mul(PARALLEL_RUNS as u64)
+        .ok_or(DkgError::ArithmeticOverflow {
+            info: "ProofOfChunking::compute_ss_zz | 2 * l",
+        })?
+        .checked_mul(ss)
+        .ok_or(DkgError::ArithmeticOverflow {
+            info: "ProofOfChunking::compute_ss_zz | (2 * l) * S",
+        })?;
+
+    Ok((ss, zz))
 }
 
 #[cfg(test)]

@@ -9501,6 +9501,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "windows 0.61.1",
 ]
 

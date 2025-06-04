@@ -31,6 +31,9 @@ pub(crate) mod manager;
 pub(crate) mod models;
 pub(crate) mod runtime_migrations;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Default)]
 pub(crate) struct DbIdCache {
     pub mixnodes_v1: DashMap<NodeId, i64>,

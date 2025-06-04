@@ -713,3 +713,213 @@ async fn get_node_performance_history_internal(
 fn to_axum_error(error: SimulationApiError) -> (StatusCode, Json<SimulationApiError>) {
     (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::simulation_api::models::{NodePerformanceData, NodeMethodComparison};
+    
+    fn create_test_performance_data(node_id: NodeId, reliability: f64, method: &str) -> NodePerformanceData {
+        NodePerformanceData {
+            node_id,
+            node_type: "mixnode".to_string(),
+            identity_key: Some("test_key".to_string()),
+            reliability_score: reliability,
+            positive_samples: 100,
+            negative_samples: 10,
+            final_fail_sequence: 0,
+            work_factor: Some(1.0),
+            calculation_method: method.to_string(),
+            calculated_at: 1234567890,
+        }
+    }
+
+    #[test]
+    fn test_calculate_summary_statistics_basic() {
+        let comparisons = vec![
+            NodeMethodComparison {
+                node_id: 1,
+                node_type: "mixnode".to_string(),
+                identity_key: Some("key1".to_string()),
+                old_method: Some(create_test_performance_data(1, 80.0, "old")),
+                new_method: Some(create_test_performance_data(1, 90.0, "new")),
+                reliability_difference: Some(10.0),
+                performance_delta_percentage: Some(12.5),
+            },
+            NodeMethodComparison {
+                node_id: 2,
+                node_type: "mixnode".to_string(),
+                identity_key: Some("key2".to_string()),
+                old_method: Some(create_test_performance_data(2, 70.0, "old")),
+                new_method: Some(create_test_performance_data(2, 65.0, "new")),
+                reliability_difference: Some(-5.0),
+                performance_delta_percentage: Some(-7.14),
+            },
+        ];
+
+        let stats = calculate_summary_statistics(&comparisons);
+
+        assert_eq!(stats.total_nodes_compared, 2);
+        assert_eq!(stats.nodes_improved, 1);
+        assert_eq!(stats.nodes_degraded, 1);
+        assert_eq!(stats.nodes_unchanged, 0);
+        assert_eq!(stats.average_reliability_old, 75.0);
+        assert_eq!(stats.average_reliability_new, 77.5);
+        assert_eq!(stats.max_improvement, 10.0);
+        assert_eq!(stats.max_degradation, -5.0);
+    }
+
+    #[test]
+    fn test_calculate_summary_statistics_empty() {
+        let comparisons = vec![];
+        let stats = calculate_summary_statistics(&comparisons);
+
+        assert_eq!(stats.total_nodes_compared, 0);
+        assert_eq!(stats.nodes_improved, 0);
+        assert_eq!(stats.nodes_degraded, 0);
+        assert_eq!(stats.nodes_unchanged, 0);
+        assert_eq!(stats.average_reliability_old, 0.0);
+        assert_eq!(stats.average_reliability_new, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_median_and_std() {
+        // Test with odd number of values
+        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let (median, std_dev) = calculate_median_and_std(&values);
+        assert_eq!(median, 3.0);
+        assert!((std_dev - 1.58113883).abs() < 0.00001); // √2.5
+
+        // Test with even number of values
+        let values = vec![1.0, 2.0, 3.0, 4.0];
+        let (median, _) = calculate_median_and_std(&values);
+        assert_eq!(median, 2.5);
+
+        // Test with empty values
+        let values = vec![];
+        let (median, std_dev) = calculate_median_and_std(&values);
+        assert_eq!(median, 0.0);
+        assert_eq!(std_dev, 0.0);
+    }
+
+    #[test]
+    fn test_build_node_comparisons() {
+        let old_performance = vec![
+            create_test_performance_data(1, 80.0, "old"),
+            create_test_performance_data(2, 70.0, "old"),
+        ];
+        
+        let new_performance = vec![
+            create_test_performance_data(1, 90.0, "new"),
+            create_test_performance_data(3, 85.0, "new"), // New node not in old
+        ];
+
+        let query = NodeComparisonQuery {
+            node_id: None,
+            node_type: None,
+            min_delta: None,
+            max_delta: None,
+        };
+
+        let comparisons = build_node_comparisons(old_performance, new_performance, &query);
+
+        assert_eq!(comparisons.len(), 3); // Nodes 1, 2, 3
+        
+        // Find node 1 comparison
+        let node1_comparison = comparisons.iter().find(|c| c.node_id == 1).unwrap();
+        assert!(node1_comparison.old_method.is_some());
+        assert!(node1_comparison.new_method.is_some());
+        assert_eq!(node1_comparison.reliability_difference, Some(10.0));
+        assert_eq!(node1_comparison.performance_delta_percentage, Some(12.5));
+
+        // Find node 2 comparison (only in old)
+        let node2_comparison = comparisons.iter().find(|c| c.node_id == 2).unwrap();
+        assert!(node2_comparison.old_method.is_some());
+        assert!(node2_comparison.new_method.is_none());
+        assert_eq!(node2_comparison.reliability_difference, None);
+
+        // Find node 3 comparison (only in new)
+        let node3_comparison = comparisons.iter().find(|c| c.node_id == 3).unwrap();
+        assert!(node3_comparison.old_method.is_none());
+        assert!(node3_comparison.new_method.is_some());
+        assert_eq!(node3_comparison.reliability_difference, None);
+    }
+
+    #[test]
+    fn test_build_node_comparisons_with_filters() {
+        let old_performance = vec![
+            create_test_performance_data(1, 80.0, "old"),
+            create_test_performance_data(2, 70.0, "old"),
+        ];
+        
+        let new_performance = vec![
+            create_test_performance_data(1, 90.0, "new"),
+            create_test_performance_data(2, 75.0, "new"),
+        ];
+
+        // Test node_id filter
+        let query = NodeComparisonQuery {
+            node_id: Some(1),
+            node_type: None,
+            min_delta: None,
+            max_delta: None,
+        };
+
+        let comparisons = build_node_comparisons(old_performance.clone(), new_performance.clone(), &query);
+        assert_eq!(comparisons.len(), 1);
+        assert_eq!(comparisons[0].node_id, 1);
+
+        // Test min_delta filter
+        let query = NodeComparisonQuery {
+            node_id: None,
+            node_type: None,
+            min_delta: Some(8.0), // Only node 1 has +10.0 delta, node 2 has +5.0
+            max_delta: None,
+        };
+
+        let comparisons = build_node_comparisons(old_performance, new_performance, &query);
+        assert_eq!(comparisons.len(), 1);
+        assert_eq!(comparisons[0].node_id, 1);
+    }
+
+    #[test]
+    fn test_convert_to_csv() {
+        let details = SimulationEpochDetails {
+            epoch: SimulationEpochSummary {
+                id: 1,
+                epoch_id: 100,
+                calculation_method: "comparison".to_string(),
+                start_timestamp: 1234567890,
+                end_timestamp: 1234571490,
+                description: Some("Test simulation".to_string()),
+                created_at: 1234567890,
+                nodes_analyzed: 2,
+                available_methods: vec!["old".to_string(), "new".to_string()],
+            },
+            node_performance: vec![
+                create_test_performance_data(1, 80.0, "old"),
+                create_test_performance_data(1, 90.0, "new"),
+            ],
+            rewards: vec![
+                NodeRewardData {
+                    node_id: 1,
+                    node_type: "mixnode".to_string(),
+                    calculated_reward_amount: 1000.0,
+                    reward_currency: "nym".to_string(),
+                    performance_component: 80.0,
+                    work_component: 1.0,
+                    calculation_method: "old".to_string(),
+                    calculated_at: 1234567890,
+                },
+            ],
+            route_analysis: vec![],
+        };
+
+        let csv = convert_to_csv(&details).unwrap();
+        
+        assert!(csv.contains("data_type,node_id,node_type,reliability_score,reward_amount,calculation_method"));
+        assert!(csv.contains("performance,1,mixnode,80,"));
+        assert!(csv.contains("performance,1,mixnode,90,"));
+        assert!(csv.contains("reward,1,mixnode,,1000,"));
+    }
+}

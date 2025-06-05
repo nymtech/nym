@@ -1,4 +1,4 @@
-use axum::{extract::State, Json, Router};
+use axum::{extract::State, http::HeaderMap, Json, Router};
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers::UserAgent, TypedHeader};
 use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
@@ -31,9 +31,17 @@ async fn submit_stats_report(
     State(mut state): State<AppState>,
     TypedHeader(user_agent): TypedHeader<UserAgent>,
     insecure_ip_addr: InsecureClientIp,
+    headers: HeaderMap,
     Json(report): Json<VpnClientStatsReport>,
 ) -> HttpResult<Json<()>> {
     let now = time::OffsetDateTime::now_utc();
+
+    if let Some(h) = headers.get("X-Real-IP") {
+        debug!("X-Real-IP :{:?}", h);
+    }
+    if let Some(h) = headers.get("X-Forwarded-For") {
+        debug!("X-Forwarded-For :{:?}", h);
+    }
 
     let gateway_record = state
         .network_view()

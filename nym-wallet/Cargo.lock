@@ -4032,6 +4032,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-requests",
+ "nym-noise-keys",
  "nym-serde-helpers",
  "nym-ticketbooks-merkle",
  "schemars",
@@ -4294,6 +4295,7 @@ dependencies = [
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
+ "nym-noise-keys",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -4301,6 +4303,16 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 2.0.12",
  "time",
+ "utoipa",
+]
+
+[[package]]
+name = "nym-noise-keys"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "schemars",
+ "serde",
  "utoipa",
 ]
 

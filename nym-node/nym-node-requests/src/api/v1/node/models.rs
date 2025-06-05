@@ -4,9 +4,9 @@
 use celes::Country;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use nym_crypto::asymmetric::x25519::{
-    self,
-    serde_helpers::{bs58_x25519_pubkey, option_bs58_x25519_pubkey},
+    self, serde_helpers::bs58_x25519_pubkey, serde_helpers::option_bs58_x25519_pubkey,
 };
+use nym_noise_keys::VersionedNoiseKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -145,9 +145,8 @@ pub struct HostKeys {
     pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
-    #[schemars(with = "Option<String>")]
-    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
-    pub x25519_noise: Option<x25519::PublicKey>,
+    #[serde(default)]
+    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
 }
 
 // we need the intermediate struct to help us with the new explicit sphinx key fields
@@ -167,7 +166,7 @@ impl From<HostKeysDeHelper> for HostKeys {
             x25519_sphinx: value.x25519_sphinx,
             primary_x25519_sphinx_key,
             pre_announced_x25519_sphinx_key: value.pre_announced_x25519_sphinx_key,
-            x25519_noise: value.x25519_noise,
+            x25519_versioned_noise: value.x25519_versioned_noise,
         }
     }
 }
@@ -194,8 +193,7 @@ struct HostKeysDeHelper {
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
-    #[serde(with = "option_bs58_x25519_pubkey")]
-    pub x25519_noise: Option<x25519::PublicKey>,
+    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -224,18 +222,14 @@ impl SphinxKey {
 
 #[derive(Serialize)]
 pub struct LegacyHostKeysV3 {
-    /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
     #[serde(alias = "ed25519")]
     #[serde(with = "bs58_ed25519_pubkey")]
     pub ed25519_identity: ed25519::PublicKey,
 
-    /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
-    /// Currently, it corresponds to either mixnode's or gateway's key.
     #[serde(alias = "x25519")]
     #[serde(with = "bs58_x25519_pubkey")]
     pub x25519_sphinx: x25519::PublicKey,
 
-    /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
     pub x25519_noise: Option<x25519::PublicKey>,
@@ -259,7 +253,7 @@ impl From<HostKeys> for LegacyHostKeysV3 {
         LegacyHostKeysV3 {
             ed25519_identity: value.ed25519_identity,
             x25519_sphinx: value.primary_x25519_sphinx_key.public_key,
-            x25519_noise: value.x25519_noise,
+            x25519_noise: value.x25519_versioned_noise.map(|k| k.x25519_pubkey),
         }
     }
 }

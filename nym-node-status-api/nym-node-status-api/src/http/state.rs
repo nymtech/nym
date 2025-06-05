@@ -5,6 +5,7 @@ use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nym_api::SkimmedNode;
+use semver::Version;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::{error, instrument, warn};
@@ -80,7 +81,6 @@ impl AppState {
 }
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
-static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
@@ -92,7 +92,8 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
-    dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
+    // each min_version has their own cached list
+    dvpn_gateways: Cache<Version, Arc<RwLock<Vec<DVpnGateway>>>>,
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
@@ -108,7 +109,7 @@ impl HttpCache {
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             dvpn_gateways: Cache::builder()
-                .max_capacity(2)
+                .max_capacity(6)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             mixnodes: Cache::builder()
@@ -182,9 +183,10 @@ impl HttpCache {
     pub async fn upsert_dvpn_gateway_list(
         &self,
         new_gateway_list: Vec<DVpnGateway>,
-    ) -> Entry<String, Arc<RwLock<Vec<DVpnGateway>>>> {
+        min_node_version: &Version,
+    ) -> Entry<Version, Arc<RwLock<Vec<DVpnGateway>>>> {
         self.dvpn_gateways
-            .entry_by_ref(DVPN_GATEWAYS_LIST_KEY)
+            .entry_by_ref(min_node_version)
             .and_upsert_with(|maybe_entry| async {
                 if let Some(entry) = maybe_entry {
                     let v = entry.into_value();
@@ -198,8 +200,12 @@ impl HttpCache {
             .await
     }
 
-    pub async fn get_dvpn_gateway_list(&self, db: &DbPool) -> Vec<DVpnGateway> {
-        match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
+    pub async fn get_dvpn_gateway_list(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<DVpnGateway> {
+        match self.dvpn_gateways.get(min_node_version).await {
             Some(guard) => {
                 tracing::trace!("Fetching from cache...");
                 let read_lock = guard.read().await;
@@ -259,6 +265,15 @@ impl HttpCache {
                         },
                     )
                     .filter(|gw| {
+                        let gw_version = &gw.build_information.build_version;
+                        if let Ok(gw_version) = Version::parse(gw_version) {
+                            &gw_version >= min_node_version
+                        } else {
+                            warn!("Failed to parse GW version {}", gw_version);
+                            false
+                        }
+                    })
+                    .filter(|gw| {
                         // gateways must have a country
                         if gw.location.two_letter_iso_country_code.len() == 2 {
                             true
@@ -282,7 +297,8 @@ impl HttpCache {
                 if res_gws.is_empty() && started_with > 0 {
                     tracing::warn!("Started with {}, got 0 gateways", started_with);
                 } else {
-                    self.upsert_dvpn_gateway_list(res_gws.clone()).await;
+                    self.upsert_dvpn_gateway_list(res_gws.clone(), min_node_version)
+                        .await;
                 }
 
                 res_gws

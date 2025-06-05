@@ -27,7 +27,7 @@ use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_sdk::mixnet::{
@@ -506,7 +506,12 @@ impl MixnetListener {
         let client_id = self
             .ecash_verifier
             .storage()
-            .insert_wireguard_peer(&peer)
+            .insert_wireguard_peer(
+                &peer,
+                TicketType::try_from_encoded(credential.payment.t_type)
+                    .map_err(|_| AuthenticatorError::InvalidCredentialType)?
+                    .into(),
+            )
             .await?;
         if let Err(e) =
             Self::credential_verification(self.ecash_verifier.clone(), credential, client_id).await

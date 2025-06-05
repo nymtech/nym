@@ -17,6 +17,9 @@ pub enum AuthenticatorError {
     #[error("{0}")]
     CredentialVerificationError(#[from] nym_credential_verification::Error),
 
+    #[error("invalid credential type")]
+    InvalidCredentialType,
+
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 

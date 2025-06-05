@@ -500,14 +500,10 @@ impl GatewayStorage {
     /// # Arguments
     ///
     /// * `peer`: wireguard peer data to be stored
-    /// * `with_client_id`: if the peer should have a corresponding client_id
-    ///   (created with entry wireguard ticket) or live without one (or with an
-    ///   exiting one), for temporary backwards compatibility.
     pub async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
-        with_client_id: bool,
-    ) -> Result<Option<i64>, GatewayStorageError> {
+    ) -> Result<i64, GatewayStorageError> {
         let client_id = match self
             .wireguard_peer_manager
             .retrieve_peer(&peer.public_key.to_string())
@@ -515,19 +511,12 @@ impl GatewayStorage {
         {
             Some(peer) => peer.client_id,
             _ => {
-                if with_client_id {
-                    Some(
-                        self.client_manager
-                            .insert_client(ClientType::EntryWireguard)
-                            .await?,
-                    )
-                } else {
-                    None
-                }
+                self.client_manager
+                    .insert_client(ClientType::EntryWireguard)
+                    .await?
             }
         };
-        let mut peer = WireguardPeer::from(peer.clone());
-        peer.client_id = client_id;
+        let peer = WireguardPeer::from_defguard_peer(peer.clone(), client_id)?;
         self.wireguard_peer_manager.insert_peer(&peer).await?;
         Ok(client_id)
     }

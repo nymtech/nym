@@ -77,12 +77,6 @@ pub enum AuthenticatorError {
     #[error("peers can't be interacted with anymore")]
     PeerInteractionStopped,
 
-    #[error("operation is not supported")]
-    UnsupportedOperation,
-
-    #[error("operation unavailable for older client")]
-    OldClient,
-
     #[error("storage should have the requested bandwidht entry")]
     MissingClientBandwidthEntry,
 
@@ -103,6 +97,9 @@ pub enum AuthenticatorError {
 
     #[error("{0}")]
     RecipientFormatting(#[from] nym_sdk::mixnet::RecipientFormattingError),
+
+    #[error("no credential received")]
+    NoCredentialReceived,
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

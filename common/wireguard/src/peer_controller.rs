@@ -8,9 +8,7 @@ use defguard_wireguard_rs::{
 };
 use futures::channel::oneshot;
 use log::info;
-use nym_authenticator_requests::latest::registration::{
-    RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY,
-};
+use nym_authenticator_requests::latest::registration::RemainingBandwidthData;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth,
@@ -25,12 +23,11 @@ use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 use crate::WgApiWrapper;
 use crate::{error::Error, peer_handle::SharedBandwidthStorageManager};
-use crate::{peer_handle::PeerHandle, peer_storage_manager::PeerStorageManager};
+use crate::{peer_handle::PeerHandle, peer_storage_manager::CachedPeerManager};
 
 pub enum PeerControlRequest {
     AddPeer {
         peer: Peer,
-        client_id: Option<i64>,
         response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
     RemovePeer {
@@ -77,7 +74,7 @@ pub struct PeerController {
     request_rx: mpsc::Receiver<PeerControlRequest>,
     wg_api: Arc<WgApiWrapper>,
     host_information: Arc<RwLock<Host>>,
-    bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager>>,
+    bw_storage_managers: HashMap<Key, SharedBandwidthStorageManager>,
     timeout_check_interval: IntervalStream,
     task_client: nym_task::TaskClient,
 }
@@ -89,7 +86,7 @@ impl PeerController {
         metrics: NymNodeMetrics,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
-        bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager>, Peer)>,
+        bw_storage_managers: HashMap<Key, (SharedBandwidthStorageManager, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
         task_client: nym_task::TaskClient,
@@ -99,11 +96,7 @@ impl PeerController {
         );
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
-            let peer_storage_manager = PeerStorageManager::new(
-                storage.clone(),
-                peer.clone(),
-                bandwidth_storage_manager.is_some(),
-            );
+            let peer_storage_manager = CachedPeerManager::new(peer.clone());
             let mut handle = PeerHandle::new(
                 public_key.clone(),
                 host_information.clone(),
@@ -137,13 +130,10 @@ impl PeerController {
     }
 
     // Function that should be used for peer insertion, to handle both storage and kernel interaction
-    pub async fn add_peer(&self, peer: &Peer, client_id: Option<i64>) -> Result<(), Error> {
-        if client_id.is_none() {
-            self.storage.insert_wireguard_peer(peer, false).await?;
-        }
+    pub async fn add_peer(&self, peer: &Peer) -> Result<(), Error> {
         let ret: Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> =
             self.wg_api.inner.configure_peer(peer);
-        if client_id.is_none() && ret.is_err() {
+        if ret.is_err() {
             // Try to revert the insertion in storage
             if self
                 .storage
@@ -171,44 +161,33 @@ impl PeerController {
     pub async fn generate_bandwidth_manager(
         storage: GatewayStorage,
         public_key: &Key,
-    ) -> Result<Option<BandwidthStorageManager>, Error> {
-        if let Some(client_id) = storage
+    ) -> Result<BandwidthStorageManager, Error> {
+        let client_id = storage
             .get_wireguard_peer(&public_key.to_string())
             .await?
             .ok_or(Error::MissingClientBandwidthEntry)?
-            .client_id
-        {
-            let bandwidth = storage
-                .get_available_bandwidth(client_id)
-                .await?
-                .ok_or(Error::MissingClientBandwidthEntry)?;
-            Ok(Some(BandwidthStorageManager::new(
-                storage,
-                ClientBandwidth::new(bandwidth.into()),
-                client_id,
-                BandwidthFlushingBehaviourConfig::default(),
-                true,
-            )))
-        } else {
-            Ok(None)
-        }
+            .client_id;
+
+        let bandwidth = storage
+            .get_available_bandwidth(client_id)
+            .await?
+            .ok_or(Error::MissingClientBandwidthEntry)?;
+
+        Ok(BandwidthStorageManager::new(
+            storage,
+            ClientBandwidth::new(bandwidth.into()),
+            client_id,
+            BandwidthFlushingBehaviourConfig::default(),
+            true,
+        ))
     }
 
-    async fn handle_add_request(
-        &mut self,
-        peer: &Peer,
-        client_id: Option<i64>,
-    ) -> Result<(), Error> {
-        self.add_peer(peer, client_id).await?;
-        let bandwidth_storage_manager =
-            Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key)
-                .await?
-                .map(|bw_m| Arc::new(RwLock::new(bw_m)));
-        let peer_storage_manager = PeerStorageManager::new(
-            self.storage.clone(),
-            peer.clone(),
-            bandwidth_storage_manager.is_some(),
-        );
+    async fn handle_add_request(&mut self, peer: &Peer) -> Result<(), Error> {
+        self.add_peer(peer).await?;
+        let bandwidth_storage_manager = Arc::new(RwLock::new(
+            Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key).await?,
+        ));
+        let peer_storage_manager = CachedPeerManager::new(peer.clone());
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),
@@ -247,20 +226,11 @@ impl PeerController {
         let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) else {
             return Ok(None);
         };
-        let available_bandwidth = if let Some(bandwidth_storage_manager) = bandwidth_storage_manager
-        {
-            bandwidth_storage_manager
-                .read()
-                .await
-                .available_bandwidth()
-                .await
-        } else {
-            let Some(peer) = self.host_information.read().await.peers.get(key).cloned() else {
-                // host information not updated yet
-                return Ok(None);
-            };
-            BANDWIDTH_CAP_PER_DAY.saturating_sub(peer.rx_bytes + peer.tx_bytes) as i64
-        };
+        let available_bandwidth = bandwidth_storage_manager
+            .read()
+            .await
+            .available_bandwidth()
+            .await;
 
         Ok(Some(RemainingBandwidthData {
             available_bandwidth,
@@ -360,8 +330,8 @@ impl PeerController {
                 }
                 msg = self.request_rx.recv() => {
                     match msg {
-                        Some(PeerControlRequest::AddPeer { peer, client_id, response_tx }) => {
-                            let ret = self.handle_add_request(&peer, client_id).await;
+                        Some(PeerControlRequest::AddPeer { peer, response_tx }) => {
+                            let ret = self.handle_add_request(&peer).await;
                             if ret.is_ok() {
                                 response_tx.send(AddPeerControlResponse { success: true }).ok();
                             } else {

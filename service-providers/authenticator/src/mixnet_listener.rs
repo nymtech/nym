@@ -74,7 +74,7 @@ pub(crate) struct MixnetListener {
 
     pub(crate) peer_manager: PeerManager,
 
-    pub(crate) ecash_verifier: Option<Arc<EcashManager>>,
+    pub(crate) ecash_verifier: Arc<EcashManager>,
 
     pub(crate) timeout_check_interval: IntervalStream,
 
@@ -88,7 +88,7 @@ impl MixnetListener {
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
-        ecash_verifier: Option<Arc<EcashManager>>,
+        ecash_verifier: Arc<EcashManager>,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
@@ -500,39 +500,32 @@ impl MixnetListener {
             128,
         ));
 
-        // If gateway does ecash verification and client sends a credential, we do the additional
-        // credential verification. Later this will become mandatory.
-        if let (Some(ecash_verifier), Some(credential)) =
-            (self.ecash_verifier.clone(), final_message.credential())
+        let Some(credential) = final_message.credential() else {
+            return Err(AuthenticatorError::NoCredentialReceived);
+        };
+        let client_id = self
+            .ecash_verifier
+            .storage()
+            .insert_wireguard_peer(&peer)
+            .await?;
+        if let Err(e) =
+            Self::credential_verification(self.ecash_verifier.clone(), credential, client_id).await
         {
-            let client_id = ecash_verifier
+            self.ecash_verifier
                 .storage()
-                .insert_wireguard_peer(&peer, true)
-                .await?
-                .ok_or(AuthenticatorError::InternalError(
-                    "peer with ticket shouldn't have been used before without a ticket".to_string(),
-                ))?;
-            if let Err(e) =
-                Self::credential_verification(ecash_verifier.clone(), credential, client_id).await
-            {
-                ecash_verifier
-                    .storage()
-                    .remove_wireguard_peer(&peer.public_key.to_string())
-                    .await?;
-                return Err(e);
-            }
-            let public_key = peer.public_key.to_string();
-            if let Err(e) = self.peer_manager.add_peer(peer, Some(client_id)).await {
-                ecash_verifier
-                    .storage()
-                    .remove_wireguard_peer(&public_key)
-                    .await?;
-                return Err(e);
-            }
-        } else {
-            log::info!("Adding peer with client id none");
-            self.peer_manager.add_peer(peer, None).await?;
+                .remove_wireguard_peer(&peer.public_key.to_string())
+                .await?;
+            return Err(e);
         }
+        let public_key = peer.public_key.to_string();
+        if let Err(e) = self.peer_manager.add_peer(peer).await {
+            self.ecash_verifier
+                .storage()
+                .remove_wireguard_peer(&public_key)
+                .await?;
+            return Err(e);
+        }
+
         registred_and_free
             .registration_in_progres
             .remove(&final_message.pub_key());
@@ -714,17 +707,15 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let Some(ecash_verifier) = self.ecash_verifier.clone() else {
-            return Err(AuthenticatorError::UnsupportedOperation);
-        };
-        let client_id = ecash_verifier
+        let client_id = self
+            .ecash_verifier
             .storage()
             .get_wireguard_peer(&msg.pub_key().to_string())
             .await?
             .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
-            .client_id
-            .ok_or(AuthenticatorError::OldClient)?;
-        let bandwidth = ecash_verifier
+            .client_id;
+        let bandwidth = self
+            .ecash_verifier
             .storage()
             .get_available_bandwidth(client_id)
             .await?
@@ -740,9 +731,9 @@ impl MixnetListener {
             let credential = msg.credential();
             let mut verifier = CredentialVerifier::new(
                 CredentialSpendingRequest::new(credential.clone()),
-                ecash_verifier.clone(),
+                self.ecash_verifier.clone(),
                 BandwidthStorageManager::new(
-                    ecash_verifier.storage().clone(),
+                    self.ecash_verifier.storage().clone(),
                     client_bandwidth,
                     client_id,
                     BandwidthFlushingBehaviourConfig::default(),

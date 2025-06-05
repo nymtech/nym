@@ -3,13 +3,11 @@
 
 use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
-use crate::peer_storage_manager::PeerStorageManager;
+use crate::peer_storage_manager::CachedPeerManager;
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
-use nym_authenticator_requests::latest::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
-use nym_gateway_storage::models::WireguardPeer;
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
@@ -23,8 +21,8 @@ const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(10 * 60); // 1 hour
 pub struct PeerHandle {
     public_key: Key,
     host_information: Arc<RwLock<Host>>,
-    peer_storage_manager: PeerStorageManager,
-    bandwidth_storage_manager: Option<SharedBandwidthStorageManager>,
+    cached_peer: CachedPeerManager,
+    bandwidth_storage_manager: SharedBandwidthStorageManager,
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
@@ -35,8 +33,8 @@ impl PeerHandle {
     pub fn new(
         public_key: Key,
         host_information: Arc<RwLock<Host>>,
-        peer_storage_manager: PeerStorageManager,
-        bandwidth_storage_manager: Option<SharedBandwidthStorageManager>,
+        cached_peer: CachedPeerManager,
+        bandwidth_storage_manager: SharedBandwidthStorageManager,
         request_tx: mpsc::Sender<PeerControlRequest>,
         task_client: &TaskClient,
     ) -> Self {
@@ -48,7 +46,7 @@ impl PeerHandle {
         PeerHandle {
             public_key,
             host_information,
-            peer_storage_manager,
+            cached_peer,
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
@@ -73,11 +71,11 @@ impl PeerHandle {
         Ok(success)
     }
 
-    fn compute_spent_bandwidth(kernel_peer: &Peer, storage_peer: &WireguardPeer) -> Option<u64> {
-        let storage_peer_rx_bytes = u64::try_from(storage_peer.rx_bytes)
+    fn compute_spent_bandwidth(kernel_peer: &Peer, cached_peer: &Peer) -> Option<u64> {
+        let storage_peer_rx_bytes = u64::try_from(cached_peer.rx_bytes)
             .inspect_err(|e| tracing::error!("Storage rx bytes could not be converted: {e}"))
             .ok()?;
-        let storage_peer_tx_bytes = u64::try_from(storage_peer.tx_bytes)
+        let storage_peer_tx_bytes = u64::try_from(cached_peer.tx_bytes)
             .inspect_err(|e| tracing::error!("Storage tx bytes could not be converted: {e}"))
             .ok()?;
 
@@ -106,7 +104,7 @@ impl PeerHandle {
     }
 
     async fn active_peer(&mut self, kernel_peer: &Peer) -> Result<bool, Error> {
-        let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
+        let Some(cached_peer) = self.cached_peer.get_peer() else {
             log::info!(
                 "Peer {:?} not in storage anymore, shutting down handle",
                 self.public_key
@@ -117,73 +115,52 @@ impl PeerHandle {
             tracing::info!("Peer {kernel_peer:?} doesn't have last_handshake");
         }
 
-        if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
-            if kernel_peer.last_handshake.is_none() {
-                tracing::info!(
-                    "Peer {kernel_peer:?} doesn't have last_handshake, but there's bw manager"
-                );
-            }
-            if kernel_peer.last_handshake.is_none()
-                && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
-            {
-                let success = self.remove_peer().await?;
-                self.peer_storage_manager.remove_peer();
-                tracing::info!(
-                    "Peer {} has not been active for more then {} seconds, removing it",
-                    kernel_peer.public_key.to_string(),
-                    AUTO_REMOVE_AFTER.as_secs()
-                );
-                return Ok(!success);
-            }
-            let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, &storage_peer)
-                .unwrap_or_else(|| {
-                    // if gateway restarted, the kernel values restart from 0
-                    // and we should restart from 0 in storage as well
-                    if let Some(peer_information) =
-                        self.peer_storage_manager.peer_information.as_mut()
-                    {
-                        peer_information.force_sync = true;
-                        peer_information.peer.rx_bytes = kernel_peer.rx_bytes;
-                        peer_information.peer.tx_bytes = kernel_peer.tx_bytes;
-                    }
-                    0
-                })
-                .try_into()
-                .map_err(|_| Error::InconsistentConsumedBytes)?;
-            if spent_bandwidth > 0 {
-                self.peer_storage_manager.update_trx(kernel_peer);
-                if bandwidth_manager
-                    .write()
-                    .await
-                    .try_use_bandwidth(spent_bandwidth)
-                    .await
-                    .is_err()
-                {
-                    tracing::info!(
-                        "Peer {} is out of bandwidth, removing it",
-                        kernel_peer.public_key.to_string()
-                    );
-                    let success = self.remove_peer().await?;
-                    self.peer_storage_manager.remove_peer();
-                    return Ok(!success);
+        if kernel_peer.last_handshake.is_none() {
+            tracing::info!(
+                "Peer {kernel_peer:?} doesn't have last_handshake, but there's bw manager"
+            );
+        }
+        if kernel_peer.last_handshake.is_none()
+            && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
+        {
+            let success = self.remove_peer().await?;
+            self.cached_peer.remove_peer();
+            tracing::info!(
+                "Peer {} has not been active for more then {} seconds, removing it",
+                kernel_peer.public_key.to_string(),
+                AUTO_REMOVE_AFTER.as_secs()
+            );
+            return Ok(!success);
+        }
+        let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, &cached_peer)
+            .unwrap_or_else(|| {
+                // if gateway restarted, the kernel values restart from 0
+                // and we should restart from 0 in storage as well
+                if let Some(peer_information) = self.cached_peer.peer_information.as_mut() {
+                    peer_information.force_sync = true;
+                    peer_information.peer.rx_bytes = kernel_peer.rx_bytes;
+                    peer_information.peer.tx_bytes = kernel_peer.tx_bytes;
                 }
-            }
-        } else {
-            if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
-                log::info!(
-                    "Peer {} has been present for 30 days, removing it",
-                    self.public_key
+                0
+            })
+            .try_into()
+            .map_err(|_| Error::InconsistentConsumedBytes)?;
+        if spent_bandwidth > 0 {
+            self.cached_peer.update_trx(kernel_peer);
+            if self
+                .bandwidth_storage_manager
+                .write()
+                .await
+                .try_use_bandwidth(spent_bandwidth)
+                .await
+                .is_err()
+            {
+                tracing::info!(
+                    "Peer {} is out of bandwidth, removing it",
+                    kernel_peer.public_key.to_string()
                 );
                 let success = self.remove_peer().await?;
-                return Ok(!success);
-            }
-            let spent_bandwidth = kernel_peer.rx_bytes + kernel_peer.tx_bytes;
-            if spent_bandwidth >= BANDWIDTH_CAP_PER_DAY {
-                log::debug!(
-                    "Peer {} doesn't have bandwidth anymore, removing it",
-                    self.public_key
-                );
-                let success = self.remove_peer().await?;
+                self.cached_peer.remove_peer();
                 return Ok(!success);
             }
         }
@@ -210,8 +187,6 @@ impl PeerHandle {
             );
             Ok(false)
         } else {
-            // Update storage values
-            self.peer_storage_manager.sync_storage_peer().await?;
             Ok(true)
         }
     }
@@ -244,11 +219,10 @@ impl PeerHandle {
 
                 _ = self.task_client.recv() => {
                     log::trace!("PeerHandle: Received shutdown");
-                    if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
-                        if let Err(e) = bandwidth_manager.write().await.sync_storage_bandwidth().await {
-                            log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
-                        }
+                    if let Err(e) = self.bandwidth_storage_manager.write().await.sync_storage_bandwidth().await {
+                        log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
                     }
+
                     log::trace!("PeerHandle: Finished shutdown");
                 }
             }

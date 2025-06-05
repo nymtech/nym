@@ -26,6 +26,7 @@ nym-crypto = { path = "../../common/crypto", features = [
     "serde",
 ] }
 nym-exit-policy = { path = "../../common/exit-policy" }
+nym-noise-keys = { path = "../../common/nymnoise/keys" }
 nym-wireguard-types = { path = "../../common/wireguard-types", default-features = false }
 
 # feature-specific dependencies:

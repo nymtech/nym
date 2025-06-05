@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::support::http::state::AppState;
+use crate::unstable_routes::v2::nym_nodes::semi_skimmed::nodes_expanded;
 use crate::unstable_routes::v2::nym_nodes::skimmed::{
     entry_gateways_basic_all, exit_gateways_basic_all, mixnodes_basic_active, mixnodes_basic_all,
     nodes_basic_all,
@@ -11,6 +12,7 @@ use axum::Router;
 use tower_http::compression::CompressionLayer;
 
 pub(crate) mod helpers;
+pub(crate) mod semi_skimmed;
 pub(crate) mod skimmed;
 
 #[allow(deprecated)]
@@ -28,6 +30,10 @@ pub(crate) fn routes() -> Router<AppState> {
                 )
                 .route("/entry-gateways", get(entry_gateways_basic_all))
                 .route("/exit-gateways", get(exit_gateways_basic_all)),
+        )
+        .nest(
+            "/semi-skimmed",
+            Router::new().route("/", get(nodes_expanded)),
         )
         .layer(CompressionLayer::new())
 }

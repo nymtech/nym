@@ -66,6 +66,8 @@ members = [
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
+    "common/nymnoise",
+    "common/nymnoise/keys",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -310,6 +312,7 @@ serde_with = "3.9.0"
 serde_yaml = "0.9.25"
 sha2 = "0.10.9"
 si-scale = "0.2.3"
+snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
 strum = "0.26"

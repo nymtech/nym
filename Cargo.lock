@@ -4901,6 +4901,7 @@ dependencies = [
  "nym-mixnet-contract-common 0.6.0",
  "nym-network-defaults 0.1.0",
  "nym-node-requests 0.1.0",
+ "nym-noise-keys",
  "nym-serde-helpers 0.1.0",
  "nym-ticketbooks-merkle 0.1.0",
  "rand_chacha 0.3.1",
@@ -6243,8 +6244,11 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "futures",
+ "nym-crypto 0.4.0",
+ "nym-noise",
  "nym-sphinx",
  "nym-task",
+ "rand 0.8.5",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -6510,6 +6514,8 @@ dependencies = [
  "nym-network-requester",
  "nym-node-metrics",
  "nym-node-requests 0.1.0",
+ "nym-noise",
+ "nym-noise-keys",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore 0.3.0",
  "nym-sphinx-acknowledgements",
@@ -6574,6 +6580,7 @@ dependencies = [
  "nym-crypto 0.4.0",
  "nym-exit-policy 0.1.0",
  "nym-http-api-client 0.1.0",
+ "nym-noise-keys",
  "nym-wireguard-types 0.1.0",
  "rand_chacha 0.3.1",
  "schemars",
@@ -6727,6 +6734,37 @@ dependencies = [
  "wasm-client-core",
  "wasm-utils",
  "wasmtimer",
+]
+
+[[package]]
+name = "nym-noise"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "bytes",
+ "futures",
+ "nym-crypto 0.4.0",
+ "nym-noise-keys",
+ "pin-project",
+ "rand_chacha 0.3.1",
+ "sha2 0.10.9",
+ "snow",
+ "strum 0.26.3",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "nym-noise-keys"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto 0.4.0",
+ "schemars",
+ "serde",
+ "utoipa",
 ]
 
 [[package]]
@@ -9759,6 +9797,22 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "snow"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "850948bee068e713b8ab860fe1adc4d109676ab4c3b621fd8147f06b261f2f85"
+dependencies = [
+ "aes-gcm",
+ "blake2 0.10.6",
+ "chacha20poly1305",
+ "curve25519-dalek",
+ "rand_core 0.6.4",
+ "rustc_version 0.4.1",
+ "sha2 0.10.9",
+ "subtle 2.6.1",
 ]
 
 [[package]]

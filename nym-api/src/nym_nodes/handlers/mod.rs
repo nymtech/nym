@@ -160,11 +160,11 @@ async fn nodes_noise(
             n.description
                 .host_information
                 .keys
-                .x25519_noise
+                .x25519_versioned_noise
                 .map(|noise_key| (noise_key, n))
         })
         .map(|(noise_key, node)| NoiseDetails {
-            x25119_pubkey: noise_key,
+            key: noise_key,
             mixnet_port: node.description.mix_port(),
             ip_addresses: node.description.host_information.ip_address.clone(),
         })

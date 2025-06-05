@@ -9,6 +9,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{EpochId, Interval, NodeId};
+use nym_noise_keys::VersionedNoiseKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -24,6 +25,18 @@ pub struct SkimmedNodesWithMetadata {
 impl SkimmedNodesWithMetadata {
     pub fn new(nodes: Vec<SkimmedNode>, metadata: NodesResponseMetadata) -> Self {
         SkimmedNodesWithMetadata { nodes, metadata }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+pub struct SemiSkimmedNodesWithMetadata {
+    pub nodes: Vec<SemiSkimmedNode>,
+    pub metadata: NodesResponseMetadata,
+}
+
+impl SemiSkimmedNodesWithMetadata {
+    pub fn new(nodes: Vec<SemiSkimmedNode>, metadata: NodesResponseMetadata) -> Self {
+        SemiSkimmedNodesWithMetadata { nodes, metadata }
     }
 }
 
@@ -260,7 +273,8 @@ impl SkimmedNode {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SemiSkimmedNode {
     pub basic: SkimmedNode,
-    pub x25519_noise_pubkey: String,
+
+    pub x25519_noise_versioned_key: Option<VersionedNoiseKey>,
     // pub location:
 }
 

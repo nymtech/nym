@@ -26,7 +26,7 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::{
-    NodesByAddressesResponse, SkimmedNode, SkimmedNodesWithMetadata,
+    NodesByAddressesResponse, SemiSkimmedNodesWithMetadata, SkimmedNode, SkimmedNodesWithMetadata,
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
@@ -528,6 +528,43 @@ impl NymApiClient {
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
         collect_paged_skimmed_v2!(self, get_basic_nodes_v2)
+    }
+
+    /// retrieve expanded information for all bonded nodes on the network
+    pub async fn get_all_expanded_nodes(
+        &self,
+    ) -> Result<SemiSkimmedNodesWithMetadata, ValidatorClientError> {
+        // Unroll the first iteration to get the metadata
+        let mut page = 0;
+
+        let res = self
+            .nym_api
+            .get_expanded_nodes(false, Some(page), None)
+            .await?;
+        let mut nodes = res.nodes.data;
+        let metadata = res.metadata;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_expanded_nodes(false, Some(page), None)
+                .await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
     }
 
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {

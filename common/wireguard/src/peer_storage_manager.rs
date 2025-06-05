@@ -1,10 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::Error;
 use defguard_wireguard_rs::host::Peer;
-use nym_gateway_storage::models::WireguardPeer;
-use nym_gateway_storage::GatewayStorage;
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -29,28 +26,22 @@ impl Default for PeerFlushingBehaviourConfig {
     }
 }
 
-pub struct PeerStorageManager {
-    pub(crate) storage: GatewayStorage,
+pub struct CachedPeerManager {
     pub(crate) peer_information: Option<PeerInformation>,
     pub(crate) cfg: PeerFlushingBehaviourConfig,
-    pub(crate) with_client_id: bool,
 }
 
-impl PeerStorageManager {
-    pub(crate) fn new(storage: GatewayStorage, peer: Peer, with_client_id: bool) -> Self {
+impl CachedPeerManager {
+    pub(crate) fn new(peer: Peer) -> Self {
         let peer_information = Some(PeerInformation::new(peer));
         Self {
-            storage,
             peer_information,
             cfg: PeerFlushingBehaviourConfig::default(),
-            with_client_id,
         }
     }
 
-    pub(crate) fn get_peer(&self) -> Option<WireguardPeer> {
-        self.peer_information
-            .as_ref()
-            .map(|p| p.peer.clone().into())
+    pub(crate) fn get_peer(&self) -> Option<Peer> {
+        self.peer_information.as_ref().map(|p| p.peer.clone())
     }
 
     pub(crate) fn remove_peer(&mut self) {
@@ -61,31 +52,6 @@ impl PeerStorageManager {
         if let Some(peer_information) = self.peer_information.as_mut() {
             peer_information.update_trx_bytes(kernel_peer.tx_bytes, kernel_peer.rx_bytes);
         }
-    }
-
-    pub(crate) async fn sync_storage_peer(&mut self) -> Result<(), Error> {
-        let Some(peer_information) = self.peer_information.as_mut() else {
-            return Ok(());
-        };
-        if !peer_information.should_sync(self.cfg) {
-            return Ok(());
-        }
-        if self
-            .storage
-            .get_wireguard_peer(&peer_information.peer().public_key.to_string())
-            .await?
-            .is_none()
-        {
-            self.peer_information = None;
-            return Ok(());
-        }
-        self.storage
-            .insert_wireguard_peer(peer_information.peer(), self.with_client_id)
-            .await?;
-
-        peer_information.resync_peer_with_storage();
-
-        Ok(())
     }
 }
 

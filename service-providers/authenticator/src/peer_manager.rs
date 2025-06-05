@@ -28,13 +28,9 @@ impl PeerManager {
             wireguard_gateway_data,
         }
     }
-    pub async fn add_peer(&mut self, peer: Peer, client_id: Option<i64>) -> Result<()> {
+    pub async fn add_peer(&mut self, peer: Peer) -> Result<()> {
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::AddPeer {
-            peer,
-            client_id,
-            response_tx,
-        };
+        let msg = PeerControlRequest::AddPeer { peer, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)

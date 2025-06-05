@@ -432,8 +432,8 @@ impl GatewayTasksBuilder {
             opts.config.clone(),
             wireguard_data.inner.clone(),
             used_private_network_ips,
+            ecash_manager,
         )
-        .with_ecash_verifier(ecash_manager)
         .with_custom_gateway_transceiver(transceiver)
         .with_shutdown(self.shutdown.fork("authenticator_sp"))
         .with_wait_for_gateway(true)

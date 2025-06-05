@@ -60,7 +60,7 @@ pub struct DVpnGateway {
     pub entry: Option<BasicEntryInformation>,
     // The performance data here originates from the nym-api, and is effectively mixnet performance
     // at the time of writing this
-    pub performance: u8,
+    pub performance: String,
     pub build_information: BinaryBuildInformationOwned,
 }
 
@@ -182,9 +182,29 @@ impl DVpnGateway {
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),
             entry: skimmed_node.entry.clone(),
-            performance: gateway.performance,
+            performance: to_percent(gateway.performance),
             build_information: self_described.build_information,
         })
+    }
+}
+
+fn to_percent(performance: u8) -> String {
+    let fraction = performance as f32 / 100.0;
+    format!("{:.2}", fraction)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn to_percent_should_work() {
+        let starting = [0u8, 33, 50, 99, 100];
+        let expected = ["0.00", "0.33", "0.50", "0.99", "1.00"];
+
+        for (starting, expected) in starting.into_iter().zip(expected) {
+            assert_eq!(expected, to_percent(starting));
+        }
     }
 }
 

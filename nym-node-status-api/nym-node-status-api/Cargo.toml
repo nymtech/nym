@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "2.3.3"
+version = "2.4.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -24,7 +24,7 @@ futures-util = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 # TODO dz had to switch to cheddar versions because develop is ahead of current
-# Nym API deployment: revert before merge
+# Nym API: revert after Cheddar is out
 nym-contracts-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-mixnet-contract-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }

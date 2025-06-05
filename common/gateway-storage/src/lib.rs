@@ -503,6 +503,7 @@ impl GatewayStorage {
     pub async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
+        client_type: ClientType,
     ) -> Result<i64, GatewayStorageError> {
         let client_id = match self
             .wireguard_peer_manager
@@ -510,11 +511,7 @@ impl GatewayStorage {
             .await?
         {
             Some(peer) => peer.client_id,
-            _ => {
-                self.client_manager
-                    .insert_client(ClientType::EntryWireguard)
-                    .await?
-            }
+            None => self.client_manager.insert_client(client_type).await?,
         };
         let peer = WireguardPeer::from_defguard_peer(peer.clone(), client_id)?;
         self.wireguard_peer_manager.insert_peer(&peer).await?;

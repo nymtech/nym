@@ -2,7 +2,9 @@ use axum::{
     extract::{Path, Query, State},
     Json, Router,
 };
+use semver::Version;
 use serde::Deserialize;
+use std::sync::LazyLock;
 use tracing::instrument;
 use utoipa::IntoParams;
 
@@ -11,6 +13,8 @@ use crate::http::{
     error::{HttpError, HttpResult},
     state::AppState,
 };
+
+static MIN_SUPPORTED_VERSION: LazyLock<Version> = LazyLock::new(|| Version::new(1, 6, 2));
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
@@ -45,12 +49,17 @@ async fn dvpn_gateways(
     Query(MinNodeVersionQuery { min_node_version }): Query<MinNodeVersionQuery>,
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
-    let min_node_version: String = min_node_version.unwrap_or_else(|| String::from("1.6.2"));
-    let _min_node_version = semver::Version::parse(&min_node_version)
-        .map_err(|_| HttpError::invalid_input("Min version must be valid semver"))?;
+    let min_node_version = match min_node_version {
+        Some(min_version) => semver::Version::parse(&min_version)
+            .map_err(|_| HttpError::invalid_input("Min version must be valid semver"))?,
+        None => MIN_SUPPORTED_VERSION.clone(),
+    };
 
     Ok(Json(
-        state.cache().get_dvpn_gateway_list(state.db_pool()).await,
+        state
+            .cache()
+            .get_dvpn_gateway_list(state.db_pool(), &min_node_version)
+            .await,
     ))
 }
 
@@ -87,7 +96,7 @@ async fn gateways_by_country(
         2 => Ok(Json(
             state
                 .cache()
-                .get_dvpn_gateway_list(state.db_pool())
+                .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
                 .await
                 .into_iter()
                 .filter(|gw| {

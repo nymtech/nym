@@ -530,6 +530,7 @@ impl MixnetListener {
                 return Err(e);
             }
         } else {
+            log::info!("Adding peer with client id none");
             self.peer_manager.add_peer(peer, None).await?;
         }
         registred_and_free

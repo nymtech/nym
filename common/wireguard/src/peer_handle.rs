@@ -18,7 +18,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
-const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60); // 1 hour
+const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(10 * 60); // 1 hour
 
 pub struct PeerHandle {
     public_key: Key,
@@ -107,20 +107,28 @@ impl PeerHandle {
 
     async fn active_peer(&mut self, kernel_peer: &Peer) -> Result<bool, Error> {
         let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
-            log::debug!(
+            log::info!(
                 "Peer {:?} not in storage anymore, shutting down handle",
                 self.public_key
             );
             return Ok(false);
         };
+        if kernel_peer.last_handshake.is_none() {
+            tracing::info!("Peer {kernel_peer:?} doesn't have last_handshake");
+        }
 
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
+            if kernel_peer.last_handshake.is_none() {
+                tracing::info!(
+                    "Peer {kernel_peer:?} doesn't have last_handshake, but there's bw manager"
+                );
+            }
             if kernel_peer.last_handshake.is_none()
                 && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
             {
                 let success = self.remove_peer().await?;
                 self.peer_storage_manager.remove_peer();
-                tracing::debug!(
+                tracing::info!(
                     "Peer {} has not been active for more then {} seconds, removing it",
                     kernel_peer.public_key.to_string(),
                     AUTO_REMOVE_AFTER.as_secs()
@@ -151,7 +159,7 @@ impl PeerHandle {
                     .await
                     .is_err()
                 {
-                    tracing::debug!(
+                    tracing::info!(
                         "Peer {} is out of bandwidth, removing it",
                         kernel_peer.public_key.to_string()
                     );
@@ -162,7 +170,7 @@ impl PeerHandle {
             }
         } else {
             if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
-                log::debug!(
+                log::info!(
                     "Peer {} has been present for 30 days, removing it",
                     self.public_key
                 );
@@ -209,16 +217,20 @@ impl PeerHandle {
     }
 
     pub async fn run(&mut self) {
+        tracing::info!("Started handle for {:?}", self.public_key);
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
                     match self.continue_checking().await {
                         Ok(true) => continue,
-                        Ok(false) => return,
+                        Ok(false) => {
+                            tracing::info!("Stopped handle for {:?}", self.public_key);
+                            return;
+                        }
                         Err(err) => {
                             match self.remove_peer().await {
                                 Ok(true) => {
-                                    tracing::debug!("Removed peer due to error {err}");
+                                    tracing::error!("Removed peer due to error {err}");
                                     return;
                                 }
                                 _ => {

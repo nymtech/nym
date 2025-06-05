@@ -7224,10 +7224,11 @@ dependencies = [
 
 [[package]]
 name = "nym-statistics-api"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "axum 0.7.9",
+ "axum-client-ip",
  "axum-extra",
  "celes",
  "clap",

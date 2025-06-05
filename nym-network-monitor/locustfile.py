@@ -1,7 +1,15 @@
+import time
 from locust import HttpUser, task
 
 
 class SendMsg(HttpUser):
     @task
     def hello_world(self):
-        self.client.post("/v1/send")
+        try:
+            response = self.client.post("/v1/send")
+            if response.status_code == 503:
+                time.sleep(1)
+            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+        except Exception: # Catch other exceptions, including those raised by raise_for_status()
+            # You might want to log this error or handle it differently
+            pass

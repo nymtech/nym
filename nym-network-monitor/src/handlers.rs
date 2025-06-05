@@ -197,7 +197,7 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
             Arc::clone(client)
         } else {
             error!("No clients currently available");
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
     };
 

@@ -15,13 +15,13 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio::time::timeout;
+use tokio::{sync::RwLock, time::timeout};
 use utoipa::ToSchema;
 
 use crate::{
     accounting::{all_node_stats, NetworkAccount, NetworkAccountStats, NodeStats},
     http::AppState,
-    MIXNET_TIMEOUT,
+    make_client, MIXNET_TIMEOUT, TOPOLOGY,
 };
 
 #[derive(ToSchema, Serialize)]
@@ -183,7 +183,13 @@ pub async fn mermaid_handler() -> Result<String, StatusCode> {
     Ok(mermaid)
 }
 
-async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
+async fn send_receive_mixnet(_state: AppState) -> Result<String, StatusCode> {
+    let client = Arc::new(RwLock::new(
+        make_client(TOPOLOGY.get().expect("Set at the begining").clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    ));
+
     let msg: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(32)
@@ -191,15 +197,15 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
         .collect();
     let sent_msg = msg.clone();
 
-    let client = {
-        let mut clients = state.clients().write().await;
-        if let Some(client) = clients.make_contiguous().choose(&mut rand::thread_rng()) {
-            Arc::clone(client)
-        } else {
-            error!("No clients currently available");
-            return Err(StatusCode::SERVICE_UNAVAILABLE);
-        }
-    };
+    // let client = {
+    //     let mut clients = state.clients().write().await;
+    //     if let Some(client) = clients.make_contiguous().choose(&mut rand::thread_rng()) {
+    //         Arc::clone(client)
+    //     } else {
+    //         error!("No clients currently available");
+    //         return Err(StatusCode::SERVICE_UNAVAILABLE);
+    //     }
+    // };
 
     let recv = Arc::clone(&client);
     let sender = Arc::clone(&client);

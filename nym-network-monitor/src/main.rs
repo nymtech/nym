@@ -232,13 +232,13 @@ async fn main() -> Result<()> {
 
     MIXNET_TIMEOUT.set(args.mixnet_timeout).ok();
 
-    let spawn_clients = Arc::clone(&clients);
-    tokio::spawn(make_clients(
-        spawn_clients,
-        args.n_clients,
-        args.client_lifetime,
-        TOPOLOGY.get().expect("Topology not set yet!").clone(),
-    ));
+    // let spawn_clients = Arc::clone(&clients);
+    // tokio::spawn(make_clients(
+    //     spawn_clients,
+    //     args.n_clients,
+    //     args.client_lifetime,
+    //     TOPOLOGY.get().expect("Topology not set yet!").clone(),
+    // ));
 
     let clients_server = clients.clone();
 

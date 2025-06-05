@@ -451,21 +451,28 @@ impl<'a> SimulationCoordinator<'a> {
         
         let mut performance_records = Vec::with_capacity(rewarded_nodes.len());
         
+        // First collect all node IDs for batch identity key lookups
+        let all_node_ids: Vec<NodeId> = rewarded_nodes.iter().map(|node| node.node_id).collect();
+        
+        // Batch fetch identity keys for both mixnodes and gateways
+        let mixnode_identities = self.storage
+            .manager
+            .get_mixnode_identity_keys_batch(&all_node_ids)
+            .await
+            .unwrap_or_default();
+        let gateway_identities = self.storage
+            .manager
+            .get_gateway_identity_keys_batch(&all_node_ids)
+            .await
+            .unwrap_or_default();
+
         for node in rewarded_nodes {
             let (node_type, _) = self.determine_node_info(node.node_id, rewarded_set, reward_params);
             
-            // Try to get identity key from storage
+            // Get identity key from our batch results
             let identity_key = match node_type.as_str() {
-                "mixnode" => self.storage
-                    .get_mixnode_identity_key(node.node_id)
-                    .await
-                    .ok()
-                    .flatten(),
-                "gateway" => self.storage
-                    .get_gateway_identity_key(node.node_id)
-                    .await
-                    .ok()
-                    .flatten(),
+                "mixnode" => mixnode_identities.get(&node.node_id).cloned(),
+                "gateway" => gateway_identities.get(&node.node_id).cloned(),
                 _ => None,
             };
             

@@ -1050,6 +1050,7 @@ pub(crate) mod v3_migration {
         }
 
         /// Get mixnode identity key by node ID
+        #[allow(dead_code)]
         pub(crate) async fn get_mixnode_identity_key(
             &self,
             mix_id: NodeId,
@@ -1058,6 +1059,7 @@ pub(crate) mod v3_migration {
         }
 
         /// Get gateway identity key by node ID
+        #[allow(dead_code)]
         pub(crate) async fn get_gateway_identity_key(
             &self,
             node_id: NodeId,

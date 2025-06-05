@@ -82,19 +82,27 @@ async fn list_simulation_epochs(
         .await
         .map_err(to_axum_error)?;
     
-    // Enhance epochs with additional metadata
+    // Enhance epochs with additional metadata using batch operations
+    let epoch_db_ids: Vec<i64> = epochs.iter().map(|e| e.id).collect();
+    let epoch_ids: Vec<u32> = epochs.iter().map(|e| e.epoch_id).collect();
+    
+    // Batch fetch node counts and available methods for all epochs
+    let node_counts = storage
+        .manager
+        .count_simulated_node_performance_for_epochs_batch(&epoch_db_ids)
+        .await
+        .map_err(|e| to_axum_error(SimulationApiError::with_details("Database error", &e.to_string())))?;
+    let available_methods = storage
+        .manager
+        .get_available_calculation_methods_for_epochs_batch(&epoch_ids)
+        .await
+        .map_err(|e| to_axum_error(SimulationApiError::with_details("Database error", &e.to_string())))?;
+    
     let mut enhanced_epochs = Vec::new();
     for mut epoch in epochs {
-        // Count nodes analyzed for this epoch
-        epoch.nodes_analyzed = count_nodes_for_epoch(storage, epoch.id)
-            .await
-            .map_err(to_axum_error)?;
-            
-        // Get available calculation methods for this epoch_id
-        epoch.available_methods = get_available_methods_for_epoch(storage, epoch.epoch_id)
-            .await
-            .map_err(to_axum_error)?;
-            
+        // Get metadata from our batch results
+        epoch.nodes_analyzed = node_counts.get(&epoch.id).copied().unwrap_or(0);
+        epoch.available_methods = available_methods.get(&epoch.epoch_id).cloned().unwrap_or_default();
         enhanced_epochs.push(epoch);
     }
     

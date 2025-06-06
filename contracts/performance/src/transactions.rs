@@ -155,4 +155,75 @@ mod tests {
             Ok(())
         }
     }
+
+    #[cfg(test)]
+    mod authorising_network_monitor {
+        use super::*;
+        use crate::testing::init_contract_tester;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+
+        #[test]
+        fn requires_valid_address() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+
+            let bad_address = "foomp".to_string();
+            let good_address = test.generate_account();
+
+            let env = test.env();
+            let admin = test.admin_msg();
+
+            assert!(try_authorise_network_monitor(
+                test.deps_mut(),
+                env.clone(),
+                admin.clone(),
+                bad_address
+            )
+            .is_err());
+            assert!(try_authorise_network_monitor(
+                test.deps_mut(),
+                env,
+                admin,
+                good_address.to_string()
+            )
+            .is_ok());
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod retiring_network_monitor {
+        use super::*;
+        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+
+        #[test]
+        fn requires_valid_address() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+
+            let bad_address = "foomp".to_string();
+            let good_address = test.generate_account();
+            test.authorise_network_monitor(&good_address)?;
+
+            let env = test.env();
+            let admin = test.admin_msg();
+
+            assert!(try_retire_network_monitor(
+                test.deps_mut(),
+                env.clone(),
+                admin.clone(),
+                bad_address
+            )
+            .is_err());
+            assert!(try_retire_network_monitor(
+                test.deps_mut(),
+                env,
+                admin,
+                good_address.to_string()
+            )
+            .is_ok());
+
+            Ok(())
+        }
+    }
 }

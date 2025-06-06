@@ -140,6 +140,7 @@ def get_nested_value(response, args):
 
 def _return_percent_annotation(value):
     value = float(value) * 100
+    value = round(value, 2)
     value = f"{value}%"
     return value
 
@@ -269,7 +270,7 @@ def parser_main():
             action="store_true",
             help="A multiplier of staking supply scale factor and circulating supply"
             )
-            
+
     parser_calculate.add_argument(
             "-s", "--separator",
             type=str,

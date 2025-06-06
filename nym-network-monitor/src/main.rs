@@ -52,18 +52,42 @@ async fn make_clients(
             tokio::time::sleep(tokio::time::Duration::from_secs(lifetime)).await;
             info!("Removing oldest client");
             if let Some(dropped_client) = clients.write().await.pop_front() {
-                loop {
-                    if Arc::strong_count(&dropped_client) == 1 {
-                        if let Some(client) = Arc::into_inner(dropped_client) {
-                            let client_handle = client.into_inner();
-                            client_handle.disconnect().await;
-                        } else {
-                            warn!("Failed to drop client, client had more then one strong ref")
-                        }
-                        break;
+                const CLIENT_DROP_TIMEOUT: Duration = Duration::from_secs(30);
+                let start = tokio::time::Instant::now();
+                
+                // Try immediate unwrap first
+                match Arc::try_unwrap(dropped_client) {
+                    Ok(client) => {
+                        let client_handle = client.into_inner();
+                        client_handle.disconnect().await;
+                        info!("Successfully disconnected client immediately");
                     }
-                    info!("Client still in use, waiting 2 seconds");
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    Err(dropped_client) => {
+                        // Fallback: wait with timeout for references to drop
+                        info!("Client still has references, waiting for cleanup with timeout");
+                        while start.elapsed() < CLIENT_DROP_TIMEOUT {
+                            if Arc::strong_count(&dropped_client) == 1 {
+                                match Arc::try_unwrap(dropped_client) {
+                                    Ok(client) => {
+                                        let client_handle = client.into_inner();
+                                        client_handle.disconnect().await;
+                                        info!("Successfully disconnected client after waiting");
+                                        break;
+                                    }
+                                    Err(_) => {
+                                        warn!("Failed to unwrap client despite reference count being 1");
+                                        break;
+                                    }
+                                }
+                            }
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        }
+                        
+                        if start.elapsed() >= CLIENT_DROP_TIMEOUT {
+                            warn!("Client drop timed out after {:?}, forcing drop", CLIENT_DROP_TIMEOUT);
+                            // Client will be dropped when Arc goes out of scope
+                        }
+                    }
                 }
             }
         }

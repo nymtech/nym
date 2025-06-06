@@ -32,7 +32,7 @@
     "hello-wasm-pack": "^0.1.0",
     "webpack": "^5.70.0",
     "webpack-cli": "^4.9.2",
-    "webpack-dev-server": "^4.7.4"
+    "webpack-dev-server": "^5.2.1"
   },
   "dependencies": {
     "@nymproject/nym-vpn-api-lib-wasm": "file:../../../dist/wasm/nym-vpn-api-lib-wasm"

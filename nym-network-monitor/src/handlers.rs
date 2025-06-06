@@ -245,7 +245,7 @@ async fn send_receive_mixnet(_state: AppState) -> Result<String, StatusCode> {
             Ok(_) => {}
             Err(e) => {
                 error!("Failed to send/receive message: {e}");
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                return Err(StatusCode::GATEWAY_TIMEOUT);
             }
         }
     }

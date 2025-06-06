@@ -1126,6 +1126,7 @@ dependencies = [
  "anyhow",
  "cosmwasm-std",
  "cw-multi-test",
+ "cw-storage-plus",
  "rand",
  "rand_chacha",
  "serde",

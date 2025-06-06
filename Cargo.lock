@@ -5485,6 +5485,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
+ "anyhow",
  "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5519,6 +5520,7 @@ dependencies = [
  "anyhow",
  "cosmwasm-std",
  "cw-multi-test",
+ "cw-storage-plus",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",

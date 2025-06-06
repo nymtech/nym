@@ -115,7 +115,7 @@ impl Percent {
     #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn average(&self, other: &Self) -> Self {
         let sum = self.0 + other.0;
-        let inner = Decimal::from_ratio(sum.numerator(), Uint128::new(2));
+        let inner = Decimal::from_ratio(sum.numerator(), sum.denominator() * Uint128::new(2));
         Percent(inner)
     }
 }
@@ -408,5 +408,19 @@ mod tests {
             let pre_truncated: Percent = input.parse().unwrap();
             assert_eq!(expected, pre_truncated.round_to_two_decimal_places())
         }
+    }
+
+    #[test]
+    fn calculating_average() -> anyhow::Result<()> {
+        fn p(raw: &str) -> Percent {
+            raw.parse().unwrap()
+        }
+
+        assert_eq!(p("0.1").average(&p("0.1")), p("0.1"));
+        assert_eq!(p("0.1").average(&p("0.2")), p("0.15"));
+        assert_eq!(p("1").average(&p("0")), p("0.5"));
+        assert_eq!(p("0.123").average(&p("0.456")), p("0.2895"));
+
+        Ok(())
     }
 }

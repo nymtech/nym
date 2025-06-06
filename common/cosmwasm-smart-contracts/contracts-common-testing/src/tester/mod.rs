@@ -4,7 +4,8 @@
 use crate::{mock_api, test_rng, TEST_DENOM};
 use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::{
-    coin, coins, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, QuerierWrapper, Response,
+    coin, coins, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, QuerierWrapper,
+    Record, Response, Storage,
 };
 use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
 use rand_chacha::ChaCha20Rng;
@@ -227,5 +228,49 @@ where
     ) -> Self {
         self.insert_common_storage_key(key, value);
         self
+    }
+}
+
+impl<C> Storage for ContractTester<C>
+where
+    C: TestableNymContract,
+{
+    fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.storage.get(key)
+    }
+
+    fn range<'a>(
+        &'a self,
+        start: Option<&[u8]>,
+        end: Option<&[u8]>,
+        order: Order,
+    ) -> Box<dyn Iterator<Item = Record> + 'a> {
+        self.storage.range(start, end, order)
+    }
+
+    fn range_keys<'a>(
+        &'a self,
+        start: Option<&[u8]>,
+        end: Option<&[u8]>,
+        order: Order,
+    ) -> Box<dyn Iterator<Item = Vec<u8>> + 'a> {
+        self.storage.range_keys(start, end, order)
+    }
+
+    fn range_values<'a>(
+        &'a self,
+        start: Option<&[u8]>,
+        end: Option<&[u8]>,
+        order: Order,
+    ) -> Box<dyn Iterator<Item = Vec<u8>> + 'a> {
+        self.storage.range_values(start, end, order)
+    }
+
+    fn set(&mut self, key: &[u8], value: &[u8]) {
+        self.storage.set(key, value)
+    }
+
+    fn remove(&mut self, key: &[u8]) {
+        self.storage.remove(key)
     }
 }

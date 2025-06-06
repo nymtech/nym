@@ -3,10 +3,14 @@
 
 use cosmwasm_std::testing::{message_info, MockApi, MockQuerier, MockStorage};
 use cosmwasm_std::{
-    coins, Addr, BankMsg, CosmosMsg, Empty, Env, MemoryStorage, MessageInfo, OwnedDeps, Response,
+    coins, Addr, BankMsg, CosmosMsg, Empty, Env, MemoryStorage, MessageInfo, Order, OwnedDeps,
+    Response, StdResult, Storage,
 };
+use cw_storage_plus::{KeyDeserialize, Map, PrimaryKey};
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 pub const TEST_DENOM: &str = "unym";
 pub const TEST_PREFIX: &str = "n";
@@ -70,5 +74,34 @@ impl ExtractBankMsg for Response {
         }
 
         None
+    }
+}
+
+pub trait MapReader<'a> {
+    type Key;
+    type Value: Serialize + DeserializeOwned;
+
+    fn all_values(&self, store: &dyn Storage) -> StdResult<Vec<Self::Value>>;
+
+    fn all_key_values(&self, store: &dyn Storage) -> StdResult<Vec<(Self::Key, Self::Value)>>;
+}
+
+impl<'a, K, T> MapReader<'a> for Map<K, T>
+where
+    T: Serialize + DeserializeOwned,
+    K: PrimaryKey<'a> + KeyDeserialize,
+    K::Output: 'static,
+{
+    type Key = K::Output;
+    type Value = T;
+
+    fn all_values(&self, store: &dyn Storage) -> StdResult<Vec<Self::Value>> {
+        self.range(store, None, None, Order::Ascending)
+            .map(|record| record.map(|r| r.1))
+            .collect()
+    }
+
+    fn all_key_values(&self, store: &dyn Storage) -> StdResult<Vec<(Self::Key, Self::Value)>> {
+        self.range(store, None, None, Order::Ascending).collect()
     }
 }

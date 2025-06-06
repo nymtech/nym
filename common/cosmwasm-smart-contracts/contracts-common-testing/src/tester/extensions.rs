@@ -1,11 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{CommonStorageKeys, ContractOpts, ContractTester, TestableNymContract};
+use crate::{CommonStorageKeys, ContractOpts, ContractTester, StorageWrapper, TestableNymContract};
 use cosmwasm_std::testing::message_info;
-use cosmwasm_std::{coin, coins, Addr, Coin, MessageInfo};
+use cosmwasm_std::{
+    coin, coins, to_json_vec, Addr, Coin, MessageInfo, StdError, StdResult, Storage,
+};
 use rand::RngCore;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::any::type_name;
 
 pub trait StorageReader {
@@ -34,10 +37,60 @@ pub trait StorageReader {
     }
 }
 
+// technically it shouldn't rely on `StorageReader` and `common_key` should be extracted
+// but this makes it a tad easier and it's only testing code so it's fine
+pub trait StorageWriter: StorageReader {
+    fn set_common_value<T: Serialize>(
+        &mut self,
+        key: CommonStorageKeys,
+        value: &T,
+    ) -> StdResult<()> {
+        let key = self
+            .common_key(key)
+            .ok_or(StdError::not_found("key not found"))?
+            .to_vec();
+        self.set_storage_value(key, value)
+    }
+
+    fn set_storage(&mut self, key: impl AsRef<[u8]>, value: impl AsRef<[u8]>);
+
+    fn set_storage_value<T: Serialize>(
+        &mut self,
+        key: impl AsRef<[u8]>,
+        value: &T,
+    ) -> StdResult<()> {
+        self.set_storage(key, &to_json_vec(value)?);
+        Ok(())
+    }
+}
+
+pub trait ArbitraryContractStorageWriter {
+    fn set_contract_storage(
+        &mut self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+        value: impl AsRef<[u8]>,
+    );
+
+    fn set_contract_storage_value<T: Serialize>(
+        &mut self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+        value: &T,
+    ) -> StdResult<()> {
+        self.set_contract_storage(address, key, &to_json_vec(value)?);
+        Ok(())
+    }
+}
+
 // contract that has an admin
-pub trait AdminExt: StorageReader {
+pub trait AdminExt: StorageReader + StorageWriter {
     fn admin(&self) -> Option<Addr> {
         self.read_common_value(CommonStorageKeys::Admin)
+    }
+
+    fn update_admin(&mut self, admin: &Option<Addr>) -> StdResult<()> {
+        self.set_common_value(CommonStorageKeys::Admin, admin)
     }
 
     fn admin_unchecked(&self) -> Addr {
@@ -68,7 +121,7 @@ pub trait RandExt {
     fn generate_account(&mut self) -> Addr;
 }
 
-impl<T> AdminExt for T where T: StorageReader {}
+impl<T> AdminExt for T where T: StorageReader + StorageWriter {}
 impl<T> DenomExt for T where T: StorageReader {}
 
 impl<C: TestableNymContract> StorageReader for ContractTester<C> {
@@ -81,10 +134,47 @@ impl<C: TestableNymContract> StorageReader for ContractTester<C> {
     }
 }
 
+impl<C: TestableNymContract> StorageWriter for ContractTester<C> {
+    fn set_storage(&mut self, key: impl AsRef<[u8]>, value: impl AsRef<[u8]>) {
+        <Self as ContractOpts>::set_contract_storage(self, key, value)
+    }
+}
+
 impl<C: TestableNymContract> RandExt for ContractTester<C> {
     fn generate_account(&mut self) -> Addr {
         self.app
             .api()
             .addr_make(&format!("foomp{}", self.rng.next_u64()))
+    }
+}
+
+impl ArbitraryContractStorageWriter for StorageWrapper {
+    fn set_contract_storage(
+        &mut self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+        value: impl AsRef<[u8]>,
+    ) {
+        // yeah, we're unnecessarily cloning a Rc pointer, but this is a test code, so this inefficiency is fine
+        let mut wrapped_storage = self
+            .clone()
+            .contract_storage_wrapper(&Addr::unchecked(address));
+        wrapped_storage.set(key.as_ref(), value.as_ref());
+    }
+}
+
+impl<C> ArbitraryContractStorageWriter for ContractTester<C>
+where
+    C: TestableNymContract,
+{
+    fn set_contract_storage(
+        &mut self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+        value: impl AsRef<[u8]>,
+    ) {
+        self.storage
+            .as_inner_storage_mut()
+            .set_contract_storage(address, key, value);
     }
 }

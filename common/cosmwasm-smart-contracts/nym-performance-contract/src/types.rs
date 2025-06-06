@@ -33,6 +33,7 @@ pub struct RetiredNetworkMonitor {
 }
 
 #[cw_serde]
+#[derive(Copy)]
 pub struct NodePerformance {
     #[serde(rename = "n")]
     pub node_id: NodeId,
@@ -54,12 +55,13 @@ pub struct NodeResults(Vec<Percent>);
 
 impl NodeResults {
     pub fn new(initial: Percent) -> NodeResults {
-        NodeResults(vec![initial])
+        NodeResults(vec![initial.round_to_two_decimal_places()])
     }
 
     // ASSUMPTION: number of NM will be relatively small, so loading the whole vector of values
     // to insert new one and resave is cheap
     pub fn insert_new(&mut self, result: Percent) {
+        let result = result.round_to_two_decimal_places();
         let pos = self.0.binary_search(&result).unwrap_or_else(|e| e);
         self.0.insert(pos, result);
     }
@@ -76,6 +78,10 @@ impl NodeResults {
             let mid2 = self.0[len / 2];
             mid1.average(&mid2).round_to_two_decimal_places()
         }
+    }
+
+    pub fn inner(&self) -> &[Percent] {
+        &self.0
     }
 }
 
@@ -158,4 +164,67 @@ pub struct NetworkMonitorsPagedResponse {
 pub struct RetiredNetworkMonitorsPagedResponse {
     pub info: Vec<RetiredNetworkMonitor>,
     pub start_next_after: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(raw: impl AsRef<str>) -> Percent {
+        raw.as_ref().parse().unwrap()
+    }
+
+    fn ps(raw: &[&str]) -> Vec<Percent> {
+        raw.iter().map(p).collect()
+    }
+
+    #[test]
+    fn node_results_insertion() {
+        let initial = NodeResults::new(p("0.5"));
+
+        let mut smaller = initial.clone();
+        let mut greater = initial.clone();
+
+        smaller.insert_new(p("0.4"));
+        greater.insert_new(p("0.6"));
+
+        assert_eq!(smaller.0, ps(&["0.4", "0.5"]));
+        assert_eq!(greater.0, ps(&["0.5", "0.6"]));
+
+        let mut another = NodeResults(ps(&["0.1", "0.4", "0.5", "0.6", "0.6", "1.0"]));
+        another.insert_new(p("0.6"));
+        another.insert_new(p("0.2"));
+        another.insert_new(p("0.7"));
+        another.insert_new(p("0.3"));
+        another.insert_new(p("0.3"));
+        another.insert_new(p("0.55"));
+
+        assert_eq!(
+            another.0,
+            ps(&[
+                "0.1", "0.2", "0.3", "0.3", "0.4", "0.5", "0.55", "0.6", "0.6", "0.6", "0.7", "1.0"
+            ])
+        );
+    }
+
+    #[test]
+    fn node_results_median() {
+        let results = NodeResults(ps(&["0.1"]));
+        assert_eq!(results.median(), p("0.1"));
+
+        let results = NodeResults(ps(&["0.1", "0.2"]));
+        assert_eq!(results.median(), p("0.15"));
+
+        let results = NodeResults(ps(&["0.1", "0.2", "0.3"]));
+        assert_eq!(results.median(), p("0.2"));
+
+        let results = NodeResults(ps(&["0.1", "0.2", "0.3", "0.4"]));
+        assert_eq!(results.median(), p("0.25"));
+
+        let results = NodeResults(ps(&["0.1", "0.2", "0.3", "0.4", "0.5"]));
+        assert_eq!(results.median(), p("0.3"));
+
+        let results = NodeResults(ps(&["0", "0", "1", "1", "1", "1", "1"]));
+        assert_eq!(results.median(), p("1"));
+    }
 }

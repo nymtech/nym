@@ -12,11 +12,14 @@ dashmap.workspace = true
 log.workspace = true
 thiserror.workspace = true
 time.workspace = true
-tokio = { workspace = true, features = ["fs"] }
 
 nym-crypto = { path = "../../crypto", optional = true, default-features = false }
 nym-sphinx = { path = "../../nymsphinx" }
 nym-task = { path = "../../task" }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+workspace = true
+features = ["fs"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true

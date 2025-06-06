@@ -59,7 +59,7 @@ pub fn query_node_performance_paged(
 
     let mut performance = Vec::new();
 
-    if current_epoch_id <= start {
+    if current_epoch_id < start {
         return Ok(NodePerformancePagedResponse {
             node_id,
             performance,
@@ -308,6 +308,8 @@ pub fn query_retired_network_monitors_paged(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use nym_contracts_common_testing::{ContractOpts, RandExt};
 
     #[cfg(test)]
     mod admin_query {
@@ -344,5 +346,238 @@ mod tests {
 
             Ok(())
         }
+    }
+
+    #[test]
+    fn querying_node_performance_paged() -> anyhow::Result<()> {
+        let mut test = init_contract_tester();
+
+        let node_id = 123;
+        let nm = test.generate_account();
+        test.authorise_network_monitor(&nm)?;
+
+        // epoch 0
+        test.insert_raw_performance(&nm, node_id, "0")?;
+
+        // epoch 1
+        test.advance_mixnet_epoch()?;
+        test.insert_raw_performance(&nm, node_id, "0.1")?;
+
+        // epoch 2
+        test.advance_mixnet_epoch()?;
+        test.insert_raw_performance(&nm, node_id, "0.2")?;
+
+        // epoch 3
+        test.advance_mixnet_epoch()?;
+        test.insert_raw_performance(&nm, node_id, "0.3")?;
+
+        // epoch 4
+        test.advance_mixnet_epoch()?;
+        test.insert_raw_performance(&nm, node_id, "0.4")?;
+
+        // epoch 5
+        test.advance_mixnet_epoch()?;
+        test.insert_raw_performance(&nm, node_id, "0.5")?;
+
+        let deps = test.deps();
+        let res = query_node_performance_paged(deps, node_id, Some(5), None)?;
+        assert!(res.start_next_after.is_none());
+        assert!(res.performance.is_empty());
+
+        let res = query_node_performance_paged(deps, node_id, Some(42), None)?;
+        assert!(res.start_next_after.is_none());
+        assert!(res.performance.is_empty());
+
+        let res = query_node_performance_paged(deps, node_id, Some(4), None)?;
+        assert!(res.start_next_after.is_none());
+        assert_eq!(
+            res.performance,
+            vec![EpochNodePerformance {
+                epoch: 5,
+                performance: Some("0.5".parse()?),
+            }]
+        );
+
+        let res = query_node_performance_paged(deps, node_id, Some(2), None)?;
+        assert!(res.start_next_after.is_none());
+        assert_eq!(
+            res.performance,
+            vec![
+                EpochNodePerformance {
+                    epoch: 3,
+                    performance: Some("0.3".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 4,
+                    performance: Some("0.4".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 5,
+                    performance: Some("0.5".parse()?),
+                }
+            ]
+        );
+
+        let res = query_node_performance_paged(deps, node_id, None, None)?;
+        assert!(res.start_next_after.is_none());
+        assert_eq!(
+            res.performance,
+            vec![
+                EpochNodePerformance {
+                    epoch: 0,
+                    performance: Some("0".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 1,
+                    performance: Some("0.1".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 2,
+                    performance: Some("0.2".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 3,
+                    performance: Some("0.3".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 4,
+                    performance: Some("0.4".parse()?),
+                },
+                EpochNodePerformance {
+                    epoch: 5,
+                    performance: Some("0.5".parse()?),
+                }
+            ]
+        );
+
+        let res = query_node_performance_paged(deps, node_id, Some(2), Some(1))?;
+        assert_eq!(res.start_next_after, Some(3));
+        assert_eq!(
+            res.performance,
+            vec![EpochNodePerformance {
+                epoch: 3,
+                performance: Some("0.3".parse()?),
+            }]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn querying_epoch_performance_paged() -> anyhow::Result<()> {
+        let mut test = init_contract_tester();
+
+        let nm = test.generate_account();
+        test.authorise_network_monitor(&nm)?;
+
+        let epoch_id = 5;
+        test.set_mixnet_epoch(epoch_id)?;
+
+        test.insert_raw_performance(&nm, 1, "0.1")?;
+        test.insert_raw_performance(&nm, 2, "0.2")?;
+        test.insert_raw_performance(&nm, 3, "0.3")?;
+        // 4 is missing
+        test.insert_raw_performance(&nm, 5, "0.5")?;
+        test.insert_raw_performance(&nm, 6, "0.6")?;
+
+        let deps = test.deps();
+        let res = query_epoch_performance_paged(deps, epoch_id, Some(6), None)?;
+        assert!(res.start_next_after.is_none());
+        assert!(res.performance.is_empty());
+
+        let res = query_epoch_performance_paged(deps, epoch_id, Some(42), None)?;
+        assert!(res.start_next_after.is_none());
+        assert!(res.performance.is_empty());
+
+        let res = query_epoch_performance_paged(deps, epoch_id, Some(4), None)?;
+        assert_eq!(res.start_next_after, Some(6));
+        assert_eq!(
+            res.performance,
+            vec![
+                NodePerformance {
+                    node_id: 5,
+                    performance: "0.5".parse()?,
+                },
+                NodePerformance {
+                    node_id: 6,
+                    performance: "0.6".parse()?,
+                }
+            ]
+        );
+        let res = query_epoch_performance_paged(deps, epoch_id, Some(3), None)?;
+        assert_eq!(res.start_next_after, Some(6));
+        assert_eq!(
+            res.performance,
+            vec![
+                NodePerformance {
+                    node_id: 5,
+                    performance: "0.5".parse()?,
+                },
+                NodePerformance {
+                    node_id: 6,
+                    performance: "0.6".parse()?,
+                }
+            ]
+        );
+
+        let res = query_epoch_performance_paged(deps, epoch_id, Some(2), None)?;
+        assert_eq!(res.start_next_after, Some(6));
+        assert_eq!(
+            res.performance,
+            vec![
+                NodePerformance {
+                    node_id: 3,
+                    performance: "0.3".parse()?,
+                },
+                NodePerformance {
+                    node_id: 5,
+                    performance: "0.5".parse()?,
+                },
+                NodePerformance {
+                    node_id: 6,
+                    performance: "0.6".parse()?,
+                }
+            ]
+        );
+
+        let res = query_epoch_performance_paged(deps, epoch_id, None, None)?;
+        assert_eq!(res.start_next_after, Some(6));
+        assert_eq!(
+            res.performance,
+            vec![
+                NodePerformance {
+                    node_id: 1,
+                    performance: "0.1".parse()?,
+                },
+                NodePerformance {
+                    node_id: 2,
+                    performance: "0.2".parse()?,
+                },
+                NodePerformance {
+                    node_id: 3,
+                    performance: "0.3".parse()?,
+                },
+                NodePerformance {
+                    node_id: 5,
+                    performance: "0.5".parse()?,
+                },
+                NodePerformance {
+                    node_id: 6,
+                    performance: "0.6".parse()?,
+                }
+            ]
+        );
+
+        let res = query_epoch_performance_paged(deps, epoch_id, Some(2), Some(1))?;
+        assert_eq!(res.start_next_after, Some(3));
+        assert_eq!(
+            res.performance,
+            vec![NodePerformance {
+                node_id: 3,
+                performance: "0.3".parse()?,
+            }]
+        );
+
+        Ok(())
     }
 }

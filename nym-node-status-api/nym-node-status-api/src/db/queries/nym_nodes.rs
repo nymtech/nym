@@ -36,6 +36,8 @@ pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNo
             bond_info as "bond_info: serde_json::Value"
         FROM
             nym_nodes
+        ORDER BY
+            node_id
         "#,
     )
     .fetch(&mut *conn)

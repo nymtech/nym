@@ -24,7 +24,7 @@ pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
     });
 }
 
-#[instrument(level = "debug", name = "testrun_queue", skip_all)]
+#[instrument(level = "info", name = "testrun_queue", skip_all)]
 async fn run(pool: &DbPool) -> anyhow::Result<()> {
     tracing::info!("Spawning testruns...");
     if pool.is_closed() {

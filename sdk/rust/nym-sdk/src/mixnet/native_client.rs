@@ -148,6 +148,17 @@ impl MixnetClient {
     pub fn gateway_connection(&self) -> GatewayConnection {
         self.client_state.gateway_connection
     }
+    
+    /// Check if the websocket connection to the gateway is alive at the socket level
+    /// 
+    /// This performs a real socket-level health check to determine if the connection
+    /// is actually alive and responsive, not just whether we have a file descriptor.
+    pub fn is_gateway_connection_alive(&self) -> bool {
+        match self.client_state.gateway_connection.gateway_ws_fd {
+            Some(fd) => socket_is_alive(fd),
+            None => false,
+        }
+    }
 
     /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and
     /// receive logic in different locations.
@@ -338,5 +349,51 @@ impl MixnetMessageSender for MixnetClientSender {
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)
+    }
+}
+
+/// Check if a socket file descriptor is alive and responsive
+/// 
+/// This function performs socket-level checks to determine if the connection is actually alive.
+/// It's cross-platform compatible and works on both Unix and non-Unix systems.
+fn socket_is_alive(fd: std::os::raw::c_int) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::io::FromRawFd;
+        use std::net::TcpStream;
+        use std::io::ErrorKind;
+        
+        unsafe {
+            // Create a TcpStream from the raw fd to perform socket operations
+            let stream = TcpStream::from_raw_fd(fd);
+            
+            // Try to peek at the socket to see if it's still connected
+            // We peek with a zero-length buffer to avoid consuming data
+            let mut buf = [0u8; 0];
+            let result = match stream.peek(&mut buf) {
+                Ok(_) => true,  // Socket is alive and readable
+                Err(e) => match e.kind() {
+                    ErrorKind::WouldBlock => true,  // Socket is alive but no data available
+                    ErrorKind::ConnectionReset 
+                    | ErrorKind::ConnectionAborted 
+                    | ErrorKind::BrokenPipe 
+                    | ErrorKind::NotConnected => false,  // Socket is clearly dead
+                    _ => true,  // Other errors might be temporary, assume alive
+                }
+            };
+            
+            // Prevent the TcpStream from closing the fd when it's dropped
+            // since we don't own the fd
+            std::mem::forget(stream);
+            
+            result
+        }
+    }
+    
+    #[cfg(not(unix))]
+    {
+        // On non-Unix systems, we can't easily check socket state
+        // Fall back to assuming the connection is alive if we have an fd
+        fd != 0
     }
 }

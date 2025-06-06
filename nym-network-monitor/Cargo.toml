@@ -12,7 +12,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-axum = { workspace = true, features = ["json"] }
+axum = { workspace = true, features = ["json", "macros"] }
 clap = { workspace = true, features = ["derive", "env"] }
 dashmap = { workspace = true }
 futures = { workspace = true }

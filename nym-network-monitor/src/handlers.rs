@@ -15,13 +15,13 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio::{sync::RwLock, time::timeout};
+use tokio::time::timeout;
 use utoipa::ToSchema;
 
 use crate::{
     accounting::{all_node_stats, NetworkAccount, NetworkAccountStats, NodeStats},
     http::AppState,
-    make_client, MIXNET_TIMEOUT, TOPOLOGY,
+    MIXNET_TIMEOUT,
 };
 
 #[derive(ToSchema, Serialize)]
@@ -206,6 +206,11 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
             return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
     };
+
+    if !client.read().await.is_gateway_connection_alive() {
+        warn!("Client is not connected, waiting for it to connect, trying another one");
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
 
     let recv = Arc::clone(&client);
     let sender = Arc::clone(&client);

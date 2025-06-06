@@ -13,12 +13,10 @@ use nym_gateway_storage::models::WireguardPeer;
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
-const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60); // 1 hour
 
 pub struct PeerHandle {
     public_key: Key,
@@ -28,7 +26,6 @@ pub struct PeerHandle {
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
-    startup_timestamp: SystemTime,
 }
 
 impl PeerHandle {
@@ -53,7 +50,6 @@ impl PeerHandle {
             request_tx,
             timeout_check_interval,
             task_client,
-            startup_timestamp: SystemTime::now(),
         }
     }
 
@@ -115,18 +111,6 @@ impl PeerHandle {
         };
 
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
-            if kernel_peer.last_handshake.is_none()
-                && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
-            {
-                let success = self.remove_peer().await?;
-                self.peer_storage_manager.remove_peer();
-                tracing::debug!(
-                    "Peer {} has not been active for more then {} seconds, removing it",
-                    kernel_peer.public_key.to_string(),
-                    AUTO_REMOVE_AFTER.as_secs()
-                );
-                return Ok(!success);
-            }
             let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, &storage_peer)
                 .unwrap_or_else(|| {
                     // if gateway restarted, the kernel values restart from 0
@@ -161,14 +145,6 @@ impl PeerHandle {
                 }
             }
         } else {
-            if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
-                log::debug!(
-                    "Peer {} has been present for 30 days, removing it",
-                    self.public_key
-                );
-                let success = self.remove_peer().await?;
-                return Ok(!success);
-            }
             let spent_bandwidth = kernel_peer.rx_bytes + kernel_peer.tx_bytes;
             if spent_bandwidth >= BANDWIDTH_CAP_PER_DAY {
                 log::debug!(

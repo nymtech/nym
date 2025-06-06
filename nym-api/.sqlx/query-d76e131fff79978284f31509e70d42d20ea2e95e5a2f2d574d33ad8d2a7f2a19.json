@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                            SELECT id as \"id!\", simulated_epoch_id as \"simulated_epoch_id!\", node_id as \"node_id!: NodeId\", \n                                   node_type as \"node_type!\", identity_key, reliability_score as \"reliability_score!\", \n                                   positive_samples as \"positive_samples!: u32\", negative_samples as \"negative_samples!: u32\", \n                                   work_factor, calculation_method as \"calculation_method!\", calculated_at as \"calculated_at!\"\n                            FROM simulated_node_performance\n                            WHERE simulated_epoch_id = ? AND calculation_method = ?\n                            ORDER BY node_id\n                        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "simulated_epoch_id!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_id!: NodeId",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_type!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "identity_key",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "reliability_score!",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "positive_samples!: u32",
+        "ordinal": 6,
+        "type_info": "Int64"
+      },
+      {
+        "name": "negative_samples!: u32",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "work_factor",
+        "ordinal": 8,
+        "type_info": "Float"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "calculated_at!",
+        "ordinal": 10,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "d76e131fff79978284f31509e70d42d20ea2e95e5a2f2d574d33ad8d2a7f2a19"
+}

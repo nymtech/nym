@@ -12,6 +12,9 @@ pub(crate) struct OverrideConfig {
     /// Specifies whether network rewarding is enabled on this API
     pub(crate) enable_rewarding: Option<bool>,
 
+    /// Specifies whether simulated rewarding is enabled on this API
+    pub(crate) simulate_rewarding: Option<bool>,
+
     /// Endpoint to nyxd instance used for contract information.
     pub(crate) nyxd_validator: Option<url::Url>,
 
@@ -40,6 +43,7 @@ impl From<init::Args> for OverrideConfig {
         OverrideConfig {
             enable_monitor: Some(args.enable_monitor),
             enable_rewarding: Some(args.enable_rewarding),
+            simulate_rewarding: None, // Not available during initialization
             nyxd_validator: args.nyxd_validator,
             mnemonic: args.mnemonic,
             enable_zk_nym: Some(args.enable_zk_nym),
@@ -56,6 +60,7 @@ impl From<run::Args> for OverrideConfig {
         OverrideConfig {
             enable_monitor: args.enable_monitor,
             enable_rewarding: args.enable_rewarding,
+            simulate_rewarding: args.simulate_rewarding,
             nyxd_validator: args.nyxd_validator,
             mnemonic: args.mnemonic,
             enable_zk_nym: args.enable_zk_nym,

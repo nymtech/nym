@@ -67,7 +67,7 @@ impl HttpServer {
         let n_clients = clients.read().await.len();
         let state = AppState { clients };
         let app = Router::new()
-            .route("/v1/send", post(send_handler).with_state(state))
+            .route("/v1/send", post(send_handler))
             .merge(SwaggerUi::new("/v1/ui").url("/v1/docs/openapi.json", ApiDoc::openapi()))
             .route("/v1/accounting", get(accounting_handler))
             .route("/v1/sent", get(sent_handler))
@@ -77,7 +77,8 @@ impl HttpServer {
             .route("/v1/stats", get(stats_handler))
             .route("/v1/node_stats/:mix_id", get(node_stats_handler))
             .route("/v1/node_stats", get(all_nodes_stats_handler))
-            .route("/v1/received", get(recv_handler));
+            .route("/v1/received", get(recv_handler))
+            .with_state(state);
         let listener = tokio::net::TcpListener::bind(self.listener).await?;
 
         let server_future =

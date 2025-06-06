@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT sra.id as \"id!\", sra.simulated_epoch_id as \"simulated_epoch_id!\", \n                           sra.calculation_method as \"calculation_method!\", sra.total_routes_analyzed as \"total_routes_analyzed!: u32\", \n                           sra.successful_routes as \"successful_routes!: u32\", sra.failed_routes as \"failed_routes!: u32\", \n                           sra.average_route_reliability, sra.time_window_hours as \"time_window_hours!: u32\", \n                           sra.analysis_parameters, sra.calculated_at as \"calculated_at!\"\n                    FROM simulated_route_analysis sra\n                    JOIN simulated_reward_epochs sre ON sra.simulated_epoch_id = sre.id\n                    WHERE sre.epoch_id = ? AND sra.calculation_method = ?\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "simulated_epoch_id!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_routes_analyzed!: u32",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "successful_routes!: u32",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "failed_routes!: u32",
+        "ordinal": 5,
+        "type_info": "Int64"
+      },
+      {
+        "name": "average_route_reliability",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "time_window_hours!: u32",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "analysis_parameters",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "calculated_at!",
+        "ordinal": 9,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "4e2338362058e4356ac639fdf806e827761f879cab723cb2a649bc76b176fdad"
+}

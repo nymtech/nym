@@ -36,6 +36,9 @@ pub trait GatewayTransceiver: GatewaySender + GatewayReceiver {
         &mut self,
         message: ClientRequest,
     ) -> Result<(), GatewayClientError>;
+    
+    /// Check if the websocket connection to the gateway is alive
+    fn is_connection_alive(&self) -> bool;
 }
 
 /// This trait defines the functionality of sending `MixPacket` into the mixnet,
@@ -89,6 +92,11 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
         let _ = (**self).send_client_request(message.clone()).await?;
         log::debug!("Sent client request: {:?}", message);
         Ok(())
+    }
+    
+    #[inline]
+    fn is_connection_alive(&self) -> bool {
+        (**self).is_connection_alive()
     }
 }
 
@@ -146,6 +154,10 @@ where
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         self.gateway_client.send_client_request(message).await
+    }
+    
+    fn is_connection_alive(&self) -> bool {
+        self.gateway_client.is_connection_alive()
     }
 }
 
@@ -234,6 +246,11 @@ mod nonwasm_sealed {
         ) -> Result<(), GatewayClientError> {
             Ok(())
         }
+        
+        fn is_connection_alive(&self) -> bool {
+            // LocalGateway is always "connected" since it's in-process
+            true
+        }
     }
 
     #[async_trait]
@@ -315,5 +332,10 @@ impl GatewayTransceiver for MockGateway {
         _message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         Ok(())
+    }
+    
+    fn is_connection_alive(&self) -> bool {
+        // MockGateway is always "connected" for testing purposes
+        true
     }
 }

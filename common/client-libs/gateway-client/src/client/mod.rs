@@ -164,6 +164,24 @@ impl<C, St> GatewayClient<C, St> {
     pub fn remaining_bandwidth(&self) -> i64 {
         self.bandwidth.remaining()
     }
+    
+    pub fn is_connection_established(&self) -> bool {
+        self.connection.is_established()
+    }
+    
+    /// Check if the websocket connection is actually alive at the socket level
+    pub fn is_connection_alive(&self) -> bool {
+        // First check if we have an established connection
+        if !self.connection.is_established() {
+            return false;
+        }
+        
+        // Get the file descriptor and check if the socket is alive
+        match self.ws_fd() {
+            Some(fd) => socket_is_alive(fd),
+            None => false,
+        }
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
@@ -1126,5 +1144,51 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             connection_fd_callback: self.connection_fd_callback,
             task_client,
         }
+    }
+}
+
+/// Check if a socket file descriptor is alive and responsive
+/// 
+/// This function performs socket-level checks to determine if the connection is actually alive.
+/// It's cross-platform compatible and works on both Unix and non-Unix systems.
+fn socket_is_alive(fd: RawFd) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::io::FromRawFd;
+        use std::net::TcpStream;
+        use std::io::ErrorKind;
+        
+        unsafe {
+            // Create a TcpStream from the raw fd to perform socket operations
+            let stream = TcpStream::from_raw_fd(fd);
+            
+            // Try to peek at the socket to see if it's still connected
+            // We peek with a zero-length buffer to avoid consuming data
+            let mut buf = [0u8; 0];
+            let result = match stream.peek(&mut buf) {
+                Ok(_) => true,  // Socket is alive and readable
+                Err(e) => match e.kind() {
+                    ErrorKind::WouldBlock => true,  // Socket is alive but no data available
+                    ErrorKind::ConnectionReset 
+                    | ErrorKind::ConnectionAborted 
+                    | ErrorKind::BrokenPipe 
+                    | ErrorKind::NotConnected => false,  // Socket is clearly dead
+                    _ => true,  // Other errors might be temporary, assume alive
+                }
+            };
+            
+            // Prevent the TcpStream from closing the fd when it's dropped
+            // since we don't own the fd
+            std::mem::forget(stream);
+            
+            result
+        }
+    }
+    
+    #[cfg(not(unix))]
+    {
+        // On non-Unix systems, we can't easily check socket state
+        // Fall back to assuming the connection is alive if we have an fd
+        fd != 0
     }
 }

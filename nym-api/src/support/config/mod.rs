@@ -136,12 +136,28 @@ impl Config {
     pub fn validate(&self) -> anyhow::Result<()> {
         let can_sign = self.base.mnemonic.is_some();
 
-        if !can_sign && self.rewarding.enabled {
+        // Real rewarding requires mnemonic, but simulation mode does not
+        if !can_sign && self.rewarding.enabled && !self.rewarding.simulation_mode {
             bail!("can't enable rewarding without providing a mnemonic")
+        }
+
+        // Simulation mode and real rewarding are mutually exclusive
+        if self.rewarding.enabled && self.rewarding.simulation_mode {
+            bail!("cannot enable both real rewarding and simulation mode simultaneously")
         }
 
         if !can_sign && self.ecash_signer.enabled {
             bail!("can't enable coconut signer without providing a mnemonic")
+        }
+
+        // Validate simulation-specific settings
+        if self.rewarding.simulation_mode {
+            if self.rewarding.debug.simulation_new_method_time_window_hours == 0 {
+                bail!("simulation_new_method_time_window_hours must be greater than 0")
+            }
+            if self.rewarding.debug.simulation_new_method_time_window_hours > 24 {
+                bail!("simulation_new_method_time_window_hours should not exceed 24 hours")
+            }
         }
 
         self.ecash_signer.validate()?;
@@ -157,6 +173,9 @@ impl Config {
         }
         if let Some(enable_rewarding) = args.enable_rewarding {
             self.rewarding.enabled = enable_rewarding;
+        }
+        if let Some(simulate_rewarding) = args.simulate_rewarding {
+            self.rewarding.simulation_mode = simulate_rewarding;
         }
         if let Some(nyxd_upstream) = args.nyxd_validator {
             self.base.local_validator = nyxd_upstream;
@@ -499,6 +518,9 @@ pub struct Rewarding {
     /// Specifies whether rewarding service is enabled in this process.
     pub enabled: bool,
 
+    /// Specifies whether to run in simulation mode (compare old vs new calculations without blockchain transactions)
+    pub simulation_mode: bool,
+
     // this should really be a thing too...
     // pub paths: RewardingPathfinder,
     #[serde(default)]
@@ -510,6 +532,7 @@ impl Default for Rewarding {
     fn default() -> Self {
         Rewarding {
             enabled: false,
+            simulation_mode: false,
             debug: Default::default(),
         }
     }
@@ -522,12 +545,21 @@ pub struct RewardingDebug {
     /// distribute rewards for given interval.
     /// Note, only values in range 0-100 are valid
     pub minimum_interval_monitor_threshold: u8,
+
+    /// Time window in hours for new route-based performance calculation (default: 1 hour)
+    /// Old method always uses 24 hours for comparison
+    pub simulation_new_method_time_window_hours: u32,
+
+    /// Whether to run both old and new calculations in simulation mode
+    pub simulation_run_both_methods: bool,
 }
 
 impl Default for RewardingDebug {
     fn default() -> Self {
         RewardingDebug {
             minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
+            simulation_new_method_time_window_hours: 1, // New method uses 1 hour
+            simulation_run_both_methods: true, // Default to running both for comparison
         }
     }
 }

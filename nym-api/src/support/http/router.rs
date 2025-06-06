@@ -8,6 +8,7 @@ use crate::node_status_api::handlers::status_routes;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
 use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
+use crate::simulation_api::handlers::simulation_routes;
 use crate::status;
 use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
@@ -64,6 +65,7 @@ impl RouterBuilder {
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())
                     .nest("/ecash", ecash_routes())
+                    .nest("/simulation", simulation_routes())
                     .nest("/unstable", unstable_routes()), // CORS layer needs to be "outside" of routes
             );
 

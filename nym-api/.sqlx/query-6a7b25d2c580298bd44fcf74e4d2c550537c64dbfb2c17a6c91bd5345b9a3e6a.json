@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                            SELECT id as \"id!\", simulated_epoch_id as \"simulated_epoch_id!\", node_id as \"node_id!: NodeId\", \n                                   node_type as \"node_type!\", performance_score as \"performance_score!\", \n                                   work_factor as \"work_factor!\", calculation_method as \"calculation_method!\", \n                                   positive_samples as \"positive_samples?\", negative_samples as \"negative_samples?\",\n                                   route_success_rate as \"route_success_rate?\", calculated_at as \"calculated_at!\"\n                            FROM simulated_performance_comparisons\n                            WHERE simulated_epoch_id = ?\n                            ORDER BY calculation_method, node_id\n                        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "simulated_epoch_id!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_id!: NodeId",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_type!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "performance_score!",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "work_factor!",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "positive_samples?",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "negative_samples?",
+        "ordinal": 8,
+        "type_info": "Int64"
+      },
+      {
+        "name": "route_success_rate?",
+        "ordinal": 9,
+        "type_info": "Float"
+      },
+      {
+        "name": "calculated_at!",
+        "ordinal": 10,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "6a7b25d2c580298bd44fcf74e4d2c550537c64dbfb2c17a6c91bd5345b9a3e6a"
+}

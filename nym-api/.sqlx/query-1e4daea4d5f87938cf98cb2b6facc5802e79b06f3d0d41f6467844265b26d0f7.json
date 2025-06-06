@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT id as \"id!\", epoch_id as \"epoch_id!: u32\", calculation_method as \"calculation_method!\", \n                           start_timestamp as \"start_timestamp!\", end_timestamp as \"end_timestamp!\", \n                           description, created_at as \"created_at!\"\n                    FROM simulated_reward_epochs\n                    WHERE id = ?\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "epoch_id!: u32",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "start_timestamp!",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "end_timestamp!",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "description",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 6,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "1e4daea4d5f87938cf98cb2b6facc5802e79b06f3d0d41f6467844265b26d0f7"
+}

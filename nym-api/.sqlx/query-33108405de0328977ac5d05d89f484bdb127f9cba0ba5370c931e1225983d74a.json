@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                            SELECT id as \"id!\", simulated_epoch_id as \"simulated_epoch_id!\", \n                                   node_id as \"node_id!: NodeId\", calculation_method as \"calculation_method!\", \n                                   performance_rank as \"performance_rank!\", performance_percentile as \"performance_percentile!\",\n                                   calculated_at as \"calculated_at!\"\n                            FROM simulated_performance_rankings\n                            WHERE simulated_epoch_id = ?\n                            ORDER BY calculation_method, performance_rank\n                        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "simulated_epoch_id!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "node_id!: NodeId",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "performance_rank!",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "performance_percentile!",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "calculated_at!",
+        "ordinal": 6,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "33108405de0328977ac5d05d89f484bdb127f9cba0ba5370c931e1225983d74a"
+}

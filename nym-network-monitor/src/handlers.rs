@@ -184,6 +184,12 @@ pub async fn mermaid_handler() -> Result<String, StatusCode> {
 }
 
 async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
+    // let client = Arc::new(RwLock::new(
+    //     make_client(TOPOLOGY.get().expect("Set at the begining").clone())
+    //         .await
+    //         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    // ));
+
     let msg: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(32)
@@ -197,9 +203,14 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
             Arc::clone(client)
         } else {
             error!("No clients currently available");
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
     };
+
+    if !client.read().await.is_gateway_connection_alive() {
+        warn!("Client is not connected, waiting for it to connect, trying another one");
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
 
     let recv = Arc::clone(&client);
     let sender = Arc::clone(&client);
@@ -239,7 +250,7 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
             Ok(_) => {}
             Err(e) => {
                 error!("Failed to send/receive message: {e}");
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                return Err(StatusCode::GATEWAY_TIMEOUT);
             }
         }
     }

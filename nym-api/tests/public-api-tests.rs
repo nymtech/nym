@@ -24,3 +24,6 @@ mod unstable_nym_nodes;
 
 #[path = "public-api/unstable_status.rs"]
 mod unstable_status;
+
+#[path = "public-api/simulation.rs"]
+mod simulation;

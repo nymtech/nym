@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT INTO simulated_route_analysis\n                    (simulated_epoch_id, calculation_method, total_routes_analyzed, successful_routes,\n                     failed_routes, average_route_reliability, time_window_hours, analysis_parameters)\n                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "df9013912c0e4177625267776656cb139cf3ac8dd4cd4c5146005b055aefd228"
+}

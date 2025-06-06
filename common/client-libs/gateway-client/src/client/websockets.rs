@@ -1,6 +1,5 @@
 use crate::error::GatewayClientError;
 
-use nym_http_api_client::HickoryDnsResolver;
 #[cfg(unix)]
 use std::{
     os::fd::{AsRawFd, RawFd},
@@ -20,7 +19,6 @@ pub(crate) async fn connect_async(
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
     use tokio::net::TcpSocket;
 
-    let resolver = HickoryDnsResolver::default();
     let uri =
         Url::parse(endpoint).map_err(|_| GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
     let port: u16 = uri.port_or_known_default().unwrap_or(443);
@@ -29,18 +27,18 @@ pub(crate) async fn connect_async(
         .host()
         .ok_or(GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
 
-    // Get address for tcp connection, if a domain is provided use our preferred resolver rather than
-    // the default std resolve
+    // Get address for tcp connection, using system DNS resolver
     let sock_addrs: Vec<SocketAddr> = match host {
         Host::Ipv4(addr) => vec![SocketAddr::new(addr.into(), port)],
         Host::Ipv6(addr) => vec![SocketAddr::new(addr.into(), port)],
         Host::Domain(domain) => {
-            // Do a DNS lookup for the domain using our custom DNS resolver
-            resolver
-                .resolve_str(domain)
-                .await?
-                .into_iter()
-                .map(|a| SocketAddr::new(a, port))
+            // Do a DNS lookup for the domain using system DNS resolver
+            tokio::net::lookup_host((domain, port))
+                .await
+                .map_err(|err| GatewayClientError::NetworkConnectionFailed {
+                    address: endpoint.to_owned(),
+                    source: err.into(),
+                })?
                 .collect()
         }
     };

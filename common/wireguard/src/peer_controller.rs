@@ -137,24 +137,6 @@ impl PeerController {
         }
     }
 
-    // Function that should be used for peer insertion, to handle both storage and kernel interaction
-    pub async fn add_peer(&self, peer: &Peer) -> Result<(), Error> {
-        let ret: Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> =
-            self.wg_api.inner.configure_peer(peer);
-        if ret.is_err() {
-            // Try to revert the insertion in storage
-            if self
-                .storage
-                .remove_wireguard_peer(&peer.public_key.to_string())
-                .await
-                .is_err()
-            {
-                log::error!("The storage has been corrupted. Wireguard peer {} will persist in storage indefinitely.", peer.public_key);
-            }
-        }
-        Ok(ret?)
-    }
-
     // Function that should be used for peer removal, to handle both storage and kernel interaction
     pub async fn remove_peer(&mut self, key: &Key) -> Result<(), Error> {
         self.storage.remove_wireguard_peer(&key.to_string()).await?;
@@ -191,7 +173,7 @@ impl PeerController {
     }
 
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<(), Error> {
-        self.add_peer(peer).await?;
+        self.wg_api.inner.configure_peer(peer)?;
         let bandwidth_storage_manager = Arc::new(RwLock::new(
             Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key).await?,
         ));

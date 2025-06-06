@@ -13,13 +13,10 @@ pub(crate) fn circulating_supply_routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(get_full_circulating_supply))
         .route(
-            "/total-supply-value",
+            "/circulating-supply-value",
             axum::routing::get(get_circulating_supply),
         )
-        .route(
-            "/circulating-supply-value",
-            axum::routing::get(get_total_supply),
-        )
+        .route("/total-supply-value", axum::routing::get(get_total_supply))
 }
 
 #[utoipa::path(

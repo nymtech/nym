@@ -1,9 +1,5 @@
-use std::net::SocketAddr;
-
-use axum::{
-    extract::{ConnectInfo, State},
-    Json, Router,
-};
+use axum::{extract::State, Json, Router};
+use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers::UserAgent, TypedHeader};
 use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
 use tracing::debug;
@@ -33,12 +29,16 @@ pub(crate) fn routes() -> Router<AppState> {
 #[tracing::instrument(level = "info", skip_all)]
 async fn submit_stats_report(
     State(mut state): State<AppState>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     TypedHeader(user_agent): TypedHeader<UserAgent>,
+    insecure_ip_addr: InsecureClientIp,
     Json(report): Json<VpnClientStatsReport>,
 ) -> HttpResult<Json<()>> {
     let now = time::OffsetDateTime::now_utc();
-    let gateway_record = state.network_view().get_country_by_ip(&addr.ip()).await;
+
+    let gateway_record = state
+        .network_view()
+        .get_country_by_ip(&insecure_ip_addr.0)
+        .await;
 
     let from_mixnet = gateway_record.is_some();
     let maybe_location = gateway_record.unwrap_or_default();
@@ -50,8 +50,13 @@ async fn submit_stats_report(
     }
 
     let active_device = DailyActiveDeviceDto::new(now, &report, user_agent, from_mixnet);
-    let maybe_connection_info =
-        ConnectionInfoDto::maybe_new(now, &report, addr, maybe_location, from_mixnet);
+    let maybe_connection_info = ConnectionInfoDto::maybe_new(
+        now,
+        &report,
+        insecure_ip_addr.0,
+        maybe_location,
+        from_mixnet,
+    );
 
     state
         .storage()

@@ -13,6 +13,7 @@ use crate::utils::deserialize_g2;
 use crate::{NodeIndex, Share, Threshold};
 use bls12_381::{G2Projective, Scalar};
 use group::GroupEncoding;
+use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
@@ -94,7 +95,7 @@ impl Dealing {
     // I'm not a big fan of this function signature, but I'm not clear on how to improve it while
     // allowing the dealer to skip decryption of its own share if it was also one of the receivers
     pub fn create(
-        mut rng: impl RngCore,
+        mut rng: impl RngCore + CryptoRng + CryptoRng,
         params: &Params,
         dealer_index: NodeIndex,
         threshold: Threshold,
@@ -484,7 +485,7 @@ mod tests {
         for (i, (ref dk, _)) in full_keys.iter().enumerate() {
             let shares = dealings
                 .values()
-                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+                .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
                 .collect();
             derived_secrets.push(
                 combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap(),
@@ -593,7 +594,7 @@ mod tests {
         for (i, (dk, _)) in full_keys.iter().enumerate() {
             let shares = dealings
                 .values()
-                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+                .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
                 .collect();
 
             let recovered_secret = combine_shares(shares, &dealer_indices).unwrap();

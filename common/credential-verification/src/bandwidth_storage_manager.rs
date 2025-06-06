@@ -40,6 +40,10 @@ impl BandwidthStorageManager {
         }
     }
 
+    pub fn client_bandwidth(&self) -> ClientBandwidth {
+        self.client_bandwidth.clone()
+    }
+
     pub async fn available_bandwidth(&self) -> i64 {
         self.client_bandwidth.available().await
     }

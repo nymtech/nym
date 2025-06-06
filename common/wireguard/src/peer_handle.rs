@@ -13,7 +13,6 @@ use nym_gateway_storage::models::WireguardPeer;
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
-use std::time::SystemTime;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
@@ -27,7 +26,6 @@ pub struct PeerHandle {
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
-    startup_timestamp: SystemTime,
 }
 
 impl PeerHandle {
@@ -52,7 +50,6 @@ impl PeerHandle {
             request_tx,
             timeout_check_interval,
             task_client,
-            startup_timestamp: SystemTime::now(),
         }
     }
 

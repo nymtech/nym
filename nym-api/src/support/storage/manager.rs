@@ -1198,6 +1198,22 @@ impl StorageManager {
         Ok(())
     }
 
+    /// Removes all route monitoring results that are older than the
+    /// provided timestamp. This method is indirectly called at every reward cycle.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp`: timestamp specifying the purge cutoff.
+    pub(super) async fn purge_old_routes(
+        &self,
+        timestamp: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM routes WHERE timestamp < ?", timestamp)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
     /// Returns public key, owner and id of all mixnodes that have had any statuses submitted
     /// within the provided time interval.
     ///

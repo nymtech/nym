@@ -175,7 +175,11 @@ async fn nym_topology_forced_all_from_env() -> anyhow::Result<NymTopology> {
     let node_ids = topology
         .node_details()
         .iter()
-        .filter(|(_node_id, node)| node.supported_roles.mixnode)
+        .filter(|(_node_id, node)| {
+            node.supported_roles.mixnode
+                && !node.supported_roles.mixnet_entry
+                && !node.supported_roles.mixnet_exit
+        })
         .map(|(node_id, _)| *node_id)
         .collect::<Vec<_>>();
 

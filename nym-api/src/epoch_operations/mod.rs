@@ -195,7 +195,7 @@ impl EpochAdvancer {
         self.update_rewarded_set_and_advance_epoch(&nym_nodes)
             .await?;
 
-        info!("Purging old node statuses from the storage...");
+        info!("Purging old data (node statuses and routes) from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 

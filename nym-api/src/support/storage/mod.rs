@@ -943,8 +943,9 @@ impl NymApiStorage {
     /// * `until`: timestamp specifying the purge cutoff.
     pub(crate) async fn purge_old_statuses(&self, until: i64) -> Result<(), NymApiStorageError> {
         self.manager.purge_old_mixnode_statuses(until).await?;
+        self.manager.purge_old_gateway_statuses(until).await?;
         self.manager
-            .purge_old_gateway_statuses(until)
+            .purge_old_routes(until)
             .await
             .map_err(|err| err.into())
     }

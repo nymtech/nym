@@ -21,6 +21,8 @@ pub trait ContractOpts {
 
     fn env(&self) -> Env;
 
+    fn addr_make(&self, input: &str) -> Addr;
+
     fn deps_mut_env(&mut self) -> (DepsMut<'_>, Env) {
         let env = self.env().clone();
         (self.deps_mut(), env)
@@ -31,6 +33,8 @@ pub trait ContractOpts {
     fn storage_mut(&mut self) -> &mut dyn Storage;
 
     fn read_from_contract_storage<T: DeserializeOwned>(&self, key: impl AsRef<[u8]>) -> Option<T>;
+
+    fn set_contract_storage(&mut self, key: impl AsRef<[u8]>, value: impl AsRef<[u8]>);
 
     fn unchecked_read_from_contract_storage<T: DeserializeOwned>(
         &self,
@@ -91,6 +95,10 @@ where
         }
     }
 
+    fn addr_make(&self, input: &str) -> Addr {
+        self.app.api().addr_make(input)
+    }
+
     fn storage(&self) -> &dyn Storage {
         &self.storage
     }
@@ -102,6 +110,10 @@ where
     fn read_from_contract_storage<T: DeserializeOwned>(&self, key: impl AsRef<[u8]>) -> Option<T> {
         let raw = self.deps().storage.get(key.as_ref())?;
         from_json(&raw).ok()
+    }
+
+    fn set_contract_storage(&mut self, key: impl AsRef<[u8]>, value: impl AsRef<[u8]>) {
+        self.deps_mut().storage.set(key.as_ref(), value.as_ref());
     }
 
     fn execute_raw_with_balance(

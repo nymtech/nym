@@ -277,6 +277,9 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         )?;
     }
 
+    let has_performance_data =
+        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
+
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring is enabled
     if config.network_monitor.enabled {
@@ -292,19 +295,19 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         .await;
 
         HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
+    }
 
-        // start 'rewarding' if its enabled
-        if config.rewarding.enabled {
-            epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            EpochAdvancer::start(
-                nyxd_client,
-                &nym_contract_cache_state,
-                &node_status_cache_state,
-                described_nodes_cache.clone(),
-                &storage,
-                &task_manager,
-            );
-        }
+    // start 'rewarding' if its enabled and there exists source for performance data
+    if config.rewarding.enabled && has_performance_data {
+        epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+        EpochAdvancer::start(
+            nyxd_client,
+            &nym_contract_cache_state,
+            &node_status_cache_state,
+            described_nodes_cache.clone(),
+            &storage,
+            &task_manager,
+        );
     }
 
     // finally start a background task watching the contract changes and requesting

@@ -100,6 +100,9 @@ pub struct Config {
 
     pub base: Base,
 
+    #[serde(default)]
+    pub performance_provider: PerformanceProvider,
+
     // TODO: perhaps introduce separate 'path finder' field for all the paths and directories like we have with other configs
     pub network_monitor: NetworkMonitor,
 
@@ -130,6 +133,7 @@ impl Config {
         Config {
             save_path: None,
             base: Base::new_default(id.as_ref()),
+            performance_provider: Default::default(),
             network_monitor: NetworkMonitor::new_default(id.as_ref()),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             describe_cache: Default::default(),
@@ -301,6 +305,22 @@ impl Base {
             local_validator: default_validator,
             bind_address: default_http_socket_addr(),
             mnemonic: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct PerformanceProvider {
+    /// Specifies whether this nym-api should attempt to retrieve node performance
+    /// information from the performance contract.
+    pub use_performance_contract_data: bool,
+}
+
+impl Default for PerformanceProvider {
+    fn default() -> Self {
+        PerformanceProvider {
+            // to be changed later
+            use_performance_contract_data: false,
         }
     }
 }

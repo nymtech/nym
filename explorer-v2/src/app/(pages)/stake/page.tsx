@@ -13,12 +13,6 @@ export default async function StakingPage() {
       <SubHeaderRow />
       <OverviewCards />
       <StakeTableWithAction />
-      {/* <Grid container columnSpacing={5} rowSpacing={5}>
-        <Grid size={12}>
-          <SectionHeading title="Onboarding" />
-        </Grid>
-        <BlogArticlesCards ids={[1]} />
-      </Grid> */}
     </ContentLayout>
   );
 }

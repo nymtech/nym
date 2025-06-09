@@ -120,21 +120,18 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     Number(accountInfo.total_value.amount),
     nymPriceData
   );
-  const spendableNYM =
-    accountInfo.balances.length > 0
-      ? getNymsFormated(Number(accountInfo.balances[0].amount))
-      : 0;
-  const spendableUSD =
-    accountInfo.balances.length > 0
-      ? getPriceInUSD(Number(accountInfo.balances[0].amount), nymPriceData)
-      : 0;
-  const spendableAllocation =
-    accountInfo.balances.length > 0
-      ? getAllocation(
-          Number(accountInfo.balances[0].amount),
-          Number(accountInfo.total_value.amount)
-        )
-      : 0;
+  const spendableNYM = accountInfo.balance
+    ? getNymsFormated(Number(accountInfo.balance.amount))
+    : 0;
+  const spendableUSD = accountInfo.balance
+    ? getPriceInUSD(Number(accountInfo.balance.amount), nymPriceData)
+    : 0;
+  const spendableAllocation = accountInfo.balance
+    ? getAllocation(
+        Number(accountInfo.balance.amount),
+        Number(accountInfo.total_value.amount)
+      )
+    : 0;
 
   const delegationsNYM = getNymsFormated(
     Number(accountInfo.total_delegations.amount)

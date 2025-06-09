@@ -187,12 +187,13 @@ export interface IDelegationDetails {
   delegated: IAmountDetails;
   height: number;
   proxy: null | string;
+  node_bonded: boolean;
 }
 
 export interface IAccountBalancesInfo {
   accumulated_rewards: IRewardDetails[];
   address: string;
-  balances: IAmountDetails[];
+  balance: IAmountDetails;
   claimable_rewards: IAmountDetails;
   delegations: IDelegationDetails[];
   operator_rewards?: null | IAmountDetails;

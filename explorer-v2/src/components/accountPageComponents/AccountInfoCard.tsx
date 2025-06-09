@@ -51,8 +51,7 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
     );
   }
 
-  const balance =
-    data.balances.length > 0 ? Number(data.total_value.amount) / 1000000 : 0;
+  const balance = data.balance ? Number(data.total_value.amount) / 1000000 : 0;
   const balanceFormated = `${balance.toFixed(4)} NYM`;
 
   return (

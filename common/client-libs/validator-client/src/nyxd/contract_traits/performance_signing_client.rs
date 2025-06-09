@@ -9,7 +9,7 @@ use crate::nyxd::{Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_performance_contract_common::{
-    types::NodeId, EpochId, ExecuteMsg as PerformanceExecuteMsg, NodePerformance,
+    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodePerformance,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

@@ -50,7 +50,6 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_TOPOLOGY_CACHE_INTERVAL: Duration = Duration::from_secs(30);
 const DEFAULT_NODE_STATUS_CACHE_INTERVAL: Duration = Duration::from_secs(120);
 const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(3600);
 
@@ -106,7 +105,8 @@ pub struct Config {
 
     pub node_status_api: NodeStatusAPI,
 
-    pub topology_cacher: TopologyCacher,
+    #[serde(alias = "topology_cacher")]
+    pub describe_cache: DescribeCache,
 
     pub circulating_supply_cacher: CirculatingSupplyCacher,
 
@@ -132,7 +132,7 @@ impl Config {
             base: Base::new_default(id.as_ref()),
             network_monitor: NetworkMonitor::new_default(id.as_ref()),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
-            topology_cacher: Default::default(),
+            describe_cache: Default::default(),
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
@@ -184,7 +184,7 @@ impl Config {
             self.base.bind_address = http_bind_address
         }
         if args.allow_illegal_ips {
-            self.topology_cacher.debug.node_describe_allow_illegal_ips = true
+            self.describe_cache.debug.allow_illegal_ips = true
         }
         if let Some(address_cache_ttl) = args.address_cache_ttl {
             self.address_cache.time_to_live = address_cache_ttl;
@@ -454,35 +454,34 @@ impl Default for NodeStatusAPIDebug {
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
-pub struct TopologyCacher {
+pub struct DescribeCache {
     // pub enabled: bool,
 
     // pub paths: TopologyCacherPathfinder,
     #[serde(default)]
-    pub debug: TopologyCacherDebug,
+    pub debug: DescribeCacheDebug,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
-pub struct TopologyCacherDebug {
+pub struct DescribeCacheDebug {
     #[serde(with = "humantime_serde")]
+    #[serde(alias = "node_describe_caching_interval")]
     pub caching_interval: Duration,
 
-    #[serde(with = "humantime_serde")]
-    pub node_describe_caching_interval: Duration,
+    #[serde(alias = "node_describe_batch_size")]
+    pub batch_size: usize,
 
-    pub node_describe_batch_size: usize,
-
-    pub node_describe_allow_illegal_ips: bool,
+    #[serde(alias = "node_describe_allow_illegal_ips")]
+    pub allow_illegal_ips: bool,
 }
 
-impl Default for TopologyCacherDebug {
+impl Default for DescribeCacheDebug {
     fn default() -> Self {
-        TopologyCacherDebug {
-            caching_interval: DEFAULT_TOPOLOGY_CACHE_INTERVAL,
-            node_describe_caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
-            node_describe_batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
-            node_describe_allow_illegal_ips: false,
+        DescribeCacheDebug {
+            caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
+            batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
+            allow_illegal_ips: false,
         }
     }
 }

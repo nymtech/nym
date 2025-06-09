@@ -120,35 +120,29 @@ impl CacheItemProvider for NodeDescriptionProvider {
 // currently dead code : (
 #[allow(dead_code)]
 pub(crate) fn new_refresher(
-    config: &config::TopologyCacher,
+    config: &config::DescribeCache,
     contract_cache: NymContractCache,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
         Box::new(
-            NodeDescriptionProvider::new(
-                contract_cache,
-                config.debug.node_describe_allow_illegal_ips,
-            )
-            .with_batch_size(config.debug.node_describe_batch_size),
+            NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
+                .with_batch_size(config.debug.batch_size),
         ),
-        config.debug.node_describe_caching_interval,
+        config.debug.caching_interval,
     )
 }
 
 pub(crate) fn new_provider_with_initial_value(
-    config: &config::TopologyCacher,
+    config: &config::DescribeCache,
     contract_cache: NymContractCache,
     initial: SharedCache<DescribedNodes>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(
         Box::new(
-            NodeDescriptionProvider::new(
-                contract_cache,
-                config.debug.node_describe_allow_illegal_ips,
-            )
-            .with_batch_size(config.debug.node_describe_batch_size),
+            NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
+                .with_batch_size(config.debug.batch_size),
         ),
-        config.debug.node_describe_caching_interval,
+        config.debug.caching_interval,
         initial,
     )
 }

@@ -208,9 +208,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
             config.address_cache.time_to_live,
             config.address_cache.capacity,
         ),
-        forced_refresh: ForcedRefresh::new(
-            config.topology_cacher.debug.node_describe_allow_illegal_ips,
-        ),
+        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
         nym_contract_cache: nym_contract_cache_state.clone(),
         node_status_cache: node_status_cache_state.clone(),
         circulating_supply_cache: circulating_supply_cache.clone(),
@@ -227,7 +225,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
     // let cache = refresher.get_shared_cache();
     let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
-        &config.topology_cacher,
+        &config.describe_cache,
         nym_contract_cache_state.clone(),
         described_nodes_cache.clone(),
     )

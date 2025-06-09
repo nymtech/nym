@@ -10804,6 +10804,7 @@ dependencies = [
  "nym-mixnet-contract-common 0.6.0",
  "nym-multisig-contract-common 0.1.0",
  "nym-pemstore 0.3.0",
+ "nym-performance-contract-common",
  "nym-validator-client 0.1.0",
  "nym-vesting-contract-common 0.7.0",
  "rand 0.8.5",

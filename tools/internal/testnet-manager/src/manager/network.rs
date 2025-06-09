@@ -65,6 +65,7 @@ impl<'a> From<&'a LoadedNetwork> for nym_config::defaults::NymNetworkDetails {
         let contracts = nym_config::defaults::NymContracts {
             mixnet_contract_address: Some(value.contracts.mixnet.address.to_string()),
             vesting_contract_address: Some(value.contracts.vesting.address.to_string()),
+            performance_contract_address: Some(value.contracts.performance.address.to_string()),
             ecash_contract_address: Some(value.contracts.ecash.address.to_string()),
             group_contract_address: Some(value.contracts.cw4_group.address.to_string()),
             multisig_contract_address: Some(value.contracts.cw3_multisig.address.to_string()),
@@ -134,6 +135,7 @@ impl LoadedNetwork {
 pub struct SpecialAddresses {
     pub ecash_holding_account: Account,
     pub mixnet_rewarder: Account,
+    pub network_monitors: Vec<Account>,
 }
 
 impl Default for SpecialAddresses {
@@ -141,6 +143,8 @@ impl Default for SpecialAddresses {
         SpecialAddresses {
             ecash_holding_account: Account::new(),
             mixnet_rewarder: Account::new(),
+            // by default use one address; to be adjusted in the future
+            network_monitors: vec![Account::new()],
         }
     }
 }

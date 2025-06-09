@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// fine in test code
+#![allow(clippy::unwrap_used)]
+
 use crate::contract::{execute, instantiate, migrate, query};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::error::MixnetContractError;

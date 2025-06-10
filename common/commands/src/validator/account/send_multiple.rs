@@ -95,7 +95,7 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
         "Nodesguru: https://nym.explorers.guru/transaction/{}",
         &res.hash
     );
-    println!("Mintscan: https://www.mintscan.io/nyx/txs/{}", &res.hash);
+    println!("Mintscan: https://ping.pub/nyx/tx/{}", &res.hash);
     println!("Transaction result code: {}", &res.tx_result.code.value());
     println!("Transaction hash: {}", &res.hash);
 

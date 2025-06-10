@@ -75,6 +75,11 @@ jobs:
             target/release/nym-node
           retention-days: 30
 
+      - name: Use Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+    
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v2

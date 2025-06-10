@@ -81,6 +81,7 @@ impl AppState {
 }
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
+static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
@@ -92,8 +93,7 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
-    // each min_version has their own cached list
-    dvpn_gateways: Cache<Version, Arc<RwLock<Vec<DVpnGateway>>>>,
+    dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
@@ -183,10 +183,9 @@ impl HttpCache {
     pub async fn upsert_dvpn_gateway_list(
         &self,
         new_gateway_list: Vec<DVpnGateway>,
-        min_node_version: &Version,
-    ) -> Entry<Version, Arc<RwLock<Vec<DVpnGateway>>>> {
+    ) -> Entry<String, Arc<RwLock<Vec<DVpnGateway>>>> {
         self.dvpn_gateways
-            .entry_by_ref(min_node_version)
+            .entry_by_ref(DVPN_GATEWAYS_LIST_KEY)
             .and_upsert_with(|maybe_entry| async {
                 if let Some(entry) = maybe_entry {
                     let v = entry.into_value();
@@ -205,7 +204,7 @@ impl HttpCache {
         db: &DbPool,
         min_node_version: &Version,
     ) -> Vec<DVpnGateway> {
-        match self.dvpn_gateways.get(min_node_version).await {
+        match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
             Some(guard) => {
                 tracing::trace!("Fetching from cache...");
                 let read_lock = guard.read().await;
@@ -297,13 +296,36 @@ impl HttpCache {
                 if res_gws.is_empty() && started_with > 0 {
                     tracing::warn!("Started with {}, got 0 gateways", started_with);
                 } else {
-                    self.upsert_dvpn_gateway_list(res_gws.clone(), min_node_version)
-                        .await;
+                    self.upsert_dvpn_gateway_list(res_gws.clone()).await;
                 }
 
                 res_gws
             }
         }
+    }
+
+    pub async fn get_entry_dvpn_gateways(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<DVpnGateway> {
+        self.get_dvpn_gateway_list(db, min_node_version)
+            .await
+            .into_iter()
+            .filter(DVpnGateway::can_route_entry)
+            .collect()
+    }
+
+    pub async fn get_exit_dvpn_gateways(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<DVpnGateway> {
+        self.get_dvpn_gateway_list(db, min_node_version)
+            .await
+            .into_iter()
+            .filter(DVpnGateway::can_route_exit)
+            .collect()
     }
 
     pub async fn upsert_mixnode_list(

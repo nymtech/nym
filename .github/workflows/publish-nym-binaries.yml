@@ -74,15 +74,10 @@ jobs:
             target/release/nymvisor
             target/release/nym-node
           retention-days: 30
-
-      - name: Use Node.js 18
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
     
       - id: create-release
         name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
         if: github.event_name == 'release'
         with:
           files: |

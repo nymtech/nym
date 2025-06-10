@@ -23,6 +23,8 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(dvpn_gateways))
         .merge(country::routes())
+        .merge(entry::routes())
+        .merge(exit::routes())
 }
 
 #[derive(Deserialize, IntoParams)]

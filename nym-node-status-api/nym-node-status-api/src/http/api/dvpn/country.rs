@@ -2,6 +2,7 @@ use axum::{
     extract::{Path, State},
     Json, Router,
 };
+use itertools::Itertools;
 use serde::Deserialize;
 use tracing::instrument;
 use utoipa::IntoParams;
@@ -13,10 +14,12 @@ use crate::http::{
 };
 
 pub(crate) fn routes() -> Router<AppState> {
-    Router::new().route(
-        "/country/:two_letter_country_code",
-        axum::routing::get(gateways_by_country),
-    )
+    Router::new()
+        .route(
+            "/country/:two_letter_country_code",
+            axum::routing::get(get_gateways_by_country),
+        )
+        .route("/countries", axum::routing::get(get_gateway_countries))
 }
 
 #[allow(dead_code)] // clippy doesn't detect usage in utoipa macros
@@ -24,7 +27,7 @@ pub(crate) fn routes() -> Router<AppState> {
 #[into_params(parameter_in = Path)]
 pub(crate) struct TwoLetterCountryCodeParam {
     #[param(min_length = 2, max_length = 2)]
-    two_letter_country_code: String,
+    pub(crate) two_letter_country_code: String,
 }
 
 #[utoipa::path(
@@ -42,7 +45,7 @@ pub(crate) struct TwoLetterCountryCodeParam {
     )
 )]
 #[instrument(level = tracing::Level::INFO, skip(state), fields(two_letter_country_code = two_letter_country_code))]
-pub async fn gateways_by_country(
+pub async fn get_gateways_by_country(
     Path(TwoLetterCountryCodeParam {
         two_letter_country_code,
     }): Path<TwoLetterCountryCodeParam>,
@@ -61,8 +64,32 @@ pub async fn gateways_by_country(
                 })
                 .collect(),
         )),
-        _ => Err(HttpError::invalid_input(
-            "Only two letter country code is allowed",
-        )),
+        _ => Err(HttpError::invalid_country_code()),
     }
+}
+
+#[utoipa::path(
+    tag = "dVPN Directory Cache",
+    get,
+    path = "/countries",
+    summary = "Gets available exit gateway countries as two-letter ISO country codes from the Nym network directory",
+    context_path = "/dvpn/v1/directory/gateways",
+    operation_id = "getGatewayCountries",
+    responses(
+        (status = 200, body = Vec<String>)
+    )
+)]
+#[instrument(level = tracing::Level::INFO, skip(state))]
+pub async fn get_gateway_countries(state: State<AppState>) -> HttpResult<Json<Vec<String>>> {
+    Ok(Json(
+        state
+            .cache()
+            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .await
+            .into_iter()
+            .map(|gw| gw.location.two_letter_iso_country_code.to_string())
+            // dedup relies on iterator being sorted by country, but we already do that
+            .dedup()
+            .collect(),
+    ))
 }

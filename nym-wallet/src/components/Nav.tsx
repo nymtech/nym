@@ -61,12 +61,6 @@ export const Nav = () => {
       mode: 'admin',
       onClick: () => navigate('/admin'),
     },
-    {
-      label: 'Buy',
-      route: '/buy',
-      Icon: Toll,
-      onClick: () => navigate('/buy'),
-    },
   ]);
 
   return (

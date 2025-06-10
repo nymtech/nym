@@ -1,3 +1,4 @@
+use crate::monitor::ExplorerPrettyBond;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
@@ -14,8 +15,6 @@ use tracing::{error, instrument};
 use utoipa::ToSchema;
 
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
-
-use crate::monitor::ExplorerPrettyBond;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Gateway {
@@ -65,6 +64,37 @@ pub struct DVpnGateway {
     pub build_information: BinaryBuildInformationOwned,
 }
 
+impl DVpnGateway {
+    pub fn can_route_entry(&self) -> bool {
+        self.last_probe
+            .as_ref()
+            .map(|probe| match &probe.outcome.as_entry {
+                directory_gw_probe_outcome::Entry::Tested(entry_test_result) => {
+                    entry_test_result.can_route
+                }
+                directory_gw_probe_outcome::Entry::NotTested
+                | directory_gw_probe_outcome::Entry::EntryFailure => false,
+            })
+            .unwrap_or(false)
+    }
+
+    pub fn can_route_exit(&self) -> bool {
+        self.last_probe
+            .as_ref()
+            .map(|probe| {
+                probe
+                    .outcome
+                    .as_exit
+                    .as_ref()
+                    .map(|outcome| {
+                        outcome.can_route_ip_external_v4 && outcome.can_route_ip_external_v6
+                    })
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+    }
+}
+
 /// based on
 /// https://github.com/nymtech/nym-vpn-client/blob/nym-vpn-core-v1.10.0/nym-vpn-core/crates/nym-gateway-probe/src/types.rs
 /// TODO: long term types should be moved into this repo because nym-vpn-client
@@ -109,11 +139,11 @@ pub mod directory_gw_probe_outcome {
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub struct Exit {
-        can_connect: bool,
-        can_route_ip_v4: bool,
-        can_route_ip_external_v4: bool,
-        can_route_ip_v6: bool,
-        can_route_ip_external_v6: bool,
+        pub can_connect: bool,
+        pub can_route_ip_v4: bool,
+        pub can_route_ip_external_v4: bool,
+        pub can_route_ip_v6: bool,
+        pub can_route_ip_external_v6: bool,
     }
 }
 

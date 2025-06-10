@@ -11,7 +11,6 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
-use nym_validator_client::nym_nodes::NodeRole;
 use tracing::instrument;
 
 pub(crate) fn routes() -> Router<AppState> {
@@ -43,11 +42,8 @@ pub async fn get_exit_gateways(state: State<AppState>) -> HttpResult<Json<Vec<DV
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
-            .await
-            .into_iter()
-            .filter(|gw| matches!(gw.role, NodeRole::ExitGateway))
-            .collect(),
+            .get_exit_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .await,
     ))
 }
 
@@ -67,16 +63,10 @@ pub async fn get_entry_gateway_countries(state: State<AppState>) -> HttpResult<J
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_exit_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
-            .filter_map(|gw| {
-                if matches!(gw.role, NodeRole::ExitGateway) {
-                    Some(gw.location.two_letter_iso_country_code.to_string())
-                } else {
-                    None
-                }
-            })
+            .map(|gw| gw.location.two_letter_iso_country_code.to_string())
             // dedup relies on iterator being sorted by country, but we already do that
             .dedup()
             .collect(),
@@ -108,13 +98,10 @@ pub async fn get_exit_gateways_by_country(
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_exit_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
-            .filter(|gw| {
-                matches!(gw.role, NodeRole::ExitGateway)
-                    && gw.location.two_letter_iso_country_code.to_lowercase() == country_filter
-            })
+            .filter(|gw| gw.location.two_letter_iso_country_code.to_lowercase() == country_filter)
             .collect(),
     ))
 }

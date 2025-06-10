@@ -238,7 +238,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
 
     // start all the caches first
     let contract_cache_refresher = nym_contract_cache::build_refresher(
-        &config.node_status_api,
+        &config.mixnet_contract_cache,
         &nym_contract_cache_state.clone(),
         nyxd_client.clone(),
     );

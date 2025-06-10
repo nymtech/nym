@@ -50,7 +50,9 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_NODE_STATUS_CACHE_INTERVAL: Duration = Duration::from_secs(120);
+const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
+const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
+const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(3600);
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
@@ -106,6 +108,9 @@ pub struct Config {
     // TODO: perhaps introduce separate 'path finder' field for all the paths and directories like we have with other configs
     pub network_monitor: NetworkMonitor,
 
+    #[serde(default)]
+    pub mixnet_contract_cache: MixnetContractCache,
+
     pub node_status_api: NodeStatusAPI,
 
     #[serde(alias = "topology_cacher")]
@@ -135,6 +140,7 @@ impl Config {
             base: Base::new_default(id.as_ref()),
             performance_provider: Default::default(),
             network_monitor: NetworkMonitor::new_default(id.as_ref()),
+            mixnet_contract_cache: Default::default(),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             describe_cache: Default::default(),
             circulating_supply_cacher: Default::default(),
@@ -310,17 +316,68 @@ impl Base {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct MixnetContractCache {
+    #[serde(default)]
+    pub debug: MixnetContractCacheDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for MixnetContractCache {
+    fn default() -> Self {
+        MixnetContractCache {
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct MixnetContractCacheDebug {
+    #[serde(with = "humantime_serde")]
+    pub caching_interval: Duration,
+}
+
+impl Default for MixnetContractCacheDebug {
+    fn default() -> Self {
+        MixnetContractCacheDebug {
+            caching_interval: DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct PerformanceProvider {
     /// Specifies whether this nym-api should attempt to retrieve node performance
     /// information from the performance contract.
     pub use_performance_contract_data: bool,
+
+    pub debug: PerformanceProviderDebug,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for PerformanceProvider {
     fn default() -> Self {
         PerformanceProvider {
             // to be changed later
             use_performance_contract_data: false,
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct PerformanceProviderDebug {
+    /// Specifies interval of polling the performance contract. Note it is only applicable
+    /// if the contract data is being used.
+    #[serde(with = "humantime_serde")]
+    pub polling_interval: Duration,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for PerformanceProviderDebug {
+    fn default() -> Self {
+        PerformanceProviderDebug {
+            polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
         }
     }
 }
@@ -467,7 +524,7 @@ pub struct NodeStatusAPIDebug {
 impl Default for NodeStatusAPIDebug {
     fn default() -> Self {
         NodeStatusAPIDebug {
-            caching_interval: DEFAULT_NODE_STATUS_CACHE_INTERVAL,
+            caching_interval: DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
         }
     }
 }

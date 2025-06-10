@@ -12,7 +12,7 @@ pub(crate) mod cache;
 pub(crate) mod handlers;
 
 pub(crate) fn build_refresher(
-    config: &config::NodeStatusAPI,
+    config: &config::MixnetContractCache,
     nym_contract_cache_state: &NymContractCache,
     nyxd_client: nyxd::Client,
 ) -> CacheRefresher<ContractCacheData, NyxdError> {

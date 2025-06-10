@@ -16,6 +16,14 @@ impl HttpError {
         }
     }
 
+    pub(crate) fn invalid_country_code() -> Self {
+        Self {
+            message: serde_json::json!({"message": "Only two letter country code is allowed"})
+                .to_string(),
+            status: axum::http::StatusCode::BAD_REQUEST,
+        }
+    }
+
     pub(crate) fn unauthorized() -> Self {
         Self {
             message: serde_json::json!({"message": "Make sure your public key is registered with NS API"}).to_string(),

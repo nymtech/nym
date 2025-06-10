@@ -4,6 +4,30 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.11-cheddar] (2025-06-10)
+
+- No autoremoval of peers ([#5831])
+- Set cached storage counters to 0 ([#5812])
+- hack: temporarily use next.config.js instead of next.config.ts ([#5805])
+- chore: resolve 1.87 clippy warnings ([#5802])
+- Nym Statistics API ([#5800])
+- QoL: RequestPath trait for http-api-client ([#5788])
+- Fix contains ticketbook function that always returned true ([#5787])
+- swap a decode into a fromrow to please future postgres feature ([#5785])
+- Make address cache configurable ([#5784])
+- Track wireguard credential retries ([#5783])
+
+[#5831]: https://github.com/nymtech/nym/pull/5831
+[#5812]: https://github.com/nymtech/nym/pull/5812
+[#5805]: https://github.com/nymtech/nym/pull/5805
+[#5802]: https://github.com/nymtech/nym/pull/5802
+[#5800]: https://github.com/nymtech/nym/pull/5800
+[#5788]: https://github.com/nymtech/nym/pull/5788
+[#5787]: https://github.com/nymtech/nym/pull/5787
+[#5785]: https://github.com/nymtech/nym/pull/5785
+[#5784]: https://github.com/nymtech/nym/pull/5784
+[#5783]: https://github.com/nymtech/nym/pull/5783
+
 ## [2025.10-brie] (2025-05-27)
 
 - Backport PR 5779 ([#5801])

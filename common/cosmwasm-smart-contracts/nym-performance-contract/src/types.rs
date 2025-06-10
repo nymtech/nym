@@ -2,11 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Env};
+use cosmwasm_std::{Addr, Env, Timestamp};
 use nym_contracts_common::Percent;
 
 pub type EpochId = u32;
 pub type NodeId = u32;
+
+#[cw_serde]
+pub struct LastSubmission {
+    pub block_height: u64,
+    pub block_time: Timestamp,
+
+    // not as relevant, but might as well store it
+    pub data: Option<LastSubmittedData>,
+}
+
+#[cw_serde]
+pub struct LastSubmittedData {
+    pub sender: Addr,
+    pub epoch_id: EpochId,
+    pub data: NodePerformance,
+}
 
 #[cw_serde]
 pub struct NetworkMonitorDetails {

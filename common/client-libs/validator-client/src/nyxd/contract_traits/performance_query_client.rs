@@ -12,10 +12,10 @@ pub use nym_performance_contract_common::{
 };
 use nym_performance_contract_common::{
     EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, NetworkMonitorInformation,
-    NetworkMonitorsPagedResponse, NodeId, NodeMeasurement, NodeMeasurementsResponse,
-    NodePerformance, NodePerformancePagedResponse, NodePerformanceResponse, RetiredNetworkMonitor,
-    RetiredNetworkMonitorsPagedResponse,
+    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
+    NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurement,
+    NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
+    NodePerformanceResponse, RetiredNetworkMonitor, RetiredNetworkMonitorsPagedResponse,
 };
 use serde::Deserialize;
 
@@ -139,6 +139,11 @@ pub trait PerformanceQueryClient {
         })
         .await
     }
+
+    async fn get_last_submission(&self) -> Result<LastSubmission, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::LastSubmittedMeasurement {})
+            .await
+    }
 }
 
 // extension trait to the query client to deal with the paged queries
@@ -212,6 +217,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_performance_contract_common::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -260,6 +266,7 @@ mod tests {
             PerformanceQueryMsg::RetiredNetworkMonitorsPaged { start_after, limit } => client
                 .get_retired_network_monitors_paged(start_after, limit)
                 .ignore(),
+            QueryMsg::LastSubmittedMeasurement {} => client.get_last_submission().ignore(),
         };
     }
 }

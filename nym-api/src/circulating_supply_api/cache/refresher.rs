@@ -4,6 +4,7 @@
 use super::CirculatingSupplyCache;
 use crate::circulating_supply_api::cache::CirculatingSupplyCacheError;
 use crate::support::nyxd::Client;
+use cosmwasm_std::coin;
 use nym_contracts_common::truncate_decimal;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::Coin;
@@ -79,47 +80,7 @@ impl CirculatingSupplyCacheRefresher {
         &self,
         mix_denom: &str,
     ) -> Result<Coin, CirculatingSupplyCacheError> {
-        let all_vesting = self.nyxd_client.get_all_vesting_coins().await?;
-
-        // sanity check invariants to make sure all accounts got considered and we got no duplicates
-        // the cache refreshes so infrequently that the performance penalty is negligible
-        let mut owners = HashSet::new();
-        let mut ids = HashSet::new();
-        for acc in &all_vesting {
-            if !owners.insert(acc.owner.clone()) {
-                return Err(CirculatingSupplyCacheError::DuplicateVestingAccountEntry {
-                    owner: acc.owner.clone(),
-                    account_id: acc.account_id,
-                });
-            }
-
-            if !ids.insert(acc.account_id) {
-                return Err(CirculatingSupplyCacheError::DuplicateVestingAccountEntry {
-                    owner: acc.owner.clone(),
-                    account_id: acc.account_id,
-                });
-            }
-        }
-
-        let current_storage_key = self
-            .nyxd_client
-            .get_current_vesting_account_storage_key()
-            .await?;
-        if all_vesting.len() != current_storage_key as usize {
-            return Err(
-                CirculatingSupplyCacheError::InconsistentNumberOfVestingAccounts {
-                    expected: current_storage_key as usize,
-                    got: all_vesting.len(),
-                },
-            );
-        }
-
-        let mut total = Coin::new(0, mix_denom);
-        for account in all_vesting {
-            total.amount += account.still_vesting.amount.u128();
-        }
-
-        Ok(total)
+        Ok(coin(0, mix_denom).into())
     }
 
     async fn refresh(&self) -> Result<(), CirculatingSupplyCacheError> {

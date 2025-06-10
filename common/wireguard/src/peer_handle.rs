@@ -11,12 +11,10 @@ use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageMana
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
-const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(10 * 60); // 1 hour
 
 pub struct PeerHandle {
     public_key: Key,
@@ -26,7 +24,6 @@ pub struct PeerHandle {
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
-    startup_timestamp: SystemTime,
 }
 
 impl PeerHandle {
@@ -51,7 +48,6 @@ impl PeerHandle {
             request_tx,
             timeout_check_interval,
             task_client,
-            startup_timestamp: SystemTime::now(),
         }
     }
 
@@ -105,33 +101,13 @@ impl PeerHandle {
 
     async fn active_peer(&mut self, kernel_peer: &Peer) -> Result<bool, Error> {
         let Some(cached_peer) = self.cached_peer.get_peer() else {
-            log::info!(
+            log::debug!(
                 "Peer {:?} not in storage anymore, shutting down handle",
                 self.public_key
             );
             return Ok(false);
         };
-        if kernel_peer.last_handshake.is_none() {
-            tracing::info!("Peer {kernel_peer:?} doesn't have last_handshake");
-        }
 
-        if kernel_peer.last_handshake.is_none() {
-            tracing::info!(
-                "Peer {kernel_peer:?} doesn't have last_handshake, but there's bw manager"
-            );
-        }
-        if kernel_peer.last_handshake.is_none()
-            && SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER
-        {
-            let success = self.remove_peer().await?;
-            self.cached_peer.remove_peer();
-            tracing::info!(
-                "Peer {} has not been active for more then {} seconds, removing it",
-                kernel_peer.public_key.to_string(),
-                AUTO_REMOVE_AFTER.as_secs()
-            );
-            return Ok(!success);
-        }
         let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, &cached_peer)
             .unwrap_or_else(|| {
                 // if gateway restarted, the kernel values restart from 0
@@ -155,7 +131,7 @@ impl PeerHandle {
                 .await
                 .is_err()
             {
-                tracing::info!(
+                tracing::debug!(
                     "Peer {} is out of bandwidth, removing it",
                     kernel_peer.public_key.to_string()
                 );
@@ -192,20 +168,16 @@ impl PeerHandle {
     }
 
     pub async fn run(&mut self) {
-        tracing::info!("Started handle for {:?}", self.public_key);
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
                     match self.continue_checking().await {
                         Ok(true) => continue,
-                        Ok(false) => {
-                            tracing::info!("Stopped handle for {:?}", self.public_key);
-                            return;
-                        }
+                        Ok(false) => return,
                         Err(err) => {
                             match self.remove_peer().await {
                                 Ok(true) => {
-                                    tracing::error!("Removed peer due to error {err}");
+                                    tracing::debug!("Removed peer due to error {err}");
                                     return;
                                 }
                                 _ => {

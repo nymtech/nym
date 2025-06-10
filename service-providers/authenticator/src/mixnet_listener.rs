@@ -719,10 +719,9 @@ impl MixnetListener {
             .await?
             .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
             .client_id;
-        let bandwidth = self
-            .ecash_verifier
-            .storage()
-            .get_available_bandwidth(client_id)
+        let client_bandwidth = self
+            .peer_manager
+            .query_client_bandwidth(msg.pub_key())
             .await?
             .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?;
 

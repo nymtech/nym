@@ -104,11 +104,11 @@ impl PeerController {
         );
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
-            let peer_storage_manager = CachedPeerManager::new(peer.clone());
+            let cached_peer_manager = CachedPeerManager::new(peer.clone());
             let mut handle = PeerHandle::new(
                 public_key.clone(),
                 host_information.clone(),
-                peer_storage_manager,
+                cached_peer_manager,
                 bandwidth_storage_manager.clone(),
                 request_tx.clone(),
                 &task_client,
@@ -177,11 +177,11 @@ impl PeerController {
         let bandwidth_storage_manager = Arc::new(RwLock::new(
             Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key).await?,
         ));
-        let peer_storage_manager = CachedPeerManager::new(peer.clone());
+        let cached_peer_manager = CachedPeerManager::new(peer.clone());
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),
-            peer_storage_manager,
+            cached_peer_manager,
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
             &self.task_client,
@@ -228,7 +228,7 @@ impl PeerController {
     }
 
     async fn handle_get_client_bandwidth(&self, key: &Key) -> Option<ClientBandwidth> {
-        if let Some(Some(bandwidth_storage_manager)) = self.bw_storage_managers.get(key) {
+        if let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) {
             Some(bandwidth_storage_manager.read().await.client_bandwidth())
         } else {
             None

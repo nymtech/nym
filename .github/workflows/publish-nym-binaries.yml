@@ -19,7 +19,11 @@ jobs:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
-    runs-on: arc-ubuntu-22.04
+      matrix:
+        include:
+          - os: arc-ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+    runs-on:  ${{ matrix.os }}
 
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
@@ -66,7 +70,6 @@ jobs:
         with:
           name: my-artifact
           path: |
-            target/release/explorer-api
             target/release/nym-client
             target/release/nym-socks5-client
             target/release/nym-api
@@ -82,7 +85,6 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            target/release/explorer-api
             target/release/nym-client
             target/release/nym-socks5-client
             target/release/nym-api

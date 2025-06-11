@@ -16,10 +16,6 @@ pub(crate) struct Cli {
     #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,
 
-    /// Explorer api url.
-    #[clap(short, long, env = "EXPLORER_API")]
-    pub(crate) explorer_api: String,
-
     /// Nym api url.
     #[clap(short, long, env = "NYM_API")]
     pub(crate) nym_api: String,

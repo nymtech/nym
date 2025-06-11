@@ -8,6 +8,7 @@ use error::EcashTicketError;
 use futures::channel::mpsc::{self, UnboundedSender};
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{ClientTicket, CompactEcashError, NymPayInfo, VerificationKeyAuth};
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_gateway_storage::GatewayStorage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
@@ -39,7 +40,7 @@ impl EcashManager {
         shutdown: nym_task::TaskClient,
         storage: GatewayStorage,
     ) -> Result<Self, Error> {
-        let shared_state = SharedState::new(nyxd_client, storage).await?;
+        let shared_state = SharedState::new(nyxd_client, Box::new(storage)).await?;
 
         let (cred_sender, cred_receiver) = mpsc::unbounded();
 
@@ -63,8 +64,8 @@ impl EcashManager {
         self.shared_state.verification_key(epoch_id).await
     }
 
-    pub fn storage(&self) -> &GatewayStorage {
-        &self.shared_state.storage
+    pub fn storage(&self) -> Box<dyn BandwidthGatewayStorage + Send + Sync> {
+        dyn_clone::clone_box(&*self.shared_state.storage)
     }
 
     //Check for duplicate pay_info, then check the payment, then insert pay_info if everything succeeded

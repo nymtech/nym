@@ -14,6 +14,7 @@ readme.workspace = true
 bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-utils = { workspace = true }
+dyn-clone = { workspace = true }
 futures = { workspace = true }
 rand = { workspace = true }
 si-scale = { workspace = true }

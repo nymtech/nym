@@ -13,7 +13,7 @@ use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth,
 };
-use nym_gateway_storage::GatewayStorage;
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::time::{Duration, SystemTime};
@@ -71,7 +71,7 @@ pub struct GetClientBandwidthControlResponse {
 }
 
 pub struct PeerController {
-    storage: GatewayStorage,
+    storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
 
     // we have "all" metrics of a node, but they're behind a single Arc pointer,
     // so the overhead is minimal
@@ -90,7 +90,7 @@ pub struct PeerController {
 impl PeerController {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        storage: GatewayStorage,
+        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
         metrics: NymNodeMetrics,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
@@ -149,7 +149,7 @@ impl PeerController {
     }
 
     pub async fn generate_bandwidth_manager(
-        storage: GatewayStorage,
+        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
         public_key: &Key,
     ) -> Result<BandwidthStorageManager, Error> {
         let client_id = storage
@@ -175,7 +175,11 @@ impl PeerController {
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<(), Error> {
         self.wg_api.inner.configure_peer(peer)?;
         let bandwidth_storage_manager = Arc::new(RwLock::new(
-            Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key).await?,
+            Self::generate_bandwidth_manager(
+                dyn_clone::clone_box(&*self.storage),
+                &peer.public_key,
+            )
+            .await?,
         ));
         let cached_peer_manager = CachedPeerManager::new(&peer);
         let mut handle = PeerHandle::new(

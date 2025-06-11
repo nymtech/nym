@@ -616,7 +616,7 @@ impl MixnetListener {
             CredentialSpendingRequest::new(credential),
             ecash_verifier.clone(),
             BandwidthStorageManager::new(
-                ecash_verifier.storage().clone(),
+                ecash_verifier.storage(),
                 client_bandwidth,
                 client_id,
                 BandwidthFlushingBehaviourConfig::default(),
@@ -734,7 +734,7 @@ impl MixnetListener {
                 CredentialSpendingRequest::new(credential.clone()),
                 self.ecash_verifier.clone(),
                 BandwidthStorageManager::new(
-                    self.ecash_verifier.storage().clone(),
+                    self.ecash_verifier.storage(),
                     client_bandwidth,
                     client_id,
                     BandwidthFlushingBehaviourConfig::default(),

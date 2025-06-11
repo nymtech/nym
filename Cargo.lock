@@ -6670,6 +6670,7 @@ dependencies = [
  "anyhow",
  "axum 0.7.9",
  "bip39",
+ "celes",
  "clap",
  "cosmwasm-std",
  "envy",

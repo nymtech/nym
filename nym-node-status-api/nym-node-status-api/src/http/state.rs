@@ -221,7 +221,13 @@ impl HttpCache {
                     .map(|records| {
                         records
                             .into_iter()
-                            .filter_map(|dto| SkimmedNode::try_from(dto).ok())
+                            .filter_map(|dto| {
+                                SkimmedNode::try_from(dto)
+                                    .inspect_err(|err| {
+                                        error!("Failed to read SkimmedNode from DB: {err}")
+                                    })
+                                    .ok()
+                            })
                             .map(|skimmed_node| {
                                 (
                                     skimmed_node.ed25519_identity_pubkey.to_base58_string(),

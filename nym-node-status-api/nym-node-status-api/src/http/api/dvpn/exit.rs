@@ -2,10 +2,7 @@ use crate::http::{
     api::dvpn::{country::TwoLetterCountryCodeParam, MIN_SUPPORTED_VERSION},
     models::DVpnGateway,
 };
-use crate::http::{
-    error::{HttpError, HttpResult},
-    state::AppState,
-};
+use crate::http::{error::HttpResult, state::AppState};
 use axum::{
     extract::{Path, State},
     Json, Router,
@@ -76,7 +73,10 @@ pub async fn get_entry_gateway_countries(state: State<AppState>) -> HttpResult<J
 #[utoipa::path(
     tag = "dVPN Directory Cache",
     get,
-    path = "/exit/country/{country_code}",
+    params(
+        TwoLetterCountryCodeParam
+    ),
+    path = "/exit/country/{two_letter_country_code}",
     summary = "Gets available exit gateways from the Nym network directory by country",
     context_path = "/dvpn/v1/directory/gateways",
     operation_id = "getExitGatewaysByCountry",
@@ -84,24 +84,18 @@ pub async fn get_entry_gateway_countries(state: State<AppState>) -> HttpResult<J
         (status = 200, body = Vec<DVpnGateway>)
     )
 )]
-#[instrument(level = tracing::Level::INFO, skip(state))]
+#[instrument(level = tracing::Level::INFO, skip(state), fields(two_letter_country_code = country.alpha2))]
 pub async fn get_exit_gateways_by_country(
-    Path(TwoLetterCountryCodeParam {
-        two_letter_country_code,
-    }): Path<TwoLetterCountryCodeParam>,
+    Path(TwoLetterCountryCodeParam { country }): Path<TwoLetterCountryCodeParam>,
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
-    let country_filter = two_letter_country_code.to_lowercase();
-    if country_filter.len() != 2 {
-        return Err(HttpError::invalid_country_code());
-    }
     Ok(Json(
         state
             .cache()
             .get_exit_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
-            .filter(|gw| gw.location.two_letter_iso_country_code.to_lowercase() == country_filter)
+            .filter(|gw| gw.location.two_letter_iso_country_code.to_uppercase() == country.alpha2)
             .collect(),
     ))
 }

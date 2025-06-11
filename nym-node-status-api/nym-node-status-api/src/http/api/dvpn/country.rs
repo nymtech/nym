@@ -8,10 +8,7 @@ use tracing::instrument;
 use utoipa::IntoParams;
 
 use crate::http::{api::dvpn::MIN_SUPPORTED_VERSION, models::DVpnGateway};
-use crate::http::{
-    error::{HttpError, HttpResult},
-    state::AppState,
-};
+use crate::http::{error::HttpResult, state::AppState};
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
@@ -27,7 +24,9 @@ pub(crate) fn routes() -> Router<AppState> {
 #[into_params(parameter_in = Path)]
 pub(crate) struct TwoLetterCountryCodeParam {
     #[param(min_length = 2, max_length = 2)]
-    pub(crate) two_letter_country_code: String,
+    #[param(value_type = String)]
+    #[serde(rename = "two_letter_country_code")]
+    pub(crate) country: celes::Country,
 }
 
 #[utoipa::path(
@@ -44,28 +43,20 @@ pub(crate) struct TwoLetterCountryCodeParam {
         (status = 200, body = Vec<DVpnGateway>)
     )
 )]
-#[instrument(level = tracing::Level::INFO, skip(state), fields(two_letter_country_code = two_letter_country_code))]
+#[instrument(level = tracing::Level::INFO, skip(state), fields(two_letter_country_code = country.alpha2))]
 pub async fn get_gateways_by_country(
-    Path(TwoLetterCountryCodeParam {
-        two_letter_country_code,
-    }): Path<TwoLetterCountryCodeParam>,
+    Path(TwoLetterCountryCodeParam { country }): Path<TwoLetterCountryCodeParam>,
     state: State<AppState>,
 ) -> HttpResult<Json<Vec<DVpnGateway>>> {
-    let country_filter = two_letter_country_code.to_lowercase();
-    match two_letter_country_code.len() {
-        2 => Ok(Json(
-            state
-                .cache()
-                .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
-                .await
-                .into_iter()
-                .filter(|gw| {
-                    gw.location.two_letter_iso_country_code.to_lowercase() == country_filter
-                })
-                .collect(),
-        )),
-        _ => Err(HttpError::invalid_country_code()),
-    }
+    Ok(Json(
+        state
+            .cache()
+            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .await
+            .into_iter()
+            .filter(|gw| gw.location.two_letter_iso_country_code.to_uppercase() == country.alpha2)
+            .collect(),
+    ))
 }
 
 #[utoipa::path(

@@ -111,8 +111,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
             error!("Conversion from DTO failed: {e}. Invalidly stored data?");
             e
         })?;
-    // TODO dz revert to trace
-    tracing::info!("Fetched {} gateways from DB", items.len());
+    tracing::trace!("Fetched {} gateways from DB", items.len());
     Ok(items)
 }
 

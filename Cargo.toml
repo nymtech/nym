@@ -101,7 +101,6 @@ members = [
     "common/wireguard-types",
     "documentation/autodoc",
     "gateway",
-    "integrations/bity",
     "nym-api",
     "nym-api/nym-api-requests",
     "nym-browser-extension/storage",

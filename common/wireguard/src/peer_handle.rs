@@ -68,13 +68,6 @@ impl PeerHandle {
     }
 
     fn compute_spent_bandwidth(kernel_peer: &Peer, cached_peer: &Peer) -> Option<u64> {
-        let storage_peer_rx_bytes = u64::try_from(cached_peer.rx_bytes)
-            .inspect_err(|e| tracing::error!("Storage rx bytes could not be converted: {e}"))
-            .ok()?;
-        let storage_peer_tx_bytes = u64::try_from(cached_peer.tx_bytes)
-            .inspect_err(|e| tracing::error!("Storage tx bytes could not be converted: {e}"))
-            .ok()?;
-
         let kernel_total = kernel_peer
             .rx_bytes
             .checked_add(kernel_peer.tx_bytes)
@@ -86,15 +79,20 @@ impl PeerHandle {
                 );
                 None
             })?;
-        let storage_total = storage_peer_rx_bytes
-            .checked_add(storage_peer_tx_bytes)
+        let cached_total = cached_peer
+            .rx_bytes
+            .checked_add(cached_peer.tx_bytes)
             .or_else(|| {
-                tracing::error!("Overflow on storage adding bytes: {storage_peer_rx_bytes} + {storage_peer_tx_bytes}");
+                tracing::error!(
+                    "Overflow on cached adding bytes: {} + {}",
+                    cached_peer.rx_bytes,
+                    cached_peer.tx_bytes
+                );
                 None
             })?;
 
-        kernel_total.checked_sub(storage_total).or_else(|| {
-            tracing::error!("Overflow on spent bandwidth subtraction: kernel - storage = {kernel_total} - {storage_total}");
+        kernel_total.checked_sub(cached_total).or_else(|| {
+            tracing::error!("Overflow on spent bandwidth subtraction: kernel - cached = {kernel_total} - {cached_total}");
             None
         })
     }
@@ -145,17 +143,14 @@ impl PeerHandle {
     }
 
     async fn continue_checking(&mut self) -> Result<bool, Error> {
-        let Some(kernel_peer) = self
+        let kernel_peer = self
             .host_information
             .read()
             .await
             .peers
             .get(&self.public_key)
-            .cloned()
-        else {
-            // the host information hasn't beed updated yet
-            return Ok(true);
-        };
+            .ok_or(Error::MissingClientKernelEntry(self.public_key.to_string()))?
+            .clone();
         if !self.active_peer(&kernel_peer).await? {
             log::debug!(
                 "Peer {:?} is not active anymore, shutting down handle",

@@ -86,7 +86,7 @@ pub struct WireguardData {
 pub async fn start_wireguard(
     storage: nym_gateway_storage::GatewayStorage,
     metrics: nym_node_metrics::NymNodeMetrics,
-    all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
+    peers: Vec<Peer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -100,19 +100,8 @@ pub async fn start_wireguard(
 
     let ifname = String::from(WG_TUN_BASE_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
-    let mut peer_bandwidth_managers = HashMap::with_capacity(all_peers.len());
-    let peers = all_peers
-        .into_iter()
-        .map(Peer::try_from)
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(|mut peer| {
-            // since WGApi doesn't set those values on init, let's set them to 0
-            peer.rx_bytes = 0;
-            peer.tx_bytes = 0;
-            peer
-        })
-        .collect::<Vec<_>>();
+    let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
+
     for peer in peers.iter() {
         let bandwidth_manager = Arc::new(RwLock::new(
             PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key).await?,

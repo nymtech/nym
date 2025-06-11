@@ -1,6 +1,15 @@
-import { Callout } from 'nextra/components'
 
 # Architecture
+
+import { Callout } from 'nextra/components'
+
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+  This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+  It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
 
 ## Motivations
 The motivation behind the creation of the `TcpProxy` module is to allow developers to interact with the Mixnet in a way that is far more familiar to them: simply setting up a connection with a transport, being returned a socket, and then being able to stream data to/from it, similar to something like the Tor [`arti`](https://gitlab.torproject.org/tpo/core/arti/-/tree/main/crates/arti-client) client.

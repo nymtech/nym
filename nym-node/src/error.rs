@@ -158,13 +158,13 @@ pub enum NymNodeError {
     BloomfilterIoFailure { source: io::Error, path: PathBuf },
 
     #[error(transparent)]
-    GatewayFailure(#[from] nym_gateway::GatewayError),
+    GatewayFailure(Box<nym_gateway::GatewayError>),
 
     #[error(transparent)]
     GatewayTasksStartupFailure(Box<dyn std::error::Error + Send + Sync>),
 
     #[error(transparent)]
-    EntryGatewayFailure(#[from] EntryGatewayError),
+    EntryGatewayFailure(Box<EntryGatewayError>),
 
     #[error(transparent)]
     ServiceProvidersFailure(#[from] ServiceProvidersError),
@@ -175,6 +175,18 @@ pub enum NymNodeError {
 
     #[error("failed upgrade")]
     FailedUpgrade,
+}
+
+impl From<EntryGatewayError> for NymNodeError {
+    fn from(error: EntryGatewayError) -> Self {
+        NymNodeError::EntryGatewayFailure(Box::new(error))
+    }
+}
+
+impl From<nym_gateway::GatewayError> for NymNodeError {
+    fn from(error: nym_gateway::GatewayError) -> Self {
+        NymNodeError::GatewayFailure(Box::new(error))
+    }
 }
 
 impl NymNodeError {
@@ -219,7 +231,13 @@ pub enum EntryGatewayError {
     },
 
     #[error("entry gateway failure: {0}")]
-    External(#[from] nym_gateway::GatewayError),
+    External(Box<nym_gateway::GatewayError>),
+}
+
+impl From<nym_gateway::GatewayError> for EntryGatewayError {
+    fn from(error: nym_gateway::GatewayError) -> Self {
+        EntryGatewayError::External(Box::new(error))
+    }
 }
 
 #[derive(Debug, Error)]

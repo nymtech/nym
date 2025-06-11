@@ -133,12 +133,16 @@ impl ConnectedClientHandler {
         let input_packet = self
             .input_message_creator
             .to_input_message(&bundled_packets)
-            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet { source })?;
+            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(source),
+            })?;
 
         self.mixnet_client_sender
             .send(input_packet)
             .await
-            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet { source })
+            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(source),
+            })
     }
 
     async fn run(mut self) -> Result<()> {

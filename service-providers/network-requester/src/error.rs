@@ -30,10 +30,10 @@ pub enum NetworkRequesterError {
     ConfigValidationFailure,
 
     #[error("failed to setup mixnet client: {source}")]
-    FailedToSetupMixnetClient { source: nym_sdk::Error },
+    FailedToSetupMixnetClient { source: Box<nym_sdk::Error> },
 
     #[error("failed to connect to mixnet: {source}")]
-    FailedToConnectToMixnet { source: nym_sdk::Error },
+    FailedToConnectToMixnet { source: Box<nym_sdk::Error> },
 
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,

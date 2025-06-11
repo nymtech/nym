@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO active_device (\n                day,\n                device_id,\n                os_type,\n                os_version,\n                architecture,\n                app_version,\n                user_agent,\n                from_mixnet)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n            ON CONFLICT (device_id, day) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "13bf07e42c49ea365e816eb94e4e4f607989ee95f68a0fcd95bc4a53f4e79cbb"
+}

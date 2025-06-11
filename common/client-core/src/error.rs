@@ -18,7 +18,7 @@ pub enum ClientCoreError {
     #[error("gateway client error ({gateway_id}): {source}")]
     GatewayClientError {
         gateway_id: String,
-        source: GatewayClientError,
+        source: Box<GatewayClientError>,
     },
 
     #[error("custom gateway client error: {source}")]
@@ -88,10 +88,7 @@ pub enum ClientCoreError {
     },
 
     #[error("failed to establish connection to gateway: {source}")]
-    GatewayConnectionFailure {
-        #[from]
-        source: tungstenite::Error,
-    },
+    GatewayConnectionFailure { source: Box<tungstenite::Error> },
 
     #[cfg(target_arch = "wasm32")]
     #[error("failed to establish gateway connection (wasm)")]
@@ -225,6 +222,14 @@ pub enum ClientCoreError {
 
     #[error("failed to derive keys from master key")]
     HkdfDerivationError {},
+}
+
+impl From<tungstenite::Error> for ClientCoreError {
+    fn from(err: tungstenite::Error) -> ClientCoreError {
+        ClientCoreError::GatewayConnectionFailure {
+            source: Box::new(err),
+        }
+    }
 }
 
 /// Set of messages that the client can send to listeners via the task manager

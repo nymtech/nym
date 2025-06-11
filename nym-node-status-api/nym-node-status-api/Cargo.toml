@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "2.3.1"
+version = "2.3.2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -30,7 +30,7 @@ nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-http-api-client = { path = "../../common/http-api-client" }
-nym-http-api-common = { path = "../../common/http-api-common" }
+nym-http-api-common = { path = "../../common/http-api-common", features = ["middleware"]}
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-serde-helpers = { path = "../../common/serde-helpers" }
 nym-statistics-common = { path = "../../common/statistics" }

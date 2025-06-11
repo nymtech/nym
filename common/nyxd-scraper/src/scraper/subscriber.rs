@@ -42,7 +42,7 @@ impl ChainSubscriber {
         let websocket_url = websocket_endpoint.as_str().try_into().map_err(|source| {
             ScraperError::WebSocketConnectionFailure {
                 url: websocket_endpoint.to_string(),
-                source,
+                source: Box::new(source),
             }
         })?;
 
@@ -52,7 +52,7 @@ impl ChainSubscriber {
             .await
             .map_err(|source| ScraperError::WebSocketConnectionFailure {
                 url: websocket_endpoint.to_string(),
-                source,
+                source: Box::new(source),
             })?;
 
         Ok(ChainSubscriber {
@@ -83,7 +83,7 @@ impl ChainSubscriber {
             .await
             .map_err(|source| ScraperError::WebSocketConnectionFailure {
                 url: self.websocket_endpoint.to_string(),
-                source,
+                source: Box::new(source),
             })?;
         self.websocket_client = client;
         self.websocket_driver = Some(driver);
@@ -121,7 +121,9 @@ impl ChainSubscriber {
             .websocket_client
             .subscribe(EventType::NewBlock.into())
             .await
-            .map_err(|source| ScraperError::ChainSubscriptionFailure { source })?;
+            .map_err(|source| ScraperError::ChainSubscriptionFailure {
+                source: Box::new(source),
+            })?;
 
         let mut failures = 0;
 

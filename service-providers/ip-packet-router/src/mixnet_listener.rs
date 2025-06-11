@@ -435,10 +435,11 @@ impl MixnetListener {
         let input_message =
             crate::util::create_message::create_input_message(&send_to, response_bytes);
 
-        self.mixnet_client
-            .send(input_message)
-            .await
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
+        self.mixnet_client.send(input_message).await.map_err(|err| {
+            IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(err),
+            }
+        })
     }
 
     // A single incoming request can trigger multiple responses, such as when data requests contain

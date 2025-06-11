@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CARGO_TERM_COLOR: always
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - uses: actions/checkout@v4
 

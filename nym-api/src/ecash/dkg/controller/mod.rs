@@ -73,7 +73,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         persistent_state.save_to_file(save_path).map_err(|source| {
             DkgError::StatePersistenceFailure {
                 path: save_path.to_path_buf(),
-                source,
+                source: Box::new(source),
             }
         })
     }

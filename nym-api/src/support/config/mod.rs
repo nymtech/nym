@@ -54,6 +54,9 @@ const DEFAULT_TOPOLOGY_CACHE_INTERVAL: Duration = Duration::from_secs(30);
 const DEFAULT_NODE_STATUS_CACHE_INTERVAL: Duration = Duration::from_secs(120);
 const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(3600);
 
+pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
+pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
+
 pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from_secs(4500);
 pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
@@ -111,6 +114,9 @@ pub struct Config {
 
     #[serde(alias = "coconut_signer")]
     pub ecash_signer: EcashSigner,
+
+    #[serde(skip)]
+    pub address_cache: AddressCacheConfig,
 }
 
 impl NymConfigTemplate for Config {
@@ -130,6 +136,7 @@ impl Config {
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
+            address_cache: Default::default(),
         }
     }
 
@@ -178,6 +185,12 @@ impl Config {
         }
         if args.allow_illegal_ips {
             self.topology_cacher.debug.node_describe_allow_illegal_ips = true
+        }
+        if let Some(address_cache_ttl) = args.address_cache_ttl {
+            self.address_cache.time_to_live = address_cache_ttl;
+        }
+        if let Some(address_cache_capacity) = args.address_cache_capacity {
+            self.address_cache.capacity = address_cache_capacity;
         }
 
         self
@@ -288,6 +301,21 @@ impl Base {
             local_validator: default_validator,
             bind_address: default_http_socket_addr(),
             mnemonic: None,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AddressCacheConfig {
+    pub time_to_live: Duration,
+    pub capacity: u64,
+}
+
+impl Default for AddressCacheConfig {
+    fn default() -> Self {
+        Self {
+            time_to_live: DEFAULT_ADDRESS_CACHE_TTL,
+            capacity: DEFAULT_ADDRESS_CACHE_CAPACITY,
         }
     }
 }

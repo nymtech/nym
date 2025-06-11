@@ -2,6 +2,15 @@ import { Callout } from 'nextra/components';
 
 # Troubleshooting bundling with Webpack
 
+
+<Callout type="error">
+    The TypeScript SDK is currently not avaliable to use: a network upgrade elsewhere has caused a problem which is not currently fixed. TS SDK Clients are not able to connect to the network.
+
+    When the issue is resolved, this will be reflected in the documentation.
+
+    Thanks for your patience!
+</Callout>
+
 ## Webpack > 5 ESM
 
 For any project using Webpack, you´ll need the following rule in your `webpack.config.js` above version 5:
@@ -24,7 +33,7 @@ If you wish to use Webpack for your app with the code provided in the step-by-st
 npx create-react-app nymapp --template typescript
 cd nymapp
 ```
-You'll then need to install the needed dependencies, head to your app's `App.tsx` file and paste the code provided in the step-by-step section. 
+You'll then need to install the needed dependencies, head to your app's `App.tsx` file and paste the code provided in the step-by-step section.
 
 #### Contract client
 
@@ -34,7 +43,7 @@ You'll then need to install the needed dependencies, head to your app's `App.tsx
 
 ##### Install contract-clients dependencies
 ```bash
-npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing 
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
 ```
 
 Head to you app's `App.tsx` file and replace the code by the one provided in the step-by-step examples section.
@@ -76,7 +85,7 @@ module.exports = function override(config) {
         }
       }
     ])
-  return config; 
+  return config;
 }
 EOF
 ```

@@ -24,7 +24,7 @@ pub enum AuthenticatorError {
     ShortPacket,
 
     #[error("failed to connect to mixnet: {source}")]
-    FailedToConnectToMixnet { source: nym_sdk::Error },
+    FailedToConnectToMixnet { source: Box<nym_sdk::Error> },
 
     #[error("failed to deserialize tagged packet: {source}")]
     FailedToDeserializeTaggedPacket { source: bincode::Error },
@@ -33,13 +33,13 @@ pub enum AuthenticatorError {
     FailedToLoadConfig(String),
 
     #[error("failed to send packet to mixnet: {source}")]
-    FailedToSendPacketToMixnet { source: nym_sdk::Error },
+    FailedToSendPacketToMixnet { source: Box<nym_sdk::Error> },
 
     #[error("failed to serialize response packet: {source}")]
     FailedToSerializeResponsePacket { source: Box<bincode::ErrorKind> },
 
     #[error("failed to setup mixnet client: {source}")]
-    FailedToSetupMixnetClient { source: nym_sdk::Error },
+    FailedToSetupMixnetClient { source: Box<nym_sdk::Error> },
 
     #[error("{0}")]
     GatewayStorageError(#[from] nym_gateway_storage::error::GatewayStorageError),

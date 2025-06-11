@@ -69,10 +69,7 @@ pub enum GatewayError {
     },
 
     #[error("there was an issue with the local authenticator: {source}")]
-    AuthenticatorFailure {
-        #[from]
-        source: AuthenticatorError,
-    },
+    AuthenticatorFailure { source: Box<AuthenticatorError> },
 
     #[error("failed to startup local {typ}")]
     ServiceProviderStartupFailure { typ: &'static str },
@@ -135,6 +132,14 @@ impl From<ClientCoreError> for GatewayError {
         // if we ever get a client core error, it must have come from the network requester
         GatewayError::NetworkRequesterFailure {
             source: value.into(),
+        }
+    }
+}
+
+impl From<AuthenticatorError> for GatewayError {
+    fn from(error: AuthenticatorError) -> Self {
+        GatewayError::AuthenticatorFailure {
+            source: Box::new(error),
         }
     }
 }

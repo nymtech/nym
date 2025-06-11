@@ -456,7 +456,7 @@ where
             log::error!("Could not authenticate and start up the gateway connection - {err}");
             ClientCoreError::GatewayClientError {
                 gateway_id: details.gateway_id.to_base58_string(),
-                source: err,
+                source: Box::new(err),
             }
         };
 

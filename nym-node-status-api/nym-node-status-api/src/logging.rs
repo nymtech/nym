@@ -30,6 +30,7 @@ pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
         "hyper",
         "sqlx",
         "h2",
+        "nym-http-api-client",
         "tendermint_rpc",
         "tower_http",
         "axum",

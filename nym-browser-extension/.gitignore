@@ -1,5 +1,14 @@
-# environment
-.env.dev
-
-# error logs
-yarn-error.log
+dist/
+build/
+**/*.wasm
+**/*.js.map
+.env*
+!.env.example
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

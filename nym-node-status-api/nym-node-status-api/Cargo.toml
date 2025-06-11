@@ -23,19 +23,34 @@ envy = { workspace = true }
 futures-util = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
-nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
-nym-node-status-client = { path = "../nym-node-status-client" }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
-nym-http-api-client = { path = "../../common/http-api-client" }
-nym-http-api-common = { path = "../../common/http-api-common", features = ["middleware"]}
-nym-network-defaults = { path = "../../common/network-defaults" }
-nym-serde-helpers = { path = "../../common/serde-helpers" }
-nym-statistics-common = { path = "../../common/statistics" }
-nym-validator-client = { path = "../../common/client-libs/validator-client" }
-nym-task = { path = "../../common/task" }
-nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
+# TODO dz had to switch to cheddar versions because develop is ahead of current
+# Nym API: revert after Cheddar is out
+nym-contracts-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-mixnet-contract-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-node-status-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-http-api-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-http-api-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = ["middleware"]}
+nym-network-defaults = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-serde-helpers = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-statistics-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+# nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+# nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
+# nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
+# nym-node-status-client = { path = "../nym-node-status-client" }
+# nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
+# nym-http-api-client = { path = "../../common/http-api-client" }
+# nym-http-api-common = { path = "../../common/http-api-common", features = ["middleware"]}
+# nym-network-defaults = { path = "../../common/network-defaults" }
+# nym-serde-helpers = { path = "../../common/serde-helpers" }
+# nym-statistics-common = { path = "../../common/statistics" }
+# nym-validator-client = { path = "../../common/client-libs/validator-client" }
+nym-validator-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+# nym-task = { path = "../../common/task" }
+# nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
+nym-task = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-node-requests = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 regex = { workspace = true }

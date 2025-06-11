@@ -3,4 +3,3 @@ export * from './undelegate';
 export * from './bond';
 export * from './unbond';
 export * from './bonding';
-export * from './poweredByBity';

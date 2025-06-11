@@ -35,7 +35,6 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
-    pub explorer_api: Option<String>,
     pub nym_vpn_api_url: Option<String>,
 }
 
@@ -65,7 +64,6 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
-            explorer_api: Default::default(),
             nym_vpn_api_url: Default::default(),
         }
     }
@@ -124,7 +122,6 @@ impl NymNetworkDetails {
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
-            .with_explorer_api(get_optional_env(var_names::EXPLORER_API))
             .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
     }
 
@@ -152,7 +149,6 @@ impl NymNetworkDetails {
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
             },
-            explorer_api: parse_optional_str(mainnet::EXPLORER_API),
             nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
         }
     }
@@ -193,7 +189,6 @@ impl NymNetworkDetails {
         set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
         set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
-        set_optional_var(var_names::EXPLORER_API, self.explorer_api);
         set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
     }
 
@@ -294,12 +289,6 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
-        self
-    }
-
-    #[must_use]
-    pub fn with_explorer_api<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
-        self.explorer_api = endpoint.map(Into::into);
         self
     }
 

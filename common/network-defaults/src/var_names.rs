@@ -22,7 +22,6 @@ pub const REWARDING_VALIDATOR_ADDRESS: &str = "REWARDING_VALIDATOR_ADDRESS";
 pub const NYXD: &str = "NYXD";
 pub const NYM_API: &str = "NYM_API";
 pub const NYXD_WEBSOCKET: &str = "NYXD_WS";
-pub const EXPLORER_API: &str = "EXPLORER_API";
 pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
 pub const NYM_VPN_API: &str = "NYM_VPN_API";
 pub const CLIENT_STATS_COLLECTION_PROVIDER: &str = "CLIENT_STATS_COLLECTION_PROVIDER";

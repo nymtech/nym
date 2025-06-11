@@ -34,8 +34,6 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     )]
 }
 
-pub(crate) const EXPLORER_API: &str = "https://sandbox-explorer.nymtech.net/api/";
-
 pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
     nym_network_defaults::NymNetworkDetails {
         network_name: NETWORK_NAME.into(),
@@ -53,7 +51,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
-        explorer_api: parse_optional_str(EXPLORER_API),
         nym_vpn_api_url: None,
     }
 }

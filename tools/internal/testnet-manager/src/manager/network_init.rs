@@ -38,7 +38,6 @@ impl InitCtx {
             network_name: "foomp".to_string(), // does this matter?
             endpoints: vec![],
             contracts: Default::default(),
-            explorer_api: None,
             nym_vpn_api_url: None,
         };
         Ok(Config::try_from_nym_network_details(&network_details)?)

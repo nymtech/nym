@@ -39,7 +39,7 @@ pub(crate) struct MinNodeVersionQuery {
     params(
         MinNodeVersionQuery
     ),
-    path = "/",
+    path = "",
     summary = "Gets available entry and exit gateways from the Nym network directory",
     context_path = "/dvpn/v1/directory/gateways",
     operation_id = "getGateways",

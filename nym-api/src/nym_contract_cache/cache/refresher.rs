@@ -54,6 +54,7 @@ impl ContractDataProvider {
         let group = query_guard!(client_guard, group_contract_address());
         let multisig = query_guard!(client_guard, multisig_contract_address());
         let ecash = query_guard!(client_guard, ecash_contract_address());
+        let performance = query_guard!(client_guard, performance_contract_address());
 
         for (address, name) in [
             (mixnet, "nym-mixnet-contract"),
@@ -62,6 +63,7 @@ impl ContractDataProvider {
             (group, "nym-cw4-group-contract"),
             (multisig, "nym-cw3-multisig-contract"),
             (ecash, "nym-ecash-contract"),
+            (performance, "nym-performance-contract"),
         ] {
             let (cw2, build_info) = if let Some(address) = address {
                 let cw2 = query_guard!(client_guard, try_get_cw2_contract_version(address).await);

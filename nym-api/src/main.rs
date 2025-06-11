@@ -1,9 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-#![warn(clippy::todo)]
-#![warn(clippy::dbg_macro)]
-
 use crate::epoch_operations::EpochAdvancer;
 use crate::support::cli;
 use crate::support::storage;
@@ -22,6 +19,7 @@ mod key_rotation;
 pub(crate) mod network;
 mod network_monitor;
 pub(crate) mod node_describe_cache;
+mod node_performance;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;

@@ -2,41 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::data::CirculatingSupplyCacheData;
-use cosmwasm_std::Addr;
 use nym_api_requests::models::CirculatingSupplyResponse;
-use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
 use std::ops::Deref;
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::Duration,
 };
-use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::time;
 use tracing::{error, info};
 
 mod data;
 pub(crate) mod refresher;
-
-#[derive(Debug, Error)]
-enum CirculatingSupplyCacheError {
-    // this can only happen if somebody decides to set their staking address
-    // before https://github.com/nymtech/nym/pull/2796 is deployed
-    #[error("vesting account owned by {owner} with id {account_id} appeared more than once in the query response")]
-    DuplicateVestingAccountEntry { owner: Addr, account_id: u32 },
-
-    // this can happen if somehow the query was incomplete, like some paged sub-query didn't return full result
-    // or there's a bug with paging. or if, somehow, a vesting account got removed from the contract
-    #[error("got an inconsistent number of vesting account. received data on {got}, but expected {expected}")]
-    InconsistentNumberOfVestingAccounts { expected: usize, got: usize },
-
-    #[error(transparent)]
-    ClientError {
-        #[from]
-        source: NyxdError,
-    },
-}
 
 /// A cache for the circulating supply of the network. Circulating supply is calculated by
 /// taking the initial supply of 1bn coins, and subtracting the amount of coins that are

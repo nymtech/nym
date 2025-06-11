@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::CirculatingSupplyCache;
-use crate::circulating_supply_api::cache::CirculatingSupplyCacheError;
 use crate::support::nyxd::Client;
 use cosmwasm_std::coin;
 use nym_contracts_common::truncate_decimal;
 use nym_task::TaskClient;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
-use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time;
@@ -62,10 +61,7 @@ impl CirculatingSupplyCacheRefresher {
         }
     }
 
-    async fn get_mixmining_reserve(
-        &self,
-        mix_denom: &str,
-    ) -> Result<Coin, CirculatingSupplyCacheError> {
+    async fn get_mixmining_reserve(&self, mix_denom: &str) -> Result<Coin, NyxdError> {
         let reward_pool = self
             .nyxd_client
             .get_current_rewarding_parameters()
@@ -76,14 +72,11 @@ impl CirculatingSupplyCacheRefresher {
         Ok(Coin::new(truncate_decimal(reward_pool).u128(), mix_denom))
     }
 
-    async fn get_total_vesting_tokens(
-        &self,
-        mix_denom: &str,
-    ) -> Result<Coin, CirculatingSupplyCacheError> {
+    async fn get_total_vesting_tokens(&self, mix_denom: &str) -> Result<Coin, NyxdError> {
         Ok(coin(0, mix_denom).into())
     }
 
-    async fn refresh(&self) -> Result<(), CirculatingSupplyCacheError> {
+    async fn refresh(&self) -> Result<(), NyxdError> {
         let chain_details = self.nyxd_client.chain_details().await;
         let mix_denom = &chain_details.mix_denom.base;
 

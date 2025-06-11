@@ -42,7 +42,7 @@ use nym_validator_client::nyxd::{
     contract_traits::{
         DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MixnetQueryClient,
         MixnetSigningClient, MultisigQueryClient, MultisigSigningClient, NymContractsProvider,
-        PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
+        PagedMixnetQueryClient, PagedMultisigQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     BlockResponse, CosmWasmClient, Fee, TendermintRpcClient,
@@ -54,7 +54,6 @@ use nym_validator_client::nyxd::{
 use nym_validator_client::{
     nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient, QueryHttpRpcNyxdClient,
 };
-use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;
 use tendermint::abci::response::Info;
@@ -272,31 +271,6 @@ impl Client {
         nyxd_query!(self, get_rewarded_set().await)
     }
 
-    pub(crate) async fn get_current_vesting_account_storage_key(&self) -> Result<u32, NyxdError> {
-        let guard = self.inner.read().await;
-
-        // the expect is fine as we always construct the client with the vesting contract explicitly set
-        let vesting_contract = query_guard!(
-            guard,
-            vesting_contract_address().expect("vesting contract address is not available")
-        );
-        // TODO: I don't like the usage of the hardcoded value here
-        let res = query_guard!(
-            guard,
-            query_contract_raw(vesting_contract, b"key".to_vec()).await?
-        );
-        if res.is_empty() {
-            return Ok(0);
-        }
-
-        serde_json::from_slice(&res).map_err(NyxdError::from)
-    }
-
-    pub(crate) async fn get_all_vesting_coins(
-        &self,
-    ) -> Result<Vec<AccountVestingCoins>, NyxdError> {
-        nyxd_query!(self, get_all_accounts_vesting_coins().await)
-    }
     pub(crate) async fn get_pending_events_count(&self) -> Result<u32, NyxdError> {
         let pending = nyxd_query!(self, get_number_of_pending_events().await?);
         Ok(pending.epoch_events + pending.interval_events)

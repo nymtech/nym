@@ -3,7 +3,6 @@
 
 use defguard_wireguard_rs::host::Peer;
 use std::time::Duration;
-use time::OffsetDateTime;
 
 const DEFAULT_PEER_MAX_FLUSHING_RATE: Duration = Duration::from_secs(60 * 60 * 24); // 24h
 const DEFAULT_PEER_MAX_DELTA_FLUSHING_AMOUNT: u64 = 512 * 1024 * 1024; // 512MB
@@ -28,83 +27,48 @@ impl Default for PeerFlushingBehaviourConfig {
 
 pub struct CachedPeerManager {
     pub(crate) peer_information: Option<PeerInformation>,
-    pub(crate) cfg: PeerFlushingBehaviourConfig,
 }
 
 impl CachedPeerManager {
-    pub(crate) fn new(peer: Peer) -> Self {
-        let peer_information = Some(PeerInformation::new(peer));
+    pub(crate) fn new(peer: &Peer) -> Self {
         Self {
-            peer_information,
-            cfg: PeerFlushingBehaviourConfig::default(),
+            peer_information: Some(peer.into()),
         }
     }
 
-    pub(crate) fn get_peer(&self) -> Option<Peer> {
-        self.peer_information.as_ref().map(|p| p.peer.clone())
+    pub(crate) fn get_peer(&self) -> Option<PeerInformation> {
+        self.peer_information
     }
 
     pub(crate) fn remove_peer(&mut self) {
         self.peer_information = None;
     }
 
-    pub(crate) fn update_trx(&mut self, kernel_peer: &Peer) {
+    pub(crate) fn update(&mut self, kernel_peer: PeerInformation) {
         if let Some(peer_information) = self.peer_information.as_mut() {
-            peer_information.update_trx_bytes(kernel_peer.tx_bytes, kernel_peer.rx_bytes);
+            peer_information.update_trx_bytes(kernel_peer);
         }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct PeerInformation {
-    pub(crate) peer: Peer,
-    pub(crate) last_synced: OffsetDateTime,
+    pub(crate) tx_bytes: u64,
+    pub(crate) rx_bytes: u64,
+}
 
-    pub(crate) bytes_delta_since_sync: u64,
-    pub(crate) force_sync: bool,
+impl From<&Peer> for PeerInformation {
+    fn from(value: &Peer) -> Self {
+        Self {
+            tx_bytes: value.tx_bytes,
+            rx_bytes: value.rx_bytes,
+        }
+    }
 }
 
 impl PeerInformation {
-    pub fn new(peer: Peer) -> PeerInformation {
-        PeerInformation {
-            peer,
-            last_synced: OffsetDateTime::now_utc(),
-            bytes_delta_since_sync: 0,
-            force_sync: false,
-        }
-    }
-
-    pub(crate) fn should_sync(&self, cfg: PeerFlushingBehaviourConfig) -> bool {
-        if self.force_sync {
-            return true;
-        }
-        if self.bytes_delta_since_sync >= cfg.peer_max_delta_flushing_amount {
-            return true;
-        }
-
-        if self.last_synced + cfg.peer_max_flushing_rate < OffsetDateTime::now_utc()
-            && self.bytes_delta_since_sync != 0
-        {
-            return true;
-        }
-
-        false
-    }
-
-    pub(crate) fn peer(&self) -> &Peer {
-        &self.peer
-    }
-
-    pub(crate) fn update_trx_bytes(&mut self, tx_bytes: u64, rx_bytes: u64) {
-        self.bytes_delta_since_sync += tx_bytes.saturating_sub(self.peer.tx_bytes)
-            + rx_bytes.saturating_sub(self.peer.rx_bytes);
-        self.peer.tx_bytes = tx_bytes;
-        self.peer.rx_bytes = rx_bytes;
-    }
-
-    pub(crate) fn resync_peer_with_storage(&mut self) {
-        self.bytes_delta_since_sync = 0;
-        self.last_synced = OffsetDateTime::now_utc();
-        self.force_sync = false;
+    pub(crate) fn update_trx_bytes(&mut self, peer: PeerInformation) {
+        self.tx_bytes = peer.tx_bytes;
+        self.rx_bytes = peer.rx_bytes;
     }
 }

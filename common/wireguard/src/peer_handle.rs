@@ -3,8 +3,7 @@
 
 use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
-use crate::peer_storage_manager::CachedPeerManager;
-use defguard_wireguard_rs::host::Peer;
+use crate::peer_storage_manager::{CachedPeerManager, PeerInformation};
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
@@ -67,7 +66,10 @@ impl PeerHandle {
         Ok(success)
     }
 
-    fn compute_spent_bandwidth(kernel_peer: &Peer, cached_peer: &Peer) -> Option<u64> {
+    fn compute_spent_bandwidth(
+        kernel_peer: PeerInformation,
+        cached_peer: PeerInformation,
+    ) -> Option<u64> {
         let kernel_total = kernel_peer
             .rx_bytes
             .checked_add(kernel_peer.tx_bytes)
@@ -97,7 +99,7 @@ impl PeerHandle {
         })
     }
 
-    async fn active_peer(&mut self, kernel_peer: &Peer) -> Result<bool, Error> {
+    async fn active_peer(&mut self, kernel_peer: PeerInformation) -> Result<bool, Error> {
         let Some(cached_peer) = self.cached_peer.get_peer() else {
             log::debug!(
                 "Peer {:?} not in storage anymore, shutting down handle",
@@ -106,21 +108,15 @@ impl PeerHandle {
             return Ok(false);
         };
 
-        let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, &cached_peer)
-            .unwrap_or_else(|| {
-                // if gateway restarted, the kernel values restart from 0
-                // and we should restart from 0 in storage as well
-                if let Some(peer_information) = self.cached_peer.peer_information.as_mut() {
-                    peer_information.force_sync = true;
-                    peer_information.peer.rx_bytes = kernel_peer.rx_bytes;
-                    peer_information.peer.tx_bytes = kernel_peer.tx_bytes;
-                }
-                0
-            })
+        let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, cached_peer)
+            .unwrap_or_default()
             .try_into()
-            .map_err(|_| Error::InconsistentConsumedBytes)?;
+            .inspect_err(|err| tracing::error!("Could not convert from u64 to i64: {err:?}"))
+            .unwrap_or_default();
+
+        self.cached_peer.update(kernel_peer);
+
         if spent_bandwidth > 0 {
-            self.cached_peer.update_trx(kernel_peer);
             if self
                 .bandwidth_storage_manager
                 .write()
@@ -131,7 +127,7 @@ impl PeerHandle {
             {
                 tracing::debug!(
                     "Peer {} is out of bandwidth, removing it",
-                    kernel_peer.public_key.to_string()
+                    self.public_key.to_string()
                 );
                 let success = self.remove_peer().await?;
                 self.cached_peer.remove_peer();
@@ -150,8 +146,8 @@ impl PeerHandle {
             .peers
             .get(&self.public_key)
             .ok_or(Error::MissingClientKernelEntry(self.public_key.to_string()))?
-            .clone();
-        if !self.active_peer(&kernel_peer).await? {
+            .into();
+        if !self.active_peer(kernel_peer).await? {
             log::debug!(
                 "Peer {:?} is not active anymore, shutting down handle",
                 self.public_key

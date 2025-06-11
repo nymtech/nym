@@ -3,9 +3,6 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("traffic byte data needs to be increasing")]
-    InconsistentConsumedBytes,
-
     #[error("{0}")]
     Defguard(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 

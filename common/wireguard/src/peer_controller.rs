@@ -104,7 +104,7 @@ impl PeerController {
         );
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
-            let cached_peer_manager = CachedPeerManager::new(peer.clone());
+            let cached_peer_manager = CachedPeerManager::new(&peer);
             let mut handle = PeerHandle::new(
                 public_key.clone(),
                 host_information.clone(),
@@ -177,7 +177,7 @@ impl PeerController {
         let bandwidth_storage_manager = Arc::new(RwLock::new(
             Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key).await?,
         ));
-        let cached_peer_manager = CachedPeerManager::new(peer.clone());
+        let cached_peer_manager = CachedPeerManager::new(&peer);
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),

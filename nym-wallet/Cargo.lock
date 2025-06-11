@@ -4246,7 +4246,6 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
- "serde-json-wasm",
  "serde_repr",
  "thiserror 2.0.12",
  "time",
@@ -4323,6 +4322,19 @@ dependencies = [
  "pem",
  "tracing",
  "zeroize",
+]
+
+[[package]]
+name = "nym-performance-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -4432,6 +4444,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-vesting-contract-common",
  "prost",

@@ -16,7 +16,7 @@ use crate::{
     Percent, ProfitMarginRange, SphinxKey,
 };
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{to_json_string, Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -604,7 +604,7 @@ pub struct NodeCostParams {
 
 impl NodeCostParams {
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 
@@ -773,7 +773,7 @@ pub struct MixNodeConfigUpdate {
 
 impl MixNodeConfigUpdate {
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 

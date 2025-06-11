@@ -1,0 +1,29 @@
+[package]
+name = "nym-performance-contract-common"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true }
+schemars = { workspace = true }
+
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-controllers = { workspace = true }
+
+nym-contracts-common = { path = "../contracts-common" }
+
+
+[features]
+schema = []
+
+[lints]
+workspace = true

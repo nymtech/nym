@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nym Extension Storage - Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #6750A4;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .console-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background: #6750A4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #5a45a0;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Nym Extension Storage Demo</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Demo Environment</strong><br>
+            This is a development demo. The mnemonics used here are for testing only and should never be used in production.
+        </div>
+
+        <div class="info">
+            <strong>📋 How to use this demo:</strong><br>
+            1. Open your browser's developer console (F12)<br>
+            2. The demo will run automatically when the page loads<br>
+            3. You can also use the interactive functions shown below<br>
+            4. Check the IndexedDB in your browser's dev tools to see stored data
+        </div>
+
+        <div class="success">
+            <strong>✅ What this demo shows:</strong><br>
+            • Creating encrypted storage instances<br>
+            • Storing and retrieving BIP39 mnemonics<br>
+            • Managing multiple wallets<br>
+            • Error handling for invalid data<br>
+            • Cleaning up stored data
+        </div>
+
+        <h2>Interactive Functions</h2>
+        <p>Open the browser console and try these commands:</p>
+        
+        <div class="console-output">
+            // Create a storage instance<br/>
+            const storage = await window.nymStorageDemo.createStorage();<br/>
+            <br/>
+            // Run a quick test<br/>
+            await window.nymStorageDemo.quickTest(storage);<br/>
+            <br/>
+            // Access test mnemonics<br/>
+            console.log(window.nymStorageDemo.mnemonics);<br/>
+            <br/>
+            // Manual operations<br/>
+            await storage.store_mnemonic("my-wallet", "your mnemonic here...");<br/>
+            <br/>
+            const mnemonic = await storage.read_mnemonic("my-wallet");<br/>
+            const exists = await storage.has_mnemonic("my-wallet");<br/>
+            const allKeys = await storage.get_all_mnemonic_keys();<br/>
+            await storage.remove_mnemonic("my-wallet");
+        </div>
+
+        <div class="button-group">
+            <button onclick="location.reload()">🔄 Restart Demo</button>
+            <button onclick="window.open('https://github.com/nymtech/nym', '_blank')">📖 Nym Documentation</button>
+        </div>
+
+        <h2>Architecture Overview</h2>
+        <p>This storage component uses:</p>
+        <ul>
+            <li><strong>Rust/WASM</strong> - Core storage logic compiled to WebAssembly</li>
+            <li><strong>IndexedDB</strong> - Browser-native persistent storage</li>
+            <li><strong>AES Encryption</strong> - Password-based encryption for sensitive data</li>
+            <li><strong>BIP39 Validation</strong> - Ensures mnemonic phrases are valid</li>
+        </ul>
+
+        <div class="info">
+            <strong>🔒 Security Notes:</strong><br>
+            • All data is encrypted with your password before storage<br>
+            • Mnemonics are validated against BIP39 standards<br>
+            • Sensitive data is zeroed from memory when no longer needed<br>
+            • Storage is isolated per browser origin
+        </div>
+    </div>
+
+    <!-- Load the WASM module and demo -->
+    <script type="module" src="./index.js"></script>
+</body>
+</html> 

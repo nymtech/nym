@@ -18,7 +18,7 @@ use wasm_utils::check_promise_result;
 use wasm_utils::error::{PromisableResult, PromisableResultError};
 use zeroize::Zeroizing;
 
-const STORAGE_NAME: &str = "nym-wallet-extension";
+const STORAGE_NAME: &str = "nym-extension-storage";
 const STORAGE_VERSION: u32 = 1;
 
 // v1 tables

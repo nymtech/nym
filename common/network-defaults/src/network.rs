@@ -44,21 +44,27 @@ pub struct NymNetworkDetails {
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ApiUrl {
+    /// Expects a string formatted Url
+    ///
+    /// see https://docs.rs/url/latest/url/struct.Url.html
     pub url: String,
-    pub front_urls: Option<Vec<String>>,
+    /// Optional alternative equivalent hostnames. Each entry must parse as valid Host
+    ///
+    /// see https://docs.rs/url/latest/url/enum.Host.html
+    pub front_hosts: Option<Vec<String>>,
 }
 
 pub struct ApiUrlConst<'a> {
     pub url: &'a str,
-    pub front_urls: Option<&'a [&'a str]>,
+    pub front_hosts: Option<&'a [&'a str]>,
 }
 
 impl From<ApiUrlConst<'_>> for ApiUrl {
     fn from(value: ApiUrlConst) -> Self {
         ApiUrl {
             url: value.url.to_string(),
-            front_urls: value
-                .front_urls
+            front_hosts: value
+                .front_hosts
                 .map(|slice| slice.iter().map(|s| s.to_string()).collect()),
         }
     }

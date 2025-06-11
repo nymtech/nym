@@ -36,22 +36,26 @@ pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const NYM_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_API,
-        front_urls: None,
+        front_hosts: None,
     },
     ApiUrlConst {
-        url: "https://validator.global.ssl.fastly.net/api/",
-        front_urls: Some(&["https://yelp.global.ssl.fastly.net"]),
+        url: "https://nym-fronntdoor.vercel.app/api/",
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
+    },
+    ApiUrlConst {
+        url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
+        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
 ];
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_VPN_API,
-        front_urls: None,
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
     ApiUrlConst {
-        url: "https://nymvpn.global.ssl.fastly.net/api/",
-        front_urls: Some(&["https://yelp.global.ssl.fastly.net"]),
+        url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
+        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
 ];
 

@@ -206,7 +206,7 @@ pub async fn update_daily_stats(
     let date_utc = format!(
         "{:04}-{:02}-{:02}",
         timestamp.year(),
-        timestamp.month(),
+        timestamp.month() as u8,
         timestamp.day()
     );
 

@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use crate::monitor::ExplorerPrettyBond;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::CoinSchema;
@@ -54,7 +56,8 @@ pub struct DVpnGateway {
     pub authenticator: Option<AuthenticatorDetails>,
     pub location: Location,
     pub last_probe: Option<DirectoryGwProbe>,
-    pub ip_addresses: Vec<String>,
+    #[schema(value_type = Vec<String>)]
+    pub ip_addresses: Vec<IpAddr>,
     pub mix_port: u16,
     pub role: NodeRole,
     pub entry: Option<BasicEntryInformation>,
@@ -215,11 +218,7 @@ impl DVpnGateway {
                 last_updated_utc: gateway.last_testrun_utc.unwrap_or_default(),
                 outcome: res.outcome,
             }),
-            ip_addresses: skimmed_node
-                .ip_addresses
-                .iter()
-                .map(|ip| ip.to_string())
-                .collect(),
+            ip_addresses: skimmed_node.ip_addresses.clone(),
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),
             entry: skimmed_node.entry.clone(),

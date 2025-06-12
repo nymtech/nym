@@ -55,5 +55,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
         },
         explorer_api: parse_optional_str(EXPLORER_API),
         nym_vpn_api_url: None,
+        nym_vpn_api_urls: None,
+        nym_api_urls: None,
     }
 }

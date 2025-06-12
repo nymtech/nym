@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "network")]
-use crate::{DenomDetails, ValidatorDetails};
+use crate::{ApiUrlConst, DenomDetails, ValidatorDetails};
 
 pub const NETWORK_NAME: &str = "mainnet";
 
@@ -29,10 +29,36 @@ pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
-pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
+pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+#[cfg(feature = "network")]
+pub const NYM_APIS: &[ApiUrlConst] = &[
+    ApiUrlConst {
+        url: NYM_API,
+        front_hosts: None,
+    },
+    ApiUrlConst {
+        url: "https://nym-fronntdoor.vercel.app/api/",
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
+    },
+    ApiUrlConst {
+        url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
+        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+    },
+];
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+#[cfg(feature = "network")]
+pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
+    ApiUrlConst {
+        url: NYM_VPN_API,
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
+    },
+    ApiUrlConst {
+        url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
+        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+    },
+];
 
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
 pub const EXIT_POLICY_URL: &str =

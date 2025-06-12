@@ -40,6 +40,8 @@ impl InitCtx {
             contracts: Default::default(),
             explorer_api: None,
             nym_vpn_api_url: None,
+            nym_vpn_api_urls: None,
+            nym_api_urls: None,
         };
         Ok(Config::try_from_nym_network_details(&network_details)?)
     }

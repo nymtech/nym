@@ -441,7 +441,6 @@ impl OptionalValidators {
         match network {
             WalletNetwork::MAINNET => self.mainnet.as_ref(),
             WalletNetwork::SANDBOX => self.sandbox.as_ref(),
-            WalletNetwork::QA => self.qa.as_ref(),
         }
         .into_iter()
         .flatten()
@@ -459,11 +458,6 @@ impl fmt::Display for OptionalValidators {
             .sandbox
             .as_ref()
             .map(|validators| format!(",\nsandbox: [\n{}\n]", validators.iter().format("\n")))
-            .unwrap_or_default();
-        let s3 = self
-            .qa
-            .as_ref()
-            .map(|validators| format!(",\nqa: [\n{}\n]", validators.iter().format("\n")))
             .unwrap_or_default();
         write!(f, "{s1}{s2}{s3}")
     }

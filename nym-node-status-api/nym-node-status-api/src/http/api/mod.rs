@@ -8,6 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::{server::HttpServer, state::AppState};
 
+pub(crate) mod dvpn;
 pub(crate) mod gateways;
 pub(crate) mod metrics;
 pub(crate) mod mixnodes;
@@ -43,6 +44,10 @@ impl RouterBuilder {
             .nest(
                 "/explorer/v3",
                 Router::new().nest("/nym-nodes", nym_nodes::routes()),
+            )
+            .nest(
+                "/dvpn/v1",
+                Router::new().nest("/directory/gateways", dvpn::routes()),
             )
             .nest(
                 "/internal",

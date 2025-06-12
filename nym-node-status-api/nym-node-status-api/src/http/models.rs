@@ -1,8 +1,19 @@
+use std::net::IpAddr;
+
+use crate::monitor::ExplorerPrettyBond;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
-use nym_validator_client::client::NodeId;
+use nym_validator_client::{
+    client::NodeId,
+    models::{
+        AuthenticatorDetails, BinaryBuildInformationOwned, IpPacketRouterDetails, NymNodeData,
+    },
+    nym_api::SkimmedNode,
+    nym_nodes::{BasicEntryInformation, NodeRole},
+};
 use serde::{Deserialize, Serialize};
+use tracing::{error, instrument};
 use utoipa::ToSchema;
 
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
@@ -21,6 +32,220 @@ pub struct Gateway {
     pub last_updated_utc: String,
     pub routing_score: f32,
     pub config_score: u32,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct BuildInformation {
+    pub build_version: String,
+    pub commit_branch: String,
+    pub commit_sha: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct Location {
+    pub two_letter_iso_country_code: String,
+    pub latitude: f64,
+    pub longitude: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct DVpnGateway {
+    pub identity_key: String,
+    pub name: String,
+    pub ip_packet_router: Option<IpPacketRouterDetails>,
+    pub authenticator: Option<AuthenticatorDetails>,
+    pub location: Location,
+    pub last_probe: Option<DirectoryGwProbe>,
+    #[schema(value_type = Vec<String>)]
+    pub ip_addresses: Vec<IpAddr>,
+    pub mix_port: u16,
+    pub role: NodeRole,
+    pub entry: Option<BasicEntryInformation>,
+    // The performance data here originates from the nym-api, and is effectively mixnet performance
+    // at the time of writing this
+    pub performance: String,
+    pub build_information: BinaryBuildInformationOwned,
+}
+
+impl DVpnGateway {
+    pub fn can_route_entry(&self) -> bool {
+        self.last_probe
+            .as_ref()
+            .map(|probe| match &probe.outcome.as_entry {
+                directory_gw_probe_outcome::Entry::Tested(entry_test_result) => {
+                    entry_test_result.can_route
+                }
+                directory_gw_probe_outcome::Entry::NotTested
+                | directory_gw_probe_outcome::Entry::EntryFailure => false,
+            })
+            .unwrap_or(false)
+    }
+
+    pub fn can_route_exit(&self) -> bool {
+        self.last_probe
+            .as_ref()
+            .map(|probe| {
+                probe
+                    .outcome
+                    .as_exit
+                    .as_ref()
+                    .map(|outcome| {
+                        outcome.can_route_ip_external_v4 && outcome.can_route_ip_external_v6
+                    })
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+    }
+}
+
+/// based on
+/// https://github.com/nymtech/nym-vpn-client/blob/nym-vpn-core-v1.10.0/nym-vpn-core/crates/nym-gateway-probe/src/types.rs
+/// TODO: long term types should be moved into this repo because nym-vpn-client
+/// could pull it as a dependency and we'd have a single source of truth
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct LastProbeResult {
+    node: String,
+    used_entry: String,
+    outcome: ProbeOutcome,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct DirectoryGwProbe {
+    last_updated_utc: String,
+    outcome: ProbeOutcome,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct ProbeOutcome {
+    as_entry: directory_gw_probe_outcome::Entry,
+    as_exit: Option<directory_gw_probe_outcome::Exit>,
+    wg: Option<wg_outcome_versions::ProbeOutcomeV1>,
+}
+
+pub mod directory_gw_probe_outcome {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    #[serde(untagged)]
+    #[allow(clippy::enum_variant_names)]
+    pub enum Entry {
+        Tested(EntryTestResult),
+        NotTested,
+        EntryFailure,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+    pub struct EntryTestResult {
+        pub can_connect: bool,
+        pub can_route: bool,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+    pub struct Exit {
+        pub can_connect: bool,
+        pub can_route_ip_v4: bool,
+        pub can_route_ip_external_v4: bool,
+        pub can_route_ip_v6: bool,
+        pub can_route_ip_external_v6: bool,
+    }
+}
+
+pub mod wg_outcome_versions {
+    use super::*;
+
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+    pub struct ProbeOutcomeV1 {
+        pub can_register: bool,
+
+        pub can_handshake_v4: bool,
+        pub can_resolve_dns_v4: bool,
+        pub ping_hosts_performance_v4: f32,
+        pub ping_ips_performance_v4: f32,
+
+        pub can_handshake_v6: bool,
+        pub can_resolve_dns_v6: bool,
+        pub ping_hosts_performance_v6: f32,
+        pub ping_ips_performance_v6: f32,
+
+        pub download_duration_sec_v4: u64,
+        pub downloaded_file_v4: String,
+        pub download_error_v4: String,
+
+        pub download_duration_sec_v6: u64,
+        pub downloaded_file_v6: String,
+        pub download_error_v6: String,
+    }
+}
+
+impl DVpnGateway {
+    #[instrument(level = tracing::Level::INFO, name = "dvpn_gw_new", skip_all, fields(gateway_key = gateway.gateway_identity_key, node_id = skimmed_node.node_id))]
+    pub(crate) fn new(gateway: Gateway, skimmed_node: &SkimmedNode) -> anyhow::Result<Self> {
+        let location = gateway
+            .explorer_pretty_bond
+            .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
+            .and_then(|value| {
+                serde_json::from_value::<ExplorerPrettyBond>(value).map_err(From::from)
+            })
+            .map(|bond| bond.location)?;
+
+        let self_described = gateway
+            .self_described
+            .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
+            .and_then(|value| serde_json::from_value::<NymNodeData>(value).map_err(From::from))?;
+
+        let last_probe_result = match gateway.last_probe_result {
+            Some(value) => {
+                let parsed =
+                    serde_json::from_value::<LastProbeResult>(value).inspect_err(|err| {
+                        error!("Failed to deserialize probe result: {err}");
+                    })?;
+                Some(parsed)
+            }
+            None => None,
+        };
+
+        Ok(Self {
+            identity_key: gateway.gateway_identity_key,
+            name: gateway.description.moniker,
+            ip_packet_router: self_described.ip_packet_router,
+            authenticator: self_described.authenticator,
+            location: Location {
+                latitude: location.location.latitude,
+                longitude: location.location.longitude,
+                two_letter_iso_country_code: location.two_letter_iso_country_code,
+            },
+            last_probe: last_probe_result.map(|res| DirectoryGwProbe {
+                last_updated_utc: gateway.last_testrun_utc.unwrap_or_default(),
+                outcome: res.outcome,
+            }),
+            ip_addresses: skimmed_node.ip_addresses.clone(),
+            mix_port: skimmed_node.mix_port,
+            role: skimmed_node.role.clone(),
+            entry: skimmed_node.entry.clone(),
+            performance: to_percent(gateway.performance),
+            build_information: self_described.build_information,
+        })
+    }
+}
+
+fn to_percent(performance: u8) -> String {
+    let fraction = performance as f32 / 100.0;
+    format!("{:.2}", fraction)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn to_percent_should_work() {
+        let starting = [0u8, 33, 50, 99, 100];
+        let expected = ["0.00", "0.33", "0.50", "0.99", "1.00"];
+
+        for (starting, expected) in starting.into_iter().zip(expected) {
+            assert_eq!(expected, to_percent(starting));
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

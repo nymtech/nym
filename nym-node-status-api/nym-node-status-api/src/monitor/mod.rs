@@ -7,7 +7,6 @@ use crate::db::models::{
     NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
-use crate::monitor::geodata::{ExplorerPrettyBond, Location};
 use crate::utils::now_utc;
 use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
@@ -30,7 +29,7 @@ use std::{
 use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
-pub(crate) use geodata::IpInfoClient;
+pub(crate) use geodata::{ExplorerPrettyBond, IpInfoClient, Location};
 pub(crate) use node_delegations::DelegationsCache;
 
 mod geodata;
@@ -106,11 +105,10 @@ impl Monitor {
             .clone()
             .expect("rust sdk mainnet default missing api_url");
 
-        let nym_api =
-            nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])
-                .no_hickory_dns()
-                .with_timeout(self.nym_api_client_timeout)
-                .build::<&str>()?;
+        let nym_api = nym_http_api_client::ClientBuilder::new_with_url(default_api_url)
+            .no_hickory_dns()
+            .with_timeout(self.nym_api_client_timeout)
+            .build::<&str>()?;
 
         let api_client = NymApiClient::from(nym_api);
 
@@ -134,6 +132,8 @@ impl Monitor {
             })
             .collect::<Vec<_>>();
 
+        tracing::info!("🟣 🚪 gateway nodes: {}", gateways.len());
+
         let bonded_nym_nodes = api_client
             .get_all_bonded_nym_nodes()
             .await?
@@ -150,7 +150,8 @@ impl Monitor {
             .await
             .log_error("get_all_basic_nodes")?;
 
-        tracing::info!("🟣 get_all_basic_nodes: {}", nym_nodes.len());
+        let nym_node_count = nym_nodes.len();
+        tracing::info!("🟣 get_all_basic_nodes: {}", nym_node_count);
 
         let nym_node_records =
             self.prepare_nym_node_data(nym_nodes.clone(), &bonded_nym_nodes, &described_nodes);
@@ -251,7 +252,7 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            (NYMNODE_COUNT, nym_nodes.len()),
+            (NYMNODE_COUNT, nym_node_count),
             (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
             (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
             (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
@@ -267,7 +268,7 @@ impl Monitor {
         let last_updated = now_utc();
         let last_updated_utc = last_updated.unix_timestamp().to_string();
         let network_summary = NetworkSummary {
-            total_nodes: nym_nodes.len().cast_checked()?,
+            total_nodes: nym_node_count.cast_checked()?,
             mixnodes: mixnode::MixnodeSummary {
                 bonded: mixnode::MixingNodesSummary {
                     count: assigned_mixing_count.cast_checked()?,
@@ -457,11 +458,7 @@ impl Monitor {
     async fn check_ipinfo_bandwidth(&self) {
         match self.ipinfo.check_remaining_bandwidth().await {
             Ok(bandwidth) => {
-                tracing::info!(
-                    "ipinfo monthly bandwidth: {}/{} spent",
-                    bandwidth.month,
-                    bandwidth.limit
-                );
+                tracing::info!("ipinfo monthly bandwidth: {} spent", bandwidth.month);
             }
             Err(err) => {
                 tracing::debug!("Couldn't check ipinfo bandwidth: {}", err);

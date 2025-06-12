@@ -38,7 +38,7 @@ jobs:
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt
         with:
-          version: '116'
+          version: '114'
 
       - name: Install cosmwasm-check
         run: cargo install cosmwasm-check

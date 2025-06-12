@@ -8,6 +8,7 @@ use hkdf::{
     },
     Hkdf,
 };
+use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
 pub use hkdf::InvalidLength;
@@ -60,7 +61,7 @@ where
 /// // Prepare for the next derivation
 /// let next_material = material.next();
 /// ```
-#[derive(ZeroizeOnDrop)]
+#[derive(ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct DerivationMaterial {
     master_key: [u8; 32],
     index: u32,

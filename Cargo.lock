@@ -6649,7 +6649,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "3.0.0"
+version = "2.4.1"
 dependencies = [
  "ammonia",
  "anyhow",

@@ -107,10 +107,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
         .into_iter()
         .map(|item| item.try_into())
         .collect::<anyhow::Result<Vec<_>>>()
-        .map_err(|e| {
-            error!("Conversion from DTO failed: {e}. Invalidly stored data?");
-            e
-        })?;
+        .inspect_err(|e| error!("Conversion from DTO failed: {e}. Invalidly stored data?"))?;
     tracing::trace!("Fetched {} gateways from DB", items.len());
     Ok(items)
 }

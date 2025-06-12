@@ -31,7 +31,7 @@ jobs:
           git ls-remote --tags origin | awk '{print $2}'
           if git ls-remote --tags origin | awk '{print $2}' | grep -q "refs/tags/$TAG$" ; then
               echo "Tag '$TAG' ALREADY EXISTS on the remote"
-              # exit 1
+              exit 1
           else
               echo "Tag '$TAG' does not exist on the remote"
           fi

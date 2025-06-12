@@ -40,7 +40,6 @@ validator-config
 validator-api-config.toml
 dist
 storybook-static
-envs/qwerty.env
 .parcel-cache
 **/.DS_Store
 cpu-cycles/libcpucycles/build

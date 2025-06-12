@@ -6,6 +6,7 @@ use crate::utils::deserialize_g2;
 use bls12_381::{G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
+use rand::CryptoRng;
 use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};
 use zeroize::Zeroize;
@@ -120,7 +121,7 @@ impl Polynomial {
     // for polynomial of degree n, we generate n+1 values
     // (for example for degree 1, like y = x + 2, we need [2,1])
     /// Creates new pseudorandom polynomial of specified degree.
-    pub fn new_random(mut rng: impl RngCore, degree: u64) -> Self {
+    pub fn new_random(mut rng: impl RngCore + CryptoRng + CryptoRng, degree: u64) -> Self {
         Polynomial {
             coefficients: (0..=degree).map(|_| Scalar::random(&mut rng)).collect(),
         }

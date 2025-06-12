@@ -9,6 +9,7 @@ use crate::{Chunk, ChunkedShare, Share};
 use bls12_381::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
 use group::{Curve, Group, GroupEncoding};
+use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
@@ -191,7 +192,7 @@ impl HazmatRandomness {
 pub fn encrypt_shares(
     shares: &[(&Share, &PublicKey)],
     params: &Params,
-    mut rng: impl RngCore,
+    mut rng: impl RngCore + CryptoRng,
 ) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
 
@@ -262,6 +263,7 @@ pub fn encrypt_shares(
 }
 
 pub fn decrypt_share(
+    params: &Params,
     dk: &DecryptionKey,
     // in the case of multiple receivers, specifies which index of ciphertext chunks should be used
     i: usize,
@@ -269,6 +271,10 @@ pub fn decrypt_share(
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
     let mut plaintext = ChunkedShare::default();
+
+    if !ciphertext.verify_integrity(params) {
+        return Err(DkgError::FailedCiphertextIntegrityCheck);
+    }
 
     if i >= ciphertext.ciphertext_chunks.len() {
         return Err(DkgError::UnavailableCiphertext(i));
@@ -461,10 +467,22 @@ mod tests {
             let (ciphertext, hazmat) = encrypt_shares(shares, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered1 =
-                decrypt_share(&decryption_key1, 0, &ciphertext, Some(lookup_table)).unwrap();
-            let recovered2 =
-                decrypt_share(&decryption_key2, 1, &ciphertext, Some(lookup_table)).unwrap();
+            let recovered1 = decrypt_share(
+                &params,
+                &decryption_key1,
+                0,
+                &ciphertext,
+                Some(lookup_table),
+            )
+            .unwrap();
+            let recovered2 = decrypt_share(
+                &params,
+                &decryption_key2,
+                1,
+                &ciphertext,
+                Some(lookup_table),
+            )
+            .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }
@@ -490,10 +508,22 @@ mod tests {
             let (ciphertext, hazmat) = encrypt_shares(shares, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered1 =
-                decrypt_share(&decryption_key1, 0, &ciphertext, Some(lookup_table)).unwrap();
-            let recovered2 =
-                decrypt_share(&decryption_key2, 1, &ciphertext, Some(lookup_table)).unwrap();
+            let recovered1 = decrypt_share(
+                &params,
+                &decryption_key1,
+                0,
+                &ciphertext,
+                Some(lookup_table),
+            )
+            .unwrap();
+            let recovered2 = decrypt_share(
+                &params,
+                &decryption_key2,
+                1,
+                &ciphertext,
+                Some(lookup_table),
+            )
+            .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }
@@ -574,7 +604,10 @@ mod tests {
 
     #[test]
     fn ciphertexts_roundtrip() {
-        fn random_ciphertexts(mut rng: impl RngCore, num_receivers: usize) -> Ciphertexts {
+        fn random_ciphertexts(
+            mut rng: impl RngCore + CryptoRng,
+            num_receivers: usize,
+        ) -> Ciphertexts {
             Ciphertexts {
                 rr: (0..NUM_CHUNKS)
                     .map(|_| G1Projective::random(&mut rng))

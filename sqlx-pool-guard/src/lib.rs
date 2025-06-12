@@ -160,7 +160,7 @@ mod tests {
             .await
             .unwrap();
 
-        let guard = SqlitePoolGuard::new(database_path, connection_pool);
+        let guard = SqlitePoolGuard::new(database_path.clone(), connection_pool);
         assert!(
             guard
                 .wait_for_db_files_close()
@@ -170,5 +170,6 @@ mod tests {
         );
 
         assert!(guard.close_pool_inner().await.is_ok());
+        tokio::fs::remove_file(database_path).await.unwrap();
     }
 }

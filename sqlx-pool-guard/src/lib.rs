@@ -56,18 +56,16 @@ impl SqlitePoolGuard {
         // Avoid waiting for db files once the pool is marked closed to ensure that we don't wait on some other sqlite pool to close the database.
         if !self.connection_pool.is_closed() {
             tracing::info!("Closing sqlite pool: {}", self.database_path.display());
-            _ = self.close_pool_inner();
+            self.close_pool_inner().await.ok();
         }
     }
 
     async fn close_pool_inner(&self) -> std::io::Result<()> {
         self.connection_pool.close().await;
 
-        if let Err(e) = self.wait_for_db_files_close().await {
+        self.wait_for_db_files_close().await.inspect_err(|e| {
             tracing::error!("Failed to wait for file to close: {e}");
-        }
-
-        Ok(())
+        })
     }
 
     /// Returns all database files, including shm and wal files.

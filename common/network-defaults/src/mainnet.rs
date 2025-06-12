@@ -1,9 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ApiUrlConst;
 #[cfg(feature = "network")]
-use crate::{DenomDetails, ValidatorDetails};
+use crate::{ApiUrlConst, DenomDetails, ValidatorDetails};
 
 pub const NETWORK_NAME: &str = "mainnet";
 
@@ -33,6 +32,7 @@ pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+#[cfg(feature = "network")]
 pub const NYM_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_API,
@@ -48,6 +48,7 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
     },
 ];
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+#[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_VPN_API,

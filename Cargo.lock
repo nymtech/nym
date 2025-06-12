@@ -5083,21 +5083,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-bity-integration"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cosmrs",
- "eyre",
- "k256",
- "nym-cli-commands",
- "nym-validator-client 0.1.0",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
-]
-
-[[package]]
 name = "nym-cli"
 version = "1.1.57"
 dependencies = [

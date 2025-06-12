@@ -33,8 +33,8 @@ impl PersistentStatsStorage {
     /// * `database_path`: path to the database.
     pub async fn init<P: AsRef<Path> + Send>(database_path: P) -> Result<Self, StatsStorageError> {
         debug!(
-            "Attempting to connect to database {:?}",
-            database_path.as_ref().as_os_str()
+            "Attempting to connect to database {}",
+            database_path.as_ref().display()
         );
 
         // TODO: we can inject here more stuff based on our gateway global config

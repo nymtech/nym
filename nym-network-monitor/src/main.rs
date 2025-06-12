@@ -247,10 +247,11 @@ async fn main() -> Result<()> {
     let derivation_material = args
         .derivation_material_path
         .map(|derivation_material_path| {
-            let file = File::open(derivation_material_path).unwrap();
-            let derivation_material: DerivationMaterial = serde_json::from_reader(file).unwrap();
-            Arc::new(Mutex::new(derivation_material))
-        });
+            let file = File::open(derivation_material_path)?;
+            let derivation_material: DerivationMaterial = serde_json::from_reader(file)?;
+            Ok::<_, anyhow::Error>(Arc::new(Mutex::new(derivation_material)))
+        })
+        .transpose()?;
 
     let spawn_clients = Arc::clone(&clients);
     tokio::spawn(make_clients(

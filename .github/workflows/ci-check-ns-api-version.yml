@@ -44,7 +44,9 @@ jobs:
             echo "Tag is empty"
             exit 1
           fi
+          # first, list all tags for logging purposes
           curl -su ${{ secrets.HARBOR_ROBOT_USERNAME }}:${{ secrets.HARBOR_ROBOT_SECRET }} "$registry/v2/$repo_name/tags/list" | jq
+          # check if there's a matching tag
           exists=$(curl -su ${{ secrets.HARBOR_ROBOT_USERNAME }}:${{ secrets.HARBOR_ROBOT_SECRET }} "$registry/v2/$repo_name/tags/list" | jq -r --arg tag "$TAG" 'any(.tags[]; . == $tag)' )
           if [[ $exists = "true" ]]; then
             echo "Version '$TAG' defined in Cargo.toml ALREADY EXISTS as tag in harbor repo"

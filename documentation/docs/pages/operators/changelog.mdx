@@ -47,6 +47,53 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.11-cheddar`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.11-cheddar)
+- [`nym-node`](nodes/nym-node.mdx) version `1.13.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-06-10T09:41:31.291089877Z
+Build Version:      1.13.0
+Commit SHA:         ef220882d4bcf0a8a703ea62f9273e017c9ebb51
+Commit Date:        2025-06-10T11:39:20.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+### Operators Updates & Tools
+
+- **Nym Improvement Proposals**: NIPs are being introduced, allowing us to propose changes to the Nym network and ecosystem, and decentralise governance
+- **NIP1** will outline the governance process: Its draft will be published soon for discussion
+- **NIP2** will be about reducing the stake saturation point variable, which would make reward distribution across the network more equitable
+- **Join the Operator AMA next Tuesday** for an in-depth overview of what this all means (feat Nym Chief Scientist Claudia Diaz)
+- Keep an eye on our channels for information about how to participate in the upcoming voting (no need for forum registration, we are building something new!)
+
+### Features
+
+- [Track wireguard credential retries](https://github.com/nymtech/nym/pull/5783)
+
+- [Swap a decode into a `fromrow` to please future `postgres` feature](https://github.com/nymtech/nym/pull/5785): This PR change a sqlx derive from `Decode` to `FromRow` because a future PR will bring the `postgres` feature and it doesn't like that `Decode` there
+
+- [Fix contains ticketbook function that always returned true](https://github.com/nymtech/nym/pull/5787)
+
+- [QoL: `RequestPath` trait for `http-api-client`](https://github.com/nymtech/nym/pull/5788): Those `PathSegments` in `ApiClient` weren't very user-friendly. Instead we've defined a `RequestPath` trait that allows you to also pass a good old `&str` or `String` and internally it does exactly the same sanitization as before. `PathSegments` are also fully supported to not break any existing compatibility.
+
+- [Nym Statistics API](https://github.com/nymtech/nym/pull/5800): 
+    - Types for `nym-vpn-client`: It introduces `VpnClientStatsReport` which will be used by nym vpn clients to report statistics. Those types are in the monorepo because they're used by the `num-statistics-API`
+    - Nym Statistics API: Basically a `REST API` with a `postgres` backend. In this first iteration, it only accepts `VpnClientStatsReport` and stores them in its database. It optionally connects to the Nym API to confirm reports are coming from the network and attach country code to them if it's the case (exit node country code). 
+
+- [Resolve 1.87 clippy warnings](https://github.com/nymtech/nym/pull/5802)
+
+- [Adjusted wallet storybook mocks to fix the build](https://github.com/nymtech/nym/pull/5804)
+
+- [Set cached storage counters to 0](https://github.com/nymtech/nym/pull/5812)
+
+- [No autoremoval of peers](https://github.com/nymtech/nym/pull/5831)
+
 ## `v2025.10-brie`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.10-brie)

@@ -1,8 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::io;
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -30,7 +29,6 @@ pub enum StorageError {
 
     #[error("failed to perform sqlx migration: {source}")]
     MigrationError {
-        #[source]
         #[from]
         source: sqlx::migrate::MigrateError,
     },
@@ -43,7 +41,6 @@ pub enum StorageError {
 
     #[error("failed to run the SQL query: {source}")]
     QueryError {
-        #[source]
         #[from]
         source: sqlx::error::Error,
     },

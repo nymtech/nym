@@ -459,7 +459,7 @@ impl fmt::Display for OptionalValidators {
             .as_ref()
             .map(|validators| format!(",\nsandbox: [\n{}\n]", validators.iter().format("\n")))
             .unwrap_or_default();
-        write!(f, "{s1}{s2}{s3}")
+        write!(f, "{s1}{s2}")
     }
 }
 

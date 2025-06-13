@@ -82,8 +82,8 @@ impl GatewayStorage {
         message_retrieval_limit: i64,
     ) -> Result<Self, GatewayStorageError> {
         debug!(
-            "Attempting to connect to database {:?}",
-            database_path.as_ref().as_os_str()
+            "Attempting to connect to database {}",
+            database_path.as_ref().display()
         );
 
         // TODO: we can inject here more stuff based on our gateway global config

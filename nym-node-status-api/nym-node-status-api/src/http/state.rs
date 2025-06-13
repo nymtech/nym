@@ -1,14 +1,18 @@
 use cosmwasm_std::Decimal;
 use itertools::Itertools;
 use moka::{future::Cache, Entry};
+use nym_bin_common::bin_info_owned;
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
-use nym_validator_client::nym_api::SkimmedNode;
+use nym_validator_client::{models::BinaryBuildInformationOwned, nym_api::SkimmedNode};
 use semver::Version;
+use serde::Serialize;
+use time::UtcDateTime;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::{error, instrument, warn};
+use utoipa::ToSchema;
 
 use crate::{
     db::{queries, DbPool},
@@ -28,6 +32,7 @@ pub(crate) struct AppState {
     agent_max_count: i64,
     node_geocache: NodeGeoCache,
     node_delegations: Arc<RwLock<DelegationsCache>>,
+    bin_info: BinaryInfo,
 }
 
 impl AppState {
@@ -46,6 +51,7 @@ impl AppState {
             agent_max_count,
             node_geocache,
             node_delegations,
+            bin_info: BinaryInfo::new(),
         }
     }
 
@@ -77,6 +83,15 @@ impl AppState {
             .read()
             .await
             .delegations_owned(node_id)
+    }
+
+    pub(crate) fn health(&self) -> HealthInfo {
+        let uptime = (UtcDateTime::now() - self.bin_info.startup_time).whole_seconds();
+        HealthInfo { uptime }
+    }
+
+    pub(crate) fn build_information(&self) -> &BinaryBuildInformationOwned {
+        &self.bin_info.build_info
     }
 }
 
@@ -630,4 +645,24 @@ async fn aggregate_node_info_from_db(
     }
 
     Ok(parsed_nym_nodes)
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BinaryInfo {
+    startup_time: UtcDateTime,
+    build_info: BinaryBuildInformationOwned,
+}
+
+impl BinaryInfo {
+    fn new() -> Self {
+        Self {
+            startup_time: UtcDateTime::now(),
+            build_info: bin_info_owned!(),
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct HealthInfo {
+    uptime: i64,
 }

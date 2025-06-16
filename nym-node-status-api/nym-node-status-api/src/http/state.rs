@@ -5,15 +5,16 @@ use nym_bin_common::bin_info_owned;
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
-use nym_validator_client::{models::BinaryBuildInformationOwned, nym_api::SkimmedNode};
+use nym_validator_client::nym_api::SkimmedNode;
 use semver::Version;
 use serde::Serialize;
-use time::UtcDateTime;
 use std::{collections::HashMap, sync::Arc, time::Duration};
+use time::UtcDateTime;
 use tokio::sync::RwLock;
 use tracing::{error, instrument, warn};
 use utoipa::ToSchema;
 
+use super::models::SessionStats;
 use crate::{
     db::{queries, DbPool},
     http::models::{
@@ -22,7 +23,7 @@ use crate::{
     monitor::{DelegationsCache, NodeGeoCache},
 };
 
-use super::models::SessionStats;
+pub(crate) use nym_validator_client::models::BinaryBuildInformationOwned;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AppState {

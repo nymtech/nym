@@ -3,7 +3,10 @@
 
 //! API models for simulation data responses
 
-use crate::storage::models::{SimulatedNodePerformance, SimulatedPerformanceComparison, SimulatedRewardEpoch, SimulatedRouteAnalysis};
+use crate::storage::models::{
+    SimulatedNodePerformance, SimulatedPerformanceComparison, SimulatedRewardEpoch,
+    SimulatedRouteAnalysis,
+};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -42,7 +45,7 @@ impl From<SimulatedRewardEpoch> for SimulationEpochSummary {
             end_timestamp: epoch.end_timestamp,
             description: epoch.description,
             created_at: epoch.created_at,
-            nodes_analyzed: 0, // Will be populated by handler
+            nodes_analyzed: 0,         // Will be populated by handler
             available_methods: vec![], // Will be populated by handler
         }
     }
@@ -174,17 +177,17 @@ pub struct NodeMethodComparison {
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
 pub struct ComparisonSummaryStats {
     pub total_nodes_compared: usize,
-    pub nodes_improved: usize,      // nodes with better performance in new method
-    pub nodes_degraded: usize,      // nodes with worse performance in new method
-    pub nodes_unchanged: usize,     // nodes with same performance
+    pub nodes_improved: usize, // nodes with better performance in new method
+    pub nodes_degraded: usize, // nodes with worse performance in new method
+    pub nodes_unchanged: usize, // nodes with same performance
     pub average_reliability_old: f64,
     pub average_reliability_new: f64,
     pub median_reliability_old: f64,
     pub median_reliability_new: f64,
     pub reliability_std_dev_old: f64,
     pub reliability_std_dev_new: f64,
-    pub max_improvement: f64,       // highest positive delta
-    pub max_degradation: f64,       // highest negative delta
+    pub max_improvement: f64, // highest positive delta
+    pub max_degradation: f64, // highest negative delta
 }
 
 /// Comparison of route analysis between methods
@@ -192,8 +195,8 @@ pub struct ComparisonSummaryStats {
 pub struct RouteAnalysisComparison {
     pub old_method: Option<RouteAnalysisData>,
     pub new_method: Option<RouteAnalysisData>,
-    pub time_window_difference_hours: i32, // new - old
-    pub route_coverage_difference: i32,    // new total routes - old total routes
+    pub time_window_difference_hours: i32,    // new - old
+    pub route_coverage_difference: i32,       // new total routes - old total routes
     pub success_rate_difference: Option<f64>, // new success rate - old success rate
 }
 

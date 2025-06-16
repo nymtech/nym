@@ -54,7 +54,7 @@ async fn make_clients(
             if let Some(dropped_client) = clients.write().await.pop_front() {
                 const CLIENT_DROP_TIMEOUT: Duration = Duration::from_secs(30);
                 let start = tokio::time::Instant::now();
-                
+
                 // Try immediate unwrap first
                 match Arc::try_unwrap(dropped_client) {
                     Ok(client) => {
@@ -82,9 +82,12 @@ async fn make_clients(
                             }
                             tokio::time::sleep(Duration::from_millis(100)).await;
                         }
-                        
+
                         if start.elapsed() >= CLIENT_DROP_TIMEOUT {
-                            warn!("Client drop timed out after {:?}, forcing drop", CLIENT_DROP_TIMEOUT);
+                            warn!(
+                                "Client drop timed out after {:?}, forcing drop",
+                                CLIENT_DROP_TIMEOUT
+                            );
                             // Client will be dropped when Arc goes out of scope
                         }
                     }

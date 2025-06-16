@@ -1204,10 +1204,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `timestamp`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_routes(
-        &self,
-        timestamp: i64,
-    ) -> Result<(), sqlx::Error> {
+    pub(super) async fn purge_old_routes(&self, timestamp: i64) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM routes WHERE timestamp < ?", timestamp)
             .execute(&self.connection_pool)
             .await?;
@@ -2027,7 +2024,6 @@ impl StorageManager {
         &self,
         simulated_epoch_ids: &[i64],
     ) -> Result<std::collections::HashMap<i64, usize>, sqlx::Error> {
-
         if simulated_epoch_ids.is_empty() {
             return Ok(std::collections::HashMap::new());
         }

@@ -49,7 +49,6 @@ pub enum GatewayClientError {
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
 
-
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
 

@@ -155,7 +155,10 @@ impl EpochAdvancer {
 
         // Run simulation if enabled (before actual rewarding)
         if let Some(simulation_config) = &self.simulation_config {
-            info!("Running reward simulation for epoch {}", interval.current_epoch_absolute_id());
+            info!(
+                "Running reward simulation for epoch {}",
+                interval.current_epoch_absolute_id()
+            );
             let rewarded_set = match self.nyxd_client.get_rewarded_set_nodes().await {
                 Ok(rewarded_set) => rewarded_set,
                 Err(err) => {
@@ -174,12 +177,14 @@ impl EpochAdvancer {
                 .await
                 .into_inner()
             {
-                let _ = self.run_simulation_if_enabled(
-                    &rewarded_set,
-                    reward_params,
-                    interval.current_epoch_absolute_id(),
-                    simulation_config.clone(),
-                ).await;
+                let _ = self
+                    .run_simulation_if_enabled(
+                        &rewarded_set,
+                        reward_params,
+                        interval.current_epoch_absolute_id(),
+                        simulation_config.clone(),
+                    )
+                    .await;
             } else {
                 warn!("Could not obtain reward parameters for simulation");
             }

@@ -146,7 +146,8 @@ pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
         user_agent,
         minimum_performance,
         ignore_epoch_roles,
-    ).await?;
+    )
+    .await?;
 
     info!(
         "Validating protocol compatibility for {} gateways...",
@@ -155,12 +156,12 @@ pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
 
     // Filter out gateways with invalid protocols concurrently
     let validated_gateways = Arc::new(tokio::sync::Mutex::new(Vec::new()));
-    
+
     futures::stream::iter(&gateways)
         .for_each_concurrent(CONCURRENT_GATEWAYS_MEASURED, |gateway| async {
             let id = gateway.identity();
             trace!("validating protocol compatibility with {id}...");
-            
+
             match validate_gateway_protocol(gateway).await {
                 Ok(()) => {
                     debug!("{id}: protocol validation successful");
@@ -174,7 +175,7 @@ pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
         .await;
 
     let validated_gateways = validated_gateways.lock().await;
-    
+
     info!(
         "Protocol validation complete: {}/{} gateways have compatible protocols",
         validated_gateways.len(),
@@ -287,14 +288,14 @@ where
 
     // Send protocol version request
     let protocol_request = ClientControlRequest::SupportedProtocol {};
-    
+
     // Send the request as JSON text message
     stream.send(Message::from(protocol_request)).await?;
-    
+
     // Wait for response with timeout
     let protocol_timeout = Duration::from_millis(2000);
     let response_future = stream.next();
-    
+
     match tokio::time::timeout(protocol_timeout, response_future).await {
         Err(_) => {
             warn!("Gateway {} protocol check timed out", gateway.identity());
@@ -302,22 +303,31 @@ where
         }
         Ok(Some(Ok(Message::Text(response_text)))) => {
             // Try to deserialize the response
-            let response = ServerResponse::try_from(response_text)
-                .map_err(|_| ClientCoreError::GatewayClientError {
+            let response = ServerResponse::try_from(response_text).map_err(|_| {
+                ClientCoreError::GatewayClientError {
                     gateway_id: gateway.identity().to_base58_string(),
-                    source: *Box::new(nym_gateway_client::error::GatewayClientError::MalformedResponse),
-                })?;
-            
+                    source: *Box::new(
+                        nym_gateway_client::error::GatewayClientError::MalformedResponse,
+                    ),
+                }
+            })?;
+
             match response {
                 ServerResponse::SupportedProtocol { version } => {
-                    debug!("Gateway {} supports protocol version {}, ours: {}", 
-                           gateway.identity(), version, CURRENT_PROTOCOL_VERSION);
-                    
+                    debug!(
+                        "Gateway {} supports protocol version {}, ours: {}",
+                        gateway.identity(),
+                        version,
+                        CURRENT_PROTOCOL_VERSION
+                    );
+
                     // Check protocol compatibility
                     if version > CURRENT_PROTOCOL_VERSION {
                         warn!(
                             "Gateway {} uses incompatible protocol version {} (we support {})",
-                            gateway.identity(), version, CURRENT_PROTOCOL_VERSION
+                            gateway.identity(),
+                            version,
+                            CURRENT_PROTOCOL_VERSION
                         );
                         return Err(ClientCoreError::GatewayClientError {
                             gateway_id: gateway.identity().to_base58_string(),
@@ -327,43 +337,62 @@ where
                             }),
                         });
                     }
-                    
-                    trace!("Gateway {} protocol validation successful", gateway.identity());
+
+                    trace!(
+                        "Gateway {} protocol validation successful",
+                        gateway.identity()
+                    );
                     Ok(())
                 }
                 ServerResponse::Error { message } => {
-                    warn!("Gateway {} returned error during protocol check: {}", 
-                          gateway.identity(), message);
+                    warn!(
+                        "Gateway {} returned error during protocol check: {}",
+                        gateway.identity(),
+                        message
+                    );
                     Err(ClientCoreError::GatewayClientError {
                         gateway_id: gateway.identity().to_base58_string(),
-                        source: *Box::new(nym_gateway_client::error::GatewayClientError::GatewayError(message)),
+                        source: *Box::new(
+                            nym_gateway_client::error::GatewayClientError::GatewayError(message),
+                        ),
                     })
                 }
                 _ => {
-                    warn!("Gateway {} returned unexpected response during protocol check", 
-                          gateway.identity());
+                    warn!(
+                        "Gateway {} returned unexpected response during protocol check",
+                        gateway.identity()
+                    );
                     Err(ClientCoreError::GatewayClientError {
                         gateway_id: gateway.identity().to_base58_string(),
-                        source: *Box::new(nym_gateway_client::error::GatewayClientError::UnexpectedResponse {
-                            name: response.name().to_string(),
-                        }),
+                        source: *Box::new(
+                            nym_gateway_client::error::GatewayClientError::UnexpectedResponse {
+                                name: response.name().to_string(),
+                            },
+                        ),
                     })
                 }
             }
         }
         Ok(Some(Ok(_))) => {
-            warn!("Gateway {} sent non-text response during protocol check", 
-                  gateway.identity());
+            warn!(
+                "Gateway {} sent non-text response during protocol check",
+                gateway.identity()
+            );
             Err(ClientCoreError::GatewayConnectionAbruptlyClosed)
         }
         Ok(Some(Err(e))) => {
-            warn!("WebSocket error during protocol check with {}: {}", 
-                  gateway.identity(), e);
+            warn!(
+                "WebSocket error during protocol check with {}: {}",
+                gateway.identity(),
+                e
+            );
             Err(e.into())
         }
         Ok(None) => {
-            warn!("Gateway {} closed connection during protocol check", 
-                  gateway.identity());
+            warn!(
+                "Gateway {} closed connection during protocol check",
+                gateway.identity()
+            );
             Err(ClientCoreError::GatewayConnectionAbruptlyClosed)
         }
     }

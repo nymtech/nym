@@ -434,3 +434,5 @@ export type NS_NODE = {
   total_stake: string;
   uptime: number;
 };
+
+export type Environment = "mainnet" | "sandbox";

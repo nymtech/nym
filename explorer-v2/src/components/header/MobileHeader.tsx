@@ -9,7 +9,7 @@ import NymLogo from "../icons/NymLogo";
 import ConnectWallet from "../wallet/ConnectWallet";
 import { DarkLightSwitchDesktop } from "./Switch";
 import MENU_DATA from "./menuItems";
-
+import { Environment } from "./Environment";
 export const MobileHeader = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const theme = useTheme();
@@ -172,12 +172,13 @@ const MobileMenuHeader = ({
         sx={{
           display: "flex",
           flexDirection: "column",
-          gap: 2.5,
+          gap: 4,
           justifyContent: "center",
           alignItems: "center",
           width: "100%",
         }}
       >
+        {!drawerOpen && <Environment />}
         {!drawerOpen && <ConnectWallet size="small" />}
       </Box>
       <Box height={40} />

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Divider } from "@mui/material";
 import NymLogo from "../../components/icons/NymLogo";
 import { Link } from "../../components/muiLink";
@@ -6,7 +8,7 @@ import ConnectWallet from "../wallet/ConnectWallet";
 import HeaderItem from "./HeaderItem";
 import { DarkLightSwitchDesktop } from "./Switch";
 import MENU_DATA from "./menuItems";
-
+import { Environment } from "./Environment";
 export const DesktopHeader = () => {
   return (
     <Box
@@ -36,6 +38,7 @@ export const DesktopHeader = () => {
         >
           <NymLogo />
         </Link>
+        <Environment />
         <Box
           sx={{
             display: "flex",

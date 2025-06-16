@@ -9,6 +9,7 @@ import CosmosKitProvider from './context/cosmos-kit';
 import '@interchain-ui/react/styles';
 import { App } from './App';
 import { WalletProvider } from './context/wallet';
+import { EnvironmentProvider } from './providers/EnvironmentProvider';
 import './styles.css';
 
 const elem = document.getElementById('app');
@@ -17,17 +18,19 @@ if (elem) {
   const root = createRoot(elem);
   root.render(
     <ErrorBoundary FallbackComponent={ErrorBoundaryContent}>
-      <MainContextProvider>
-        <CosmosKitProvider>
-          <WalletProvider>
-            <NetworkExplorerThemeProvider>
-              <Router>
-                <App />
-              </Router>
-            </NetworkExplorerThemeProvider>
-          </WalletProvider>
-        </CosmosKitProvider>
-      </MainContextProvider>
+      <EnvironmentProvider>
+        <MainContextProvider>
+          <CosmosKitProvider>
+            <WalletProvider>
+              <NetworkExplorerThemeProvider>
+                <Router>
+                  <App />
+                </Router>
+              </NetworkExplorerThemeProvider>
+            </WalletProvider>
+          </CosmosKitProvider>
+        </MainContextProvider>
+      </EnvironmentProvider>
     </ErrorBoundary>,
   );
 }

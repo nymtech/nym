@@ -4,6 +4,7 @@ import { addSeconds } from "date-fns";
 import type {
   CountryDataResponse,
   CurrentEpochData,
+  Environment,
   ExplorerData,
   GatewayStatus,
   IAccountBalancesInfo,
@@ -44,7 +45,7 @@ export const fetchEpochRewards = async (): Promise<
 
 // Fetch gateway status based on identity key
 export const fetchGatewayStatus = async (
-  identityKey: string,
+  identityKey: string
 ): Promise<GatewayStatus | null> => {
   const response = await fetch(`${OBSERVATORY_GATEWAYS_URL}/${identityKey}`);
 
@@ -56,7 +57,7 @@ export const fetchGatewayStatus = async (
 };
 
 export const fetchNodeDelegations = async (
-  id: number,
+  id: number
 ): Promise<NodeRewardDetails[]> => {
   const response = await fetch(`${NS_API_NODES}/${id}/delegations`, {
     headers: {
@@ -88,7 +89,7 @@ export const fetchCurrentEpoch = async () => {
   const data: CurrentEpochData = await response.json();
   const epochEndTime = addSeconds(
     new Date(data.current_epoch_start),
-    data.epoch_length.secs,
+    data.epoch_length.secs
   ).toISOString();
 
   return { ...data, current_epoch_end: epochEndTime };
@@ -117,9 +118,7 @@ export const fetchBalances = async (address: string): Promise<number> => {
 };
 
 // Fetch function to get total staker rewards
-export const fetchTotalStakerRewards = async (
-  address: string,
-): Promise<number> => {
+export const fetchTotalStakerRewards = async (address: string): Promise<number> => {
   const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
@@ -159,7 +158,7 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
 export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
   if (!process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS) {
     throw new Error(
-      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined",
+      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined"
     );
   }
   const response = await fetch(process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS, {
@@ -175,7 +174,7 @@ export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
 
 // Fetch Account Balance
 export const fetchAccountBalance = async (
-  address: string,
+  address: string
 ): Promise<IAccountBalancesInfo> => {
   const res = await fetch(`${NYM_ACCOUNT_ADDRESS}/${address}`, {
     headers: {
@@ -190,7 +189,6 @@ export const fetchAccountBalance = async (
   const data: IAccountBalancesInfo = await res.json();
   return data;
 };
-
 
 // 🔹 Fetch NYM Price
 export const fetchNymPrice = async (): Promise<NymTokenomics> => {
@@ -231,7 +229,7 @@ export const fetchNSApiNodes = async (): Promise<NS_NODE[]> => {
 
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch NS API nodes (page ${page}): ${response.statusText}`,
+        `Failed to fetch NS API nodes (page ${page}): ${response.statusText}`
       );
     }
 
@@ -307,3 +305,5 @@ export const fetchWorldMapCountries = async (): Promise<{
     totalServers: nodes.length,
   };
 };
+
+

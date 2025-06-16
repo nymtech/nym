@@ -64,12 +64,16 @@ impl ReplySurb {
         average_delay: Duration,
         use_legacy_surb_format: bool,
         topology: &NymRouteProvider,
-        _disable_mix_hops: bool, // TODO: support SURBs with no mix hops after changes to surb format / construction
+        disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
     {
-        let route = topology.random_route_to_egress(rng, recipient.gateway())?;
+        let route = if disable_mix_hops && !use_legacy_surb_format {
+            topology.empty_route_to_egress(recipient.gateway())?
+        } else {
+            topology.random_route_to_egress(rng, recipient.gateway())?
+        };
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 

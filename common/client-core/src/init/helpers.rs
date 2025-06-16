@@ -298,14 +298,14 @@ where
     match tokio::time::timeout(protocol_timeout, response_future).await {
         Err(_) => {
             warn!("Gateway {} protocol check timed out", gateway.identity());
-            return Err(ClientCoreError::GatewayConnectionTimeout);
+            Err(ClientCoreError::GatewayConnectionTimeout)
         }
         Ok(Some(Ok(Message::Text(response_text)))) => {
             // Try to deserialize the response
             let response = ServerResponse::try_from(response_text)
                 .map_err(|_| ClientCoreError::GatewayClientError {
                     gateway_id: gateway.identity().to_base58_string(),
-                    source: Box::new(nym_gateway_client::error::GatewayClientError::MalformedResponse),
+                    source: *Box::new(nym_gateway_client::error::GatewayClientError::MalformedResponse),
                 })?;
             
             match response {
@@ -321,7 +321,7 @@ where
                         );
                         return Err(ClientCoreError::GatewayClientError {
                             gateway_id: gateway.identity().to_base58_string(),
-                            source: Box::new(nym_gateway_client::error::GatewayClientError::IncompatibleProtocol {
+                            source: *Box::new(nym_gateway_client::error::GatewayClientError::IncompatibleProtocol {
                                 gateway: Some(version),
                                 current: CURRENT_PROTOCOL_VERSION,
                             }),
@@ -336,7 +336,7 @@ where
                           gateway.identity(), message);
                     Err(ClientCoreError::GatewayClientError {
                         gateway_id: gateway.identity().to_base58_string(),
-                        source: Box::new(nym_gateway_client::error::GatewayClientError::GatewayError(message)),
+                        source: *Box::new(nym_gateway_client::error::GatewayClientError::GatewayError(message)),
                     })
                 }
                 _ => {
@@ -344,7 +344,7 @@ where
                           gateway.identity());
                     Err(ClientCoreError::GatewayClientError {
                         gateway_id: gateway.identity().to_base58_string(),
-                        source: Box::new(nym_gateway_client::error::GatewayClientError::UnexpectedResponse {
+                        source: *Box::new(nym_gateway_client::error::GatewayClientError::UnexpectedResponse {
                             name: response.name().to_string(),
                         }),
                     })

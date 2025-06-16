@@ -1,13 +1,13 @@
 "use client";
 import { Button, ButtonGroup, Stack } from "@mui/material";
 
-type Option = {
+export type Option = {
   label: string;
   isSelected: boolean;
   value: "all" | "mixnodes" | "gateways" | "recommended";
 };
 
-type Options = [Option, Option, Option, Option];
+type Options = Option[];
 
 const NodeFilterButtonGroup = ({
   size = "small",

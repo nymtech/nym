@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Box,
   Button,
@@ -14,7 +14,9 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import PercentIcon from "@mui/icons-material/Percent";
-import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
+import NodeFilterButtonGroup, {
+  type Option,
+} from "../toggleButton/NodeFilterButtonGroup";
 import { RECOMMENDED_NODES } from "@/app/constants";
 
 type AdvancedFiltersProps = {
@@ -36,6 +38,7 @@ type AdvancedFiltersProps = {
     mixnodes: number;
     gateways: number;
   };
+  environment: "mainnet" | "sandbox";
 };
 
 export default function AdvancedFilters({
@@ -51,6 +54,7 @@ export default function AdvancedFilters({
   activeFilter,
   setActiveFilter,
   nodeCounts,
+  environment,
 }: AdvancedFiltersProps) {
   const theme = useTheme();
   const green = "#14e76f"; // from theme colours
@@ -248,6 +252,54 @@ export default function AdvancedFilters({
     </Box>
   );
 
+  const filterOptions =
+    environment === "mainnet"
+      ? [
+          {
+            label: `Recommended servers (${RECOMMENDED_NODES.length})`,
+            isSelected: activeFilter === "recommended",
+            value: "recommended" as const,
+          },
+          {
+            label: `All servers (${nodeCounts.all})`,
+            isSelected: activeFilter === "all",
+            value: "all" as const,
+          },
+          {
+            label: `Mixnodes (${nodeCounts.mixnodes})`,
+            isSelected: activeFilter === "mixnodes",
+            value: "mixnodes" as const,
+          },
+          {
+            label: `Gateways (${nodeCounts.gateways})`,
+            isSelected: activeFilter === "gateways",
+            value: "gateways" as const,
+          },
+        ]
+      : [
+          {
+            label: `All servers (${nodeCounts.all})`,
+            isSelected: activeFilter === "all",
+            value: "all" as const,
+          },
+          {
+            label: `Mixnodes (${nodeCounts.mixnodes})`,
+            isSelected: activeFilter === "mixnodes",
+            value: "mixnodes" as const,
+          },
+          {
+            label: `Gateways (${nodeCounts.gateways})`,
+            isSelected: activeFilter === "gateways",
+            value: "gateways" as const,
+          },
+        ];
+
+  useEffect(() => {
+    if (environment === "sandbox" && activeFilter === "recommended") {
+      setActiveFilter("all");
+    }
+  }, [environment, activeFilter, setActiveFilter]);
+
   return (
     <Box sx={{ width: "100%" }}>
       <Box
@@ -261,28 +313,7 @@ export default function AdvancedFilters({
         <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
           <NodeFilterButtonGroup
             size="medium"
-            options={[
-              {
-                label: `Recommended servers (${RECOMMENDED_NODES.length})`,
-                isSelected: activeFilter === "recommended",
-                value: "recommended",
-              },
-              {
-                label: `All servers (${nodeCounts.all})`,
-                isSelected: activeFilter === "all",
-                value: "all",
-              },
-              {
-                label: `Mixnodes (${nodeCounts.mixnodes})`,
-                isSelected: activeFilter === "mixnodes",
-                value: "mixnodes",
-              },
-              {
-                label: `Gateways (${nodeCounts.gateways})`,
-                isSelected: activeFilter === "gateways",
-                value: "gateways",
-              },
-            ]}
+            options={filterOptions}
             onPage={activeFilter}
             onFilterChange={setActiveFilter}
           />

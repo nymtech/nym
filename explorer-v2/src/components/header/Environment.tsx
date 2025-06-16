@@ -8,7 +8,6 @@ export const Environment: React.FC = () => {
   const theme = useTheme();
   const { environment, setEnvironment } = useEnvironment();
 
-  console.log("environment", environment);
 
   const explorerName = environment
     ? `${environment} Explorer`

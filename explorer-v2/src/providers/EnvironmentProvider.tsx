@@ -1,5 +1,6 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext } from "react";
+import dynamic from "next/dynamic";
 
 type Environment = "mainnet" | "sandbox";
 
@@ -14,30 +15,40 @@ const EnvironmentContext = createContext<EnvironmentContextType | undefined>(
 
 const ENVIRONMENT_STORAGE_KEY = "environment";
 
+const ClientStorage = dynamic(
+  () =>
+    import("@uidotdev/usehooks").then((mod) => {
+      const { useLocalStorage } = mod;
+      return function ClientStorageComponent({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) {
+        const [stored, setStored] = useLocalStorage<{ env: Environment }>(
+          ENVIRONMENT_STORAGE_KEY,
+          { env: "mainnet" }
+        );
+
+        const setEnvironment = (env: Environment) => {
+          setStored({ env });
+        };
+
+        return (
+          <EnvironmentContext.Provider
+            value={{ environment: stored.env, setEnvironment }}
+          >
+            {children}
+          </EnvironmentContext.Provider>
+        );
+      };
+    }),
+  { ssr: false }
+);
+
 export const EnvironmentProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [environment, setEnvironmentState] = useState<Environment>(() => {
-    // Try to get the environment from localStorage on initial load
-    const storedEnv = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
-    return (storedEnv as Environment) || "mainnet";
-  });
-
-  const setEnvironment = (env: Environment) => {
-    setEnvironmentState(env);
-    localStorage.setItem(ENVIRONMENT_STORAGE_KEY, env);
-  };
-
-  // Update localStorage when environment changes
-  useEffect(() => {
-    localStorage.setItem(ENVIRONMENT_STORAGE_KEY, environment);
-  }, [environment]);
-
-  return (
-    <EnvironmentContext.Provider value={{ environment, setEnvironment }}>
-      {children}
-    </EnvironmentContext.Provider>
-  );
+  return <ClientStorage>{children}</ClientStorage>;
 };
 
 export const useEnvironment = () => {

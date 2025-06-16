@@ -22,6 +22,7 @@ import {
   NYM_ACCOUNT_ADDRESS,
   NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
+  SANDBOX_NS_API_NODES,
 } from "./urls";
 
 // Fetch function for epoch rewards
@@ -118,7 +119,9 @@ export const fetchBalances = async (address: string): Promise<number> => {
 };
 
 // Fetch function to get total staker rewards
-export const fetchTotalStakerRewards = async (address: string): Promise<number> => {
+export const fetchTotalStakerRewards = async (
+  address: string
+): Promise<number> => {
   const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
@@ -205,8 +208,13 @@ export const fetchNymPrice = async (): Promise<NymTokenomics> => {
   return data;
 };
 
-export const fetchNSApiNodes = async (): Promise<NS_NODE[]> => {
-  if (!NS_API_NODES) {
+export const fetchNSApiNodes = async (
+  environment: Environment
+): Promise<NS_NODE[]> => {
+  const baseUrl =
+    environment === "sandbox" ? SANDBOX_NS_API_NODES : NS_API_NODES;
+
+  if (!baseUrl) {
     throw new Error("NS_API_NODES URL is not defined");
   }
 
@@ -217,15 +225,12 @@ export const fetchNSApiNodes = async (): Promise<NS_NODE[]> => {
   let hasMoreData = true;
 
   while (hasMoreData) {
-    const response = await fetch(
-      `${NS_API_NODES}?page=${page}&size=${PAGE_SIZE}`,
-      {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json; charset=utf-8",
-        },
-      }
-    );
+    const response = await fetch(`${baseUrl}?page=${page}&size=${PAGE_SIZE}`, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
 
     if (!response.ok) {
       throw new Error(

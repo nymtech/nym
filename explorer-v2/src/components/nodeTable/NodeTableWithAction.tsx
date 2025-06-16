@@ -10,6 +10,7 @@ import NodeTable from "./NodeTable";
 import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
 import { RECOMMENDED_NODES } from "@/app/constants";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
@@ -114,6 +115,8 @@ const NodeTableWithAction = () => {
     return stored ? JSON.parse(stored) : false;
   });
 
+  const { environment } = useEnvironment();
+
   // Wrapper functions to handle filter changes and sessionStorage
   const handleActiveFilterChange = (
     newFilter: "all" | "mixnodes" | "gateways" | "recommended"
@@ -171,8 +174,8 @@ const NodeTableWithAction = () => {
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -290,6 +293,7 @@ const NodeTableWithAction = () => {
         activeFilter={activeFilter}
         setActiveFilter={handleActiveFilterChange}
         nodeCounts={nodeCounts}
+        environment={environment}
       />
       <NodeTable nodes={filteredNodes} />
     </Stack>

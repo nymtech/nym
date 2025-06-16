@@ -14,6 +14,7 @@ pub(crate) mod metrics;
 pub(crate) mod mixnodes;
 pub(crate) mod nym_nodes;
 pub(crate) mod services;
+pub(crate) mod status;
 pub(crate) mod summary;
 pub(crate) mod testruns;
 
@@ -39,7 +40,8 @@ impl RouterBuilder {
                     .nest("/mixnodes", mixnodes::routes())
                     .nest("/services", services::routes())
                     .nest("/summary", summary::routes())
-                    .nest("/metrics", metrics::routes()),
+                    .nest("/metrics", metrics::routes())
+                    .nest("/status", status::routes()),
             )
             .nest(
                 "/explorer/v3",

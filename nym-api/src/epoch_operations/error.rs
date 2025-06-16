@@ -60,9 +60,7 @@ pub enum RewardingError {
     RewardingParamsRetrievalFailure,
 
     #[error("Database operation failed: {source}")]
-    DatabaseError {
-        source: anyhow::Error,
-    },
+    DatabaseError { source: anyhow::Error },
 
     #[error("{0}")]
     GenericError(#[from] anyhow::Error),

@@ -174,7 +174,7 @@ pub struct SimulatedNodePerformance {
     pub reliability_score: f64, // 0.0 to 100.0
     pub positive_samples: u32,
     pub negative_samples: u32,
-    pub work_factor: Option<f64>, // 0.0 to 1.0
+    pub work_factor: Option<f64>,   // 0.0 to 1.0
     pub calculation_method: String, // 'old' or 'new'
     pub calculated_at: i64,
 }
@@ -186,9 +186,9 @@ pub struct SimulatedPerformanceComparison {
     pub id: i64,
     pub simulated_epoch_id: i64,
     pub node_id: NodeId,
-    pub node_type: String, // 'mixnode' or 'gateway'
-    pub performance_score: f64, // 0.0 to 100.0
-    pub work_factor: f64, // Work factor applied (e.g., 10.0 for active, 1.0 for standby)
+    pub node_type: String,          // 'mixnode' or 'gateway'
+    pub performance_score: f64,     // 0.0 to 100.0
+    pub work_factor: f64,           // Work factor applied (e.g., 10.0 for active, 1.0 for standby)
     pub calculation_method: String, // 'old' or 'new'
     pub positive_samples: Option<i64>,
     pub negative_samples: Option<i64>,
@@ -221,7 +221,7 @@ pub struct SimulatedRouteAnalysis {
     pub successful_routes: u32,
     pub failed_routes: u32,
     pub average_route_reliability: Option<f64>, // 0.0 to 100.0
-    pub time_window_hours: u32, // 1 for new method, 24 for old method
-    pub analysis_parameters: Option<String>, // JSON with analysis config
+    pub time_window_hours: u32,                 // 1 for new method, 24 for old method
+    pub analysis_parameters: Option<String>,    // JSON with analysis config
     pub calculated_at: i64,
 }

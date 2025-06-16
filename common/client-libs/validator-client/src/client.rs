@@ -471,12 +471,12 @@ impl NymApiClient {
     pub async fn get_all_basic_entry_assigned_nodes(
         &self,
     ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
-        self.get_all_basic_entry_assigned_nodes_v2()
+        self.get_all_basic_entry_assigned_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
     }
 
-    pub async fn get_all_basic_entry_assigned_nodes_v2(
+    pub async fn get_all_basic_entry_assigned_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
         collect_paged_skimmed_v2!(self, get_basic_entry_assigned_nodes_v2)

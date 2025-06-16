@@ -107,7 +107,10 @@ pub async fn gateways_for_init<R: Rng>(
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_all_basic_entry_assigned_nodes_v2().await?.nodes;
+    let gateways = client
+        .get_all_basic_entry_assigned_nodes_with_metadata()
+        .await?
+        .nodes;
     info!("nym api reports {} gateways", gateways.len());
 
     log::trace!("Gateways: {:#?}", gateways);

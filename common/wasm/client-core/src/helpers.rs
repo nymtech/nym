@@ -79,7 +79,9 @@ pub async fn current_network_topology_async(
     let metadata = mixnodes_res.metadata;
     let mixnodes = mixnodes_res.nodes;
 
-    let gateways_res = api_client.get_all_basic_entry_assigned_nodes_v2().await?;
+    let gateways_res = api_client
+        .get_all_basic_entry_assigned_nodes_with_metadata()
+        .await?;
     if gateways_res.metadata != metadata {
         console_warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
         return Err(WasmCoreError::UnavailableNetworkTopology);

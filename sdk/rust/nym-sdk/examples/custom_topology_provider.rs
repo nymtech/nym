@@ -48,7 +48,7 @@ impl MyTopologyProvider {
 
         let gateways = self
             .validator_client
-            .get_all_basic_entry_assigned_nodes_v2()
+            .get_all_basic_entry_assigned_nodes_with_metadata()
             .await
             .unwrap()
             .nodes;

@@ -101,7 +101,7 @@ pub(crate) async fn mixnodes_basic_active(
     tag = "Unstable Nym Nodes",
     get,
     params(NodesParams),
-    path = "/entry-gateways/all",
+    path = "/entry-gateways",
     context_path = "/v2/unstable/nym-nodes/skimmed",
     responses(
         (status = 200, content(
@@ -124,7 +124,7 @@ pub(crate) async fn entry_gateways_basic_all(
     tag = "Unstable Nym Nodes",
     get,
     params(NodesParams),
-    path = "/exit-gateways/all",
+    path = "/exit-gateways",
     context_path = "/v2/unstable/nym-nodes/skimmed",
     responses(
         (status = 200, content(

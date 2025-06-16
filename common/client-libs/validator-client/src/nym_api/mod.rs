@@ -389,7 +389,6 @@ pub trait NymApiClientExt: ApiClient {
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "entry-gateways",
-                "all",
             ],
             &params,
         )

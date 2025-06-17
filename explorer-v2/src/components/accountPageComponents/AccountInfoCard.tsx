@@ -6,6 +6,7 @@ import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 import { CardQRCode } from "../qrCode/QrCode";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 interface IAccountInfoCardProps {
   address: string;
@@ -15,10 +16,11 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
   const { address } = props;
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["accountBalance", address],
-    queryFn: () => fetchAccountBalance(address),
+    queryKey: ["accountBalance", address, environment],
+    queryFn: () => fetchAccountBalance(address, environment),
     enabled: !!address,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

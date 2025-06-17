@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { IRewardDetails } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import { AccountBalancesTable } from "./AccountBalancesTable";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export interface IAccontStatsRowProps {
   type: string;
@@ -63,14 +64,15 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   const { address } = props;
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
 
   const {
     data: accountInfo,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["accountBalance", address],
-    queryFn: () => fetchAccountBalance(address),
+    queryKey: ["accountBalance", address, environment],
+    queryFn: () => fetchAccountBalance(address, environment),
     enabled: !!address,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

@@ -27,6 +27,7 @@ import {
   SANDBOX_CURRENT_EPOCH_REWARDS,
   SANDBOX_NS_API_MIXNODES_STATS,
   SANDBOX_NS_API_NODES,
+  SANDBOX_NYM_ACCOUNT_ADDRESS,
 } from "./urls";
 
 // Fetch function for epoch rewards
@@ -208,9 +209,18 @@ export const fetchNoise = async (
 
 // Fetch Account Balance
 export const fetchAccountBalance = async (
-  address: string
+  address: string,
+  environment: Environment
 ): Promise<IAccountBalancesInfo> => {
-  const res = await fetch(`${NYM_ACCOUNT_ADDRESS}/${address}`, {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_NYM_ACCOUNT_ADDRESS
+      : NYM_ACCOUNT_ADDRESS;
+
+  if (!baseUrl) {
+    throw new Error("NYM_ACCOUNT_ADDRESS URL is not defined");
+  }
+  const res = await fetch(`${baseUrl}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",

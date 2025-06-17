@@ -419,6 +419,13 @@ impl<R, S> FreshHandler<R, S> {
             return Ok(INITIAL_PROTOCOL_VERSION);
         };
 
+        // #####
+        // On backwards compat:
+        // Currently it is the case that gateways will understand all previous protocol versions
+        // and will downgrade accordingly, but this will now always be the case.
+        // For example, once we remove downgrade on legacy auth, anything below version 4 will be rejected
+        // #####
+
         // a v2 gateway will understand v1 requests, but v1 client will not understand v2 responses
         if client_protocol_version == 1 {
             return Ok(1);
@@ -432,6 +439,11 @@ impl<R, S> FreshHandler<R, S> {
         // a v4 gateway will understand v3 requests (aes256gcm-siv)
         if client_protocol_version == 3 {
             return Ok(3);
+        }
+
+        // a v5 gateway will understand v4 requests (key-rotation)
+        if client_protocol_version == 4 {
+            return Ok(4);
         }
 
         // we can't handle clients with higher protocol than ours

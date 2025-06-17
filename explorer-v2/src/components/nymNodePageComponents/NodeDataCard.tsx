@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 type Props = {
   paramId: string;
@@ -14,6 +15,7 @@ type Props = {
 
 export const NodeDataCard = ({ paramId }: Props) => {
   let nodeInfo: NS_NODE | undefined;
+  const { environment } = useEnvironment();
 
   const {
     data: epochRewardsData,
@@ -34,8 +36,8 @@ export const NodeDataCard = ({ paramId }: Props) => {
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

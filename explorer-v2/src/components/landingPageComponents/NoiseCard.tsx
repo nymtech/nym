@@ -16,15 +16,17 @@ import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const NoiseCard = () => {
+  const { environment } = useEnvironment();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
   const [tooltipOpen, setTooltipOpen] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["noise"],
-    queryFn: fetchNoise,
+    queryKey: ["noise", environment],
+    queryFn: () => fetchNoise(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -110,8 +112,8 @@ export const NoiseCard = () => {
         date_utc: item.date_utc,
         numericData: item.total_packets_sent + item.total_packets_received,
       };
-    })
-    .filter((item) => item.numericData >= 2_500_000_000);
+    });
+  // .filter((item) => item.numericData >= 2_500_000_000);
 
   const handleTooltipOpen = () => {
     setTooltipOpen(true);

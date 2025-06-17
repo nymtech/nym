@@ -7,7 +7,7 @@ import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import StakeTable from "./StakeTable";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
   totalStake: number,
@@ -67,6 +67,7 @@ export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
 export type MappedNymNode = MappedNymNodes[0];
 
 const StakeTableWithAction = () => {
+  const { environment } = useEnvironment();
   // Use React Query to fetch epoch rewards
   const {
     data: epochRewardsData,
@@ -87,8 +88,8 @@ const StakeTableWithAction = () => {
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

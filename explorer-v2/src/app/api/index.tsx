@@ -18,10 +18,13 @@ import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
+  NS_API_MIXNODES_STATS,
   NS_API_NODES,
   NYM_ACCOUNT_ADDRESS,
   NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
+  SANDBOX_CURRENT_EPOCH,
+  SANDBOX_NS_API_MIXNODES_STATS,
   SANDBOX_NS_API_NODES,
 } from "./urls";
 
@@ -74,8 +77,14 @@ export const fetchNodeDelegations = async (
   return response.json();
 };
 
-export const fetchCurrentEpoch = async () => {
-  const response = await fetch(CURRENT_EPOCH, {
+export const fetchCurrentEpoch = async (environment: Environment) => {
+  const baseUrl =
+    environment === "sandbox" ? SANDBOX_CURRENT_EPOCH : CURRENT_EPOCH;
+
+  if (!baseUrl) {
+    throw new Error("NS_API_NODES URL is not defined");
+  }
+  const response = await fetch(baseUrl, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -158,13 +167,19 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
   return Number(balances.delegated.amount);
 };
 
-export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
-  if (!process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS) {
-    throw new Error(
-      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined"
-    );
+export const fetchNoise = async (
+  environment: Environment
+): Promise<IPacketsAndStakingData[]> => {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_NS_API_MIXNODES_STATS
+      : NS_API_MIXNODES_STATS;
+
+  if (!baseUrl) {
+    throw new Error("NS_API_MIXNODES_STATS URL is not defined");
   }
-  const response = await fetch(process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS, {
+
+  const response = await fetch(baseUrl, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -256,14 +271,16 @@ export const fetchNSApiNodes = async (
   return allNodes;
 };
 
-export const fetchWorldMapCountries = async (): Promise<{
+export const fetchWorldMapCountries = async (
+  environment: Environment
+): Promise<{
   countries: CountryDataResponse;
   totalCountries: number;
   uniqueLocations: number;
   totalServers: number;
 }> => {
   // Fetch all nodes from the NS API
-  const nodes = await fetchNSApiNodes();
+  const nodes = await fetchNSApiNodes(environment);
 
   // Create a map to count nodes by country
   const countryCounts: Record<string, number> = {};
@@ -308,6 +325,7 @@ export const fetchWorldMapCountries = async (): Promise<{
     totalCountries: Object.keys(countryCounts).length,
     uniqueLocations: uniqueCities.size,
     totalServers: nodes.length,
+    environment,
   };
 };
 

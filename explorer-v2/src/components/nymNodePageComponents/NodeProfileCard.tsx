@@ -25,6 +25,7 @@ import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 type Props = {
   paramId: string;
@@ -44,6 +45,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     nodeId: number;
     identityKey: string;
   }>();
+  const { environment } = useEnvironment();
 
   // Fetch node info
   const {
@@ -51,8 +53,8 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

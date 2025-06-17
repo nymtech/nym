@@ -3,6 +3,7 @@
 import { fetchNSApiNodes } from "@/app/api";
 import type { NS_NODE } from "@/app/api/types";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 import { useQuery } from "@tanstack/react-query";
 
 type Props = {
@@ -10,9 +11,11 @@ type Props = {
 };
 
 export default function AccountPageButtonGroup({ address }: Props) {
+  const { environment } = useEnvironment();
+
   const { data: nsApiNodes = [], isError: isNSApiNodesError } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

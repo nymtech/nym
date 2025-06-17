@@ -4,15 +4,18 @@ import type { NS_NODE } from "@/app/api/types";
 import { Skeleton, Typography, useTheme } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const StakersNumberCard = () => {
+  const { environment } = useEnvironment();
+
   const {
     data: nsApiNodes = [],
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

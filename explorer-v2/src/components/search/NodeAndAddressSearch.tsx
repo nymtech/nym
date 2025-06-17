@@ -14,9 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fetchNSApiNodes } from "../../app/api";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 const NodeAndAddressSearch = () => {
   const router = useRouter();
+  const { environment } = useEnvironment();
   const [inputValue, setInputValue] = useState("");
   const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +26,8 @@ const NodeAndAddressSearch = () => {
   // Use React Query to fetch nodes
 
   const { data: nsApiNodes = [], isLoading: isNSApiNodesLoading } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

@@ -15,7 +15,7 @@ import type {
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 type Props = {
   paramId: string;
 };
@@ -151,14 +151,15 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   let nodeInfo: NS_NODE | undefined;
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
   // Fetch node info
   const {
     data: nsApiNodes = [],
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -225,7 +226,6 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     );
   }
   if (!nodeInfo) return null;
-
 
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>

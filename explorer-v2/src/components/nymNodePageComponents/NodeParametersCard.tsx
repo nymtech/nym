@@ -7,6 +7,7 @@ import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type { NS_NODE } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 type Props = {
   paramId: string;
@@ -16,6 +17,7 @@ export const NodeParametersCard = ({ paramId }: Props) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
   let nodeInfo: NS_NODE | undefined;
+  const { environment } = useEnvironment();
 
   // Fetch epoch rewards
   const {
@@ -37,8 +39,8 @@ export const NodeParametersCard = ({ paramId }: Props) => {
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

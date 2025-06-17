@@ -8,6 +8,7 @@ import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 type Props = {
   paramId: string;
@@ -15,14 +16,15 @@ type Props = {
 
 export const BasicInfoCard = ({ paramId }: Props) => {
   let nodeInfo: NS_NODE | undefined;
+  const { environment } = useEnvironment();
 
   const {
     data: nsApiNodes = [],
     isLoading: isNSApiNodesLoading,
     isError: isNSApiNodesError,
   } = useQuery({
-    queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryKey: ["nsApiNodes", environment],
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -71,7 +73,6 @@ export const BasicInfoCard = ({ paramId }: Props) => {
   }
 
   if (!nodeInfo) return null;
-
 
   const selfBond = nodeInfo.original_pledge
     ? formatBigNum(Number(nodeInfo.original_pledge) / 1_000_000)

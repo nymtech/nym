@@ -4,7 +4,7 @@ import { fetchCurrentEpoch } from "@/app/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { differenceInMilliseconds } from "date-fns";
 import { createContext, useContext, useEffect, useState } from "react";
-
+import { useEnvironment } from "./EnvironmentProvider";
 type EpochStatus = "active" | "pending";
 
 export type EpochResponseData =
@@ -45,14 +45,15 @@ const useEpochContext = () => {
 };
 
 const EpochProvider = ({ children }: { children: React.ReactNode }) => {
+  const { environment } = useEnvironment();
   const [epochStatus, setEpochStatus] = useState<EpochStatus>("pending");
 
   const QueryClient = useQueryClient();
 
   const { data, isError, isLoading } = useQuery({
     refetchOnWindowFocus: true,
-    queryKey: ["currentEpoch"],
-    queryFn: fetchCurrentEpoch,
+    queryKey: ["currentEpoch", environment],
+    queryFn: () => fetchCurrentEpoch(environment),
     refetchInterval: ({ state }) => {
       // refetchInterval can be set dynamically based on the current state
 
@@ -62,7 +63,7 @@ const EpochProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const isEpochTimeValid = checkIsEpochTimeValid(
-        state.data.current_epoch_end.toString(),
+        state.data.current_epoch_end.toString()
       );
 
       // if epoch time is not valid (i.e current_time > epoch_start_time) refetch in 30 secs
@@ -73,7 +74,7 @@ const EpochProvider = ({ children }: { children: React.ReactNode }) => {
 
       // if epoch time is valid, refetch based on the epoch end time
       const newRefetchInterval = calculateRefetchInterval(
-        state.data.current_epoch_end.toString(),
+        state.data.current_epoch_end.toString()
       );
 
       setEpochStatus("active");

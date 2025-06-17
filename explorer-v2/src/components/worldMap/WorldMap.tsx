@@ -20,11 +20,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";
 import MAP_TOPOJSON from "../../assets/world-110m.json";
 import ExplorerCard from "../cards/ExplorerCard";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 const mapPlaceholderDark = "/explorer/map-placeholder-dark.png";
 const mapPlaceholderLight = "/explorer/map-placeholder-light.png";
 
 export const WorldMap = (): JSX.Element => {
+  const { environment } = useEnvironment();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
   const [position, setPosition] = React.useState<{
@@ -47,8 +48,8 @@ export const WorldMap = (): JSX.Element => {
     isLoading: isLoadingCountries,
     isError: isCountriesError,
   } = useQuery({
-    queryKey: ["nymNodesCountries"],
-    queryFn: fetchWorldMapCountries,
+    queryKey: ["nymNodesCountries", environment],
+    queryFn: () => fetchWorldMapCountries(environment),
     staleTime: 60 * 60 * 1000, // 1 hour
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

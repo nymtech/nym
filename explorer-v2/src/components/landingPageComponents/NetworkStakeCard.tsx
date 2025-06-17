@@ -6,8 +6,10 @@ import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const NetworkStakeCard = () => {
+  const { environment } = useEnvironment();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
   const {
@@ -15,8 +17,8 @@ export const NetworkStakeCard = () => {
     isLoading: isStakingLoading,
     isError: isStakingError,
   } = useQuery({
-    queryKey: ["noise"],
-    queryFn: fetchNoise,
+    queryKey: ["noise", environment],
+    queryFn: () => fetchNoise(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -67,8 +69,8 @@ export const NetworkStakeCard = () => {
     .map((item: IPacketsAndStakingData) => ({
       date_utc: item.date_utc,
       numericData: item.total_stake / 1000000,
-    }))
-    .filter((item) => item.numericData >= 50_000_000);
+    }));
+  // .filter((item) => item.numericData >= 50_000_000);
 
   const stakeLineGraphData = {
     color: "#00CA33",

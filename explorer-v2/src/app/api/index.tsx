@@ -24,15 +24,24 @@ import {
   NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
   SANDBOX_CURRENT_EPOCH,
+  SANDBOX_CURRENT_EPOCH_REWARDS,
   SANDBOX_NS_API_MIXNODES_STATS,
   SANDBOX_NS_API_NODES,
 } from "./urls";
 
 // Fetch function for epoch rewards
-export const fetchEpochRewards = async (): Promise<
-  ExplorerData["currentEpochRewardsData"]
-> => {
-  const response = await fetch(CURRENT_EPOCH_REWARDS, {
+export const fetchEpochRewards = async (
+  environment: Environment
+): Promise<ExplorerData["currentEpochRewardsData"]> => {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_CURRENT_EPOCH_REWARDS
+      : CURRENT_EPOCH_REWARDS;
+
+  if (!baseUrl) {
+    throw new Error("CURRENT_EPOCH_REWARDS URL is not defined");
+  }
+  const response = await fetch(baseUrl, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -61,9 +70,16 @@ export const fetchGatewayStatus = async (
 };
 
 export const fetchNodeDelegations = async (
+  environment: Environment,
   id: number
 ): Promise<NodeRewardDetails[]> => {
-  const response = await fetch(`${NS_API_NODES}/${id}/delegations`, {
+  const baseUrl =
+    environment === "sandbox" ? SANDBOX_NS_API_NODES : NS_API_NODES;
+
+  if (!baseUrl) {
+    throw new Error("NS_API_NODES URL is not defined");
+  }
+  const response = await fetch(`${baseUrl}/${id}/delegations`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",

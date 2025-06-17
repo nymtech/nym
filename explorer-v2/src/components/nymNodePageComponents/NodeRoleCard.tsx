@@ -171,8 +171,8 @@ export const NodeRoleCard = ({ paramId }: Props) => {
     isLoading: isEpochLoading,
     isError: isEpochError,
   } = useQuery({
-    queryKey: ["epochRewards"],
-    queryFn: fetchEpochRewards,
+    queryKey: ["epochRewards", environment],
+    queryFn: () => fetchEpochRewards(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

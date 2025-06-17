@@ -25,8 +25,8 @@ export const NodeParametersCard = ({ paramId }: Props) => {
     isLoading: isEpochLoading,
     isError: isEpochError,
   } = useQuery({
-    queryKey: ["epochRewards"],
-    queryFn: fetchEpochRewards,
+    queryKey: ["epochRewards", environment],
+    queryFn: () => fetchEpochRewards(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -86,6 +86,7 @@ export const NodeParametersCard = ({ paramId }: Props) => {
 
   const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
   const totalStakeFormatted = `${totalStake} NYM`;
+
 
   // Extract reward details
 

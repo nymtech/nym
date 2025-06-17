@@ -11,7 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import type { NodeRewardDetails } from "../../app/api/types";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 const ColumnHeading = ({
   children,
 }: {
@@ -36,16 +36,16 @@ type Props = {
 const DelegationsTable = ({ id }: Props) => {
   const router = useRouter();
   const theme = useTheme();
+  const { environment } = useEnvironment();
 
   const { data: delegations = [], isError } = useQuery({
-    queryKey: ["nodeDelegations", id],
-    queryFn: () => fetchNodeDelegations(id),
+    queryKey: ["nodeDelegations", id, environment],
+    queryFn: () => fetchNodeDelegations(environment, id),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
-
 
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [

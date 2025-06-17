@@ -272,7 +272,7 @@ pub fn decrypt_share(
 ) -> Result<Share, DkgError> {
     let mut plaintext = ChunkedShare::default();
 
-    if !ciphertext.verify_integrity(&params) {
+    if !ciphertext.verify_integrity(params) {
         return Err(DkgError::FailedCiphertextIntegrityCheck);
     }
 

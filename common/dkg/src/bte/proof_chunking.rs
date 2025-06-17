@@ -301,9 +301,8 @@ impl ProofOfChunking {
         // ss = (n * m * (CHUNK_SIZE - 1) * (ee - 1))
         // Z = 2 * l * S
 
-        let zz: u64;
-        match compute_ss_zz(n, m) {
-            Ok((_, zz_res)) => zz = zz_res,
+        let zz: u64 = match compute_ss_zz(n, m) {
+            Ok((_, zz_res)) => zz_res,
             _ => return false,
         };
 

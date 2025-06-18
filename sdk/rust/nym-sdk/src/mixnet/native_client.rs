@@ -4,7 +4,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use bytecodec::io::WriteBuf;
 use bytes::{Buf as _, BytesMut};
-use futures::{ready, AsyncRead, Sink, SinkExt, Stream, StreamExt};
+use futures::{ready, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
@@ -28,8 +28,8 @@ use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::sync::RwLockReadGuard;
 use tokio::io::{AsyncRead, ReadBuf};
+use tokio::sync::RwLockReadGuard;
 use tokio_util::codec::{Encoder, FramedWrite};
 
 /// Client connected to the Nym mixnet.

@@ -7,6 +7,7 @@ use futures::{ready, FutureExt, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::inbound_messages::InputMessageCodec;
+use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
@@ -22,13 +23,13 @@ use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::RwLockReadGuard;
-use tokio_util::codec::{Encoder, FramedWrite};
 use tokio_util::sync::CancellationToken;
+use tokio_util::codec::{Encoder, FramedRead, FramedWrite};
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {

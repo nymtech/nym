@@ -1057,6 +1057,7 @@ impl NymNode {
             self.config.mixnet.debug.packet_forwarding_maximum_backoff,
             self.config.mixnet.debug.initial_connection_timeout,
             self.config.mixnet.debug.maximum_connection_buffer_size,
+            self.config.mixnet.debug.use_legacy_packet_encoding,
         );
         let mixnet_client = nym_mixnet_client::Client::new(
             mixnet_client_config,

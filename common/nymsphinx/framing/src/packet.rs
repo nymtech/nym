@@ -6,7 +6,9 @@ use bytes::{BufMut, BytesMut};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::key_rotation::SphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::packet_version::{PacketVersion, CURRENT_PACKET_VERSION};
+use nym_sphinx_params::packet_version::{
+    PacketVersion, CURRENT_PACKET_VERSION, LEGACY_PACKET_VERSION,
+};
 use nym_sphinx_params::PacketType;
 use nym_sphinx_types::NymPacket;
 
@@ -19,32 +21,37 @@ pub struct FramedNymPacket {
     pub(crate) packet: NymPacket,
 }
 
-impl From<MixPacket> for FramedNymPacket {
-    fn from(packet: MixPacket) -> Self {
-        let typ = packet.packet_type();
-        let rot = packet.key_rotation();
-        FramedNymPacket::new(packet.into_packet(), typ, rot)
-    }
-}
-
 impl FramedNymPacket {
     pub fn new(
         packet: NymPacket,
         packet_type: PacketType,
         key_rotation: SphinxKeyRotation,
+        use_legacy_packet_encoding: bool,
     ) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
 
+        let packet_version = if use_legacy_packet_encoding {
+            LEGACY_PACKET_VERSION
+        } else {
+            PacketVersion::new()
+        };
+
         let header = Header {
-            packet_version: PacketVersion::new(),
+            packet_version,
             packet_size,
             key_rotation,
             packet_type,
         };
 
         FramedNymPacket { header, packet }
+    }
+
+    pub fn from_mix_packet(packet: MixPacket, use_legacy_packet_encoding: bool) -> Self {
+        let typ = packet.packet_type();
+        let rot = packet.key_rotation();
+        FramedNymPacket::new(packet.into_packet(), typ, rot, use_legacy_packet_encoding)
     }
 
     pub fn header(&self) -> Header {

@@ -270,6 +270,7 @@ impl ThroughputTestingClient {
             forward_packet,
             Default::default(),
             self.key_rotation,
+            false,
         ))
     }
 

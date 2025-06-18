@@ -28,6 +28,7 @@ const OriginalStakeCard = () => {
     refetchOnReconnect: false,
   });
 
+
   if (!address) {
     return null; // Do not render if address is not available
   }

@@ -204,6 +204,7 @@ export const fetchOriginalStake = async (
 
   const balances: IAccountBalancesInfo = await response.json();
 
+
   // Return the delegated amount
   return Number(balances.total_delegations.amount);
 };

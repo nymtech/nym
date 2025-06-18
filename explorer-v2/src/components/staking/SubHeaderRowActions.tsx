@@ -166,7 +166,7 @@ const SubHeaderRowActions = () => {
       <Button
         variant="contained"
         onClick={handleRedeemRewardsButtonClick}
-        disabled={totalStakerRewards / 1_000_000 < 1}
+        disabled={totalStakerRewards / 1_000_000 < 0.1}
       >
         Redeem NYM
       </Button>

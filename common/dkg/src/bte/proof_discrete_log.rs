@@ -5,6 +5,7 @@ use crate::utils::hash_to_scalar;
 use bls12_381::{G1Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
+use rand::CryptoRng;
 use rand_core::RngCore;
 use zeroize::Zeroize;
 
@@ -20,7 +21,11 @@ pub struct ProofOfDiscreteLog {
 }
 
 impl ProofOfDiscreteLog {
-    pub fn construct(mut rng: impl RngCore, public: &G1Projective, witness: &Scalar) -> Self {
+    pub fn construct(
+        mut rng: impl RngCore + CryptoRng,
+        public: &G1Projective,
+        witness: &Scalar,
+    ) -> Self {
         let mut rand_x = Scalar::random(&mut rng);
         let rand_commitment = G1Projective::generator() * rand_x;
         let challenge = Self::compute_challenge(public, &rand_commitment);

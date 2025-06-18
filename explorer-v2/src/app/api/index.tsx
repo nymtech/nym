@@ -20,12 +20,13 @@ import {
   NS_API_NODES,
   NYM_ACCOUNT_ADDRESS,
   NYM_PRICES_API,
-  OBSERVATORY_GATEWAYS_URL,
+  NS_GATEWAYS_URL,
   SANDBOX_CURRENT_EPOCH,
   SANDBOX_CURRENT_EPOCH_REWARDS,
   SANDBOX_NS_API_MIXNODES_STATS,
   SANDBOX_NS_API_NODES,
   SANDBOX_NYM_ACCOUNT_ADDRESS,
+  SANDBOX_NS_GATEWAYS_URL,
 } from "./urls";
 import { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 
@@ -58,9 +59,13 @@ export const fetchEpochRewards = async (
 
 // Fetch gateway status based on identity key
 export const fetchGatewayStatus = async (
-  identityKey: string
+  identityKey: string,
+  environment: Environment
 ): Promise<GatewayStatus | null> => {
-  const response = await fetch(`${OBSERVATORY_GATEWAYS_URL}/${identityKey}`);
+  const baseUrl =
+    environment === "sandbox" ? SANDBOX_NS_GATEWAYS_URL : NS_GATEWAYS_URL;
+
+  const response = await fetch(`${baseUrl}/${identityKey}`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch gateway status");

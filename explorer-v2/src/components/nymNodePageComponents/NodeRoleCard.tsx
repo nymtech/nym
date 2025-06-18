@@ -196,7 +196,8 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
     queryKey: ["gatewayStatus", nodeInfo?.identity_key],
-    queryFn: () => fetchGatewayStatus(nodeInfo?.identity_key || ""),
+    queryFn: () =>
+      fetchGatewayStatus(nodeInfo?.identity_key || "", environment),
     enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

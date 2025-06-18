@@ -20,9 +20,9 @@ export const VALIDATOR_BASE_URL =
 export const SANDBOX_VALIDATOR_BASE_URL = "https://rpc.sandbox.nymtech.net";
 
 
-export const OBSERVATORY_GATEWAYS_URL =
+export const NS_GATEWAYS_URL =
   "https://mainnet-node-status-api.nymtech.cc/v2/gateways";
-export const SANDBOX_OBSERVATORY_GATEWAYS_URL =
+export const SANDBOX_NS_GATEWAYS_URL =
   "https://sandbox-node-status-api.nymte.ch/v2/gateways";
 
 export const NS_API_MIXNODES_STATS =

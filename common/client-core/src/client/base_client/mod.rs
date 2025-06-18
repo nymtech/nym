@@ -976,7 +976,7 @@ where
             &self.config,
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
-            input_sender.clone(),
+            tokio_util::sync::PollSender::new(input_sender.clone()),
             &shutdown_tracker.child_tracker(),
         );
 

@@ -36,6 +36,8 @@ use crate::init::{
     types::{GatewaySetup, InitialisationResult},
 };
 use futures::channel::mpsc;
+use futures::SinkExt;
+use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
@@ -67,8 +69,8 @@ use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
-use tracing::*;
 use tokio_util::sync::PollSender;
+use tracing::*;
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]
@@ -751,7 +753,7 @@ where
         config: &Config,
         user_agent: Option<UserAgent>,
         client_stats_id: String,
-        input_sender: Sender<InputMessage>,
+        input_sender: PollSender<InputMessage>,
         shutdown_tracker: &ShutdownTracker,
     ) -> ClientStatsSender {
         tracing::info!("Starting statistics control...");

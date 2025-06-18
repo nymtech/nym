@@ -34,6 +34,7 @@ use crate::init::{
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
+use futures::SinkExt;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
@@ -649,7 +650,7 @@ where
         config: &Config,
         user_agent: Option<UserAgent>,
         client_stats_id: String,
-        input_sender: Sender<InputMessage>,
+        input_sender: PollSender<InputMessage>,
         task_client: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");

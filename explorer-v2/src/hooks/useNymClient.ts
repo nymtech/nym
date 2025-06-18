@@ -7,14 +7,25 @@ import type {
   MixnetQueryClient,
 } from "@nymproject/contract-clients/Mixnet.client";
 import { useEffect, useState } from "react";
-import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../config";
+import {
+  COSMOS_KIT_USE_CHAIN,
+  NYM_MIXNET_CONTRACT,
+  SANDBOX_MIXNET_CONTRACT_ADDRESS,
+} from "../config";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const useNymClient = () => {
   const [nymClient, setNymClient] = useState<MixnetClient>();
   const [nymQueryClient, setNymQueryClient] = useState<MixnetQueryClient>();
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+  const mixnetContractAddress =
+    environment === "mainnet"
+      ? NYM_MIXNET_CONTRACT
+      : SANDBOX_MIXNET_CONTRACT_ADDRESS;
 
   const { address, getCosmWasmClient, getSigningCosmWasmClient } =
-    useChain(COSMOS_KIT_USE_CHAIN);
+    useChain(chain);
 
   useEffect(() => {
     if (address) {
@@ -26,13 +37,13 @@ export const useNymClient = () => {
           // eslint-disable-next-line  @typescript-eslint/no-explicit-any
           cosmWasmSigningClient as any,
           address,
-          NYM_MIXNET_CONTRACT,
+          mixnetContractAddress
         );
 
         const queryClient = new contracts.Mixnet.MixnetQueryClient(
           // eslint-disable-next-line  @typescript-eslint/no-explicit-any
           cosmWasmClient as any,
-          NYM_MIXNET_CONTRACT,
+          NYM_MIXNET_CONTRACT
         );
 
         setNymClient(client);

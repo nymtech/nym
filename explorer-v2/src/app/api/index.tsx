@@ -12,12 +12,10 @@ import type {
   NS_NODE,
   NodeRewardDetails,
   NymTokenomics,
-  ObservatoryBalance,
 } from "./types";
 import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_BALANCES_URL,
   NS_API_MIXNODES_STATS,
   NS_API_NODES,
   NYM_ACCOUNT_ADDRESS,
@@ -29,6 +27,7 @@ import {
   SANDBOX_NS_API_NODES,
   SANDBOX_NYM_ACCOUNT_ADDRESS,
 } from "./urls";
+import { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 
 // Fetch function for epoch rewards
 export const fetchEpochRewards = async (
@@ -123,8 +122,15 @@ export const fetchCurrentEpoch = async (environment: Environment) => {
 };
 
 // Fetch balances based on the address
-export const fetchBalances = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+export const fetchBalances = async (
+  address: string,
+  environment: Environment
+): Promise<number> => {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_NYM_ACCOUNT_ADDRESS
+      : NYM_ACCOUNT_ADDRESS;
+  const response = await fetch(`${baseUrl}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -135,20 +141,26 @@ export const fetchBalances = async (address: string): Promise<number> => {
     throw new Error("Failed to fetch balances");
   }
 
-  const balances: ObservatoryBalance = await response.json();
+  const balances: IAccountBalancesInfo = await response.json();
 
   // Calculate total stake
   return (
-    Number(balances.rewards.staking_rewards.amount) +
-    Number(balances.delegated.amount)
+    Number(balances.claimable_rewards.amount) +
+    Number(balances.total_delegations.amount)
   );
 };
 
 // Fetch function to get total staker rewards
 export const fetchTotalStakerRewards = async (
-  address: string
+  address: string,
+  environment: Environment
 ): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_NYM_ACCOUNT_ADDRESS
+      : NYM_ACCOUNT_ADDRESS;
+
+  const response = await fetch(`${baseUrl}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -159,15 +171,22 @@ export const fetchTotalStakerRewards = async (
     throw new Error("Failed to fetch balances");
   }
 
-  const balances: ObservatoryBalance = await response.json();
+  const balances: IAccountBalancesInfo = await response.json();
 
   // Return the staking rewards amount
-  return Number(balances.rewards.staking_rewards.amount);
+  return Number(balances.claimable_rewards.amount);
 };
 
 // Fetch function to get the original stake
-export const fetchOriginalStake = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+export const fetchOriginalStake = async (
+  address: string,
+  environment: Environment
+): Promise<number> => {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_NYM_ACCOUNT_ADDRESS
+      : NYM_ACCOUNT_ADDRESS;
+  const response = await fetch(`${baseUrl}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -178,10 +197,10 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
     throw new Error("Failed to fetch balances");
   }
 
-  const balances: ObservatoryBalance = await response.json();
+  const balances: IAccountBalancesInfo = await response.json();
 
   // Return the delegated amount
-  return Number(balances.delegated.amount);
+  return Number(balances.total_delegations.amount);
 };
 
 export const fetchNoise = async (
@@ -351,8 +370,17 @@ export const fetchWorldMapCountries = async (
     totalCountries: Object.keys(countryCounts).length,
     uniqueLocations: uniqueCities.size,
     totalServers: nodes.length,
-    environment,
   };
+};
+
+export const fetchDelegations = async (
+  address: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  nymClient: any
+): Promise<Delegation[]> => {
+  const data = await nymClient.getDelegatorDelegations({ delegator: address });
+  console.log("data", data);
+  return data.delegations;
 };
 
 

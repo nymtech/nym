@@ -7,22 +7,19 @@ import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { fetchTotalStakerRewards } from "../../app/api";
-import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
+import { fetchDelegations, fetchTotalStakerRewards } from "../../app/api";
+import {
+  COSMOS_KIT_USE_CHAIN,
+  NYM_MIXNET_CONTRACT,
+  SANDBOX_MIXNET_CONTRACT_ADDRESS,
+} from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
+import { SANDBOX_VALIDATOR_BASE_URL, VALIDATOR_BASE_URL } from "@/app/api/urls";
 // Fetch delegations
-const fetchDelegations = async (
-  address: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nymClient: any
-): Promise<Delegation[]> => {
-  const data = await nymClient.getDelegatorDelegations({ delegator: address });
-  return data.delegations;
-};
 
 const SubHeaderRowActions = () => {
   const [openRedeemRewardsModal, setOpenRedeemRewardsModal] =
@@ -31,9 +28,18 @@ const SubHeaderRowActions = () => {
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
   });
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+  const mixnetContractAddress =
+    environment === "mainnet"
+      ? NYM_MIXNET_CONTRACT
+      : SANDBOX_MIXNET_CONTRACT_ADDRESS;
+
+  const rpcAddress =
+    environment === "mainnet" ? VALIDATOR_BASE_URL : SANDBOX_VALIDATOR_BASE_URL;
 
   const { address, nymClient } = useNymClient();
-  const { getOfflineSigner } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { getOfflineSigner } = useChain(chain);
 
   const queryClient = useQueryClient();
 
@@ -56,7 +62,7 @@ const SubHeaderRowActions = () => {
     refetch,
   } = useQuery({
     queryKey: ["totalStakerRewards", address],
-    queryFn: () => fetchTotalStakerRewards(address || ""),
+    queryFn: () => fetchTotalStakerRewards(address || "", environment),
     enabled: !!address, // Only fetch if address is available
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
@@ -64,8 +70,8 @@ const SubHeaderRowActions = () => {
   });
 
   const handleRefetch = useCallback(async () => {
-    refetch();
-    queryClient.invalidateQueries(); // This will refetch ALL active queries
+    await refetch();
+    await queryClient.invalidateQueries(); // This will refetch ALL active queries
   }, [queryClient, refetch]);
 
   const handleRedeemRewards = useCallback(async () => {
@@ -81,13 +87,13 @@ const SubHeaderRowActions = () => {
       const gasPrice = GasPrice.fromString("0.025unym");
 
       const client = await SigningCosmWasmClient.connectWithSigner(
-        "https://rpc.nymtech.net/",
+        rpcAddress,
         signer,
         { gasPrice }
       );
 
       const messages = delegations.map((delegation: Delegation) => ({
-        contractAddress: NYM_MIXNET_CONTRACT,
+        contractAddress: mixnetContractAddress,
         funds: [],
         msg: {
           withdraw_delegator_reward: {
@@ -111,8 +117,11 @@ const SubHeaderRowActions = () => {
         tx: result?.transactionHash,
 
         onClose: async () => {
-          await handleRefetch();
-          setInfoModalProps({ open: false });
+          try {
+            await handleRefetch();
+          } finally {
+            setInfoModalProps({ open: false });
+          }
         },
       });
     } catch (error) {

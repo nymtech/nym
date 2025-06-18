@@ -11,16 +11,13 @@ export const SANDBOX_CURRENT_EPOCH_REWARDS =
 export const NYM_ACCOUNT_ADDRESS =
   "https://validator.nymtech.net/api/v1/unstable/account";
 export const SANDBOX_NYM_ACCOUNT_ADDRESS =
-    "https://sandbox-nym-api1.nymtech.net/api/v1/unstable/account/";
+  "https://sandbox-nym-api1.nymtech.net/api/v1/unstable/account";
 
 export const NYM_PRICES_API = "https://api.nym.spectredao.net/api/v1/nym-price";
 
 export const VALIDATOR_BASE_URL =
   process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";
 export const SANDBOX_VALIDATOR_BASE_URL = "https://rpc.sandbox.nymtech.net";
-
-export const DATA_OBSERVATORY_BALANCES_URL =
-  "https://api.nym.spectredao.net/api/v1/balances";
 
 
 export const OBSERVATORY_GATEWAYS_URL =

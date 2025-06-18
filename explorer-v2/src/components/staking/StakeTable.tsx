@@ -37,7 +37,7 @@ import StakeActions from "./StakeActions";
 import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 type DelegationWithNodeDetails = {
   node: MappedNymNode | undefined;
@@ -83,7 +83,7 @@ const ColumnHeading = ({
 const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const { nymClient, address, nymQueryClient } = useNymClient();
   const [delegations, setDelegations] = useState<DelegationWithNodeDetails[]>(
-    [],
+    []
   );
   const [isDataLoading, setIsLoading] = useState(false);
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -94,7 +94,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     identityKey: string;
   }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
-  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+  const { isWalletConnected } = useChain(chain);
   const { data: pendingEvents } = usePendingEvents(nymQueryClient, address);
 
   const theme = useTheme();
@@ -122,13 +124,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     const combineDelegationsWithNodeAndPendingEvents = (
       delegations: Delegation[],
       nodes: MappedNymNode[],
-      pendingEvents: PendingEvent[] | undefined,
+      pendingEvents: PendingEvent[] | undefined
     ) => {
       // Combine delegations with node details
       const delegationsWithNodeDetails = delegations.map((delegation) => {
         const node = nodes.find((node) => node.nodeId === delegation.node_id);
         const pendingEvent = pendingEvents?.find(
-          (event) => event?.mixId === delegation.node_id,
+          (event) => event?.mixId === delegation.node_id
         );
 
         return {
@@ -146,7 +148,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             !delegationsWithNodeDetails.find(
               (item) =>
                 item.node?.nodeId === e.mixId ||
-                item.delegation.node_id === e.mixId,
+                item.delegation.node_id === e.mixId
             )
           ) {
             delegationsWithNodeDetails.push({
@@ -186,7 +188,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         combineDelegationsWithNodeAndPendingEvents(
           delegations,
           nodes,
-          pendingEvents,
+          pendingEvents
         );
 
       setDelegations(delegationsWithNodeDetails);
@@ -207,7 +209,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           { nodeId },
           fee,
           "Delegation from Nym Explorer V2",
-          uNymFunds,
+          uNymFunds
         );
         setSelectedNodeForStaking(undefined);
 
@@ -236,7 +238,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient, handleRefetch],
+    [nymClient, handleRefetch]
   );
 
   const handleOnSelectStake = useCallback(
@@ -267,7 +269,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         });
       }
     },
-    [isWalletConnected],
+    [isWalletConnected]
   );
 
   const handleUnstake = useCallback(
@@ -282,7 +284,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             nodeId,
           },
           fee,
-          `Explorer V2: Unstaking node ${nodeId}`,
+          `Explorer V2: Unstaking node ${nodeId}`
         );
         setIsLoading(false);
         await handleRefetch();
@@ -307,7 +309,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         setIsLoading(false);
       }
     },
-    [address, nymClient, handleRefetch],
+    [address, nymClient, handleRefetch]
   );
 
   const handleActionSelect = useCallback(
@@ -323,7 +325,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           break;
       }
     },
-    [handleUnstake, handleOnSelectStake],
+    [handleUnstake, handleOnSelectStake]
   );
 
   const getTooltipTitle = useCallback(
@@ -334,13 +336,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
       if (pending?.kind === "delegate") {
         return `You have a delegation pending worth ${formatBigNum(
-          +pending.amount.amount / 1_000_000,
+          +pending.amount.amount / 1_000_000
         )} NYM`;
       }
 
       return undefined;
     },
-    [], // Add dependencies if necessary
+    [] // Add dependencies if necessary
   );
 
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
@@ -419,10 +421,10 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
         sortingFn: (rowA, rowB) => {
           const stakeA = Number.parseFloat(
-            rowA.original.delegation.amount.amount,
+            rowA.original.delegation.amount.amount
           );
           const stakeB = Number.parseFloat(
-            rowB.original.delegation.amount.amount,
+            rowB.original.delegation.amount.amount
           );
           return stakeA - stakeB;
         },
@@ -467,10 +469,10 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ),
         sortingFn: (rowA, rowB) => {
           const isFavoriteA = favorites.includes(
-            rowA.original.node?.owner || "-",
+            rowA.original.node?.owner || "-"
           );
           const isFavoriteB = favorites.includes(
-            rowB.original.node?.owner || "-",
+            rowB.original.node?.owner || "-"
           );
 
           // Sort favorites first
@@ -510,7 +512,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
                     handleActionSelect(
                       action,
                       row.original.delegation?.node_id,
-                      row.original.node?.identity_key || undefined,
+                      row.original.node?.identity_key || undefined
                     );
                   }}
                 />
@@ -520,7 +522,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         },
       },
     ],
-    [handleActionSelect, favorites, getTooltipTitle],
+    [handleActionSelect, favorites, getTooltipTitle]
   );
 
   const table = useMaterialReactTable({

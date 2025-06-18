@@ -6,9 +6,11 @@ import React from "react";
 import { Token } from "../../components/icons/Token";
 import { TokenDark } from "../../components/icons/TokenDark";
 import useGetWalletBalance from "../../hooks/useGetWalletBalance";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 export const WalletBalance = () => {
-  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+  const { isWalletConnected } = useChain(chain);
   const { formattedBalance, isLoading, isError, refetch } =
     useGetWalletBalance();
   const theme = useTheme();

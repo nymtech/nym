@@ -6,11 +6,13 @@ import { fetchTotalStakerRewards } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 const TotalRewardsCard = () => {
   const { address } = useNymClient();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
 
   // Use React Query to fetch total rewards
   const {
@@ -19,7 +21,7 @@ const TotalRewardsCard = () => {
     isError,
   } = useQuery({
     queryKey: ["totalStakerRewards", address],
-    queryFn: () => fetchTotalStakerRewards(address || ""),
+    queryFn: () => fetchTotalStakerRewards(address || "", environment),
     enabled: !!address, // Only fetch if address exists
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

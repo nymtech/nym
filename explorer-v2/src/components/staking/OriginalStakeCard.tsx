@@ -6,11 +6,13 @@ import { fetchOriginalStake } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 const OriginalStakeCard = () => {
   const { address } = useNymClient();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
 
   // Use React Query to fetch original stake
   const {
@@ -19,7 +21,7 @@ const OriginalStakeCard = () => {
     isError,
   } = useQuery({
     queryKey: ["originalStake", address],
-    queryFn: () => fetchOriginalStake(address || ""),
+    queryFn: () => fetchOriginalStake(address || "", environment),
     enabled: !!address, // Only fetch if address exists
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

@@ -14,15 +14,16 @@ import Cross from "../icons/Cross";
 import CrossDark from "../icons/CrossDark";
 import { WalletAddress } from "./WalletAddress";
 import { WalletBalance } from "./WalletBalance";
-
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 interface ButtonPropsWithOnClick extends ButtonProps {
   hideAddressAndBalance?: boolean;
   onClick?: () => void;
 }
 
 const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
-  const { connect, disconnect, address, isWalletConnected } =
-    useChain(COSMOS_KIT_USE_CHAIN);
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+  const { connect, disconnect, address, isWalletConnected } = useChain(chain);
   const theme = useTheme();
 
   const handleConnectWallet = async () => {

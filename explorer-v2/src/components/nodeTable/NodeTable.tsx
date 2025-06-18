@@ -31,6 +31,7 @@ import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 const ColumnHeading = ({
   children,
@@ -84,7 +85,9 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     identityKey: string;
   }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
-  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+  const { isWalletConnected } = useChain(chain);
 
   const handleRefetch = useCallback(async () => {
     await queryClient.invalidateQueries();

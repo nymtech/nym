@@ -324,24 +324,6 @@ export type GatewayStatus = {
   };
 };
 
-type BalanceDetails = {
-  amount: number;
-  denom: string;
-};
-
-export type ObservatoryRewards = {
-  operator_commissions: BalanceDetails;
-  staking_rewards: BalanceDetails;
-  unlocked: BalanceDetails;
-};
-
-export type ObservatoryBalance = {
-  delegated: BalanceDetails;
-  locked: BalanceDetails;
-  rewards: ObservatoryRewards;
-  self_bonded: BalanceDetails;
-  spendable: BalanceDetails;
-};
 
 export type Quote = {
   ath_date: string;

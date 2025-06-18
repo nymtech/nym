@@ -6,11 +6,13 @@ import { fetchBalances } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 const TotalStakeCard = () => {
   const { address } = useNymClient();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
 
   // Use React Query to fetch total stake
   const {
@@ -19,7 +21,7 @@ const TotalStakeCard = () => {
     isError,
   } = useQuery({
     queryKey: ["totalStake", address],
-    queryFn: () => fetchBalances(address || ""),
+    queryFn: () => fetchBalances(address || "", environment),
     enabled: !!address, // Only fetch if address exists
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

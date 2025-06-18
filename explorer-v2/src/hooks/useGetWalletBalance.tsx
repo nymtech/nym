@@ -2,6 +2,7 @@ import { useChain } from "@cosmos-kit/react";
 import { useQuery } from "@tanstack/react-query";
 import { COSMOS_KIT_USE_CHAIN } from "../config";
 import { unymToNym } from "../utils/currency";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fetchNYMBalance = async (address: string, getCosmWasmClient: any) => {
@@ -17,7 +18,10 @@ const fetchNYMBalance = async (address: string, getCosmWasmClient: any) => {
 };
 
 const useGetWalletBalance = () => {
-  const { getCosmWasmClient, address } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
+
+  const { getCosmWasmClient, address } = useChain(chain);
 
   const {
     data = { NYMBalance: "0", formattedBalance: "-" },

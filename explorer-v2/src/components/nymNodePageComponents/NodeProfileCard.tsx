@@ -34,8 +34,10 @@ type Props = {
 export const NodeProfileCard = ({ paramId }: Props) => {
   let nodeInfo: NS_NODE | undefined;
   const theme = useTheme();
+  const { environment } = useEnvironment();
+  const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
 
-  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { isWalletConnected } = useChain(chain);
   const { nymClient } = useNymClient();
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
@@ -45,7 +47,6 @@ export const NodeProfileCard = ({ paramId }: Props) => {
     nodeId: number;
     identityKey: string;
   }>();
-  const { environment } = useEnvironment();
 
   // Fetch node info
   const {

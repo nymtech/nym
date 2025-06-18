@@ -196,7 +196,6 @@ impl InputMessage {
         self.set_max_retransmissions(max_retransmissions);
         self
     }
-}
 
     pub fn serialized_size(&self) -> u64 {
         bincode::serialized_size(self).expect("failed to get serialized InputMessage size") + 4

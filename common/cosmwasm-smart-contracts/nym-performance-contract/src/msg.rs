@@ -40,6 +40,15 @@ pub enum ExecuteMsg {
 
     /// Attempt to retire an existing network monitor and forbid it from submitting any future performance data
     RetireNetworkMonitor { address: String },
+
+    /// An admin method to remove submitted node measurements. Used as an escape hatch should
+    /// the data stored get too unwieldy.
+    RemoveNodeMeasurements { epoch_id: EpochId, node_id: NodeId },
+
+    /// An admin method to remove submitted nodes measurements. Used as an escape hatch should
+    /// the data stored get too unwieldy. Note: it is expected to get called multiple times
+    /// until the response indicates all the epoch data has been removed.
+    RemoveEpochMeasurements { epoch_id: EpochId },
 }
 
 #[cw_serde]

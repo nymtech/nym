@@ -4,12 +4,14 @@
 use crate::nyxd::coin::Coin;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::cosmwasm_client::types::ExecuteResult;
+use crate::nyxd::cosmwasm_client::ContractResponseData;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_performance_contract_common::{
-    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodePerformance,
+    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodeId, NodePerformance,
+    RemoveEpochMeasurementsResponse,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -94,6 +96,53 @@ pub trait PerformanceSigningClient {
         )
         .await
     }
+
+    async fn remove_node_measurements(
+        &self,
+        epoch_id: EpochId,
+        node_id: NodeId,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_performance_contract(
+            fee,
+            PerformanceExecuteMsg::RemoveNodeMeasurements { epoch_id, node_id },
+            "PerformanceContract::RemoveNodeMeasurements".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn partial_remove_epoch_measurements(
+        &self,
+        epoch_id: EpochId,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_performance_contract(
+            fee,
+            PerformanceExecuteMsg::RemoveEpochMeasurements { epoch_id },
+            "PerformanceContract::RemoveEpochMeasurements".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn remove_epoch_measurements(
+        &self,
+        epoch_id: EpochId,
+        fee: Option<Fee>,
+    ) -> Result<(), NyxdError> {
+        loop {
+            let execute_res = self
+                .partial_remove_epoch_measurements(epoch_id, fee.clone())
+                .await?;
+            let response = execute_res
+                .parse_singleton_json_contract_response::<RemoveEpochMeasurementsResponse>()?;
+            if !response.additional_entries_to_remove_remaining {
+                break;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -133,6 +182,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_performance_contract_common::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -156,6 +206,12 @@ mod tests {
             PerformanceExecuteMsg::RetireNetworkMonitor { address } => {
                 client.retire_network_monitor(address, None).ignore()
             }
+            ExecuteMsg::RemoveNodeMeasurements { epoch_id, node_id } => client
+                .remove_node_measurements(epoch_id, node_id, None)
+                .ignore(),
+            ExecuteMsg::RemoveEpochMeasurements { epoch_id } => client
+                .partial_remove_epoch_measurements(epoch_id, None)
+                .ignore(),
         };
     }
 }

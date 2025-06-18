@@ -6,7 +6,7 @@ use cosmwasm_std::{
     coins, Addr, BankMsg, CosmosMsg, Empty, Env, MemoryStorage, MessageInfo, Order, OwnedDeps,
     Response, StdResult, Storage,
 };
-use cw_storage_plus::{KeyDeserialize, Map, PrimaryKey};
+use cw_storage_plus::{KeyDeserialize, Map, Prefix, PrimaryKey};
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
@@ -77,7 +77,7 @@ impl ExtractBankMsg for Response {
     }
 }
 
-pub trait MapReader<'a> {
+pub trait FullReader<'a> {
     type Key;
     type Value: Serialize + DeserializeOwned;
 
@@ -86,11 +86,31 @@ pub trait MapReader<'a> {
     fn all_key_values(&self, store: &dyn Storage) -> StdResult<Vec<(Self::Key, Self::Value)>>;
 }
 
-impl<'a, K, T> MapReader<'a> for Map<K, T>
+impl<'a, K, T> FullReader<'a> for Map<K, T>
 where
     T: Serialize + DeserializeOwned,
     K: PrimaryKey<'a> + KeyDeserialize,
     K::Output: 'static,
+{
+    type Key = K::Output;
+    type Value = T;
+
+    fn all_values(&self, store: &dyn Storage) -> StdResult<Vec<Self::Value>> {
+        self.range(store, None, None, Order::Ascending)
+            .map(|record| record.map(|r| r.1))
+            .collect()
+    }
+
+    fn all_key_values(&self, store: &dyn Storage) -> StdResult<Vec<(Self::Key, Self::Value)>> {
+        self.range(store, None, None, Order::Ascending).collect()
+    }
+}
+
+impl<'a, K, T, B> FullReader<'a> for Prefix<K, T, B>
+where
+    K: KeyDeserialize + 'static,
+    T: Serialize + DeserializeOwned,
+    B: PrimaryKey<'a>,
 {
     type Key = K::Output;
     type Value = T;

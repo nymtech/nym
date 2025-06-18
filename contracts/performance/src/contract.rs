@@ -10,7 +10,8 @@ use crate::queries::{
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use crate::transactions::{
     try_authorise_network_monitor, try_batch_submit_performance_results,
-    try_retire_network_monitor, try_submit_performance_results, try_update_contract_admin,
+    try_remove_epoch_measurements, try_remove_node_measurements, try_retire_network_monitor,
+    try_submit_performance_results, try_update_contract_admin,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -66,6 +67,12 @@ pub fn execute(
         }
         ExecuteMsg::RetireNetworkMonitor { address } => {
             try_retire_network_monitor(deps, env, info, address)
+        }
+        ExecuteMsg::RemoveNodeMeasurements { epoch_id, node_id } => {
+            try_remove_node_measurements(deps, info, epoch_id, node_id)
+        }
+        ExecuteMsg::RemoveEpochMeasurements { epoch_id } => {
+            try_remove_epoch_measurements(deps, info, epoch_id)
         }
     }
 }

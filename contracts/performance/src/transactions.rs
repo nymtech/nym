@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use nym_performance_contract_common::{EpochId, NodePerformance, NymPerformanceContractError};
+use cosmwasm_std::{to_json_binary, DepsMut, Env, MessageInfo, Response};
+use nym_performance_contract_common::{
+    EpochId, NodeId, NodePerformance, NymPerformanceContractError,
+};
 
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
@@ -81,9 +83,41 @@ pub fn try_retire_network_monitor(
     Ok(Response::new())
 }
 
+pub fn try_remove_node_measurements(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    epoch_id: EpochId,
+    node_id: NodeId,
+) -> Result<Response, NymPerformanceContractError> {
+    NYM_PERFORMANCE_CONTRACT_STORAGE.remove_node_measurements(
+        deps,
+        &info.sender,
+        epoch_id,
+        node_id,
+    )?;
+
+    Ok(Response::new())
+}
+
+pub fn try_remove_epoch_measurements(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    epoch_id: EpochId,
+) -> Result<Response, NymPerformanceContractError> {
+    let res =
+        NYM_PERFORMANCE_CONTRACT_STORAGE.remove_epoch_measurements(deps, &info.sender, epoch_id)?;
+
+    Ok(Response::new().set_data(to_json_binary(&res)?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::retrieval_limits;
+    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use cosmwasm_std::from_json;
+    use nym_contracts_common_testing::{AdminExt, ContractOpts};
+    use nym_performance_contract_common::RemoveEpochMeasurementsResponse;
 
     #[cfg(test)]
     mod updating_contract_admin {
@@ -225,5 +259,39 @@ mod tests {
 
             Ok(())
         }
+    }
+
+    // panics in tests are fine...
+    #[allow(clippy::panic)]
+    #[test]
+    fn removing_epoch_measurements_returns_binary_data() -> anyhow::Result<()> {
+        let mut tester = init_contract_tester();
+
+        let nm = tester.addr_make("network-monitor");
+        tester.authorise_network_monitor(&nm)?;
+
+        tester.advance_mixnet_epoch()?;
+        for i in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
+            tester.insert_raw_performance(&nm, (i + 1) as NodeId, "0.42")?;
+        }
+
+        let admin = tester.admin_msg();
+        let res = try_remove_epoch_measurements(tester.deps_mut(), admin.clone(), 0)?;
+
+        let Some(data) = res.data else {
+            panic!("missing binary response");
+        };
+        let deserialised: RemoveEpochMeasurementsResponse = from_json(&data)?;
+        assert!(!deserialised.additional_entries_to_remove_remaining);
+
+        let res = try_remove_epoch_measurements(tester.deps_mut(), admin, 1)?;
+
+        let Some(data) = res.data else {
+            panic!("missing binary response");
+        };
+        let deserialised: RemoveEpochMeasurementsResponse = from_json(&data)?;
+        assert!(deserialised.additional_entries_to_remove_remaining);
+
+        Ok(())
     }
 }

@@ -166,6 +166,11 @@ pub struct RetiredNetworkMonitorsPagedResponse {
     pub start_next_after: Option<String>,
 }
 
+#[cw_serde]
+pub struct RemoveEpochMeasurementsResponse {
+    pub additional_entries_to_remove_remaining: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,7 +9,8 @@ use nym_contracts_common::Percent;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     EpochId, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodePerformance,
-    NodeResults, NymPerformanceContractError, RetiredNetworkMonitor,
+    NodeResults, NymPerformanceContractError, RemoveEpochMeasurementsResponse,
+    RetiredNetworkMonitor,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -28,7 +29,7 @@ pub struct NymPerformanceContractStorage {
 
 impl NymPerformanceContractStorage {
     #[allow(clippy::new_without_default)]
-    const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         NymPerformanceContractStorage {
             contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
             mixnet_epoch_id_at_creation: Item::new(storage_keys::INITIAL_EPOCH_ID),
@@ -251,6 +252,47 @@ impl NymPerformanceContractStorage {
             .may_load(storage, (epoch_id, node_id))?
             .map(|r| r.median()))
     }
+
+    pub fn remove_node_measurements(
+        &self,
+        deps: DepsMut,
+        sender: &Addr,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<(), NymPerformanceContractError> {
+        self.ensure_is_admin(deps.as_ref(), sender)?;
+
+        self.performance_results
+            .results
+            .remove(deps.storage, (epoch_id, node_id));
+        Ok(())
+    }
+
+    pub fn remove_epoch_measurements(
+        &self,
+        deps: DepsMut,
+        sender: &Addr,
+        epoch_id: EpochId,
+    ) -> Result<RemoveEpochMeasurementsResponse, NymPerformanceContractError> {
+        self.ensure_is_admin(deps.as_ref(), sender)?;
+
+        // 1. purge the entries according to the limit
+        self.performance_results.results.prefix(epoch_id).clear(
+            deps.storage,
+            Some(retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT),
+        );
+
+        // 2. see if there's anything left
+        let additional_entries_to_remove_remaining = !self
+            .performance_results
+            .results
+            .prefix(epoch_id)
+            .is_empty(deps.storage);
+
+        Ok(RemoveEpochMeasurementsResponse {
+            additional_entries_to_remove_remaining,
+        })
+    }
 }
 
 pub(crate) struct NetworkMonitorsStorage {
@@ -448,6 +490,8 @@ pub mod retrieval_limits {
 
     pub const RETIRED_NETWORK_MONITORS_DEFAULT_LIMIT: u32 = 50;
     pub const RETIRED_NETWORK_MONITORS_MAX_LIMIT: u32 = 100;
+
+    pub const EPOCH_PERFORMANCE_PURGE_LIMIT: usize = 200;
 }
 
 #[cfg(test)]
@@ -470,7 +514,7 @@ mod tests {
         #[cfg(test)]
         mod initialisation {
             use super::*;
-            use nym_contracts_common_testing::{ArbitraryContractStorageWriter, MapReader};
+            use nym_contracts_common_testing::{ArbitraryContractStorageWriter, FullReader};
 
             fn initialise_storage(
                 pre_init: &mut PreInitContract,
@@ -1709,6 +1753,320 @@ mod tests {
             );
 
             Ok(())
+        }
+
+        #[cfg(test)]
+        mod removing_node_measurements {
+            use super::*;
+            use cw_controllers::AdminError::NotAdmin;
+            use nym_contracts_common_testing::FullReader;
+
+            #[test]
+            fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let not_admin = tester.addr_make("not-admin");
+                let nm = tester.addr_make("network-monitor");
+                let env = tester.env();
+
+                let epoch_id = 0;
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+                tester.insert_raw_performance(&nm, 1, "0.42")?;
+                tester.insert_raw_performance(&nm, 2, "0.42")?;
+
+                let res = storage
+                    .remove_node_measurements(tester.deps_mut(), &not_admin, epoch_id, 1)
+                    .unwrap_err();
+                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
+
+                assert!(storage
+                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 1)
+                    .is_ok());
+
+                // change admin
+                let new_admin = tester.addr_make("new-admin");
+                tester.update_admin(&Some(new_admin.clone()))?;
+
+                // old one no longer works
+                let res = storage
+                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 2)
+                    .unwrap_err();
+                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
+
+                assert!(storage
+                    .remove_node_measurements(tester.deps_mut(), &new_admin, epoch_id, 2)
+                    .is_ok());
+
+                Ok(())
+            }
+
+            #[test]
+            fn is_noop_if_entry_didnt_exist() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let epoch_id = 0;
+                let node_id = 0;
+
+                let before = storage.performance_results.results.all_values(&tester)?;
+                assert!(before.is_empty());
+
+                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, node_id)?;
+
+                let after = storage.performance_results.results.all_values(&tester)?;
+                assert!(after.is_empty());
+
+                Ok(())
+            }
+
+            #[test]
+            fn removes_the_underlying_data() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let nm1 = tester.addr_make("network-monitor1");
+                let nm2 = tester.addr_make("network-monitor2");
+                let nm3 = tester.addr_make("network-monitor3");
+
+                let env = tester.env();
+
+                let epoch_id = 0;
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm1.clone())?;
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm2.clone())?;
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm3.clone())?;
+
+                // single measurement
+                tester.insert_raw_performance(&nm1, 1, "0.42")?;
+
+                let before = storage
+                    .performance_results
+                    .results
+                    .may_load(&tester, (epoch_id, 1))?;
+                assert!(before.is_some());
+
+                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 1)?;
+
+                let after = storage
+                    .performance_results
+                    .results
+                    .may_load(&tester, (epoch_id, 1))?;
+                assert!(after.is_none());
+
+                // multiple measurements
+                tester.insert_raw_performance(&nm1, 2, "0.42")?;
+                tester.insert_raw_performance(&nm2, 2, "0.69")?;
+                tester.insert_raw_performance(&nm3, 2, "1")?;
+
+                let before = storage
+                    .performance_results
+                    .results
+                    .may_load(&tester, (epoch_id, 2))?;
+                assert!(before.is_some());
+
+                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 2)?;
+
+                let after = storage
+                    .performance_results
+                    .results
+                    .may_load(&tester, (epoch_id, 2))?;
+                assert!(after.is_none());
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
+        mod removing_epoch_measurements {
+            use super::*;
+            use cw_controllers::AdminError::NotAdmin;
+            use nym_contracts_common_testing::FullReader;
+
+            #[test]
+            fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let not_admin = tester.addr_make("not-admin");
+                let nm = tester.addr_make("network-monitor");
+                let env = tester.env();
+
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+
+                // epoch 0
+                tester.insert_raw_performance(&nm, 1, "0.42")?;
+                tester.insert_raw_performance(&nm, 2, "0.42")?;
+
+                // epoch 1
+                tester.advance_mixnet_epoch()?;
+                tester.insert_raw_performance(&nm, 1, "0.42")?;
+                tester.insert_raw_performance(&nm, 2, "0.42")?;
+
+                let res = storage
+                    .remove_epoch_measurements(tester.deps_mut(), &not_admin, 0)
+                    .unwrap_err();
+                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
+
+                assert!(storage
+                    .remove_epoch_measurements(tester.deps_mut(), &admin, 0)
+                    .is_ok());
+
+                // change admin
+                let new_admin = tester.addr_make("new-admin");
+                tester.update_admin(&Some(new_admin.clone()))?;
+
+                // old one no longer works
+                let res = storage
+                    .remove_epoch_measurements(tester.deps_mut(), &admin, 1)
+                    .unwrap_err();
+                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
+
+                assert!(storage
+                    .remove_epoch_measurements(tester.deps_mut(), &new_admin, 1)
+                    .is_ok());
+
+                Ok(())
+            }
+
+            #[test]
+            fn is_noop_for_empty_epochs() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let epoch_id = 0;
+
+                let before = storage.performance_results.results.all_values(&tester)?;
+                assert!(before.is_empty());
+
+                storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
+
+                let after = storage.performance_results.results.all_values(&tester)?;
+                assert!(after.is_empty());
+
+                Ok(())
+            }
+
+            #[test]
+            fn removes_the_underlying_data_below_limit() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let nm = tester.addr_make("network-monitor");
+
+                let env = tester.env();
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+
+                // just few entries
+                let epoch_id = 0;
+                for i in 0..10 {
+                    tester.insert_raw_performance(&nm, i + 1, "0.42")?;
+                }
+
+                let before = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+                assert_eq!(before.len(), 10);
+
+                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
+                assert!(!res.additional_entries_to_remove_remaining);
+                let after = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+
+                assert!(after.is_empty());
+
+                // EXACT limit
+                let epoch_id = 1;
+                tester.advance_mixnet_epoch()?;
+                for i in 0..retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
+                    tester.insert_raw_performance(&nm, (i + 1) as NodeId, "0.42")?;
+                }
+
+                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
+                assert!(!res.additional_entries_to_remove_remaining);
+                let after = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+
+                assert!(after.is_empty());
+
+                Ok(())
+            }
+
+            #[test]
+            fn indicates_need_for_further_calls_above_limit() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let admin = tester.admin_unchecked();
+                let nm = tester.addr_make("network-monitor");
+
+                let env = tester.env();
+                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+
+                // just few entries
+                let epoch_id = 0;
+                for i in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50 {
+                    tester.insert_raw_performance(&nm, (i + 1) as NodeId, "0.42")?;
+                }
+
+                let before = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+                assert_eq!(
+                    before.len(),
+                    2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50
+                );
+
+                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
+                assert!(res.additional_entries_to_remove_remaining);
+                let after = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+
+                assert_eq!(
+                    after.len(),
+                    retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50
+                );
+
+                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
+                assert!(res.additional_entries_to_remove_remaining);
+                let after = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+
+                assert_eq!(after.len(), 50);
+
+                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
+                assert!(!res.additional_entries_to_remove_remaining);
+                let after = storage
+                    .performance_results
+                    .results
+                    .prefix(epoch_id)
+                    .all_values(&tester)?;
+
+                assert!(after.is_empty());
+
+                Ok(())
+            }
         }
     }
 

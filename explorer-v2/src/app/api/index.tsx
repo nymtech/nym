@@ -379,7 +379,6 @@ export const fetchDelegations = async (
   nymClient: any
 ): Promise<Delegation[]> => {
   const data = await nymClient.getDelegatorDelegations({ delegator: address });
-  console.log("data", data);
   return data.delegations;
 };
 

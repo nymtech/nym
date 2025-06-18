@@ -69,6 +69,7 @@ const SubHeaderRowActions = () => {
     refetchOnReconnect: false,
   });
 
+
   const handleRefetch = useCallback(async () => {
     await refetch();
     await queryClient.invalidateQueries(); // This will refetch ALL active queries
@@ -165,7 +166,7 @@ const SubHeaderRowActions = () => {
       <Button
         variant="contained"
         onClick={handleRedeemRewardsButtonClick}
-        disabled={totalStakerRewards === 0}
+        disabled={totalStakerRewards / 1_000_000 < 1}
       >
         Redeem NYM
       </Button>

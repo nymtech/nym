@@ -16,7 +16,7 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use nym_client_core_config_types::StatsReporting;
 use nym_sphinx::addressing::Recipient;
 use nym_statistics_common::clients::{

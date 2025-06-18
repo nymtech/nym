@@ -1,7 +1,3 @@
-export type API_RESPONSE<T> = {
-  data: T[];
-};
-
 export type Denom = "unym" | "nym";
 
 export interface IPacketsAndStakingData {
@@ -127,38 +123,6 @@ export type NodeDescription = {
     public_key: string;
   };
 } | null;
-
-export type BondInformation = {
-  node_id: number;
-  owner: string;
-  original_pledge: {
-    denom: string;
-    amount: string;
-  };
-  bonding_height: number;
-  is_unbonding: boolean;
-  node: {
-    host: string;
-    custom_http_port: number;
-    identity_key: string;
-  };
-};
-
-export type RewardingDetails = {
-  cost_params: {
-    profit_margin_percent: string;
-    interval_operating_cost: {
-      denom: string;
-      amount: string;
-    };
-  };
-  operator: string;
-  delegates: string;
-  total_unit_reward: string;
-  unit_delegation: string;
-  last_rewarded_epoch: number;
-  unique_delegations: number;
-};
 
 export type Location = {
   two_letter_iso_country_code?: string;
@@ -323,7 +287,6 @@ export type GatewayStatus = {
     };
   };
 };
-
 
 export type Quote = {
   ath_date: string;

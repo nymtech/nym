@@ -43,7 +43,7 @@ export const useNymClient = () => {
         const queryClient = new contracts.Mixnet.MixnetQueryClient(
           // eslint-disable-next-line  @typescript-eslint/no-explicit-any
           cosmWasmClient as any,
-          NYM_MIXNET_CONTRACT
+          mixnetContractAddress
         );
 
         setNymClient(client);

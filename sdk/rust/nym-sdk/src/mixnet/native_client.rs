@@ -4,7 +4,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use bytecodec::io::WriteBuf;
 use bytes::{Buf as _, BytesMut};
-use futures::{ready, AsyncRead, Sink, SinkExt, Stream, StreamExt};
+use futures::{ready, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::mix_traffic::ClientRequestSender;

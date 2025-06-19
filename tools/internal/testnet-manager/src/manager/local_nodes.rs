@@ -443,7 +443,7 @@ impl NetworkManager {
             ));
             let id = ctx.nym_node_id(mixnode);
             cmds.push(format!(
-                "{bin_canon_display} -c {env_canon_display} run --id {id} --local"
+                "{bin_canon_display} -c {env_canon_display} run --id {id} --local --unsafe-disable-noise"
             ));
         }
 
@@ -454,7 +454,7 @@ impl NetworkManager {
             ));
             let id = ctx.nym_node_id(gateway);
             cmds.push(format!(
-                "{bin_canon_display} -c {env_canon_display} run --id {id} --local"
+                "{bin_canon_display} -c {env_canon_display} run --id {id} --local --unsafe-disable-noise"
             ));
         }
 

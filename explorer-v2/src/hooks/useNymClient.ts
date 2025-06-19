@@ -52,7 +52,12 @@ export const useNymClient = () => {
 
       init();
     }
-  }, [address, getCosmWasmClient, getSigningCosmWasmClient]);
+  }, [
+    address,
+    getCosmWasmClient,
+    getSigningCosmWasmClient,
+    mixnetContractAddress,
+  ]);
 
   return { nymClient, nymQueryClient, address };
 };

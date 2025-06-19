@@ -14,9 +14,7 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import PercentIcon from "@mui/icons-material/Percent";
-import NodeFilterButtonGroup, {
-  type Option,
-} from "../toggleButton/NodeFilterButtonGroup";
+import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
 import { RECOMMENDED_NODES } from "@/app/constants";
 
 type AdvancedFiltersProps = {

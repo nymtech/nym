@@ -137,7 +137,15 @@ const SubHeaderRowActions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [address, nymClient, delegations, handleRefetch, getOfflineSigner]);
+  }, [
+    address,
+    nymClient,
+    delegations,
+    handleRefetch,
+    getOfflineSigner,
+    mixnetContractAddress,
+    rpcAddress,
+  ]);
 
   const handleRedeemRewardsButtonClick = () => {
     setOpenRedeemRewardsModal(true);

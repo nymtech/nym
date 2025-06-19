@@ -8,9 +8,9 @@ use cw_storage_plus::{Item, Map};
 use nym_contracts_common::Percent;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    EpochId, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodePerformance,
-    NodeResults, NymPerformanceContractError, RemoveEpochMeasurementsResponse,
-    RetiredNetworkMonitor,
+    BatchSubmissionResult, EpochId, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata,
+    NodeId, NodePerformance, NodeResults, NymPerformanceContractError,
+    RemoveEpochMeasurementsResponse, RetiredNetworkMonitor,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -48,6 +48,19 @@ impl NymPerformanceContractStorage {
             .querier
             .query_current_absolute_mixnet_epoch_id(&mixnet_contract_address)?;
         Ok(current_epoch_id)
+    }
+
+    pub fn node_bonded(
+        &self,
+        deps: Deps,
+        node_id: NodeId,
+    ) -> Result<bool, NymPerformanceContractError> {
+        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
+
+        let exists = deps
+            .querier
+            .check_node_existence(mixnet_contract_address, node_id)?;
+        Ok(exists)
     }
 
     pub fn initialise(
@@ -103,11 +116,18 @@ impl NymPerformanceContractStorage {
             data.node_id,
         )?;
 
-        // 3 insert performance data into the storage
+        // 3. check if the node is bonded
+        if !self.node_bonded(deps.as_ref(), data.node_id)? {
+            return Err(NymPerformanceContractError::NodeNotBonded {
+                node_id: data.node_id,
+            });
+        }
+
+        // 4 insert performance data into the storage
         self.performance_results
             .insert_performance_data(deps.storage, epoch_id, &data)?;
 
-        // 4. update submission metadata based on the last result we submitted
+        // 5. update submission metadata based on the last result we submitted
         self.performance_results.update_submission_metadata(
             deps.storage,
             sender,
@@ -124,14 +144,14 @@ impl NymPerformanceContractStorage {
         sender: &Addr,
         epoch_id: EpochId,
         data: Vec<NodePerformance>,
-    ) -> Result<(), NymPerformanceContractError> {
+    ) -> Result<BatchSubmissionResult, NymPerformanceContractError> {
         // 1. check if the sender is authorised to submit performance data
         self.network_monitors
             .ensure_authorised(deps.storage, sender)?;
 
         let Some(first) = data.first() else {
             // no performance data
-            return Ok(());
+            return Ok(BatchSubmissionResult::default());
         };
 
         // 2. check if current submission metadata is consistent with the first result we want to submit
@@ -142,9 +162,17 @@ impl NymPerformanceContractStorage {
             first.node_id,
         )?;
 
+        let mut accepted_scores = 0;
+        let mut non_existent_nodes = Vec::new();
+
         // 3. submit it
-        self.performance_results
-            .insert_performance_data(deps.storage, epoch_id, first)?;
+        if self.node_bonded(deps.as_ref(), first.node_id)? {
+            self.performance_results
+                .insert_performance_data(deps.storage, epoch_id, first)?;
+            accepted_scores += 1;
+        } else {
+            non_existent_nodes.push(first.node_id);
+        }
 
         // not point in using peekable iterator, we can just keep track of the previous
         // element we've seen
@@ -159,8 +187,13 @@ impl NymPerformanceContractStorage {
             previous = perf.node_id;
 
             // 5. insert performance data into the storage
-            self.performance_results
-                .insert_performance_data(deps.storage, epoch_id, perf)?;
+            if self.node_bonded(deps.as_ref(), perf.node_id)? {
+                self.performance_results
+                    .insert_performance_data(deps.storage, epoch_id, perf)?;
+                accepted_scores += 1;
+            } else {
+                non_existent_nodes.push(perf.node_id);
+            }
         }
 
         // SAFETY: we know this vector is not empty
@@ -175,7 +208,10 @@ impl NymPerformanceContractStorage {
             last.node_id,
         )?;
 
-        Ok(())
+        Ok(BatchSubmissionResult {
+            accepted_scores,
+            non_existent_nodes,
+        })
     }
 
     #[cfg(test)]
@@ -498,13 +534,6 @@ pub mod retrieval_limits {
 mod tests {
     use super::*;
 
-    fn dummy_node_performance() -> NodePerformance {
-        NodePerformance {
-            node_id: 420,
-            performance: Percent::from_percentage_value(69).unwrap(),
-        }
-    }
-
     #[cfg(test)]
     mod performance_contract_storage {
         use super::*;
@@ -696,13 +725,14 @@ mod tests {
                 tester.authorise_network_monitor(&nm1)?;
 
                 // authorised network monitor can submit the results just fine
+                let perf = tester.dummy_node_performance();
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm1, 0, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm1, 0, perf)
                     .is_ok());
 
                 // unauthorised address is rejected
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm2, 0, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm2, 0, perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -714,17 +744,12 @@ mod tests {
                 // it is fine after explicit authorisation though
                 tester.authorise_network_monitor(&nm2)?;
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm2, 0, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm2, 0, perf)
                     .is_ok());
 
                 // and address that was never authorised still fails
                 let res = storage
-                    .submit_performance_data(
-                        tester.deps_mut(),
-                        &unauthorised,
-                        0,
-                        dummy_node_performance(),
-                    )
+                    .submit_performance_data(tester.deps_mut(), &unauthorised, 0, perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -742,12 +767,15 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
+
                 let data = NodePerformance {
-                    node_id: 123,
+                    node_id: id1,
                     performance: Percent::hundred(),
                 };
                 let another_data = NodePerformance {
-                    node_id: 124,
+                    node_id: id2,
                     performance: Percent::hundred(),
                 };
 
@@ -765,9 +793,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 0,
-                        last_node_id: 123,
+                        last_node_id: id1,
                     }
                 );
 
@@ -789,9 +817,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 1,
-                        last_node_id: 123,
+                        last_node_id: id1,
                     }
                 );
 
@@ -805,12 +833,14 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
                 let data = NodePerformance {
-                    node_id: 123,
+                    node_id: id1,
                     performance: Percent::hundred(),
                 };
                 let another_data = NodePerformance {
-                    node_id: 124,
+                    node_id: id2,
                     performance: Percent::hundred(),
                 };
 
@@ -826,9 +856,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 0,
-                        last_node_id: 124,
+                        last_node_id: id2,
                     }
                 );
 
@@ -845,9 +875,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 9,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 10,
-                        last_node_id: 123,
+                        last_node_id: id1,
                     }
                 );
                 Ok(())
@@ -863,39 +893,40 @@ mod tests {
                 tester.authorise_network_monitor(&nm)?;
 
                 // if NM got authorised at epoch 10, it can only submit data for epochs >=10
+                let perf = tester.dummy_node_performance();
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm, 0, perf)
                     .unwrap_err();
 
                 assert_eq!(
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 420,
+                        node_id: perf.node_id,
                         last_epoch_id: 10,
                         last_node_id: 0,
                     }
                 );
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 9, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm, 9, perf)
                     .unwrap_err();
 
                 assert_eq!(
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 9,
-                        node_id: 420,
+                        node_id: perf.node_id,
                         last_epoch_id: 10,
                         last_node_id: 0,
                     }
                 );
 
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 10, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm, 10, perf)
                     .is_ok());
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 11, dummy_node_performance())
+                    .submit_performance_data(tester.deps_mut(), &nm, 11, perf)
                     .is_ok());
 
                 Ok(())
@@ -905,6 +936,11 @@ mod tests {
             fn updates_submission_metadata() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
+
+                let mut nodes = Vec::new();
+                for _ in 0..10 {
+                    nodes.push(tester.bond_dummy_nymnode()?);
+                }
 
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
@@ -920,7 +956,7 @@ mod tests {
                     &nm,
                     0,
                     NodePerformance {
-                        node_id: 1,
+                        node_id: nodes[0],
                         performance: Default::default(),
                     },
                 )?;
@@ -929,14 +965,14 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
-                assert_eq!(metadata.last_submitted_node_id, 1);
+                assert_eq!(metadata.last_submitted_node_id, nodes[0]);
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
                     &nm,
                     0,
                     NodePerformance {
-                        node_id: 42,
+                        node_id: nodes[3],
                         performance: Default::default(),
                     },
                 )?;
@@ -945,14 +981,14 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
-                assert_eq!(metadata.last_submitted_node_id, 42);
+                assert_eq!(metadata.last_submitted_node_id, nodes[3]);
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
                     &nm,
                     1,
                     NodePerformance {
-                        node_id: 3,
+                        node_id: nodes[1],
                         performance: Default::default(),
                     },
                 )?;
@@ -961,14 +997,14 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
-                assert_eq!(metadata.last_submitted_node_id, 3);
+                assert_eq!(metadata.last_submitted_node_id, nodes[1]);
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
                     &nm,
                     12345,
                     NodePerformance {
-                        node_id: 54321,
+                        node_id: nodes[8],
                         performance: Default::default(),
                     },
                 )?;
@@ -977,8 +1013,78 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 12345);
-                assert_eq!(metadata.last_submitted_node_id, 54321);
+                assert_eq!(metadata.last_submitted_node_id, nodes[8]);
 
+                Ok(())
+            }
+
+            #[test]
+            fn requires_associated_node_to_be_bonded() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+
+                let dummy_perf = NodePerformance {
+                    node_id: 12345,
+                    performance: Percent::from_percentage_value(69)?,
+                };
+
+                // no node bonded at this point
+                let res = storage
+                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_perf)
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::NodeNotBonded {
+                        node_id: dummy_perf.node_id
+                    }
+                );
+
+                // bonded nym-node
+                let node_id = tester.bond_dummy_nymnode()?;
+                let perf = NodePerformance {
+                    node_id,
+                    performance: Default::default(),
+                };
+                let res = storage.submit_performance_data(tester.deps_mut(), &nm, 0, perf);
+                assert!(res.is_ok());
+
+                // unbonded
+                tester.unbond_nymnode(node_id)?;
+
+                let res = storage
+                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_perf)
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::NodeNotBonded {
+                        node_id: dummy_perf.node_id
+                    }
+                );
+
+                // bonded legacy mix-node
+                let node_id = tester.bond_dummy_legacy_mixnode()?;
+                let perf = NodePerformance {
+                    node_id,
+                    performance: Default::default(),
+                };
+                let res = storage.submit_performance_data(tester.deps_mut(), &nm, 0, perf);
+                assert!(res.is_ok());
+
+                // unbonded
+                tester.unbond_legacy_mixnode(node_id)?;
+
+                let res = storage
+                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_perf)
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::NodeNotBonded {
+                        node_id: dummy_perf.node_id
+                    }
+                );
                 Ok(())
             }
         }
@@ -997,24 +1103,15 @@ mod tests {
 
                 tester.authorise_network_monitor(&nm1)?;
 
+                let perf = tester.dummy_node_performance();
                 // authorised network monitor can submit the results just fine
                 assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm1,
-                        0,
-                        vec![dummy_node_performance()]
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm1, 0, vec![perf])
                     .is_ok());
 
                 // unauthorised address is rejected
                 let res = storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm2,
-                        0,
-                        vec![dummy_node_performance()],
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm2, 0, vec![perf])
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -1026,12 +1123,7 @@ mod tests {
                 // it is fine after explicit authorisation though
                 tester.authorise_network_monitor(&nm2)?;
                 assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm2,
-                        0,
-                        vec![dummy_node_performance()]
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm2, 0, vec![perf])
                     .is_ok());
 
                 // and address that was never authorised still fails
@@ -1040,7 +1132,7 @@ mod tests {
                         tester.deps_mut(),
                         &unauthorised,
                         0,
-                        vec![dummy_node_performance()],
+                        vec![perf],
                     )
                     .unwrap_err();
                 assert_eq!(
@@ -1059,16 +1151,19 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
+                let id3 = tester.bond_dummy_nymnode()?;
                 let data = NodePerformance {
-                    node_id: 123,
+                    node_id: id1,
                     performance: Percent::hundred(),
                 };
                 let another_data = NodePerformance {
-                    node_id: 124,
+                    node_id: id2,
                     performance: Percent::hundred(),
                 };
                 let more_data = NodePerformance {
-                    node_id: 125,
+                    node_id: id3,
                     performance: Percent::hundred(),
                 };
 
@@ -1111,12 +1206,14 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
                 let data = NodePerformance {
-                    node_id: 123,
+                    node_id: id1,
                     performance: Percent::hundred(),
                 };
                 let another_data = NodePerformance {
-                    node_id: 124,
+                    node_id: id2,
                     performance: Percent::hundred(),
                 };
 
@@ -1134,9 +1231,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 0,
-                        last_node_id: 123,
+                        last_node_id: id1,
                     }
                 );
 
@@ -1158,9 +1255,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 1,
-                        last_node_id: 123,
+                        last_node_id: id1,
                     }
                 );
 
@@ -1174,12 +1271,14 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
                 let data = NodePerformance {
-                    node_id: 123,
+                    node_id: id1,
                     performance: Percent::hundred(),
                 };
                 let another_data = NodePerformance {
-                    node_id: 124,
+                    node_id: id2,
                     performance: Percent::hundred(),
                 };
 
@@ -1195,9 +1294,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 0,
-                        last_node_id: 124,
+                        last_node_id: id2,
                     }
                 );
 
@@ -1214,9 +1313,9 @@ mod tests {
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 9,
-                        node_id: 123,
+                        node_id: id1,
                         last_epoch_id: 10,
-                        last_node_id: 123,
+                        last_node_id: id1,
                     }
                 );
                 Ok(())
@@ -1231,60 +1330,42 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
+                let perf = tester.dummy_node_performance();
+
                 // if NM got authorised at epoch 10, it can only submit data for epochs >=10
                 let res = storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm,
-                        0,
-                        vec![dummy_node_performance()],
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![perf])
                     .unwrap_err();
 
                 assert_eq!(
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 0,
-                        node_id: 420,
+                        node_id: perf.node_id,
                         last_epoch_id: 10,
                         last_node_id: 0,
                     }
                 );
 
                 let res = storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm,
-                        9,
-                        vec![dummy_node_performance()],
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm, 9, vec![perf])
                     .unwrap_err();
 
                 assert_eq!(
                     res,
                     NymPerformanceContractError::StalePerformanceSubmission {
                         epoch_id: 9,
-                        node_id: 420,
+                        node_id: perf.node_id,
                         last_epoch_id: 10,
                         last_node_id: 0,
                     }
                 );
 
                 assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm,
-                        10,
-                        vec![dummy_node_performance()]
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm, 10, vec![perf])
                     .is_ok());
                 assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        &nm,
-                        11,
-                        vec![dummy_node_performance()]
-                    )
+                    .batch_submit_performance_results(tester.deps_mut(), &nm, 11, vec![perf])
                     .is_ok());
 
                 Ok(())
@@ -1304,13 +1385,18 @@ mod tests {
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, 0);
 
+                let mut nodes = Vec::new();
+                for _ in 0..10 {
+                    nodes.push(tester.bond_dummy_nymnode()?);
+                }
+
                 // single submission
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     &nm,
                     0,
                     vec![NodePerformance {
-                        node_id: 1,
+                        node_id: nodes[0],
                         performance: Default::default(),
                     }],
                 )?;
@@ -1319,7 +1405,7 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
-                assert_eq!(metadata.last_submitted_node_id, 1);
+                assert_eq!(metadata.last_submitted_node_id, nodes[0]);
 
                 // another epoch
                 storage.batch_submit_performance_results(
@@ -1327,7 +1413,7 @@ mod tests {
                     &nm,
                     1,
                     vec![NodePerformance {
-                        node_id: 3,
+                        node_id: nodes[1],
                         performance: Default::default(),
                     }],
                 )?;
@@ -1336,7 +1422,7 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
-                assert_eq!(metadata.last_submitted_node_id, 3);
+                assert_eq!(metadata.last_submitted_node_id, nodes[1]);
 
                 // multiple submissions
                 storage.batch_submit_performance_results(
@@ -1345,15 +1431,15 @@ mod tests {
                     1,
                     vec![
                         NodePerformance {
-                            node_id: 4,
+                            node_id: nodes[2],
                             performance: Default::default(),
                         },
                         NodePerformance {
-                            node_id: 5,
+                            node_id: nodes[3],
                             performance: Default::default(),
                         },
                         NodePerformance {
-                            node_id: 6,
+                            node_id: nodes[4],
                             performance: Default::default(),
                         },
                     ],
@@ -1363,7 +1449,7 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
-                assert_eq!(metadata.last_submitted_node_id, 6);
+                assert_eq!(metadata.last_submitted_node_id, nodes[4]);
 
                 // another epoch
                 storage.batch_submit_performance_results(
@@ -1372,15 +1458,15 @@ mod tests {
                     2,
                     vec![
                         NodePerformance {
-                            node_id: 2,
+                            node_id: nodes[1],
                             performance: Default::default(),
                         },
                         NodePerformance {
-                            node_id: 75,
+                            node_id: nodes[6],
                             performance: Default::default(),
                         },
                         NodePerformance {
-                            node_id: 123,
+                            node_id: nodes[8],
                             performance: Default::default(),
                         },
                     ],
@@ -1390,7 +1476,172 @@ mod tests {
                     .submission_metadata
                     .load(&tester, &nm)?;
                 assert_eq!(metadata.last_submitted_epoch_id, 2);
-                assert_eq!(metadata.last_submitted_node_id, 123);
+                assert_eq!(metadata.last_submitted_node_id, nodes[8]);
+
+                Ok(())
+            }
+
+            #[test]
+            fn informs_if_associated_node_is_not_bonded() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+
+                // bond and unbond some nodes to advance the id counter
+                for _ in 0..10 {
+                    let node_id = tester.bond_dummy_nymnode()?;
+                    tester.unbond_nymnode(node_id)?;
+                }
+
+                let nym_node1 = tester.bond_dummy_nymnode()?;
+
+                let nym_node_between = tester.bond_dummy_nymnode()?;
+                tester.unbond_nymnode(nym_node_between)?;
+
+                let nym_node2 = tester.bond_dummy_nymnode()?;
+
+                let mix_node1 = tester.bond_dummy_legacy_mixnode()?;
+
+                let mixnode_between = tester.bond_dummy_legacy_mixnode()?;
+                tester.unbond_legacy_mixnode(mixnode_between)?;
+
+                let mix_node2 = tester.bond_dummy_legacy_mixnode()?;
+
+                // single id - nothing bonded
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    &nm,
+                    0,
+                    vec![NodePerformance {
+                        node_id: 999999,
+                        performance: Default::default(),
+                    }],
+                )?;
+                assert_eq!(res.accepted_scores, 0);
+                assert_eq!(res.non_existent_nodes, vec![999999]);
+
+                // one bonded nym-node, one not bonded
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    &nm,
+                    1,
+                    vec![
+                        NodePerformance {
+                            node_id: nym_node1,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: 999999,
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                assert_eq!(res.accepted_scores, 1);
+                assert_eq!(res.non_existent_nodes, vec![999999]);
+
+                // not-bonded, bonded, not-bonded, bonded
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    &nm,
+                    2,
+                    vec![
+                        NodePerformance {
+                            node_id: 2,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nym_node1,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nym_node_between,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nym_node2,
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                assert_eq!(res.accepted_scores, 2);
+                assert_eq!(res.non_existent_nodes, vec![2, nym_node_between]);
+
+                // MIXNODES
+
+                // one bonded mixnode, one not bonded
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    &nm,
+                    3,
+                    vec![
+                        NodePerformance {
+                            node_id: mix_node1,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: 999999,
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                assert_eq!(res.accepted_scores, 1);
+                assert_eq!(res.non_existent_nodes, vec![999999]);
+
+                // not-bonded, bonded, not-bonded, bonded
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    &nm,
+                    4,
+                    vec![
+                        NodePerformance {
+                            node_id: 2,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: mix_node1,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: mixnode_between,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: mix_node2,
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                assert_eq!(res.accepted_scores, 2);
+                assert_eq!(res.non_existent_nodes, vec![2, mixnode_between]);
+
+                // nym-node, not bonded, mixnode
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    &nm,
+                    5,
+                    vec![
+                        NodePerformance {
+                            node_id: 3,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nym_node1,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nym_node_between,
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: mix_node2,
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                assert_eq!(res.accepted_scores, 2);
+                assert_eq!(res.non_existent_nodes, vec![3, nym_node_between]);
 
                 Ok(())
             }
@@ -1667,17 +1918,19 @@ mod tests {
             }
 
             // no results
-            assert_eq!(storage.try_load_performance(&tester, 0, 1)?, None);
+            let node_id = tester.bond_dummy_nymnode()?;
+            assert_eq!(storage.try_load_performance(&tester, 0, node_id)?, None);
 
             //
             // always returns median value with 2decimal places precision
             //
 
             // single result
-            tester.insert_raw_performance(&nms[0], 1, "0.42")?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nms[0], node_id, "0.42")?;
             assert_eq!(
                 storage
-                    .try_load_performance(&tester, 0, 1)?
+                    .try_load_performance(&tester, 0, node_id)?
                     .unwrap()
                     .value()
                     .to_string(),
@@ -1685,11 +1938,12 @@ mod tests {
             );
 
             // two results (median doesn't require changing decimal places)
-            tester.insert_raw_performance(&nms[0], 2, "0.50")?;
-            tester.insert_raw_performance(&nms[1], 2, "0.40")?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nms[0], node_id, "0.50")?;
+            tester.insert_raw_performance(&nms[1], node_id, "0.40")?;
             assert_eq!(
                 storage
-                    .try_load_performance(&tester, 0, 2)?
+                    .try_load_performance(&tester, 0, node_id)?
                     .unwrap()
                     .value()
                     .to_string(),
@@ -1697,11 +1951,12 @@ mod tests {
             );
 
             // two results (median requires changing decimal places)
-            tester.insert_raw_performance(&nms[0], 3, "0.58")?;
-            tester.insert_raw_performance(&nms[1], 3, "0.45")?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nms[0], node_id, "0.58")?;
+            tester.insert_raw_performance(&nms[1], node_id, "0.45")?;
             assert_eq!(
                 storage
-                    .try_load_performance(&tester, 0, 3)?
+                    .try_load_performance(&tester, 0, node_id)?
                     .unwrap()
                     .value()
                     .to_string(),
@@ -1709,12 +1964,13 @@ mod tests {
             );
 
             // three results (median is the middle value rather than the average)
-            tester.insert_raw_performance(&nms[0], 4, "0.12")?;
-            tester.insert_raw_performance(&nms[1], 4, "0.34")?;
-            tester.insert_raw_performance(&nms[2], 4, "0.56")?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nms[0], node_id, "0.12")?;
+            tester.insert_raw_performance(&nms[1], node_id, "0.34")?;
+            tester.insert_raw_performance(&nms[2], node_id, "0.56")?;
             assert_eq!(
                 storage
-                    .try_load_performance(&tester, 0, 4)?
+                    .try_load_performance(&tester, 0, node_id)?
                     .unwrap()
                     .value()
                     .to_string(),
@@ -1722,14 +1978,15 @@ mod tests {
             );
 
             // five results (notice how they're not inserted sorted)
-            tester.insert_raw_performance(&nms[0], 5, "0.9")?;
-            tester.insert_raw_performance(&nms[1], 5, "0.9")?;
-            tester.insert_raw_performance(&nms[2], 5, "0.1")?;
-            tester.insert_raw_performance(&nms[4], 5, "0.1")?;
-            tester.insert_raw_performance(&nms[5], 5, "0.7")?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nms[0], node_id, "0.9")?;
+            tester.insert_raw_performance(&nms[1], node_id, "0.9")?;
+            tester.insert_raw_performance(&nms[2], node_id, "0.1")?;
+            tester.insert_raw_performance(&nms[4], node_id, "0.1")?;
+            tester.insert_raw_performance(&nms[5], node_id, "0.7")?;
             assert_eq!(
                 storage
-                    .try_load_performance(&tester, 0, 5)?
+                    .try_load_performance(&tester, 0, node_id)?
                     .unwrap()
                     .value()
                     .to_string(),
@@ -1737,15 +1994,16 @@ mod tests {
             );
 
             // six results (same as above, but average of middle values)
-            tester.insert_raw_performance(&nms[0], 6, "0.9")?;
-            tester.insert_raw_performance(&nms[1], 6, "0.9")?;
-            tester.insert_raw_performance(&nms[2], 6, "0.1")?;
-            tester.insert_raw_performance(&nms[3], 6, "0.1")?;
-            tester.insert_raw_performance(&nms[4], 6, "0.2")?;
-            tester.insert_raw_performance(&nms[5], 6, "0.3")?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nms[0], node_id, "0.9")?;
+            tester.insert_raw_performance(&nms[1], node_id, "0.9")?;
+            tester.insert_raw_performance(&nms[2], node_id, "0.1")?;
+            tester.insert_raw_performance(&nms[3], node_id, "0.1")?;
+            tester.insert_raw_performance(&nms[4], node_id, "0.2")?;
+            tester.insert_raw_performance(&nms[5], node_id, "0.3")?;
             assert_eq!(
                 storage
-                    .try_load_performance(&tester, 0, 6)?
+                    .try_load_performance(&tester, 0, node_id)?
                     .unwrap()
                     .value()
                     .to_string(),
@@ -1773,16 +2031,19 @@ mod tests {
 
                 let epoch_id = 0;
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
-                tester.insert_raw_performance(&nm, 1, "0.42")?;
-                tester.insert_raw_performance(&nm, 2, "0.42")?;
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
+
+                tester.insert_raw_performance(&nm, id1, "0.42")?;
+                tester.insert_raw_performance(&nm, id2, "0.42")?;
 
                 let res = storage
-                    .remove_node_measurements(tester.deps_mut(), &not_admin, epoch_id, 1)
+                    .remove_node_measurements(tester.deps_mut(), &not_admin, epoch_id, id1)
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
                 assert!(storage
-                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 1)
+                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id1)
                     .is_ok());
 
                 // change admin
@@ -1791,12 +2052,12 @@ mod tests {
 
                 // old one no longer works
                 let res = storage
-                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 2)
+                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id2)
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
                 assert!(storage
-                    .remove_node_measurements(tester.deps_mut(), &new_admin, epoch_id, 2)
+                    .remove_node_measurements(tester.deps_mut(), &new_admin, epoch_id, id2)
                     .is_ok());
 
                 Ok(())
@@ -1834,45 +2095,48 @@ mod tests {
 
                 let env = tester.env();
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
+
                 let epoch_id = 0;
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm1.clone())?;
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm2.clone())?;
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm3.clone())?;
 
                 // single measurement
-                tester.insert_raw_performance(&nm1, 1, "0.42")?;
+                tester.insert_raw_performance(&nm1, id1, "0.42")?;
 
                 let before = storage
                     .performance_results
                     .results
-                    .may_load(&tester, (epoch_id, 1))?;
+                    .may_load(&tester, (epoch_id, id1))?;
                 assert!(before.is_some());
 
-                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 1)?;
+                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id1)?;
 
                 let after = storage
                     .performance_results
                     .results
-                    .may_load(&tester, (epoch_id, 1))?;
+                    .may_load(&tester, (epoch_id, id1))?;
                 assert!(after.is_none());
 
                 // multiple measurements
-                tester.insert_raw_performance(&nm1, 2, "0.42")?;
-                tester.insert_raw_performance(&nm2, 2, "0.69")?;
-                tester.insert_raw_performance(&nm3, 2, "1")?;
+                tester.insert_raw_performance(&nm1, id2, "0.42")?;
+                tester.insert_raw_performance(&nm2, id2, "0.69")?;
+                tester.insert_raw_performance(&nm3, id2, "1")?;
 
                 let before = storage
                     .performance_results
                     .results
-                    .may_load(&tester, (epoch_id, 2))?;
+                    .may_load(&tester, (epoch_id, id2))?;
                 assert!(before.is_some());
 
-                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, 2)?;
+                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id2)?;
 
                 let after = storage
                     .performance_results
                     .results
-                    .may_load(&tester, (epoch_id, 2))?;
+                    .may_load(&tester, (epoch_id, id2))?;
                 assert!(after.is_none());
 
                 Ok(())
@@ -1897,14 +2161,17 @@ mod tests {
 
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
 
+                let id1 = tester.bond_dummy_nymnode()?;
+                let id2 = tester.bond_dummy_nymnode()?;
+
                 // epoch 0
-                tester.insert_raw_performance(&nm, 1, "0.42")?;
-                tester.insert_raw_performance(&nm, 2, "0.42")?;
+                tester.insert_raw_performance(&nm, id1, "0.42")?;
+                tester.insert_raw_performance(&nm, id2, "0.42")?;
 
                 // epoch 1
                 tester.advance_mixnet_epoch()?;
-                tester.insert_raw_performance(&nm, 1, "0.42")?;
-                tester.insert_raw_performance(&nm, 2, "0.42")?;
+                tester.insert_raw_performance(&nm, id1, "0.42")?;
+                tester.insert_raw_performance(&nm, id2, "0.42")?;
 
                 let res = storage
                     .remove_epoch_measurements(tester.deps_mut(), &not_admin, 0)
@@ -1964,8 +2231,9 @@ mod tests {
 
                 // just few entries
                 let epoch_id = 0;
-                for i in 0..10 {
-                    tester.insert_raw_performance(&nm, i + 1, "0.42")?;
+                for _ in 0..10 {
+                    let node_id = tester.bond_dummy_nymnode()?;
+                    tester.insert_raw_performance(&nm, node_id, "0.42")?;
                 }
 
                 let before = storage
@@ -1988,8 +2256,9 @@ mod tests {
                 // EXACT limit
                 let epoch_id = 1;
                 tester.advance_mixnet_epoch()?;
-                for i in 0..retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
-                    tester.insert_raw_performance(&nm, (i + 1) as NodeId, "0.42")?;
+                for _ in 0..retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
+                    let node_id = tester.bond_dummy_nymnode()?;
+                    tester.insert_raw_performance(&nm, node_id, "0.42")?;
                 }
 
                 let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
@@ -2018,8 +2287,9 @@ mod tests {
 
                 // just few entries
                 let epoch_id = 0;
-                for i in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50 {
-                    tester.insert_raw_performance(&nm, (i + 1) as NodeId, "0.42")?;
+                for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50 {
+                    let node_id = tester.bond_dummy_nymnode()?;
+                    tester.insert_raw_performance(&nm, node_id, "0.42")?;
                 }
 
                 let before = storage
@@ -2286,46 +2556,45 @@ mod tests {
             let storage = PerformanceResultsStorage::new();
             let mut tester = init_contract_tester();
 
-            let node_id = 123;
+            let id1 = tester.bond_dummy_nymnode()?;
+            let id2 = tester.bond_dummy_nymnode()?;
+            let id3 = tester.bond_dummy_nymnode()?;
 
             let nm = tester.addr_make("network-monitor");
             tester.authorise_network_monitor(&nm)?;
-            tester.insert_epoch_performance(&nm, 2, node_id, Percent::hundred())?;
+            tester.insert_epoch_performance(&nm, 2, id2, Percent::hundred())?;
 
             // illegal to submit anything < than last used epoch
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 0, node_id)
+                .ensure_non_stale_submission(&tester, &nm, 0, id2)
                 .is_err());
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 1, node_id)
+                .ensure_non_stale_submission(&tester, &nm, 1, id2)
                 .is_err());
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 1, node_id + 1)
+                .ensure_non_stale_submission(&tester, &nm, 1, id3)
                 .is_err());
 
             // for the current epoch, node id has to be greater than what has already been submitted
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, 0)
+                .ensure_non_stale_submission(&tester, &nm, 2, id1)
                 .is_err());
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, 122)
+                .ensure_non_stale_submission(&tester, &nm, 2, id2)
                 .is_err());
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, node_id)
-                .is_err());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, node_id + 1)
+                .ensure_non_stale_submission(&tester, &nm, 2, id3)
                 .is_ok());
 
             // and anything for future epochs is fine (as long as it's the first entry)
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 3, 0)
+                .ensure_non_stale_submission(&tester, &nm, 3, id1)
                 .is_ok());
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 3, node_id)
+                .ensure_non_stale_submission(&tester, &nm, 3, id2)
                 .is_ok());
             assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 1111, 5454)
+                .ensure_non_stale_submission(&tester, &nm, 1111, id3)
                 .is_ok());
 
             Ok(())

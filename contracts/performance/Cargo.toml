@@ -33,6 +33,7 @@ nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mix
 anyhow = { workspace = true }
 nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
 nym-mixnet-contract = { path = "../mixnet", features = ["testable-mixnet-contract"] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 [features]
 schema-gen = ["nym-performance-contract-common/schema", "cosmwasm-schema"]

@@ -4,11 +4,14 @@
 use crate::{ContractTester, TestableNymContract};
 use cosmwasm_std::testing::{message_info, mock_env};
 use cosmwasm_std::{
-    from_json, Addr, Coin, ContractInfo, Deps, DepsMut, Env, Response, StdResult, Storage,
+    from_json, Addr, Coin, ContractInfo, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Storage, Timestamp,
 };
 use cw_multi_test::{next_block, AppResponse, Executor};
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::any::type_name;
+use std::fmt::Debug;
 
 pub trait ContractOpts {
     type ExecuteMsg;
@@ -134,6 +137,8 @@ pub trait ChainOpts: ContractOpts {
 
     fn next_block(&mut self);
 
+    fn set_block_time(&mut self, time: Timestamp);
+
     fn execute_msg(
         &mut self,
         sender: Addr,
@@ -148,6 +153,19 @@ pub trait ChainOpts: ContractOpts {
         coins: &[Coin],
         message: &Self::ExecuteMsg,
     ) -> anyhow::Result<AppResponse>;
+
+    fn execute_arbitrary_contract<T: Serialize + Debug>(
+        &mut self,
+        contract: Addr,
+        sender: MessageInfo,
+        message: &T,
+    ) -> anyhow::Result<AppResponse>;
+
+    fn query_arbitrary_contract<Q: Serialize + Debug, T: DeserializeOwned>(
+        &self,
+        contract: Addr,
+        message: &Q,
+    ) -> StdResult<T>;
 
     fn query<T: DeserializeOwned>(&self, message: &Self::QueryMsg) -> StdResult<T>;
 }
@@ -172,6 +190,10 @@ where
         self.app.update_block(next_block)
     }
 
+    fn set_block_time(&mut self, time: Timestamp) {
+        self.app.update_block(|b| b.time = time)
+    }
+
     fn execute_msg(
         &mut self,
         sender: Addr,
@@ -188,6 +210,25 @@ where
     ) -> anyhow::Result<AppResponse> {
         self.app
             .execute_contract(sender, self.contract_address.clone(), message, coins)
+    }
+
+    fn execute_arbitrary_contract<T: Serialize + Debug>(
+        &mut self,
+        contract: Addr,
+        sender: MessageInfo,
+        message: &T,
+    ) -> anyhow::Result<AppResponse> {
+        let coins = &sender.funds;
+        let sender = sender.sender;
+        self.app.execute_contract(sender, contract, message, coins)
+    }
+
+    fn query_arbitrary_contract<Q: Serialize + Debug, T: DeserializeOwned>(
+        &self,
+        contract: Addr,
+        message: &Q,
+    ) -> StdResult<T> {
+        self.app.wrap().query_wasm_smart(contract, message)
     }
 
     fn query<T: DeserializeOwned>(&self, message: &C::QueryMsg) -> StdResult<T> {

@@ -1,15 +1,22 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{CommonStorageKeys, ContractOpts, ContractTester, StorageWrapper, TestableNymContract};
+use crate::{
+    CommonStorageKeys, ContractOpts, ContractTester, StorageWrapper, TestableNymContract,
+    TEST_DENOM,
+};
 use cosmwasm_std::testing::message_info;
 use cosmwasm_std::{
-    coin, coins, to_json_vec, Addr, Coin, MessageInfo, StdError, StdResult, Storage,
+    coin, coins, from_json, to_json_vec, Addr, Coin, MessageInfo, StdError, StdResult, Storage,
 };
+use cw_multi_test::Executor;
+use cw_storage_plus::{Key, Path, PrimaryKey};
 use rand::RngCore;
+use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::any::type_name;
+use std::ops::Deref;
 
 pub trait StorageReader {
     fn common_key(&self, key: CommonStorageKeys) -> Option<&[u8]>;
@@ -64,6 +71,45 @@ pub trait StorageWriter: StorageReader {
     }
 }
 
+pub trait ArbitraryContractStorageReader {
+    fn may_read_from_contract_storage(
+        &self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+    ) -> Option<Vec<u8>>;
+
+    fn must_read_from_contract_storage(
+        &self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+    ) -> StdResult<Vec<u8>> {
+        let key = key.as_ref();
+        self.may_read_from_contract_storage(address, key)
+            .ok_or(StdError::not_found(format!("no data under {key:?}")))
+    }
+
+    fn may_read_value_from_contract_storage<T: DeserializeOwned>(
+        &self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+    ) -> StdResult<Option<T>> {
+        let Some(bytes) = self.may_read_from_contract_storage(address, key) else {
+            return Ok(None);
+        };
+
+        from_json(&bytes).map(Some)
+    }
+
+    fn must_read_value_from_contract_storage<T: DeserializeOwned>(
+        &self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+    ) -> StdResult<T> {
+        let bytes = self.must_read_from_contract_storage(address, key)?;
+        from_json(&bytes)
+    }
+}
+
 pub trait ArbitraryContractStorageWriter {
     fn set_contract_storage(
         &mut self,
@@ -80,6 +126,26 @@ pub trait ArbitraryContractStorageWriter {
     ) -> StdResult<()> {
         self.set_contract_storage(address, key, &to_json_vec(value)?);
         Ok(())
+    }
+
+    // attempts to write to an arbitrary contract `cw_storage_plus::Map`
+    fn set_contract_map_value<'a, K, T>(
+        &mut self,
+        address: impl Into<String>,
+        namespace: impl AsRef<[u8]>,
+        key: K,
+        value: &T,
+    ) -> StdResult<()>
+    where
+        K: PrimaryKey<'a>,
+        T: Serialize + DeserializeOwned,
+    {
+        let key_path: Path<T> = Path::new(
+            namespace.as_ref(),
+            &key.key().iter().map(Key::as_ref).collect::<Vec<_>>(),
+        );
+        let storage_key = key_path.deref();
+        self.set_contract_storage_value(address, storage_key, value)
     }
 }
 
@@ -118,7 +184,17 @@ pub trait DenomExt: StorageReader {
 }
 
 pub trait RandExt {
+    fn raw_rng(&mut self) -> &mut ChaCha20Rng;
+
     fn generate_account(&mut self) -> Addr;
+
+    fn generate_account_with_balance(&mut self) -> Addr
+    where
+        Self: BankExt;
+}
+
+pub trait BankExt {
+    fn send_tokens(&mut self, to: Addr, amount: Coin) -> anyhow::Result<()>;
 }
 
 impl<T> AdminExt for T where T: StorageReader + StorageWriter {}
@@ -140,11 +216,45 @@ impl<C: TestableNymContract> StorageWriter for ContractTester<C> {
     }
 }
 
+impl<C: TestableNymContract> BankExt for ContractTester<C> {
+    fn send_tokens(&mut self, to: Addr, amount: Coin) -> anyhow::Result<()> {
+        self.app
+            .send_tokens(self.master_address.clone(), to, &[amount])?;
+        Ok(())
+    }
+}
+
 impl<C: TestableNymContract> RandExt for ContractTester<C> {
+    fn raw_rng(&mut self) -> &mut ChaCha20Rng {
+        &mut self.rng
+    }
+
     fn generate_account(&mut self) -> Addr {
         self.app
             .api()
             .addr_make(&format!("foomp{}", self.rng.next_u64()))
+    }
+
+    fn generate_account_with_balance(&mut self) -> Addr
+    where
+        Self: BankExt,
+    {
+        let addr = self.generate_account();
+        let million = 1_000_000_000_000;
+        self.send_tokens(addr.clone(), coin(million, TEST_DENOM))
+            .unwrap();
+        addr
+    }
+}
+
+impl ArbitraryContractStorageReader for StorageWrapper {
+    fn may_read_from_contract_storage(
+        &self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+    ) -> Option<Vec<u8>> {
+        self.contract_storage_wrapper(&Addr::unchecked(address))
+            .get(key.as_ref())
     }
 }
 
@@ -160,6 +270,21 @@ impl ArbitraryContractStorageWriter for StorageWrapper {
             .clone()
             .contract_storage_wrapper(&Addr::unchecked(address));
         wrapped_storage.set(key.as_ref(), value.as_ref());
+    }
+}
+
+impl<C> ArbitraryContractStorageReader for ContractTester<C>
+where
+    C: TestableNymContract,
+{
+    fn may_read_from_contract_storage(
+        &self,
+        address: impl Into<String>,
+        key: impl AsRef<[u8]>,
+    ) -> Option<Vec<u8>> {
+        self.storage
+            .as_inner_storage()
+            .may_read_from_contract_storage(address, key)
     }
 }
 

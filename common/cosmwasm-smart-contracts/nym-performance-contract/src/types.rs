@@ -171,6 +171,13 @@ pub struct RemoveEpochMeasurementsResponse {
     pub additional_entries_to_remove_remaining: bool,
 }
 
+#[cw_serde]
+#[derive(Default)]
+pub struct BatchSubmissionResult {
+    pub accepted_scores: u64,
+    pub non_existent_nodes: Vec<NodeId>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

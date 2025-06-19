@@ -33,4 +33,7 @@ pub enum NymPerformanceContractError {
 
     #[error("the batch performance data has not been sorted")]
     UnsortedBatchSubmission,
+
+    #[error("node {node_id} does not appear to be bonded")]
+    NodeNotBonded { node_id: NodeId },
 }

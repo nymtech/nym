@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::{to_json_binary, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{to_json_binary, DepsMut, Env, Event, MessageInfo, Response};
 use nym_performance_contract_common::{
     EpochId, NodeId, NodePerformance, NymPerformanceContractError,
 };
@@ -39,15 +39,22 @@ pub fn try_batch_submit_performance_results(
     epoch_id: EpochId,
     data: Vec<NodePerformance>,
 ) -> Result<Response, NymPerformanceContractError> {
-    NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
+    let res = NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
         deps,
         &info.sender,
         epoch_id,
         data,
     )?;
 
-    // TODO: emit events
-    Ok(Response::new())
+    let response = Response::new().set_data(to_json_binary(&res)?).add_event(
+        Event::new("batch_performance_submission")
+            .add_attribute("accepted_scores", res.accepted_scores.to_string())
+            .add_attribute(
+                "non_existent_nodes",
+                format!("{:?}", res.non_existent_nodes),
+            ),
+    );
+    Ok(response)
 }
 
 pub fn try_authorise_network_monitor(
@@ -271,8 +278,9 @@ mod tests {
         tester.authorise_network_monitor(&nm)?;
 
         tester.advance_mixnet_epoch()?;
-        for i in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
-            tester.insert_raw_performance(&nm, (i + 1) as NodeId, "0.42")?;
+        for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.insert_raw_performance(&nm, node_id, "0.42")?;
         }
 
         let admin = tester.admin_msg();

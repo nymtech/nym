@@ -1302,6 +1302,7 @@ dependencies = [
  "cw2",
  "nym-contracts-common",
  "nym-contracts-common-testing",
+ "nym-crypto",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-performance-contract-common",

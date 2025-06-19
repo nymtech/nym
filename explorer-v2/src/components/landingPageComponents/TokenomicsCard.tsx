@@ -7,10 +7,12 @@ import type { ExplorerData, NymTokenomics } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const TokenomicsCard = () => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
+  const { environment } = useEnvironment();
   const {
     data: nymPrice,
     isLoading,
@@ -30,7 +32,7 @@ export const TokenomicsCard = () => {
     isError: isEpochError,
   } = useQuery({
     queryKey: ["epochRewards"],
-    queryFn: fetchEpochRewards,
+    queryFn: () => fetchEpochRewards(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
@@ -43,7 +45,7 @@ export const TokenomicsCard = () => {
     isError: isStakingError,
   } = useQuery({
     queryKey: ["noise"],
-    queryFn: fetchNoise,
+    queryFn: () => fetchNoise(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,

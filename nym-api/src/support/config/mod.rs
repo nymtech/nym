@@ -53,6 +53,7 @@ const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
 const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
+const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
 pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
@@ -386,15 +387,22 @@ impl Default for PerformanceProvider {
 pub struct PerformanceProviderDebug {
     /// Specifies interval of polling the performance contract. Note it is only applicable
     /// if the contract data is being used.
+    /// Further note that if there have been no updates to the cache, the performance overhead is negligible
+    /// (i.e. there will be only a single query performed to check if anything has changed)
     #[serde(with = "humantime_serde")]
-    pub polling_interval: Duration,
+    pub contract_polling_interval: Duration,
+
+    /// Specify the maximum number of epoch entries to be kept in the cache in case we needed non-current data
+    // (currently we need an equivalent of full day worth of data for legacy endpoints)
+    pub max_epoch_entries_to_retain: usize,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for PerformanceProviderDebug {
     fn default() -> Self {
         PerformanceProviderDebug {
-            polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
+            contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
+            max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
         }
     }
 }

@@ -21,5 +21,5 @@ pub(crate) fn build_refresher(
         config.debug.caching_interval,
         nym_contract_cache_state.inner(),
     )
-    .named("contract-cache-refresher")
+    .named("mixnet-contract-cache-refresher")
 }

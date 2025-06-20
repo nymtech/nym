@@ -57,7 +57,7 @@ pub(crate) trait CacheItemProvider {
 
     async fn wait_until_ready(&self) {}
 
-    async fn try_refresh(&self) -> Result<Option<Self::Item>, Self::Error>;
+    async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error>;
 }
 
 impl<T, E, S> CacheRefresher<T, E, S>
@@ -65,7 +65,7 @@ where
     E: std::error::Error,
     S: Into<T>,
 {
-    pub(crate) fn new(
+    pub(crate) fn new_boxed(
         item_provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
         refreshing_interval: Duration,
     ) -> Self {
@@ -80,6 +80,13 @@ where
             shared_cache: SharedCache::new(),
             refresh_requester: Default::default(),
         }
+    }
+
+    pub(crate) fn new<P>(item_provider: P, refreshing_interval: Duration) -> Self
+    where
+        P: CacheItemProvider<Error = E, Item = S> + Send + Sync + 'static,
+    {
+        Self::new_boxed(Box::new(item_provider), refreshing_interval)
     }
 
     pub(crate) fn new_with_initial_value(
@@ -123,7 +130,6 @@ where
         self.refresh_requester.clone()
     }
 
-    #[allow(dead_code)]
     pub(crate) fn get_shared_cache(&self) -> SharedCache<T> {
         self.shared_cache.clone()
     }
@@ -180,7 +186,7 @@ where
         }
     }
 
-    async fn do_refresh_cache(&self) {
+    async fn do_refresh_cache(&mut self) {
         let updated_items = match self.provider.try_refresh().await {
             Err(err) => {
                 error!("{}: failed to refresh the cache: {err}", self.name);
@@ -209,7 +215,7 @@ where
         }
     }
 
-    pub async fn refresh(&self, task_client: &mut TaskClient) {
+    pub async fn refresh(&mut self, task_client: &mut TaskClient) {
         info!("{}: refreshing cache state", self.name);
 
         tokio::select! {
@@ -221,7 +227,7 @@ where
         }
     }
 
-    pub async fn run(&self, mut task_client: TaskClient) {
+    pub async fn run(&mut self, mut task_client: TaskClient) {
         self.provider.wait_until_ready().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
@@ -243,7 +249,7 @@ where
         }
     }
 
-    pub fn start(self, task_client: TaskClient)
+    pub fn start(mut self, task_client: TaskClient)
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,

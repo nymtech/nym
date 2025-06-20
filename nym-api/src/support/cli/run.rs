@@ -31,7 +31,7 @@ use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_status_api,
+    node_performance, node_status_api,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -146,7 +146,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
 
     let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
-    let nym_contract_cache_state = MixnetContractCache::new();
+    let mixnet_contract_cache_state = MixnetContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
     let described_nodes_cache = SharedCache::<DescribedNodes>::new();
@@ -208,7 +208,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
             config.address_cache.capacity,
         ),
         forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-        mixnet_contract_cache: nym_contract_cache_state.clone(),
+        mixnet_contract_cache: mixnet_contract_cache_state.clone(),
         node_status_cache: node_status_cache_state.clone(),
         storage: storage.clone(),
         described_nodes_cache: described_nodes_cache.clone(),
@@ -225,7 +225,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     // let cache = refresher.get_shared_cache();
     let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
         &config.describe_cache,
-        nym_contract_cache_state.clone(),
+        mixnet_contract_cache_state.clone(),
         described_nodes_cache.clone(),
     )
     .named("node-self-described-data-refresher");
@@ -235,18 +235,29 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     let describe_cache_watcher = describe_cache_refresher
         .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
+    let todo = "";
+    if config.performance_provider.use_performance_contract_data {
+        let _ = node_performance::start_cache_refresher(
+            &config.performance_provider,
+            nyxd_client.clone(),
+            mixnet_contract_cache_state.clone(),
+            &task_manager,
+        );
+        let more_todo = "";
+    }
+
     // start all the caches first
-    let contract_cache_refresher = mixnet_contract_cache::build_refresher(
+    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
         &config.mixnet_contract_cache,
-        &nym_contract_cache_state.clone(),
+        &mixnet_contract_cache_state.clone(),
         nyxd_client.clone(),
     );
     let contract_cache_watcher =
-        contract_cache_refresher.start_with_watcher(task_manager.subscribe());
+        mixnet_contract_cache_refresher.start_with_watcher(task_manager.subscribe());
 
     node_status_api::start_cache_refresh(
         &config.node_status_api,
-        &nym_contract_cache_state,
+        &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
         storage.clone(),
@@ -278,7 +289,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
             config,
-            &nym_contract_cache_state,
+            &mixnet_contract_cache_state,
             described_nodes_cache.clone(),
             node_status_cache_state.clone(),
             &storage,
@@ -295,7 +306,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
         EpochAdvancer::start(
             nyxd_client,
-            &nym_contract_cache_state,
+            &mixnet_contract_cache_state,
             &node_status_cache_state,
             described_nodes_cache.clone(),
             &storage,
@@ -308,7 +319,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     KeyRotationController::new(
         describe_cache_refresh_requester,
         contract_cache_watcher,
-        nym_contract_cache_state,
+        mixnet_contract_cache_state,
     )
     .start(task_manager.subscribe_named("KeyRotationController"));
 

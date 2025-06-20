@@ -49,7 +49,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         self.contract_cache.naive_wait_for_initial_values().await
     }
 
-    async fn try_refresh(&self) -> Result<Option<Self::Item>, Self::Error> {
+    async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         // we need to query:
         // - legacy mixnodes (because they might already be running nym-nodes, but haven't updated contract info)
         // - legacy gateways (because they might already be running nym-nodes, but haven't updated contract info)
@@ -124,10 +124,8 @@ pub(crate) fn new_refresher(
     contract_cache: MixnetContractCache,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
-        Box::new(
-            NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
-                .with_batch_size(config.debug.batch_size),
-        ),
+        NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
+            .with_batch_size(config.debug.batch_size),
         config.debug.caching_interval,
     )
 }

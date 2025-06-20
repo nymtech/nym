@@ -219,14 +219,14 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
-
     use async_trait::async_trait;
     use bytes::Bytes;
     use futures::SinkExt;
     use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, MixnetMessageSink};
+    use std::sync::{Arc, Mutex};
     use tokio::sync::Notify;
     use tokio_util::codec::FramedWrite;
+    use tokio_util::sync::PollSender;
 
     use super::*;
 
@@ -264,11 +264,14 @@ mod tests {
 
     #[async_trait]
     impl MixnetMessageSender for MockMixnetClientSender {
-        async fn send(&self, message: InputMessage) -> std::result::Result<(), nym_sdk::Error> {
+        async fn send(&mut self, message: InputMessage) -> std::result::Result<(), nym_sdk::Error> {
             let mut sent_messages = self.sent_messages.lock().unwrap();
             sent_messages.push(message);
             self.notify.notify_one();
             Ok(())
+        }
+        fn sender(&mut self) -> &mut PollSender<nym_sdk::mixnet::InputMessage> {
+            todo!()
         }
     }
 

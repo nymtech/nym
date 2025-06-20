@@ -35,7 +35,7 @@ pub enum ContractsCommonError {
 /// Percent represents a value between 0 and 100%
 /// (i.e. between 0.0 and 1.0)
 #[cw_serde]
-#[derive(Copy, Default, PartialOrd)]
+#[derive(Copy, Default, PartialOrd, Ord, Eq)]
 pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 
 impl Percent {
@@ -79,6 +79,44 @@ impl Percent {
 
     pub fn checked_pow(&self, exp: u32) -> Result<Self, OverflowError> {
         self.0.checked_pow(exp).map(Percent)
+    }
+
+    // truncate provided percent to only have 2 decimal places,
+    // e.g. convert "0.1234567" into "0.12"
+    // the purpose of it is to reduce storage space, in particular for the performance contract
+    // since that extra precision gains us nothing
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub fn round_to_two_decimal_places(&self) -> Self {
+        let raw = self.0;
+
+        const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128); // 1*10**18
+        const THRESHOLD: Decimal = Decimal::permille(5); // 0.005
+
+        // in case it ever changes since it's not exposed in the public API
+        debug_assert_eq!(
+            DECIMAL_FRACTIONAL,
+            Uint128::new(10).pow(Decimal::DECIMAL_PLACES)
+        );
+
+        let int = (raw.atomics() * Uint128::new(100)) / DECIMAL_FRACTIONAL;
+
+        #[allow(clippy::unwrap_used)]
+        let floored = Decimal::from_atomics(int, 2).unwrap();
+        let diff = raw - floored;
+        let rounded = if diff >= THRESHOLD {
+            // ceil
+            floored + Decimal::percent(1)
+        } else {
+            floored
+        };
+        Percent(rounded)
+    }
+
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub fn average(&self, other: &Self) -> Self {
+        let sum = self.0 + other.0;
+        let inner = Decimal::from_ratio(sum.numerator(), sum.denominator() * Uint128::new(2));
+        Percent(inner)
     }
 }
 
@@ -334,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "naive_float")]
     fn naive_float_conversion() {
         // around 15 decimal places is the maximum precision we can handle
         // which is still way more than enough for what we use it for
@@ -346,5 +385,42 @@ mod tests {
         let converted = Percent::naive_try_from_f64(float).unwrap();
 
         assert!(converted.0 - converted.0 < epsilon);
+    }
+
+    #[test]
+    fn rounding_percent() {
+        let test_cases = vec![
+            ("0", "0"),
+            ("0.1", "0.1"),
+            ("0.12", "0.12"),
+            ("0.12", "0.123"),
+            ("0.12", "0.123456789"),
+            ("0.13", "0.125"),
+            ("0.13", "0.126"),
+            ("0.13", "0.126436545676"),
+            ("0.99", "0.99"),
+            ("0.99", "0.994"),
+            ("1", "0.999"),
+            ("1", "0.995"),
+        ];
+        for (expected, input) in test_cases {
+            let expected: Percent = expected.parse().unwrap();
+            let pre_truncated: Percent = input.parse().unwrap();
+            assert_eq!(expected, pre_truncated.round_to_two_decimal_places())
+        }
+    }
+
+    #[test]
+    fn calculating_average() -> anyhow::Result<()> {
+        fn p(raw: &str) -> Percent {
+            raw.parse().unwrap()
+        }
+
+        assert_eq!(p("0.1").average(&p("0.1")), p("0.1"));
+        assert_eq!(p("0.1").average(&p("0.2")), p("0.15"));
+        assert_eq!(p("1").average(&p("0")), p("0.5"));
+        assert_eq!(p("0.123").average(&p("0.456")), p("0.2895"));
+
+        Ok(())
     }
 }

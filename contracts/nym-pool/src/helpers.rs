@@ -26,12 +26,13 @@ pub fn validate_usage_coin(storage: &dyn Storage, coin: &Coin) -> Result<(), Nym
 mod tests {
     use super::*;
     use crate::storage::NymPoolStorage;
-    use crate::testing::TestSetup;
+    use crate::testing::init_contract_tester;
     use cosmwasm_std::coin;
+    use nym_contracts_common_testing::ContractOpts;
 
     #[test]
     fn validating_coin_usage() -> anyhow::Result<()> {
-        let test = TestSetup::init();
+        let test = init_contract_tester();
         let storage = NymPoolStorage::new();
         let denom = storage.pool_denomination.load(test.storage())?;
 

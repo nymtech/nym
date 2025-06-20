@@ -11,7 +11,7 @@ use std::rc::Rc;
 pub struct StorageWrapper(Rc<RefCell<MemoryStorage>>);
 
 impl StorageWrapper {
-    pub(super) fn contract_storage_wrapper(&self, contract: &Addr) -> ContractStorageWrapper {
+    pub fn contract_storage_wrapper(&self, contract: &Addr) -> ContractStorageWrapper {
         ContractStorageWrapper {
             address: contract.clone(),
             inner: self.clone(),
@@ -24,7 +24,7 @@ impl StorageWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ContractStorageWrapper {
+pub struct ContractStorageWrapper {
     address: Addr,
     inner: StorageWrapper,
 }
@@ -32,6 +32,22 @@ pub(crate) struct ContractStorageWrapper {
 impl ContractStorageWrapper {
     pub fn inner_storage(&self) -> StorageWrapper {
         self.inner.clone()
+    }
+
+    pub fn as_inner_storage(&self) -> &StorageWrapper {
+        &self.inner
+    }
+
+    pub fn as_inner_storage_mut(&mut self) -> &mut StorageWrapper {
+        &mut self.inner
+    }
+
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub fn change_contract(&self, contract: &Addr) -> Self {
+        ContractStorageWrapper {
+            address: contract.clone(),
+            inner: self.inner.clone(),
+        }
     }
 }
 

@@ -31,9 +31,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "ark-bls12-381"
@@ -1134,6 +1134,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-contracts-common-testing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "rand",
+ "rand_chacha",
+ "serde",
+]
+
+[[package]]
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
@@ -1214,7 +1227,9 @@ dependencies = [
  "cw2",
  "easy-addr",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "rand",
@@ -1238,7 +1253,6 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
- "serde-json-wasm",
  "serde_repr",
  "thiserror 2.0.12",
  "time",
@@ -1277,6 +1291,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-performance-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-performance-contract-common",
+ "serde",
+]
+
+[[package]]
+name = "nym-performance-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-pool-contract"
 version = "0.1.0"
 dependencies = [
@@ -1284,14 +1330,11 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
- "cw-multi-test",
  "cw-storage-plus",
  "cw2",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-pool-contract-common",
- "rand",
- "rand_chacha",
- "serde",
 ]
 
 [[package]]

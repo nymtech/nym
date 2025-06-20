@@ -26,13 +26,13 @@ name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.6.0" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.7.0" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.5.0" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common" }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
-
 cw-controllers = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
@@ -41,16 +41,22 @@ bs58 = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 semver = { workspace = true }
 
+
 [dev-dependencies]
 anyhow.workspace = true
-rand_chacha = "0.3"
-rand = "0.8.5"
+rand_chacha = { workspace = true }
+rand = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
+
+# activate the `testable-mixnet-contract` in tests (weird workaround, but it does the trick)
+nym-mixnet-contract = { path = ".", features = ["testable-mixnet-contract"] }
+nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
 
 [features]
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
+testable-mixnet-contract = ["nym-contracts-common-testing"]
 schema-gen = ["mixnet-contract-common/schema", "cosmwasm-schema"]
 
 [lints]

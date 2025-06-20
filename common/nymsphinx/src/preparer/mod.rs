@@ -388,7 +388,7 @@ where
                 self.average_packet_delay,
                 use_legacy_reply_surb_format,
                 topology,
-                disabled_mix_hops, // TODO: support SURBs with no mix hops after changes to surb format / construction
+                disabled_mix_hops,
             )?
             .with_key_rotation(key_rotation);
             reply_surbs.push(reply_surb)

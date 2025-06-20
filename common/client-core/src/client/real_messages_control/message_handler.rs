@@ -167,6 +167,7 @@ impl Config {
     /// requires use of the updated SURB packet format.
     pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
         self.disable_mix_hops = disable_mix_hops;
+        self.use_legacy_sphinx_format = false;
         self
     }
 }

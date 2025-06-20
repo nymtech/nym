@@ -11,11 +11,13 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { workspace = true }
 base64 = { workspace = true }
 bincode = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
+dyn-clone = { workspace = true }
 futures = { workspace = true }
 # The latest version on crates.io at the time of writing this (6.0.0) has a
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
@@ -37,3 +39,11 @@ nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
+
+[dev-dependencies]
+nym-gateway-storage = { path = "../gateway-storage", features = ["mock"] }
+
+[features]
+default = []
+mock = ["nym-gateway-storage/mock"]
+

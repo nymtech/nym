@@ -1,7 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_gateway::node::{ActiveClientsStore, GatewayStorage, GatewayStorageError};
+use nym_gateway::node::{
+    ActiveClientsStore, GatewayStorage, GatewayStorageError, InboxGatewayStorage,
+};
 use nym_sphinx_types::DestinationAddressBytes;
 use tracing::debug;
 

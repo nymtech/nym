@@ -54,3 +54,6 @@ nym-wireguard-types = { path = "../../common/wireguard-types" }
 
 [dev-dependencies]
 mock_instant = "0.5.3"
+time = { workspace = true }
+
+nym-wireguard = { path = "../../common/wireguard", features = ["mock"] }

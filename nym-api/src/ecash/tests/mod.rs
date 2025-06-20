@@ -6,11 +6,11 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
@@ -1279,7 +1279,7 @@ impl TestFixture {
             chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
-            nym_contract_cache: NymContractCache::new(),
+            mixnet_contract_cache: MixnetContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
             circulating_supply_cache: CirculatingSupplyCache::new("unym".to_owned()),
             storage,

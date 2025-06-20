@@ -53,7 +53,6 @@ const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
 const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
-const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(3600);
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
 pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
@@ -63,6 +62,10 @@ pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
 // TODO: make it configurable
 pub(crate) const DEFAULT_CHAIN_STATUS_CACHE_TTL: Duration = Duration::from_secs(60);
+
+// contract info is changed very infrequently (essentially once per release cycle)
+// so this default is more than enough
+pub(crate) const DEFAULT_CONTRACT_DETAILS_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
 
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
@@ -116,7 +119,8 @@ pub struct Config {
     #[serde(alias = "topology_cacher")]
     pub describe_cache: DescribeCache,
 
-    pub circulating_supply_cacher: CirculatingSupplyCacher,
+    #[serde(default)]
+    pub contracts_info_cache: ContractsInfoCache,
 
     pub rewarding: Rewarding,
 
@@ -143,7 +147,7 @@ impl Config {
             mixnet_contract_cache: Default::default(),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             describe_cache: Default::default(),
-            circulating_supply_cacher: Default::default(),
+            contracts_info_cache: Default::default(),
             rewarding: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
             address_cache: Default::default(),
@@ -311,6 +315,19 @@ impl Base {
             local_validator: default_validator,
             bind_address: default_http_socket_addr(),
             mnemonic: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct ContractsInfoCache {
+    pub time_to_live: Duration,
+}
+
+impl Default for ContractsInfoCache {
+    fn default() -> Self {
+        ContractsInfoCache {
+            time_to_live: DEFAULT_CONTRACT_DETAILS_CACHE_TTL,
         }
     }
 }
@@ -559,40 +576,6 @@ impl Default for DescribeCacheDebug {
             caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
             batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
             allow_illegal_ips: false,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct CirculatingSupplyCacher {
-    pub enabled: bool,
-
-    // pub paths: CirculatingSupplyCacherPathfinder,
-    #[serde(default)]
-    pub debug: CirculatingSupplyCacherDebug,
-}
-
-impl Default for CirculatingSupplyCacher {
-    fn default() -> Self {
-        CirculatingSupplyCacher {
-            enabled: true,
-            debug: CirculatingSupplyCacherDebug::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct CirculatingSupplyCacherDebug {
-    #[serde(with = "humantime_serde")]
-    pub caching_interval: Duration,
-}
-
-impl Default for CirculatingSupplyCacherDebug {
-    fn default() -> Self {
-        CirculatingSupplyCacherDebug {
-            caching_interval: DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL,
         }
     }
 }

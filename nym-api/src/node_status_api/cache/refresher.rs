@@ -6,8 +6,9 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::cache::node_sets::produce_node_annotations;
 use crate::support::caching::cache::SharedCache;
 use crate::{
-    node_status_api::cache::NodeStatusCacheError, nym_contract_cache::cache::NymContractCache,
-    storage::NymApiStorage, support::caching::CacheNotification,
+    mixnet_contract_cache::cache::MixnetContractCache,
+    node_status_api::cache::NodeStatusCacheError, storage::NymApiStorage,
+    support::caching::CacheNotification,
 };
 use ::time::OffsetDateTime;
 use nym_task::TaskClient;
@@ -24,7 +25,7 @@ pub struct NodeStatusCacheRefresher {
     fallback_caching_interval: Duration,
 
     // Sources for when refreshing data
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     contract_cache_listener: watch::Receiver<CacheNotification>,
     describe_cache_listener: watch::Receiver<CacheNotification>,
@@ -35,7 +36,7 @@ impl NodeStatusCacheRefresher {
     pub(crate) fn new(
         cache: NodeStatusCache,
         fallback_caching_interval: Duration,
-        contract_cache: NymContractCache,
+        contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
         contract_cache_listener: watch::Receiver<CacheNotification>,
         describe_cache_listener: watch::Receiver<CacheNotification>,

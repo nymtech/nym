@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::helpers::RewardedSetStatus;
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
-use crate::nym_contract_cache::cache::data::ConfigScoreData;
 use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};

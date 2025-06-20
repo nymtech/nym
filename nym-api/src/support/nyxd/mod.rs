@@ -257,6 +257,12 @@ impl Client {
         nyxd_query!(self, get_current_interval_details().await)
     }
 
+    pub(crate) async fn get_mixnet_contract_state(
+        &self,
+    ) -> Result<nym_mixnet_contract_common::ContractState, NyxdError> {
+        nyxd_query!(self, get_mixnet_contract_state().await)
+    }
+
     pub(crate) async fn get_current_epoch_status(&self) -> Result<EpochStatus, NyxdError> {
         nyxd_query!(self, get_current_epoch_status().await)
     }

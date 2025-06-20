@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_describe_cache::refresh::RefreshData;
 use crate::node_describe_cache::NodeDescribeCacheError;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use tracing::{error, info};
 
 pub struct NodeDescriptionProvider {
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
 
     allow_all_ips: bool,
     batch_size: usize,
@@ -23,7 +23,7 @@ pub struct NodeDescriptionProvider {
 
 impl NodeDescriptionProvider {
     pub(crate) fn new(
-        contract_cache: NymContractCache,
+        contract_cache: MixnetContractCache,
         allow_all_ips: bool,
     ) -> NodeDescriptionProvider {
         NodeDescriptionProvider {
@@ -121,7 +121,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
 #[allow(dead_code)]
 pub(crate) fn new_refresher(
     config: &config::DescribeCache,
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
         Box::new(
@@ -134,7 +134,7 @@ pub(crate) fn new_refresher(
 
 pub(crate) fn new_provider_with_initial_value(
     config: &config::DescribeCache,
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
     initial: SharedCache<DescribedNodes>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(

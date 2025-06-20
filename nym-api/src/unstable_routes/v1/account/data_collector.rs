@@ -3,8 +3,8 @@
 
 use crate::unstable_routes::v1::account::models::NyxAccountDelegationRewardDetails;
 use crate::{
+    mixnet_contract_cache::cache::MixnetContractCache,
     node_status_api::models::{AxumErrorResponse, AxumResult},
-    nym_contract_cache::cache::NymContractCache,
 };
 use cosmwasm_std::{Coin, Decimal};
 use nym_mixnet_contract_common::NodeRewarding;
@@ -14,7 +14,7 @@ use tracing::error;
 
 pub(crate) struct AddressDataCollector {
     nyxd_client: crate::nyxd::Client,
-    nym_contract_cache: NymContractCache,
+    nym_contract_cache: MixnetContractCache,
     account_id: AccountId,
     total_value: u128,
     operator_rewards: u128,
@@ -26,7 +26,7 @@ pub(crate) struct AddressDataCollector {
 impl AddressDataCollector {
     pub(crate) fn new(
         nyxd_client: crate::nyxd::Client,
-        nym_contract_cache: NymContractCache,
+        nym_contract_cache: MixnetContractCache,
         base_denom: String,
         account_id: AccountId,
     ) -> Self {

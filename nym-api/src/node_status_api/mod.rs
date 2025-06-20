@@ -6,7 +6,7 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
 use crate::{
-    nym_contract_cache::cache::NymContractCache,
+    mixnet_contract_cache::cache::MixnetContractCache,
     support::{self, storage},
 };
 pub(crate) use cache::NodeStatusCache;
@@ -33,7 +33,7 @@ pub(crate) const ONE_DAY: Duration = Duration::from_secs(86400);
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn start_cache_refresh(
     config: &config::NodeStatusAPI,
-    nym_contract_cache_state: &NymContractCache,
+    nym_contract_cache_state: &MixnetContractCache,
     described_cache: &SharedCache<DescribedNodes>,
     node_status_cache_state: &NodeStatusCache,
     storage: storage::NymApiStorage,

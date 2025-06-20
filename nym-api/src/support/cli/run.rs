@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::client::Client;
 use crate::ecash::comm::QueryCommunicationChannel;
 use crate::ecash::dkg::controller::keys::{
@@ -11,17 +10,18 @@ use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::EpochAdvancer;
 use crate::key_rotation::KeyRotationController;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, ShutdownHandles, TASK_MANAGER_TIMEOUT_S};
@@ -30,8 +30,8 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    circulating_supply_api, ecash, epoch_operations, network_monitor, node_describe_cache,
-    node_status_api, nym_contract_cache,
+    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
+    node_status_api,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -146,10 +146,9 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
 
     let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
-    let nym_contract_cache_state = NymContractCache::new();
+    let nym_contract_cache_state = MixnetContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
-    let circulating_supply_cache = CirculatingSupplyCache::new(mix_denom.to_owned());
     let described_nodes_cache = SharedCache::<DescribedNodes>::new();
     let node_info_cache = unstable::NodeInfoCache::default();
 
@@ -209,13 +208,13 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
             config.address_cache.capacity,
         ),
         forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-        nym_contract_cache: nym_contract_cache_state.clone(),
+        mixnet_contract_cache: nym_contract_cache_state.clone(),
         node_status_cache: node_status_cache_state.clone(),
-        circulating_supply_cache: circulating_supply_cache.clone(),
         storage: storage.clone(),
         described_nodes_cache: described_nodes_cache.clone(),
         network_details,
         node_info_cache,
+        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
     });
@@ -237,7 +236,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
     // start all the caches first
-    let contract_cache_refresher = nym_contract_cache::build_refresher(
+    let contract_cache_refresher = mixnet_contract_cache::build_refresher(
         &config.mixnet_contract_cache,
         &nym_contract_cache_state.clone(),
         nyxd_client.clone(),
@@ -253,12 +252,6 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         storage.clone(),
         contract_cache_watcher.clone(),
         describe_cache_watcher,
-        &task_manager,
-    );
-    circulating_supply_api::start_cache_refresh(
-        &config.circulating_supply_cacher,
-        nyxd_client.clone(),
-        &circulating_supply_cache,
         &task_manager,
     );
 

@@ -5,7 +5,7 @@ use super::reward_estimate::compute_reward_estimate;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::storage::NymApiStorage;
 use crate::support::caching::Cache;
-use crate::{NodeStatusCache, NymContractCache};
+use crate::{MixnetContractCache, NodeStatusCache};
 use cosmwasm_std::Decimal;
 use nym_api_requests::models::{
     ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -90,7 +90,7 @@ pub(crate) async fn _gateway_report(
 
 pub(crate) async fn _gateway_uptime_history(
     storage: &NymApiStorage,
-    nym_contract_cache: &NymContractCache,
+    nym_contract_cache: &MixnetContractCache,
     identity: &str,
 ) -> AxumResult<GatewayUptimeHistoryResponse> {
     let history = storage
@@ -144,7 +144,7 @@ pub(crate) async fn _mixnode_report(
 
 pub(crate) async fn _mixnode_uptime_history(
     storage: &NymApiStorage,
-    nym_contract_cache: &NymContractCache,
+    nym_contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<MixnodeUptimeHistoryResponse> {
     let history = storage
@@ -179,7 +179,7 @@ pub(crate) async fn _mixnode_core_status_count(
 }
 
 pub(crate) async fn _get_mixnode_status(
-    cache: &NymContractCache,
+    cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> MixnodeStatusResponse {
     MixnodeStatusResponse {
@@ -189,7 +189,7 @@ pub(crate) async fn _get_mixnode_status(
 
 pub(crate) async fn _get_mixnode_reward_estimation(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<RewardEstimationResponse> {
     let status = contract_cache.mixnode_status(mix_id).await;
@@ -224,7 +224,7 @@ pub(crate) async fn _get_mixnode_reward_estimation(
 pub(crate) async fn _compute_mixnode_reward_estimation(
     user_reward_param: &ComputeRewardEstParam,
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<RewardEstimationResponse> {
     let mut mixnode = status_cache
@@ -303,7 +303,7 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
 
 pub(crate) async fn _get_mixnode_stake_saturation(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<StakeSaturationResponse> {
     let mixnode = status_cache
@@ -411,7 +411,7 @@ pub(crate) async fn _get_mixnodes_detailed_unfiltered(
 
 pub(crate) async fn _get_rewarded_set_legacy_mixnodes_detailed(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
 ) -> Vec<MixNodeBondAnnotated> {
     let Some(rewarded_set) = contract_cache.rewarded_set().await else {
         return Vec::new();
@@ -429,7 +429,7 @@ pub(crate) async fn _get_rewarded_set_legacy_mixnodes_detailed(
 
 pub(crate) async fn _get_active_set_legacy_mixnodes_detailed(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
 ) -> Vec<MixNodeBondAnnotated> {
     let Some(rewarded_set) = contract_cache.rewarded_set().await else {
         return Vec::new();

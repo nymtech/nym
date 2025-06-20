@@ -445,7 +445,10 @@ impl Default for Traffic {
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
             packet_type: PacketType::Mix,
-            use_legacy_sphinx_format: false,
+
+            // we should use the legacy format until sufficient number of nodes understand the
+            // improved encoding
+            use_legacy_sphinx_format: true,
             disable_mix_hops: false,
         }
     }

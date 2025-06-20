@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{watch, Notify};
 use tokio::time::interval;
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 pub(crate) type CacheUpdateWatcher = watch::Receiver<CacheNotification>;
 
@@ -28,13 +28,24 @@ impl Default for RefreshRequester {
     }
 }
 
-pub struct CacheRefresher<T, E> {
+/// Explanation on generics:
+/// the internal SharedCache<T> can be updated in two ways
+/// by default CacheItemProvider will just provide a T and the internal values will be swapped
+/// however, an alternative is to make it provide another value of type S with an explicit update closure
+/// this way the cache will be updated with a custom method mutating the existing value
+/// the reason for this is to allow partial updates of maps, where we might not want to retrieve
+/// the entire value, and we might want to just insert a new entry
+pub struct CacheRefresher<T, E, S = T> {
     name: String,
     refreshing_interval: Duration,
     refresh_notification_sender: watch::Sender<CacheNotification>,
 
+    // it's not really THAT complex... it's just a boxed function
+    #[allow(clippy::type_complexity)]
+    update_fn: Option<Box<dyn Fn(&mut T, S) + Send + Sync>>,
+
     // TODO: the Send + Sync bounds are only required for the `start` method. could we maybe make it less restrictive?
-    provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
+    provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
     shared_cache: SharedCache<T>,
     refresh_requester: RefreshRequester,
 }
@@ -46,15 +57,16 @@ pub(crate) trait CacheItemProvider {
 
     async fn wait_until_ready(&self) {}
 
-    async fn try_refresh(&self) -> Result<Self::Item, Self::Error>;
+    async fn try_refresh(&self) -> Result<Option<Self::Item>, Self::Error>;
 }
 
-impl<T, E> CacheRefresher<T, E>
+impl<T, E, S> CacheRefresher<T, E, S>
 where
     E: std::error::Error,
+    S: Into<T>,
 {
     pub(crate) fn new(
-        item_provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
+        item_provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
         refreshing_interval: Duration,
     ) -> Self {
         let (refresh_notification_sender, _) = watch::channel(CacheNotification::Start);
@@ -63,6 +75,7 @@ where
             name: "GenericCacheRefresher".to_string(),
             refreshing_interval,
             refresh_notification_sender,
+            update_fn: None,
             provider: item_provider,
             shared_cache: SharedCache::new(),
             refresh_requester: Default::default(),
@@ -70,7 +83,7 @@ where
     }
 
     pub(crate) fn new_with_initial_value(
-        item_provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
+        item_provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
         refreshing_interval: Duration,
         shared_cache: SharedCache<T>,
     ) -> Self {
@@ -80,10 +93,20 @@ where
             name: "GenericCacheRefresher".to_string(),
             refreshing_interval,
             refresh_notification_sender,
+            update_fn: None,
             provider: item_provider,
             shared_cache,
             refresh_requester: Default::default(),
         }
+    }
+
+    #[must_use]
+    pub(crate) fn with_update_fn(
+        mut self,
+        update_fn: impl Fn(&mut T, S) + Send + Sync + 'static,
+    ) -> Self {
+        self.update_fn = Some(Box::new(update_fn));
+        self
     }
 
     #[must_use]
@@ -105,22 +128,39 @@ where
         self.shared_cache.clone()
     }
 
-    // TODO: in the future offer 2 options of refreshing cache. either provide `T` directly
-    // or via `FnMut(&mut T)` closure
-    async fn do_refresh_cache(&self) {
-        let mut updated_items = match self.provider.try_refresh().await {
-            Err(err) => {
-                error!("{}: failed to refresh the cache: {err}", self.name);
-                return;
-            }
-            Ok(items) => items,
-        };
-
+    async fn update_cache(&self, mut update: S, update_fn: impl Fn(&mut T, S)) {
         let mut failures = 0;
+
         loop {
             match self
                 .shared_cache
-                .try_update(updated_items, &self.name)
+                .try_update_value(update, &update_fn, &self.name)
+                .await
+            {
+                Ok(_) => break,
+                Err(returned) => {
+                    failures += 1;
+                    update = returned
+                }
+            };
+            if failures % 10 == 0 {
+                warn!(
+                    "failed to obtain write permit for {} cache {failures} times in a row!",
+                    self.name
+                );
+            }
+
+            tokio::time::sleep(Duration::from_secs_f32(0.5)).await
+        }
+    }
+
+    async fn overwrite_cache(&self, mut updated_items: T) {
+        let mut failures = 0;
+
+        loop {
+            match self
+                .shared_cache
+                .try_overwrite_old_value(updated_items, &self.name)
                 .await
             {
                 Ok(_) => break,
@@ -137,6 +177,26 @@ where
             }
 
             tokio::time::sleep(Duration::from_secs_f32(0.5)).await
+        }
+    }
+
+    async fn do_refresh_cache(&self) {
+        let updated_items = match self.provider.try_refresh().await {
+            Err(err) => {
+                error!("{}: failed to refresh the cache: {err}", self.name);
+                return;
+            }
+            Ok(Some(items)) => items,
+            Ok(None) => {
+                debug!("no updates for {} cache this iteration", self.name);
+                return;
+            }
+        };
+
+        if let Some(update_fn) = self.update_fn.as_ref() {
+            self.update_cache(updated_items, update_fn).await;
+        } else {
+            self.overwrite_cache(updated_items.into()).await;
         }
 
         if !self.refresh_notification_sender.is_closed()
@@ -187,6 +247,7 @@ where
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,
+        S: Send + Sync + 'static,
     {
         tokio::spawn(async move { self.run(task_client).await });
     }
@@ -195,6 +256,7 @@ where
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,
+        S: Send + Sync + 'static,
     {
         let receiver = self.update_watcher();
         self.start(task_client);

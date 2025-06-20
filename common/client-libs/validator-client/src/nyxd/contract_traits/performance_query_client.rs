@@ -7,17 +7,16 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use serde::Deserialize;
+
 pub use nym_performance_contract_common::{
-    msg::QueryMsg as PerformanceQueryMsg, types::NetworkMonitorResponse,
-};
-use nym_performance_contract_common::{
-    EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
+    msg::QueryMsg as PerformanceQueryMsg, types::NetworkMonitorResponse, EpochId,
+    EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
     FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
     NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurement,
     NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
     NodePerformanceResponse, RetiredNetworkMonitor, RetiredNetworkMonitorsPagedResponse,
 };
-use serde::Deserialize;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

@@ -20,7 +20,7 @@ use nym_coconut_dkg_common::{
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use nym_config::defaults::{ChainDetails, NymNetworkDetails};
+use nym_config::defaults::NymNetworkDetails;
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
@@ -35,7 +35,8 @@ use nym_mixnet_contract_common::{
 };
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
-use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::performance_query_client::LastSubmission;
+use nym_validator_client::nyxd::contract_traits::{PagedDkgQueryClient, PerformanceQueryClient};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
@@ -160,10 +161,6 @@ impl Client {
             None => Ok(Coin::new(0, denom)),
             Some(coin) => Ok(coin),
         }
-    }
-
-    pub(crate) async fn chain_details(&self) -> ChainDetails {
-        nyxd_query!(self, current_chain_details().clone())
     }
 
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {
@@ -402,6 +399,12 @@ impl Client {
         denom: impl Into<String>,
     ) -> Result<Option<Coin>, NyxdError> {
         nyxd_query!(self, get_balance(&address, denom.into()).await)
+    }
+
+    pub(crate) async fn get_last_performance_contract_submission(
+        &self,
+    ) -> Result<LastSubmission, NyxdError> {
+        nyxd_query!(self, get_last_submission().await)
     }
 }
 

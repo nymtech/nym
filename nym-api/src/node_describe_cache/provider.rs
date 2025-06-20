@@ -49,7 +49,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         self.contract_cache.naive_wait_for_initial_values().await
     }
 
-    async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
+    async fn try_refresh(&self) -> Result<Option<Self::Item>, Self::Error> {
         // we need to query:
         // - legacy mixnodes (because they might already be running nym-nodes, but haven't updated contract info)
         // - legacy gateways (because they might already be running nym-nodes, but haven't updated contract info)
@@ -110,10 +110,10 @@ impl CacheItemProvider for NodeDescriptionProvider {
         info!("refreshed self described data for {} nodes", nodes.len());
         info!("with {} unique ip addresses", addresses_cache.len());
 
-        Ok(DescribedNodes {
+        Ok(Some(DescribedNodes {
             nodes,
             addresses_cache,
-        })
+        }))
     }
 }
 

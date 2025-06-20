@@ -26,8 +26,8 @@ impl CacheItemProvider for MixnetContractDataProvider {
     type Item = MixnetContractCacheData;
     type Error = NyxdError;
 
-    async fn try_refresh(&self) -> std::result::Result<Self::Item, Self::Error> {
-        self.refresh().await
+    async fn try_refresh(&self) -> std::result::Result<Option<Self::Item>, Self::Error> {
+        self.refresh().await.map(Some)
     }
 }
 

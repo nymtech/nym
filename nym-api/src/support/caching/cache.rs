@@ -32,7 +32,38 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
-    pub(crate) async fn try_update(&self, value: impl Into<T>, typ: &str) -> Result<(), T> {
+    pub(crate) async fn try_update_value<S>(
+        &self,
+        update: S,
+        update_fn: impl Fn(&mut T, S),
+        typ: &str,
+    ) -> Result<(), S>
+    where
+        S: Into<T>,
+    {
+        let update_value = update;
+        let mut guard = match tokio::time::timeout(Duration::from_millis(200), self.0.write()).await
+        {
+            Ok(guard) => guard,
+            Err(_) => {
+                debug!("failed to obtain write permit for {typ} cache");
+                return Err(update_value);
+            }
+        };
+
+        if let Some(ref mut existing) = guard.inner {
+            existing.update(update_value, update_fn);
+        } else {
+            guard.inner = Some(Cache::new(update_value.into()))
+        };
+        Ok(())
+    }
+
+    pub(crate) async fn try_overwrite_old_value(
+        &self,
+        value: impl Into<T>,
+        typ: &str,
+    ) -> Result<(), T> {
         let value = value.into();
         let mut guard = match tokio::time::timeout(Duration::from_millis(200), self.0.write()).await
         {
@@ -107,6 +138,19 @@ impl<T> From<Cache<T>> for CachedItem<T> {
     }
 }
 
+// specialised variant of `Cache` for holding maps of values that allow updates to individual entries
+
+/*
+   pub(crate) fn partial_update<F>(&mut self, partial_value: impl Into<S>, update_fn: F)
+   where
+       F: FnOnce(&mut T, S),
+   {
+       update_fn(&mut self.value, partial_value.into());
+       self.as_at = OffsetDateTime::now_utc()
+   }
+
+*/
+
 // don't use this directly!
 // opt for SharedCache<T> instead
 pub struct Cache<T> {
@@ -164,6 +208,11 @@ impl<T> Cache<T> {
             value: self.value.clone(),
             as_at: self.as_at,
         }
+    }
+
+    pub(crate) fn update<S>(&mut self, update: S, update_fn: impl Fn(&mut T, S)) {
+        update_fn(&mut self.value, update);
+        self.as_at = OffsetDateTime::now_utc();
     }
 
     // ugh. I hate to expose it, but it'd have broken pre-existing code

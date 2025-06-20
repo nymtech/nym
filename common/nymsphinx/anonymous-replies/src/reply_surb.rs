@@ -59,10 +59,10 @@ impl ReplySurb {
     /// Construct a ResplySurb object. Selects mix hops for the surb unique to this
     /// individual construction.
     ///
-    /// If mix hops are disabled, the route will consistency of the recipient 
+    /// If mix hops are disabled, the route will consistency of the recipient
     /// (i.e. the ingress hop) only. When `disable_mix_hops` is enabled
-    /// `use_legacy_surb_format` is ignored as disabled mix hops requires use of 
-    /// the updated SURB format. 
+    /// `use_legacy_surb_format` is ignored as disabled mix hops requires use of
+    /// the updated SURB format.
     // TODO: should this return `ReplySURBError` for consistency sake
     // or keep `NymTopologyError` because it's the only error it can actually return?
     pub fn construct<R>(

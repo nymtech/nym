@@ -335,6 +335,9 @@ pub struct MessagePreparer<R> {
     /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
     /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
     /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as reduced/disabled mix hops
+    /// requires use of the updated SURB packet format.
     pub disable_mix_hops: bool,
 }
 

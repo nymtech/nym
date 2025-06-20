@@ -105,6 +105,9 @@ pub(crate) struct Config {
     /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
     /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
     /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as reduced mix hops
+    /// requires use of the updated SURB packet format.
     disable_mix_hops: bool,
 
     /// Average delay a data packet is going to get delay at a single mixnode.
@@ -159,6 +162,9 @@ impl Config {
     }
 
     /// Configure whether messages senders using this config should use mix hops or not when sending messages.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as disabled mix hops
+    /// requires use of the updated SURB packet format.
     pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
         self.disable_mix_hops = disable_mix_hops;
         self

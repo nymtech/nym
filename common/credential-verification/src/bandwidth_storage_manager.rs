@@ -88,7 +88,8 @@ impl BandwidthStorageManager {
         debug!(available = available_bi2, required = required_bi2);
 
         self.consume_bandwidth(required_bandwidth).await?;
-        Ok(available_bandwidth)
+        let remaining_bandwidth = self.client_bandwidth.available().await;
+        Ok(remaining_bandwidth)
     }
 
     async fn expire_bandwidth(&mut self) -> Result<()> {

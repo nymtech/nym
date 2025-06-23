@@ -19,7 +19,7 @@ use sqlx::{
 use std::{path::Path, time::Duration};
 use tickets::TicketStorageManager;
 use time::OffsetDateTime;
-use tracing::{debug, error, level_filters::LevelFilter};
+use tracing::{debug, error, log::LevelFilter};
 
 pub mod bandwidth;
 mod clients;

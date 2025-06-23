@@ -48,11 +48,21 @@ impl WireguardInterfaceApi for WgApiWrapper {
         self.inner.configure_peer_routing(peers)
     }
 
+    #[cfg(not(target_os = "windows"))]
     fn configure_interface(
         &self,
         config: &defguard_wireguard_rs::InterfaceConfiguration,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.configure_interface(config)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn configure_interface(
+        &self,
+        config: &defguard_wireguard_rs::InterfaceConfiguration,
+        dns: &[std::net::IpAddr],
+    ) -> Result<(), WireguardInterfaceError> {
+        self.inner.configure_interface(config, dns)
     }
 
     fn remove_interface(

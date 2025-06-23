@@ -367,10 +367,20 @@ impl WireguardInterfaceApi for MockWgApi {
         todo!()
     }
 
+    #[cfg(not(target_os = "windows"))]
     fn configure_interface(
         &self,
         _config: &defguard_wireguard_rs::InterfaceConfiguration,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        todo!()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn configure_interface(
+        &self,
+        config: &defguard_wireguard_rs::InterfaceConfiguration,
+        dns: &[std::net::IpAddr],
+    ) -> Result<(), WireguardInterfaceError> {
         todo!()
     }
 

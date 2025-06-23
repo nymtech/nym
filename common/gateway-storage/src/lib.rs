@@ -16,10 +16,10 @@ use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
-use std::path::Path;
+use std::{path::Path, time::Duration};
 use tickets::TicketStorageManager;
 use time::OffsetDateTime;
-use tracing::{debug, error};
+use tracing::{debug, error, level_filters::LevelFilter};
 
 pub mod bandwidth;
 mod clients;
@@ -118,6 +118,7 @@ impl GatewayStorage {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
+            .log_slow_statements(LevelFilter::WARN, Duration::from_millis(250))
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

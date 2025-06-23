@@ -1,7 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::GatewayStorageError;
+use crate::{error::GatewayStorageError, make_bincode_serializer};
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use sqlx::FromRow;
@@ -121,13 +121,10 @@ impl WireguardPeer {
     ) -> Result<Self, crate::error::GatewayStorageError> {
         Ok(WireguardPeer {
             public_key: value.public_key.to_string(),
-            allowed_ips: bincode::Options::serialize(
-                bincode::DefaultOptions::new(),
-                &value.allowed_ips,
-            )
-            .map_err(|e| {
-                crate::error::GatewayStorageError::TypeConversion(format!("allowed ips {e}"))
-            })?,
+            allowed_ips: bincode::Options::serialize(make_bincode_serializer(), &value.allowed_ips)
+                .map_err(|e| {
+                    crate::error::GatewayStorageError::TypeConversion(format!("allowed ips {e}"))
+                })?,
             client_id,
         })
     }

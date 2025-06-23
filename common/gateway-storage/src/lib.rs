@@ -36,6 +36,13 @@ pub use inboxes::InboxManager;
 
 use crate::traits::{BandwidthGatewayStorage, InboxGatewayStorage, SharedKeyGatewayStorage};
 
+fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
+}
+
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub struct GatewayStorage {

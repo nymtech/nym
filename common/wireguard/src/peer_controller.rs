@@ -380,7 +380,7 @@ impl WireguardInterfaceApi for MockWgApi {
         &self,
         config: &defguard_wireguard_rs::InterfaceConfiguration,
         dns: &[std::net::IpAddr],
-    ) -> Result<(), WireguardInterfaceError> {
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 

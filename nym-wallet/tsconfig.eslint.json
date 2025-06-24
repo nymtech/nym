@@ -5,13 +5,11 @@
     "noEmit": true
   },
   "include": [
-    ".storybook/*.js",
     "webpack.*.js",
     "src/**/*.js",
     "src/**/*.jsx",
     "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.stories.*",
+    "src/**/*.tsx"
   ],
   "exclude": [
     "node_modules",

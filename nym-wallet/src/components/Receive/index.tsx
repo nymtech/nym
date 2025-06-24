@@ -2,10 +2,10 @@ import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
 import { ReceiveModal } from './ReceiveModal';
 
-export const Receive = ({ hasStorybookStyles }: { hasStorybookStyles?: {} }) => {
+export const Receive = () => {
   const { showReceiveModal, handleShowReceiveModal } = useContext(AppContext);
 
-  if (showReceiveModal) return <ReceiveModal onClose={handleShowReceiveModal} {...hasStorybookStyles} />;
+  if (showReceiveModal) return <ReceiveModal onClose={handleShowReceiveModal} />;
 
   return null;
 };

@@ -118,25 +118,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  const updateDelegation = async (
-    newDelegation: DelegationWithEverything,
-    ignorePendingForStorybook?: boolean,
-  ): Promise<TDelegationTransaction> => {
-    if (ignorePendingForStorybook) {
-      mockDelegations = mockDelegations.map((d) => {
-        if (d.node_identity === newDelegation.node_identity) {
-          return { ...newDelegation };
-        }
-        return d;
-      });
-      await recalculate();
-      triggerStateUpdate();
-      return {
-        transactionUrl:
-          'https://sandbox-blocks.nymtech.net/transactions/55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-      };
-    }
-
+  const updateDelegation = async (newDelegation: DelegationWithEverything): Promise<TDelegationTransaction> => {
     await mockSleep(SLEEP_MS);
     mockDelegations = mockDelegations.map((d) => {
       if (d.node_identity === newDelegation.node_identity) {

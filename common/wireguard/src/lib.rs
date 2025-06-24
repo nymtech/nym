@@ -61,7 +61,7 @@ impl WireguardInterfaceApi for WgApiWrapper {
         &self,
         config: &defguard_wireguard_rs::InterfaceConfiguration,
         dns: &[std::net::IpAddr],
-    ) -> Result<(), WireguardInterfaceError> {
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.configure_interface(config, dns)
     }
 

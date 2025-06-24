@@ -64,7 +64,8 @@ impl<'a> SimulationCoordinator<'a> {
     ) -> Result<(), RewardingError> {
         let now = OffsetDateTime::now_utc();
         let end_timestamp = now.unix_timestamp();
-        let start_timestamp = end_timestamp - (self.config.new_method_time_window_hours as i64 * 3600);
+        let start_timestamp =
+            end_timestamp - (self.config.new_method_time_window_hours as i64 * 3600);
 
         info!(
             "Starting new method simulation for epoch {} with time window {}h",

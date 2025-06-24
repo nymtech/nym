@@ -175,12 +175,13 @@ async fn get_simulation_epoch_details(
     let mut node_performance = get_node_performance_for_epoch(storage, params.epoch_id)
         .await
         .map_err(to_axum_error)?;
-    
+
     // Populate production performance from node annotations cache
     if let Some(node_annotations) = state.node_status_cache.node_annotations().await {
         for perf in &mut node_performance {
             if let Some(annotation) = node_annotations.get(&perf.node_id) {
-                perf.production_performance = Some(annotation.last_24h_performance.naive_to_f64() * 100.0);
+                perf.production_performance =
+                    Some(annotation.last_24h_performance.naive_to_f64() * 100.0);
             }
         }
     }
@@ -239,25 +240,23 @@ async fn compare_methods(
     let mut performance_data = get_performance_by_method(storage, sim_epoch.epoch_id, "new")
         .await
         .map_err(to_axum_error)?;
-    
+
     // Populate production performance from node annotations cache
     let node_annotations = state
         .node_status_cache
         .node_annotations()
         .await
         .ok_or_else(|| to_axum_error(SimulationApiError::new("Node annotations not available")))?;
-    
+
     for perf in &mut performance_data {
         if let Some(annotation) = node_annotations.get(&perf.node_id) {
-            perf.production_performance = Some(annotation.last_24h_performance.naive_to_f64() * 100.0);
+            perf.production_performance =
+                Some(annotation.last_24h_performance.naive_to_f64() * 100.0);
         }
     }
 
     // Build node comparisons from the single performance dataset
-    let node_comparisons = build_node_comparisons_from_single_dataset(
-        performance_data,
-        &query,
-    );
+    let node_comparisons = build_node_comparisons_from_single_dataset(performance_data, &query);
 
     // Calculate summary statistics
     let summary_statistics = calculate_summary_statistics(&node_comparisons);
@@ -535,26 +534,30 @@ fn build_node_comparisons_from_single_dataset(
     query: &NodeComparisonQuery,
 ) -> Vec<NodeMethodComparison> {
     let mut comparisons = Vec::new();
-    
+
     // Calculate rankings
-    let mut sorted_by_production: Vec<_> = performance_data.iter()
+    let mut sorted_by_production: Vec<_> = performance_data
+        .iter()
         .filter(|p| p.production_performance.is_some())
         .map(|p| (p.node_id, p.production_performance))
         .collect();
     sorted_by_production.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    
-    let mut sorted_by_simulation: Vec<_> = performance_data.iter()
+
+    let mut sorted_by_simulation: Vec<_> = performance_data
+        .iter()
         .map(|p| (p.node_id, p.reliability_score))
         .collect();
     sorted_by_simulation.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     // Create ranking maps
-    let production_rankings: HashMap<NodeId, i64> = sorted_by_production.iter()
+    let production_rankings: HashMap<NodeId, i64> = sorted_by_production
+        .iter()
         .enumerate()
         .map(|(rank, (node_id, _))| (*node_id, (rank + 1) as i64))
         .collect();
-        
-    let simulation_rankings: HashMap<NodeId, i64> = sorted_by_simulation.iter()
+
+    let simulation_rankings: HashMap<NodeId, i64> = sorted_by_simulation
+        .iter()
         .enumerate()
         .map(|(rank, (node_id, _))| (*node_id, (rank + 1) as i64))
         .collect();
@@ -574,9 +577,9 @@ fn build_node_comparisons_from_single_dataset(
         }
 
         // Calculate differences
-        let reliability_difference = perf.production_performance.map(|prod| {
-            ((perf.reliability_score - prod) * 100.0).round() / 100.0
-        });
+        let reliability_difference = perf
+            .production_performance
+            .map(|prod| ((perf.reliability_score - prod) * 100.0).round() / 100.0);
 
         let performance_delta_percentage = perf.production_performance.and_then(|prod| {
             if prod != 0.0 {
@@ -641,7 +644,7 @@ fn calculate_summary_statistics(comparisons: &[NodeMethodComparison]) -> Compari
         if let Some(old) = comparison.production_performance {
             reliabilities_old.push(old);
         }
-        
+
         // Collect simulated (new method) reliability values
         reliabilities_new.push(comparison.simulated_performance);
 
@@ -719,7 +722,9 @@ fn calculate_median_and_std(values: &[f64]) -> (f64, f64) {
     (median, std_dev)
 }
 
-fn calculate_reliability_distribution(reliabilities: &[f64]) -> crate::simulation_api::models::ReliabilityDistribution {
+fn calculate_reliability_distribution(
+    reliabilities: &[f64],
+) -> crate::simulation_api::models::ReliabilityDistribution {
     let mut distribution = crate::simulation_api::models::ReliabilityDistribution {
         excellent: 0,
         very_good: 0,
@@ -728,7 +733,7 @@ fn calculate_reliability_distribution(reliabilities: &[f64]) -> crate::simulatio
         poor: 0,
         very_poor: 0,
     };
-    
+
     for &reliability in reliabilities {
         match reliability {
             r if r > 95.0 => distribution.excellent += 1,
@@ -739,7 +744,7 @@ fn calculate_reliability_distribution(reliabilities: &[f64]) -> crate::simulatio
             _ => distribution.very_poor += 1,
         }
     }
-    
+
     distribution
 }
 
@@ -857,7 +862,7 @@ fn to_axum_error(error: SimulationApiError) -> (StatusCode, Json<SimulationApiEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{simulation_api::models::{NodeMethodComparison, NodePerformanceData}};
+    use crate::simulation_api::models::{NodeMethodComparison, NodePerformanceData};
 
     fn create_test_comparison(
         node_id: NodeId,
@@ -900,7 +905,7 @@ mod tests {
         assert_eq!(stats.average_reliability_new, 77.5);
         assert_eq!(stats.max_improvement, 10.0);
         assert_eq!(stats.max_degradation, -5.0);
-        
+
         // Check distribution for old method (80.0 and 70.0)
         assert_eq!(stats.distribution_old.excellent, 0);
         assert_eq!(stats.distribution_old.very_good, 0);
@@ -908,7 +913,7 @@ mod tests {
         assert_eq!(stats.distribution_old.moderate, 1); // 70.0 falls in 50-75
         assert_eq!(stats.distribution_old.poor, 0);
         assert_eq!(stats.distribution_old.very_poor, 0);
-        
+
         // Check distribution for new method (90.0 and 65.0)
         assert_eq!(stats.distribution_new.excellent, 0);
         assert_eq!(stats.distribution_new.very_good, 0);
@@ -929,7 +934,7 @@ mod tests {
         assert_eq!(stats.nodes_unchanged, 0);
         assert_eq!(stats.average_reliability_old, 0.0);
         assert_eq!(stats.average_reliability_new, 0.0);
-        
+
         // Check empty distributions
         assert_eq!(stats.distribution_old.excellent, 0);
         assert_eq!(stats.distribution_old.very_good, 0);
@@ -1007,10 +1012,7 @@ mod tests {
             max_delta: None,
         };
 
-        let comparisons = build_node_comparisons_from_single_dataset(
-            performance_data,
-            &query,
-        );
+        let comparisons = build_node_comparisons_from_single_dataset(performance_data, &query);
 
         assert_eq!(comparisons.len(), 3);
 
@@ -1040,7 +1042,6 @@ mod tests {
         assert_eq!(node3_comparison.ranking_new_method, Some(2)); // 85% is second best
     }
 
-
     #[test]
     fn test_convert_to_csv() {
         let details = SimulationEpochDetails {
@@ -1055,20 +1056,18 @@ mod tests {
                 nodes_analyzed: 2,
                 available_methods: vec!["old".to_string(), "new".to_string()],
             },
-            node_performance: vec![
-                NodePerformanceData {
-                    node_id: 1,
-                    node_type: "mixnode".to_string(),
-                    identity_key: Some("test_key".to_string()),
-                    reliability_score: 90.0,
-                    positive_samples: 100,
-                    negative_samples: 10,
-                    work_factor: Some(1.0),
-                    calculation_method: "new".to_string(),
-                    calculated_at: 1234567890,
-                    production_performance: Some(80.0),
-                },
-            ],
+            node_performance: vec![NodePerformanceData {
+                node_id: 1,
+                node_type: "mixnode".to_string(),
+                identity_key: Some("test_key".to_string()),
+                reliability_score: 90.0,
+                positive_samples: 100,
+                negative_samples: 10,
+                work_factor: Some(1.0),
+                calculation_method: "new".to_string(),
+                calculated_at: 1234567890,
+                production_performance: Some(80.0),
+            }],
             performance_comparisons: vec![PerformanceComparisonData {
                 node_id: 1,
                 node_type: "mixnode".to_string(),

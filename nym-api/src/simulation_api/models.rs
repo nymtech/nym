@@ -199,12 +199,12 @@ pub struct NodeMethodComparison {
 /// Distribution of nodes by reliability score ranges
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
 pub struct ReliabilityDistribution {
-    pub excellent: usize,    // >95%
-    pub very_good: usize,    // 90-95%
-    pub good: usize,         // 75-90%
-    pub moderate: usize,     // 50-75%
-    pub poor: usize,         // 25-50%
-    pub very_poor: usize,    // <25%
+    pub excellent: usize, // >95%
+    pub very_good: usize, // 90-95%
+    pub good: usize,      // 75-90%
+    pub moderate: usize,  // 50-75%
+    pub poor: usize,      // 25-50%
+    pub very_poor: usize, // <25%
 }
 
 /// Summary statistics comparing old vs new methods

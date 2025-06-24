@@ -549,7 +549,6 @@ pub struct RewardingDebug {
     /// Time window in hours for new route-based performance calculation (default: 1 hour)
     /// Old method always uses 24 hours for comparison
     pub simulation_new_method_time_window_hours: u32,
-
 }
 
 impl Default for RewardingDebug {

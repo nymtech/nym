@@ -1556,7 +1556,7 @@ impl StorageManager {
         let db_routes = sqlx::query_as!(
             RawRouteData,
             r#"
-            SELECT DISTINCT,
+            SELECT DISTINCT
                 layer1 as "layer1",
                 layer2 as "layer2",
                 layer3 as "layer3",

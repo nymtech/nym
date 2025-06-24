@@ -118,7 +118,7 @@ impl GatewayStorage {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
-            .log_slow_statements(LevelFilter::WARN, Duration::from_millis(250))
+            .log_slow_statements(LevelFilter::Warn, Duration::from_millis(250))
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

@@ -181,8 +181,14 @@ pub struct NodeMethodComparison {
     pub node_id: NodeId,
     pub node_type: String,
     pub identity_key: Option<String>,
-    pub old_method: Option<NodePerformanceData>,
-    pub new_method: Option<NodePerformanceData>,
+    /// Production performance (old method) value
+    pub production_performance: Option<f64>,
+    /// Simulated performance (new method) value
+    pub simulated_performance: f64,
+    /// Sample counts from route-based calculation
+    pub positive_samples: u32,
+    pub negative_samples: u32,
+    pub work_factor: Option<f64>,
     pub reliability_difference: Option<f64>, // new - old
     pub performance_delta_percentage: Option<f64>, // (new - old) / old * 100
     pub ranking_old_method: Option<i64>,

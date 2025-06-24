@@ -607,39 +607,15 @@ fn build_node_comparisons_from_single_dataset(
             _ => None,
         };
 
-        // Create comparison with old and new method data
-        let old_method = perf.production_performance.map(|prod_perf| NodePerformanceData {
-            node_id: perf.node_id,
-            node_type: perf.node_type.clone(),
-            identity_key: perf.identity_key.clone(),
-            reliability_score: prod_perf,
-            positive_samples: 0,
-            negative_samples: 0,
-            work_factor: perf.work_factor,
-            calculation_method: "production".to_string(),
-            calculated_at: perf.calculated_at,
-            production_performance: Some(prod_perf),
-        });
-        
-        let new_method = NodePerformanceData {
-            node_id: perf.node_id,
-            node_type: perf.node_type.clone(),
-            identity_key: perf.identity_key.clone(),
-            reliability_score: perf.reliability_score,
-            positive_samples: perf.positive_samples,
-            negative_samples: perf.negative_samples,
-            work_factor: perf.work_factor,
-            calculation_method: perf.calculation_method,
-            calculated_at: perf.calculated_at,
-            production_performance: perf.production_performance,
-        };
-
         comparisons.push(NodeMethodComparison {
             node_id: perf.node_id,
             node_type: perf.node_type,
             identity_key: perf.identity_key,
-            old_method,
-            new_method: Some(new_method),
+            production_performance: perf.production_performance,
+            simulated_performance: perf.reliability_score,
+            positive_samples: perf.positive_samples,
+            negative_samples: perf.negative_samples,
+            work_factor: perf.work_factor,
             reliability_difference,
             performance_delta_percentage,
             ranking_old_method: ranking_old,
@@ -661,12 +637,13 @@ fn calculate_summary_statistics(comparisons: &[NodeMethodComparison]) -> Compari
     let mut max_degradation: f64 = 0.0;
 
     for comparison in comparisons {
-        if let Some(old) = &comparison.old_method {
-            reliabilities_old.push(old.reliability_score);
+        // Collect production (old method) reliability values
+        if let Some(old) = comparison.production_performance {
+            reliabilities_old.push(old);
         }
-        if let Some(new) = &comparison.new_method {
-            reliabilities_new.push(new.reliability_score);
-        }
+        
+        // Collect simulated (new method) reliability values
+        reliabilities_new.push(comparison.simulated_performance);
 
         if let Some(diff) = comparison.reliability_difference {
             if diff > 0.001 {
@@ -882,52 +859,35 @@ mod tests {
     use super::*;
     use crate::{simulation_api::models::{NodeMethodComparison, NodePerformanceData}};
 
-    fn create_test_performance_data(
+    fn create_test_comparison(
         node_id: NodeId,
-        reliability: f64,
-        method: &str,
-    ) -> NodePerformanceData {
-        NodePerformanceData {
+        production_perf: Option<f64>,
+        simulated_perf: f64,
+        reliability_diff: Option<f64>,
+        perf_delta_pct: Option<f64>,
+    ) -> NodeMethodComparison {
+        NodeMethodComparison {
             node_id,
             node_type: "mixnode".to_string(),
-            identity_key: Some("test_key".to_string()),
-            reliability_score: reliability,
+            identity_key: Some(format!("key{}", node_id)),
+            production_performance: production_perf,
+            simulated_performance: simulated_perf,
             positive_samples: 100,
             negative_samples: 10,
             work_factor: Some(1.0),
-            calculation_method: method.to_string(),
-            calculated_at: 1234567890,
-            production_performance: None,
+            reliability_difference: reliability_diff,
+            performance_delta_percentage: perf_delta_pct,
+            ranking_old_method: None,
+            ranking_new_method: None,
+            ranking_delta: None,
         }
     }
 
     #[test]
     fn test_calculate_summary_statistics_basic() {
         let comparisons = vec![
-            NodeMethodComparison {
-                node_id: 1,
-                node_type: "mixnode".to_string(),
-                identity_key: Some("key1".to_string()),
-                old_method: Some(create_test_performance_data(1, 80.0, "old")),
-                new_method: Some(create_test_performance_data(1, 90.0, "new")),
-                reliability_difference: Some(10.0),
-                performance_delta_percentage: Some(12.5),
-                ranking_old_method: Some(2),
-                ranking_new_method: Some(1),
-                ranking_delta: Some(-1),
-            },
-            NodeMethodComparison {
-                node_id: 2,
-                node_type: "mixnode".to_string(),
-                identity_key: Some("key2".to_string()),
-                old_method: Some(create_test_performance_data(2, 70.0, "old")),
-                new_method: Some(create_test_performance_data(2, 65.0, "new")),
-                reliability_difference: Some(-5.0),
-                performance_delta_percentage: Some(-7.14),
-                ranking_old_method: Some(1),
-                ranking_new_method: Some(2),
-                ranking_delta: Some(1),
-            },
+            create_test_comparison(1, Some(80.0), 90.0, Some(10.0), Some(12.5)),
+            create_test_comparison(2, Some(70.0), 65.0, Some(-5.0), Some(-7.14)),
         ];
 
         let stats = calculate_summary_statistics(&comparisons);
@@ -1056,8 +1016,8 @@ mod tests {
 
         // Find node 1 comparison
         let node1_comparison = comparisons.iter().find(|c| c.node_id == 1).unwrap();
-        assert!(node1_comparison.old_method.is_some());
-        assert!(node1_comparison.new_method.is_some());
+        assert_eq!(node1_comparison.production_performance, Some(80.0));
+        assert_eq!(node1_comparison.simulated_performance, 90.0);
         assert_eq!(node1_comparison.reliability_difference, Some(10.0)); // 90 - 80
         assert_eq!(node1_comparison.performance_delta_percentage, Some(12.5)); // (90-80)/80 * 100
         assert_eq!(node1_comparison.ranking_old_method, Some(1)); // 80% is best among nodes with production data
@@ -1065,16 +1025,16 @@ mod tests {
 
         // Find node 2 comparison
         let node2_comparison = comparisons.iter().find(|c| c.node_id == 2).unwrap();
-        assert!(node2_comparison.old_method.is_some());
-        assert!(node2_comparison.new_method.is_some());
+        assert_eq!(node2_comparison.production_performance, Some(70.0));
+        assert_eq!(node2_comparison.simulated_performance, 65.0);
         assert_eq!(node2_comparison.reliability_difference, Some(-5.0)); // 65 - 70
         assert_eq!(node2_comparison.ranking_old_method, Some(2)); // 70% is second
         assert_eq!(node2_comparison.ranking_new_method, Some(3)); // 65% is worst
 
         // Find node 3 comparison (no production data)
         let node3_comparison = comparisons.iter().find(|c| c.node_id == 3).unwrap();
-        assert!(node3_comparison.old_method.is_none());
-        assert!(node3_comparison.new_method.is_some());
+        assert_eq!(node3_comparison.production_performance, None);
+        assert_eq!(node3_comparison.simulated_performance, 85.0);
         assert_eq!(node3_comparison.reliability_difference, None);
         assert_eq!(node3_comparison.ranking_old_method, None); // No production ranking
         assert_eq!(node3_comparison.ranking_new_method, Some(2)); // 85% is second best
@@ -1096,8 +1056,18 @@ mod tests {
                 available_methods: vec!["old".to_string(), "new".to_string()],
             },
             node_performance: vec![
-                create_test_performance_data(1, 80.0, "old"),
-                create_test_performance_data(1, 90.0, "new"),
+                NodePerformanceData {
+                    node_id: 1,
+                    node_type: "mixnode".to_string(),
+                    identity_key: Some("test_key".to_string()),
+                    reliability_score: 90.0,
+                    positive_samples: 100,
+                    negative_samples: 10,
+                    work_factor: Some(1.0),
+                    calculation_method: "new".to_string(),
+                    calculated_at: 1234567890,
+                    production_performance: Some(80.0),
+                },
             ],
             performance_comparisons: vec![PerformanceComparisonData {
                 node_id: 1,
@@ -1120,7 +1090,7 @@ mod tests {
         assert!(csv.contains(
             "data_type,node_id,node_type,reliability_score,reward_amount,calculation_method"
         ));
-        assert!(csv.contains("performance,1,mixnode,80,"));
-        assert!(csv.contains("performance,1,mixnode,90,"));
+        assert!(csv.contains("performance,1,mixnode,90,")); // New method score
+        assert!(csv.contains("performance_comparison,1,mixnode,,80,")); // Performance comparison score
     }
 }

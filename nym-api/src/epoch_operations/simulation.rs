@@ -190,15 +190,19 @@ impl<'a> SimulationCoordinator<'a> {
             .await;
 
         // Calculate average reliability for old method (mean of all node reliabilities)
-        let node_reliabilities: Vec<f64> = performance_map.values()
+        let node_reliabilities: Vec<f64> = performance_map
+            .values()
             .map(|p| p.naive_to_f64() * 100.0)
             .filter(|&r| r > 0.0) // Only include nodes with non-zero reliability
             .collect();
-        
+
         let (mean_reliability, median_reliability) = if !node_reliabilities.is_empty() {
             let mean = node_reliabilities.iter().sum::<f64>() / node_reliabilities.len() as f64;
             let median = calculate_median(&node_reliabilities);
-            (Some((mean * 100.0).round() / 100.0), Some((median * 100.0).round() / 100.0))
+            (
+                Some((mean * 100.0).round() / 100.0),
+                Some((median * 100.0).round() / 100.0),
+            )
         } else {
             (None, None)
         };
@@ -307,7 +311,6 @@ impl<'a> SimulationCoordinator<'a> {
         let rewarded_nodes =
             self.calculate_rewards_for_nodes(rewarded_set, reward_params, &performance_map);
 
-
         // Convert to simulation data structures
         let node_performance = self
             .convert_to_simulated_performance(
@@ -331,15 +334,19 @@ impl<'a> SimulationCoordinator<'a> {
             .await;
 
         // Calculate average reliability for new method (mean of all node reliabilities)
-        let node_reliabilities: Vec<f64> = corrected_reliabilities.iter()
+        let node_reliabilities: Vec<f64> = corrected_reliabilities
+            .iter()
             .filter(|n| n.pos_samples_in_interval + n.neg_samples_in_interval > 0)
             .map(|n| n.reliability)
             .collect();
-        
+
         let (mean_reliability, median_reliability) = if !node_reliabilities.is_empty() {
             let mean = node_reliabilities.iter().sum::<f64>() / node_reliabilities.len() as f64;
             let median = calculate_median(&node_reliabilities);
-            (Some((mean * 100.0).round() / 100.0), Some((median * 100.0).round() / 100.0))
+            (
+                Some((mean * 100.0).round() / 100.0),
+                Some((median * 100.0).round() / 100.0),
+            )
         } else {
             (None, None)
         };
@@ -680,10 +687,10 @@ fn calculate_median(values: &[f64]) -> f64 {
     if values.is_empty() {
         return 0.0;
     }
-    
+
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     let len = sorted.len();
     if len % 2 == 0 {
         (sorted[len / 2 - 1] + sorted[len / 2]) / 2.0

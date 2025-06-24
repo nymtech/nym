@@ -114,7 +114,9 @@ impl From<SimulatedPerformanceComparison> for PerformanceComparisonData {
             calculation_method: comparison.calculation_method,
             positive_samples: comparison.positive_samples,
             negative_samples: comparison.negative_samples,
-            route_success_rate: comparison.route_success_rate.map(|r| (r * 100.0).round() / 100.0),
+            route_success_rate: comparison
+                .route_success_rate
+                .map(|r| (r * 100.0).round() / 100.0),
             calculated_at: comparison.calculated_at,
         }
     }
@@ -137,17 +139,21 @@ pub struct RouteAnalysisData {
 impl From<SimulatedRouteAnalysis> for RouteAnalysisData {
     fn from(analysis: SimulatedRouteAnalysis) -> Self {
         // Extract median from analysis_parameters JSON if available
-        let median_route_reliability = analysis.analysis_parameters.as_ref()
+        let median_route_reliability = analysis
+            .analysis_parameters
+            .as_ref()
             .and_then(|params| serde_json::from_str::<serde_json::Value>(params).ok())
             .and_then(|json| json.get("median_reliability").and_then(|v| v.as_f64()))
             .map(|m| (m * 100.0).round() / 100.0);
-            
+
         Self {
             calculation_method: analysis.calculation_method,
             total_routes_analyzed: analysis.total_routes_analyzed,
             successful_routes: analysis.successful_routes,
             failed_routes: analysis.failed_routes,
-            average_route_reliability: analysis.average_route_reliability.map(|a| (a * 100.0).round() / 100.0),
+            average_route_reliability: analysis
+                .average_route_reliability
+                .map(|a| (a * 100.0).round() / 100.0),
             median_route_reliability,
             time_window_hours: analysis.time_window_hours,
             analysis_parameters: analysis.analysis_parameters,

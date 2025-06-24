@@ -5,7 +5,7 @@ use crate::handlers::{
     FragmentsSent,
 };
 use axum::routing::{get, post};
-use axum::{Router};
+use axum::Router;
 use log::{debug, info, warn};
 use nym_sphinx::chunking::fragment::FragmentHeader;
 use nym_sphinx::chunking::{ReceivedFragment, SentFragment};

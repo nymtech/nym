@@ -594,13 +594,18 @@ fn build_node_comparisons_with_rankings(
 
         // Calculate differences
         let reliability_difference = match (&old_perf, &new_perf) {
-            (Some(old), Some(new)) => Some(((new.reliability_score - old.reliability_score) * 100.0).round() / 100.0),
+            (Some(old), Some(new)) => {
+                Some(((new.reliability_score - old.reliability_score) * 100.0).round() / 100.0)
+            }
             _ => None,
         };
 
         let performance_delta_percentage = match (&old_perf, &new_perf) {
             (Some(old), Some(new)) if old.reliability_score != 0.0 => Some(
-                (((new.reliability_score - old.reliability_score) / old.reliability_score * 100.0) * 100.0).round() / 100.0,
+                (((new.reliability_score - old.reliability_score) / old.reliability_score * 100.0)
+                    * 100.0)
+                    .round()
+                    / 100.0,
             ),
             _ => None,
         };
@@ -773,8 +778,10 @@ async fn get_route_analysis_comparison(
     let reliability_difference = match (&old_analysis, &new_analysis) {
         (Some(old), Some(new)) => {
             match (old.average_route_reliability, new.average_route_reliability) {
-                (Some(old_avg), Some(new_avg)) => Some(((new_avg - old_avg) * 100.0).round() / 100.0),
-                _ => None
+                (Some(old_avg), Some(new_avg)) => {
+                    Some(((new_avg - old_avg) * 100.0).round() / 100.0)
+                }
+                _ => None,
             }
         }
         _ => None,

@@ -150,7 +150,7 @@ impl<'a> SimulationCoordinator<'a> {
         for mix_reliability in mixnode_reliabilities {
             performance_map.insert(
                 mix_reliability.mix_id(),
-                Performance::from_percentage_value(mix_reliability.value() as u64)
+                Performance::from_percentage_value((mix_reliability.value() * 100.0) as u64)
                     .unwrap_or_default(),
             );
         }
@@ -158,7 +158,7 @@ impl<'a> SimulationCoordinator<'a> {
         for gateway_reliability in gateway_reliabilities {
             performance_map.insert(
                 gateway_reliability.node_id(),
-                Performance::from_percentage_value(gateway_reliability.value() as u64)
+                Performance::from_percentage_value((gateway_reliability.value() * 100.0) as u64)
                     .unwrap_or_default(),
             );
         }
@@ -287,7 +287,6 @@ impl<'a> SimulationCoordinator<'a> {
                 node_reliability.pos_samples_in_interval + node_reliability.neg_samples_in_interval;
             total_routes += total_samples;
             successful_routes += node_reliability.pos_samples_in_interval;
-
             performance_map.insert(
                 node_reliability.node_id,
                 Performance::naive_try_from_f64(node_reliability.reliability / 100.0)
@@ -307,6 +306,7 @@ impl<'a> SimulationCoordinator<'a> {
         // Calculate rewards using new method logic
         let rewarded_nodes =
             self.calculate_rewards_for_nodes(rewarded_set, reward_params, &performance_map);
+
 
         // Convert to simulation data structures
         let node_performance = self

@@ -141,15 +141,25 @@ impl EpochAdvancer {
 
             if epoch_status.being_advanced_by.as_str() != address.as_ref() {
                 // another nym-api is already handling
-                error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
-                return Ok(());
+                // In simulation mode, we want to proceed anyway since we're not actually advancing the epoch
+                if self.simulation_config.is_some() {
+                    info!("Another nym-api ({}) is advancing the epoch, but we're in simulation mode so proceeding anyway", epoch_status.being_advanced_by);
+                } else {
+                    error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
+                    return Ok(());
+                }
             } else {
                 warn!("we seem to have crashed mid-epoch advancement...");
             }
         } else {
-            let should_continue = self.begin_epoch_transition().await?;
-            if !should_continue {
-                return Ok(());
+            // In simulation mode, skip trying to begin epoch transition
+            if self.simulation_config.is_none() {
+                let should_continue = self.begin_epoch_transition().await?;
+                if !should_continue {
+                    return Ok(());
+                }
+            } else {
+                info!("Skipping epoch transition in simulation mode - proceeding to performance calculations");
             }
         }
 
@@ -190,15 +200,20 @@ impl EpochAdvancer {
             }
         }
 
-        // Reward all the nodes in the still current, soon to be previous rewarded set
-        info!("Rewarding the current rewarded set...");
-        self.reward_current_rewarded_set(rewards, interval).await?;
+        // Skip actual rewarding operations in simulation mode
+        if self.simulation_config.is_none() {
+            // Reward all the nodes in the still current, soon to be previous rewarded set
+            info!("Rewarding the current rewarded set...");
+            self.reward_current_rewarded_set(rewards, interval).await?;
 
-        // note: those operations don't really have to be atomic, so it's fine to send them
-        // as separate transactions
-        self.reconcile_epoch_events().await?;
-        self.update_rewarded_set_and_advance_epoch(&nym_nodes)
-            .await?;
+            // note: those operations don't really have to be atomic, so it's fine to send them
+            // as separate transactions
+            self.reconcile_epoch_events().await?;
+            self.update_rewarded_set_and_advance_epoch(&nym_nodes)
+                .await?;
+        } else {
+            info!("Skipping actual reward distribution in simulation mode");
+        }
 
         info!("Purging old data (node statuses and routes) from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();

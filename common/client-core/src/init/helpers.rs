@@ -150,7 +150,7 @@ pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
     .await?;
 
     info!(
-        "Validating protocol compatibility for {} gateways...",
+        "Checking protocol compatibility for {} gateways...",
         gateways.len()
     );
 
@@ -164,11 +164,11 @@ pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
 
             match validate_gateway_protocol(gateway).await {
                 Ok(()) => {
-                    debug!("{id}: protocol validation successful");
+                    debug!("{id}: protocol check successful");
                     validated_gateways.lock().await.push(gateway.clone());
                 }
                 Err(err) => {
-                    warn!("failed to validate protocol for {id}: {err}");
+                    warn!("failed to check protocol for {id}: {err}");
                 }
             }
         })
@@ -177,7 +177,7 @@ pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
     let validated_gateways = validated_gateways.lock().await;
 
     info!(
-        "Protocol validation complete: {}/{} gateways have compatible protocols",
+        "Protocol check complete: {}/{} gateways responded successfully",
         validated_gateways.len(),
         gateways.len()
     );
@@ -324,23 +324,19 @@ where
                     // Check protocol compatibility
                     if version > CURRENT_PROTOCOL_VERSION {
                         warn!(
-                            "Gateway {} uses incompatible protocol version {} (we support {})",
+                            "Gateway {} uses newer protocol version {} (client supports {}). \
+                            Gateway should gracefully degrade, but consider updating your client.",
                             gateway.identity(),
                             version,
                             CURRENT_PROTOCOL_VERSION
                         );
-                        return Err(ClientCoreError::GatewayClientError {
-                            gateway_id: gateway.identity().to_base58_string(),
-                            source: *Box::new(nym_gateway_client::error::GatewayClientError::IncompatibleProtocol {
-                                gateway: Some(version),
-                                current: CURRENT_PROTOCOL_VERSION,
-                            }),
-                        });
                     }
 
                     trace!(
-                        "Gateway {} protocol validation successful",
-                        gateway.identity()
+                        "Gateway {} protocol validation successful (gateway: v{}, client: v{})",
+                        gateway.identity(),
+                        version,
+                        CURRENT_PROTOCOL_VERSION
                     );
                     Ok(())
                 }

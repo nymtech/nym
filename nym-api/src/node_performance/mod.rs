@@ -12,6 +12,7 @@ use crate::support::{config, nyxd};
 use nym_task::TaskManager;
 
 pub(crate) mod contract_cache;
+mod legacy_storage_provider;
 pub(crate) mod provider;
 
 pub(crate) fn start_cache_refresher(

@@ -2,43 +2,67 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_performance::contract_cache::data::PerformanceContractCacheData;
+use crate::node_performance::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::support::caching::cache::SharedCache;
-use crate::support::storage::NymApiStorage;
 use nym_api_requests::models::RoutingScore;
 use nym_mixnet_contract_common::{EpochId, NodeId};
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[error("failed to retrieve performance score for node {node_id} for epoch {epoch_id}: {error}")]
 pub(crate) struct PerformanceRetrievalFailure {
-    node_id: NodeId,
-    epoch_id: EpochId,
-    error: String,
+    pub(crate) node_id: NodeId,
+    pub(crate) epoch_id: EpochId,
+    pub(crate) error: String,
 }
 
-pub(crate) trait NodePerformanceProvider {
-    async fn get_node_score(&self, node_id: NodeId, epoch: EpochId) -> RoutingScore;
-}
-
-// first impl for contract cache
-
-// second impl for NM/storage
-
-impl NodePerformanceProvider for SharedCache<PerformanceContractCacheData> {
-    async fn get_node_score(&self, node_id: NodeId, epoch: EpochId) -> RoutingScore {
-        todo!()
+impl PerformanceRetrievalFailure {
+    pub(crate) fn new(node_id: NodeId, epoch_id: EpochId, error: impl Into<String>) -> Self {
+        PerformanceRetrievalFailure {
+            node_id,
+            epoch_id,
+            error: error.into(),
+        }
     }
 }
 
-// TODO: this will also need to be wrapped to contain... something... in order to map epoch id to timestamps
-impl NodePerformanceProvider for NymApiStorage {
-    async fn get_node_score(&self, node_id: NodeId, epoch: EpochId) -> RoutingScore {
-        // self
-        //     .get_average_node_reliability_in_the_last_24hrs(
-        //         node_id,
-        //         epoch.current_epoch_end_unix_timestamp(),
-        //     )
-        //     .await
-        todo!()
+pub(crate) trait NodePerformanceProvider {
+    /// Obtain a performance/routing score of a particular node for given epoch
+    async fn get_node_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<RoutingScore, PerformanceRetrievalFailure>;
+
+    // /// An optimisation for obtaining node scores of multiple nodes at once
+    // async fn get_batch_node_scores(&self, node_ids: Vec<NodeId>, epoch_id: EpochId) -> Result<HashMap<NodeId, PerformanceRetrievalFailure>, PerformanceRetrievalFailure>;
+}
+
+impl NodePerformanceProvider for SharedCache<PerformanceContractCacheData> {
+    async fn get_node_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<RoutingScore, PerformanceRetrievalFailure> {
+        let contract_cache = self.get().await.map_err(|_| {
+            PerformanceRetrievalFailure::new(
+                node_id,
+                epoch_id,
+                "performance contract cache has not been initialised yet",
+            )
+        })?;
+
+        contract_cache.node_routing_score(node_id, epoch_id)
+    }
+}
+
+impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
+    async fn get_node_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<RoutingScore, PerformanceRetrievalFailure> {
+        self.node_routing_score(node_id, epoch_id).await
     }
 }

@@ -7,7 +7,6 @@ import { useEnvironment } from "@/providers/EnvironmentProvider";
 import { useQuery } from "@tanstack/react-query";
 import { getBasePathByEnv } from "../../../envs/config";
 import { Box } from "@mui/material";
-import SectionHeading from "@/components/headings/SectionHeading";
 
 type Props = {
   paramId: string;

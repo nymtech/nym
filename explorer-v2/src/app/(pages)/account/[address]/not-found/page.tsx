@@ -24,8 +24,8 @@ export default async function AccountNotFound({
       </Grid>
       <Typography variant="h5">
         <Markdown className="reactMarkDownLink">
-          This account does't have a Nym node bonded. Is this your account?
-          Start [setting up your node](https://nym.com/docs) today!
+          This account doesn&apos;t have a Nym node bonded. Is this your
+          account? Start [setting up your node](https://nym.com/docs) today!
         </Markdown>
       </Typography>
     </ContentLayout>

@@ -159,7 +159,7 @@ const SubHeaderRowActions = () => {
     return <Loading />;
   }
 
-  if (isTotalStakerRewardsError) {
+  if (isDelegationsError || isTotalStakerRewardsError) {
     return (
       <Stack direction="row" spacing={3} justifyContent={"end"}>
         <Button variant="contained" disabled>

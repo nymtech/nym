@@ -166,6 +166,9 @@ pub enum ClientCoreError {
     #[error("there are no gateways supporting the wss protocol available")]
     NoWssGateways,
 
+    #[error("there are no gateways with compatible protocol versions available")]
+    NoGatewaysWithCompatibleProtocol,
+
     #[error("the specified gateway '{gateway}' does not support the wss protocol")]
     UnsupportedWssProtocol { gateway: String },
 

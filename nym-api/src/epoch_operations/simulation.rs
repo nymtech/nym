@@ -189,6 +189,20 @@ impl<'a> SimulationCoordinator<'a> {
             )
             .await;
 
+        // Calculate average reliability for old method (mean of all node reliabilities)
+        let node_reliabilities: Vec<f64> = performance_map.values()
+            .map(|p| p.naive_to_f64() * 100.0)
+            .filter(|&r| r > 0.0) // Only include nodes with non-zero reliability
+            .collect();
+        
+        let (mean_reliability, median_reliability) = if !node_reliabilities.is_empty() {
+            let mean = node_reliabilities.iter().sum::<f64>() / node_reliabilities.len() as f64;
+            let median = calculate_median(&node_reliabilities);
+            (Some((mean * 100.0).round() / 100.0), Some((median * 100.0).round() / 100.0))
+        } else {
+            (None, None)
+        };
+
         // Create route analysis for old method
         let route_analysis = SimulatedRouteAnalysis {
             id: 0, // Will be set by database
@@ -197,11 +211,13 @@ impl<'a> SimulationCoordinator<'a> {
             total_routes_analyzed: 0, // Old method doesn't use route data
             successful_routes: 0,
             failed_routes: 0,
-            average_route_reliability: None,
+            average_route_reliability: mean_reliability,
             time_window_hours: 24, // Old method uses 24h
-            analysis_parameters: Some(
-                "{\"method\":\"cache_based\",\"data_source\":\"status_cache\"}".to_string(),
-            ),
+            analysis_parameters: Some(format!(
+                "{{\"method\":\"cache_based\",\"data_source\":\"status_cache\",\"median_reliability\":{},\"nodes_analyzed\":{}}}",
+                median_reliability.unwrap_or(0.0),
+                node_reliabilities.len()
+            )),
             calculated_at: OffsetDateTime::now_utc().unix_timestamp(),
         };
 
@@ -265,23 +281,16 @@ impl<'a> SimulationCoordinator<'a> {
         let mut route_reliability_map = HashMap::new();
         let mut total_routes = 0u32;
         let mut successful_routes = 0u32;
-        let mut reliability_sum = 0.0;
-        let mut reliability_count = 0u32;
 
         for node_reliability in &corrected_reliabilities {
             let total_samples =
                 node_reliability.pos_samples_in_interval + node_reliability.neg_samples_in_interval;
             total_routes += total_samples;
             successful_routes += node_reliability.pos_samples_in_interval;
-
-            if total_samples > 0 {
-                reliability_sum += node_reliability.reliability;
-                reliability_count += 1;
-            }
-
             performance_map.insert(
                 node_reliability.node_id,
-                Performance::naive_try_from_f64(node_reliability.reliability).unwrap_or_default(),
+                Performance::naive_try_from_f64(node_reliability.reliability / 100.0)
+                    .unwrap_or_default(),
             );
 
             // Store sample counts for detailed performance records
@@ -297,6 +306,7 @@ impl<'a> SimulationCoordinator<'a> {
         // Calculate rewards using new method logic
         let rewarded_nodes =
             self.calculate_rewards_for_nodes(rewarded_set, reward_params, &performance_map);
+
 
         // Convert to simulation data structures
         let node_performance = self
@@ -320,6 +330,20 @@ impl<'a> SimulationCoordinator<'a> {
             )
             .await;
 
+        // Calculate average reliability for new method (mean of all node reliabilities)
+        let node_reliabilities: Vec<f64> = corrected_reliabilities.iter()
+            .filter(|n| n.pos_samples_in_interval + n.neg_samples_in_interval > 0)
+            .map(|n| n.reliability)
+            .collect();
+        
+        let (mean_reliability, median_reliability) = if !node_reliabilities.is_empty() {
+            let mean = node_reliabilities.iter().sum::<f64>() / node_reliabilities.len() as f64;
+            let median = calculate_median(&node_reliabilities);
+            (Some((mean * 100.0).round() / 100.0), Some((median * 100.0).round() / 100.0))
+        } else {
+            (None, None)
+        };
+
         // Create route analysis for new method
         let route_analysis = SimulatedRouteAnalysis {
             id: 0, // Will be set by database
@@ -328,16 +352,14 @@ impl<'a> SimulationCoordinator<'a> {
             total_routes_analyzed: total_routes,
             successful_routes,
             failed_routes: total_routes - successful_routes,
-            average_route_reliability: if reliability_count > 0 {
-                Some(reliability_sum * 100.0 / reliability_count as f64)
-            } else {
-                None
-            },
+            average_route_reliability: mean_reliability,
             time_window_hours: self.config.new_method_time_window_hours,
             analysis_parameters: Some(format!(
-                "{{\"method\":\"route_based\",\"time_window_hours\":{},\"corrected_routes\":{}}}",
+                "{{\"method\":\"route_based\",\"time_window_hours\":{},\"corrected_routes\":{},\"median_reliability\":{},\"nodes_analyzed\":{}}}",
                 self.config.new_method_time_window_hours,
-                corrected_reliabilities.len()
+                corrected_reliabilities.len(),
+                median_reliability.unwrap_or(0.0),
+                node_reliabilities.len()
             )),
             calculated_at: OffsetDateTime::now_utc().unix_timestamp(),
         };
@@ -650,5 +672,22 @@ impl EpochAdvancer {
                 Ok(())
             }
         }
+    }
+}
+
+/// Calculate median of a vector of f64 values
+fn calculate_median(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    
+    let mut sorted = values.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let len = sorted.len();
+    if len % 2 == 0 {
+        (sorted[len / 2 - 1] + sorted[len / 2]) / 2.0
+    } else {
+        sorted[len / 2]
     }
 }

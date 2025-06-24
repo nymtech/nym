@@ -25,7 +25,7 @@ use nym_client_core::client::{
 };
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::helpers::gateways_for_init;
+use nym_client_core::init::helpers::gateways_for_init_with_protocol_validation;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
@@ -546,7 +546,7 @@ where
 
         let topology_cfg = &self.config.debug_config.topology;
         let mut rng = OsRng;
-        let available_gateways = gateways_for_init(
+        let available_gateways = gateways_for_init_with_protocol_validation(
             &mut rng,
             &nym_api_endpoints,
             user_agent,

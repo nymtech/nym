@@ -707,6 +707,10 @@ fn calculate_summary_statistics(comparisons: &[NodeMethodComparison]) -> Compari
     let (median_reliability_new, reliability_std_dev_new) =
         calculate_median_and_std(&reliabilities_new);
 
+    // Calculate distribution categories
+    let distribution_old = calculate_reliability_distribution(&reliabilities_old);
+    let distribution_new = calculate_reliability_distribution(&reliabilities_new);
+
     ComparisonSummaryStats {
         total_nodes_compared: comparisons.len(),
         nodes_improved: improvements,
@@ -720,6 +724,8 @@ fn calculate_summary_statistics(comparisons: &[NodeMethodComparison]) -> Compari
         reliability_std_dev_new: (reliability_std_dev_new * 100.0).round() / 100.0,
         max_improvement: (max_improvement * 100.0).round() / 100.0,
         max_degradation: (max_degradation * 100.0).round() / 100.0,
+        distribution_old,
+        distribution_new,
     }
 }
 
@@ -742,6 +748,30 @@ fn calculate_median_and_std(values: &[f64]) -> (f64, f64) {
     let std_dev = variance.sqrt();
 
     (median, std_dev)
+}
+
+fn calculate_reliability_distribution(reliabilities: &[f64]) -> crate::simulation_api::models::ReliabilityDistribution {
+    let mut distribution = crate::simulation_api::models::ReliabilityDistribution {
+        excellent: 0,
+        very_good: 0,
+        good: 0,
+        moderate: 0,
+        poor: 0,
+        very_poor: 0,
+    };
+    
+    for &reliability in reliabilities {
+        match reliability {
+            r if r > 95.0 => distribution.excellent += 1,
+            r if r > 90.0 => distribution.very_good += 1,
+            r if r > 75.0 => distribution.good += 1,
+            r if r > 50.0 => distribution.moderate += 1,
+            r if r > 25.0 => distribution.poor += 1,
+            _ => distribution.very_poor += 1,
+        }
+    }
+    
+    distribution
 }
 
 async fn get_route_analysis_comparison(
@@ -936,6 +966,22 @@ mod tests {
         assert_eq!(stats.average_reliability_new, 77.5);
         assert_eq!(stats.max_improvement, 10.0);
         assert_eq!(stats.max_degradation, -5.0);
+        
+        // Check distribution for old method (80.0 and 70.0)
+        assert_eq!(stats.distribution_old.excellent, 0);
+        assert_eq!(stats.distribution_old.very_good, 0);
+        assert_eq!(stats.distribution_old.good, 1); // 80.0 falls in 75-90
+        assert_eq!(stats.distribution_old.moderate, 1); // 70.0 falls in 50-75
+        assert_eq!(stats.distribution_old.poor, 0);
+        assert_eq!(stats.distribution_old.very_poor, 0);
+        
+        // Check distribution for new method (90.0 and 65.0)
+        assert_eq!(stats.distribution_new.excellent, 0);
+        assert_eq!(stats.distribution_new.very_good, 1); // 90.0 falls in 90-95
+        assert_eq!(stats.distribution_new.good, 0);
+        assert_eq!(stats.distribution_new.moderate, 1); // 65.0 falls in 50-75
+        assert_eq!(stats.distribution_new.poor, 0);
+        assert_eq!(stats.distribution_new.very_poor, 0);
     }
 
     #[test]
@@ -949,6 +995,14 @@ mod tests {
         assert_eq!(stats.nodes_unchanged, 0);
         assert_eq!(stats.average_reliability_old, 0.0);
         assert_eq!(stats.average_reliability_new, 0.0);
+        
+        // Check empty distributions
+        assert_eq!(stats.distribution_old.excellent, 0);
+        assert_eq!(stats.distribution_old.very_good, 0);
+        assert_eq!(stats.distribution_old.good, 0);
+        assert_eq!(stats.distribution_old.moderate, 0);
+        assert_eq!(stats.distribution_old.poor, 0);
+        assert_eq!(stats.distribution_old.very_poor, 0);
     }
 
     #[test]

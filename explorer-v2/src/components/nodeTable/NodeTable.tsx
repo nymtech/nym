@@ -32,6 +32,7 @@ import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
+import { getBasePathByEnv } from "../../../envs/config";
 
 const ColumnHeading = ({
   children,
@@ -510,9 +511,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     muiTableBodyRowProps: ({ row }) => ({
       onClick: (e) => {
         if (e.ctrlKey || e.metaKey) {
-          window.open(`/explorer/nym-node/${row.original.nodeId}`, "_blank");
+          const basePath = getBasePathByEnv(environment || "mainnet");
+          window.open(`${basePath}/nym-node/${row.original.nodeId}`, "_blank");
         } else {
-          router.push(`/nym-node/${row.original.nodeId}`);
+          const basePath = getBasePathByEnv(environment || "mainnet");
+          router.push(`${basePath}/nym-node/${row.original.nodeId}`);
         }
       },
       hover: true,

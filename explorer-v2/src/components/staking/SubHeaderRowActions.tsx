@@ -49,31 +49,31 @@ const SubHeaderRowActions = () => {
     isLoading: isDelegationsLoading,
     isError: isDelegationsError,
   } = useQuery({
-    queryKey: ["delegations", address],
+    queryKey: ["delegations", address, environment],
     queryFn: () => fetchDelegations(address || "", nymClient),
-    enabled: !!address && !!nymClient, // Only fetch if address and nymClient are available
-  });
-
-  // Fetch total rewards using React Query
-  const {
-    data: totalStakerRewards = 0,
-    isLoading: isRewardsLoading,
-    isError: isRewardsError,
-    refetch,
-  } = useQuery({
-    queryKey: ["totalStakerRewards", address],
-    queryFn: () => fetchTotalStakerRewards(address || "", environment),
-    enabled: !!address, // Only fetch if address is available
+    enabled: !!address && !!nymClient, // Only fetch if address and nymClient exist
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
   });
 
+  // Fetch total rewards using React Query
+  const {
+    data: totalStakerRewards = 0,
+    isLoading: isTotalStakerRewardsLoading,
+    isError: isTotalStakerRewardsError,
+  } = useQuery({
+    queryKey: ["totalStakerRewards", address, environment],
+    queryFn: () => fetchTotalStakerRewards(address || "", environment),
+    enabled: !!address, // Only fetch if address exists
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+  });
 
   const handleRefetch = useCallback(async () => {
-    await refetch();
     await queryClient.invalidateQueries(); // This will refetch ALL active queries
-  }, [queryClient, refetch]);
+  }, [queryClient]);
 
   const handleRedeemRewards = useCallback(async () => {
     setIsLoading(true);
@@ -155,11 +155,11 @@ const SubHeaderRowActions = () => {
     return null;
   }
 
-  if (isDelegationsLoading || isRewardsLoading) {
+  if (isDelegationsLoading || isTotalStakerRewardsLoading) {
     return <Loading />;
   }
 
-  if (isDelegationsError || isRewardsError) {
+  if (isTotalStakerRewardsError) {
     return (
       <Stack direction="row" spacing={3} justifyContent={"end"}>
         <Button variant="contained" disabled>
@@ -168,6 +168,7 @@ const SubHeaderRowActions = () => {
       </Stack>
     );
   }
+
 
   return (
     <Stack direction="row" spacing={3} justifyContent={"end"}>

@@ -20,7 +20,7 @@ const OriginalStakeCard = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["originalStake", address],
+    queryKey: ["originalStake", address, environment],
     queryFn: () => fetchOriginalStake(address || "", environment),
     enabled: !!address, // Only fetch if address exists
     staleTime: 10 * 60 * 1000, // 10 minutes

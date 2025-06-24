@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fetchNSApiNodes } from "../../app/api";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
+import { getBasePathByEnv } from "../../../envs/config";
+
 const NodeAndAddressSearch = () => {
   const router = useRouter();
   const { environment } = useEnvironment();
@@ -24,7 +26,6 @@ const NodeAndAddressSearch = () => {
   const [searchOptions, setSearchOptions] = useState<NS_NODE[]>([]);
 
   // Use React Query to fetch nodes
-
   const { data: nsApiNodes = [], isLoading: isNSApiNodesLoading } = useQuery({
     queryKey: ["nsApiNodes", environment],
     queryFn: () => fetchNSApiNodes(environment),
@@ -35,8 +36,13 @@ const NodeAndAddressSearch = () => {
   });
 
   const handleSearch = async () => {
-    setErrorText(""); // Clear any previous error messages
-    setIsLoading(true); // Start loading
+    if (!inputValue.trim()) {
+      setErrorText("Please enter a search term");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorText("");
 
     try {
       if (inputValue.startsWith("n1")) {
@@ -47,7 +53,8 @@ const NodeAndAddressSearch = () => {
           try {
             const data = await response.json();
             if (data) {
-              router.push(`/account/${inputValue}`);
+              const basePath = getBasePathByEnv(environment || "mainnet");
+              router.push(`${basePath}/account/${inputValue}`);
               return;
             }
           } catch {
@@ -74,7 +81,8 @@ const NodeAndAddressSearch = () => {
           );
 
           if (matchingNode) {
-            router.push(`/nym-node/${matchingNode.identity_key}`);
+            const basePath = getBasePathByEnv(environment || "mainnet");
+            router.push(`${basePath}/nym-node/${matchingNode.identity_key}`);
             return;
           }
         }
@@ -122,7 +130,8 @@ const NodeAndAddressSearch = () => {
   ) => {
     if (value && typeof value !== "string") {
       setIsLoading(true); // Show loading spinner
-      router.push(`/nym-node/${value.node_id}`);
+      const basePath = getBasePathByEnv(environment || "mainnet");
+      router.push(`${basePath}/nym-node/${value.node_id}`);
     }
   };
 

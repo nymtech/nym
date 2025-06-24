@@ -29,7 +29,7 @@ const useGetWalletBalance = () => {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["nymBalance", address],
+    queryKey: ["nymBalance", address, environment],
     queryFn: () => fetchNYMBalance(address || "", getCosmWasmClient),
     enabled: !!address, // Only fetch if address exists
   });

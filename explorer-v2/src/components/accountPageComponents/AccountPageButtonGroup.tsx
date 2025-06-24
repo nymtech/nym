@@ -5,6 +5,8 @@ import type { NS_NODE } from "@/app/api/types";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
 import { useQuery } from "@tanstack/react-query";
+import { getBasePathByEnv } from "../../../envs/config";
+import { Box } from "@mui/material";
 
 type Props = {
   address: string;
@@ -12,6 +14,7 @@ type Props = {
 
 export default function AccountPageButtonGroup({ address }: Props) {
   const { environment } = useEnvironment();
+  const basePath = getBasePathByEnv(environment || "mainnet");
 
   const { data: nsApiNodes = [], isError: isNSApiNodesError } = useQuery({
     queryKey: ["nsApiNodes", environment],
@@ -32,22 +35,24 @@ export default function AccountPageButtonGroup({ address }: Props) {
 
   if (nymNode.bonding_address)
     return (
-      <ExplorerButtonGroup
-        onPage="Account"
-        options={[
-          {
-            label: "Nym Node",
-            isSelected: false,
-            link: nymNode
-              ? `/nym-node/${nymNode.node_id}`
-              : `/account/${address}/not-found`,
-          },
-          {
-            label: "Account",
-            isSelected: true,
-            link: `/account/${address}`,
-          },
-        ]}
-      />
+      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+        <ExplorerButtonGroup
+          onPage="Account"
+          options={[
+            {
+              label: "Nym Node",
+              isSelected: false,
+              link: nymNode
+                ? `${basePath}/nym-node/${nymNode.node_id}`
+                : `${basePath}/account/${address}/not-found`,
+            },
+            {
+              label: "Account",
+              isSelected: true,
+              link: `${basePath}/account/${address}`,
+            },
+          ]}
+        />
+      </Box>
     );
 }

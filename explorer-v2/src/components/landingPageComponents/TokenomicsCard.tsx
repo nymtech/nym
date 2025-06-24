@@ -31,7 +31,7 @@ export const TokenomicsCard = () => {
     isLoading: isEpochLoading,
     isError: isEpochError,
   } = useQuery({
-    queryKey: ["epochRewards"],
+    queryKey: ["epochRewards", environment],
     queryFn: () => fetchEpochRewards(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
@@ -44,7 +44,7 @@ export const TokenomicsCard = () => {
     isLoading: isStakingLoading,
     isError: isStakingError,
   } = useQuery({
-    queryKey: ["noise"],
+    queryKey: ["noise", environment],
     queryFn: () => fetchNoise(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

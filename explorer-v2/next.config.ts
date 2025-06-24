@@ -2,19 +2,29 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-
-  basePath: "/explorer",
-  assetPrefix: "/explorer",
   trailingSlash: false,
 
-  async redirects() {
+  async rewrites() {
     return [
-      // Change the basePath to /explorer
+      // Rewrite /sandbox-explorer to root
       {
-        source: "/",
-        destination: "/explorer",
-        basePath: false,
-        permanent: true,
+        source: "/sandbox-explorer",
+        destination: "/",
+      },
+      // Rewrite /explorer to root
+      {
+        source: "/explorer",
+        destination: "/",
+      },
+      // Rewrite /sandbox-explorer/* to /*
+      {
+        source: "/sandbox-explorer/:path*",
+        destination: "/:path*",
+      },
+      // Rewrite /explorer/* to /*
+      {
+        source: "/explorer/:path*",
+        destination: "/:path*",
       },
     ];
   },

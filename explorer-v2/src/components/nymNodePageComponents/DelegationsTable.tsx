@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import type { NodeRewardDetails } from "../../app/api/types";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
+import { getBasePathByEnv } from "../../../envs/config";
+
 const ColumnHeading = ({
   children,
 }: {
@@ -37,6 +39,7 @@ const DelegationsTable = ({ id }: Props) => {
   const router = useRouter();
   const theme = useTheme();
   const { environment } = useEnvironment();
+  const basePath = getBasePathByEnv(environment || "mainnet");
 
   const { data: delegations = [], isError } = useQuery({
     queryKey: ["nodeDelegations", id, environment],
@@ -140,7 +143,7 @@ const DelegationsTable = ({ id }: Props) => {
     },
     muiTableBodyRowProps: ({ row }) => ({
       onClick: () => {
-        router.push(`/account/${row.original.owner}`);
+        router.push(`${basePath}/account/${row.original.owner}`);
       },
       hover: true,
       sx: {

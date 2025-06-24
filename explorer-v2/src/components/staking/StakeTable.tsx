@@ -38,6 +38,7 @@ import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
+import { getBasePathByEnv } from "../../../envs/config";
 
 type DelegationWithNodeDetails = {
   node: MappedNymNode | undefined;
@@ -98,6 +99,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const chain = environment === "mainnet" ? COSMOS_KIT_USE_CHAIN : "sandbox";
   const { isWalletConnected } = useChain(chain);
   const { data: pendingEvents } = usePendingEvents(nymQueryClient, address);
+  const basePath = getBasePathByEnv(environment || "mainnet");
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -654,7 +656,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     muiTableBodyRowProps: ({ row }) => ({
       onClick: () => {
-        router.push(`/nym-node/${row.original.node?.nodeId || "not-found"}`);
+        router.push(
+          `${basePath}/nym-node/${row.original.node?.nodeId || "not-found"}`
+        );
       },
       hover: true,
       sx: {

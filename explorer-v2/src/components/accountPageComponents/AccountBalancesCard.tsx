@@ -81,17 +81,18 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
 
   const {
     data: nymPrice,
-    isLoading: isLoadingPrice,
-    error: priceError,
+    isLoading: isNymPriceLoading,
+    isError: isNymPriceError,
   } = useQuery({
     queryKey: ["nymPrice"],
     queryFn: fetchNymPrice,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching
     refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 
-  if (isLoading || isLoadingPrice) {
+  if (isLoading || isNymPriceLoading) {
     return (
       <ExplorerCard label="Total value">
         <Stack gap={1}>
@@ -102,7 +103,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     );
   }
 
-  if (isError || priceError || !accountInfo || !nymPrice) {
+  if (isError || isNymPriceError || !accountInfo || !nymPrice) {
     return (
       <ExplorerCard label="Total value">
         <Typography

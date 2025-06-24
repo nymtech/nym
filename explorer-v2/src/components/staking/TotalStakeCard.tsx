@@ -20,7 +20,7 @@ const TotalStakeCard = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["totalStake", address],
+    queryKey: ["totalStake", address, environment],
     queryFn: () => fetchBalances(address || "", environment),
     enabled: !!address, // Only fetch if address exists
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -52,6 +52,7 @@ const TotalStakeCard = () => {
       </ExplorerCard>
     );
   }
+
 
   return (
     <ExplorerCard label="Total Stake">

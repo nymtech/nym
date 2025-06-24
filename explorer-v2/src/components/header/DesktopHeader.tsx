@@ -28,7 +28,7 @@ export const DesktopHeader = () => {
         }}
       >
         <Link
-          href={"/"}
+          href={"https://nym.com/"}
           style={{
             display: "flex",
             alignItems: "center",

@@ -145,7 +145,7 @@ const MobileMenuHeader = ({
       >
         <Link
           onClick={() => toggleDrawer(false)}
-          href={"/"}
+          href={"https://nym.com/"}
           style={{
             display: "flex",
             alignItems: "center",

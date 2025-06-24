@@ -57,6 +57,7 @@ export const useNymClient = () => {
     getCosmWasmClient,
     getSigningCosmWasmClient,
     mixnetContractAddress,
+    environment,
   ]);
 
   return { nymClient, nymQueryClient, address };

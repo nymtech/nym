@@ -5,6 +5,9 @@ import type { NS_NODE } from "@/app/api/types";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
 import { useQuery } from "@tanstack/react-query";
+import { getBasePathByEnv } from "../../../envs/config";
+import { Box } from "@mui/material";
+import SectionHeading from "@/components/headings/SectionHeading";
 
 type Props = {
   paramId: string;
@@ -13,6 +16,7 @@ type Props = {
 export default function NodePageButtonGroup({ paramId }: Props) {
   let nodeInfo: NS_NODE | undefined;
   const { environment } = useEnvironment();
+  const basePath = getBasePathByEnv(environment || "mainnet");
 
   const { data: nsApiNodes = [], isError: isNSApiNodesError } = useQuery({
     queryKey: ["nsApiNodes", environment],
@@ -41,20 +45,22 @@ export default function NodePageButtonGroup({ paramId }: Props) {
 
   if (nodeInfo.bonding_address)
     return (
-      <ExplorerButtonGroup
-        onPage="Nym Node"
-        options={[
-          {
-            label: "Nym Node",
-            isSelected: true,
-            link: `/nym-node/${nodeInfo.node_id}`,
-          },
-          {
-            label: "Account",
-            isSelected: false,
-            link: `/account/${nodeInfo.bonding_address}`,
-          },
-        ]}
-      />
+      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+        <ExplorerButtonGroup
+          onPage="Node"
+          options={[
+            {
+              label: "Nym Node",
+              isSelected: true,
+              link: `${basePath}/nym-node/${nodeInfo.identity_key}`,
+            },
+            {
+              label: "Account",
+              isSelected: false,
+              link: `${basePath}/account/${nodeInfo.bonding_address}`,
+            },
+          ]}
+        />
+      </Box>
     );
 }

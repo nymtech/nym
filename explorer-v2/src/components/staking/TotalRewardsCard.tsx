@@ -20,7 +20,7 @@ const TotalRewardsCard = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["totalStakerRewards", address],
+    queryKey: ["totalStakerRewards", address, environment],
     queryFn: () => fetchTotalStakerRewards(address || "", environment),
     enabled: !!address, // Only fetch if address exists
     staleTime: 10 * 60 * 1000, // 10 minutes

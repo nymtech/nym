@@ -160,7 +160,7 @@ const NodeTableWithAction = () => {
     isLoading: isEpochLoading,
     isError: isEpochError,
   } = useQuery({
-    queryKey: ["epochRewards"],
+    queryKey: ["epochRewards", environment],
     queryFn: () => fetchEpochRewards(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false, // Prevents unnecessary refetching

@@ -13,7 +13,7 @@ async fn test_simulation_epochs_endpoint() {
 
     let url = format!("{}/v1/simulation/epochs", base);
     let response = make_request(&url).await;
-    
+
     match response {
         Ok(res) => {
             let json = validate_json_response(res).await;
@@ -23,10 +23,10 @@ async fn test_simulation_epochs_endpoint() {
                     assert!(data.is_object());
                     assert!(data.get("epochs").is_some());
                     assert!(data.get("total_count").is_some());
-                    
+
                     let epochs = data.get("epochs").unwrap();
                     assert!(epochs.is_array());
-                    
+
                     // If there are epochs, verify their structure
                     if let Some(epoch_array) = epochs.as_array() {
                         if !epoch_array.is_empty() {
@@ -34,7 +34,7 @@ async fn test_simulation_epochs_endpoint() {
                             verify_epoch_summary_structure(first_epoch);
                         }
                     }
-                    
+
                     println!("✓ Simulation epochs endpoint returned valid response");
                 }
                 Err(e) => {
@@ -58,7 +58,7 @@ async fn test_simulation_epochs_with_pagination() {
 
     let url = format!("{}/v1/simulation/epochs?limit=5&offset=0", base);
     let response = make_request(&url).await;
-    
+
     match response {
         Ok(res) => {
             let json = validate_json_response(res).await;
@@ -67,10 +67,10 @@ async fn test_simulation_epochs_with_pagination() {
                     assert!(data.is_object());
                     assert!(data.get("epochs").is_some());
                     assert!(data.get("total_count").is_some());
-                    
+
                     let epochs = data.get("epochs").unwrap().as_array().unwrap();
                     assert!(epochs.len() <= 5); // Should respect limit
-                    
+
                     println!("✓ Simulation epochs pagination works correctly");
                 }
                 Err(_) => {
@@ -94,7 +94,7 @@ async fn test_simulation_epoch_details_structure() {
     // First, get a list of epochs to find a valid ID
     let epochs_url = format!("{}/v1/simulation/epochs?limit=1", base);
     let epochs_response = make_request(&epochs_url).await;
-    
+
     match epochs_response {
         Ok(res) => {
             let json = validate_json_response(res).await;
@@ -103,11 +103,11 @@ async fn test_simulation_epoch_details_structure() {
                 if !epochs.is_empty() {
                     let first_epoch = &epochs[0];
                     let epoch_id = first_epoch.get("id").unwrap().as_i64().unwrap();
-                    
+
                     // Now test the details endpoint
                     let details_url = format!("{}/v1/simulation/epochs/{}", base, epoch_id);
                     let details_response = make_request(&details_url).await;
-                    
+
                     match details_response {
                         Ok(res) => {
                             let json = validate_json_response(res).await;
@@ -144,7 +144,7 @@ async fn test_simulation_comparison_endpoint() {
     // First, get a list of epochs to find a valid ID
     let epochs_url = format!("{}/v1/simulation/epochs?limit=1", base);
     let epochs_response = make_request(&epochs_url).await;
-    
+
     match epochs_response {
         Ok(res) => {
             let json = validate_json_response(res).await;
@@ -153,18 +153,21 @@ async fn test_simulation_comparison_endpoint() {
                 if !epochs.is_empty() {
                     let first_epoch = &epochs[0];
                     let epoch_id = first_epoch.get("id").unwrap().as_i64().unwrap();
-                    
+
                     // Test the comparison endpoint
-                    let comparison_url = format!("{}/v1/simulation/epochs/{}/comparison", base, epoch_id);
+                    let comparison_url =
+                        format!("{}/v1/simulation/epochs/{}/comparison", base, epoch_id);
                     let comparison_response = make_request(&comparison_url).await;
-                    
+
                     match comparison_response {
                         Ok(res) => {
                             let json = validate_json_response(res).await;
                             match json {
                                 Ok(data) => {
                                     verify_comparison_structure(&data);
-                                    println!("✓ Simulation comparison endpoint returned valid structure");
+                                    println!(
+                                        "✓ Simulation comparison endpoint returned valid structure"
+                                    );
                                 }
                                 Err(e) => {
                                     println!("✗ Failed to parse comparison data: {}", e);
@@ -194,7 +197,7 @@ async fn test_simulation_export_endpoints() {
     // First, get a list of epochs to find a valid ID
     let epochs_url = format!("{}/v1/simulation/epochs?limit=1", base);
     let epochs_response = make_request(&epochs_url).await;
-    
+
     match epochs_response {
         Ok(res) => {
             let json = validate_json_response(res).await;
@@ -203,11 +206,14 @@ async fn test_simulation_export_endpoints() {
                 if !epochs.is_empty() {
                     let first_epoch = &epochs[0];
                     let epoch_id = first_epoch.get("id").unwrap().as_i64().unwrap();
-                    
+
                     // Test JSON export
-                    let json_export_url = format!("{}/v1/simulation/epochs/{}/export?format=json", base, epoch_id);
+                    let json_export_url = format!(
+                        "{}/v1/simulation/epochs/{}/export?format=json",
+                        base, epoch_id
+                    );
                     let json_response = make_request(&json_export_url).await;
-                    
+
                     match json_response {
                         Ok(res) => {
                             assert!(res.status().is_success());
@@ -221,11 +227,14 @@ async fn test_simulation_export_endpoints() {
                             println!("✗ JSON export failed: {}", e);
                         }
                     }
-                    
+
                     // Test CSV export
-                    let csv_export_url = format!("{}/v1/simulation/epochs/{}/export?format=csv", base, epoch_id);
+                    let csv_export_url = format!(
+                        "{}/v1/simulation/epochs/{}/export?format=csv",
+                        base, epoch_id
+                    );
                     let csv_response = make_request(&csv_export_url).await;
-                    
+
                     match csv_response {
                         Ok(res) => {
                             assert!(res.status().is_success());
@@ -258,7 +267,7 @@ async fn test_simulation_error_handling() {
     // Test 404 for non-existent epoch
     let invalid_url = format!("{}/v1/simulation/epochs/999999", base);
     let response = make_request(&invalid_url).await;
-    
+
     match response {
         Ok(res) => {
             // Should get a successful response (empty or error structure)
@@ -284,7 +293,7 @@ fn verify_epoch_summary_structure(epoch: &Value) {
     assert!(epoch.get("created_at").is_some());
     assert!(epoch.get("nodes_analyzed").is_some());
     assert!(epoch.get("available_methods").is_some());
-    
+
     // Verify types
     assert!(epoch.get("id").unwrap().is_i64());
     assert!(epoch.get("epoch_id").unwrap().is_u64());
@@ -299,22 +308,22 @@ fn verify_epoch_details_structure(data: &Value) {
     assert!(data.get("node_performance").is_some());
     assert!(data.get("rewards").is_some());
     assert!(data.get("route_analysis").is_some());
-    
+
     // Verify epoch summary structure
     verify_epoch_summary_structure(data.get("epoch").unwrap());
-    
+
     // Verify arrays
     assert!(data.get("node_performance").unwrap().is_array());
     assert!(data.get("rewards").unwrap().is_array());
     assert!(data.get("route_analysis").unwrap().is_array());
-    
+
     // If there's performance data, verify its structure
     let performance_array = data.get("node_performance").unwrap().as_array().unwrap();
     if !performance_array.is_empty() {
         let first_performance = &performance_array[0];
         verify_performance_data_structure(first_performance);
     }
-    
+
     // If there's reward data, verify its structure
     let rewards_array = data.get("rewards").unwrap().as_array().unwrap();
     if !rewards_array.is_empty() {
@@ -332,7 +341,7 @@ fn verify_performance_data_structure(performance: &Value) {
     assert!(performance.get("negative_samples").is_some());
     assert!(performance.get("calculation_method").is_some());
     assert!(performance.get("calculated_at").is_some());
-    
+
     // Verify types
     assert!(performance.get("node_id").unwrap().is_u64());
     assert!(performance.get("node_type").unwrap().is_string());
@@ -350,7 +359,7 @@ fn verify_reward_data_structure(reward: &Value) {
     assert!(reward.get("calculated_reward_amount").is_some());
     assert!(reward.get("reward_currency").is_some());
     assert!(reward.get("calculation_method").is_some());
-    
+
     // Verify types
     assert!(reward.get("node_id").unwrap().is_u64());
     assert!(reward.get("node_type").unwrap().is_string());
@@ -366,14 +375,14 @@ fn verify_comparison_structure(data: &Value) {
     assert!(data.get("node_comparisons").is_some());
     assert!(data.get("summary_statistics").is_some());
     assert!(data.get("route_analysis_comparison").is_some());
-    
+
     // Verify types
     assert!(data.get("epoch_id").unwrap().is_u64());
     assert!(data.get("simulation_epoch_id").unwrap().is_i64());
     assert!(data.get("node_comparisons").unwrap().is_array());
     assert!(data.get("summary_statistics").unwrap().is_object());
     assert!(data.get("route_analysis_comparison").unwrap().is_object());
-    
+
     // Verify summary statistics structure
     let stats = data.get("summary_statistics").unwrap();
     assert!(stats.get("total_nodes_compared").is_some());

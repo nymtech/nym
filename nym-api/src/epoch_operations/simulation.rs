@@ -150,7 +150,7 @@ impl<'a> SimulationCoordinator<'a> {
         for mix_reliability in mixnode_reliabilities {
             performance_map.insert(
                 mix_reliability.mix_id(),
-                Performance::from_percentage_value(mix_reliability.value() as u64)
+                Performance::from_percentage_value((mix_reliability.value() * 100.0) as u64)
                     .unwrap_or_default(),
             );
         }
@@ -158,7 +158,7 @@ impl<'a> SimulationCoordinator<'a> {
         for gateway_reliability in gateway_reliabilities {
             performance_map.insert(
                 gateway_reliability.node_id(),
-                Performance::from_percentage_value(gateway_reliability.value() as u64)
+                Performance::from_percentage_value((gateway_reliability.value() * 100.0) as u64)
                     .unwrap_or_default(),
             );
         }
@@ -281,8 +281,7 @@ impl<'a> SimulationCoordinator<'a> {
 
             performance_map.insert(
                 node_reliability.node_id,
-                Performance::naive_try_from_f64(node_reliability.reliability / 100.0)
-                    .unwrap_or_default(),
+                Performance::naive_try_from_f64(node_reliability.reliability).unwrap_or_default(),
             );
 
             // Store sample counts for detailed performance records
@@ -330,7 +329,7 @@ impl<'a> SimulationCoordinator<'a> {
             successful_routes,
             failed_routes: total_routes - successful_routes,
             average_route_reliability: if reliability_count > 0 {
-                Some(reliability_sum / reliability_count as f64)
+                Some(reliability_sum * 100.0 / reliability_count as f64)
             } else {
                 None
             },

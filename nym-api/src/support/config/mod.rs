@@ -550,8 +550,6 @@ pub struct RewardingDebug {
     /// Old method always uses 24 hours for comparison
     pub simulation_new_method_time_window_hours: u32,
 
-    /// Whether to run both old and new calculations in simulation mode
-    pub simulation_run_both_methods: bool,
 }
 
 impl Default for RewardingDebug {
@@ -559,7 +557,6 @@ impl Default for RewardingDebug {
         RewardingDebug {
             minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
             simulation_new_method_time_window_hours: 1, // New method uses 1 hour
-            simulation_run_both_methods: true,          // Default to running both for comparison
         }
     }
 }

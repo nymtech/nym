@@ -31,8 +31,6 @@ use tracing::{debug, error, info};
 pub struct SimulationConfig {
     /// Time window in hours for new method calculation (default: 1)
     pub new_method_time_window_hours: u32,
-    /// Whether to run both old and new methods (default: true)
-    pub run_both_methods: bool,
     /// Description for this simulation run
     pub description: Option<String>,
 }
@@ -41,7 +39,6 @@ impl Default for SimulationConfig {
     fn default() -> Self {
         Self {
             new_method_time_window_hours: 1,
-            run_both_methods: true,
             description: None,
         }
     }
@@ -58,7 +55,7 @@ impl<'a> SimulationCoordinator<'a> {
         Self { storage, config }
     }
 
-    /// Run a complete simulation comparing old vs new rewarding methods
+    /// Run simulation using new rewarding method only
     pub async fn run_simulation(
         &self,
         rewarded_set: &EpochRewardedSet,
@@ -67,10 +64,10 @@ impl<'a> SimulationCoordinator<'a> {
     ) -> Result<(), RewardingError> {
         let now = OffsetDateTime::now_utc();
         let end_timestamp = now.unix_timestamp();
-        let start_timestamp = end_timestamp - (24 * 3600); // 24 hours ago for baseline
+        let start_timestamp = end_timestamp - (self.config.new_method_time_window_hours as i64 * 3600);
 
         info!(
-            "Starting simulation for epoch {} with time window {}h",
+            "Starting new method simulation for epoch {} with time window {}h",
             current_epoch_id, self.config.new_method_time_window_hours
         );
 
@@ -80,7 +77,7 @@ impl<'a> SimulationCoordinator<'a> {
             .manager
             .create_simulated_reward_epoch(
                 current_epoch_id,
-                "comparison",
+                "new_method",
                 start_timestamp,
                 end_timestamp,
                 self.config.description.as_deref(),
@@ -88,23 +85,7 @@ impl<'a> SimulationCoordinator<'a> {
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
 
-        // Run old method simulation (24h cache-based)
-        if self.config.run_both_methods {
-            match self
-                .run_old_method_simulation(rewarded_set, reward_params, epoch_db_id, end_timestamp)
-                .await
-            {
-                Ok(_) => {
-                    info!("Old method simulation completed successfully");
-                }
-                Err(e) => {
-                    error!("Old method simulation failed: {}", e);
-                    // Continue with new method even if old fails
-                }
-            }
-        }
-
-        // Run new method simulation (1h route-based)
+        // Run new method simulation only
         match self
             .run_new_method_simulation(rewarded_set, reward_params, epoch_db_id, end_timestamp)
             .await
@@ -114,145 +95,11 @@ impl<'a> SimulationCoordinator<'a> {
             }
             Err(e) => {
                 error!("New method simulation failed: {}", e);
+                return Err(e);
             }
         }
 
         info!("Simulation completed for epoch {}", current_epoch_id);
-        Ok(())
-    }
-
-    /// Run simulation using old method (24h cache-based)
-    async fn run_old_method_simulation(
-        &self,
-        rewarded_set: &EpochRewardedSet,
-        reward_params: RewardingParams,
-        epoch_db_id: i64,
-        end_timestamp: i64,
-    ) -> Result<(), RewardingError> {
-        debug!("Running old method simulation (24h cache-based)");
-
-        // Get 24h performance data using existing cache-based method
-        let mixnode_reliabilities = self
-            .storage
-            .get_all_avg_mix_reliability_in_last_24hr(end_timestamp)
-            .await
-            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
-
-        let gateway_reliabilities = self
-            .storage
-            .get_all_avg_gateway_reliability_in_last_24hr(end_timestamp)
-            .await
-            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
-
-        // Convert to performance map
-        let mut performance_map = HashMap::new();
-
-        for mix_reliability in mixnode_reliabilities {
-            performance_map.insert(
-                mix_reliability.mix_id(),
-                Performance::from_percentage_value((mix_reliability.value() * 100.0) as u64)
-                    .unwrap_or_default(),
-            );
-        }
-
-        for gateway_reliability in gateway_reliabilities {
-            performance_map.insert(
-                gateway_reliability.node_id(),
-                Performance::from_percentage_value((gateway_reliability.value() * 100.0) as u64)
-                    .unwrap_or_default(),
-            );
-        }
-
-        // Calculate rewards using old method logic
-        let rewarded_nodes =
-            self.calculate_rewards_for_nodes(rewarded_set, reward_params, &performance_map);
-
-        // Convert to simulation data structures
-        let node_performance = self
-            .convert_to_simulated_performance(
-                &rewarded_nodes,
-                rewarded_set,
-                reward_params,
-                epoch_db_id,
-                "old",
-                None, // Old method doesn't have route sample data
-            )
-            .await;
-
-        let performance_comparisons = self
-            .convert_to_performance_comparisons(
-                &rewarded_nodes,
-                rewarded_set,
-                reward_params,
-                epoch_db_id,
-                "old",
-            )
-            .await;
-
-        // Calculate average reliability for old method (mean of all node reliabilities)
-        let node_reliabilities: Vec<f64> = performance_map
-            .values()
-            .map(|p| p.naive_to_f64() * 100.0)
-            .filter(|&r| r > 0.0) // Only include nodes with non-zero reliability
-            .collect();
-
-        let (mean_reliability, median_reliability) = if !node_reliabilities.is_empty() {
-            let mean = node_reliabilities.iter().sum::<f64>() / node_reliabilities.len() as f64;
-            let median = calculate_median(&node_reliabilities);
-            (
-                Some((mean * 100.0).round() / 100.0),
-                Some((median * 100.0).round() / 100.0),
-            )
-        } else {
-            (None, None)
-        };
-
-        // Create route analysis for old method
-        let route_analysis = SimulatedRouteAnalysis {
-            id: 0, // Will be set by database
-            simulated_epoch_id: epoch_db_id,
-            calculation_method: "old".to_string(),
-            total_routes_analyzed: 0, // Old method doesn't use route data
-            successful_routes: 0,
-            failed_routes: 0,
-            average_route_reliability: mean_reliability,
-            time_window_hours: 24, // Old method uses 24h
-            analysis_parameters: Some(format!(
-                "{{\"method\":\"cache_based\",\"data_source\":\"status_cache\",\"median_reliability\":{},\"nodes_analyzed\":{}}}",
-                median_reliability.unwrap_or(0.0),
-                node_reliabilities.len()
-            )),
-            calculated_at: OffsetDateTime::now_utc().unix_timestamp(),
-        };
-
-        // Store results in database
-        self.storage
-            .manager
-            .insert_simulated_node_performance(&node_performance)
-            .await
-            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
-
-        self.storage
-            .manager
-            .insert_simulated_performance_comparisons(&performance_comparisons)
-            .await
-            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
-
-        // Calculate and store performance rankings
-        let rankings =
-            self.calculate_performance_rankings(&performance_comparisons, epoch_db_id, "old");
-        self.storage
-            .manager
-            .insert_simulated_performance_rankings(&rankings)
-            .await
-            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
-
-        self.storage
-            .manager
-            .insert_simulated_route_analysis(&route_analysis)
-            .await
-            .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
-
         Ok(())
     }
 

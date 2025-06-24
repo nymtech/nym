@@ -302,7 +302,6 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
                         .rewarding
                         .debug
                         .simulation_new_method_time_window_hours,
-                    run_both_methods: config.rewarding.debug.simulation_run_both_methods,
                     description: Some("Simulation run at epoch advancement".to_string()),
                 })
             } else {

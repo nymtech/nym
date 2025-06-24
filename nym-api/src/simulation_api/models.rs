@@ -72,6 +72,8 @@ pub struct NodePerformanceData {
     pub work_factor: Option<f64>,
     pub calculation_method: String,
     pub calculated_at: i64,
+    /// Production performance value (from last 24h cache)
+    pub production_performance: Option<f64>,
 }
 
 impl From<SimulatedNodePerformance> for NodePerformanceData {
@@ -86,6 +88,7 @@ impl From<SimulatedNodePerformance> for NodePerformanceData {
             work_factor: perf.work_factor.map(|w| (w * 100.0).round() / 100.0),
             calculation_method: perf.calculation_method,
             calculated_at: perf.calculated_at,
+            production_performance: None, // Will be populated from node annotations cache
         }
     }
 }

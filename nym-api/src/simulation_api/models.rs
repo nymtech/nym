@@ -80,10 +80,10 @@ impl From<SimulatedNodePerformance> for NodePerformanceData {
             node_id: perf.node_id,
             node_type: perf.node_type,
             identity_key: perf.identity_key,
-            reliability_score: perf.reliability_score,
+            reliability_score: (perf.reliability_score * 100.0).round() / 100.0,
             positive_samples: perf.positive_samples,
             negative_samples: perf.negative_samples,
-            work_factor: perf.work_factor,
+            work_factor: perf.work_factor.map(|w| (w * 100.0).round() / 100.0),
             calculation_method: perf.calculation_method,
             calculated_at: perf.calculated_at,
         }
@@ -109,12 +109,12 @@ impl From<SimulatedPerformanceComparison> for PerformanceComparisonData {
         Self {
             node_id: comparison.node_id,
             node_type: comparison.node_type,
-            performance_score: comparison.performance_score,
-            work_factor: comparison.work_factor,
+            performance_score: (comparison.performance_score * 100.0).round() / 100.0,
+            work_factor: (comparison.work_factor * 100.0).round() / 100.0,
             calculation_method: comparison.calculation_method,
             positive_samples: comparison.positive_samples,
             negative_samples: comparison.negative_samples,
-            route_success_rate: comparison.route_success_rate,
+            route_success_rate: comparison.route_success_rate.map(|r| (r * 100.0).round() / 100.0),
             calculated_at: comparison.calculated_at,
         }
     }
@@ -128,6 +128,7 @@ pub struct RouteAnalysisData {
     pub successful_routes: u32,
     pub failed_routes: u32,
     pub average_route_reliability: Option<f64>,
+    pub median_route_reliability: Option<f64>,
     pub time_window_hours: u32,
     pub analysis_parameters: Option<String>,
     pub calculated_at: i64,
@@ -135,12 +136,19 @@ pub struct RouteAnalysisData {
 
 impl From<SimulatedRouteAnalysis> for RouteAnalysisData {
     fn from(analysis: SimulatedRouteAnalysis) -> Self {
+        // Extract median from analysis_parameters JSON if available
+        let median_route_reliability = analysis.analysis_parameters.as_ref()
+            .and_then(|params| serde_json::from_str::<serde_json::Value>(params).ok())
+            .and_then(|json| json.get("median_reliability").and_then(|v| v.as_f64()))
+            .map(|m| (m * 100.0).round() / 100.0);
+            
         Self {
             calculation_method: analysis.calculation_method,
             total_routes_analyzed: analysis.total_routes_analyzed,
             successful_routes: analysis.successful_routes,
             failed_routes: analysis.failed_routes,
-            average_route_reliability: analysis.average_route_reliability,
+            average_route_reliability: analysis.average_route_reliability.map(|a| (a * 100.0).round() / 100.0),
+            median_route_reliability,
             time_window_hours: analysis.time_window_hours,
             analysis_parameters: analysis.analysis_parameters,
             calculated_at: analysis.calculated_at,
@@ -197,7 +205,7 @@ pub struct RouteAnalysisComparison {
     pub new_method: Option<RouteAnalysisData>,
     pub time_window_difference_hours: i32,    // new - old
     pub route_coverage_difference: i32,       // new total routes - old total routes
-    pub success_rate_difference: Option<f64>, // new success rate - old success rate
+    pub success_rate_difference: Option<f64>, // new average reliability - old average reliability
 }
 
 /// Export format options

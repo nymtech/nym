@@ -594,13 +594,13 @@ fn build_node_comparisons_with_rankings(
 
         // Calculate differences
         let reliability_difference = match (&old_perf, &new_perf) {
-            (Some(old), Some(new)) => Some(new.reliability_score - old.reliability_score),
+            (Some(old), Some(new)) => Some(((new.reliability_score - old.reliability_score) * 100.0).round() / 100.0),
             _ => None,
         };
 
         let performance_delta_percentage = match (&old_perf, &new_perf) {
             (Some(old), Some(new)) if old.reliability_score != 0.0 => Some(
-                (new.reliability_score - old.reliability_score) / old.reliability_score * 100.0,
+                (((new.reliability_score - old.reliability_score) / old.reliability_score * 100.0) * 100.0).round() / 100.0,
             ),
             _ => None,
         };
@@ -707,14 +707,14 @@ fn calculate_summary_statistics(comparisons: &[NodeMethodComparison]) -> Compari
         nodes_improved: improvements,
         nodes_degraded: degradations,
         nodes_unchanged: unchanged,
-        average_reliability_old,
-        average_reliability_new,
-        median_reliability_old,
-        median_reliability_new,
-        reliability_std_dev_old,
-        reliability_std_dev_new,
-        max_improvement,
-        max_degradation,
+        average_reliability_old: (average_reliability_old * 100.0).round() / 100.0,
+        average_reliability_new: (average_reliability_new * 100.0).round() / 100.0,
+        median_reliability_old: (median_reliability_old * 100.0).round() / 100.0,
+        median_reliability_new: (median_reliability_new * 100.0).round() / 100.0,
+        reliability_std_dev_old: (reliability_std_dev_old * 100.0).round() / 100.0,
+        reliability_std_dev_new: (reliability_std_dev_new * 100.0).round() / 100.0,
+        max_improvement: (max_improvement * 100.0).round() / 100.0,
+        max_degradation: (max_degradation * 100.0).round() / 100.0,
     }
 }
 
@@ -769,11 +769,13 @@ async fn get_route_analysis_comparison(
         _ => 0,
     };
 
-    let success_rate_difference = match (&old_analysis, &new_analysis) {
+    // For comparison, we now look at the average reliability difference between methods
+    let reliability_difference = match (&old_analysis, &new_analysis) {
         (Some(old), Some(new)) => {
-            let old_rate = old.successful_routes as f64 / old.total_routes_analyzed as f64;
-            let new_rate = new.successful_routes as f64 / new.total_routes_analyzed as f64;
-            Some(new_rate - old_rate)
+            match (old.average_route_reliability, new.average_route_reliability) {
+                (Some(old_avg), Some(new_avg)) => Some(((new_avg - old_avg) * 100.0).round() / 100.0),
+                _ => None
+            }
         }
         _ => None,
     };
@@ -783,7 +785,7 @@ async fn get_route_analysis_comparison(
         new_method: new_analysis,
         time_window_difference_hours,
         route_coverage_difference,
-        success_rate_difference,
+        success_rate_difference: reliability_difference,
     })
 }
 

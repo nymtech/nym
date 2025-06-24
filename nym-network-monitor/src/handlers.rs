@@ -197,12 +197,14 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
         .collect();
     let sent_msg = msg.clone();
 
+    debug!("[REQUEST_START] Processing send request {}", msg);
+
     let client = {
         let mut clients = state.clients().write().await;
         if let Some(client) = clients.make_contiguous().choose(&mut rand::thread_rng()) {
             Arc::clone(client)
         } else {
-            error!("No clients currently available");
+            error!("No clients currently available - this may cause connection refused errors");
             return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
     };
@@ -249,12 +251,16 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
         match result {
             Ok(_) => {}
             Err(e) => {
-                error!("Failed to send/receive message: {e}");
+                error!(
+                    "[REQUEST_ERROR] {} - Failed to send/receive message: {e}",
+                    sent_msg
+                );
                 return Err(StatusCode::GATEWAY_TIMEOUT);
             }
         }
     }
 
+    debug!("[REQUEST_SUCCESS] {} - Message sent successfully", sent_msg);
     Ok(sent_msg)
 }
 

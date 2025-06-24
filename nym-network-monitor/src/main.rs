@@ -50,8 +50,12 @@ async fn make_clients(
         if spawned_clients >= n_clients {
             info!("New client will be spawned in {} seconds", lifetime);
             tokio::time::sleep(tokio::time::Duration::from_secs(lifetime)).await;
-            info!("Removing oldest client");
+            info!("[CLIENT_ROTATION_START] Beginning client rotation");
             if let Some(dropped_client) = clients.write().await.pop_front() {
+                info!(
+                    "[CLIENT_ROTATION] Popped client from queue, current ref count: {}",
+                    Arc::strong_count(&dropped_client)
+                );
                 const CLIENT_DROP_TIMEOUT: Duration = Duration::from_secs(30);
                 let start = tokio::time::Instant::now();
 
@@ -60,18 +64,23 @@ async fn make_clients(
                     Ok(client) => {
                         let client_handle = client.into_inner();
                         client_handle.disconnect().await;
-                        info!("Successfully disconnected client immediately");
+                        info!("[CLIENT_ROTATION_END] Successfully disconnected client immediately");
                     }
                     Err(dropped_client) => {
                         // Fallback: wait with timeout for references to drop
-                        info!("Client still has references, waiting for cleanup with timeout");
+                        info!("[CLIENT_ROTATION_BLOCKING] Client still has {} references, waiting for cleanup with timeout", Arc::strong_count(&dropped_client));
                         while start.elapsed() < CLIENT_DROP_TIMEOUT {
-                            if Arc::strong_count(&dropped_client) == 1 {
+                            let elapsed = start.elapsed();
+                            let ref_count = Arc::strong_count(&dropped_client);
+                            if elapsed.as_secs() % 5 == 0 && elapsed.subsec_millis() < 100 {
+                                info!("[CLIENT_ROTATION_WAITING] Still waiting for client cleanup, elapsed: {:?}, ref_count: {}", elapsed, ref_count);
+                            }
+                            if ref_count == 1 {
                                 match Arc::try_unwrap(dropped_client) {
                                     Ok(client) => {
                                         let client_handle = client.into_inner();
                                         client_handle.disconnect().await;
-                                        info!("Successfully disconnected client after waiting");
+                                        info!("[CLIENT_ROTATION_END] Successfully disconnected client after waiting {:?}", start.elapsed());
                                         break;
                                     }
                                     Err(_) => {
@@ -85,7 +94,7 @@ async fn make_clients(
 
                         if start.elapsed() >= CLIENT_DROP_TIMEOUT {
                             warn!(
-                                "Client drop timed out after {:?}, forcing drop",
+                                "[CLIENT_ROTATION_TIMEOUT] Client drop timed out after {:?}, forcing drop.",
                                 CLIENT_DROP_TIMEOUT
                             );
                             // Client will be dropped when Arc goes out of scope
@@ -94,7 +103,7 @@ async fn make_clients(
                 }
             }
         }
-        info!("Spawning new client");
+        info!("[CLIENT_SPAWN_START] Spawning new client");
         let client = match make_client(topology.clone()).await {
             Ok(client) => client,
             Err(err) => {
@@ -106,6 +115,7 @@ async fn make_clients(
             .write()
             .await
             .push_back(Arc::new(RwLock::new(client)));
+        info!("[CLIENT_SPAWN_END] New client added to pool");
     }
 }
 
@@ -165,6 +175,9 @@ struct Args {
 
     #[arg(long, env = "NYM_APIS", value_delimiter = ',')]
     nym_apis: Option<Vec<String>>,
+
+    #[arg(long, env = "TCP_BACKLOG", default_value_t = 1024)]
+    tcp_backlog: i32,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -273,9 +286,10 @@ async fn main() -> Result<()> {
 
     let clients_server = clients.clone();
 
+    let tcp_backlog = args.tcp_backlog;
     let server_handle = tokio::spawn(async move {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
-        let server = HttpServer::new(socket, server_cancel_token);
+        let server = HttpServer::new(socket, server_cancel_token, tcp_backlog);
         server.run(clients_server).await
     });
 

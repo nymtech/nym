@@ -6069,9 +6069,13 @@ dependencies = [
  "reqwest 0.12.20",
  "serde",
  "serde_json",
+ "socket2",
  "tokio",
  "tokio-postgres",
  "tokio-util",
+ "tower 0.5.2",
+ "tower-http 0.5.2",
+ "tracing",
  "utoipa",
  "utoipa-swagger-ui",
 ]

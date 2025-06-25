@@ -1756,15 +1756,44 @@ impl StorageManager {
 
     // Simulated Rewarding System CRUD Methods
 
+    /// Checks if a simulation already exists for the given epoch and method
+    pub(crate) async fn get_existing_simulation_epoch(
+        &self,
+        epoch_id: u32,
+        calculation_method: &str,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+                SELECT id as "id!" FROM simulated_reward_epochs 
+                WHERE epoch_id = ? AND calculation_method = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            "#,
+            epoch_id,
+            calculation_method,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(result.map(|r| r.id))
+    }
+
     /// Creates a new simulated reward epoch and returns its ID
-    pub(crate) async fn create_simulated_reward_epoch(
+    /// Returns existing ID if a simulation for this epoch and method already exists
+    pub(crate) async fn create_or_get_simulated_reward_epoch(
         &self,
         epoch_id: u32,
         calculation_method: &str,
         start_timestamp: i64,
         end_timestamp: i64,
         description: Option<&str>,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<(i64, bool), sqlx::Error> {
+        // Check if simulation already exists
+        if let Some(existing_id) = self.get_existing_simulation_epoch(epoch_id, calculation_method).await? {
+            return Ok((existing_id, false)); // Return existing ID and false (not newly created)
+        }
+
+        // Create new simulation epoch
         let result = sqlx::query!(
             r#"
                     INSERT INTO simulated_reward_epochs 
@@ -1780,7 +1809,7 @@ impl StorageManager {
         .execute(&self.connection_pool)
         .await?;
 
-        Ok(result.last_insert_rowid())
+        Ok((result.last_insert_rowid(), true)) // Return new ID and true (newly created)
     }
 
     /// Inserts simulated node performance data

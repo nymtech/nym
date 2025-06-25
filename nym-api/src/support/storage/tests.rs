@@ -24,9 +24,9 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Test create
-        let epoch_id = storage
+        let (epoch_id, is_new) = storage
             .manager
-            .create_simulated_reward_epoch(
+            .create_or_get_simulated_reward_epoch(
                 100,
                 "test",
                 1234567890,
@@ -35,6 +35,7 @@ mod simulation_storage_tests {
             )
             .await
             .unwrap();
+        assert!(is_new);
 
         assert!(epoch_id > 0);
 
@@ -52,6 +53,38 @@ mod simulation_storage_tests {
         assert_eq!(epoch.start_timestamp, 1234567890);
         assert_eq!(epoch.end_timestamp, 1234571490);
         assert_eq!(epoch.description, Some("Test description".to_string()));
+
+        // Test duplicate prevention
+        let (duplicate_epoch_id, is_duplicate_new) = storage
+            .manager
+            .create_or_get_simulated_reward_epoch(
+                100,
+                "test",
+                1234567890,
+                1234571490,
+                Some("Duplicate attempt"),
+            )
+            .await
+            .unwrap();
+
+        assert!(!is_duplicate_new);
+        assert_eq!(duplicate_epoch_id, epoch_id); // Should return the same ID
+
+        // Different method should create new entry
+        let (different_method_id, is_different_new) = storage
+            .manager
+            .create_or_get_simulated_reward_epoch(
+                100,
+                "new",
+                1234567890,
+                1234571490,
+                Some("Different method"),
+            )
+            .await
+            .unwrap();
+
+        assert!(is_different_new);
+        assert_ne!(different_method_id, epoch_id); // Should be a different ID
     }
 
     #[tokio::test]
@@ -59,9 +92,9 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Create parent epoch first
-        let epoch_id = storage
+        let (epoch_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
+            .create_or_get_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
             .await
             .unwrap();
 
@@ -106,9 +139,9 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Create parent epoch first
-        let epoch_id = storage
+        let (epoch_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
+            .create_or_get_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
             .await
             .unwrap();
 
@@ -153,9 +186,9 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Create parent epoch first
-        let epoch_id = storage
+        let (epoch_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
+            .create_or_get_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
             .await
             .unwrap();
 
@@ -226,9 +259,9 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Create epoch
-        let epoch_id = storage
+        let (epoch_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(100, "comparison", 1234567890, 1234571490, None)
+            .create_or_get_simulated_reward_epoch(100, "comparison", 1234567890, 1234571490, None)
             .await
             .unwrap();
 
@@ -300,15 +333,15 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Create multiple epochs
-        let epoch1_id = storage
+        let (epoch1_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(100, "comparison", 1234567890, 1234571490, None)
+            .create_or_get_simulated_reward_epoch(100, "comparison", 1234567890, 1234571490, None)
             .await
             .unwrap();
 
-        let epoch2_id = storage
+        let (epoch2_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(101, "comparison", 1234571490, 1234575090, None)
+            .create_or_get_simulated_reward_epoch(101, "comparison", 1234571490, 1234575090, None)
             .await
             .unwrap();
 
@@ -369,9 +402,9 @@ mod simulation_storage_tests {
         let storage = create_test_storage().await;
 
         // Create epoch
-        let epoch_id = storage
+        let (epoch_id, _) = storage
             .manager
-            .create_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
+            .create_or_get_simulated_reward_epoch(100, "test", 1234567890, 1234571490, None)
             .await
             .unwrap();
 

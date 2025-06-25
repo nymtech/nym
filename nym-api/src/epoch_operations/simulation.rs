@@ -72,11 +72,11 @@ impl<'a> SimulationCoordinator<'a> {
             current_epoch_id, self.config.new_method_time_window_hours
         );
 
-        // Create simulation epoch record
-        let epoch_db_id = self
+        // Create simulation epoch record or get existing one
+        let (epoch_db_id, is_new) = self
             .storage
             .manager
-            .create_simulated_reward_epoch(
+            .create_or_get_simulated_reward_epoch(
                 current_epoch_id,
                 "new",
                 start_timestamp,
@@ -85,6 +85,14 @@ impl<'a> SimulationCoordinator<'a> {
             )
             .await
             .map_err(|e| RewardingError::DatabaseError { source: e.into() })?;
+
+        if !is_new {
+            info!(
+                "Simulation for epoch {} already exists (id: {}), skipping duplicate simulation",
+                current_epoch_id, epoch_db_id
+            );
+            return Ok(());
+        }
 
         // Run new method simulation only
         match self

@@ -76,6 +76,12 @@ pub struct NodePerformanceData {
     pub production_performance: Option<f64>,
 }
 
+impl NodePerformanceData {
+    pub fn total_samples(&self) -> u32 {
+        self.positive_samples + self.negative_samples
+    }
+}
+
 impl From<SimulatedNodePerformance> for NodePerformanceData {
     fn from(perf: SimulatedNodePerformance) -> Self {
         Self {

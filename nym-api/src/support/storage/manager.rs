@@ -1789,7 +1789,10 @@ impl StorageManager {
         description: Option<&str>,
     ) -> Result<(i64, bool), sqlx::Error> {
         // Check if simulation already exists
-        if let Some(existing_id) = self.get_existing_simulation_epoch(epoch_id, calculation_method).await? {
+        if let Some(existing_id) = self
+            .get_existing_simulation_epoch(epoch_id, calculation_method)
+            .await?
+        {
             return Ok((existing_id, false)); // Return existing ID and false (not newly created)
         }
 

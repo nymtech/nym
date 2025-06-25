@@ -237,9 +237,14 @@ async fn compare_methods(
         .ok_or_else(|| to_axum_error(SimulationApiError::new("Simulation epoch not found")))?;
 
     // Get simulation performance data
-    let mut performance_data = get_performance_by_method(storage, sim_epoch.epoch_id, "new")
+    let performance_data = get_performance_by_method(storage, sim_epoch.epoch_id, "new")
         .await
         .map_err(to_axum_error)?;
+
+    let mut performance_data: Vec<NodePerformanceData> = performance_data
+        .into_iter()
+        .filter(|p| p.total_samples() > 0)
+        .collect();
 
     // Populate production performance from node annotations cache
     let node_annotations = state

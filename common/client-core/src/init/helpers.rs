@@ -7,6 +7,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::GatewayClient;
+use nym_gateway_requests::{ClientControlRequest, ServerResponse, CURRENT_PROTOCOL_VERSION};
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
@@ -131,6 +132,63 @@ pub async fn gateways_for_init<R: Rng>(
     Ok(valid_gateways)
 }
 
+pub async fn gateways_for_init_with_protocol_validation<R: Rng>(
+    rng: &mut R,
+    nym_apis: &[Url],
+    user_agent: Option<UserAgent>,
+    minimum_performance: u8,
+    ignore_epoch_roles: bool,
+) -> Result<Vec<RoutingNode>, ClientCoreError> {
+    // First get the initial list of gateways
+    let gateways = gateways_for_init(
+        rng,
+        nym_apis,
+        user_agent,
+        minimum_performance,
+        ignore_epoch_roles,
+    )
+    .await?;
+
+    info!(
+        "Checking protocol compatibility for {} gateways...",
+        gateways.len()
+    );
+
+    // Filter out gateways with invalid protocols concurrently
+    let validated_gateways = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+
+    futures::stream::iter(&gateways)
+        .for_each_concurrent(CONCURRENT_GATEWAYS_MEASURED, |gateway| async {
+            let id = gateway.identity();
+            trace!("validating protocol compatibility with {id}...");
+
+            match validate_gateway_protocol(gateway).await {
+                Ok(()) => {
+                    debug!("{id}: protocol check successful");
+                    validated_gateways.lock().await.push(gateway.clone());
+                }
+                Err(err) => {
+                    warn!("failed to check protocol for {id}: {err}");
+                }
+            }
+        })
+        .await;
+
+    let validated_gateways = validated_gateways.lock().await;
+
+    info!(
+        "Protocol check complete: {}/{} gateways responded successfully",
+        validated_gateways.len(),
+        gateways.len()
+    );
+
+    if validated_gateways.is_empty() {
+        return Err(ClientCoreError::NoGatewaysWithCompatibleProtocol);
+    }
+
+    Ok(validated_gateways.clone())
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     match tokio::time::timeout(CONN_TIMEOUT, connect_async(endpoint)).await {
@@ -208,6 +266,132 @@ where
     let avg = Duration::from_nanos(sum.as_nanos() as u64 / count);
 
     Ok(GatewayWithLatency::new(gateway, avg))
+}
+
+async fn validate_gateway_protocol<G>(gateway: &G) -> Result<(), ClientCoreError>
+where
+    G: ConnectableGateway,
+{
+    let Some(addr) = gateway.clients_address(false) else {
+        return Err(ClientCoreError::UnsupportedEntry {
+            id: gateway.node_id(),
+            identity: gateway.identity().to_string(),
+        });
+    };
+
+    trace!(
+        "validating protocol compatibility with {} ({addr})...",
+        gateway.identity(),
+    );
+
+    let mut stream = connect(&addr).await?;
+
+    // Send protocol version request
+    let protocol_request = ClientControlRequest::SupportedProtocol {};
+
+    // Send the request as JSON text message
+    stream.send(Message::from(protocol_request)).await?;
+
+    // Wait for response with timeout
+    let protocol_timeout = Duration::from_millis(2000);
+    let response_future = stream.next();
+
+    match tokio::time::timeout(protocol_timeout, response_future).await {
+        Err(_) => {
+            warn!("Gateway {} protocol check timed out", gateway.identity());
+            Err(ClientCoreError::GatewayConnectionTimeout)
+        }
+        Ok(Some(Ok(Message::Text(response_text)))) => {
+            // Try to deserialize the response
+            let response = ServerResponse::try_from(response_text).map_err(|_| {
+                ClientCoreError::GatewayClientError {
+                    gateway_id: gateway.identity().to_base58_string(),
+                    source: *Box::new(
+                        nym_gateway_client::error::GatewayClientError::MalformedResponse,
+                    ),
+                }
+            })?;
+
+            match response {
+                ServerResponse::SupportedProtocol { version } => {
+                    debug!(
+                        "Gateway {} supports protocol version {}, ours: {}",
+                        gateway.identity(),
+                        version,
+                        CURRENT_PROTOCOL_VERSION
+                    );
+
+                    // Check protocol compatibility
+                    if version > CURRENT_PROTOCOL_VERSION {
+                        warn!(
+                            "Gateway {} uses newer protocol version {} (client supports {}). \
+                            Gateway should gracefully degrade, but consider updating your client.",
+                            gateway.identity(),
+                            version,
+                            CURRENT_PROTOCOL_VERSION
+                        );
+                    }
+
+                    trace!(
+                        "Gateway {} protocol validation successful (gateway: v{}, client: v{})",
+                        gateway.identity(),
+                        version,
+                        CURRENT_PROTOCOL_VERSION
+                    );
+                    Ok(())
+                }
+                ServerResponse::Error { message } => {
+                    warn!(
+                        "Gateway {} returned error during protocol check: {}",
+                        gateway.identity(),
+                        message
+                    );
+                    Err(ClientCoreError::GatewayClientError {
+                        gateway_id: gateway.identity().to_base58_string(),
+                        source: *Box::new(
+                            nym_gateway_client::error::GatewayClientError::GatewayError(message),
+                        ),
+                    })
+                }
+                _ => {
+                    warn!(
+                        "Gateway {} returned unexpected response during protocol check",
+                        gateway.identity()
+                    );
+                    Err(ClientCoreError::GatewayClientError {
+                        gateway_id: gateway.identity().to_base58_string(),
+                        source: *Box::new(
+                            nym_gateway_client::error::GatewayClientError::UnexpectedResponse {
+                                name: response.name().to_string(),
+                            },
+                        ),
+                    })
+                }
+            }
+        }
+        Ok(Some(Ok(_))) => {
+            warn!(
+                "Gateway {} sent non-text response during protocol check",
+                gateway.identity()
+            );
+            Err(ClientCoreError::GatewayConnectionAbruptlyClosed)
+        }
+        Ok(Some(Err(e))) => {
+            warn!(
+                "WebSocket error during protocol check with {}: {}",
+                gateway.identity(),
+                e
+            );
+            Err(e.into())
+        }
+        Ok(None) => {
+            warn!(
+                "Gateway {} closed connection during protocol check",
+                gateway.identity()
+            );
+            Err(ClientCoreError::GatewayConnectionAbruptlyClosed)
+        }
+    }
 }
 
 pub async fn choose_gateway_by_latency<R: Rng, G: ConnectableGateway + Clone>(

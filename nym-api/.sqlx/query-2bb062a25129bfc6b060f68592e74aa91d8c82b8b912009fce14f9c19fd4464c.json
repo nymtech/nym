@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT INTO simulated_reward_epochs \n                    (epoch_id, calculation_method, start_timestamp, end_timestamp, description)\n                    VALUES (?, ?, ?, ?, ?)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "2bb062a25129bfc6b060f68592e74aa91d8c82b8b912009fce14f9c19fd4464c"
+}

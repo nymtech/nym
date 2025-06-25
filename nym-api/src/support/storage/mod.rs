@@ -31,6 +31,9 @@ pub(crate) mod manager;
 pub(crate) mod models;
 pub(crate) mod runtime_migrations;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Default)]
 pub(crate) struct DbIdCache {
     pub mixnodes_v1: DashMap<NodeId, i64>,
@@ -940,8 +943,9 @@ impl NymApiStorage {
     /// * `until`: timestamp specifying the purge cutoff.
     pub(crate) async fn purge_old_statuses(&self, until: i64) -> Result<(), NymApiStorageError> {
         self.manager.purge_old_mixnode_statuses(until).await?;
+        self.manager.purge_old_gateway_statuses(until).await?;
         self.manager
-            .purge_old_gateway_statuses(until)
+            .purge_old_routes(until)
             .await
             .map_err(|err| err.into())
     }
@@ -1044,6 +1048,24 @@ pub(crate) mod v3_migration {
 
         pub(crate) async fn make_node_id_not_null(&self) -> Result<(), NymApiStorageError> {
             Ok(self.manager.make_node_id_not_null().await?)
+        }
+
+        /// Get mixnode identity key by node ID
+        #[allow(dead_code)]
+        pub(crate) async fn get_mixnode_identity_key(
+            &self,
+            mix_id: NodeId,
+        ) -> Result<Option<String>, NymApiStorageError> {
+            Ok(self.manager.get_mixnode_identity_key(mix_id).await?)
+        }
+
+        /// Get gateway identity key by node ID
+        #[allow(dead_code)]
+        pub(crate) async fn get_gateway_identity_key(
+            &self,
+            node_id: NodeId,
+        ) -> Result<Option<String>, NymApiStorageError> {
+            Ok(self.manager.get_gateway_identity_key(node_id).await?)
         }
     }
 }

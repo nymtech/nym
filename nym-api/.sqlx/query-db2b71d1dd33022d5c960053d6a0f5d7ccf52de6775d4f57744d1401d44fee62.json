@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT id as \"id!\", simulated_epoch_id as \"simulated_epoch_id!\", \n                           calculation_method as \"calculation_method!\", total_routes_analyzed as \"total_routes_analyzed!: u32\", \n                           successful_routes as \"successful_routes!: u32\", failed_routes as \"failed_routes!: u32\", \n                           average_route_reliability, time_window_hours as \"time_window_hours!: u32\", \n                           analysis_parameters, calculated_at as \"calculated_at!\"\n                    FROM simulated_route_analysis\n                    WHERE simulated_epoch_id = ?\n                    ORDER BY calculation_method\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "simulated_epoch_id!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "calculation_method!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_routes_analyzed!: u32",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "successful_routes!: u32",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "failed_routes!: u32",
+        "ordinal": 5,
+        "type_info": "Int64"
+      },
+      {
+        "name": "average_route_reliability",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "time_window_hours!: u32",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "analysis_parameters",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "calculated_at!",
+        "ordinal": 9,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "db2b71d1dd33022d5c960053d6a0f5d7ccf52de6775d4f57744d1401d44fee62"
+}

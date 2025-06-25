@@ -22,6 +22,7 @@ use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
+use simulation::SimulationConfig;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -32,6 +33,7 @@ mod event_reconciliation;
 mod helpers;
 mod rewarded_set_assignment;
 mod rewarding;
+pub(crate) mod simulation;
 mod transition_beginning;
 
 // naming things is difficult, ok?
@@ -42,6 +44,7 @@ pub struct EpochAdvancer {
     described_cache: SharedCache<DescribedNodes>,
     status_cache: NodeStatusCache,
     storage: NymApiStorage,
+    simulation_config: Option<SimulationConfig>,
 }
 
 impl EpochAdvancer {
@@ -57,6 +60,7 @@ impl EpochAdvancer {
         status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
+        simulation_config: Option<SimulationConfig>,
     ) -> Self {
         EpochAdvancer {
             nyxd_client,
@@ -64,6 +68,7 @@ impl EpochAdvancer {
             described_cache,
             status_cache,
             storage,
+            simulation_config,
         }
     }
 
@@ -136,29 +141,81 @@ impl EpochAdvancer {
 
             if epoch_status.being_advanced_by.as_str() != address.as_ref() {
                 // another nym-api is already handling
-                error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
-                return Ok(());
+                // In simulation mode, we want to proceed anyway since we're not actually advancing the epoch
+                if self.simulation_config.is_some() {
+                    info!("Another nym-api ({}) is advancing the epoch, but we're in simulation mode so proceeding anyway", epoch_status.being_advanced_by);
+                } else {
+                    error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
+                    return Ok(());
+                }
             } else {
                 warn!("we seem to have crashed mid-epoch advancement...");
             }
         } else {
-            let should_continue = self.begin_epoch_transition().await?;
-            if !should_continue {
-                return Ok(());
+            // In simulation mode, skip trying to begin epoch transition
+            if self.simulation_config.is_none() {
+                let should_continue = self.begin_epoch_transition().await?;
+                if !should_continue {
+                    return Ok(());
+                }
+            } else {
+                info!("Skipping epoch transition in simulation mode - proceeding to performance calculations");
             }
         }
 
-        // Reward all the nodes in the still current, soon to be previous rewarded set
-        info!("Rewarding the current rewarded set...");
-        self.reward_current_rewarded_set(rewards, interval).await?;
+        // Run simulation if enabled (before actual rewarding)
+        if let Some(simulation_config) = &self.simulation_config {
+            info!(
+                "Running reward simulation for epoch {}",
+                interval.current_epoch_absolute_id()
+            );
+            let rewarded_set = match self.nyxd_client.get_rewarded_set_nodes().await {
+                Ok(rewarded_set) => rewarded_set,
+                Err(err) => {
+                    warn!("Failed to obtain current rewarded set for simulation: {err}. Falling back to cached version");
+                    self.nym_contract_cache
+                        .rewarded_set_owned()
+                        .await
+                        .into_inner()
+                        .into()
+                }
+            };
 
-        // note: those operations don't really have to be atomic, so it's fine to send them
-        // as separate transactions
-        self.reconcile_epoch_events().await?;
-        self.update_rewarded_set_and_advance_epoch(&nym_nodes)
-            .await?;
+            if let Some(reward_params) = self
+                .nym_contract_cache
+                .interval_reward_params()
+                .await
+                .into_inner()
+            {
+                let _ = self
+                    .run_simulation_if_enabled(
+                        &rewarded_set,
+                        reward_params,
+                        interval.current_epoch_absolute_id(),
+                        simulation_config.clone(),
+                    )
+                    .await;
+            } else {
+                warn!("Could not obtain reward parameters for simulation");
+            }
+        }
 
-        info!("Purging old node statuses from the storage...");
+        // Skip actual rewarding operations in simulation mode
+        if self.simulation_config.is_none() {
+            // Reward all the nodes in the still current, soon to be previous rewarded set
+            info!("Rewarding the current rewarded set...");
+            self.reward_current_rewarded_set(rewards, interval).await?;
+
+            // note: those operations don't really have to be atomic, so it's fine to send them
+            // as separate transactions
+            self.reconcile_epoch_events().await?;
+            self.update_rewarded_set_and_advance_epoch(&nym_nodes)
+                .await?;
+        } else {
+            info!("Skipping actual reward distribution in simulation mode");
+        }
+
+        info!("Purging old data (node statuses and routes) from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
@@ -297,6 +354,7 @@ impl EpochAdvancer {
         status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
+        simulation_config: Option<SimulationConfig>,
         shutdown: &TaskManager,
     ) {
         let mut rewarded_set_updater = EpochAdvancer::new(
@@ -305,6 +363,7 @@ impl EpochAdvancer {
             status_cache.to_owned(),
             described_cache,
             storage.to_owned(),
+            simulation_config,
         );
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });

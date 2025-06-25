@@ -59,6 +59,9 @@ pub enum RewardingError {
     #[error("could not obtain the current interval rewarding parameters")]
     RewardingParamsRetrievalFailure,
 
+    #[error("Database operation failed: {source}")]
+    DatabaseError { source: anyhow::Error },
+
     #[error("{0}")]
     GenericError(#[from] anyhow::Error),
 }

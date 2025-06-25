@@ -11,7 +11,7 @@ static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     nm
 });
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, ToSchema, Eq, PartialEq, Hash)]
 pub struct RouteResult {
     pub layer1: u32,
     pub layer2: u32,

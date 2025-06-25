@@ -11,7 +11,7 @@ use crate::support::storage::models::{
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
 use nym_types::monitoring::{NodeResult, RouteResult};
-use sqlx::FromRow;
+use sqlx::{FromRow, Row};
 use std::collections::HashMap;
 use time::{Date, OffsetDateTime};
 use tracing::info;
@@ -101,16 +101,21 @@ impl StorageManager {
             .await
             .map_err(|_e| sqlx::Error::PoolClosed)?; // Example: map anyhow::Error to sqlx::Error; adjust as needed
 
+        // Collect all node IDs for batch classification
+        let node_ids: Vec<NodeId> = corrected_reliabilities
+            .iter()
+            .map(|node| node.node_id)
+            .collect();
+
+        // Batch classify nodes to determine which are mixnodes
+        let (mixnode_ids, _) = self.classify_nodes_batch(&node_ids).await?;
+        let mixnode_set: std::collections::HashSet<NodeId> = mixnode_ids.into_iter().collect();
+
         let mut avg_mix_reliabilities = Vec::new();
 
         for corrected_node_info in corrected_reliabilities {
-            // Check if this node_id is a mixnode by attempting to fetch its identity key as a mixnode.
-            // This relies on get_mixnode_identity_key returning Some for mixnodes and None (or error) for non-mixnodes.
-            if self
-                .get_mixnode_identity_key(corrected_node_info.node_id)
-                .await?
-                .is_some()
-            {
+            // Check if this node_id is a mixnode using our batch result
+            if mixnode_set.contains(&corrected_node_info.node_id) {
                 avg_mix_reliabilities.push(AvgMixnodeReliability {
                     mix_id: corrected_node_info.node_id,
                     value: Some(corrected_node_info.reliability as f32),
@@ -131,15 +136,21 @@ impl StorageManager {
             .await
             .map_err(|_e| sqlx::Error::PoolClosed)?; // Example: map anyhow::Error to sqlx::Error; adjust as needed
 
+        // Collect all node IDs for batch classification
+        let node_ids: Vec<NodeId> = corrected_reliabilities
+            .iter()
+            .map(|node| node.node_id)
+            .collect();
+
+        // Batch classify nodes to determine which are gateways
+        let (_, gateway_ids) = self.classify_nodes_batch(&node_ids).await?;
+        let gateway_set: std::collections::HashSet<NodeId> = gateway_ids.into_iter().collect();
+
         let mut avg_gateway_reliabilities = Vec::new();
 
         for corrected_node_info in corrected_reliabilities {
-            // Check if this node_id is a gateway.
-            if self
-                .get_gateway_identity_key(corrected_node_info.node_id)
-                .await?
-                .is_some()
-            {
+            // Check if this node_id is a gateway using our batch result
+            if gateway_set.contains(&corrected_node_info.node_id) {
                 let total_samples = corrected_node_info.pos_samples_in_interval
                     + corrected_node_info.neg_samples_in_interval;
                 let reliability_value = if total_samples <= 3 {
@@ -232,6 +243,90 @@ impl StorageManager {
         Ok(identity_key)
     }
 
+    /// Batch version of get_gateway_identity_key for improved performance.
+    /// Returns a HashMap mapping node_id to identity for all found gateways.
+    pub(crate) async fn get_gateway_identity_keys_batch(
+        &self,
+        node_ids: &[NodeId],
+    ) -> Result<std::collections::HashMap<NodeId, IdentityKey>, sqlx::Error> {
+        if node_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        // Create placeholders for the IN clause
+        let placeholders = node_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+        let query = format!(
+            "SELECT node_id, identity FROM gateway_details WHERE node_id IN ({})",
+            placeholders
+        );
+
+        let mut query_builder = sqlx::query(&query);
+        for node_id in node_ids {
+            query_builder = query_builder.bind(node_id);
+        }
+
+        let rows = query_builder.fetch_all(&self.connection_pool).await?;
+
+        let mut result = std::collections::HashMap::new();
+        for row in rows {
+            let node_id: NodeId = row.try_get("node_id")?;
+            let identity: Option<String> = row.try_get("identity")?;
+            if let Some(key) = identity {
+                result.insert(node_id, key);
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Batch method to classify nodes as mixnodes or gateways.
+    /// Returns (mixnode_ids, gateway_ids) as separate vectors for easier processing.
+    pub(crate) async fn classify_nodes_batch(
+        &self,
+        node_ids: &[NodeId],
+    ) -> Result<(Vec<NodeId>, Vec<NodeId>), sqlx::Error> {
+        if node_ids.is_empty() {
+            return Ok((Vec::new(), Vec::new()));
+        }
+
+        // Query both tables to determine which nodes are mixnodes vs gateways
+        let placeholders = node_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+
+        // First get all mixnode IDs
+        let mixnode_query = format!(
+            "SELECT mix_id FROM mixnode_details WHERE mix_id IN ({})",
+            placeholders
+        );
+        let mut query_builder = sqlx::query(&mixnode_query);
+        for node_id in node_ids {
+            query_builder = query_builder.bind(node_id);
+        }
+        let mixnode_rows = query_builder.fetch_all(&self.connection_pool).await?;
+
+        let mixnode_ids: Vec<NodeId> = mixnode_rows
+            .into_iter()
+            .map(|row| row.try_get("mix_id"))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Then get all gateway IDs
+        let gateway_query = format!(
+            "SELECT node_id FROM gateway_details WHERE node_id IN ({})",
+            placeholders
+        );
+        let mut query_builder = sqlx::query(&gateway_query);
+        for node_id in node_ids {
+            query_builder = query_builder.bind(node_id);
+        }
+        let gateway_rows = query_builder.fetch_all(&self.connection_pool).await?;
+
+        let gateway_ids: Vec<NodeId> = gateway_rows
+            .into_iter()
+            .map(|row| row.try_get("node_id"))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok((mixnode_ids, gateway_ids))
+    }
+
     /// Tries to obtain identity value of given mixnode given its mix_id
     ///
     /// # Arguments
@@ -250,6 +345,42 @@ impl StorageManager {
         .map(|row| row.identity_key);
 
         Ok(identity_key)
+    }
+
+    /// Batch version of get_mixnode_identity_key for improved performance.
+    /// Returns a HashMap mapping node_id to identity_key for all found mixnodes.
+    pub(crate) async fn get_mixnode_identity_keys_batch(
+        &self,
+        mix_ids: &[NodeId],
+    ) -> Result<std::collections::HashMap<NodeId, IdentityKey>, sqlx::Error> {
+        if mix_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        // Create placeholders for the IN clause
+        let placeholders = mix_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+        let query = format!(
+            "SELECT mix_id, identity_key FROM mixnode_details WHERE mix_id IN ({})",
+            placeholders
+        );
+
+        let mut query_builder = sqlx::query(&query);
+        for mix_id in mix_ids {
+            query_builder = query_builder.bind(mix_id);
+        }
+
+        let rows = query_builder.fetch_all(&self.connection_pool).await?;
+
+        let mut result = std::collections::HashMap::new();
+        for row in rows {
+            let mix_id: NodeId = row.try_get("mix_id")?;
+            let identity_key: Option<String> = row.try_get("identity_key")?;
+            if let Some(key) = identity_key {
+                result.insert(mix_id, key);
+            }
+        }
+
+        Ok(result)
     }
 
     /// Gets all reliability statuses for mixnode with particular identity that were inserted
@@ -706,7 +837,7 @@ impl StorageManager {
         for route_result in route_results {
             sqlx::query!(
                 r#"
-                    INSERT OR IGNORE INTO routes (layer1, layer2, layer3, gw, success) VALUES (?, ?, ?, ?, ?);
+                    INSERT INTO routes (layer1, layer2, layer3, gw, success) VALUES (?, ?, ?, ?, ?);
                 "#,
                 route_result.layer1,
                 route_result.layer2,
@@ -1067,6 +1198,19 @@ impl StorageManager {
         Ok(())
     }
 
+    /// Removes all route monitoring results that are older than the
+    /// provided timestamp. This method is indirectly called at every reward cycle.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp`: timestamp specifying the purge cutoff.
+    pub(super) async fn purge_old_routes(&self, timestamp: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM routes WHERE timestamp < ?", timestamp)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
     /// Returns public key, owner and id of all mixnodes that have had any statuses submitted
     /// within the provided time interval.
     ///
@@ -1412,7 +1556,7 @@ impl StorageManager {
         let db_routes = sqlx::query_as!(
             RawRouteData,
             r#"
-            SELECT
+            SELECT DISTINCT
                 layer1 as "layer1",
                 layer2 as "layer2",
                 layer3 as "layer3",
@@ -1503,7 +1647,7 @@ impl StorageManager {
             let reliability = if total_samples == 0 {
                 0.0 // Default for no samples in this interval. Consider Option<f64> or filtering.
             } else {
-                state.pos_samples as f64 / total_samples as f64
+                (state.pos_samples as f64 / total_samples as f64) * 100.0
             };
 
             // Attempt to fetch identity, first as mixnode, then as gateway if not found.
@@ -1528,69 +1672,70 @@ impl StorageManager {
     }
 }
 
-pub(crate) mod v3_migration {
-    use crate::support::storage::manager::StorageManager;
-    use crate::support::storage::models::GatewayDetailsBeforeMigration;
-    use nym_mixnet_contract_common::NodeId;
+use crate::storage::models::{
+    SimulatedNodePerformance, SimulatedPerformanceComparison, SimulatedPerformanceRanking,
+    SimulatedRewardEpoch, SimulatedRouteAnalysis,
+};
+use crate::support::storage::models::GatewayDetailsBeforeMigration;
 
-    impl StorageManager {
-        pub(crate) async fn check_v3_migration(&self) -> Result<bool, sqlx::Error> {
-            sqlx::query!("SELECT EXISTS (SELECT 1 FROM v3_migration_info) AS 'exists'",)
-                .fetch_one(&self.connection_pool)
-                .await
-                .map(|result| result.exists == Some(1))
-        }
+impl StorageManager {
+    pub(crate) async fn check_v3_migration(&self) -> Result<bool, sqlx::Error> {
+        sqlx::query!("SELECT EXISTS (SELECT 1 FROM v3_migration_info) AS 'exists'",)
+            .fetch_one(&self.connection_pool)
+            .await
+            .map(|result| result.exists == Some(1))
+    }
 
-        pub(crate) async fn set_v3_migration_completion(&self) -> Result<(), sqlx::Error> {
-            sqlx::query!("INSERT INTO v3_migration_info(id) VALUES (0)")
-                .execute(&self.connection_pool)
-                .await?;
-            Ok(())
-        }
-
-        pub(crate) async fn get_all_known_gateways(
-            &self,
-        ) -> Result<Vec<GatewayDetailsBeforeMigration>, sqlx::Error> {
-            sqlx::query_as("SELECT * FROM gateway_details")
-                .fetch_all(&self.connection_pool)
-                .await
-        }
-
-        pub(crate) async fn set_gateway_node_id(
-            &self,
-            identity: &str,
-            node_id: NodeId,
-        ) -> Result<(), sqlx::Error> {
-            sqlx::query!(
-                "UPDATE gateway_details SET node_id = ? WHERE identity = ?",
-                node_id,
-                identity
-            )
+    pub(crate) async fn set_v3_migration_completion(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("INSERT INTO v3_migration_info(id) VALUES (0)")
             .execute(&self.connection_pool)
             .await?;
-            Ok(())
-        }
+        Ok(())
+    }
 
-        pub(crate) async fn purge_gateway(&self, db_id: i64) -> Result<(), sqlx::Error> {
-            sqlx::query!(
-                r#"
+    pub(crate) async fn get_all_known_gateways(
+        &self,
+    ) -> Result<Vec<GatewayDetailsBeforeMigration>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM gateway_details")
+            .fetch_all(&self.connection_pool)
+            .await
+    }
+
+    pub(crate) async fn set_gateway_node_id(
+        &self,
+        identity: &str,
+        node_id: NodeId,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE gateway_details SET node_id = ? WHERE identity = ?",
+            node_id,
+            identity
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn purge_gateway(&self, db_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
                     DELETE FROM gateway_historical_uptime WHERE gateway_details_id = ?;
                     DELETE FROM gateway_status WHERE gateway_details_id = ?;
                     DELETE FROM testing_route WHERE gateway_id = ?;
                     DELETE FROM gateway_details WHERE id = ?;
                 "#,
-                db_id,
-                db_id,
-                db_id,
-                db_id,
-            )
-            .execute(&self.connection_pool)
-            .await?;
-            Ok(())
-        }
+            db_id,
+            db_id,
+            db_id,
+            db_id,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 
-        pub(crate) async fn make_node_id_not_null(&self) -> Result<(), sqlx::Error> {
-            sqlx::query(
+    pub(crate) async fn make_node_id_not_null(&self) -> Result<(), sqlx::Error> {
+        sqlx::query(
                 r#"
                     CREATE TABLE gateway_details_temp
                     (
@@ -1606,7 +1751,564 @@ pub(crate) mod v3_migration {
             )
             .execute(&self.connection_pool)
             .await?;
-            Ok(())
+        Ok(())
+    }
+
+    // Simulated Rewarding System CRUD Methods
+
+    /// Checks if a simulation already exists for the given epoch and method
+    pub(crate) async fn get_existing_simulation_epoch(
+        &self,
+        epoch_id: u32,
+        calculation_method: &str,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+                SELECT id as "id!" FROM simulated_reward_epochs 
+                WHERE epoch_id = ? AND calculation_method = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            "#,
+            epoch_id,
+            calculation_method,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+
+        Ok(result.map(|r| r.id))
+    }
+
+    /// Creates a new simulated reward epoch and returns its ID
+    /// Returns existing ID if a simulation for this epoch and method already exists
+    pub(crate) async fn create_or_get_simulated_reward_epoch(
+        &self,
+        epoch_id: u32,
+        calculation_method: &str,
+        start_timestamp: i64,
+        end_timestamp: i64,
+        description: Option<&str>,
+    ) -> Result<(i64, bool), sqlx::Error> {
+        // Check if simulation already exists
+        if let Some(existing_id) = self
+            .get_existing_simulation_epoch(epoch_id, calculation_method)
+            .await?
+        {
+            return Ok((existing_id, false)); // Return existing ID and false (not newly created)
         }
+
+        // Create new simulation epoch
+        let result = sqlx::query!(
+            r#"
+                    INSERT INTO simulated_reward_epochs 
+                    (epoch_id, calculation_method, start_timestamp, end_timestamp, description)
+                    VALUES (?, ?, ?, ?, ?)
+                "#,
+            epoch_id,
+            calculation_method,
+            start_timestamp,
+            end_timestamp,
+            description,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok((result.last_insert_rowid(), true)) // Return new ID and true (newly created)
+    }
+
+    /// Inserts simulated node performance data
+    pub(crate) async fn insert_simulated_node_performance(
+        &self,
+        performance_data: &[SimulatedNodePerformance],
+    ) -> Result<(), sqlx::Error> {
+        if performance_data.is_empty() {
+            return Ok(());
+        }
+
+        // Use bulk insert with sqlx::QueryBuilder for better performance
+        let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO simulated_node_performance (simulated_epoch_id, node_id, node_type, identity_key, reliability_score, positive_samples, negative_samples, work_factor, calculation_method) "
+            );
+
+        query_builder.push_values(performance_data, |mut b, performance| {
+            b.push_bind(performance.simulated_epoch_id)
+                .push_bind(performance.node_id)
+                .push_bind(&performance.node_type)
+                .push_bind(&performance.identity_key)
+                .push_bind(performance.reliability_score)
+                .push_bind(performance.positive_samples)
+                .push_bind(performance.negative_samples)
+                .push_bind(performance.work_factor)
+                .push_bind(&performance.calculation_method);
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
+    }
+
+    /// Inserts performance comparison data for simulation analysis
+    pub(crate) async fn insert_simulated_performance_comparisons(
+        &self,
+        performance_data: &[SimulatedPerformanceComparison],
+    ) -> Result<(), sqlx::Error> {
+        if performance_data.is_empty() {
+            return Ok(());
+        }
+
+        // Use bulk insert with sqlx::QueryBuilder for better performance
+        let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO simulated_performance_comparisons (simulated_epoch_id, node_id, node_type, performance_score, work_factor, calculation_method, positive_samples, negative_samples, route_success_rate) "
+            );
+
+        query_builder.push_values(performance_data, |mut b, comparison| {
+            b.push_bind(comparison.simulated_epoch_id)
+                .push_bind(comparison.node_id)
+                .push_bind(&comparison.node_type)
+                .push_bind(comparison.performance_score)
+                .push_bind(comparison.work_factor)
+                .push_bind(&comparison.calculation_method)
+                .push_bind(comparison.positive_samples)
+                .push_bind(comparison.negative_samples)
+                .push_bind(comparison.route_success_rate);
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
+    }
+
+    /// Inserts performance rankings for simulation
+    pub(crate) async fn insert_simulated_performance_rankings(
+        &self,
+        rankings: &[SimulatedPerformanceRanking],
+    ) -> Result<(), sqlx::Error> {
+        if rankings.is_empty() {
+            return Ok(());
+        }
+
+        // Use bulk insert with sqlx::QueryBuilder for better performance
+        let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO simulated_performance_rankings (simulated_epoch_id, node_id, calculation_method, performance_rank, performance_percentile) "
+            );
+
+        query_builder.push_values(rankings, |mut b, ranking| {
+            b.push_bind(ranking.simulated_epoch_id)
+                .push_bind(ranking.node_id)
+                .push_bind(&ranking.calculation_method)
+                .push_bind(ranking.performance_rank)
+                .push_bind(ranking.performance_percentile);
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
+    }
+
+    /// Inserts route analysis metadata for a simulation
+    pub(crate) async fn insert_simulated_route_analysis(
+        &self,
+        analysis: &SimulatedRouteAnalysis,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+                r#"
+                    INSERT INTO simulated_route_analysis
+                    (simulated_epoch_id, calculation_method, total_routes_analyzed, successful_routes,
+                     failed_routes, average_route_reliability, time_window_hours, analysis_parameters)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                "#,
+                analysis.simulated_epoch_id,
+                analysis.calculation_method,
+                analysis.total_routes_analyzed,
+                analysis.successful_routes,
+                analysis.failed_routes,
+                analysis.average_route_reliability,
+                analysis.time_window_hours,
+                analysis.analysis_parameters,
+            )
+            .execute(&self.connection_pool)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Retrieves node performance data for a specific simulation
+    pub(crate) async fn get_simulated_node_performance(
+        &self,
+        simulated_epoch_id: i64,
+        calculation_method: Option<&str>,
+    ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+        match calculation_method {
+                Some(method) => {
+                    sqlx::query_as!(
+                        SimulatedNodePerformance,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", identity_key, reliability_score as "reliability_score!", 
+                                   positive_samples as "positive_samples!: u32", negative_samples as "negative_samples!: u32", 
+                                   work_factor, calculation_method as "calculation_method!", calculated_at as "calculated_at!"
+                            FROM simulated_node_performance
+                            WHERE simulated_epoch_id = ? AND calculation_method = ?
+                            ORDER BY node_id
+                        "#,
+                        simulated_epoch_id,
+                        method
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+                None => {
+                    sqlx::query_as!(
+                        SimulatedNodePerformance,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", identity_key, reliability_score as "reliability_score!", 
+                                   positive_samples as "positive_samples!: u32", negative_samples as "negative_samples!: u32", 
+                                   work_factor, calculation_method as "calculation_method!", calculated_at as "calculated_at!"
+                            FROM simulated_node_performance
+                            WHERE simulated_epoch_id = ?
+                            ORDER BY calculation_method, node_id
+                        "#,
+                        simulated_epoch_id
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+            }
+    }
+
+    /// Retrieves performance comparison data for a specific simulation
+    pub(crate) async fn get_simulated_performance_comparisons(
+        &self,
+        simulated_epoch_id: i64,
+        calculation_method: Option<&str>,
+    ) -> Result<Vec<SimulatedPerformanceComparison>, sqlx::Error> {
+        match calculation_method {
+                Some(method) => {
+                    sqlx::query_as!(
+                        SimulatedPerformanceComparison,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", performance_score as "performance_score!", 
+                                   work_factor as "work_factor!", calculation_method as "calculation_method!", 
+                                   positive_samples as "positive_samples?", negative_samples as "negative_samples?",
+                                   route_success_rate as "route_success_rate?", calculated_at as "calculated_at!"
+                            FROM simulated_performance_comparisons
+                            WHERE simulated_epoch_id = ? AND calculation_method = ?
+                            ORDER BY node_id
+                        "#,
+                        simulated_epoch_id,
+                        method
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+                None => {
+                    sqlx::query_as!(
+                        SimulatedPerformanceComparison,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", node_id as "node_id!: NodeId", 
+                                   node_type as "node_type!", performance_score as "performance_score!", 
+                                   work_factor as "work_factor!", calculation_method as "calculation_method!", 
+                                   positive_samples as "positive_samples?", negative_samples as "negative_samples?",
+                                   route_success_rate as "route_success_rate?", calculated_at as "calculated_at!"
+                            FROM simulated_performance_comparisons
+                            WHERE simulated_epoch_id = ?
+                            ORDER BY calculation_method, node_id
+                        "#,
+                        simulated_epoch_id
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+            }
+    }
+
+    /// Count simulated node performance records for a specific epoch
+    pub(crate) async fn count_simulated_node_performance_for_epoch(
+        &self,
+        simulated_epoch_id: i64,
+    ) -> Result<usize, sqlx::Error> {
+        let result = sqlx::query!(
+            "SELECT COUNT(*) as count FROM simulated_node_performance WHERE simulated_epoch_id = ?",
+            simulated_epoch_id
+        )
+        .fetch_one(&self.connection_pool)
+        .await?;
+
+        Ok(result.count as usize)
+    }
+
+    /// Get available calculation methods for a specific epoch
+    pub(crate) async fn get_available_calculation_methods_for_epoch(
+        &self,
+        epoch_id: u32,
+    ) -> Result<Vec<String>, sqlx::Error> {
+        let methods = sqlx::query!(
+            "SELECT DISTINCT calculation_method FROM simulated_reward_epochs WHERE epoch_id = ?",
+            epoch_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(methods.into_iter().map(|m| m.calculation_method).collect())
+    }
+
+    /// Batch version of count_simulated_node_performance_for_epoch for improved performance.
+    /// Returns a HashMap mapping epoch_id to node count for all requested epochs.
+    pub(crate) async fn count_simulated_node_performance_for_epochs_batch(
+        &self,
+        simulated_epoch_ids: &[i64],
+    ) -> Result<std::collections::HashMap<i64, usize>, sqlx::Error> {
+        if simulated_epoch_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let placeholders = simulated_epoch_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(", ");
+        let query = format!(
+                "SELECT simulated_epoch_id, COUNT(*) as count FROM simulated_node_performance WHERE simulated_epoch_id IN ({}) GROUP BY simulated_epoch_id",
+                placeholders
+            );
+
+        let mut query_builder = sqlx::query(&query);
+        for epoch_id in simulated_epoch_ids {
+            query_builder = query_builder.bind(epoch_id);
+        }
+
+        let rows = query_builder.fetch_all(&self.connection_pool).await?;
+
+        let mut result = std::collections::HashMap::new();
+        for row in rows {
+            let epoch_id: i64 = row.try_get("simulated_epoch_id")?;
+            let count: i64 = row.try_get("count")?;
+            result.insert(epoch_id, count as usize);
+        }
+
+        // Initialize missing epochs with 0 count
+        for &epoch_id in simulated_epoch_ids {
+            result.entry(epoch_id).or_insert(0);
+        }
+
+        Ok(result)
+    }
+
+    /// Batch version of get_available_calculation_methods_for_epoch for improved performance.
+    /// Returns a HashMap mapping epoch_id to list of calculation methods for all requested epochs.
+    pub(crate) async fn get_available_calculation_methods_for_epochs_batch(
+        &self,
+        epoch_ids: &[u32],
+    ) -> Result<std::collections::HashMap<u32, Vec<String>>, sqlx::Error> {
+        if epoch_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let placeholders = epoch_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+        let query = format!(
+                "SELECT epoch_id, calculation_method FROM simulated_reward_epochs WHERE epoch_id IN ({})",
+                placeholders
+            );
+
+        let mut query_builder = sqlx::query(&query);
+        for epoch_id in epoch_ids {
+            query_builder = query_builder.bind(epoch_id);
+        }
+
+        let rows = query_builder.fetch_all(&self.connection_pool).await?;
+
+        let mut result: std::collections::HashMap<u32, Vec<String>> =
+            std::collections::HashMap::new();
+        for row in rows {
+            let epoch_id: u32 = row.try_get("epoch_id")?;
+            let method: String = row.try_get("calculation_method")?;
+            result.entry(epoch_id).or_default().push(method);
+        }
+
+        // Initialize missing epochs with empty Vec
+        for &epoch_id in epoch_ids {
+            result.entry(epoch_id).or_default();
+        }
+
+        Ok(result)
+    }
+
+    /// Get simulated reward epoch by ID
+    pub(crate) async fn get_simulated_reward_epoch(
+        &self,
+        id: i64,
+    ) -> Result<Option<SimulatedRewardEpoch>, sqlx::Error> {
+        sqlx::query_as!(
+                SimulatedRewardEpoch,
+                r#"
+                    SELECT id as "id!", epoch_id as "epoch_id!: u32", calculation_method as "calculation_method!", 
+                           start_timestamp as "start_timestamp!", end_timestamp as "end_timestamp!", 
+                           description, created_at as "created_at!"
+                    FROM simulated_reward_epochs
+                    WHERE id = ?
+                "#,
+                id
+            )
+            .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    /// Get simulated node performance for a specific epoch
+    pub(crate) async fn get_simulated_node_performance_for_epoch(
+        &self,
+        simulated_epoch_id: i64,
+    ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+        self.get_simulated_node_performance(simulated_epoch_id, None)
+            .await
+    }
+
+    /// Get performance comparisons for a specific epoch
+    pub(crate) async fn get_simulated_performance_comparisons_for_epoch(
+        &self,
+        simulated_epoch_id: i64,
+    ) -> Result<Vec<SimulatedPerformanceComparison>, sqlx::Error> {
+        self.get_simulated_performance_comparisons(simulated_epoch_id, None)
+            .await
+    }
+
+    /// Get performance rankings for a specific epoch and method
+    pub(crate) async fn get_simulated_performance_rankings(
+        &self,
+        simulated_epoch_id: i64,
+        calculation_method: Option<&str>,
+    ) -> Result<Vec<SimulatedPerformanceRanking>, sqlx::Error> {
+        match calculation_method {
+                Some(method) => {
+                    sqlx::query_as!(
+                        SimulatedPerformanceRanking,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", 
+                                   node_id as "node_id!: NodeId", calculation_method as "calculation_method!", 
+                                   performance_rank as "performance_rank!", performance_percentile as "performance_percentile!",
+                                   calculated_at as "calculated_at!"
+                            FROM simulated_performance_rankings
+                            WHERE simulated_epoch_id = ? AND calculation_method = ?
+                            ORDER BY performance_rank
+                        "#,
+                        simulated_epoch_id,
+                        method
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+                None => {
+                    sqlx::query_as!(
+                        SimulatedPerformanceRanking,
+                        r#"
+                            SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", 
+                                   node_id as "node_id!: NodeId", calculation_method as "calculation_method!", 
+                                   performance_rank as "performance_rank!", performance_percentile as "performance_percentile!",
+                                   calculated_at as "calculated_at!"
+                            FROM simulated_performance_rankings
+                            WHERE simulated_epoch_id = ?
+                            ORDER BY calculation_method, performance_rank
+                        "#,
+                        simulated_epoch_id
+                    )
+                    .fetch_all(&self.connection_pool)
+                    .await
+                },
+            }
+    }
+
+    /// Get simulated route analysis for a specific epoch
+    pub(crate) async fn get_simulated_route_analysis_for_epoch(
+        &self,
+        simulated_epoch_id: i64,
+    ) -> Result<Vec<SimulatedRouteAnalysis>, sqlx::Error> {
+        sqlx::query_as!(
+                SimulatedRouteAnalysis,
+                r#"
+                    SELECT id as "id!", simulated_epoch_id as "simulated_epoch_id!", 
+                           calculation_method as "calculation_method!", total_routes_analyzed as "total_routes_analyzed!: u32", 
+                           successful_routes as "successful_routes!: u32", failed_routes as "failed_routes!: u32", 
+                           average_route_reliability, time_window_hours as "time_window_hours!: u32", 
+                           analysis_parameters, calculated_at as "calculated_at!"
+                    FROM simulated_route_analysis
+                    WHERE simulated_epoch_id = ?
+                    ORDER BY calculation_method
+                "#,
+                simulated_epoch_id
+            )
+            .fetch_all(&self.connection_pool)
+            .await
+    }
+
+    /// Get simulated node performance by method
+    pub(crate) async fn get_simulated_node_performance_by_method(
+        &self,
+        epoch_id: u32,
+        method: &str,
+    ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+        sqlx::query_as!(
+                SimulatedNodePerformance,
+                r#"
+                    SELECT snp.id as "id!", snp.simulated_epoch_id as "simulated_epoch_id!", 
+                           snp.node_id as "node_id!: NodeId", snp.node_type as "node_type!", 
+                           snp.identity_key, snp.reliability_score as "reliability_score!", 
+                           snp.positive_samples as "positive_samples!: u32", snp.negative_samples as "negative_samples!: u32", 
+                           snp.work_factor, snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
+                    FROM simulated_node_performance snp
+                    JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id
+                    WHERE sre.epoch_id = ? AND snp.calculation_method = ?
+                    ORDER BY snp.node_id
+                "#,
+                epoch_id,
+                method
+            )
+            .fetch_all(&self.connection_pool)
+            .await
+    }
+
+    /// Get simulated route analysis by method
+    pub(crate) async fn get_simulated_route_analysis_by_method(
+        &self,
+        epoch_id: u32,
+        method: &str,
+    ) -> Result<Option<SimulatedRouteAnalysis>, sqlx::Error> {
+        sqlx::query_as!(
+                SimulatedRouteAnalysis,
+                r#"
+                    SELECT sra.id as "id!", sra.simulated_epoch_id as "simulated_epoch_id!", 
+                           sra.calculation_method as "calculation_method!", sra.total_routes_analyzed as "total_routes_analyzed!: u32", 
+                           sra.successful_routes as "successful_routes!: u32", sra.failed_routes as "failed_routes!: u32", 
+                           sra.average_route_reliability, sra.time_window_hours as "time_window_hours!: u32", 
+                           sra.analysis_parameters, sra.calculated_at as "calculated_at!"
+                    FROM simulated_route_analysis sra
+                    JOIN simulated_reward_epochs sre ON sra.simulated_epoch_id = sre.id
+                    WHERE sre.epoch_id = ? AND sra.calculation_method = ?
+                "#,
+                epoch_id,
+                method
+            )
+            .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    /// Get node performance history across simulation epochs
+    pub(crate) async fn get_simulated_node_performance_history(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Vec<SimulatedNodePerformance>, sqlx::Error> {
+        sqlx::query_as!(
+                SimulatedNodePerformance,
+                r#"
+                    SELECT snp.id as "id!", snp.simulated_epoch_id as "simulated_epoch_id!", 
+                           snp.node_id as "node_id!: NodeId", snp.node_type as "node_type!", 
+                           snp.identity_key, snp.reliability_score as "reliability_score!", 
+                           snp.positive_samples as "positive_samples!: u32", snp.negative_samples as "negative_samples!: u32", 
+                           snp.work_factor, snp.calculation_method as "calculation_method!", snp.calculated_at as "calculated_at!"
+                    FROM simulated_node_performance snp
+                    JOIN simulated_reward_epochs sre ON snp.simulated_epoch_id = sre.id
+                    WHERE snp.node_id = ?
+                    ORDER BY sre.epoch_id DESC, snp.calculation_method
+                "#,
+                node_id
+            )
+            .fetch_all(&self.connection_pool)
+            .await
     }
 }

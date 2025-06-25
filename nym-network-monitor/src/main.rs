@@ -50,24 +50,60 @@ async fn make_clients(
         if spawned_clients >= n_clients {
             info!("New client will be spawned in {} seconds", lifetime);
             tokio::time::sleep(tokio::time::Duration::from_secs(lifetime)).await;
-            info!("Removing oldest client");
+            info!("[CLIENT_ROTATION_START] Beginning client rotation");
             if let Some(dropped_client) = clients.write().await.pop_front() {
-                loop {
-                    if Arc::strong_count(&dropped_client) == 1 {
-                        if let Some(client) = Arc::into_inner(dropped_client) {
-                            let client_handle = client.into_inner();
-                            client_handle.disconnect().await;
-                        } else {
-                            warn!("Failed to drop client, client had more then one strong ref")
-                        }
-                        break;
+                info!(
+                    "[CLIENT_ROTATION] Popped client from queue, current ref count: {}",
+                    Arc::strong_count(&dropped_client)
+                );
+                const CLIENT_DROP_TIMEOUT: Duration = Duration::from_secs(30);
+                let start = tokio::time::Instant::now();
+
+                // Try immediate unwrap first
+                match Arc::try_unwrap(dropped_client) {
+                    Ok(client) => {
+                        let client_handle = client.into_inner();
+                        client_handle.disconnect().await;
+                        info!("[CLIENT_ROTATION_END] Successfully disconnected client immediately");
                     }
-                    info!("Client still in use, waiting 2 seconds");
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    Err(dropped_client) => {
+                        // Fallback: wait with timeout for references to drop
+                        info!("[CLIENT_ROTATION_BLOCKING] Client still has {} references, waiting for cleanup with timeout", Arc::strong_count(&dropped_client));
+                        while start.elapsed() < CLIENT_DROP_TIMEOUT {
+                            let elapsed = start.elapsed();
+                            let ref_count = Arc::strong_count(&dropped_client);
+                            if elapsed.as_secs() % 5 == 0 && elapsed.subsec_millis() < 100 {
+                                info!("[CLIENT_ROTATION_WAITING] Still waiting for client cleanup, elapsed: {:?}, ref_count: {}", elapsed, ref_count);
+                            }
+                            if ref_count == 1 {
+                                match Arc::try_unwrap(dropped_client) {
+                                    Ok(client) => {
+                                        let client_handle = client.into_inner();
+                                        client_handle.disconnect().await;
+                                        info!("[CLIENT_ROTATION_END] Successfully disconnected client after waiting {:?}", start.elapsed());
+                                        break;
+                                    }
+                                    Err(_) => {
+                                        warn!("Failed to unwrap client despite reference count being 1");
+                                        break;
+                                    }
+                                }
+                            }
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        }
+
+                        if start.elapsed() >= CLIENT_DROP_TIMEOUT {
+                            warn!(
+                                "[CLIENT_ROTATION_TIMEOUT] Client drop timed out after {:?}, forcing drop.",
+                                CLIENT_DROP_TIMEOUT
+                            );
+                            // Client will be dropped when Arc goes out of scope
+                        }
+                    }
                 }
             }
         }
-        info!("Spawning new client");
+        info!("[CLIENT_SPAWN_START] Spawning new client");
         let client = match make_client(topology.clone()).await {
             Ok(client) => client,
             Err(err) => {
@@ -79,6 +115,7 @@ async fn make_clients(
             .write()
             .await
             .push_back(Arc::new(RwLock::new(client)));
+        info!("[CLIENT_SPAWN_END] New client added to pool");
     }
 }
 
@@ -138,6 +175,9 @@ struct Args {
 
     #[arg(long, env = "NYM_APIS", value_delimiter = ',')]
     nym_apis: Option<Vec<String>>,
+
+    #[arg(long, env = "TCP_BACKLOG", default_value_t = 1024)]
+    tcp_backlog: i32,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -175,7 +215,11 @@ async fn nym_topology_forced_all_from_env() -> anyhow::Result<NymTopology> {
     let node_ids = topology
         .node_details()
         .iter()
-        .filter(|(_node_id, node)| node.supported_roles.mixnode)
+        .filter(|(_node_id, node)| {
+            node.supported_roles.mixnode
+                && !node.supported_roles.mixnet_entry
+                && !node.supported_roles.mixnet_exit
+        })
         .map(|(node_id, _)| *node_id)
         .collect::<Vec<_>>();
 
@@ -242,9 +286,10 @@ async fn main() -> Result<()> {
 
     let clients_server = clients.clone();
 
+    let tcp_backlog = args.tcp_backlog;
     let server_handle = tokio::spawn(async move {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
-        let server = HttpServer::new(socket, server_cancel_token);
+        let server = HttpServer::new(socket, server_cancel_token, tcp_backlog);
         server.run(clients_server).await
     });
 
@@ -288,5 +333,7 @@ fn mixnet_debug_config(min_gateway_performance: u8) -> nym_client_core::config::
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
     debug_config.topology.minimum_gateway_performance = min_gateway_performance;
     debug_config.traffic.deterministic_route_selection = true;
+    debug_config.traffic.average_packet_delay = Duration::from_millis(0);
+    debug_config.traffic.maximum_number_of_retransmissions = Some(0);
     debug_config
 }

@@ -146,3 +146,82 @@ pub struct HistoricalUptime {
     pub date: Date,
     pub uptime: i64,
 }
+
+// Simulated Rewarding System Models
+// These models support comparison between old (24h cache-based) and new (1h route-based) rewarding
+
+/// Represents a simulated reward epoch run
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedRewardEpoch {
+    pub id: i64,
+    pub epoch_id: u32,
+    pub calculation_method: String, // 'old', 'new', or 'comparison'
+    pub start_timestamp: i64,
+    pub end_timestamp: i64,
+    pub description: Option<String>,
+    pub created_at: i64,
+}
+
+/// Node performance calculated using different methodologies
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedNodePerformance {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub node_id: NodeId,
+    pub node_type: String, // 'mixnode' or 'gateway'
+    pub identity_key: Option<String>,
+    pub reliability_score: f64, // 0.0 to 100.0
+    pub positive_samples: u32,
+    pub negative_samples: u32,
+    pub work_factor: Option<f64>,   // 0.0 to 1.0
+    pub calculation_method: String, // 'old' or 'new'
+    pub calculated_at: i64,
+}
+
+/// Performance comparison data for analyzing methodology differences
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedPerformanceComparison {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub node_id: NodeId,
+    pub node_type: String,          // 'mixnode' or 'gateway'
+    pub performance_score: f64,     // 0.0 to 100.0
+    pub work_factor: f64,           // Work factor applied (e.g., 10.0 for active, 1.0 for standby)
+    pub calculation_method: String, // 'old' or 'new'
+    pub positive_samples: Option<i64>,
+    pub negative_samples: Option<i64>,
+    pub route_success_rate: Option<f64>, // 0.0 to 100.0, mainly for new method
+    pub calculated_at: i64,
+}
+
+/// Performance ranking data for nodes
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedPerformanceRanking {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub node_id: NodeId,
+    pub calculation_method: String,
+    pub performance_rank: i64,
+    pub performance_percentile: f64,
+    #[allow(dead_code)]
+    pub calculated_at: i64,
+}
+
+/// Route analysis metadata for simulation runs
+#[derive(FromRow, Debug, Clone)]
+pub struct SimulatedRouteAnalysis {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub simulated_epoch_id: i64,
+    pub calculation_method: String, // 'old' or 'new'
+    pub total_routes_analyzed: u32,
+    pub successful_routes: u32,
+    pub failed_routes: u32,
+    pub average_route_reliability: Option<f64>, // 0.0 to 100.0
+    pub time_window_hours: u32,                 // 1 for new method, 24 for old method
+    pub analysis_parameters: Option<String>,    // JSON with analysis config
+    pub calculated_at: i64,
+}

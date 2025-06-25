@@ -9,7 +9,7 @@ use crate::ecash::dkg::controller::keys::{
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
-use crate::epoch_operations::EpochAdvancer;
+use crate::epoch_operations::{simulation::SimulationConfig, EpochAdvancer};
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
@@ -61,9 +61,21 @@ pub(crate) struct Args {
         long,
         requires = "enable_monitor",
         requires = "mnemonic",
+        conflicts_with = "simulate_rewarding",
         env = "NYMAPI_ENABLE_REWARDING_ARG"
     )]
     pub(crate) enable_rewarding: Option<bool>,
+
+    /// Enable simulated rewarding mode to compare old vs new reward calculations
+    /// Requires monitoring but does NOT require mnemonic (no blockchain transactions)
+    /// default: None - config value will be used instead
+    #[clap(
+        long,
+        requires = "enable_monitor",
+        conflicts_with = "enable_rewarding",
+        env = "NYMAPI_SIMULATE_REWARDING_ARG"
+    )]
+    pub(crate) simulate_rewarding: Option<bool>,
 
     /// Endpoint to nyxd instance used for contract information.
     /// default: None - config value will be used instead
@@ -276,15 +288,33 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
         HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
 
-        // start 'rewarding' if its enabled
-        if config.rewarding.enabled {
-            epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+        // start 'rewarding' or 'simulation' if enabled
+        if config.rewarding.enabled || config.rewarding.simulation_mode {
+            // Only check rewarding permission for real rewarding, not simulation
+            if config.rewarding.enabled && !config.rewarding.simulation_mode {
+                epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+            }
+
+            // Create simulation config if simulation mode is enabled
+            let simulation_config = if config.rewarding.simulation_mode {
+                Some(SimulationConfig {
+                    new_method_time_window_hours: config
+                        .rewarding
+                        .debug
+                        .simulation_new_method_time_window_hours,
+                    description: Some("Simulation run at epoch advancement".to_string()),
+                })
+            } else {
+                None
+            };
+
             EpochAdvancer::start(
                 nyxd_client,
                 &nym_contract_cache_state,
                 &node_status_cache_state,
                 described_nodes_cache.clone(),
                 &storage,
+                simulation_config,
                 &task_manager,
             );
         }

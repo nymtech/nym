@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT calculation_method FROM simulated_reward_epochs WHERE epoch_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "calculation_method",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c9796e61c49a29ebd42dec46fb047f7a7e2f80aa4db4f963146cf56864a62347"
+}

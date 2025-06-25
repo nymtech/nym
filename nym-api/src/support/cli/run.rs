@@ -13,6 +13,8 @@ use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::legacy_storage_provider::LegacyStoragePerformanceProvider;
+use crate::node_performance::provider::NodePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
@@ -235,16 +237,20 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     let describe_cache_watcher = describe_cache_refresher
         .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
-    let todo = "";
-    if config.performance_provider.use_performance_contract_data {
-        let _ = node_performance::start_cache_refresher(
+    let performance_provider = if config.performance_provider.use_performance_contract_data {
+        let performance_contract_cache = node_performance::start_cache_refresher(
             &config.performance_provider,
             nyxd_client.clone(),
             mixnet_contract_cache_state.clone(),
             &task_manager,
         );
-        let more_todo = "";
-    }
+        Box::new(performance_contract_cache) as Box<dyn NodePerformanceProvider + Send + Sync>
+    } else {
+        Box::new(LegacyStoragePerformanceProvider::new(
+            storage.clone(),
+            mixnet_contract_cache_state.clone(),
+        ))
+    };
 
     // start all the caches first
     let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
@@ -260,7 +266,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
-        storage.clone(),
+        performance_provider,
         contract_cache_watcher.clone(),
         describe_cache_watcher,
         &task_manager,

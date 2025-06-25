@@ -44,6 +44,17 @@ pub struct RewardEstimate {
     pub operating_cost: Decimal,
 }
 
+impl RewardEstimate {
+    pub const fn zero() -> RewardEstimate {
+        RewardEstimate {
+            total_node_reward: Decimal::zero(),
+            operator: Decimal::zero(),
+            delegates: Decimal::zero(),
+            operating_cost: Decimal::zero(),
+        }
+    }
+}
+
 #[cw_serde]
 #[derive(Copy, Default)]
 pub struct RewardDistribution {

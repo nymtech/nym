@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::data::NodeStatusCacheData;
+use crate::node_performance::provider::PerformanceRetrievalFailure;
 use crate::support::caching::cache::UninitialisedCache;
 use crate::support::caching::Cache;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
@@ -16,9 +17,9 @@ use tracing::error;
 
 const CACHE_TIMEOUT_MS: u64 = 100;
 
+mod config_score;
 pub mod data;
 mod inclusion_probabilities;
-mod node_sets;
 pub mod refresher;
 
 #[derive(Debug, Error)]
@@ -28,6 +29,9 @@ enum NodeStatusCacheError {
 
     #[error("the self-described cache data is not available")]
     UnavailableDescribedCache,
+
+    #[error(transparent)]
+    PerformanceRetrievalFailure(#[from] PerformanceRetrievalFailure),
 }
 
 impl From<UninitialisedCache> for NodeStatusCacheError {

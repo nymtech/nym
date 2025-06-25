@@ -81,21 +81,6 @@ impl StorageManager {
         Ok(node_id)
     }
 
-    pub(super) async fn get_gateway_identity_key(
-        &self,
-        node_id: NodeId,
-    ) -> Result<Option<IdentityKey>, sqlx::Error> {
-        let identity_key = sqlx::query!(
-            "SELECT identity FROM gateway_details WHERE node_id = ?",
-            node_id
-        )
-        .fetch_optional(&self.connection_pool)
-        .await?
-        .map(|row| row.identity);
-
-        Ok(identity_key)
-    }
-
     /// Tries to obtain identity value of given mixnode given its mix_id
     ///
     /// # Arguments
@@ -114,62 +99,6 @@ impl StorageManager {
         .map(|row| row.identity_key);
 
         Ok(identity_key)
-    }
-
-    /// Gets all reliability statuses for mixnode with particular identity that were inserted
-    /// into the database after the specified unix timestamp.
-    ///
-    /// # Arguments
-    ///
-    /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    /// * `timestamp`: unix timestamp of the lower bound of the selection.
-    pub(super) async fn get_mixnode_statuses_since(
-        &self,
-        mix_id: NodeId,
-        timestamp: i64,
-    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        sqlx::query_as!(
-            NodeStatus,
-            r#"
-                SELECT timestamp, reliability as "reliability: u8"
-                    FROM mixnode_status
-                    JOIN mixnode_details
-                    ON mixnode_status.mixnode_details_id = mixnode_details.id
-                    WHERE mixnode_details.mix_id=? AND mixnode_status.timestamp > ?;
-            "#,
-            mix_id,
-            timestamp,
-        )
-        .fetch_all(&self.connection_pool)
-        .await
-    }
-
-    /// Gets all reliability statuses for gateway with particular identity that were inserted
-    /// into the database after the specified unix timestamp.
-    ///
-    /// # Arguments
-    ///
-    /// * `identity`: identity (base58-encoded public key) of the gateway.
-    /// * `timestamp`: unix timestamp of the lower bound of the selection.
-    pub(super) async fn get_gateway_statuses_since(
-        &self,
-        node_id: NodeId,
-        timestamp: i64,
-    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        sqlx::query_as!(
-            NodeStatus,
-            r#"
-                SELECT timestamp, reliability as "reliability: u8"
-                    FROM gateway_status
-                    JOIN gateway_details
-                    ON gateway_status.gateway_details_id = gateway_details.id
-                    WHERE gateway_details.node_id=? AND gateway_status.timestamp > ?;
-            "#,
-            node_id,
-            timestamp,
-        )
-        .fetch_all(&self.connection_pool)
-        .await
     }
 
     /// Gets the historical daily uptime associated with the particular mixnode

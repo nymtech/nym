@@ -7,7 +7,6 @@ use crate::support::caching::cache::UninitialisedCache;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::models::RoutingScore;
 use nym_mixnet_contract_common::{EpochId, NodeId};
-use tracing::{trace, warn};
 
 pub(crate) struct LegacyStoragePerformanceProvider {
     storage: NymApiStorage,
@@ -15,6 +14,13 @@ pub(crate) struct LegacyStoragePerformanceProvider {
 }
 
 impl LegacyStoragePerformanceProvider {
+    pub(crate) fn new(storage: NymApiStorage, mixnet_contract_cache: MixnetContractCache) -> Self {
+        LegacyStoragePerformanceProvider {
+            storage,
+            mixnet_contract_cache,
+        }
+    }
+
     async fn map_epoch_id_to_end_unix_timestamp(
         &self,
         epoch_id: EpochId,
@@ -40,21 +46,37 @@ impl LegacyStoragePerformanceProvider {
         Ok(end.unix_timestamp())
     }
 
+    pub(crate) async fn epoch_id_unix_timestamp(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<i64, PerformanceRetrievalFailure> {
+        self.map_epoch_id_to_end_unix_timestamp(epoch_id)
+            .await
+            .map_err(|_| {
+                PerformanceRetrievalFailure::new(
+                    0,
+                    epoch_id,
+                    "mixnet contract cache has not been initialised yet",
+                )
+            })
+    }
+
     pub(crate) async fn node_routing_score(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
     ) -> Result<RoutingScore, PerformanceRetrievalFailure> {
-        let end_ts = self
-            .map_epoch_id_to_end_unix_timestamp(epoch_id)
+        let end_ts = self.epoch_id_unix_timestamp(epoch_id).await?;
+        self.get_node_routing_score_with_unix_timestamp(node_id, epoch_id, end_ts)
             .await
-            .map_err(|_| {
-                PerformanceRetrievalFailure::new(
-                    node_id,
-                    epoch_id,
-                    "mixnet contract cache has not been initialised yet",
-                )
-            })?;
+    }
+
+    pub(crate) async fn get_node_routing_score_with_unix_timestamp(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+        end_ts: i64,
+    ) -> Result<RoutingScore, PerformanceRetrievalFailure> {
         let reliability = self
             .storage
             .get_average_node_reliability_in_the_last_24hrs(node_id, end_ts)

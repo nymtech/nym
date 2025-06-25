@@ -9,6 +9,7 @@ import type {
   GatewayStatus,
   IAccountBalancesInfo,
   IPacketsAndStakingData,
+  IRewardDetails,
   NS_NODE,
   NodeRewardDetails,
   NymTokenomics,
@@ -204,9 +205,33 @@ export const fetchOriginalStake = async (
 
   const balances: IAccountBalancesInfo = await response.json();
 
-
   // Return the delegated amount
   return Number(balances.total_delegations.amount);
+};
+
+export const fetchStakerRewards = async (
+  address: string,
+  environment: Environment
+): Promise<IRewardDetails[]> => {
+  const baseUrl =
+    environment === "sandbox"
+      ? SANDBOX_NYM_ACCOUNT_ADDRESS
+      : NYM_ACCOUNT_ADDRESS;
+  const response = await fetch(`${baseUrl}/${address}`, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch balances");
+  }
+
+  const balances: IAccountBalancesInfo = await response.json();
+
+  // Return the delegated amount
+  return balances.accumulated_rewards;
 };
 
 export const fetchNoise = async (

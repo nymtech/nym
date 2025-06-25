@@ -13,7 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
@@ -39,11 +39,14 @@ import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
 import { useEnvironment } from "@/providers/EnvironmentProvider";
 import { getBasePathByEnv } from "../../../envs/config";
+import { fetchStakerRewards } from "@/app/api";
+import { IRewardDetails } from "@/app/api/types";
 
 type DelegationWithNodeDetails = {
   node: MappedNymNode | undefined;
   delegation: Delegation;
   pendingEvent?: PendingEvent;
+  stakerReward?: IRewardDetails;
 };
 
 const ColumnHeading = ({
@@ -107,12 +110,27 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  // Use React Query to fetch total rewards
+  const {
+    data: stakerRewards = [],
+    isLoading: isStakerRewardsLoading,
+    isError: isStakerRewardsError,
+  } = useQuery({
+    queryKey: ["stakerRewards", address, environment],
+    queryFn: () => fetchStakerRewards(address || "", environment),
+    enabled: !!address, // Only fetch if address exists
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnReconnect: false,
+  });
+
   const handleRefetch = useCallback(async () => {
     await queryClient.invalidateQueries();
   }, [queryClient]);
 
   useEffect(() => {
-    if (!nymClient || !address || !nymQueryClient) return;
+    if (!nymClient || !address || !nymQueryClient || isStakerRewardsError)
+      return;
 
     // Fetch staking data
     const fetchDelegations = async () => {
@@ -126,7 +144,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     const combineDelegationsWithNodeAndPendingEvents = (
       delegations: Delegation[],
       nodes: MappedNymNode[],
-      pendingEvents: PendingEvent[] | undefined
+      pendingEvents: PendingEvent[] | undefined,
+      stakerRewards: IRewardDetails[] | undefined
     ) => {
       // Combine delegations with node details
       const delegationsWithNodeDetails = delegations.map((delegation) => {
@@ -134,11 +153,15 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         const pendingEvent = pendingEvents?.find(
           (event) => event?.mixId === delegation.node_id
         );
+        const stakerReward = stakerRewards?.find(
+          (reward) => reward.node_id === delegation.node_id
+        );
 
         return {
           node,
           delegation,
           pendingEvent,
+          stakerReward,
         };
       });
 
@@ -175,6 +198,18 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
                 node_id: e.mixId,
                 owner: "-",
               },
+              stakerReward: {
+                amount_staked: {
+                  amount: e.amount?.amount || "0",
+                  denom: "unym",
+                },
+                node_id: e.mixId,
+                node_still_fully_bonded: true,
+                rewards: {
+                  amount: "0",
+                  denom: "unym",
+                },
+              },
             });
           }
         }
@@ -190,14 +225,23 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         combineDelegationsWithNodeAndPendingEvents(
           delegations,
           nodes,
-          pendingEvents
+          pendingEvents,
+          stakerRewards
         );
 
       setDelegations(delegationsWithNodeDetails);
     };
 
     fetchAndMapDelegations();
-  }, [address, nodes, nymClient, nymQueryClient, pendingEvents]);
+  }, [
+    address,
+    nodes,
+    nymClient,
+    nymQueryClient,
+    pendingEvents,
+    stakerRewards,
+    environment,
+  ]);
 
   const handleStakeOnNode = useCallback(
     async ({ nodeId, amount }: { nodeId: number; amount: string }) => {
@@ -354,10 +398,20 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "",
         Header: <ColumnHeading>Name</ColumnHeading>,
         accessorKey: "node.name",
+        size: 220,
+
         Cell: ({ row }) =>
           row.original.node?.name ? (
-            <Stack spacing={1}>
+            <Stack
+              spacing={1.5}
+              direction="row"
+              alignItems="center"
+              justifyContent="flex-start"
+            >
               <Typography variant="body4">{row.original.node.name}</Typography>
+              {!row.original.stakerReward?.node_still_fully_bonded && (
+                <Chip size="small" label="Not bonded" />
+              )}
             </Stack>
           ) : (
             "-"
@@ -458,6 +512,34 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           ),
       },
       {
+        id: "rewards",
+        header: "Rewards",
+        accessorKey: "stakerReward.rewards.amount",
+        Header: <ColumnHeading>Rewards</ColumnHeading>,
+        size: 80,
+
+        sortingFn: (rowA, rowB) => {
+          const stakeA = Number.parseFloat(
+            rowA.original.stakerReward?.rewards.amount || "0"
+          );
+          const stakeB = Number.parseFloat(
+            rowB.original.stakerReward?.rewards.amount || "0"
+          );
+          return stakeA - stakeB;
+        },
+        Cell: ({ row }) =>
+          isStakerRewardsLoading ? (
+            <Typography variant="body4">Loading rewards</Typography>
+          ) : (
+            <Typography variant="body4">
+              {formatBigNum(
+                Number(row.original.stakerReward?.rewards?.amount) / 1_000_000
+              ) || "0"}{" "}
+              NYM
+            </Typography>
+          ),
+      },
+      {
         id: "Favorite",
         header: "Favorite",
         accessorKey: "Favorite",
@@ -524,7 +606,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         },
       },
     ],
-    [handleActionSelect, favorites, getTooltipTitle]
+    [handleActionSelect, favorites, getTooltipTitle, isStakerRewardsLoading]
   );
 
   const table = useMaterialReactTable({

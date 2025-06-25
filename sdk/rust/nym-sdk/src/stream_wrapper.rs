@@ -19,31 +19,30 @@ use tracing::{debug, info, warn};
  * TODO
  * - check all works
  * - Convenience methods? Depends on what we want to put in here and what might be used / impl-ed in consuming libraries
- * - what InputMessage enum are we wanting to use?
  * - https://github.com/nymtech/nym-vpn-client/tree/develop/nym-vpn-core/crates/nym-ip-packet-client/src - hook into IPR
  * - builder pattern via MixSocket + tests
  */
 
 /// MixSocket is following the structure of something like Tokio::net::TcpSocket with regards to setup and interface, breakdown from TcpSocket to TcpStream, etc.
 /// However, we can't map this one to one onto the TcpSocket as there isn't really a concept of binding to a port with the MixnetClient; it connects to its Gateway and then just accepts incoming messages from the Gw via the Websocket connection. However, we can stick with the idea of creating a Socket in an unconnected state, either using it to make a new Stream (connecting it to its EntryGw) or connecting it *to* something (once the IPR functionality is enabled, this will mean the creation of a Stream + kicking off the creation of a tunnel to an ExitGw + IPR).
-/// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it.
+/// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it. Once LP is implemented, this will also allow us to follow something like what is implemented for the Tokio::net::UdpFramed abstraction, where we can create multiple MixStream instances from a single MixSocket, all connected to different Recipients.
 pub struct MixSocket {
     inner: MixnetClient,
 }
 
 impl MixSocket {
     /// Create a new socket that is disconnected from the Mixnet - kick off the Mixnet client with config for builder.
-    /// Following idea of having single client with multiple concurrent connections represented by per-Recipient MixStream instance
+    /// Following idea of having single client with multiple concurrent connections represented by per-Recipient MixStream instance.
     pub async fn new() -> Result<Self, Error> {
         todo!()
     }
 
-    /// Connect to a specific peer (Nym Client) and return a Stream (cf TcpSocket::connect() / TcpStream::new())
+    /// Connect to a specific peer (Nym Client) and return a Stream (cf TcpSocket::connect() / TcpStream::new()).
     pub async fn connect_to(_recipient: Recipient) -> Result<MixStream, Error> {
         todo!()
     }
 
-    /// Get our Nym address
+    /// Get our Nym address.
     pub fn nym_address(&self) -> &Recipient {
         self.inner.nym_address()
     }
@@ -64,11 +63,12 @@ impl MixSocket {
 pub struct MixStream {
     client: MixnetClient,
     peer: Recipient,
+    // TODO do we need to include a SURB or something in here for the connection?
 }
 
 impl MixStream {
-    /// Create a MixStream instance and immediately connect (convenience method) or pass in a MixSocket (pre-configured DisconnectedMixnetClient)
-    // TODO in future take config from MixSocket if exists in Option<> param, else spin up ephemeral client. Just doing ephemeral for initial sketch
+    /// Create a MixStream instance and immediately connect (convenience method) or pass in a MixSocket (pre-configured DisconnectedMixnetClient).
+    // TODO in future take config from MixSocket if exists in Option<> param, else spin up ephemeral client. Just doing ephemeral for initial sketch.
     pub async fn new(socket: Option<MixSocket>, peer: Recipient) -> Self {
         let client = match socket {
             Some(socket) => socket.into_inner(),
@@ -77,17 +77,17 @@ impl MixStream {
         Self { client, peer }
     }
 
-    /// Nym address of Stream's peer
+    /// Nym address of Stream's peer (Nym Client it will communicate with).
     pub fn peer_addr(&self) -> &Recipient {
         &self.peer
     }
 
-    /// Our Nym address
+    /// Our Nym address.
     pub fn local_addr(&self) -> &Recipient {
         self.client.nym_address()
     }
 
-    /// Split for concurrent read/write (like TcpStream::Split) into MixnetStreamReader and MixnetStreamWriter
+    /// Split for concurrent read/write (like TcpStream::Split) into MixnetStreamReader and MixnetStreamWriter.
     pub fn split(self) -> (MixStreamReader, MixStreamWriter) {
         debug!("Splitting MixStream");
         let sender = self.client.split_sender();
@@ -104,10 +104,15 @@ impl MixStream {
         )
     }
 
-    /// Convenience method for just piping bytes into the Mixnet
+    /// Convenience method for just piping bytes into the Mixnet.
     pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
-        // TODO double check this is the correct encoding we want
-        let input_message = InputMessage::simple(data, self.peer);
+        let input_message = InputMessage::Anonymous {
+            recipient: (self.peer),
+            data: (data.to_owned()),
+            reply_surbs: (10),
+            lane: (nym_task::connections::TransmissionLane::General),
+            max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
+        };
         let mut codec = InputMessageCodec {};
         let mut serialized_bytes = BytesMut::new();
         codec
@@ -127,7 +132,7 @@ impl MixStream {
         Ok(())
     }
 
-    /// Disconnect client from the Mixnet - note that disconnected clients cannot currently be reconnected
+    /// Disconnect client from the Mixnet - note that disconnected clients cannot currently be reconnected.
     pub async fn disconnect(self) {
         debug!("Disconnecting");
         self.client.disconnect().await;
@@ -166,14 +171,15 @@ impl AsyncWrite for MixStream {
 pub struct MixStreamReader {
     client: MixnetClient,
     peer: Recipient,
+    // TODO do we need to include a SURB or something in here for the connection? Need to pass this to the StreamWriter
 }
 impl MixStreamReader {
-    /// Nym address of StreamReader's peer
+    /// Nym address of StreamReader's Recipient (Nym Client it will communicate with).
     pub fn peer_addr(&self) -> &Recipient {
         &self.peer
     }
 
-    /// Our Nym address
+    /// Our Nym address.
     pub fn local_addr(&self) -> &Recipient {
         self.client.nym_address()
     }
@@ -192,13 +198,19 @@ impl AsyncRead for MixStreamReader {
 pub struct MixStreamWriter {
     sender: MixnetClientSender,
     peer: Recipient,
+    // TODO do we need to include a SURB or something in here for the connection?
 }
 
 impl MixStreamWriter {
-    /// Convenience method for just piping bytes into the Mixnet
+    /// Convenience method for just piping bytes into the Mixnet.
     pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
-        // TODO double check this is the correct encoding we want
-        let input_message = InputMessage::simple(data, self.peer);
+        let input_message = InputMessage::Anonymous {
+            recipient: (self.peer),
+            data: (data.to_owned()),
+            reply_surbs: (10),
+            lane: (nym_task::connections::TransmissionLane::General),
+            max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
+        };
         let mut codec = InputMessageCodec {};
         let mut serialized_bytes = BytesMut::new();
         codec
@@ -241,10 +253,11 @@ impl AsyncWrite for MixStreamWriter {
  * Tests TODO:
  *
  * STREAM + STREAMREADER + STREAMWRITER
+ * - anonymous replies
  * - make sure we can do TLS through this (aka get around the 'superinsecuredontuseinprod mode' flags)
  *
  * SOCKET
- * - general tests
+ * - general tests: create new + various into() fns
  *
  */
 #[cfg(test)]
@@ -298,11 +311,14 @@ mod tests {
                             Ok(None) => println!(
                                 "ReconstructedMessageCodec returned None - incomplete message?"
                             ),
+                            // TODO make panic
                             Err(e) => println!("ReconstructedMessageCodec decode error: {:?}", e),
                         }
                     }
+                    // TODO make panic
                     Err(("No bytes read".to_string(), 0))
                 }
+                // TODO make panic
                 Err(e) => Err((format!("Read error: {}", e), 0)),
             }
         });
@@ -340,7 +356,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn split_send_receive_split() -> Result<(), Box<dyn std::error::Error>> {
+    async fn simple_send_receive_split() -> Result<(), Box<dyn std::error::Error>> {
         // init_logging();
         let receiver_socket = MixSocket::new_test().await?; // TODO change once socket impl is done
         let receiver_address = receiver_socket.nym_address().clone();
@@ -470,6 +486,22 @@ mod tests {
 
         info!("Sent 20 messages, received {}", count);
         assert!(count == 20);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn surb_reply() -> Result<(), Box<dyn std::error::Error>> {
+        // init_logging();
+        let socket = MixSocket::new_test().await?; // TODO change once socket impl is done
+        let addr = socket.nym_address().clone();
+        let stream = MixStream::new(Some(socket), addr.clone()).await;
+        let (mut reader, mut writer) = stream.split();
+
+        // send message
+        // parse message
+        // get surb
+        // use as reply
+
         Ok(())
     }
 }

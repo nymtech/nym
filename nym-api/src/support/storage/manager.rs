@@ -1647,7 +1647,7 @@ impl StorageManager {
             let reliability = if total_samples == 0 {
                 0.0 // Default for no samples in this interval. Consider Option<f64> or filtering.
             } else {
-                state.pos_samples as f64 / total_samples as f64
+                (state.pos_samples as f64 / total_samples as f64) * 100.0
             };
 
             // Attempt to fetch identity, first as mixnode, then as gateway if not found.

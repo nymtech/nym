@@ -837,7 +837,7 @@ impl StorageManager {
         for route_result in route_results {
             sqlx::query!(
                 r#"
-                    INSERT OR IGNORE INTO routes (layer1, layer2, layer3, gw, success) VALUES (?, ?, ?, ?, ?);
+                    INSERT INTO routes (layer1, layer2, layer3, gw, success) VALUES (?, ?, ?, ?, ?);
                 "#,
                 route_result.layer1,
                 route_result.layer2,

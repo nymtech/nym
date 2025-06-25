@@ -54,7 +54,11 @@ export const EnvironmentSwitcher: React.FC = () => {
             : theme.palette.common.white,
         borderStyle: environment === "sandbox" ? "solid" : "dashed",
         backgroundColor:
-          environment === "sandbox" ? colours.pine[800] : "transparent",
+          environment === "sandbox" && theme.palette.mode === "dark"
+            ? colours.pine[800]
+            : environment === "sandbox" && theme.palette.mode === "light"
+              ? colours.pine[300]
+              : "transparent",
         fontWeight: 500,
         fontSize: 14,
       }}

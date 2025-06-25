@@ -334,5 +334,6 @@ fn mixnet_debug_config(min_gateway_performance: u8) -> nym_client_core::config::
     debug_config.topology.minimum_gateway_performance = min_gateway_performance;
     debug_config.traffic.deterministic_route_selection = true;
     debug_config.traffic.average_packet_delay = Duration::from_millis(0);
+    debug_config.traffic.maximum_number_of_retransmissions = Some(0);
     debug_config
 }

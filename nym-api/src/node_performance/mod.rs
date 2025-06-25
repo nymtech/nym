@@ -13,7 +13,6 @@ use anyhow::bail;
 use nym_task::TaskManager;
 
 pub(crate) mod contract_cache;
-pub(crate) mod legacy_storage_provider;
 pub(crate) mod provider;
 
 pub(crate) async fn start_cache_refresher(

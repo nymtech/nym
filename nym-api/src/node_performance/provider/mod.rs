@@ -1,15 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_performance::contract_cache::data::PerformanceContractCacheData;
-use crate::node_performance::legacy_storage_provider::LegacyStoragePerformanceProvider;
-use crate::support::caching::cache::SharedCache;
+use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
 use async_trait::async_trait;
+use legacy_storage_provider::LegacyStoragePerformanceProvider;
 use nym_api_requests::models::RoutingScore;
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use std::collections::HashMap;
 use thiserror::Error;
 use tracing::{debug, error};
+
+pub(crate) mod contract_provider;
+pub(crate) mod legacy_storage_provider;
 
 #[derive(Debug, Error)]
 #[error("failed to retrieve performance score for node {node_id} for epoch {epoch_id}: {error}")]
@@ -70,21 +72,14 @@ pub(crate) trait NodePerformanceProvider {
 }
 
 #[async_trait]
-impl NodePerformanceProvider for SharedCache<PerformanceContractCacheData> {
+impl NodePerformanceProvider for ContractPerformanceProvider {
+    #[allow(unused)]
     async fn get_node_score(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
     ) -> Result<RoutingScore, PerformanceRetrievalFailure> {
-        let contract_cache = self.get().await.map_err(|_| {
-            PerformanceRetrievalFailure::new(
-                node_id,
-                epoch_id,
-                "performance contract cache has not been initialised yet",
-            )
-        })?;
-
-        contract_cache.node_routing_score(node_id, epoch_id)
+        self.node_routing_score(node_id, epoch_id).await
     }
 
     async fn get_batch_node_scores(
@@ -92,27 +87,7 @@ impl NodePerformanceProvider for SharedCache<PerformanceContractCacheData> {
         node_ids: Vec<NodeId>,
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
-        let Some(first) = node_ids.first() else {
-            return Ok(NodesRoutingScores::empty());
-        };
-
-        let contract_cache = self.get().await.map_err(|_| {
-            PerformanceRetrievalFailure::new(
-                *first,
-                epoch_id,
-                "performance contract cache has not been initialised yet",
-            )
-        })?;
-
-        let mut scores = HashMap::new();
-        for node_id in node_ids {
-            scores.insert(
-                node_id,
-                contract_cache.node_routing_score(node_id, epoch_id),
-            );
-        }
-
-        Ok(NodesRoutingScores { inner: scores })
+        self.node_routing_scores(node_ids, epoch_id).await
     }
 }
 

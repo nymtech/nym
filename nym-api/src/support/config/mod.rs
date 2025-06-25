@@ -53,6 +53,7 @@ const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
 const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
+const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
 const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
@@ -392,6 +393,10 @@ pub struct PerformanceProviderDebug {
     #[serde(with = "humantime_serde")]
     pub contract_polling_interval: Duration,
 
+    /// Specify the maximum number of epochs we can fallback to if given epoch's performance data
+    /// is not available in the contract
+    pub max_performance_fallback_epochs: u32,
+
     /// Specify the maximum number of epoch entries to be kept in the cache in case we needed non-current data
     // (currently we need an equivalent of full day worth of data for legacy endpoints)
     pub max_epoch_entries_to_retain: usize,
@@ -402,6 +407,7 @@ impl Default for PerformanceProviderDebug {
     fn default() -> Self {
         PerformanceProviderDebug {
             contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
+            max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
             max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
         }
     }

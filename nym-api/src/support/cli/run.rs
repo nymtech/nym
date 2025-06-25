@@ -13,7 +13,8 @@ use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_performance::legacy_storage_provider::LegacyStoragePerformanceProvider;
+use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
+use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_performance::provider::NodePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
@@ -254,7 +255,11 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
             &task_manager,
         )
         .await?;
-        Box::new(performance_contract_cache) as Box<dyn NodePerformanceProvider + Send + Sync>
+        let provider = ContractPerformanceProvider::new(
+            &config.performance_provider,
+            performance_contract_cache,
+        );
+        Box::new(provider) as Box<dyn NodePerformanceProvider + Send + Sync>
     } else {
         Box::new(LegacyStoragePerformanceProvider::new(
             storage.clone(),

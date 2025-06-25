@@ -78,7 +78,7 @@ impl<'a> SimulationCoordinator<'a> {
             .manager
             .create_simulated_reward_epoch(
                 current_epoch_id,
-                "new_method",
+                "new",
                 start_timestamp,
                 end_timestamp,
                 self.config.description.as_deref(),

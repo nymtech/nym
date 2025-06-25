@@ -6,6 +6,14 @@ interface EnvConfig {
   apiUrl?: string;
 }
 
+function log(message?: any, ...optionalParams: any[]) {
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.DEBUG_CONFIG_LOGS === "true"
+  ) {
+    console.log(message, ...optionalParams);
+  }
+}
 
 function getMainnetEnv(): EnvConfig {
   return {

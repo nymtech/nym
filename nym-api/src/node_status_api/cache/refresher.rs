@@ -144,6 +144,7 @@ impl NodeStatusCacheRefresher {
         fallback_interval.reset();
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn produce_node_annotations(
         &self,
         config_score_data: &ConfigScoreData,

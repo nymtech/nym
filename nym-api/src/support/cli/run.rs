@@ -248,7 +248,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
             bail!("can't use performance contract data without setting the address of the contract")
         }
 
-        let performance_contract_cache = node_performance::start_cache_refresher(
+        let performance_contract_cache = node_performance::contract_cache::start_cache_refresher(
             &config.performance_provider,
             nyxd_client.clone(),
             mixnet_contract_cache_state.clone(),

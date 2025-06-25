@@ -19,7 +19,13 @@ const HeaderItem = ({ menu }: HeaderItemProps) => {
 
   return (
     <Stack direction="row" gap={2} key={menu.id} alignItems="center">
-      {pathname.includes(menu.url) && <Circle sx={{ fontSize: 10 }} />}
+      <Circle
+        sx={{
+          fontSize: 10,
+          display: pathname.includes(menu.url) ? "block" : "none",
+        }}
+      />
+
       <Link href={`${basePath}${menu.url}`} passHref>
         <Button
           sx={{

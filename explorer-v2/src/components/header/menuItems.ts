@@ -7,8 +7,8 @@ export type MenuItem = {
 const MENU_DATA: MenuItem[] = [
   {
     id: 1,
-    title: "Explorer",
-    url: "/table",
+    title: "Servers",
+    url: "/servers",
   },
   {
     id: 2,

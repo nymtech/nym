@@ -12,7 +12,7 @@ export default function ExplorerPage() {
     <ContentLayout>
       <Wrapper>
         <Stack gap={5}>
-          <SectionHeading title="Explorer" />
+          <SectionHeading title="Servers" />
           <NodeAndAddressSearch />
         </Stack>
         <Box sx={{ mt: 5 }}>

@@ -1,23 +1,20 @@
 "use client";
 import React from "react";
-import { Typography, Button, Link as MuiLink } from "@mui/material";
+import { Button } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useEnvironment } from "../../providers/EnvironmentProvider";
 import { useRouter, usePathname } from "next/navigation";
 import { getBasePathByEnv } from "../../../envs/config";
+import { colours } from "@/theme/colours";
 
-export const Environment: React.FC = () => {
+export const EnvironmentSwitcher: React.FC = () => {
   const theme = useTheme();
   const { environment, setEnvironment } = useEnvironment();
   const router = useRouter();
   const pathname = usePathname();
 
-  const explorerName = environment
-    ? `${environment} Explorer`
-    : "Mainnet Explorer";
-
   const switchNetworkText =
-    environment === "mainnet" ? "Switch to Testnet" : "Switch to Mainnet";
+    environment === "mainnet" ? "Switch to Sandbox" : "Switch to Mainnet";
 
   const getCurrentInternalPath = () => {
     // Remove the base path from the current pathname to get the internal path
@@ -39,39 +36,30 @@ export const Environment: React.FC = () => {
   };
 
   return (
-    <Typography
-      variant="h6"
-      noWrap
+    <Button
+      variant="outlined"
+      color="inherit"
+      onClick={handleSwitchEnvironment}
       sx={{
-        color: theme.palette.text.primary,
-        fontSize: "18px",
-        fontWeight: 600,
+        borderRadius: 2,
+        px: 2,
+        py: 1,
+        color:
+          theme.palette.mode === "light"
+            ? `${theme.palette.common.black} !important`
+            : `${theme.palette.common.white} !important`,
+        borderColor:
+          theme.palette.mode === "light"
+            ? theme.palette.common.black
+            : theme.palette.common.white,
+        borderStyle: environment === "sandbox" ? "solid" : "dashed",
+        backgroundColor:
+          environment === "sandbox" ? colours.pine[800] : "transparent",
+        fontWeight: 500,
+        fontSize: 14,
       }}
     >
-      <MuiLink
-        href={getBasePathByEnv(environment || "mainnet")}
-        underline="none"
-        color="inherit"
-        textTransform="capitalize"
-      >
-        {explorerName}
-      </MuiLink>
-      <Button
-        size="small"
-        variant="outlined"
-        color="inherit"
-        onClick={handleSwitchEnvironment}
-        sx={{
-          borderRadius: 2,
-          textTransform: "none",
-          width: 150,
-          ml: 4,
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {switchNetworkText}
-      </Button>
-    </Typography>
+      {switchNetworkText}
+    </Button>
   );
 };

@@ -553,7 +553,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           size="large"
           onClick={(e) => e.stopPropagation()}
         >
-          <Link href="/table" underline="none" color="inherit">
+          <Link href="/servers" underline="none" color="inherit">
             Stake
           </Link>
         </Button>

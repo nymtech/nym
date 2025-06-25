@@ -6,40 +6,6 @@ interface EnvConfig {
   apiUrl?: string;
 }
 
-function log(message?: any, ...optionalParams: any[]) {
-  if (
-    process.env.NODE_ENV === "development" ||
-    process.env.DEBUG_CONFIG_LOGS === "true"
-  ) {
-    console.log(message, ...optionalParams);
-  }
-}
-
-// export function getCurrentEnv(): Environment {
-//   // Check for VERCEL_ENV from .env file
-//   if (process.env.VERCEL_ENV === "sandbox") {
-//     return "sandbox";
-//   }
-//   if (process.env.VERCEL_ENV === "production") {
-//     return "mainnet";
-//   }
-
-//   // Check for environment-specific deployment branches
-//   if (process.env.VERCEL_GIT_COMMIT_REF === "deploy/sandbox") {
-//     return "sandbox";
-//   }
-//   if (process.env.VERCEL_GIT_COMMIT_REF === "deploy/mainnet") {
-//     return "mainnet";
-//   }
-
-//   // Check for NODE_ENV
-//   if (process.env.NODE_ENV === "production") {
-//     return "mainnet";
-//   }
-
-//   // Default to mainnet for development
-//   return "mainnet";
-// }
 
 function getMainnetEnv(): EnvConfig {
   return {
@@ -73,11 +39,6 @@ export const getEnvByName = (name: Environment): EnvConfig => {
   return getMainnetEnv();
 };
 
-// export const getEnv = (): EnvConfig => {
-//   const currentEnv = getCurrentEnv();
-//   log(`currentEnv = "${currentEnv}"`);
-//   return getEnvByName(currentEnv);
-// };
 
 export const getBasePathByEnv = (env: Environment): string => {
   return getEnvByName(env).basePath;

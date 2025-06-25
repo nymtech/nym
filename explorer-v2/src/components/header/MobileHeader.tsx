@@ -9,10 +9,19 @@ import NymLogo from "../icons/NymLogo";
 import ConnectWallet from "../wallet/ConnectWallet";
 import { DarkLightSwitchDesktop } from "./Switch";
 import MENU_DATA from "./menuItems";
-import { Environment } from "./Environment";
+import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
+import { getBasePathByEnv } from "../../../envs/config";
+
 export const MobileHeader = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const theme = useTheme();
+  const { environment } = useEnvironment();
+  const basePath = getBasePathByEnv(environment || "mainnet");
+
+  const explorerName = environment
+    ? `${environment} Explorer`
+    : "Mainnet Explorer";
 
   // Mobile menu handlers
   const toggleDrawer = (open: boolean) => {
@@ -62,6 +71,55 @@ export const MobileHeader = () => {
           >
             {/* Main Menu */}
             <Box sx={{ width: "50%", height: "100%" }}>
+              <Box key={explorerName} sx={{ marginBottom: 3 }}>
+                <Link
+                  onClick={() => toggleDrawer(false)}
+                  href={basePath}
+                  target="_self"
+                  sx={{
+                    display: "flex",
+                    width: "100%",
+                    padding: 3.75,
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "base.white"
+                        : "background.main",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-start",
+                      gap: 1.25,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "block",
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "100%",
+                        bgcolor:
+                          theme.palette.mode === "dark"
+                            ? "base.white"
+                            : "primary.main",
+                      }}
+                    />
+                    <Typography
+                      color={
+                        theme.palette.mode === "dark" ? "base.white" : "primary"
+                      }
+                      variant="h4"
+                    >
+                      {explorerName}
+                    </Typography>
+                  </Box>
+                </Link>
+              </Box>
               {MENU_DATA.map((menu) => (
                 <Box key={menu.title} sx={{ marginBottom: 3 }}>
                   <Link
@@ -78,6 +136,7 @@ export const MobileHeader = () => {
                           : "background.main",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      textDecoration: "none",
                     }}
                   >
                     <Box
@@ -178,7 +237,7 @@ const MobileMenuHeader = ({
           width: "100%",
         }}
       >
-        {!drawerOpen && <Environment />}
+        {!drawerOpen && <EnvironmentSwitcher />}
         {!drawerOpen && <ConnectWallet size="small" />}
       </Box>
       <Box height={40} />

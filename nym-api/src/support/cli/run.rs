@@ -214,7 +214,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         node_status_cache: node_status_cache_state.clone(),
         storage: storage.clone(),
         described_nodes_cache: described_nodes_cache.clone(),
-        network_details,
+        network_details: network_details.clone(),
         node_info_cache,
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
@@ -238,12 +238,22 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
     let performance_provider = if config.performance_provider.use_performance_contract_data {
+        if network_details
+            .network
+            .contracts
+            .performance_contract_address
+            .is_none()
+        {
+            bail!("can't use performance contract data without setting the address of the contract")
+        }
+
         let performance_contract_cache = node_performance::start_cache_refresher(
             &config.performance_provider,
             nyxd_client.clone(),
             mixnet_contract_cache_state.clone(),
             &task_manager,
-        );
+        )
+        .await?;
         Box::new(performance_contract_cache) as Box<dyn NodePerformanceProvider + Send + Sync>
     } else {
         Box::new(LegacyStoragePerformanceProvider::new(

@@ -9,32 +9,44 @@ use crate::node_performance::contract_cache::refresher::{
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheRefresher;
 use crate::support::{config, nyxd};
+use anyhow::bail;
 use nym_task::TaskManager;
 
 pub(crate) mod contract_cache;
 pub(crate) mod legacy_storage_provider;
 pub(crate) mod provider;
 
-pub(crate) fn start_cache_refresher(
+pub(crate) async fn start_cache_refresher(
     config: &config::PerformanceProvider,
     nyxd_client: nyxd::Client,
     mixnet_contract_cache: MixnetContractCache,
     task_manager: &TaskManager,
-) -> SharedCache<PerformanceContractCacheData> {
+) -> anyhow::Result<SharedCache<PerformanceContractCacheData>> {
     let values_to_retain = config.debug.max_epoch_entries_to_retain;
 
-    // if we crash just before the legacy data has to be updated...
-    let todo = "actually we need to warm up our cache with the last retention amount of values";
+    let mut item_provider =
+        PerformanceContractDataProvider::new(nyxd_client, mixnet_contract_cache);
 
-    let item_provider = PerformanceContractDataProvider::new(nyxd_client, mixnet_contract_cache);
-    let refresher = CacheRefresher::new(item_provider, config.debug.contract_polling_interval)
-        .named("performance-contract-cache-refresher")
-        .with_update_fn(move |main_cache, update| {
-            refresher_update_fn(main_cache, update, values_to_retain)
-        });
+    if !item_provider.cache_has_values().await {
+        bail!("performance contract is empty - can't use it as source of node performance")
+    }
 
-    let shared_cache = refresher.get_shared_cache();
+    let warmed_up_cache = SharedCache::new_with_value(
+        item_provider
+            .provide_initial_warmed_up_cache(values_to_retain)
+            .await?,
+    );
 
-    refresher.start(task_manager.subscribe_named("performance-contract-cache-refresher"));
-    shared_cache
+    CacheRefresher::new_with_initial_value(
+        Box::new(item_provider),
+        config.debug.contract_polling_interval,
+        warmed_up_cache.clone(),
+    )
+    .named("performance-contract-cache-refresher")
+    .with_update_fn(move |main_cache, update| {
+        refresher_update_fn(main_cache, update, values_to_retain)
+    })
+    .start(task_manager.subscribe_named("performance-contract-cache-refresher"));
+
+    Ok(warmed_up_cache)
 }

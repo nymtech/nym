@@ -32,6 +32,12 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
+    pub(crate) fn new_with_value(value: T) -> Self {
+        SharedCache(Arc::new(RwLock::new(CachedItem {
+            inner: Some(Cache::new(value)),
+        })))
+    }
+
     pub(crate) async fn try_update_value<S>(
         &self,
         update: S,

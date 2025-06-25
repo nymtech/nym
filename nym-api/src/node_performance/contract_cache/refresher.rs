@@ -10,6 +10,7 @@ use crate::support::nyxd::Client;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::contract_traits::performance_query_client::LastSubmission;
 use nym_validator_client::nyxd::error::NyxdError;
+use std::collections::BTreeMap;
 
 pub struct PerformanceContractDataProvider {
     nyxd_client: Client,
@@ -50,6 +51,54 @@ impl PerformanceContractDataProvider {
         }
     }
 
+    pub(crate) async fn cache_has_values(&self) -> bool {
+        let Ok(last_submitted) = self
+            .nyxd_client
+            .get_last_performance_contract_submission()
+            .await
+        else {
+            return false;
+        };
+        last_submitted.data.is_some()
+    }
+
+    pub(crate) async fn provide_initial_warmed_up_cache(
+        &mut self,
+        values_to_keep: usize,
+    ) -> Result<PerformanceContractCacheData, NyxdError> {
+        let last_submitted = self
+            .nyxd_client
+            .get_last_performance_contract_submission()
+            .await?;
+
+        self.mixnet_contract_cache
+            .naive_wait_for_initial_values()
+            .await;
+
+        // SAFETY: we just waited for cache to be available
+        #[allow(clippy::unwrap_used)]
+        let current_epoch = self
+            .mixnet_contract_cache
+            .current_interval()
+            .await
+            .unwrap()
+            .current_epoch_absolute_id();
+
+        let last = current_epoch.saturating_sub(values_to_keep as u32);
+
+        let mut epoch_performance = BTreeMap::default();
+        for epoch in current_epoch..last {
+            let performance = self.nyxd_client.get_full_epoch_performance(epoch).await?;
+            let per_epoch_performance =
+                PerformanceContractEpochCacheData::from_node_performance(performance, epoch);
+            epoch_performance.insert(epoch, per_epoch_performance);
+        }
+
+        self.last_submission = Some(last_submitted);
+
+        Ok(PerformanceContractCacheData { epoch_performance })
+    }
+
     async fn refresh(&mut self) -> Result<Option<PerformanceContractEpochCacheData>, NyxdError> {
         let last_submitted = self
             .nyxd_client
@@ -77,16 +126,10 @@ impl PerformanceContractDataProvider {
             .get_full_epoch_performance(current_epoch)
             .await?;
 
-        let median_performance = performance
-            .into_iter()
-            .map(|node_performance| (node_performance.node_id, node_performance.performance))
-            .collect();
-
         self.last_submission = Some(last_submitted);
 
-        Ok(Some(PerformanceContractEpochCacheData {
-            epoch_id: current_epoch,
-            median_performance,
-        }))
+        Ok(Some(
+            PerformanceContractEpochCacheData::from_node_performance(performance, current_epoch),
+        ))
     }
 }

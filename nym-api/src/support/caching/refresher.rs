@@ -130,6 +130,7 @@ where
         self.refresh_requester.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_shared_cache(&self) -> SharedCache<T> {
         self.shared_cache.clone()
     }

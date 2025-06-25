@@ -546,42 +546,45 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
                     .collect::<Result<Vec<_>, _>>()?;
 
                 let network_account = NetworkAccount::finalize()?;
-                let accounting_routes = network_account.accounting_routes;
-                info!("Submitting {} accounting routes", accounting_routes.len());
-                match accounting_routes
-                    .chunks(10)
-                    .map(|chunk| {
-                        let route_results = chunk
-                            .iter()
-                            .map(|route| {
-                                RouteResult::new(
-                                    route.mix_nodes.0,
-                                    route.mix_nodes.1,
-                                    route.mix_nodes.2,
-                                    route.gateway_node,
-                                    route.success,
-                                )
-                            })
-                            .collect::<Vec<RouteResult>>();
-                        let monitor_results = MonitorResults::Route(route_results);
-                        let monitor_message = MonitorMessage::new(monitor_results, private_key);
-                        client.post(&route_submit_url).json(&monitor_message).send()
+                let route_results = network_account.accounting_routes
+                    .iter()
+                    .map(|route| {
+                        RouteResult::new(
+                            route.mix_nodes.0,
+                            route.mix_nodes.1,
+                            route.mix_nodes.2,
+                            route.gateway_node,
+                            route.success,
+                        )
                     })
-                    .collect::<FuturesUnordered<_>>()
-                    .collect::<Vec<Result<_, _>>>()
-                    .await
+                    .collect::<HashSet<RouteResult>>()
                     .into_iter()
-                    .collect::<Result<Vec<_>, _>>()
-                {
-                    Ok(_) => info!(
-                        "Successfully submitted accounting routes to {}",
-                        nym_api_url
-                    ),
-                    Err(e) => error!(
-                        "Error submitting accounting routes to {}: {}",
-                        nym_api_url, e
-                    ),
-                };
+                    .collect::<Vec<RouteResult>>();
+                info!("Submitting {} accounting routes", route_results.len());
+                for batch in route_results.chunks(1000) {
+                    match batch
+                        .chunks(100)
+                        .map(|chunk| {
+                            let monitor_results = MonitorResults::Route(chunk.to_vec());
+                            let monitor_message = MonitorMessage::new(monitor_results, private_key);
+                            client.post(&route_submit_url).json(&monitor_message).send()
+                        })
+                        .collect::<FuturesUnordered<_>>()
+                        .collect::<Vec<Result<_, _>>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<Vec<_>, _>>()
+                    {
+                        Ok(_) => info!(
+                            "Successfully submitted accounting routes to {}",
+                            nym_api_url
+                        ),
+                        Err(e) => error!(
+                            "Error submitting accounting routes to {}: {}",
+                            nym_api_url, e
+                        ),
+                    };
+                }
             }
         }
     } else {

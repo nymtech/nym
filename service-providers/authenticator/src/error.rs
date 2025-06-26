@@ -17,6 +17,9 @@ pub enum AuthenticatorError {
     #[error("{0}")]
     CredentialVerificationError(#[from] nym_credential_verification::Error),
 
+    #[error("invalid credential type")]
+    InvalidCredentialType,
+
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
@@ -77,13 +80,7 @@ pub enum AuthenticatorError {
     #[error("peers can't be interacted with anymore")]
     PeerInteractionStopped,
 
-    #[error("operation is not supported")]
-    UnsupportedOperation,
-
-    #[error("operation unavailable for older client")]
-    OldClient,
-
-    #[error("storage should have the requested bandwidht entry")]
+    #[error("storage should have the requested bandwidth entry")]
     MissingClientBandwidthEntry,
 
     #[error("unknown version number")]
@@ -103,6 +100,9 @@ pub enum AuthenticatorError {
 
     #[error("{0}")]
     RecipientFormatting(#[from] nym_sdk::mixnet::RecipientFormattingError),
+
+    #[error("no credential received")]
+    NoCredentialReceived,
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

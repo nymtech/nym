@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     let connection_url = args.database_url.clone();
     tracing::debug!("Using config:\n{:#?}", args);
 
-    let storage = db::Storage::init(connection_url).await?;
+    let storage = db::Storage::init(connection_url, args.sqlx_busy_timeout_s).await?;
     let db_pool = storage.pool_owned();
 
     // Start the node scraper

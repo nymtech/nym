@@ -45,6 +45,10 @@ pub(crate) struct Cli {
     #[clap(long, env = "DATABASE_URL")]
     pub(crate) database_url: String,
 
+    #[clap(long, default_value = "5", env = "SQLX_BUSY_TIMEOUT_S")]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) sqlx_busy_timeout_s: Duration,
+
     #[clap(
         long,
         default_value = "300",

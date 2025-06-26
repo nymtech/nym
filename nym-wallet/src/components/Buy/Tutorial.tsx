@@ -1,32 +1,32 @@
 import React from 'react';
 import { Box, Typography, Grid, Link, Card, CardContent, Stack } from '@mui/material';
-import { NymCard } from '..';
 import BitfinexIcon from 'src/svg-icons/bitfinex.svg';
 import KrakenIcon from 'src/svg-icons/kraken.svg';
 import BybitIcon from 'src/svg-icons/bybit.svg';
 import GateIcon from 'src/svg-icons/gate22.svg';
 import HTXIcon from 'src/svg-icons/htx.svg';
+import { NymCard } from '..';
 
-const ExchangeCard = ({ 
-  name, 
-  tokenType, 
-  url, 
-  IconComponent 
+const ExchangeCard = ({
+  name,
+  tokenType,
+  url,
+  IconComponent,
 }: {
   name: string;
   tokenType: string;
   url: string;
   IconComponent: React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
 }) => (
-  <Card 
-    variant="outlined" 
-    sx={{ 
+  <Card
+    variant="outlined"
+    sx={{
       height: '100%',
       transition: 'all 0.2s ease-in-out',
       '&:hover': {
         transform: 'translateY(-2px)',
         boxShadow: 2,
-      }
+      },
     }}
   >
     <CardContent sx={{ p: 3 }}>
@@ -51,17 +51,17 @@ const ExchangeCard = ({
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {tokenType}
           </Typography>
-          <Link 
-            href={url} 
-            target="_blank" 
+          <Link
+            href={url}
+            target="_blank"
             variant="body2"
             data-testid="link-get-nym"
-            sx={{ 
+            sx={{
               textDecoration: 'underline',
               fontWeight: 500,
               '&:hover': {
                 textDecoration: 'none',
-              }
+              },
             }}
           >
             GET NYM
@@ -78,44 +78,40 @@ export const Tutorial = () => {
       name: 'Bitfinex',
       tokenType: 'Native NYM, ERC-20',
       url: 'https://www.bitfinex.com/',
-      IconComponent: BitfinexIcon
+      IconComponent: BitfinexIcon,
     },
     {
       name: 'Kraken',
       tokenType: 'Native NYM',
       url: 'https://www.kraken.com/',
-      IconComponent: KrakenIcon
+      IconComponent: KrakenIcon,
     },
     {
       name: 'Bybit',
       tokenType: 'ERC-20',
       url: 'https://www.bybit.com/en/',
-      IconComponent: BybitIcon
+      IconComponent: BybitIcon,
     },
     {
       name: 'Gate.io',
       tokenType: 'ERC-20',
       url: 'https://www.gate.io/',
-      IconComponent: GateIcon
+      IconComponent: GateIcon,
     },
     {
       name: 'HTX',
       tokenType: 'ERC-20',
       url: 'https://www.htx.com/',
-      IconComponent: HTXIcon
+      IconComponent: HTXIcon,
     },
   ];
 
   return (
-    <NymCard
-      borderless
-      title="Where you can get NYM tokens"
-      sx={{ mt: 4 }}
-    >
+    <NymCard borderless title="Where you can get NYM tokens" sx={{ mt: 4 }}>
       <Typography mb={3} fontSize={14} sx={{ color: 'text.secondary' }}>
         You can get NYM tokens from these exchanges
       </Typography>
-      
+
       <Grid container spacing={3}>
         {exchanges.map((exchange) => (
           <Grid item xs={12} md={6} lg={4} key={exchange.name}>

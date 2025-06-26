@@ -11,14 +11,13 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio::sync::Mutex;
+use tokio::sync::oneshot;
 use tokio_util::codec::{Decoder, Encoder};
 use tracing::field::debug;
 use tracing::{debug, info, warn};
 
 /**
  * TODO
- * - check all works
  * - Convenience methods? Depends on what we want to put in here and what might be used / impl-ed in consuming libraries
  * - https://github.com/nymtech/nym-vpn-client/tree/develop/nym-vpn-core/crates/nym-ip-packet-client/src - hook into IPR
  * - builder pattern via MixSocket + tests
@@ -107,14 +106,19 @@ impl MixStream {
         debug!("Splitting MixStream");
         let sender = self.client.split_sender();
         debug!("Split MixStream into Reader and Writer");
+        let (surb_tx, surb_rx) = oneshot::channel();
         (
             MixStreamReader {
                 client: self.client,
-                peer: self.peer.expect("No Peer set"),
+                peer: self.peer,
+                peer_surbs: self.peer_surbs,
+                surb_tx: Some(surb_tx),
             },
             MixStreamWriter {
                 sender,
                 peer: self.peer.expect("No Peer set"),
+                peer_surbs: self.peer_surbs,
+                surb_rx: Some(surb_rx),
             },
         )
     }
@@ -142,18 +146,12 @@ impl MixStream {
 
         let mut codec = InputMessageCodec {};
         let mut serialized_bytes = BytesMut::new();
-        codec
-            .encode(input_message, &mut serialized_bytes)
-            .map_err(|_| Error::MessageSendingFailure)?;
+        codec.encode(input_message, &mut serialized_bytes)?;
         info!("Serialized bytes: {:?}", serialized_bytes);
 
-        self.write_all(&serialized_bytes)
-            .await
-            .map_err(|_| Error::MessageSendingFailure)?;
+        self.write_all(&serialized_bytes).await?;
         info!("Wrote serialized bytes");
-        self.flush()
-            .await
-            .map_err(|_| Error::MessageSendingFailure)?;
+        self.flush().await?;
         debug!("Flushed");
 
         Ok(())
@@ -195,20 +193,36 @@ impl AsyncWrite for MixStream {
     }
 }
 
-// TODO make peer + peer surbs optional as in Stream
 pub struct MixStreamReader {
     client: MixnetClient,
-    peer: Recipient,
+    peer: Option<Recipient>, // We might be accepting incoming messages and replying, so might not have a Nym addr to talk to..
+    peer_surbs: Option<AnonymousSenderTag>, // ..since we might just be using SURBs instead
+    surb_tx: Option<oneshot::Sender<AnonymousSenderTag>>,
 }
+
 impl MixStreamReader {
-    /// Nym address of StreamReader's Recipient (Nym Client it will communicate with).
-    pub fn peer_addr(&self) -> &Recipient {
-        &self.peer
+    /// Nym address of Stream's peer (Nym Client it will communicate with).
+    pub fn peer_addr(&self) -> Recipient {
+        let peer = &self.peer.expect("No Peer set");
+        peer.clone()
     }
 
     /// Our Nym address.
     pub fn local_addr(&self) -> &Recipient {
         self.client.nym_address()
+    }
+
+    /// Store SURBs in both own field + send to the other side of the split so they can be used for the connection.
+    pub fn store_surbs(&mut self, surbs: AnonymousSenderTag) {
+        self.peer_surbs = Some(surbs);
+        if let Some(tx) = self.surb_tx.take() {
+            tx.send(surbs); // TODO err handling
+        }
+    }
+
+    /// Stored SURBs (if any).
+    pub fn surbs(&self) -> Option<AnonymousSenderTag> {
+        self.peer_surbs
     }
 }
 
@@ -222,52 +236,53 @@ impl AsyncRead for MixStreamReader {
     }
 }
 
-// TODO make peer + peer surbs optional as in Stream
 pub struct MixStreamWriter {
     sender: MixnetClientSender,
     peer: Recipient,
+    peer_surbs: Option<AnonymousSenderTag>,
+    surb_rx: Option<oneshot::Receiver<AnonymousSenderTag>>,
 }
 
 impl MixStreamWriter {
-    // Convenience method for just piping bytes into the Mixnet.
-    //
-    // Commented out until new peer + surb model is added
-    // pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
-    //     let input_message = if self.peer_surbs.is_some() {
-    //         InputMessage::Reply {
-    //             recipient_tag: (self.peer_surbs.expect("No Peer SURBs set")),
-    //             data: (data.to_owned()),
-    //             lane: (nym_task::connections::TransmissionLane::General),
-    //             max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
-    //         }
-    //     } else {
-    //         InputMessage::Anonymous {
-    //             recipient: (self.peer.expect("No Peer set")),
-    //             data: (data.to_owned()),
-    //             reply_surbs: (10),
-    //             lane: (nym_task::connections::TransmissionLane::General),
-    //             max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
-    //         }
-    //     };
+    /// Convenience method for just piping bytes into the Mixnet.
+    pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
+        if self.peer_surbs.is_none() {
+            if let Some(mut rx) = self.surb_rx.take() {
+                if let Ok(surbs) = rx.try_recv() {
+                    self.peer_surbs = Some(surbs);
+                }
+            }
+        }
 
-    //     let mut codec = InputMessageCodec {};
-    //     let mut serialized_bytes = BytesMut::new();
-    //     codec
-    //         .encode(input_message, &mut serialized_bytes)
-    //         .map_err(|_| Error::MessageSendingFailure)?;
-    //     info!("Serialized bytes: {:?}", serialized_bytes);
+        let input_message = if self.peer_surbs.is_some() {
+            InputMessage::Reply {
+                recipient_tag: (self.peer_surbs.expect("No Peer SURBs set")),
+                data: (data.to_owned()),
+                lane: (nym_task::connections::TransmissionLane::General),
+                max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
+            }
+        } else {
+            InputMessage::Anonymous {
+                recipient: (self.peer),
+                data: (data.to_owned()),
+                reply_surbs: (10),
+                lane: (nym_task::connections::TransmissionLane::General),
+                max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
+            }
+        };
 
-    //     self.write_all(&serialized_bytes)
-    //         .await
-    //         .map_err(|_| Error::MessageSendingFailure)?;
-    //     info!("Wrote serialized bytes");
-    //     self.flush()
-    //         .await
-    //         .map_err(|_| Error::MessageSendingFailure)?;
-    //     debug!("Flushed");
+        let mut codec = InputMessageCodec {};
+        let mut serialized_bytes = BytesMut::new();
+        codec.encode(input_message, &mut serialized_bytes)?;
+        info!("Serialized bytes: {:?}", serialized_bytes);
 
-    //     Ok(())
-    // }
+        self.write_all(&serialized_bytes).await?;
+        info!("Wrote serialized bytes");
+        self.flush().await?;
+        debug!("Flushed");
+
+        Ok(())
+    }
 }
 
 impl AsyncWrite for MixStreamWriter {
@@ -290,11 +305,8 @@ impl AsyncWrite for MixStreamWriter {
 
 /**
  * Tests TODO:
- *
  * STREAM + STREAMREADER + STREAMWRITER
- * - anonymous replies
  * - make sure we can do TLS through this (aka get around the 'superinsecuredontuseinprod mode' flags)
- *
  * SOCKET
  * - general tests: create new + various into() fns
  *
@@ -319,219 +331,9 @@ mod tests {
             nym_bin_common::logging::setup_tracing_logger();
         });
     }
-
-    // #[tokio::test]
-    // async fn simple_send_and_receive() -> Result<(), Box<dyn std::error::Error>> {
-    //     // init_logging();
-    //     let receiver_socket = MixSocket::new_test().await?; // TODO change once socket impl is done
-    //     let receiver_address = receiver_socket.nym_address().clone();
-    //     let receiver_stream = MixStream::new(Some(receiver_socket), receiver_address.clone()).await;
-    //     let mut sender_stream = MixStream::new(None, receiver_address).await;
-
-    //     let message = b"Hello, Mixnet!";
-
-    //     let mut receiver_for_task = receiver_stream;
-    //     let receiver_task = tokio::spawn(async move {
-    //         let mut buffer = [0u8; 1024];
-    //         match receiver_for_task.read(&mut buffer).await {
-    //             Ok(bytes_read) => {
-    //                 if bytes_read > 0 {
-    //                     let mut codec = ReconstructedMessageCodec {};
-    //                     let mut buf = BytesMut::from(&buffer[..bytes_read]);
-
-    //                     match codec.decode(&mut buf) {
-    //                         Ok(Some(decoded_message)) => {
-    //                             let received_payload = decoded_message.message;
-    //                             let received_surbs = decoded_message.sender_tag;
-    //                             let payload_length = received_payload.len();
-
-    //                             info!(
-    //                                 "Received {} bytes: {:?} from {:?}",
-    //                                 payload_length, received_payload, received_surbs
-    //                             );
-    //                             return Ok((received_payload, payload_length));
-    //                         }
-    //                         Ok(None) => println!(
-    //                             "ReconstructedMessageCodec returned None - incomplete message?"
-    //                         ),
-    //                         // TODO make panic
-    //                         Err(e) => println!("ReconstructedMessageCodec decode error: {:?}", e),
-    //                     }
-    //                 }
-    //                 // TODO make panic
-    //                 Err(("No bytes read".to_string(), 0))
-    //             }
-    //             // TODO make panic
-    //             Err(e) => Err((format!("Read error: {}", e), 0)),
-    //         }
-    //     });
-
-    //     sender_stream.write_bytes(message).await?;
-    //     info!("Sent {} bytes", message.len());
-
-    //     let result =
-    //         tokio::time::timeout(tokio::time::Duration::from_secs(15), receiver_task).await;
-    //     sender_stream.disconnect().await;
-
-    //     match result {
-    //         Ok(Ok(Ok((received_payload, paylod_length)))) => {
-    //             assert_eq!(
-    //                 paylod_length,
-    //                 message.len(),
-    //                 "Length mismatch: expected {}, got {}",
-    //                 message.len(),
-    //                 paylod_length
-    //             );
-
-    //             assert_eq!(received_payload.as_slice(), message, "Content mismatch");
-    //         }
-    //         Ok(Ok(Err((error_msg, _)))) => {
-    //             panic!("Receiver task failed: {}", error_msg);
-    //         }
-    //         Ok(Err(e)) => {
-    //             panic!("Receiver task panicked: {:?}", e);
-    //         }
-    //         Err(_) => {
-    //             panic!("Test timed out");
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
-    // #[tokio::test]
-    // async fn simple_send_receive_split() -> Result<(), Box<dyn std::error::Error>> {
-    //     // init_logging();
-    //     let receiver_socket = MixSocket::new_test().await?; // TODO change once socket impl is done
-    //     let receiver_address = receiver_socket.nym_address().clone();
-    //     let sender_socket = MixSocket::new_test().await?;
-    //     let sender_address = sender_socket.nym_address().clone();
-    //     let receiver_stream = MixStream::new(Some(receiver_socket), sender_address.clone()).await;
-    //     let sender_stream = MixStream::new(Some(sender_socket), receiver_address.clone()).await;
-    //     let (mut reader, _receiver_writer) = receiver_stream.split();
-    //     let (_sender_reader, mut writer) = sender_stream.split();
-
-    //     let message = b"Hello, Mixnet Split!";
-
-    //     let receiver_task = tokio::spawn(async move {
-    //         let mut buffer = [0u8; 1024];
-    //         match reader.read(&mut buffer).await {
-    //             Ok(bytes_read) => {
-    //                 if bytes_read > 0 {
-    //                     let mut codec = ReconstructedMessageCodec {};
-    //                     let mut buf = BytesMut::from(&buffer[..bytes_read]);
-
-    //                     match codec.decode(&mut buf) {
-    //                         Ok(Some(decoded_message)) => {
-    //                             let received_payload = decoded_message.message;
-    //                             let payload_length = received_payload.len();
-
-    //                             info!("Received {} bytes: {:?}", payload_length, received_payload);
-    //                             return Ok((received_payload, payload_length));
-    //                         }
-    //                         Ok(None) => println!(
-    //                             "ReconstructedMessageCodec returned None - incomplete message?"
-    //                         ),
-    //                         Err(e) => println!("ReconstructedMessageCodec decode error: {:?}", e),
-    //                     }
-    //                 }
-    //                 Err(("No bytes read".to_string(), 0))
-    //             }
-    //             Err(e) => Err((format!("Read error: {}", e), 0)),
-    //         }
-    //     });
-
-    //     writer.write_bytes(message).await?;
-    //     info!("Sent {} bytes", message.len());
-
-    //     let result =
-    //         tokio::time::timeout(tokio::time::Duration::from_secs(15), receiver_task).await;
-
-    //     match result {
-    //         Ok(Ok(Ok((received_payload, payload_length)))) => {
-    //             assert_eq!(
-    //                 payload_length,
-    //                 message.len(),
-    //                 "Length mismatch: expected {}, got {}",
-    //                 message.len(),
-    //                 payload_length
-    //             );
-
-    //             assert_eq!(received_payload.as_slice(), message, "Content mismatch");
-    //         }
-    //         Ok(Ok(Err((error_msg, _)))) => {
-    //             panic!("Receiver task failed: {}", error_msg);
-    //         }
-    //         Ok(Err(e)) => {
-    //             panic!("Receiver task panicked: {:?}", e);
-    //         }
-    //         Err(_) => {
-    //             panic!("Test timed out");
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
-    // #[tokio::test]
-    // async fn concurrent_send_receive() -> Result<(), Box<dyn std::error::Error>> {
-    //     // init_logging();
-    //     let socket = MixSocket::new_test().await?; // TODO change once socket impl is done
-    //     let addr = socket.nym_address().clone();
-    //     let stream = MixStream::new(Some(socket), addr.clone()).await;
-    //     let (mut reader, mut writer) = stream.split();
-
-    //     let writer_task = tokio::spawn(async move {
-    //         for i in 0..20 {
-    //             let msg = format!("Message {}", i);
-    //             match writer.write_bytes(msg.as_bytes()).await {
-    //                 Ok(()) => {}
-    //                 Err(e) => {
-    //                     return Err(format!("Write failed: {:?}", e));
-    //                 }
-    //             }
-    //         }
-    //         Ok(())
-    //     });
-
-    //     let reader_task = tokio::spawn(async move {
-    //         let mut received = 0;
-    //         let mut buffer = [0u8; 1024];
-
-    //         loop {
-    //             match tokio::time::timeout(
-    //                 tokio::time::Duration::from_secs(5),
-    //                 reader.read(&mut buffer),
-    //             )
-    //             .await
-    //             {
-    //                 Ok(Ok(n)) if n > 0 => {
-    //                     let mut codec = ReconstructedMessageCodec {};
-    //                     let mut buf = BytesMut::from(&buffer[..n]);
-    //                     if let Ok(Some(_)) = codec.decode(&mut buf) {
-    //                         received += 1;
-    //                     }
-    //                 }
-    //                 _ => break,
-    //             }
-    //         }
-    //         received
-    //     });
-
-    //     match writer_task.await {
-    //         Ok(Ok(())) => {}
-    //         Ok(Err(e)) => panic!("Writer task failed: {}", e),
-    //         Err(e) => panic!("Writer task panicked: {:?}", e),
-    //     }
-
-    //     let count = reader_task.await?;
-
-    //     info!("Sent 20 messages, received {}", count);
-    //     assert!(count == 20);
-    //     Ok(())
-    // }
-
     #[tokio::test]
-    async fn simple_surb_reply() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
+    async fn simple_surb_reply_stream() -> Result<(), Box<dyn std::error::Error>> {
+        // init_logging();
 
         let receiver_socket = MixSocket::new_test().await?;
         let receiver_address = receiver_socket.nym_address().clone();
@@ -574,12 +376,134 @@ mod tests {
                 if let Ok(Some(decoded_message)) = codec.decode(&mut buf) {
                     assert_eq!(decoded_message.message.as_slice(), b"Hello, Mixnet reply!");
                 }
+                info!("Got reply!");
             }
             _ => panic!("Failed to receive reply"),
         }
 
-        receiver_stream.disconnect().await;
-        sender_stream.disconnect().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn concurrent_surb_reply_split() -> Result<(), Box<dyn std::error::Error>> {
+        // init_logging();
+
+        let sender_socket = MixSocket::new_test().await?;
+        let sender_address = sender_socket.nym_address().clone();
+        let receiver_socket = MixSocket::new_test().await?;
+        let receiver_address = receiver_socket.nym_address().clone();
+        let sender_stream = MixStream::new(Some(sender_socket), receiver_address.clone()).await;
+        let receiver_stream = MixStream::new(Some(receiver_socket), sender_address.clone()).await;
+
+        let (mut sender_reader, mut sender_writer) = sender_stream.split();
+        let (mut receiver_reader, mut receiver_writer) = receiver_stream.split();
+
+        let sender_task = tokio::spawn(async move {
+            for i in 0..5 {
+                let msg = format!("Message {} requesting SURB reply", i);
+                sender_writer.write_bytes(msg.as_bytes()).await?;
+                info!("Sent message {}", i);
+            }
+            Ok::<_, Error>((sender_writer, 5))
+        });
+
+        let receiver_task = tokio::spawn(async move {
+            let mut received_count = 0;
+            let mut sent_replies = 0;
+            let mut buffer = [0u8; 1024];
+
+            while received_count < 5 {
+                match tokio::time::timeout(
+                    tokio::time::Duration::from_secs(10),
+                    receiver_reader.read(&mut buffer),
+                )
+                .await
+                {
+                    Ok(Ok(bytes_read)) if bytes_read > 0 => {
+                        let mut codec = ReconstructedMessageCodec {};
+                        let mut buf = BytesMut::from(&buffer[..bytes_read]);
+
+                        if let Ok(Some(decoded_message)) = codec.decode(&mut buf) {
+                            info!(
+                                "Received: {:?}",
+                                String::from_utf8_lossy(&decoded_message.message)
+                            );
+
+                            if received_count == 0 && decoded_message.sender_tag.is_some() {
+                                receiver_reader.store_surbs(decoded_message.sender_tag.unwrap());
+                                info!("Stored SURBs");
+                            }
+
+                            received_count += 1;
+
+                            if received_count == 3 && sent_replies == 0 {
+                                for i in 0..3 {
+                                    let reply = format!("SURB reply {}", i);
+                                    receiver_writer.write_bytes(reply.as_bytes()).await?;
+                                    info!("Sent SURB reply {}", i);
+                                    sent_replies += 1;
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(200))
+                                        .await;
+                                }
+                            }
+                        }
+                    }
+                    _ => break,
+                }
+            }
+
+            Ok::<_, Error>((
+                receiver_reader,
+                receiver_writer,
+                received_count,
+                sent_replies,
+            ))
+        });
+
+        let reply_reader_task = tokio::spawn(async move {
+            let mut reply_count = 0;
+            let mut buffer = [0u8; 1024];
+
+            while reply_count < 3 {
+                match tokio::time::timeout(
+                    tokio::time::Duration::from_secs(15),
+                    sender_reader.read(&mut buffer),
+                )
+                .await
+                {
+                    Ok(Ok(bytes_read)) if bytes_read > 0 => {
+                        let mut codec = ReconstructedMessageCodec {};
+                        let mut buf = BytesMut::from(&buffer[..bytes_read]);
+
+                        if let Ok(Some(decoded_message)) = codec.decode(&mut buf) {
+                            let reply_text = String::from_utf8_lossy(&decoded_message.message);
+                            info!("Received reply: {}", reply_text);
+                            assert!(reply_text.contains("SURB reply"));
+                            reply_count += 1;
+                        }
+                    }
+                    _ => {
+                        if reply_count == 0 {
+                            panic!("No SURB replies received");
+                        }
+                        break;
+                    }
+                }
+            }
+
+            Ok::<_, Error>(reply_count)
+        });
+
+        let (_, sent_count) = sender_task.await??;
+        let (_, _, received_count, sent_replies) = receiver_task.await??;
+        let reply_count = reply_reader_task.await??;
+
+        info!(
+            "Sent {} messages, received {} messages, sent {} SURB replies, received {} SURB replies",
+            sent_count, received_count, sent_replies, reply_count
+        );
+        assert!(received_count == 5, "Didn't receive all messages!");
+        assert!(reply_count == 3, "Didn't receive all replies!");
 
         Ok(())
     }

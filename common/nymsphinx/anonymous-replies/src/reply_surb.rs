@@ -56,6 +56,13 @@ impl ReplySurb {
         packet_size.plaintext_size() - ack_overhead - ReplySurbKeyDigestAlgorithm::output_size() - 1
     }
 
+    /// Construct a ResplySurb object. Selects mix hops for the surb unique to this
+    /// individual construction.
+    ///
+    /// If mix hops are disabled, the route will consistency of the recipient
+    /// (i.e. the ingress hop) only. When `disable_mix_hops` is enabled
+    /// `use_legacy_surb_format` is ignored as disabled mix hops requires use of
+    /// the updated SURB format.
     // TODO: should this return `ReplySURBError` for consistency sake
     // or keep `NymTopologyError` because it's the only error it can actually return?
     pub fn construct<R>(
@@ -64,17 +71,21 @@ impl ReplySurb {
         average_delay: Duration,
         use_legacy_surb_format: bool,
         topology: &NymRouteProvider,
-        _disable_mix_hops: bool, // TODO: support SURBs with no mix hops after changes to surb format / construction
+        disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
     {
-        let route = topology.random_route_to_egress(rng, recipient.gateway())?;
+        let route = if disable_mix_hops {
+            topology.empty_route_to_egress(recipient.gateway())?
+        } else {
+            topology.random_route_to_egress(rng, recipient.gateway())?
+        };
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
         let mut surb_material = SURBMaterial::new(route, delays, destination);
-        if use_legacy_surb_format {
+        if use_legacy_surb_format && !disable_mix_hops {
             surb_material = surb_material.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
         }
 

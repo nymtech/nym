@@ -191,7 +191,7 @@ pub async fn scrape_and_store_packet_stats(
     let timestamp_utc = timestamp.unix_timestamp();
     insert_node_packet_stats(pool, &node.node_kind, &stats, timestamp_utc).await?;
 
-    // Update daily stats
+    // TODO dz does this need to run every time?
     update_daily_stats(pool, node, timestamp, &stats).await?;
 
     Ok(())

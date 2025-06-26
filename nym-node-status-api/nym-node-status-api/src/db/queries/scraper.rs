@@ -7,7 +7,7 @@ use crate::{
         },
         DbPool,
     },
-    mixnet_scraper::helpers::NodeDescriptionResponse,
+    node_scraper::helpers::NodeDescriptionResponse,
     utils::now_utc,
 };
 use anyhow::Result;

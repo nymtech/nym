@@ -30,7 +30,7 @@ export const urls = (networkName?: Network) =>
       }
     : {
         blockExplorer: `https://${networkName}-blocks.nymtech.net`,
-        networkExplorer: `https://${networkName}-explorer.nymtech.net`,
+        networkExplorer: `https://nym.com/${networkName}-explorer`,
       };
 
 type TLoginType = 'mnemonic' | 'password';

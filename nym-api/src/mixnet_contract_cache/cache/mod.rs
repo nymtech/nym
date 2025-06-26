@@ -1,52 +1,56 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::refresh::RefreshData;
-use crate::nym_contract_cache::cache::data::{CachedContractsInfo, ConfigScoreData};
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
-use data::ContractCacheData;
+use data::MixnetContractCacheData;
 use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
-use nym_api_requests::models::MixnodeStatus;
+use nym_api_requests::models::{CirculatingSupplyResponse, MixnodeStatus};
+use nym_contracts_common::truncate_decimal;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
     Interval, KeyRotationState, NodeId, NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
+use nym_validator_client::nyxd::Coin;
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod data;
 pub(crate) mod refresher;
 
+const TOTAL_SUPPLY_AMOUNT: u128 = 1_000_000_000_000_000; // 1B tokens
+
 #[derive(Clone)]
-pub struct NymContractCache {
-    pub(crate) inner: SharedCache<ContractCacheData>,
+pub struct MixnetContractCache {
+    pub(crate) inner: SharedCache<MixnetContractCacheData>,
 }
 
-impl NymContractCache {
+impl MixnetContractCache {
     pub(crate) fn new() -> Self {
-        NymContractCache {
+        MixnetContractCache {
             inner: SharedCache::new(),
         }
     }
 
-    pub(crate) fn inner(&self) -> SharedCache<ContractCacheData> {
+    pub(crate) fn inner(&self) -> SharedCache<MixnetContractCacheData> {
         self.inner.clone()
     }
 
     async fn get_owned<T>(
         &self,
-        fn_arg: impl FnOnce(&ContractCacheData) -> T,
+        fn_arg: impl FnOnce(&MixnetContractCacheData) -> T,
     ) -> Result<T, UninitialisedCache> {
         Ok(fn_arg(&**self.inner.get().await?))
     }
 
     async fn get<'a, T: 'a>(
         &'a self,
-        fn_arg: impl FnOnce(&Cache<ContractCacheData>) -> &T,
+        fn_arg: impl FnOnce(&Cache<MixnetContractCacheData>) -> &T,
     ) -> Result<RwLockReadGuard<'a, T>, UninitialisedCache> {
         let guard = self.inner.get().await?;
         Ok(RwLockReadGuard::map(guard, fn_arg))
@@ -157,12 +161,6 @@ impl NymContractCache {
             .key_rotation_id(current_absolute_epoch_id))
     }
 
-    pub(crate) async fn contract_details(&self) -> CachedContractsInfo {
-        self.get_owned(|c| c.contracts_info.clone())
-            .await
-            .unwrap_or_default()
-    }
-
     pub async fn mixnode_status(&self, mix_id: NodeId) -> MixnodeStatus {
         let Ok(cache) = self.inner.get().await else {
             return Default::default();
@@ -213,6 +211,31 @@ impl NymContractCache {
         }
 
         None
+    }
+
+    pub(crate) async fn get_circulating_supply(&self) -> Option<CirculatingSupplyResponse> {
+        let mix_denom = self.get_owned(|c| c.rewarding_denom.clone()).await.ok()?;
+        let reward_pool = self
+            .interval_reward_params()
+            .await
+            .ok()?
+            .interval
+            .reward_pool;
+
+        let mixmining_reserve_amount = truncate_decimal(reward_pool).u128();
+        let mixmining_reserve = Coin::new(mixmining_reserve_amount, &mix_denom).into();
+
+        // given all tokens have already vested, the circulating supply is total supply - mixmining reserve
+        let circulating_supply =
+            Coin::new(TOTAL_SUPPLY_AMOUNT - mixmining_reserve_amount, &mix_denom).into();
+
+        Some(CirculatingSupplyResponse {
+            total_supply: Coin::new(TOTAL_SUPPLY_AMOUNT, &mix_denom).into(),
+            mixmining_reserve,
+            // everything has already vested
+            vesting_tokens: Coin::new(0, &mix_denom).into(),
+            circulating_supply,
+        })
     }
 
     pub(crate) async fn naive_wait_for_initial_values(&self) {

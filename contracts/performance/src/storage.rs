@@ -8,9 +8,9 @@ use cw_storage_plus::{Item, Map};
 use nym_contracts_common::Percent;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    BatchSubmissionResult, EpochId, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata,
-    NodeId, NodePerformance, NodeResults, NymPerformanceContractError,
-    RemoveEpochMeasurementsResponse, RetiredNetworkMonitor,
+    BatchSubmissionResult, EpochId, LastSubmission, LastSubmittedData, NetworkMonitorDetails,
+    NetworkMonitorSubmissionMetadata, NodeId, NodePerformance, NodeResults,
+    NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -19,6 +19,7 @@ pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
 pub struct NymPerformanceContractStorage {
     pub(crate) contract_admin: Admin,
     pub(crate) mixnet_epoch_id_at_creation: Item<EpochId>,
+    pub(crate) last_performance_submission: Item<LastSubmission>,
 
     pub(crate) mixnet_contract_address: Item<Addr>,
 
@@ -33,6 +34,7 @@ impl NymPerformanceContractStorage {
         NymPerformanceContractStorage {
             contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
             mixnet_epoch_id_at_creation: Item::new(storage_keys::INITIAL_EPOCH_ID),
+            last_performance_submission: Item::new(storage_keys::LAST_SUBMISSION),
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT),
             network_monitors: NetworkMonitorsStorage::new(),
             performance_results: PerformanceResultsStorage::new(),
@@ -77,6 +79,16 @@ impl NymPerformanceContractStorage {
 
         let initial_epoch_id = self.current_mixnet_epoch_id(deps.as_ref())?;
 
+        // set the last submission to the initial value
+        self.last_performance_submission.save(
+            deps.storage,
+            &LastSubmission {
+                block_height: env.block.height,
+                block_time: env.block.time,
+                data: None,
+            },
+        )?;
+
         // set the initial epoch id
         self.mixnet_epoch_id_at_creation
             .save(deps.storage, &initial_epoch_id)?;
@@ -100,6 +112,7 @@ impl NymPerformanceContractStorage {
     pub fn submit_performance_data(
         &self,
         deps: DepsMut,
+        env: Env,
         sender: &Addr,
         epoch_id: EpochId,
         data: NodePerformance,
@@ -135,12 +148,27 @@ impl NymPerformanceContractStorage {
             data.node_id,
         )?;
 
+        // 6. update latest submitted
+        self.last_performance_submission.save(
+            deps.storage,
+            &LastSubmission {
+                block_height: env.block.height,
+                block_time: env.block.time,
+                data: Some(LastSubmittedData {
+                    sender: sender.clone(),
+                    epoch_id,
+                    data,
+                }),
+            },
+        )?;
+
         Ok(())
     }
 
     pub fn batch_submit_performance_results(
         &self,
         deps: DepsMut,
+        env: Env,
         sender: &Addr,
         epoch_id: EpochId,
         data: Vec<NodePerformance>,
@@ -206,6 +234,20 @@ impl NymPerformanceContractStorage {
             sender,
             epoch_id,
             last.node_id,
+        )?;
+
+        // 6. update latest submitted
+        self.last_performance_submission.save(
+            deps.storage,
+            &LastSubmission {
+                block_height: env.block.height,
+                block_time: env.block.time,
+                data: Some(LastSubmittedData {
+                    sender: sender.clone(),
+                    epoch_id,
+                    data: *last,
+                }),
+            },
         )?;
 
         Ok(BatchSubmissionResult {
@@ -593,6 +635,25 @@ mod tests {
             }
 
             #[test]
+            fn sets_initial_submission_data() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut pre_init = PreInitContract::new();
+
+                let env = pre_init.env();
+                initialise_storage(&mut pre_init, None)?;
+                let deps = pre_init.deps();
+
+                let expected = LastSubmission {
+                    block_height: env.block.height,
+                    block_time: env.block.time,
+                    data: None,
+                };
+                let data = storage.last_performance_submission.load(deps.storage)?;
+                assert_eq!(expected, data);
+                Ok(())
+            }
+
+            #[test]
             fn retrieves_initial_epoch_id_from_mixnet_contract() -> anyhow::Result<()> {
                 // base case
                 let storage = NymPerformanceContractStorage::new();
@@ -721,18 +782,19 @@ mod tests {
                 let nm1 = tester.addr_make("network-monitor-1");
                 let nm2 = tester.addr_make("network-monitor-2");
                 let unauthorised = tester.addr_make("unauthorised");
+                let env = tester.env();
 
                 tester.authorise_network_monitor(&nm1)?;
 
                 // authorised network monitor can submit the results just fine
                 let perf = tester.dummy_node_performance();
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm1, 0, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm1, 0, perf)
                     .is_ok());
 
                 // unauthorised address is rejected
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm2, 0, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm2, 0, perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -744,12 +806,12 @@ mod tests {
                 // it is fine after explicit authorisation though
                 tester.authorise_network_monitor(&nm2)?;
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm2, 0, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm2, 0, perf)
                     .is_ok());
 
                 // and address that was never authorised still fails
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &unauthorised, 0, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &unauthorised, 0, perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -764,6 +826,7 @@ mod tests {
             fn its_not_possible_to_submit_data_for_same_node_again() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
+                let env = tester.env();
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
@@ -781,12 +844,12 @@ mod tests {
 
                 // first submission
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
                     .is_ok());
 
                 // second submission
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
                     .unwrap_err();
 
                 assert_eq!(
@@ -801,16 +864,16 @@ mod tests {
 
                 // another submission works fine
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, another_data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, another_data)
                     .is_ok());
 
                 // original one works IF it's for next epoch
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 1, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 1, data)
                     .is_ok());
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
                     .unwrap_err();
 
                 assert_eq!(
@@ -832,6 +895,7 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
@@ -845,11 +909,11 @@ mod tests {
                 };
 
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, another_data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, another_data)
                     .is_ok());
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
                     .unwrap_err();
 
                 assert_eq!(
@@ -864,11 +928,11 @@ mod tests {
 
                 // check across epochs
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 10, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, data)
                     .is_ok());
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 9, data)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 9, data)
                     .unwrap_err();
 
                 assert_eq!(
@@ -891,11 +955,12 @@ mod tests {
 
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
 
                 // if NM got authorised at epoch 10, it can only submit data for epochs >=10
                 let perf = tester.dummy_node_performance();
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf)
                     .unwrap_err();
 
                 assert_eq!(
@@ -909,7 +974,7 @@ mod tests {
                 );
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 9, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 9, perf)
                     .unwrap_err();
 
                 assert_eq!(
@@ -923,10 +988,10 @@ mod tests {
                 );
 
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 10, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, perf)
                     .is_ok());
                 assert!(storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 11, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 11, perf)
                     .is_ok());
 
                 Ok(())
@@ -936,6 +1001,7 @@ mod tests {
             fn updates_submission_metadata() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
+                let env = tester.env();
 
                 let mut nodes = Vec::new();
                 for _ in 0..10 {
@@ -953,6 +1019,7 @@ mod tests {
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     0,
                     NodePerformance {
@@ -969,6 +1036,7 @@ mod tests {
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     0,
                     NodePerformance {
@@ -985,6 +1053,7 @@ mod tests {
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     1,
                     NodePerformance {
@@ -1001,6 +1070,7 @@ mod tests {
 
                 storage.submit_performance_data(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     12345,
                     NodePerformance {
@@ -1019,9 +1089,135 @@ mod tests {
             }
 
             #[test]
+            fn updates_latest_submitted_information() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let env = tester.env();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+
+                let mut nodes = Vec::new();
+                for _ in 0..10 {
+                    nodes.push(tester.bond_dummy_nymnode()?);
+                }
+
+                storage.submit_performance_data(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    0,
+                    NodePerformance {
+                        node_id: nodes[0],
+                        performance: Default::default(),
+                    },
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 0,
+                            data: NodePerformance {
+                                node_id: nodes[0],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                storage.submit_performance_data(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    0,
+                    NodePerformance {
+                        node_id: nodes[6],
+                        performance: Default::default(),
+                    },
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 0,
+                            data: NodePerformance {
+                                node_id: nodes[6],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                storage.submit_performance_data(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    1,
+                    NodePerformance {
+                        node_id: nodes[2],
+                        performance: Default::default(),
+                    },
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 1,
+                            data: NodePerformance {
+                                node_id: nodes[2],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                storage.submit_performance_data(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    12345,
+                    NodePerformance {
+                        node_id: nodes[9],
+                        performance: Default::default(),
+                    },
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 12345,
+                            data: NodePerformance {
+                                node_id: nodes[9],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
             fn requires_associated_node_to_be_bonded() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
+                let env = tester.env();
 
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
@@ -1033,7 +1229,7 @@ mod tests {
 
                 // no node bonded at this point
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, dummy_perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -1048,14 +1244,15 @@ mod tests {
                     node_id,
                     performance: Default::default(),
                 };
-                let res = storage.submit_performance_data(tester.deps_mut(), &nm, 0, perf);
+                let res =
+                    storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
                 assert!(res.is_ok());
 
                 // unbonded
                 tester.unbond_nymnode(node_id)?;
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, dummy_perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -1070,14 +1267,15 @@ mod tests {
                     node_id,
                     performance: Default::default(),
                 };
-                let res = storage.submit_performance_data(tester.deps_mut(), &nm, 0, perf);
+                let res =
+                    storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
                 assert!(res.is_ok());
 
                 // unbonded
                 tester.unbond_legacy_mixnode(node_id)?;
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), &nm, 0, dummy_perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, dummy_perf)
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -1100,18 +1298,31 @@ mod tests {
                 let nm1 = tester.addr_make("network-monitor-1");
                 let nm2 = tester.addr_make("network-monitor-2");
                 let unauthorised = tester.addr_make("unauthorised");
+                let env = tester.env();
 
                 tester.authorise_network_monitor(&nm1)?;
 
                 let perf = tester.dummy_node_performance();
                 // authorised network monitor can submit the results just fine
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm1, 0, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm1,
+                        0,
+                        vec![perf]
+                    )
                     .is_ok());
 
                 // unauthorised address is rejected
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm2, 0, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm2,
+                        0,
+                        vec![perf],
+                    )
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -1123,13 +1334,20 @@ mod tests {
                 // it is fine after explicit authorisation though
                 tester.authorise_network_monitor(&nm2)?;
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm2, 0, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm2,
+                        0,
+                        vec![perf]
+                    )
                     .is_ok());
 
                 // and address that was never authorised still fails
                 let res = storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
+                        env.clone(),
                         &unauthorised,
                         0,
                         vec![perf],
@@ -1150,6 +1368,7 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
@@ -1174,27 +1393,57 @@ mod tests {
                 let sorted = vec![data, another_data, more_data];
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, duplicates)
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        duplicates,
+                    )
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::UnsortedBatchSubmission);
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, another_dups)
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        another_dups,
+                    )
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::UnsortedBatchSubmission);
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, unsorted)
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        unsorted,
+                    )
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::UnsortedBatchSubmission);
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, semi_sorted)
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        semi_sorted,
+                    )
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::UnsortedBatchSubmission);
 
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, sorted)
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        sorted
+                    )
                     .is_ok());
                 Ok(())
             }
@@ -1205,6 +1454,7 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
@@ -1219,12 +1469,24 @@ mod tests {
 
                 // first submission
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![data]
+                    )
                     .is_ok());
 
                 // second submission
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![data],
+                    )
                     .unwrap_err();
 
                 assert_eq!(
@@ -1239,16 +1501,34 @@ mod tests {
 
                 // another submission works fine
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![another_data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![another_data]
+                    )
                     .is_ok());
 
                 // original one works IF it's for next epoch
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 1, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        1,
+                        vec![data]
+                    )
                     .is_ok());
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![data],
+                    )
                     .unwrap_err();
 
                 assert_eq!(
@@ -1268,6 +1548,7 @@ mod tests {
             fn its_not_possible_to_submit_data_out_of_order() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
+                let env = tester.env();
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
@@ -1283,11 +1564,23 @@ mod tests {
                 };
 
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![another_data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![another_data]
+                    )
                     .is_ok());
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![data],
+                    )
                     .unwrap_err();
 
                 assert_eq!(
@@ -1302,11 +1595,23 @@ mod tests {
 
                 // check across epochs
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 10, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        10,
+                        vec![data]
+                    )
                     .is_ok());
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 9, vec![data])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        9,
+                        vec![data],
+                    )
                     .unwrap_err();
 
                 assert_eq!(
@@ -1325,8 +1630,9 @@ mod tests {
             fn its_not_possible_to_submit_data_for_past_epochs() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                tester.set_mixnet_epoch(10)?;
+                let env = tester.env();
 
+                tester.set_mixnet_epoch(10)?;
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
@@ -1334,7 +1640,13 @@ mod tests {
 
                 // if NM got authorised at epoch 10, it can only submit data for epochs >=10
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 0, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![perf],
+                    )
                     .unwrap_err();
 
                 assert_eq!(
@@ -1348,7 +1660,13 @@ mod tests {
                 );
 
                 let res = storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 9, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        9,
+                        vec![perf],
+                    )
                     .unwrap_err();
 
                 assert_eq!(
@@ -1362,10 +1680,22 @@ mod tests {
                 );
 
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 10, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        10,
+                        vec![perf]
+                    )
                     .is_ok());
                 assert!(storage
-                    .batch_submit_performance_results(tester.deps_mut(), &nm, 11, vec![perf])
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        11,
+                        vec![perf]
+                    )
                     .is_ok());
 
                 Ok(())
@@ -1375,6 +1705,7 @@ mod tests {
             fn updates_submission_metadata() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
+                let env = tester.env();
 
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
@@ -1393,6 +1724,7 @@ mod tests {
                 // single submission
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     0,
                     vec![NodePerformance {
@@ -1410,6 +1742,7 @@ mod tests {
                 // another epoch
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     1,
                     vec![NodePerformance {
@@ -1427,6 +1760,7 @@ mod tests {
                 // multiple submissions
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     1,
                     vec![
@@ -1454,6 +1788,7 @@ mod tests {
                 // another epoch
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     2,
                     vec![
@@ -1482,6 +1817,155 @@ mod tests {
             }
 
             #[test]
+            fn updates_latest_submitted_information() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let env = tester.env();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+
+                let mut nodes = Vec::new();
+                for _ in 0..10 {
+                    nodes.push(tester.bond_dummy_nymnode()?);
+                }
+
+                // single submission
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    0,
+                    vec![NodePerformance {
+                        node_id: nodes[0],
+                        performance: Default::default(),
+                    }],
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 0,
+                            data: NodePerformance {
+                                node_id: nodes[0],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                // another epoch
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    1,
+                    vec![NodePerformance {
+                        node_id: nodes[1],
+                        performance: Default::default(),
+                    }],
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 1,
+                            data: NodePerformance {
+                                node_id: nodes[1],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                // multiple submissions
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    1,
+                    vec![
+                        NodePerformance {
+                            node_id: nodes[2],
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nodes[3],
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nodes[4],
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 1,
+                            data: NodePerformance {
+                                node_id: nodes[4],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                // another epoch
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    2,
+                    vec![
+                        NodePerformance {
+                            node_id: nodes[1],
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nodes[7],
+                            performance: Default::default(),
+                        },
+                        NodePerformance {
+                            node_id: nodes[8],
+                            performance: Default::default(),
+                        },
+                    ],
+                )?;
+                let data = storage.last_performance_submission.load(&tester)?;
+                assert_eq!(
+                    data,
+                    LastSubmission {
+                        block_height: env.block.height,
+                        block_time: env.block.time,
+                        data: Some(LastSubmittedData {
+                            sender: nm.clone(),
+                            epoch_id: 2,
+                            data: NodePerformance {
+                                node_id: nodes[8],
+                                performance: Default::default(),
+                            },
+                        }),
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
             fn informs_if_associated_node_is_not_bonded() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
@@ -1496,22 +1980,21 @@ mod tests {
                 }
 
                 let nym_node1 = tester.bond_dummy_nymnode()?;
-
                 let nym_node_between = tester.bond_dummy_nymnode()?;
                 tester.unbond_nymnode(nym_node_between)?;
-
                 let nym_node2 = tester.bond_dummy_nymnode()?;
 
                 let mix_node1 = tester.bond_dummy_legacy_mixnode()?;
-
                 let mixnode_between = tester.bond_dummy_legacy_mixnode()?;
                 tester.unbond_legacy_mixnode(mixnode_between)?;
-
                 let mix_node2 = tester.bond_dummy_legacy_mixnode()?;
+
+                let env = tester.env();
 
                 // single id - nothing bonded
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     0,
                     vec![NodePerformance {
@@ -1525,6 +2008,7 @@ mod tests {
                 // one bonded nym-node, one not bonded
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     1,
                     vec![
@@ -1544,6 +2028,7 @@ mod tests {
                 // not-bonded, bonded, not-bonded, bonded
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     2,
                     vec![
@@ -1573,6 +2058,7 @@ mod tests {
                 // one bonded mixnode, one not bonded
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     3,
                     vec![
@@ -1592,6 +2078,7 @@ mod tests {
                 // not-bonded, bonded, not-bonded, bonded
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     4,
                     vec![
@@ -1619,6 +2106,7 @@ mod tests {
                 // nym-node, not bonded, mixnode
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
+                    env.clone(),
                     &nm,
                     5,
                     vec![

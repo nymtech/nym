@@ -50,9 +50,11 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_TOPOLOGY_CACHE_INTERVAL: Duration = Duration::from_secs(30);
-const DEFAULT_NODE_STATUS_CACHE_INTERVAL: Duration = Duration::from_secs(120);
-const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(3600);
+const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
+const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
+const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
+const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
+const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
 
 pub(crate) const DEFAULT_ADDRESS_CACHE_TTL: Duration = Duration::from_secs(60 * 15);
 pub(crate) const DEFAULT_ADDRESS_CACHE_CAPACITY: u64 = 1000;
@@ -62,6 +64,10 @@ pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
 // TODO: make it configurable
 pub(crate) const DEFAULT_CHAIN_STATUS_CACHE_TTL: Duration = Duration::from_secs(60);
+
+// contract info is changed very infrequently (essentially once per release cycle)
+// so this default is more than enough
+pub(crate) const DEFAULT_CONTRACT_DETAILS_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
 
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
@@ -101,14 +107,22 @@ pub struct Config {
 
     pub base: Base,
 
+    #[serde(default)]
+    pub performance_provider: PerformanceProvider,
+
     // TODO: perhaps introduce separate 'path finder' field for all the paths and directories like we have with other configs
     pub network_monitor: NetworkMonitor,
 
+    #[serde(default)]
+    pub mixnet_contract_cache: MixnetContractCache,
+
     pub node_status_api: NodeStatusAPI,
 
-    pub topology_cacher: TopologyCacher,
+    #[serde(alias = "topology_cacher")]
+    pub describe_cache: DescribeCache,
 
-    pub circulating_supply_cacher: CirculatingSupplyCacher,
+    #[serde(default)]
+    pub contracts_info_cache: ContractsInfoCache,
 
     pub rewarding: Rewarding,
 
@@ -130,10 +144,12 @@ impl Config {
         Config {
             save_path: None,
             base: Base::new_default(id.as_ref()),
+            performance_provider: Default::default(),
             network_monitor: NetworkMonitor::new_default(id.as_ref()),
+            mixnet_contract_cache: Default::default(),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
-            topology_cacher: Default::default(),
-            circulating_supply_cacher: Default::default(),
+            describe_cache: Default::default(),
+            contracts_info_cache: Default::default(),
             rewarding: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
             address_cache: Default::default(),
@@ -184,7 +200,7 @@ impl Config {
             self.base.bind_address = http_bind_address
         }
         if args.allow_illegal_ips {
-            self.topology_cacher.debug.node_describe_allow_illegal_ips = true
+            self.describe_cache.debug.allow_illegal_ips = true
         }
         if let Some(address_cache_ttl) = args.address_cache_ttl {
             self.address_cache.time_to_live = address_cache_ttl;
@@ -301,6 +317,98 @@ impl Base {
             local_validator: default_validator,
             bind_address: default_http_socket_addr(),
             mnemonic: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct ContractsInfoCache {
+    pub time_to_live: Duration,
+}
+
+impl Default for ContractsInfoCache {
+    fn default() -> Self {
+        ContractsInfoCache {
+            time_to_live: DEFAULT_CONTRACT_DETAILS_CACHE_TTL,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct MixnetContractCache {
+    #[serde(default)]
+    pub debug: MixnetContractCacheDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for MixnetContractCache {
+    fn default() -> Self {
+        MixnetContractCache {
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct MixnetContractCacheDebug {
+    #[serde(with = "humantime_serde")]
+    pub caching_interval: Duration,
+}
+
+impl Default for MixnetContractCacheDebug {
+    fn default() -> Self {
+        MixnetContractCacheDebug {
+            caching_interval: DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct PerformanceProvider {
+    /// Specifies whether this nym-api should attempt to retrieve node performance
+    /// information from the performance contract.
+    pub use_performance_contract_data: bool,
+
+    pub debug: PerformanceProviderDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for PerformanceProvider {
+    fn default() -> Self {
+        PerformanceProvider {
+            // to be changed later
+            use_performance_contract_data: false,
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct PerformanceProviderDebug {
+    /// Specifies interval of polling the performance contract. Note it is only applicable
+    /// if the contract data is being used.
+    /// Further note that if there have been no updates to the cache, the performance overhead is negligible
+    /// (i.e. there will be only a single query performed to check if anything has changed)
+    #[serde(with = "humantime_serde")]
+    pub contract_polling_interval: Duration,
+
+    /// Specify the maximum number of epochs we can fallback to if given epoch's performance data
+    /// is not available in the contract
+    pub max_performance_fallback_epochs: u32,
+
+    /// Specify the maximum number of epoch entries to be kept in the cache in case we needed non-current data
+    // (currently we need an equivalent of full day worth of data for legacy endpoints)
+    pub max_epoch_entries_to_retain: usize,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for PerformanceProviderDebug {
+    fn default() -> Self {
+        PerformanceProviderDebug {
+            contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
+            max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
+            max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
         }
     }
 }
@@ -447,76 +555,41 @@ pub struct NodeStatusAPIDebug {
 impl Default for NodeStatusAPIDebug {
     fn default() -> Self {
         NodeStatusAPIDebug {
-            caching_interval: DEFAULT_NODE_STATUS_CACHE_INTERVAL,
+            caching_interval: DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
         }
     }
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
-pub struct TopologyCacher {
+pub struct DescribeCache {
     // pub enabled: bool,
 
     // pub paths: TopologyCacherPathfinder,
     #[serde(default)]
-    pub debug: TopologyCacherDebug,
+    pub debug: DescribeCacheDebug,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
-pub struct TopologyCacherDebug {
+pub struct DescribeCacheDebug {
     #[serde(with = "humantime_serde")]
+    #[serde(alias = "node_describe_caching_interval")]
     pub caching_interval: Duration,
 
-    #[serde(with = "humantime_serde")]
-    pub node_describe_caching_interval: Duration,
+    #[serde(alias = "node_describe_batch_size")]
+    pub batch_size: usize,
 
-    pub node_describe_batch_size: usize,
-
-    pub node_describe_allow_illegal_ips: bool,
+    #[serde(alias = "node_describe_allow_illegal_ips")]
+    pub allow_illegal_ips: bool,
 }
 
-impl Default for TopologyCacherDebug {
+impl Default for DescribeCacheDebug {
     fn default() -> Self {
-        TopologyCacherDebug {
-            caching_interval: DEFAULT_TOPOLOGY_CACHE_INTERVAL,
-            node_describe_caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
-            node_describe_batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
-            node_describe_allow_illegal_ips: false,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct CirculatingSupplyCacher {
-    pub enabled: bool,
-
-    // pub paths: CirculatingSupplyCacherPathfinder,
-    #[serde(default)]
-    pub debug: CirculatingSupplyCacherDebug,
-}
-
-impl Default for CirculatingSupplyCacher {
-    fn default() -> Self {
-        CirculatingSupplyCacher {
-            enabled: true,
-            debug: CirculatingSupplyCacherDebug::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct CirculatingSupplyCacherDebug {
-    #[serde(with = "humantime_serde")]
-    pub caching_interval: Duration,
-}
-
-impl Default for CirculatingSupplyCacherDebug {
-    fn default() -> Self {
-        CirculatingSupplyCacherDebug {
-            caching_interval: DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL,
+        DescribeCacheDebug {
+            caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
+            batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
+            allow_illegal_ips: false,
         }
     }
 }

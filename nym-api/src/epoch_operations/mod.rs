@@ -12,9 +12,9 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::{NodeStatusCache, ONE_DAY};
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
@@ -37,7 +37,7 @@ mod transition_beginning;
 // this is struct responsible for advancing an epoch
 pub struct EpochAdvancer {
     nyxd_client: Client,
-    nym_contract_cache: NymContractCache,
+    nym_contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     status_cache: NodeStatusCache,
     storage: NymApiStorage,
@@ -52,7 +52,7 @@ impl EpochAdvancer {
 
     pub(crate) fn new(
         nyxd_client: Client,
-        nym_contract_cache: NymContractCache,
+        nym_contract_cache: MixnetContractCache,
         status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
@@ -239,7 +239,7 @@ impl EpochAdvancer {
 
     pub(crate) fn start(
         nyxd_client: Client,
-        nym_contract_cache: &NymContractCache,
+        nym_contract_cache: &MixnetContractCache,
         status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,

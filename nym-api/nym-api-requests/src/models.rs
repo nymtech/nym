@@ -267,6 +267,10 @@ impl RoutingScore {
         Self { score }
     }
 
+    pub const fn zero() -> RoutingScore {
+        RoutingScore { score: 0.0 }
+    }
+
     pub fn legacy_performance(&self) -> Performance {
         Performance::naive_try_from_f64(self.score).unwrap_or_default()
     }

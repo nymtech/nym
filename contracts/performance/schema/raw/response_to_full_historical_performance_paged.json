@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FullHistoricalPerformancePagedResponse",
+  "type": "object",
+  "required": [
+    "performance"
+  ],
+  "properties": {
+    "performance": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/HistoricalPerformance"
+      }
+    },
+    "start_next_after": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": [
+        {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      ],
+      "maxItems": 2,
+      "minItems": 2
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "HistoricalPerformance": {
+      "type": "object",
+      "required": [
+        "epoch_id",
+        "node_id",
+        "performance"
+      ],
+      "properties": {
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "performance": {
+          "$ref": "#/definitions/Percent"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    }
+  }
+}

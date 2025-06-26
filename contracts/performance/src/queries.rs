@@ -7,9 +7,9 @@ use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_performance_contract_common::{
     EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, NetworkMonitorInformation,
-    NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId, NodeMeasurement,
-    NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
+    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
+    NetworkMonitorInformation, NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId,
+    NodeMeasurement, NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
     NodePerformanceResponse, NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
 };
 
@@ -305,11 +305,19 @@ pub fn query_retired_network_monitors_paged(
     })
 }
 
+pub fn query_last_submission(deps: Deps) -> Result<LastSubmission, NymPerformanceContractError> {
+    NYM_PERFORMANCE_CONTRACT_STORAGE
+        .last_performance_submission
+        .load(deps.storage)
+        .map_err(Into::into)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
-    use nym_contracts_common_testing::{ContractOpts, RandExt};
+    use nym_contracts_common_testing::{ChainOpts, ContractOpts, RandExt};
+    use nym_performance_contract_common::LastSubmittedData;
 
     #[cfg(test)]
     mod admin_query {
@@ -581,6 +589,77 @@ mod tests {
                 node_id: nodes[3],
                 performance: "0.3".parse()?,
             }]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn last_submission_query() -> anyhow::Result<()> {
+        let mut test = init_contract_tester();
+
+        let env = test.env();
+
+        let id1 = test.bond_dummy_nymnode()?;
+        let id2 = test.bond_dummy_nymnode()?;
+
+        // initial
+        let data = query_last_submission(test.deps())?;
+        assert_eq!(
+            data,
+            LastSubmission {
+                block_height: env.block.height,
+                block_time: env.block.time,
+                data: None,
+            }
+        );
+
+        let nm1 = test.generate_account();
+        let nm2 = test.generate_account();
+        test.authorise_network_monitor(&nm1)?;
+        test.authorise_network_monitor(&nm2)?;
+        test.set_mixnet_epoch(10)?;
+
+        test.insert_raw_performance(&nm1, id1, "0.2")?;
+
+        let data = query_last_submission(test.deps())?;
+        assert_eq!(
+            data,
+            LastSubmission {
+                block_height: env.block.height,
+                block_time: env.block.time,
+                data: Some(LastSubmittedData {
+                    sender: nm1.clone(),
+                    epoch_id: 10,
+                    data: NodePerformance {
+                        node_id: id1,
+                        performance: "0.2".parse()?
+                    },
+                }),
+            }
+        );
+
+        test.next_block();
+        let env = test.env();
+
+        test.insert_epoch_performance(&nm2, 5, id2, "0.3".parse()?)?;
+
+        // note that even though it's "earlier" data, last submission is still updated accordingly
+        let data = query_last_submission(test.deps())?;
+        assert_eq!(
+            data,
+            LastSubmission {
+                block_height: env.block.height,
+                block_time: env.block.time,
+                data: Some(LastSubmittedData {
+                    sender: nm2.clone(),
+                    epoch_id: 5,
+                    data: NodePerformance {
+                        node_id: id2,
+                        performance: "0.3".parse()?
+                    },
+                }),
+            }
         );
 
         Ok(())

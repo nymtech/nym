@@ -1,12 +1,12 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_describe_cache::NodeDescriptionTopologyExt;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
@@ -78,7 +78,7 @@ pub(crate) struct PreparedPackets {
 
 #[derive(Clone)]
 pub(crate) struct PacketPreparer {
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
 
@@ -96,7 +96,7 @@ pub(crate) struct PacketPreparer {
 
 impl PacketPreparer {
     pub(crate) fn new(
-        contract_cache: NymContractCache,
+        contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
         node_status_cache: NodeStatusCache,
         per_node_test_packets: usize,

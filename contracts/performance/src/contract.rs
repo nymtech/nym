@@ -3,7 +3,7 @@
 
 use crate::queries::{
     query_admin, query_epoch_measurements_paged, query_epoch_performance_paged,
-    query_full_historical_performance_paged, query_network_monitor_details,
+    query_full_historical_performance_paged, query_last_submission, query_network_monitor_details,
     query_network_monitors_paged, query_node_measurements, query_node_performance,
     query_node_performance_paged, query_retired_network_monitors_paged,
 };
@@ -57,10 +57,10 @@ pub fn execute(
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
         ExecuteMsg::Submit { epoch, data } => {
-            try_submit_performance_results(deps, info, epoch, data)
+            try_submit_performance_results(deps, env, info, epoch, data)
         }
         ExecuteMsg::BatchSubmit { epoch, data } => {
-            try_batch_submit_performance_results(deps, info, epoch, data)
+            try_batch_submit_performance_results(deps, env, info, epoch, data)
         }
         ExecuteMsg::AuthoriseNetworkMonitor { address } => {
             try_authorise_network_monitor(deps, env, info, address)
@@ -129,6 +129,7 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NymPerformance
             start_after,
             limit,
         )?)?),
+        QueryMsg::LastSubmittedMeasurement {} => Ok(to_json_binary(&query_last_submission(deps)?)?),
     }
 }
 

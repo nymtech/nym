@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::nym_contract_cache::cache::NymContractCache;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::support::caching::refresher::{CacheUpdateWatcher, RefreshRequester};
 use nym_mixnet_contract_common::{Interval, KeyRotationState};
 use nym_task::TaskClient;
@@ -59,14 +59,14 @@ pub(crate) struct KeyRotationController {
 
     pub(crate) describe_cache_refresher: RefreshRequester,
     pub(crate) contract_cache_watcher: CacheUpdateWatcher,
-    pub(crate) contract_cache: NymContractCache,
+    pub(crate) contract_cache: MixnetContractCache,
 }
 
 impl KeyRotationController {
     pub(crate) fn new(
         describe_cache_refresher: RefreshRequester,
         contract_cache_watcher: CacheUpdateWatcher,
-        contract_cache: NymContractCache,
+        contract_cache: MixnetContractCache,
     ) -> KeyRotationController {
         KeyRotationController {
             last_described_refreshed_for: None,

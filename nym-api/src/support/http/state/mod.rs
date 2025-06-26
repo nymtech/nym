@@ -1,18 +1,18 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::state::EcashState;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::nyxd::Client;
 use crate::support::storage;
@@ -27,26 +27,58 @@ use std::sync::Arc;
 use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
+pub(crate) mod contract_details;
 pub(crate) mod force_refresh;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
     // ideally this would have been made generic to make tests easier,
     // however, it'd be a way bigger change (I tried)
+    /// Instance of a client used for interacting with the nyx chain.
     pub(crate) nyxd_client: Client,
+
+    /// Holds information about the latest chain block it has queried.
+    /// Note, it is not updated on every request. It follows the embedded ttl.
     pub(crate) chain_status_cache: ChainStatusCache,
 
+    /// Holds mapping between a nyx address and tokens/delegations it holds
     pub(crate) address_info_cache: AddressInfoCache,
+
+    /// Holds information on when nym-nodes requested an explicit request of their self-described data.
+    /// It is used to prevent DoS by nodes constantly requesting the refresh.
     pub(crate) forced_refresh: ForcedRefresh,
-    pub(crate) nym_contract_cache: NymContractCache,
+
+    /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
+    pub(crate) mixnet_contract_cache: MixnetContractCache,
+
+    /// Holds processed information on network nodes, i.e. performance, config scores, etc.
+    // TODO: also perhaps redundant?
     pub(crate) node_status_cache: NodeStatusCache,
-    pub(crate) circulating_supply_cache: CirculatingSupplyCache,
+
+    /// Holds reference to the persistent storage of this nym-api.
     pub(crate) storage: storage::NymApiStorage,
+
+    /// Holds information on the self-reported information of nodes, e.g. auxiliary keys they use,
+    /// ports they announce, etc.
     pub(crate) described_nodes_cache: SharedCache<DescribedNodes>,
+
+    /// Information about the current network this nym-api is connected to, e.g. contract addresses,
+    /// endpoints, denominations.
     pub(crate) network_details: NetworkDetails,
+
+    /// A simple in-memory cache of node information mapping their database id to their node-ids
+    /// and public keys. Useful (I guess?) for returning information about test routes.
+    // TODO: do we need it?
     pub(crate) node_info_cache: unstable::NodeInfoCache,
+
+    /// Cache containing data (build info, versions, etc.) on all nym smart contracts on the network
+    pub(crate) contract_info_cache: ContractDetailsCache,
+
+    /// Information about this nym-api, i.e. its public key, startup time, etc.
     pub(crate) api_status: ApiStatusState,
+
     // todo: refactor it into inner: Arc<EcashStateInner>
+    /// Cache holding data required by the ecash credentials - static signatures, merkle trees, etc.
     pub(crate) ecash_state: Arc<EcashState>,
 }
 
@@ -62,17 +94,19 @@ impl FromRef<AppState> for Arc<EcashState> {
     }
 }
 
+impl FromRef<AppState> for MixnetContractCache {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.mixnet_contract_cache.clone()
+    }
+}
+
 impl AppState {
-    pub(crate) fn nym_contract_cache(&self) -> &NymContractCache {
-        &self.nym_contract_cache
+    pub(crate) fn nym_contract_cache(&self) -> &MixnetContractCache {
+        &self.mixnet_contract_cache
     }
 
     pub(crate) fn node_status_cache(&self) -> &NodeStatusCache {
         &self.node_status_cache
-    }
-
-    pub(crate) fn circulating_supply_cache(&self) -> &CirculatingSupplyCache {
-        &self.circulating_supply_cache
     }
 
     pub(crate) fn network_details(&self) -> &NetworkDetails {
@@ -153,7 +187,7 @@ impl AppState {
                     .address_info_cache
                     .collect_balances(
                         self.nyxd_client.clone(),
-                        self.nym_contract_cache.clone(),
+                        self.mixnet_contract_cache.clone(),
                         self.network_details()
                             .network
                             .chain_details

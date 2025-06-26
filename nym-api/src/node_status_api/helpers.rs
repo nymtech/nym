@@ -1,12 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::reward_estimate::compute_reward_estimate;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::storage::NymApiStorage;
 use crate::support::caching::Cache;
-use crate::{NodeStatusCache, NymContractCache};
-use cosmwasm_std::Decimal;
+use crate::{MixnetContractCache, NodeStatusCache};
 use nym_api_requests::models::{
     ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, GatewayUptimeResponse,
@@ -14,6 +12,7 @@ use nym_api_requests::models::{
     MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
     StakeSaturationResponse, UptimeResponse,
 };
+use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::NodeId;
 
 pub(crate) enum RewardedSetStatus {
@@ -90,7 +89,7 @@ pub(crate) async fn _gateway_report(
 
 pub(crate) async fn _gateway_uptime_history(
     storage: &NymApiStorage,
-    nym_contract_cache: &NymContractCache,
+    nym_contract_cache: &MixnetContractCache,
     identity: &str,
 ) -> AxumResult<GatewayUptimeHistoryResponse> {
     let history = storage
@@ -144,7 +143,7 @@ pub(crate) async fn _mixnode_report(
 
 pub(crate) async fn _mixnode_uptime_history(
     storage: &NymApiStorage,
-    nym_contract_cache: &NymContractCache,
+    nym_contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<MixnodeUptimeHistoryResponse> {
     let history = storage
@@ -179,7 +178,7 @@ pub(crate) async fn _mixnode_core_status_count(
 }
 
 pub(crate) async fn _get_mixnode_status(
-    cache: &NymContractCache,
+    cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> MixnodeStatusResponse {
     MixnodeStatusResponse {
@@ -189,14 +188,15 @@ pub(crate) async fn _get_mixnode_status(
 
 pub(crate) async fn _get_mixnode_reward_estimation(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<RewardEstimationResponse> {
-    let status = contract_cache.mixnode_status(mix_id).await;
-    let mixnode = status_cache
+    let _ = status_cache
         .mixnode_annotated(mix_id)
         .await
         .ok_or_else(|| AxumErrorResponse::not_found("mixnode bond not found"))?;
+    // legacy mixnode will never get any rewards
+    let reward_estimation = RewardEstimate::zero();
 
     let reward_params = contract_cache.interval_reward_params().await?;
     let current_interval = contract_cache.current_interval().await?;
@@ -204,14 +204,6 @@ pub(crate) async fn _get_mixnode_reward_estimation(
     // in some very rare edge cases this value might be off (as internals might have got updated between
     // queries for `reward_params` and `current_interval`, but timestamp is only informative to begin with)
     let as_at = contract_cache.cache_timestamp().await;
-
-    let reward_estimation = compute_reward_estimate(
-        &mixnode.mixnode_details,
-        mixnode.performance,
-        status.into(),
-        reward_params,
-        current_interval,
-    );
 
     Ok(RewardEstimationResponse {
         estimation: reward_estimation,
@@ -222,15 +214,17 @@ pub(crate) async fn _get_mixnode_reward_estimation(
 }
 
 pub(crate) async fn _compute_mixnode_reward_estimation(
-    user_reward_param: &ComputeRewardEstParam,
+    _: &ComputeRewardEstParam,
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<RewardEstimationResponse> {
-    let mut mixnode = status_cache
+    let _ = status_cache
         .mixnode_annotated(mix_id)
         .await
         .ok_or_else(|| AxumErrorResponse::not_found("mixnode bond not found"))?;
+
+    let reward_estimation = RewardEstimate::zero();
 
     let reward_params = contract_cache.interval_reward_params().await?;
     let current_interval = contract_cache.current_interval().await?;
@@ -238,60 +232,6 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
     // in some very rare edge cases this value might be off (as internals might have got updated between
     // queries for `reward_params` and `current_interval`, but timestamp is only informative to begin with)
     let as_at = contract_cache.cache_timestamp().await;
-
-    // For these parameters we either use the provided ones, or fall back to the system ones
-    let performance = user_reward_param.performance.unwrap_or(mixnode.performance);
-
-    let status = match user_reward_param.active_in_rewarded_set {
-        Some(true) => RewardedSetStatus::Active,
-        Some(false) => RewardedSetStatus::Standby,
-        None => {
-            let actual_status = contract_cache.mixnode_status(mix_id).await;
-            actual_status.into()
-        }
-    };
-
-    if let Some(pledge_amount) = user_reward_param.pledge_amount {
-        mixnode.mixnode_details.rewarding_details.operator =
-            Decimal::from_ratio(pledge_amount, 1u64);
-    }
-    if let Some(total_delegation) = user_reward_param.total_delegation {
-        mixnode.mixnode_details.rewarding_details.delegates =
-            Decimal::from_ratio(total_delegation, 1u64);
-    }
-
-    if let Some(profit_margin_percent) = user_reward_param.profit_margin_percent {
-        mixnode
-            .mixnode_details
-            .rewarding_details
-            .cost_params
-            .profit_margin_percent = profit_margin_percent;
-    }
-
-    if let Some(interval_operating_cost) = &user_reward_param.interval_operating_cost {
-        mixnode
-            .mixnode_details
-            .rewarding_details
-            .cost_params
-            .interval_operating_cost = interval_operating_cost.clone();
-    }
-
-    if mixnode.mixnode_details.rewarding_details.operator
-        + mixnode.mixnode_details.rewarding_details.delegates
-        > reward_params.interval.staking_supply
-    {
-        return Err(AxumErrorResponse::unprocessable_entity(
-            "Pledge plus delegation too large",
-        ));
-    }
-
-    let reward_estimation = compute_reward_estimate(
-        &mixnode.mixnode_details,
-        performance,
-        status,
-        reward_params,
-        current_interval,
-    );
 
     Ok(RewardEstimationResponse {
         estimation: reward_estimation,
@@ -303,7 +243,7 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
 
 pub(crate) async fn _get_mixnode_stake_saturation(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
     mix_id: NodeId,
 ) -> AxumResult<StakeSaturationResponse> {
     let mixnode = status_cache
@@ -411,7 +351,7 @@ pub(crate) async fn _get_mixnodes_detailed_unfiltered(
 
 pub(crate) async fn _get_rewarded_set_legacy_mixnodes_detailed(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
 ) -> Vec<MixNodeBondAnnotated> {
     let Some(rewarded_set) = contract_cache.rewarded_set().await else {
         return Vec::new();
@@ -429,7 +369,7 @@ pub(crate) async fn _get_rewarded_set_legacy_mixnodes_detailed(
 
 pub(crate) async fn _get_active_set_legacy_mixnodes_detailed(
     status_cache: &NodeStatusCache,
-    contract_cache: &NymContractCache,
+    contract_cache: &MixnetContractCache,
 ) -> Vec<MixNodeBondAnnotated> {
     let Some(rewarded_set) = contract_cache.rewarded_set().await else {
         return Vec::new();

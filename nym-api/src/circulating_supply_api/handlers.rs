@@ -1,10 +1,11 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
-use axum::extract::Query;
-use axum::{extract, Router};
+use axum::extract::{Query, State};
+use axum::Router;
 use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_validator_client::nyxd::Coin;
@@ -34,15 +35,11 @@ pub(crate) fn circulating_supply_routes() -> Router<AppState> {
 )]
 async fn get_full_circulating_supply(
     Query(output): Query<OutputParams>,
-    extract::State(state): extract::State<AppState>,
+    State(contract_cache): State<MixnetContractCache>,
 ) -> AxumResult<FormattedResponse<CirculatingSupplyResponse>> {
     let output = output.output.unwrap_or_default();
 
-    match state
-        .circulating_supply_cache()
-        .get_circulating_supply()
-        .await
-    {
+    match contract_cache.get_circulating_supply().await {
         Some(value) => Ok(output.to_response(value)),
         None => Err(AxumErrorResponse::internal_msg("unavailable")),
     }
@@ -63,14 +60,10 @@ async fn get_full_circulating_supply(
 )]
 async fn get_total_supply(
     Query(output): Query<OutputParams>,
-    extract::State(state): extract::State<AppState>,
+    State(contract_cache): State<MixnetContractCache>,
 ) -> AxumResult<FormattedResponse<f64>> {
     let output = output.output.unwrap_or_default();
-    let full_circulating_supply = match state
-        .circulating_supply_cache()
-        .get_circulating_supply()
-        .await
-    {
+    let full_circulating_supply = match contract_cache.get_circulating_supply().await {
         Some(res) => res,
         None => return Err(AxumErrorResponse::internal_msg("unavailable")),
     };
@@ -95,15 +88,11 @@ async fn get_total_supply(
 )]
 async fn get_circulating_supply(
     Query(output): Query<OutputParams>,
-    extract::State(state): extract::State<AppState>,
+    State(contract_cache): State<MixnetContractCache>,
 ) -> AxumResult<FormattedResponse<f64>> {
     let output = output.output.unwrap_or_default();
 
-    let full_circulating_supply = match state
-        .circulating_supply_cache()
-        .get_circulating_supply()
-        .await
-    {
+    let full_circulating_supply = match contract_cache.get_circulating_supply().await {
         Some(res) => res,
         None => return Err(AxumErrorResponse::internal_msg("unavailable")),
     };

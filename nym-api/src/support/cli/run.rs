@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::client::Client;
 use crate::ecash::comm::QueryCommunicationChannel;
 use crate::ecash::dkg::controller::keys::{
@@ -11,17 +10,21 @@ use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::EpochAdvancer;
 use crate::key_rotation::KeyRotationController;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
+use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
+use crate::node_performance::provider::NodePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, ShutdownHandles, TASK_MANAGER_TIMEOUT_S};
@@ -30,8 +33,8 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    circulating_supply_api, ecash, epoch_operations, network_monitor, node_describe_cache,
-    node_status_api, nym_contract_cache,
+    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
+    node_performance, node_status_api,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -146,10 +149,9 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
 
     let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
-    let nym_contract_cache_state = NymContractCache::new();
+    let mixnet_contract_cache_state = MixnetContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
-    let circulating_supply_cache = CirculatingSupplyCache::new(mix_denom.to_owned());
     let described_nodes_cache = SharedCache::<DescribedNodes>::new();
     let node_info_cache = unstable::NodeInfoCache::default();
 
@@ -208,16 +210,14 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
             config.address_cache.time_to_live,
             config.address_cache.capacity,
         ),
-        forced_refresh: ForcedRefresh::new(
-            config.topology_cacher.debug.node_describe_allow_illegal_ips,
-        ),
-        nym_contract_cache: nym_contract_cache_state.clone(),
+        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+        mixnet_contract_cache: mixnet_contract_cache_state.clone(),
         node_status_cache: node_status_cache_state.clone(),
-        circulating_supply_cache: circulating_supply_cache.clone(),
         storage: storage.clone(),
         described_nodes_cache: described_nodes_cache.clone(),
-        network_details,
+        network_details: network_details.clone(),
         node_info_cache,
+        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
     });
@@ -227,8 +227,8 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
     // let cache = refresher.get_shared_cache();
     let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
-        &config.topology_cacher,
-        nym_contract_cache_state.clone(),
+        &config.describe_cache,
+        mixnet_contract_cache_state.clone(),
         described_nodes_cache.clone(),
     )
     .named("node-self-described-data-refresher");
@@ -238,29 +238,52 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     let describe_cache_watcher = describe_cache_refresher
         .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
+    let performance_provider = if config.performance_provider.use_performance_contract_data {
+        if network_details
+            .network
+            .contracts
+            .performance_contract_address
+            .is_none()
+        {
+            bail!("can't use performance contract data without setting the address of the contract")
+        }
+
+        let performance_contract_cache = node_performance::contract_cache::start_cache_refresher(
+            &config.performance_provider,
+            nyxd_client.clone(),
+            mixnet_contract_cache_state.clone(),
+            &task_manager,
+        )
+        .await?;
+        let provider = ContractPerformanceProvider::new(
+            &config.performance_provider,
+            performance_contract_cache,
+        );
+        Box::new(provider) as Box<dyn NodePerformanceProvider + Send + Sync>
+    } else {
+        Box::new(LegacyStoragePerformanceProvider::new(
+            storage.clone(),
+            mixnet_contract_cache_state.clone(),
+        ))
+    };
+
     // start all the caches first
-    let contract_cache_refresher = nym_contract_cache::build_refresher(
-        &config.node_status_api,
-        &nym_contract_cache_state.clone(),
+    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
+        &config.mixnet_contract_cache,
+        &mixnet_contract_cache_state.clone(),
         nyxd_client.clone(),
     );
     let contract_cache_watcher =
-        contract_cache_refresher.start_with_watcher(task_manager.subscribe());
+        mixnet_contract_cache_refresher.start_with_watcher(task_manager.subscribe());
 
     node_status_api::start_cache_refresh(
         &config.node_status_api,
-        &nym_contract_cache_state,
+        &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
-        storage.clone(),
+        performance_provider,
         contract_cache_watcher.clone(),
         describe_cache_watcher,
-        &task_manager,
-    );
-    circulating_supply_api::start_cache_refresh(
-        &config.circulating_supply_cacher,
-        nyxd_client.clone(),
-        &circulating_supply_cache,
         &task_manager,
     );
 
@@ -279,12 +302,15 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         )?;
     }
 
+    let has_performance_data =
+        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
+
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring is enabled
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
             config,
-            &nym_contract_cache_state,
+            &mixnet_contract_cache_state,
             described_nodes_cache.clone(),
             node_status_cache_state.clone(),
             &storage,
@@ -294,19 +320,19 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         .await;
 
         HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
+    }
 
-        // start 'rewarding' if its enabled
-        if config.rewarding.enabled {
-            epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            EpochAdvancer::start(
-                nyxd_client,
-                &nym_contract_cache_state,
-                &node_status_cache_state,
-                described_nodes_cache.clone(),
-                &storage,
-                &task_manager,
-            );
-        }
+    // start 'rewarding' if its enabled and there exists source for performance data
+    if config.rewarding.enabled && has_performance_data {
+        epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+        EpochAdvancer::start(
+            nyxd_client,
+            &mixnet_contract_cache_state,
+            &node_status_cache_state,
+            described_nodes_cache.clone(),
+            &storage,
+            &task_manager,
+        );
     }
 
     // finally start a background task watching the contract changes and requesting
@@ -314,7 +340,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
     KeyRotationController::new(
         describe_cache_refresh_requester,
         contract_cache_watcher,
-        nym_contract_cache_state,
+        mixnet_contract_cache_state,
     )
     .start(task_manager.subscribe_named("KeyRotationController"));
 

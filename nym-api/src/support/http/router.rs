@@ -3,9 +3,9 @@
 
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
+use crate::mixnet_contract_cache::handlers::nym_contract_cache_routes;
 use crate::network::handlers::nym_network_routes;
 use crate::node_status_api::handlers::status_routes;
-use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
 use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
 use crate::status;

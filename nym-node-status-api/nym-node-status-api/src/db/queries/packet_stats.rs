@@ -1,17 +1,70 @@
-use crate::db::{
-    models::{NodeStats, ScrapeNodeKind, ScraperNodeInfo},
-    DbPool,
+use crate::{
+    db::{
+        models::{InsertStatsRecord, NodeStats, ScrapeNodeKind},
+        DbPool,
+    },
+    node_scraper::helpers::update_daily_stats_uncommitted,
+    utils::now_utc,
 };
 use anyhow::Result;
+use sqlx::Transaction;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::{info, instrument};
 
-pub(crate) async fn insert_node_packet_stats(
+#[instrument(level = "info", skip_all)]
+pub(crate) async fn batch_store_packet_stats(
     pool: &DbPool,
+    results: Arc<Mutex<Vec<InsertStatsRecord>>>,
+) -> anyhow::Result<()> {
+    let results_iter = results.lock().await;
+    info!(
+        "📊 ⏳ Storing {} packet stats into the DB",
+        results_iter.len()
+    );
+    let started_at = now_utc();
+
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|err| anyhow::anyhow!("Failed to begin transaction: {err}"))?;
+
+    for stats_record in &(*results_iter) {
+        insert_node_packet_stats_uncommitted(
+            &mut tx,
+            &stats_record.node_kind,
+            &stats_record.stats,
+            stats_record.unix_timestamp,
+        )
+        .await?;
+
+        update_daily_stats_uncommitted(
+            &mut tx,
+            &stats_record.node_kind,
+            stats_record.timestamp_utc,
+            &stats_record.stats,
+        )
+        .await?;
+    }
+
+    tx.commit()
+        .await
+        .inspect(|_| {
+            let elapsed = now_utc() - started_at;
+            info!(
+                "📊 ☑️ Packet stats successfully committed to DB (took {}s)",
+                elapsed.as_seconds_f32()
+            );
+        })
+        .map_err(|err| anyhow::anyhow!("Failed to commit: {err}"))
+}
+
+async fn insert_node_packet_stats_uncommitted(
+    tx: &mut Transaction<'static, sqlx::Sqlite>,
     node_kind: &ScrapeNodeKind,
     stats: &NodeStats,
     timestamp_utc: i64,
 ) -> Result<()> {
-    let mut conn = pool.acquire().await?;
-
     match node_kind {
         ScrapeNodeKind::LegacyMixnode { mix_id } => {
             sqlx::query!(
@@ -26,7 +79,7 @@ pub(crate) async fn insert_node_packet_stats(
                 stats.packets_sent,
                 stats.packets_dropped,
             )
-            .execute(&mut *conn)
+            .execute(tx.as_mut())
             .await?;
         }
         ScrapeNodeKind::MixingNymNode { node_id }
@@ -43,7 +96,7 @@ pub(crate) async fn insert_node_packet_stats(
                 stats.packets_sent,
                 stats.packets_dropped,
             )
-            .execute(&mut *conn)
+            .execute(tx.as_mut())
             .await?;
         }
     }
@@ -52,12 +105,10 @@ pub(crate) async fn insert_node_packet_stats(
 }
 
 pub(crate) async fn get_raw_node_stats(
-    pool: &DbPool,
-    node: &ScraperNodeInfo,
+    tx: &mut Transaction<'static, sqlx::Sqlite>,
+    node_kind: &ScrapeNodeKind,
 ) -> Result<Option<NodeStats>> {
-    let mut conn = pool.acquire().await?;
-
-    let packets = match node.node_kind {
+    let packets = match node_kind {
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
         ScrapeNodeKind::LegacyMixnode { mix_id } => {
@@ -75,7 +126,7 @@ pub(crate) async fn get_raw_node_stats(
                 "#,
                 mix_id
             )
-            .fetch_optional(&mut *conn)
+            .fetch_optional(tx.as_mut())
             .await?
         }
         ScrapeNodeKind::MixingNymNode { node_id }
@@ -94,7 +145,7 @@ pub(crate) async fn get_raw_node_stats(
                 "#,
                 node_id
             )
-            .fetch_optional(&mut *conn)
+            .fetch_optional(tx.as_mut())
             .await?
         }
     };
@@ -102,15 +153,13 @@ pub(crate) async fn get_raw_node_stats(
     Ok(packets)
 }
 
-pub(crate) async fn insert_daily_node_stats(
-    pool: &DbPool,
-    node: &ScraperNodeInfo,
+pub(crate) async fn insert_daily_node_stats_uncommitted(
+    tx: &mut Transaction<'static, sqlx::Sqlite>,
+    node_kind: &ScrapeNodeKind,
     date_utc: &str,
     packets: NodeStats,
 ) -> Result<()> {
-    let mut conn = pool.acquire().await?;
-
-    match node.node_kind {
+    match node_kind {
         ScrapeNodeKind::LegacyMixnode { mix_id } => {
             let total_stake = sqlx::query_scalar!(
                 r#"
@@ -121,7 +170,7 @@ pub(crate) async fn insert_daily_node_stats(
                    "#,
                 mix_id
             )
-            .fetch_one(&mut *conn)
+            .fetch_one(tx.as_mut())
             .await?;
 
             sqlx::query!(
@@ -144,7 +193,7 @@ pub(crate) async fn insert_daily_node_stats(
                 packets.packets_sent,
                 packets.packets_dropped,
             )
-            .execute(&mut *conn)
+            .execute(tx.as_mut())
             .await?;
         }
         ScrapeNodeKind::MixingNymNode { node_id }
@@ -158,7 +207,7 @@ pub(crate) async fn insert_daily_node_stats(
                 "#,
                 node_id
             )
-            .fetch_one(&mut *conn)
+            .fetch_one(tx.as_mut())
             .await?;
 
             sqlx::query!(
@@ -181,7 +230,7 @@ pub(crate) async fn insert_daily_node_stats(
                 packets.packets_sent,
                 packets.packets_dropped,
             )
-            .execute(&mut *conn)
+            .execute(tx.as_mut())
             .await?;
         }
     }

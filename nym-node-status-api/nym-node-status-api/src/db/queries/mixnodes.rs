@@ -10,7 +10,7 @@ use crate::{
         DbPool,
     },
     http::models::{DailyStats, Mixnode},
-    mixnet_scraper::helpers::NodeDescriptionResponse,
+    node_scraper::helpers::NodeDescriptionResponse,
 };
 
 pub(crate) async fn update_mixnodes(

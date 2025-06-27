@@ -13,7 +13,7 @@ use crate::{
         models::{NymNodeDto, NymNodeInsertRecord},
         DbPool,
     },
-    mixnet_scraper::helpers::NodeDescriptionResponse,
+    node_scraper::helpers::NodeDescriptionResponse,
 };
 
 pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNodeDto>> {

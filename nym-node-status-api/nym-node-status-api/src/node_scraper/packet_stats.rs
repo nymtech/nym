@@ -12,19 +12,21 @@ use crate::db::queries;
 
 const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
-// TODO dz should be env configurable
-const MAX_CONCURRENT_TASKS: usize = 25;
 
 static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct PacketScraper {
     pool: SqlitePool,
+    max_concurrent_tasks: usize,
 }
 
 impl PacketScraper {
-    pub fn new(pool: SqlitePool) -> Self {
-        Self { pool }
+    pub fn new(pool: SqlitePool, max_concurrent_tasks: usize) -> Self {
+        Self {
+            pool,
+            max_concurrent_tasks,
+        }
     }
 
     pub async fn start(&self) {
@@ -34,10 +36,11 @@ impl PacketScraper {
     async fn spawn_packet_scraper(&self) {
         let pool = self.pool.clone();
         tracing::info!("Starting packet scraper");
+        let max_concurrent_tasks = self.max_concurrent_tasks;
 
         tokio::spawn(async move {
             loop {
-                if let Err(e) = Self::run_packet_scraper(&pool).await {
+                if let Err(e) = Self::run_packet_scraper(&pool, max_concurrent_tasks).await {
                     error!(name: "packet_scraper", "Packet scraper failed: {}", e);
                 }
                 debug!(name: "packet_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
@@ -47,11 +50,14 @@ impl PacketScraper {
     }
 
     #[instrument(level = "info", name = "packet_scraper", skip_all)]
-    async fn run_packet_scraper(pool: &SqlitePool) -> anyhow::Result<()> {
+    async fn run_packet_scraper(
+        pool: &SqlitePool,
+        max_concurrent_tasks: usize,
+    ) -> anyhow::Result<()> {
         let queue = queries::get_nodes_for_scraping(pool).await?;
         tracing::info!("Adding {} nodes to the queue", queue.len(),);
 
-        let results = Self::process_packet_queue(queue).await;
+        let results = Self::process_packet_queue(queue, max_concurrent_tasks).await;
         queries::batch_store_packet_stats(pool, results)
             .await
             .map_err(|err| anyhow::anyhow!("Failed to store packet stats to DB: {err}"))
@@ -59,6 +65,7 @@ impl PacketScraper {
 
     async fn process_packet_queue(
         queue: Vec<ScraperNodeInfo>,
+        max_concurrent_tasks: usize,
     ) -> Arc<Mutex<Vec<InsertStatsRecord>>> {
         let mut queue = queue;
         let results = Arc::new(Mutex::new(Vec::new()));
@@ -67,7 +74,7 @@ impl PacketScraper {
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
-            if running_tasks < MAX_CONCURRENT_TASKS {
+            if running_tasks < max_concurrent_tasks {
                 let node = {
                     if queue.is_empty() {
                         TASK_ID_COUNTER.store(0, Ordering::Relaxed);

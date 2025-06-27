@@ -20,15 +20,11 @@ static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct PacketScraper {
     pool: SqlitePool,
-    packet_queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
 }
 
 impl PacketScraper {
     pub fn new(pool: SqlitePool) -> Self {
-        Self {
-            pool,
-            packet_queue: Arc::new(Mutex::new(Vec::new())),
-        }
+        Self { pool }
     }
 
     pub async fn start(&self) {
@@ -37,12 +33,11 @@ impl PacketScraper {
 
     async fn spawn_packet_scraper(&self) {
         let pool = self.pool.clone();
-        let queue = self.packet_queue.clone();
         tracing::info!("Starting packet scraper");
 
         tokio::spawn(async move {
             loop {
-                if let Err(e) = Self::run_packet_scraper(&pool, queue.clone()).await {
+                if let Err(e) = Self::run_packet_scraper(&pool).await {
                     error!(name: "packet_scraper", "Packet scraper failed: {}", e);
                 }
                 debug!(name: "packet_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
@@ -52,21 +47,9 @@ impl PacketScraper {
     }
 
     #[instrument(level = "info", name = "packet_scraper", skip_all)]
-    async fn run_packet_scraper(
-        pool: &SqlitePool,
-        queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
-    ) -> anyhow::Result<()> {
-        let nodes = queries::get_nodes_for_scraping(pool).await?;
-        {
-            // TODO dz why do we use mut queue instead of initializing a new queue for each run?
-            let mut queue_lock = queue.lock().await;
-            tracing::info!(
-                "Adding {} nodes to the queue (queue total={})",
-                nodes.len(),
-                queue_lock.len()
-            );
-            queue_lock.extend(nodes);
-        }
+    async fn run_packet_scraper(pool: &SqlitePool) -> anyhow::Result<()> {
+        let queue = queries::get_nodes_for_scraping(pool).await?;
+        tracing::info!("Adding {} nodes to the queue", queue.len(),);
 
         let results = Self::process_packet_queue(queue).await;
         queries::batch_store_packet_stats(pool, results)
@@ -75,8 +58,9 @@ impl PacketScraper {
     }
 
     async fn process_packet_queue(
-        queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
+        queue: Vec<ScraperNodeInfo>,
     ) -> Arc<Mutex<Vec<InsertStatsRecord>>> {
+        let mut queue = queue;
         let results = Arc::new(Mutex::new(Vec::new()));
         let mut task_set = JoinSet::new();
 
@@ -85,12 +69,11 @@ impl PacketScraper {
 
             if running_tasks < MAX_CONCURRENT_TASKS {
                 let node = {
-                    let mut queue_lock = queue.lock().await;
-                    if queue_lock.is_empty() {
+                    if queue.is_empty() {
                         TASK_ID_COUNTER.store(0, Ordering::Relaxed);
                         break;
                     }
-                    queue_lock.remove(0)
+                    queue.remove(0)
                 };
 
                 TASK_COUNTER.fetch_add(1, Ordering::Relaxed);

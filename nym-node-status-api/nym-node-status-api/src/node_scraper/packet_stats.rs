@@ -143,6 +143,6 @@ impl PacketScraper {
             info!(msg);
         }
 
-        return results;
+        results
     }
 }

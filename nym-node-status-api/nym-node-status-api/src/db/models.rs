@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::str::FromStr;
 use strum_macros::{EnumString, FromRepr};
-use time::{Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, UtcDateTime};
 use utoipa::ToSchema;
 
 macro_rules! serialize_opt_to_value {
@@ -362,7 +362,7 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
-#[derive(strum_macros::Display)]
+#[derive(strum_macros::Display, Clone)]
 pub(crate) enum ScrapeNodeKind {
     LegacyMixnode { mix_id: i64 },
     MixingNymNode { node_id: i64 },
@@ -519,4 +519,11 @@ pub struct NodeStats {
     pub packets_received: i64,
     pub packets_sent: i64,
     pub packets_dropped: i64,
+}
+
+pub struct InsertStatsRecord {
+    pub node_kind: ScrapeNodeKind,
+    pub timestamp_utc: UtcDateTime,
+    pub unix_timestamp: i64,
+    pub stats: NodeStats,
 }

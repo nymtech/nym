@@ -160,11 +160,11 @@ async fn submit_testrun(
         .map(unix_timestamp_to_utc_rfc3339)
         .unwrap_or_else(|| String::from("never"));
     tracing::info!(
-        "✅ Testrun row_id {} for gateway {} complete (last assigned {}, created at {})",
+        gateway_id = gw_identity,
+        last_assigned = last_assigned,
+        created_at = created_at,
+        "✅ Testrun row_id {} for gateway complete",
         assigned_testrun.id,
-        gw_identity,
-        last_assigned,
-        created_at
     );
 
     Ok(StatusCode::CREATED)

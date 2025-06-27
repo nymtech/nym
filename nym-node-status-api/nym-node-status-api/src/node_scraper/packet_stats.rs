@@ -1,17 +1,19 @@
-use super::helpers::scrape_and_store_packet_stats;
-use anyhow::Result;
+use super::helpers::scrape_packet_stats;
 use sqlx::SqlitePool;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error, instrument, warn};
+use tokio::sync::Mutex;
+use tokio::task::JoinSet;
+use tracing::{debug, error, info, instrument, warn};
 
-use crate::db::models::ScraperNodeInfo;
-use crate::db::queries::get_nodes_for_scraping;
+use crate::db::models::{InsertStatsRecord, ScraperNodeInfo};
+use crate::db::queries;
 
 const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
-const MAX_CONCURRENT_TASKS: usize = 5;
+// TODO dz should be env configurable
+const MAX_CONCURRENT_TASKS: usize = 25;
 
 static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -53,49 +55,59 @@ impl PacketScraper {
     async fn run_packet_scraper(
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
-    ) -> Result<()> {
-        let nodes = get_nodes_for_scraping(pool).await?;
-        tracing::info!("Querying {} mixing nodes", nodes.len());
-        if let Ok(mut queue_lock) = queue.lock() {
+    ) -> anyhow::Result<()> {
+        let nodes = queries::get_nodes_for_scraping(pool).await?;
+        {
+            // TODO dz why do we use mut queue instead of initializing a new queue for each run?
+            let mut queue_lock = queue.lock().await;
+            tracing::info!(
+                "Adding {} nodes to the queue (queue total={})",
+                nodes.len(),
+                queue_lock.len()
+            );
             queue_lock.extend(nodes);
-        } else {
-            warn!("Failed to acquire packet queue lock");
-            return Ok(());
         }
 
-        Self::process_packet_queue(pool, queue).await;
-        Ok(())
+        let results = Self::process_packet_queue(queue).await;
+        queries::batch_store_packet_stats(pool, results)
+            .await
+            .map_err(|err| anyhow::anyhow!("Failed to store packet stats to DB: {err}"))
     }
 
-    async fn process_packet_queue(pool: &SqlitePool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
+    async fn process_packet_queue(
+        queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
+    ) -> Arc<Mutex<Vec<InsertStatsRecord>>> {
+        let results = Arc::new(Mutex::new(Vec::new()));
+        let mut task_set = JoinSet::new();
+
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
             if running_tasks < MAX_CONCURRENT_TASKS {
                 let node = {
-                    if let Ok(mut queue_lock) = queue.lock() {
-                        if queue_lock.is_empty() {
-                            TASK_ID_COUNTER.store(0, Ordering::Relaxed);
-                            break;
-                        }
-                        queue_lock.remove(0)
-                    } else {
-                        warn!("Failed to acquire packet queue lock");
+                    let mut queue_lock = queue.lock().await;
+                    if queue_lock.is_empty() {
+                        TASK_ID_COUNTER.store(0, Ordering::Relaxed);
                         break;
                     }
+                    queue_lock.remove(0)
                 };
 
                 TASK_COUNTER.fetch_add(1, Ordering::Relaxed);
                 let task_id = TASK_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let pool = pool.clone();
+                let results_clone = Arc::clone(&results);
 
-                tokio::spawn(async move {
-                    match scrape_and_store_packet_stats(&pool, &node).await {
-                        Ok(_) => debug!(
-                            "📊 ✅ Packet stats task #{} for node {} complete",
-                            task_id,
-                            node.node_id()
-                        ),
+                task_set.spawn(async move {
+                    match scrape_packet_stats(&node).await {
+                        Ok(result) => {
+                            // each task contributes their result to a shared vec
+                            results_clone.lock().await.push(result);
+                            debug!(
+                                "📊 ✅ Packet stats task #{} for node {} complete",
+                                task_id,
+                                node.node_id()
+                            )
+                        }
                         Err(e) => debug!(
                             "📊 ❌ Packet stats task #{} for {} {} failed: {}",
                             task_id,
@@ -111,6 +123,26 @@ impl PacketScraper {
             }
         }
 
-        // TODO After all tasks complete, write results to the DB
+        // wait for all the tasks to complete before returning their results
+        let total_count = task_set.len();
+        let mut success_count = 0;
+        while let Some(res) = task_set.join_next().await {
+            if let Err(err) = res {
+                warn!("Packet stats task panicked: {err}");
+            } else {
+                success_count += 1;
+            }
+        }
+        let msg = format!(
+            "Successfully completed {}/{} tasks ",
+            success_count, total_count
+        );
+        if success_count != total_count {
+            warn!(msg);
+        } else {
+            info!(msg);
+        }
+
+        return results;
     }
 }

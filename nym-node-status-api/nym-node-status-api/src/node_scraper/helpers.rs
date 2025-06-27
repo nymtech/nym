@@ -1,8 +1,8 @@
 use crate::{
     db::{
-        models::{NodeStats, ScraperNodeInfo},
+        models::{InsertStatsRecord, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
         queries::{
-            get_raw_node_stats, insert_daily_node_stats, insert_node_packet_stats,
+            get_raw_node_stats, insert_daily_node_stats_uncommitted,
             insert_scraped_node_description,
         },
     },
@@ -12,7 +12,7 @@ use ammonia::Builder;
 use anyhow::{anyhow, Result};
 use reqwest;
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Transaction};
 use std::time::Duration;
 use time::UtcDateTime;
 
@@ -156,10 +156,7 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
     Ok(())
 }
 
-pub async fn scrape_and_store_packet_stats(
-    pool: &SqlitePool,
-    node: &ScraperNodeInfo,
-) -> Result<()> {
+pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRecord> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -187,19 +184,21 @@ pub async fn scrape_and_store_packet_stats(
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
-    let timestamp = now_utc();
-    let timestamp_utc = timestamp.unix_timestamp();
-    insert_node_packet_stats(pool, &node.node_kind, &stats, timestamp_utc).await?;
+    let timestamp_utc = now_utc();
+    let unix_timestamp = timestamp_utc.unix_timestamp();
+    let result = InsertStatsRecord {
+        node_kind: node.node_kind.to_owned(),
+        timestamp_utc,
+        unix_timestamp,
+        stats,
+    };
 
-    // TODO dz does this need to run every time?
-    update_daily_stats(pool, node, timestamp, &stats).await?;
-
-    Ok(())
+    Ok(result)
 }
 
-pub async fn update_daily_stats(
-    pool: &SqlitePool,
-    node: &ScraperNodeInfo,
+pub async fn update_daily_stats_uncommitted(
+    tx: &mut Transaction<'static, sqlx::Sqlite>,
+    node_kind: &ScrapeNodeKind,
     timestamp: UtcDateTime,
     current_stats: &NodeStats,
 ) -> Result<()> {
@@ -211,7 +210,7 @@ pub async fn update_daily_stats(
     );
 
     // Get previous stats
-    let previous_stats = get_raw_node_stats(pool, node).await?;
+    let previous_stats = get_raw_node_stats(tx, &node_kind).await?;
 
     let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
         (
@@ -223,9 +222,9 @@ pub async fn update_daily_stats(
         (0, 0, 0) // No previous stats available
     };
 
-    insert_daily_node_stats(
-        pool,
-        node,
+    insert_daily_node_stats_uncommitted(
+        tx,
+        node_kind,
         &date_utc,
         NodeStats {
             packets_received: diff_received,

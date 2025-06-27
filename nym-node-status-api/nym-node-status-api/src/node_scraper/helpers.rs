@@ -10,7 +10,6 @@ use crate::{
 };
 use ammonia::Builder;
 use anyhow::{anyhow, Result};
-use reqwest;
 use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool, Transaction};
 use std::time::Duration;
@@ -210,7 +209,7 @@ pub async fn update_daily_stats_uncommitted(
     );
 
     // Get previous stats
-    let previous_stats = get_raw_node_stats(tx, &node_kind).await?;
+    let previous_stats = get_raw_node_stats(tx, node_kind).await?;
 
     let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
         (

@@ -35,6 +35,7 @@ use nym_task::TaskClient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 
+use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
 
 pub(crate) mod acknowledgement_control;
@@ -139,6 +140,7 @@ impl RealMessagesController<OsRng> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
+        key_rotation_config: KeyRotationConfig,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
@@ -196,6 +198,7 @@ impl RealMessagesController<OsRng> {
 
         let reply_control = ReplyController::new(
             reply_controller_config,
+            key_rotation_config,
             message_handler,
             reply_storage,
             reply_controller_receiver,

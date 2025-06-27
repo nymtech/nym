@@ -18,6 +18,7 @@ use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
 use crate::client::replies::reply_controller;
+use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyControllerSender};
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
@@ -56,8 +57,11 @@ use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, 
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
-use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
+use nym_validator_client::nym_api::NymApiClientExt;
+use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, NymApiClient, UserAgent};
+use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
+use rand::thread_rng;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
@@ -338,6 +342,7 @@ where
     #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         controller_config: real_messages_control::Config,
+        key_rotation_config: KeyRotationConfig,
         topology_accessor: TopologyAccessor,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
@@ -355,6 +360,7 @@ where
 
         RealMessagesController::new(
             controller_config,
+            key_rotation_config,
             ack_receiver,
             input_receiver,
             mix_sender,
@@ -555,14 +561,14 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
-        user_agent: Option<UserAgent>,
+        nym_api_client: NymApiClient,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
             Box::new(NymApiTopologyProvider::new(
                 config_topology,
                 nym_api_urls,
-                user_agent,
+                nym_api_client,
             ))
         })
     }
@@ -725,6 +731,23 @@ where
         setup_gateway(setup_method, key_store, details_store).await
     }
 
+    fn construct_nym_api_client(config: &Config, user_agent: Option<UserAgent>) -> NymApiClient {
+        let mut nym_api_urls = config.get_nym_api_endpoints();
+        nym_api_urls.shuffle(&mut thread_rng());
+
+        if let Some(user_agent) = user_agent {
+            NymApiClient::new_with_user_agent(nym_api_urls[0].clone(), user_agent)
+        } else {
+            NymApiClient::new(nym_api_urls[0].clone())
+        }
+    }
+
+    async fn determine_key_rotation_state(
+        client: &NymApiClient,
+    ) -> Result<KeyRotationConfig, ClientCoreError> {
+        Ok(client.nym_api.get_key_rotation_info().await?.into())
+    }
+
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
         S::ReplyStore: Send + Sync,
@@ -789,11 +812,14 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
+        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone());
+        let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
+
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
             self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
-            self.user_agent.clone(),
+            nym_api_client,
         );
 
         let stats_reporter = Self::start_statistics_control(
@@ -878,6 +904,7 @@ where
 
         Self::start_real_traffic_controller(
             controller_config,
+            key_rotation_config,
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,

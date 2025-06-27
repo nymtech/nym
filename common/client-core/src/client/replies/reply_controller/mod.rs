@@ -6,20 +6,23 @@ use crate::client::real_messages_control::acknowledgement_control::PendingAcknow
 use crate::client::real_messages_control::message_handler::{
     FragmentWithMaxRetransmissions, MessageHandler, PreparationError,
 };
-use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
+use crate::client::replies::reply_controller::key_rotation_helpers::{
+    KeyRotationConfig, SurbRefreshState,
+};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
 use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
+use nym_client_core_surb_storage::ReceivedReplySurb;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_task::TaskClient;
-use nym_validator_client::models::KeyRotationId;
 use rand::{CryptoRng, Rng};
 pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 use std::cmp::{max, min};
@@ -65,8 +68,9 @@ pub struct ReplyController<R> {
     /// This includes things such as number of epochs per rotation, duration of epochs, etc.
     key_rotation_config: KeyRotationConfig,
 
-    last_known_key_rotation_id: KeyRotationId,
-    refresh_surbs_on_next_invalidation: bool,
+    surb_refresh_state: SurbRefreshState,
+
+    topology_access: TopologyAccessor,
 
     // TODO: incorporate that field at some point
     // and use binomial distribution to determine the expected required number
@@ -95,23 +99,29 @@ where
 {
     pub(crate) fn new(
         config: Config,
-        // key_rotation_config: KeyRotationConfig,
+        key_rotation_config: KeyRotationConfig,
         message_handler: MessageHandler<R>,
         full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
         task_client: TaskClient,
     ) -> Self {
-        todo!()
+        let topology_access = message_handler.topology_access_handle().clone();
 
-        // ReplyController {
-        //     config,
-        //     request_receiver,
-        //     pending_replies: HashMap::new(),
-        //     pending_retransmissions: HashMap::new(),
-        //     message_handler,
-        //     full_reply_storage,
-        //     task_client,
-        // }
+        ReplyController {
+            config,
+            surb_refresh_state: SurbRefreshState::WaitingForNextRotation {
+                last_known: key_rotation_config
+                    .expected_current_key_rotation_id(OffsetDateTime::now_utc()),
+            },
+            key_rotation_config,
+            topology_access,
+            request_receiver,
+            pending_replies: HashMap::new(),
+            pending_retransmissions: HashMap::new(),
+            message_handler,
+            full_reply_storage,
+            task_client,
+        }
     }
 
     fn insert_pending_replies<I: IntoIterator<Item = FragmentWithMaxRetransmissions>>(
@@ -324,15 +334,15 @@ where
         amount: u32,
     ) -> Result<(), PreparationError> {
         debug!("requesting {amount} additional reply surbs for {target}");
-        let reply_surb = self
+        let (reply_surb, _) = self
             .full_reply_storage
             .surbs_storage_ref()
-            .get_reply_surb_ignoring_threshold(&target)
-            .and_then(|(reply_surb, _)| reply_surb)
-            .ok_or(PreparationError::NotEnoughSurbs {
-                available: 0,
-                required: 1,
-            })?;
+            .get_reply_surb_ignoring_threshold(&target);
+
+        let reply_surb = reply_surb.ok_or(PreparationError::NotEnoughSurbs {
+            available: 0,
+            required: 1,
+        })?;
 
         if let Err(err) = self
             .message_handler
@@ -340,10 +350,7 @@ where
             .await
         {
             let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-            warn!(
-                "failed to request additional surbs from {:?} - {err}",
-                target
-            );
+            warn!("failed to request additional surbs from {target}: {err}",);
             return Err(err);
         } else {
             self.full_reply_storage
@@ -527,7 +534,7 @@ where
         // store received surbs
         self.full_reply_storage
             .surbs_storage_ref()
-            .insert_surbs(&from, reply_surbs);
+            .insert_fresh_surbs(&from, reply_surbs);
 
         // use as many as we can for clearing pending retransmission queue
         self.try_clear_pending_retransmission(from).await;
@@ -635,8 +642,7 @@ where
             self.full_reply_storage
                 .surbs_storage_ref()
                 .get_reply_surb(&recipient_tag)
-        }
-        .expect("attempted to retransmit a packet to an unknown recipient - we shouldn't have sent the original packet in the first place!");
+        };
 
         if let Some(reply_surb) = maybe_reply_surb {
             match self
@@ -787,13 +793,7 @@ where
         }
     }
 
-    async fn refresh_surbs_for_new_rotation(&mut self, target: AnonymousSenderTag) {
-        trace!("refreshing surbs for new key rotation");
-
-        todo!()
-    }
-
-    async fn inspect_stale_entries(&mut self) {
+    async fn inspect_stale_queues(&mut self) {
         let mut to_request = Vec::new();
         let mut to_remove = Vec::new();
 
@@ -847,29 +847,91 @@ where
         }
     }
 
-    async fn check_surb_refresh(&self) {
-        todo!()
+    async fn check_surb_refresh(&mut self) {
+        let Some(current_rotation_id) = self.topology_access.current_key_rotation_id().await else {
+            warn!("failed to retrieve current key rotation id from the network topology");
+            return;
+        };
+
+        if let SurbRefreshState::WaitingForNextRotation { last_known } = self.surb_refresh_state {
+            if last_known == current_rotation_id {
+                trace!("no changes in key rotation id");
+            } else {
+                // key rotation actually changed and given the polling rate (1/8th epoch) we should have plenty
+                // of time to perform the upgrade.
+                // but wait for one more call before doing this so that the clients could also resync
+                // their topologies and discover new rotation
+                self.surb_refresh_state = SurbRefreshState::ScheduledForNextInvocation
+            }
+            return;
+        }
+
+        // here we are in `SurbRefreshState::ScheduledForNextInvocation` state
+
+        let mut marked_as_stale = HashMap::new();
+
+        // 1. mark all existing surbs we have as possibly stale
+        for mut map_entry in self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .as_raw_iter_mut()
+        {
+            let (sender, received) = map_entry.pair_mut();
+            let num_downgraded = received.downgrade_freshness();
+            if num_downgraded != 0 {
+                marked_as_stale.insert(*sender, num_downgraded);
+            }
+        }
+
+        // 2. attempt to re-request the equivalent number of fresh surbs
+        // TODO PROBLEM: if our request gets lost, we might be in trouble...
+        // we need some sort of retry mechanism
+        for (sender, num_to_request) in marked_as_stale {
+            if self
+                .request_additional_reply_surbs(sender, num_to_request as u32)
+                .await
+                .is_err()
+            {
+                warn!("surb refresh request failed")
+            }
+        }
+
+        self.surb_refresh_state = SurbRefreshState::WaitingForNextRotation {
+            last_known: current_rotation_id,
+        };
     }
 
-    async fn invalidate_old_data(&self) {
+    async fn remove_stale_storage(&self) {
         let now = OffsetDateTime::now_utc();
 
         let is_epoch_stuck = false;
         let todo = "^";
 
+        // expected time of when the CURRENT key rotation has begun
         let expected_current_key_rotation_start = self
             .key_rotation_config
             .expected_current_key_rotation_start(now);
+
+        // expected ID of the CURRENT key rotation
         let expected_current_key_rotation = self
             .key_rotation_config
             .expected_current_key_rotation_id(now);
+
+        // time of the start of one epoch BEFORE the CURRENT rotation has begun
+        // this indicates the starting time of when packets with the current keys might have been constructed
         let prior_epoch_start =
             expected_current_key_rotation_start - self.key_rotation_config.epoch_duration;
+
+        // time of the start of one epoch AFTER the current rotation has begun
+        // this indicates the end of transition period and any packets constructed with keys different
+        // than the current are definitely invalid
+        let following_epoch_start =
+            expected_current_key_rotation_start + self.key_rotation_config.epoch_duration;
 
         // 1. purge full old clients data (this applies to RECEIVER)
         self.full_reply_storage
             .surbs_storage_ref()
-            .retain(|sender, received| {
+            .retain(|_, received| {
                 if is_epoch_stuck {
                     // if epoch is stuck, we can't do much
                     // apart from the basic check of surbs being received more than maximum lifetime of a rotation
@@ -887,8 +949,7 @@ where
                     return false;
                 }
 
-                // 1.1 check individual surbs (same basic logic applies)
-                received.retain_surbs(|received_surb| {
+                let basic_surb_retention_logic = |received_surb: &ReceivedReplySurb| {
                     if is_epoch_stuck {
                         let diff = now - received_surb.received_at();
                         return diff > self.key_rotation_config.rotation_lifetime();
@@ -916,6 +977,22 @@ where
                     }
 
                     true
+                };
+
+                // 1.1. check individual surbs (same basic logic applies)
+                received
+                    .retain_fresh_surbs(|received_surb| basic_surb_retention_logic(received_surb));
+
+                // 1.2. check the possibly stale entries
+                received.retain_possibly_stale_surbs(|received_surb| {
+                    // 1.2.1. check if we're beyond the key rotation transition period,
+                    // if so those surbs are definitely unusable
+                    if now > following_epoch_start {
+                        return false;
+                    }
+
+                    // otherwise continue with the same logic as the fresh ones
+                    basic_surb_retention_logic(received_surb)
                 });
 
                 // no surbs left and we're not expecting any
@@ -926,7 +1003,7 @@ where
             });
 
         // 2. check reply keys (this applies to SENDER)
-        self.full_reply_storage.key_storage_ref().retain(|digest, reply_key| {
+        self.full_reply_storage.key_storage_ref().retain(|_, reply_key| {
             let diff = now - reply_key.sent_at;
             if diff > self.config.reply_surbs.maximum_reply_key_age {
                 debug!("it's been {diff:?} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
@@ -945,7 +1022,7 @@ where
         let polling_rate = Duration::from_secs(5);
         let mut stale_inspection = new_interval_stream(polling_rate);
 
-        let polling_rate = self.key_rotation_config.epoch_duration / 10;
+        let polling_rate = self.key_rotation_config.epoch_duration / 8;
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {
@@ -962,11 +1039,11 @@ where
                     }
                 },
                 _ = stale_inspection.next() => {
-                    self.inspect_stale_entries().await
+                    self.inspect_stale_queues().await
                 },
                 _ = invalidation_inspection.next() => {
                     self.check_surb_refresh().await;
-                    self.invalidate_old_data().await;
+                    self.remove_stale_storage().await;
                 }
             }
         }

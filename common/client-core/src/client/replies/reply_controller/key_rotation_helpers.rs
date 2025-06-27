@@ -7,6 +7,12 @@ use nym_validator_client::models::{
 use std::time::Duration;
 use time::OffsetDateTime;
 
+#[derive(Clone, Copy)]
+pub(crate) enum SurbRefreshState {
+    WaitingForNextRotation { last_known: KeyRotationId },
+    ScheduledForNextInvocation,
+}
+
 pub(crate) struct ReferenceEpoch {
     pub(crate) absolute_epoch_id: EpochId,
     pub(crate) start_time: OffsetDateTime,
@@ -49,10 +55,6 @@ impl KeyRotationConfig {
         self.reference_epoch.absolute_epoch_id + epochs
     }
 
-    pub(crate) fn expected_time_until_next_rotation(&self) -> Option<Duration> {
-        todo!()
-    }
-
     fn initial_rotation_epoch_start(&self) -> OffsetDateTime {
         let epochs_diff =
             self.reference_epoch.absolute_epoch_id - self.rotation_state.validity_epochs;
@@ -65,10 +67,6 @@ impl KeyRotationConfig {
 
         // note: key rotation starts from 0
         initial_start + rotation_duration * key_rotation_id
-    }
-
-    pub(crate) fn new_rotation_expected(&self) -> bool {
-        todo!()
     }
 
     pub(crate) fn expected_current_key_rotation_id(&self, now: OffsetDateTime) -> KeyRotationId {

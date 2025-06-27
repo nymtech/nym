@@ -4,7 +4,7 @@
 pub use backend::*;
 pub use combined::CombinedReplyStorage;
 pub use key_storage::SentReplyKeys;
-pub use surb_storage::ReceivedReplySurbsMap;
+pub use surb_storage::{ReceivedReplySurb, ReceivedReplySurbsMap};
 pub use tag_storage::UsedSenderTags;
 
 mod backend;

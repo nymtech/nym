@@ -189,7 +189,6 @@ impl From<ConfigV6> for Config {
                         .debug
                         .reply_surbs
                         .maximum_reply_surb_drop_waiting_period,
-                    maximum_reply_surb_age: value.debug.reply_surbs.maximum_reply_surb_age,
                     maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
                     surb_mix_hops: value.debug.reply_surbs.surb_mix_hops,
                     minimum_reply_surb_threshold_buffer: value

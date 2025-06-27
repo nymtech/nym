@@ -18,9 +18,7 @@ use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{
-    EpochId, GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent,
-};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent};
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
@@ -42,7 +40,7 @@ use time::{Date, OffsetDateTime};
 use tracing::{error, warn};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
-pub use nym_mixnet_contract_common::KeyRotationState;
+pub use nym_mixnet_contract_common::{EpochId, KeyRotationId, KeyRotationState};
 pub use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
@@ -1534,7 +1532,7 @@ impl KeyRotationInfoResponse {
     }
 
     // based on the current **TIME**, determine what's the expected current rotation id
-    pub fn expected_current_rotation_id(&self) -> u32 {
+    pub fn expected_current_rotation_id(&self) -> KeyRotationId {
         let now = OffsetDateTime::now_utc();
         let current_end = now + self.epoch_duration;
         if now < current_end {

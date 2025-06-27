@@ -3,6 +3,7 @@
 
 use crate::backend::fs_backend::error::StorageError;
 use crate::key_storage::UsedReplyKey;
+use crate::ReceivedReplySurb;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::Digest;
 use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
@@ -12,6 +13,8 @@ use nym_sphinx::anonymous_replies::{
     ReplySurb, ReplySurbWithKeyRotation, SurbEncryptionKey, SurbEncryptionKeySize,
 };
 use nym_sphinx::params::{ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
+use sqlx::FromRow;
+use time::OffsetDateTime;
 
 #[derive(Debug, Clone)]
 pub struct StoredSenderTag {
@@ -58,11 +61,11 @@ impl TryFrom<StoredSenderTag> for (RecipientBytes, AnonymousSenderTag) {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub struct StoredReplyKey {
     pub key_digest: Vec<u8>,
     pub reply_key: Vec<u8>,
-    pub sent_at_timestamp: i64,
+    pub sent_at: OffsetDateTime,
 }
 
 impl StoredReplyKey {
@@ -70,7 +73,7 @@ impl StoredReplyKey {
         StoredReplyKey {
             key_digest: key_digest.to_vec(),
             reply_key: (*reply_key).to_bytes(),
-            sent_at_timestamp: reply_key.sent_at_timestamp,
+            sent_at: reply_key.sent_at,
         }
     }
 }
@@ -100,32 +103,30 @@ impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, UsedReplyKey) {
             });
         };
 
-        Ok((
-            digest,
-            UsedReplyKey::new(reply_key, value.sent_at_timestamp),
-        ))
+        Ok((digest, UsedReplyKey::new(reply_key, value.sent_at)))
     }
 }
 
+#[derive(FromRow)]
 pub struct StoredSurbSender {
     pub id: i64,
     pub tag: Vec<u8>,
-    pub last_sent_timestamp: i64,
+    pub last_sent: OffsetDateTime,
 }
 
 impl StoredSurbSender {
-    pub fn new(tag: AnonymousSenderTag, last_sent_timestamp: i64) -> Self {
+    pub fn new(tag: AnonymousSenderTag, last_sent: OffsetDateTime) -> Self {
         StoredSurbSender {
             // for the purposes of STORING data,
             // we ignore that field anyway
             id: 0,
             tag: tag.to_bytes().to_vec(),
-            last_sent_timestamp,
+            last_sent,
         }
     }
 }
 
-impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
+impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, OffsetDateTime) {
     type Error = StorageError;
 
     fn try_from(value: StoredSurbSender) -> Result<Self, Self::Error> {
@@ -140,10 +141,12 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
 
         Ok((
             AnonymousSenderTag::from_bytes(sender_tag_bytes),
-            value.last_sent_timestamp,
+            value.last_sent,
         ))
     }
 }
+
+const todo: &str = "might have to store the whole id after all";
 
 pub struct StoredReplySurb {
     pub reply_surb_sender_id: i64,
@@ -155,10 +158,10 @@ pub struct StoredReplySurb {
 }
 
 impl StoredReplySurb {
-    pub fn new(reply_surb_sender_id: i64, reply_surb: &ReplySurbWithKeyRotation) -> Self {
+    pub fn new(reply_surb_sender_id: i64, reply_surb: &ReceivedReplySurb) -> Self {
         StoredReplySurb {
             reply_surb_sender_id,
-            reply_surb: reply_surb.inner_reply_surb().to_bytes(),
+            reply_surb: reply_surb.surb.inner_reply_surb().to_bytes(),
             encoded_key_rotation: reply_surb.key_rotation() as u8,
         }
     }

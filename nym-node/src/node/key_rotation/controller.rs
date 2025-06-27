@@ -166,11 +166,11 @@ impl KeyRotationController {
         // unfortunate time, just wait until the next rotation rather than do all the work only to throw it
         // away immediately
         let Some(until_next_rotation) = key_rotation_info.until_next_rotation() else {
-            warn!("failed to determine time remaining until the next key rotation");
+            debug!("key rotation is overdue - waiting...");
             return NextAction::wait(Duration::from_secs(30));
         };
         if until_next_rotation < Duration::from_secs(30) {
-            debug!("less than 30s until next rotation - waiting until until then");
+            debug!("less than 30s until next rotation - waiting until then");
             return NextAction::wait(Duration::from_secs(30));
         }
 

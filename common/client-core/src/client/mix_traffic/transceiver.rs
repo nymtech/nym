@@ -27,7 +27,7 @@ fn erase_err<E: std::error::Error + Send + Sync + 'static>(err: E) -> ErasedGate
     ErasedGatewayError(Box::new(err))
 }
 
-/// This combines combines the functionalities of being able to send and receive mix packets.
+/// This combines the functionalities of being able to send and receive mix packets.
 #[async_trait]
 pub trait GatewayTransceiver: GatewaySender + GatewayReceiver {
     fn gateway_identity(&self) -> ed25519::PublicKey;

@@ -71,8 +71,8 @@ impl Backend {
             return Err(StorageError::IncompleteDataFlush);
         }
 
-        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
-        if last_flush_timestamp == 0 {
+        let last_flush = manager.get_previous_flush_time().await?;
+        if last_flush == OffsetDateTime::UNIX_EPOCH {
             // either this client has been running since 1970 or the flush failed
             return Err(StorageError::IncompleteDataFlush);
         }
@@ -91,15 +91,6 @@ impl Backend {
             error!("it seems the client has been shutdown gracefully - we're missing valid surb data dump. the existing database cannot be used");
             return Err(err.into());
         }
-
-        let last_flush = match OffsetDateTime::from_unix_timestamp(last_flush_timestamp) {
-            Ok(last_flush) => last_flush,
-            Err(err) => {
-                return Err(StorageError::CorruptedData {
-                    details: format!("failed to parse stored timestamp - {err}"),
-                });
-            }
-        };
 
         // in theory clients can use our reply surbs whenever they want, even a year in the future
         // (assuming no key rotation has happened)
@@ -177,7 +168,7 @@ impl Backend {
 
     async fn end_storage_flush(&self) -> Result<(), StorageError> {
         self.manager
-            .set_previous_flush_timestamp(OffsetDateTime::now_utc().unix_timestamp())
+            .set_previous_flush(OffsetDateTime::now_utc())
             .await?;
         Ok(self.manager.set_flush_status(false).await?)
     }
@@ -243,7 +234,7 @@ impl Backend {
         let mut received_surbs = Vec::with_capacity(surb_senders.len());
         for sender in surb_senders {
             let sender_id = sender.id;
-            let (sender_tag, surbs_last_received_at_timestamp): (AnonymousSenderTag, i64) =
+            let (sender_tag, surbs_last_received_at): (AnonymousSenderTag, OffsetDateTime) =
                 sender.try_into()?;
             let stored_surbs = self
                 .manager
@@ -255,7 +246,7 @@ impl Backend {
 
             received_surbs.push((
                 sender_tag,
-                ReceivedReplySurbs::new_retrieved(stored_surbs, surbs_last_received_at_timestamp),
+                ReceivedReplySurbs::new_retrieved(stored_surbs, surbs_last_received_at),
             ))
         }
 

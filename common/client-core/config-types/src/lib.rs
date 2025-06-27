@@ -58,9 +58,6 @@ const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 const DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD: Duration = Duration::from_secs(10);
 const DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD: Duration = Duration::from_secs(5 * 60);
 
-// 12 hours
-const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 60);
-
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -625,11 +622,6 @@ pub struct ReplySurbs {
     #[serde(with = "humantime_serde")]
     pub maximum_reply_surb_drop_waiting_period: Duration,
 
-    /// Defines maximum amount of time given reply surb is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    #[serde(with = "humantime_serde")]
-    pub maximum_reply_surb_age: Duration,
-
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
     #[serde(with = "humantime_serde")]
@@ -655,7 +647,6 @@ impl Default for ReplySurbs {
             maximum_reply_surb_rerequest_waiting_period:
                 DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
             maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
-            maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
             maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
             surb_mix_hops: None,
             fresh_sender_tags: false,

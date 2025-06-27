@@ -12,7 +12,7 @@ use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
-use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
+use nym_sphinx::anonymous_replies::{ReplySurb, ReplySurbWithKeyRotation};
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -385,7 +385,7 @@ where
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<FragmentWithMaxRetransmissions>,
-        reply_surbs: Vec<ReplySurbWithKeyRotation>,
+        reply_surbs: impl IntoIterator<Item = impl Into<ReplySurbWithKeyRotation>>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
         // TODO: technically this is performing an unnecessary cloning, but in the grand scheme of things
@@ -402,7 +402,7 @@ where
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
-        reply_surbs: Vec<ReplySurbWithKeyRotation>,
+        reply_surbs: impl IntoIterator<Item = impl Into<ReplySurbWithKeyRotation>>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
@@ -634,20 +634,14 @@ where
     pub(crate) async fn prepare_reply_chunks_for_sending(
         &mut self,
         fragments: Vec<Fragment>,
-        reply_surbs: Vec<ReplySurbWithKeyRotation>,
+        reply_surbs: impl IntoIterator<Item = impl Into<ReplySurbWithKeyRotation>>,
     ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
-        debug_assert_eq!(
-            fragments.len(),
-            reply_surbs.len(),
-            "attempted to send {} fragments with {} reply surbs",
-            fragments.len(),
-            reply_surbs.len()
-        );
-
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match self.get_topology(&topology_permit) {
             Ok(topology) => topology,
-            Err(err) => return Err(err.return_surbs(reply_surbs)),
+            Err(err) => {
+                return Err(err.return_surbs(reply_surbs.into_iter().map(Into::into).collect()))
+            }
         };
 
         Ok(fragments
@@ -660,7 +654,7 @@ where
                         fragment,
                         topology,
                         &self.config.ack_key,
-                        reply_surb,
+                        reply_surb.into(),
                         PacketType::Mix,
                     )
                     .unwrap()

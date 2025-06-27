@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use log::trace;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
+use nym_sphinx::params::SphinxKeyRotation;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -61,13 +62,11 @@ impl ReceivedReplySurbsMap {
         self.inner.data.remove(target);
     }
 
-    pub fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
-        if let Some(mut entry) = self.inner.data.get_mut(target) {
-            entry.surbs_last_received_at_timestamp = OffsetDateTime::now_utc().unix_timestamp();
-        }
+    pub fn retain(&self, f: impl FnMut(&AnonymousSenderTag, &mut ReceivedReplySurbs) -> bool) {
+        self.inner.data.retain(f);
     }
 
-    pub fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<i64> {
+    pub fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<OffsetDateTime> {
         self.inner
             .data
             .get(target)
@@ -134,7 +133,7 @@ impl ReceivedReplySurbsMap {
         &self,
         target: &AnonymousSenderTag,
         amount: usize,
-    ) -> (Option<Vec<ReplySurbWithKeyRotation>>, usize) {
+    ) -> (Option<Vec<ReceivedReplySurb>>, usize) {
         if let Some(mut entry) = self.inner.data.get_mut(target) {
             let surbs_left = entry.items_left();
             if surbs_left < self.min_surb_threshold() + amount {
@@ -150,7 +149,7 @@ impl ReceivedReplySurbsMap {
     pub fn get_reply_surb_ignoring_threshold(
         &self,
         target: &AnonymousSenderTag,
-    ) -> Option<(Option<ReplySurbWithKeyRotation>, usize)> {
+    ) -> Option<(Option<ReceivedReplySurb>, usize)> {
         self.inner
             .data
             .get_mut(target)
@@ -160,7 +159,7 @@ impl ReceivedReplySurbsMap {
     pub fn get_reply_surb(
         &self,
         target: &AnonymousSenderTag,
-    ) -> Option<(Option<ReplySurbWithKeyRotation>, usize)> {
+    ) -> Option<(Option<ReceivedReplySurb>, usize)> {
         self.inner.data.get_mut(target).map(|mut entry| {
             let surbs_left = entry.items_left();
             if surbs_left < self.min_surb_threshold() {
@@ -186,43 +185,76 @@ impl ReceivedReplySurbsMap {
 }
 
 #[derive(Debug)]
+pub struct ReceivedReplySurb {
+    pub(crate) surb: ReplySurbWithKeyRotation,
+    pub(crate) received_at: OffsetDateTime,
+}
+
+impl From<ReceivedReplySurb> for ReplySurbWithKeyRotation {
+    fn from(surb: ReceivedReplySurb) -> Self {
+        surb.surb
+    }
+}
+
+impl ReceivedReplySurb {
+    pub fn received_at(&self) -> OffsetDateTime {
+        self.received_at
+    }
+
+    pub fn key_rotation(&self) -> SphinxKeyRotation {
+        self.surb.key_rotation()
+    }
+}
+
+#[derive(Debug)]
 pub struct ReceivedReplySurbs {
-    // in the future we'd probably want to put extra data here to indicate when the SURBs got received
-    // so we could invalidate entries from the previous key rotations
-    data: VecDeque<ReplySurbWithKeyRotation>,
+    data: VecDeque<ReceivedReplySurb>,
 
     pending_reception: u32,
-    surbs_last_received_at_timestamp: i64,
+    surbs_last_received_at: OffsetDateTime,
 }
 
 impl ReceivedReplySurbs {
     fn new(initial_surbs: VecDeque<ReplySurbWithKeyRotation>) -> Self {
-        ReceivedReplySurbs {
-            data: initial_surbs,
+        let mut this = ReceivedReplySurbs {
+            data: Default::default(),
             pending_reception: 0,
-            surbs_last_received_at_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
-        }
+            surbs_last_received_at: OffsetDateTime::now_utc(),
+        };
+        this.insert_reply_surbs(initial_surbs);
+        this
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub fn new_retrieved(
         surbs: Vec<ReplySurbWithKeyRotation>,
-        surbs_last_received_at_timestamp: i64,
+        surbs_last_received_at: OffsetDateTime,
     ) -> ReceivedReplySurbs {
-        ReceivedReplySurbs {
-            data: surbs.into(),
+        let mut this = ReceivedReplySurbs {
+            data: Default::default(),
             pending_reception: 0,
-            surbs_last_received_at_timestamp,
-        }
+            surbs_last_received_at,
+        };
+        this.insert_reply_surbs(surbs);
+        this.surbs_last_received_at = surbs_last_received_at;
+        this
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-    pub fn surbs_ref(&self) -> &VecDeque<ReplySurbWithKeyRotation> {
+    pub fn surbs_ref(&self) -> &VecDeque<ReceivedReplySurb> {
         &self.data
     }
 
-    pub fn surbs_last_received_at(&self) -> i64 {
-        self.surbs_last_received_at_timestamp
+    pub fn retain_surbs(&mut self, f: impl FnMut(&ReceivedReplySurb) -> bool) {
+        self.data.retain(f)
+    }
+
+    pub fn surbs_last_received_at(&self) -> OffsetDateTime {
+        self.surbs_last_received_at
     }
 
     pub fn pending_reception(&self) -> u32 {
@@ -243,10 +275,7 @@ impl ReceivedReplySurbs {
         self.pending_reception = 0;
     }
 
-    pub fn get_reply_surbs(
-        &mut self,
-        amount: usize,
-    ) -> (Option<Vec<ReplySurbWithKeyRotation>>, usize) {
+    pub fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReceivedReplySurb>>, usize) {
         if self.items_left() < amount {
             (None, self.items_left())
         } else {
@@ -255,11 +284,11 @@ impl ReceivedReplySurbs {
         }
     }
 
-    pub fn get_reply_surb(&mut self) -> (Option<ReplySurbWithKeyRotation>, usize) {
+    pub fn get_reply_surb(&mut self) -> (Option<ReceivedReplySurb>, usize) {
         (self.pop_surb(), self.items_left())
     }
 
-    fn pop_surb(&mut self) -> Option<ReplySurbWithKeyRotation> {
+    fn pop_surb(&mut self) -> Option<ReceivedReplySurb> {
         self.data.pop_front()
     }
 
@@ -272,10 +301,15 @@ impl ReceivedReplySurbs {
         &mut self,
         surbs: I,
     ) {
-        let mut v = surbs.into_iter().collect::<VecDeque<_>>();
+        let received_at = OffsetDateTime::now_utc();
+        let mut v = surbs
+            .into_iter()
+            .map(|surb| ReceivedReplySurb { surb, received_at })
+            .collect::<VecDeque<_>>();
+
         trace!("storing {} surbs in the storage", v.len());
         self.data.append(&mut v);
-        self.surbs_last_received_at_timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        self.surbs_last_received_at = received_at;
         trace!("we now have {} surbs!", self.data.len());
     }
 }

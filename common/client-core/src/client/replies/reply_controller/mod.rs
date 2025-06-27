@@ -1,11 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::helpers::new_interval_stream;
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use crate::client::real_messages_control::message_handler::{
     FragmentWithMaxRetransmissions, MessageHandler, PreparationError,
 };
+use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::client::transmission_buffer::TransmissionBuffer;
+use crate::config;
 use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
@@ -15,7 +19,9 @@ use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_task::TaskClient;
+use nym_validator_client::models::KeyRotationId;
 use rand::{CryptoRng, Rng};
+pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
@@ -23,11 +29,7 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-use crate::client::helpers::new_interval_stream;
-use crate::client::transmission_buffer::TransmissionBuffer;
-use crate::config;
-pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
-
+pub mod key_rotation_helpers;
 pub mod requests;
 
 // this is still left as a separate config so I wouldn't need to replace it everywhere
@@ -55,8 +57,16 @@ pub type MaxRetransmissions = Option<u32>;
 
 // TODO: this should be split into ingress and egress controllers
 // because currently its trying to perform two distinct jobs
+// NOTE: this is operating on the assumption of constant-length epochs
 pub struct ReplyController<R> {
     config: Config,
+
+    /// Current configuration value of the key rotation as setup on this network.
+    /// This includes things such as number of epochs per rotation, duration of epochs, etc.
+    key_rotation_config: KeyRotationConfig,
+
+    last_known_key_rotation_id: KeyRotationId,
+    refresh_surbs_on_next_invalidation: bool,
 
     // TODO: incorporate that field at some point
     // and use binomial distribution to determine the expected required number
@@ -85,20 +95,23 @@ where
 {
     pub(crate) fn new(
         config: Config,
+        // key_rotation_config: KeyRotationConfig,
         message_handler: MessageHandler<R>,
         full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
         task_client: TaskClient,
     ) -> Self {
-        ReplyController {
-            config,
-            request_receiver,
-            pending_replies: HashMap::new(),
-            pending_retransmissions: HashMap::new(),
-            message_handler,
-            full_reply_storage,
-            task_client,
-        }
+        todo!()
+
+        // ReplyController {
+        //     config,
+        //     request_receiver,
+        //     pending_replies: HashMap::new(),
+        //     pending_retransmissions: HashMap::new(),
+        //     message_handler,
+        //     full_reply_storage,
+        //     task_client,
+        // }
     }
 
     fn insert_pending_replies<I: IntoIterator<Item = FragmentWithMaxRetransmissions>>(
@@ -323,7 +336,7 @@ where
 
         if let Err(err) = self
             .message_handler
-            .try_request_additional_reply_surbs(target, reply_surb, amount)
+            .try_request_additional_reply_surbs(target, reply_surb.into(), amount)
             .await
         {
             let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
@@ -505,9 +518,6 @@ where
         trace!("handling received surbs");
 
         // clear the requesting flag since we should have been asking for surbs
-        self.full_reply_storage
-            .surbs_storage_ref()
-            .reset_surbs_last_received_at(&from);
         if from_surb_request {
             self.full_reply_storage
                 .surbs_storage_ref()
@@ -631,7 +641,10 @@ where
         if let Some(reply_surb) = maybe_reply_surb {
             match self
                 .message_handler
-                .try_prepare_single_reply_chunk_for_sending(reply_surb, ack_ref.fragment_data())
+                .try_prepare_single_reply_chunk_for_sending(
+                    reply_surb.into(),
+                    ack_ref.fragment_data(),
+                )
                 .await
             {
                 Ok(prepared) => {
@@ -774,6 +787,12 @@ where
         }
     }
 
+    async fn refresh_surbs_for_new_rotation(&mut self, target: AnonymousSenderTag) {
+        trace!("refreshing surbs for new key rotation");
+
+        todo!()
+    }
+
     async fn inspect_stale_entries(&mut self) {
         let mut to_request = Vec::new();
         let mut to_remove = Vec::new();
@@ -784,7 +803,7 @@ where
                 continue;
             }
 
-            let Some(last_received) = self
+            let Some(last_received_time) = self
                 .full_reply_storage
                 .surbs_storage_ref()
                 .surbs_last_received_at(pending_reply_target)
@@ -794,13 +813,7 @@ where
                 continue;
             };
 
-            // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
-            // purge that malformed data
-            let Ok(last_received_time) = OffsetDateTime::from_unix_timestamp(last_received) else {
-                error!("somehow our stored timestamp ({last_received}) for surbs from {pending_reply_target} is corrupted!. Going to remove all the associated entries");
-                to_remove.push(*pending_reply_target);
-                continue;
-            };
+            let todo = "if last received above high threshold, purge";
 
             let diff = now - last_received_time;
             let max_rerequest_wait = self
@@ -834,86 +847,105 @@ where
         }
     }
 
+    async fn check_surb_refresh(&self) {
+        todo!()
+    }
+
     async fn invalidate_old_data(&self) {
         let now = OffsetDateTime::now_utc();
 
-        let mut to_remove_surbs = Vec::new();
-        let mut to_remove_keys = Vec::new();
-        for map_ref in self.full_reply_storage.surbs_storage_ref().as_raw_iter() {
-            let (sender, received) = map_ref.pair();
-            // TODO: handle the following edge case:
-            // there's a malicious client sending us exactly one reply surb just before we should have invalidated
-            // the data thus making us keep everything in memory
-            // possible solution: keep timestamp PER reply surb (but that seems like an overkill)
-            // but I doubt this is ever going to be a problem...
-            // ...
-            // However, if you're reading this message, it probably became a legit problem,
-            // so I guess add timestamp per surb then? chop-chop.
+        let is_epoch_stuck = false;
+        let todo = "^";
 
-            let last_received = received.surbs_last_received_at();
-            // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
-            // purge that malformed data
-            let Ok(last_received_time) = OffsetDateTime::from_unix_timestamp(last_received) else {
-                error!("somehow our stored timestamp ({last_received}) for surbs from {sender} is corrupted!. Going to remove all the associated entries");
-                to_remove_surbs.push(*sender);
-                continue;
-            };
-            let diff = now - last_received_time;
+        let expected_current_key_rotation_start = self
+            .key_rotation_config
+            .expected_current_key_rotation_start(now);
+        let expected_current_key_rotation = self
+            .key_rotation_config
+            .expected_current_key_rotation_id(now);
+        let prior_epoch_start =
+            expected_current_key_rotation_start - self.key_rotation_config.epoch_duration;
 
-            if diff > self.config.reply_surbs.maximum_reply_surb_age {
-                info!("it's been {diff:?} since we last received any reply surb from {sender}. Going to remove all stored entries...");
+        // 1. purge full old clients data (this applies to RECEIVER)
+        self.full_reply_storage
+            .surbs_storage_ref()
+            .retain(|sender, received| {
+                if is_epoch_stuck {
+                    // if epoch is stuck, we can't do much
+                    // apart from the basic check of surbs being received more than maximum lifetime of a rotation
+                    // because at that point we know they must be invalid
+                    let diff = now - received.surbs_last_received_at();
+                    return diff > self.key_rotation_config.rotation_lifetime();
+                }
 
-                to_remove_surbs.push(*sender);
-            }
-        }
+                // if surbs were received more than 1h before the start of the current rotation,
+                // they're DEFINITELY invalid.
+                // if it was up until 1h AFTER the start of the current rotation they MIGHT be valid -
+                // we don't know for sure, unless the client explicitly attached rotation information
+                // (which only applies to more recent versions of clients so we can't 100% rely on that)
+                if received.surbs_last_received_at() < prior_epoch_start {
+                    return false;
+                }
 
-        for map_ref in self.full_reply_storage.key_storage_ref().as_raw_iter() {
-            let (digest, reply_key) = map_ref.pair();
+                // 1.1 check individual surbs (same basic logic applies)
+                received.retain_surbs(|received_surb| {
+                    if is_epoch_stuck {
+                        let diff = now - received_surb.received_at();
+                        return diff > self.key_rotation_config.rotation_lifetime();
+                    }
 
-            // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
-            // purge that malformed data
-            let Ok(sent_at) = OffsetDateTime::from_unix_timestamp(reply_key.sent_at_timestamp)
-            else {
-                error!("somehow our stored timestamp ({}) for one of our reply key is corrupted!. Going to remove all the entry", reply_key.sent_at_timestamp);
-                to_remove_keys.push(*digest);
-                continue;
-            };
+                    if received_surb.received_at() < prior_epoch_start {
+                        // it's definitely from previous rotation
+                        return false;
+                    }
+                    let surb_rotation = received_surb.key_rotation();
 
-            let diff = now - sent_at;
+                    if surb_rotation.is_unknown() {
+                        // can't do anything, so just retain it
+                        return true;
+                    }
 
+                    // TODO: will this backfire during transition period where we need surbs to refresh surbs
+                    // and we failed to send a request?
+                    if surb_rotation.is_even() && expected_current_key_rotation % 2 == 1 {
+                        return false;
+                    }
+
+                    if surb_rotation.is_odd() && expected_current_key_rotation % 2 == 0 {
+                        return false;
+                    }
+
+                    true
+                });
+
+                // no surbs left and we're not expecting any
+                if received.is_empty() && received.pending_reception() == 0 {
+                    return false;
+                }
+                true
+            });
+
+        // 2. check reply keys (this applies to SENDER)
+        self.full_reply_storage.key_storage_ref().retain(|digest, reply_key| {
+            let diff = now - reply_key.sent_at;
             if diff > self.config.reply_surbs.maximum_reply_key_age {
                 debug!("it's been {diff:?} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
-                to_remove_keys.push(*digest);
+                false
+            } else {
+                true
             }
-        }
-
-        for to_remove in to_remove_surbs {
-            self.full_reply_storage
-                .surbs_storage_ref()
-                .remove(&to_remove);
-        }
-
-        for to_remove in to_remove_keys {
-            self.full_reply_storage.key_storage().remove(to_remove)
-        }
+        });
     }
-
-    // #[cfg(not(target_arch = "wasm32"))]
-    // async fn log_status(&self) {
-    //     todo!()
-    // }
 
     pub(crate) async fn run(&mut self) {
         debug!("Started ReplyController with graceful shutdown support");
 
-        let mut shutdown = self.task_client.fork("select");
+        let mut shutdown = self.task_client.fork("reply-controller");
 
         let polling_rate = Duration::from_secs(5);
         let mut stale_inspection = new_interval_stream(polling_rate);
 
-        // this is in the order of hours/days so we don't have to poll it that often
-        let polling_rate =
-            Duration::from_secs(self.config.reply_surbs.maximum_reply_surb_age.as_secs() / 10);
+        let polling_rate = self.key_rotation_config.epoch_duration / 10;
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {
@@ -933,7 +965,8 @@ where
                     self.inspect_stale_entries().await
                 },
                 _ = invalidation_inspection.next() => {
-                    self.invalidate_old_data().await
+                    self.check_surb_refresh().await;
+                    self.invalidate_old_data().await;
                 }
             }
         }

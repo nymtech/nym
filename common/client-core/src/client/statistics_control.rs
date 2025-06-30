@@ -93,7 +93,7 @@ impl StatisticsControl {
             None,
         );
         if let Err(err) = self.report_tx.send(report_message).await {
-            log::error!("Failed to report client stats: {:?}", err);
+            log::error!("Failed to report client stats: {err:?}");
         } else {
             self.stats.reset();
         }

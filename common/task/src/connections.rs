@@ -94,7 +94,7 @@ impl LaneQueueLengths {
                 log::warn!("Timeout reached while waiting for queue to clear");
                 break;
             }
-            log::trace!("Waiting for queue to clear ({} items left)", lane_length);
+            log::trace!("Waiting for queue to clear ({lane_length} items left)");
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }

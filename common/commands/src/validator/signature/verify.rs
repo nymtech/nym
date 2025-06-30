@@ -38,7 +38,7 @@ pub async fn verify(args: Args, client: &QueryClient) {
 
     let public_key = match AccountId::from_str(&args.public_key_or_address) {
         Ok(address) => {
-            info!("Found account address instead of public key, so looking up public key for {} from chain", address);
+            info!("Found account address instead of public key, so looking up public key for {address} from chain");
             match client.get_account_public_key(&address).await.ok() {
                 Some(public_key) => {
                     if let Some(k) = public_key {
@@ -48,8 +48,7 @@ pub async fn verify(args: Args, client: &QueryClient) {
                 }
                 None => {
                     error!(
-                        "Address {} does not have a public key recorded on the chain. This is probably because the account has never signed a transaction.",
-                        address
+                        "Address {address} does not have a public key recorded on the chain. This is probably because the account has never signed a transaction."
                     );
                     None
                 }
@@ -58,7 +57,7 @@ pub async fn verify(args: Args, client: &QueryClient) {
         Err(_) => match PublicKey::from_json(&args.public_key_or_address) {
             Ok(parsed) => Some(parsed),
             Err(e) => {
-                error!("Public key should be JSON. Unable to parse: {}", e);
+                error!("Public key should be JSON. Unable to parse: {e}");
                 None
             }
         },
@@ -78,7 +77,7 @@ pub async fn verify(args: Args, client: &QueryClient) {
             ) {
                 Ok(()) => println!("SUCCESS ✅ signature verified"),
                 Err(e) => {
-                    error!("FAILURE ❌ Signature verification failed: {}", e);
+                    error!("FAILURE ❌ Signature verification failed: {e}");
                 }
             }
         }

@@ -430,7 +430,7 @@ async fn db_connection(database_url: Option<&String>) -> Result<Option<(Client, 
 
         let handle = tokio::spawn(async move {
             if let Err(e) = connection.await {
-                error!("Postgres connection error: {}", e);
+                error!("Postgres connection error: {e}");
             }
         });
 
@@ -487,7 +487,7 @@ async fn submit_accounting_routes_to_db(client: Arc<Client>) -> anyhow::Result<(
 
 pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()> {
     if let Err(e) = submit_metrics_to_db(database_url).await {
-        error!("Error submitting metrics to db: {}", e);
+        error!("Error submitting metrics to db: {e}");
     }
 
     if let Some(private_key) = PRIVATE_KEY.get() {

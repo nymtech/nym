@@ -33,7 +33,7 @@ pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
         "nym_http_api_client",
     ];
     for crate_name in warn_crates {
-        filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name))?);
+        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn"))?);
     }
 
     let log_level_hint = filter.max_level_hint();

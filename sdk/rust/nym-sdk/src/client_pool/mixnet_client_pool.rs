@@ -47,7 +47,7 @@ impl fmt::Debug for ClientPool {
                 "client_pool_reserve_number",
                 &self.client_pool_reserve_number,
             )
-            .field("clients", &format_args!("[{}]", clients_debug));
+            .field("clients", &format_args!("[{clients_debug}]"));
         debug_struct.finish()
     }
 }

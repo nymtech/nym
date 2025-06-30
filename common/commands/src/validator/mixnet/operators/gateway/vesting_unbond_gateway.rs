@@ -17,5 +17,5 @@ pub async fn vesting_unbond_gateway(client: SigningClient) {
         .await
         .expect("failed to unbond vesting gateway!");
 
-    info!("Unbonding vesting result: {:?}", res)
+    info!("Unbonding vesting result: {res:?}")
 }

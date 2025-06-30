@@ -56,5 +56,5 @@ pub async fn update_config(args: Args, client: SigningClient) {
         .await
         .expect("updating gateway config");
 
-    info!("gateway config updated: {:?}", res)
+    info!("gateway config updated: {res:?}")
 }

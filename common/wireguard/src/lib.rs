@@ -38,7 +38,7 @@ impl Drop for WgApiWrapper {
     fn drop(&mut self) {
         if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
         {
-            log::error!("Could not remove the wireguard interface: {:?}", e);
+            log::error!("Could not remove the wireguard interface: {e:?}");
         }
     }
 }

@@ -202,7 +202,7 @@ where
         // well technically the message was not sent just yet, but now it's up to internal
         // queues and client load rather than the required delay. So realistically we can treat
         // whatever is about to happen as negligible additional delay.
-        trace!("{} is about to get sent to the mixnet", frag_id);
+        trace!("{frag_id} is about to get sent to the mixnet");
         if let Err(err) = self.sent_notifier.unbounded_send(frag_id) {
             error!("Failed to notify about sent message: {err}");
         }

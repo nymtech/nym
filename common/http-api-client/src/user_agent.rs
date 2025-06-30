@@ -141,7 +141,7 @@ mod tests {
         };
 
         assert_eq!(
-            format!("{}", user_agent),
+            format!("{user_agent}"),
             "nym-mixnode/0.11.0/x86_64-unknown-linux-gnu/abcdefg"
         );
     }

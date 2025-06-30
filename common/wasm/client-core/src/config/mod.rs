@@ -505,10 +505,6 @@ pub struct ReplySurbsWasm {
     /// deciding it's never going to get them and would drop all pending messages
     pub maximum_reply_surb_drop_waiting_period_ms: u32,
 
-    /// Defines maximum amount of time given reply surb is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    pub maximum_reply_surb_age_ms: u32,
-
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
     pub maximum_reply_key_age_ms: u32,
@@ -543,9 +539,6 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
             maximum_reply_surb_drop_waiting_period: Duration::from_millis(
                 reply_surbs.maximum_reply_surb_drop_waiting_period_ms as u64,
             ),
-            maximum_reply_surb_age: Duration::from_millis(
-                reply_surbs.maximum_reply_surb_age_ms as u64,
-            ),
             maximum_reply_key_age: Duration::from_millis(
                 reply_surbs.maximum_reply_key_age_ms as u64,
             ),
@@ -571,7 +564,6 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
             maximum_reply_surb_drop_waiting_period_ms: reply_surbs
                 .maximum_reply_surb_drop_waiting_period
                 .as_millis() as u32,
-            maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
             surb_mix_hops: reply_surbs.surb_mix_hops,
             fresh_sender_tags: reply_surbs.fresh_sender_tags,

@@ -383,11 +383,6 @@ pub struct ReplySurbsWasmOverride {
     #[tsify(optional)]
     pub maximum_reply_surb_drop_waiting_period_ms: Option<u32>,
 
-    /// Defines maximum amount of time given reply surb is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    #[tsify(optional)]
-    pub maximum_reply_surb_age_ms: Option<u32>,
-
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
     #[tsify(optional)]
@@ -429,9 +424,6 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
             maximum_reply_surb_drop_waiting_period_ms: value
                 .maximum_reply_surb_drop_waiting_period_ms
                 .unwrap_or(def.maximum_reply_surb_drop_waiting_period_ms),
-            maximum_reply_surb_age_ms: value
-                .maximum_reply_surb_age_ms
-                .unwrap_or(def.maximum_reply_surb_age_ms),
             maximum_reply_key_age_ms: value
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),

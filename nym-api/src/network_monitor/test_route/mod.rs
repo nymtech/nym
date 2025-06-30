@@ -9,6 +9,7 @@ use nym_mixnet_contract_common::{EpochId, EpochRewardedSet, RewardedSet};
 use nym_topology::node::RoutingNode;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
 use std::fmt::{Debug, Formatter};
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub(crate) struct TestRoute {
@@ -42,7 +43,7 @@ impl TestRoute {
         TestRoute {
             id,
             nodes: NymTopology::new(
-                NymTopologyMetadata::new(key_rotation_id, 0),
+                NymTopologyMetadata::new(key_rotation_id, 0, OffsetDateTime::now_utc()),
                 fake_rewarded_set,
                 nodes,
             ),

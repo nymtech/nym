@@ -20,7 +20,7 @@ mod accessor;
 pub mod nym_api_provider;
 
 pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
-pub use nym_topology::provider_trait::TopologyProvider;
+pub use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

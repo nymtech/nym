@@ -326,7 +326,6 @@ impl ReceivedReplySurbs {
         self.data.is_empty() && self.possibly_stale.is_empty()
     }
 
-    #[deprecated]
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub fn surbs_ref(&self) -> &VecDeque<ReceivedReplySurb> {
         &self.data
@@ -338,6 +337,10 @@ impl ReceivedReplySurbs {
 
     pub fn retain_possibly_stale_surbs(&mut self, f: impl FnMut(&ReceivedReplySurb) -> bool) {
         self.possibly_stale.retain(f);
+    }
+
+    pub fn possibly_stale(&self) -> usize {
+        self.possibly_stale.len()
     }
 
     pub fn drop_possibly_stale_surbs(&mut self) {

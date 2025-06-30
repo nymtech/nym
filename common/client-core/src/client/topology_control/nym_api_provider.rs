@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{NymTopology, NymTopologyMetadata};
+use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
+use nym_topology::NymTopology;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::cmp::min;
@@ -99,12 +99,8 @@ impl NymApiTopologyProvider {
                 .filter(|n| n.performance.round_to_integer() >= self.config.min_node_performance())
                 .collect::<Vec<_>>();
 
-            NymTopology::new(
-                NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-                rewarded_set,
-                Vec::new(),
-            )
-            .with_skimmed_nodes(&nodes_filtered)
+            NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+                .with_skimmed_nodes(&nodes_filtered)
         } else {
             // if we're not using extended topology, we're only getting active set mixnodes and gateways
 
@@ -152,12 +148,8 @@ impl NymApiTopologyProvider {
                 }
             }
 
-            NymTopology::new(
-                NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-                rewarded_set,
-                Vec::new(),
-            )
-            .with_skimmed_nodes(&nodes)
+            NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+                .with_skimmed_nodes(&nodes)
         };
 
         if !topology.is_minimally_routable() {

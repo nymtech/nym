@@ -276,6 +276,14 @@ impl Backend {
                     .insert_reply_surb(StoredReplySurb::new(sender_id, reply_surb))
                     .await?
             }
+
+            // TODO: should we also retain the stale ones?
+            if received_surbs.possibly_stale() != 0 {
+                warn!(
+                    "dropping {} possibly stale surbs for {tag}",
+                    received_surbs.possibly_stale()
+                );
+            }
         }
         Ok(())
     }

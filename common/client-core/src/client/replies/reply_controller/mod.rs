@@ -22,8 +22,8 @@ use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_task::TaskClient;
+use nym_topology::NymTopologyMetadata;
 use rand::{CryptoRng, Rng};
-pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
@@ -31,6 +31,8 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::{debug, error, info, trace, warn};
+
+pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 
 pub mod key_rotation_helpers;
 pub mod requests;
@@ -122,6 +124,10 @@ where
             full_reply_storage,
             task_client,
         }
+    }
+
+    async fn current_topology_metadata(&self) -> Option<NymTopologyMetadata> {
+        self.topology_access.current_metadata().await
     }
 
     fn insert_pending_replies<I: IntoIterator<Item = FragmentWithMaxRetransmissions>>(
@@ -813,8 +819,6 @@ where
                 continue;
             };
 
-            let todo = "if last received above high threshold, purge";
-
             let diff = now - last_received_time;
             let max_rerequest_wait = self
                 .config
@@ -904,8 +908,13 @@ where
     async fn remove_stale_storage(&self) {
         let now = OffsetDateTime::now_utc();
 
-        let is_epoch_stuck = false;
-        let todo = "^";
+        // technically we don't know if epoch is stuck, but we're flying in blind here,
+        // so we have to assume the worst and not purge anything depending on proper epoch progression
+        let is_epoch_stuck = self
+            .current_topology_metadata()
+            .await
+            .map(|m| self.key_rotation_config.epoch_stuck(m))
+            .unwrap_or(false);
 
         // expected time of when the CURRENT key rotation has begun
         let expected_current_key_rotation_start = self
@@ -924,7 +933,7 @@ where
 
         // time of the start of one epoch AFTER the current rotation has begun
         // this indicates the end of transition period and any packets constructed with keys different
-        // than the current are definitely invalid
+        // from the current one are definitely invalid
         let following_epoch_start =
             expected_current_key_rotation_start + self.key_rotation_config.epoch_duration;
 
@@ -933,11 +942,11 @@ where
             .surbs_storage_ref()
             .retain(|_, received| {
                 if is_epoch_stuck {
-                    // if epoch is stuck, we can't do much
+                    // if epoch is stuck, we can't do much (because we don't know for certain if rotation has advanced)
                     // apart from the basic check of surbs being received more than maximum lifetime of a rotation
                     // because at that point we know they must be invalid
                     let diff = now - received.surbs_last_received_at();
-                    return diff > self.key_rotation_config.rotation_lifetime();
+                    return diff < self.key_rotation_config.rotation_lifetime();
                 }
 
                 // if surbs were received more than 1h before the start of the current rotation,
@@ -949,10 +958,12 @@ where
                     return false;
                 }
 
+                // define a closure for validating individual surbs
+                // (we have to run it twice for different piles)
                 let basic_surb_retention_logic = |received_surb: &ReceivedReplySurb| {
                     if is_epoch_stuck {
                         let diff = now - received_surb.received_at();
-                        return diff > self.key_rotation_config.rotation_lifetime();
+                        return diff < self.key_rotation_config.rotation_lifetime();
                     }
 
                     if received_surb.received_at() < prior_epoch_start {

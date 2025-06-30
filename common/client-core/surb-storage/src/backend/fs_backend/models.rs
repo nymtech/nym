@@ -146,8 +146,6 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, OffsetDateTime) {
     }
 }
 
-const todo: &str = "might have to store the whole id after all";
-
 pub struct StoredReplySurb {
     pub reply_surb_sender_id: i64,
     pub reply_surb: Vec<u8>,

@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_topology::NymTopologyMetadata;
 use nym_validator_client::models::{
     EpochId, KeyRotationId, KeyRotationInfoResponse, KeyRotationState,
 };
@@ -80,5 +81,17 @@ impl KeyRotationConfig {
     ) -> OffsetDateTime {
         let expected_current_key_rotation_id = self.expected_current_key_rotation_id(now);
         self.key_rotation_start(expected_current_key_rotation_id)
+    }
+
+    pub(crate) fn epoch_stuck(&self, topology_metadata: NymTopologyMetadata) -> bool {
+        // add leeway of 2mins each direction since transition is not instantaneous
+        let lower_bound = topology_metadata.refreshed_at - Duration::from_secs(2);
+        let upper_bound = topology_metadata.refreshed_at + Duration::from_secs(2);
+
+        let expected_epoch_lower = self.expected_current_epoch_id(lower_bound);
+        let expected_epoch_upper = self.expected_current_epoch_id(upper_bound);
+
+        topology_metadata.absolute_epoch_id != expected_epoch_lower
+            && topology_metadata.absolute_epoch_id != expected_epoch_upper
     }
 }

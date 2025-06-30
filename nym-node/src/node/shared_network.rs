@@ -11,6 +11,7 @@ use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS}
 use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
+use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_topology::{
     EntryDetails, EpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, Role,
     TopologyProvider,
@@ -333,8 +334,7 @@ impl NetworkRefresher {
         self.noise_view.swap_view(noise_nodes);
 
         let mut network_guard = self.network.inner.write().await;
-        network_guard.topology_metadata =
-            NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id);
+        network_guard.topology_metadata = metadata.to_topology_metadata();
         network_guard.network_nodes = nodes;
         network_guard.rewarded_set = rewarded_set;
 

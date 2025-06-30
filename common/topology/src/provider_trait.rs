@@ -1,8 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::NymTopology;
+use crate::{NymTopology, NymTopologyMetadata};
 pub use async_trait::async_trait;
+use nym_api_requests::nym_nodes::NodesResponseMetadata;
 
 // hehe, wasm
 #[cfg(not(target_arch = "wasm32"))]
@@ -45,5 +46,17 @@ impl TopologyProvider for HardcodedTopologyProvider {
 impl TopologyProvider for HardcodedTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
         Some(self.topology.clone())
+    }
+}
+
+// helper trait to convert between nym-api response and the topology metadata
+// (we don't want to be importing any of those in the other crates)
+pub trait ToTopologyMetadata {
+    fn to_topology_metadata(&self) -> NymTopologyMetadata;
+}
+
+impl ToTopologyMetadata for NodesResponseMetadata {
+    fn to_topology_metadata(&self) -> NymTopologyMetadata {
+        NymTopologyMetadata::new(self.rotation_id, self.absolute_epoch_id, self.refreshed_at)
     }
 }

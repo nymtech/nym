@@ -84,7 +84,7 @@ impl HttpServer {
             axum::serve(listener, app).with_graceful_shutdown(self.cancel.cancelled_owned());
 
         info!("##########################################################################################");
-        info!("######################### HTTP server running, with {} clients ############################################", n_clients);
+        info!("######################### HTTP server running, with {n_clients} clients ############################################");
         info!("##########################################################################################");
 
         server_future.await?;

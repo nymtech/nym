@@ -138,10 +138,7 @@ async fn execute(cli: Cli) -> anyhow::Result<()> {
 
 async fn wait_for_interrupt() {
     if let Err(e) = tokio::signal::ctrl_c().await {
-        error!(
-            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-            e
-        );
+        error!("There was an error while capturing SIGINT - {e:?}. We will terminate regardless",);
     }
     println!(
         "Received SIGINT - the process will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."

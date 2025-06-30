@@ -88,7 +88,7 @@ pub struct Args {
 pub async fn generate(args: Args) {
     info!("Starting to generate mixnet contract instantiate msg");
 
-    debug!("Received arguments: {:?}", args);
+    debug!("Received arguments: {args:?}");
 
     let initial_rewarding_params = InitialRewardingParams {
         initial_reward_pool: Decimal::from_atomics(args.initial_reward_pool, 0)
@@ -114,7 +114,7 @@ pub async fn generate(args: Args) {
         },
     };
 
-    debug!("initial_rewarding_params: {:?}", initial_rewarding_params);
+    debug!("initial_rewarding_params: {initial_rewarding_params:?}");
 
     let rewarding_validator_address = args.rewarding_validator_address.unwrap_or_else(|| {
         let address = std::env::var(nym_network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
@@ -160,7 +160,7 @@ pub async fn generate(args: Args) {
         key_validity_in_epochs: None,
     };
 
-    debug!("instantiate_msg: {:?}", instantiate_msg);
+    debug!("instantiate_msg: {instantiate_msg:?}");
 
     let res =
         serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");

@@ -17,5 +17,5 @@ pub async fn claim_operator_reward(_args: Args, client: SigningClient) {
         .await
         .expect("failed to claim operator reward");
 
-    info!("Claiming operator reward: {:?}", res)
+    info!("Claiming operator reward: {res:?}")
 }

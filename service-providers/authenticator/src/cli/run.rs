@@ -33,7 +33,7 @@ impl From<Run> for OverrideConfig {
 pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
     let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
-    log::debug!("Using config: {:#?}", config);
+    log::debug!("Using config: {config:#?}");
 
     log::info!("Starting authenticator service provider");
     let (wireguard_gateway_data, peer_rx) = WireguardGatewayData::new(

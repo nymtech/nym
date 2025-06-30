@@ -38,5 +38,5 @@ pub async fn migrate_vested_delegation(args: Args, client: SigningClient) {
         .await
         .expect("failed to migrate delegation!");
 
-    info!("migration result: {:?}", res)
+    info!("migration result: {res:?}")
 }

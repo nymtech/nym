@@ -40,5 +40,5 @@ pub async fn vesting_claim_delegator_reward(args: Args, client: SigningClient) {
         .await
         .expect("failed to claim vesting delegator-reward");
 
-    info!("Claiming vesting delegator reward: {:?}", res)
+    info!("Claiming vesting delegator reward: {res:?}")
 }

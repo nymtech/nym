@@ -16,7 +16,7 @@ pub(crate) fn granual_filtered_env() -> anyhow::Result<tracing_subscriber::filte
     // these crates are more granularly filtered
     let filter_crates = ["defguard_wireguard_rs"];
     for crate_name in filter_crates {
-        filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name))?);
+        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn"))?);
     }
     Ok(filter)
 }

@@ -171,9 +171,9 @@ mod tests {
         };
 
         if a > b {
-            assert!(a - b < epsilon, "{} != {}", a, b)
+            assert!(a - b < epsilon, "{a} != {b}")
         } else {
-            assert!(b - a < epsilon, "{} != {}", a, b)
+            assert!(b - a < epsilon, "{a} != {b}")
         }
     }
 

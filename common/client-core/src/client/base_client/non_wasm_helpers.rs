@@ -7,7 +7,6 @@ use crate::client::replies::reply_storage::{
 use crate::config;
 use crate::config::Config;
 use crate::error::ClientCoreError;
-use log::{error, info, trace};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
@@ -16,6 +15,7 @@ use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::path::Path;
 use std::{fs, io};
 use time::OffsetDateTime;
+use tracing::{error, info, trace};
 use url::Url;
 
 async fn setup_fresh_backend<P: AsRef<Path>>(

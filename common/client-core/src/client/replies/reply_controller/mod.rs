@@ -15,7 +15,6 @@ use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
 use futures::channel::oneshot;
 use futures::StreamExt;
-use log::{debug, error, info, trace, warn};
 use nym_client_core_surb_storage::ReceivedReplySurb;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -31,6 +30,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use time::OffsetDateTime;
+use tracing::{debug, error, info, trace, warn};
 
 pub mod key_rotation_helpers;
 pub mod requests;
@@ -1029,12 +1029,12 @@ where
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("ReplyController: Received shutdown");
+                    tracing::trace!("ReplyController: Received shutdown");
                 },
                 req = self.request_receiver.next() => match req {
                     Some(req) => self.handle_request(req).await,
                     None => {
-                        log::trace!("ReplyController: Stopping since channel closed");
+                        tracing::trace!("ReplyController: Stopping since channel closed");
                         break;
                     }
                 },
@@ -1048,6 +1048,6 @@ where
             }
         }
         assert!(shutdown.is_shutdown_poll());
-        log::debug!("ReplyController: Exiting");
+        tracing::debug!("ReplyController: Exiting");
     }
 }

@@ -5,7 +5,6 @@ use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::Delay as SphinxDelay;
@@ -13,6 +12,7 @@ use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::*;
 
 pub(crate) type AckActionSender = mpsc::UnboundedSender<Action>;
 pub(crate) type AckActionReceiver = mpsc::UnboundedReceiver<Action>;
@@ -241,7 +241,7 @@ impl ActionController {
                 .unbounded_send(Arc::downgrade(pending_ack_data))
             {
                 if !self.task_client.is_shutdown_poll() {
-                    log::error!("Failed to send pending ack for retransmission: {err}");
+                    tracing::error!("Failed to send pending ack for retransmission: {err}");
                 }
             }
         } else {
@@ -269,7 +269,7 @@ impl ActionController {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
                     None => {
-                        log::trace!(
+                        tracing::trace!(
                             "ActionController: Stopping since incoming actions channel closed"
                         );
                         break;
@@ -278,17 +278,17 @@ impl ActionController {
                 expired_ack = self.pending_acks_timers.next() => match expired_ack {
                     Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
                     None => {
-                        log::trace!("ActionController: Stopping since ack channel closed");
+                        tracing::trace!("ActionController: Stopping since ack channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv() => {
-                    log::trace!("ActionController: Received shutdown");
+                    tracing::trace!("ActionController: Received shutdown");
                     break;
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("ActionController: Exiting");
+        tracing::debug!("ActionController: Exiting");
     }
 }

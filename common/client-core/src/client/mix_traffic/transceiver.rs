@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::{debug, error};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::error::GatewayClientError;
@@ -14,6 +13,7 @@ use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use thiserror::Error;
+use tracing::{debug, error};
 
 #[cfg(not(target_arch = "wasm32"))]
 use futures::channel::oneshot;
@@ -87,7 +87,7 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         let _ = (**self).send_client_request(message.clone()).await?;
-        log::debug!("Sent client request: {:?}", message);
+        tracing::debug!("Sent client request: {:?}", message);
         Ok(())
     }
 }

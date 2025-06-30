@@ -4,11 +4,11 @@
 use crate::spawn_future;
 pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
-use log::*;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::TaskClient;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
+use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
@@ -169,12 +169,12 @@ impl TopologyRefresher {
                         self.try_refresh().await;
                     },
                     _ = self.task_client.recv() => {
-                        log::trace!("TopologyRefresher: Received shutdown");
+                        tracing::trace!("TopologyRefresher: Received shutdown");
                     },
                 }
             }
             self.task_client.recv_timeout().await;
-            log::debug!("TopologyRefresher: Exiting");
+            tracing::debug!("TopologyRefresher: Exiting");
         })
     }
 }

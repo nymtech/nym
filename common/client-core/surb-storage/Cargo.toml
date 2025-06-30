@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 async-trait.workspace = true
 dashmap.workspace = true
-log.workspace = true
+tracing.workspace = true
 thiserror.workspace = true
 time.workspace = true
 

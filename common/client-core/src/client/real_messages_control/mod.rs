@@ -24,7 +24,6 @@ use crate::{
     spawn_future,
 };
 use futures::channel::mpsc;
-use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -34,6 +33,7 @@ use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use nym_task::TaskClient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
+use tracing::*;
 
 use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};

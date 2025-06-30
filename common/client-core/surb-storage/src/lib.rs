@@ -39,7 +39,7 @@ where
         mem_state: CombinedReplyStorage,
         mut shutdown: nym_task::TaskClient,
     ) {
-        use log::{debug, error, info};
+        use tracing::{debug, error, info};
 
         debug!("Started PersistentReplyStorage");
         if let Err(err) = self.backend.start_storage_session().await {

@@ -10,11 +10,11 @@ use crate::{
     CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
 };
 use async_trait::async_trait;
-use log::{debug, error, info, warn};
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
+use tracing::{debug, error, info, warn};
 
 pub use self::error::StorageError;
 

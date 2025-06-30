@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::{debug, error, warn};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::{NymTopology, NymTopologyMetadata};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::cmp::min;
+use tracing::{debug, error, warn};
 use url::Url;
 
 #[derive(Debug)]

@@ -564,7 +564,7 @@ where
         )
         .await?;
 
-        log::trace!("storing {} reply keys", reply_keys.len());
+        tracing::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
         Ok(())
@@ -604,7 +604,7 @@ where
         )
         .await?;
 
-        log::trace!("storing {} reply keys", reply_keys.len());
+        tracing::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
         Ok(())

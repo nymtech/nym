@@ -8,13 +8,13 @@ use crate::backend::fs_backend::{
         StoredSurbSender,
     },
 };
-use log::{error, info};
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
 use std::path::Path;
 use time::OffsetDateTime;
+use tracing::{error, info};
 
 #[derive(Debug, Clone)]
 pub struct StorageManager {

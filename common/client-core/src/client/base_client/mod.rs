@@ -35,7 +35,6 @@ use crate::init::{
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
-use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
@@ -67,6 +66,7 @@ use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
+use tracing::*;
 use url::Url;
 
 #[cfg(all(
@@ -459,7 +459,7 @@ where
             };
 
         let gateway_failure = |err| {
-            log::error!("Could not authenticate and start up the gateway connection - {err}");
+            tracing::error!("Could not authenticate and start up the gateway connection - {err}");
             ClientCoreError::GatewayClientError {
                 gateway_id: details.gateway_id.to_base58_string(),
                 source: Box::new(err),
@@ -604,7 +604,7 @@ where
         topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
-            log::error!(
+            tracing::error!(
                 "The current network topology seem to be insufficient to route any packets through \
                 - check if enough nodes and a gateway are online - source: {err}"
             );
@@ -686,7 +686,7 @@ where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
     {
-        log::trace!("Setup persistent reply storage");
+        tracing::trace!("Setup persistent reply storage");
         let persistent_storage = PersistentReplyStorage::new(backend);
         let mem_store = persistent_storage
             .load_state_from_backend()

@@ -5213,15 +5213,12 @@ dependencies = [
  "futures",
  "gloo-timers",
  "http-body-util",
- "humantime-serde",
  "hyper 1.6.0",
  "hyper-util",
- "log",
  "nym-bandwidth-controller",
  "nym-client-core-config-types",
  "nym-client-core-gateways-storage",
  "nym-client-core-surb-storage",
- "nym-config 0.1.0",
  "nym-credential-storage",
  "nym-credentials-interface 0.1.0",
  "nym-crypto 0.4.0",
@@ -5230,7 +5227,6 @@ dependencies = [
  "nym-gateway-requests",
  "nym-http-api-client 0.1.0",
  "nym-id",
- "nym-metrics 0.1.0",
  "nym-mixnet-client",
  "nym-network-defaults 0.1.0",
  "nym-nonexhaustive-delayqueue",
@@ -5301,7 +5297,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dashmap",
- "log",
  "nym-crypto 0.4.0",
  "nym-sphinx 0.1.0",
  "nym-task 0.1.0",
@@ -5309,6 +5304,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -211,7 +211,7 @@ impl<T> TransmissionBuffer<T> {
         };
 
         let msg = self.pop_front_from_lane(&lane)?;
-        log::trace!("picking to send from lane: {:?}", lane);
+        tracing::trace!("picking to send from lane: {:?}", lane);
         Some((lane, msg))
     }
 

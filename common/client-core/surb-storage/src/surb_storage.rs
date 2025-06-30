@@ -3,7 +3,6 @@
 
 use dashmap::iter::{Iter, IterMut};
 use dashmap::DashMap;
-use log::{error, trace, warn};
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::params::SphinxKeyRotation;
@@ -12,6 +11,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use time::OffsetDateTime;
+use tracing::{error, trace, warn};
 
 #[derive(Debug)]
 pub struct RetrievedReplySurb {

@@ -15,6 +15,7 @@ bs58 = { workspace = true }
 clap = { workspace = true, optional = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
+humantime = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -23,7 +24,6 @@ sha2 = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["macros"] }
 time = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }

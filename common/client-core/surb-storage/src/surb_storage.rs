@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tracing::{error, trace, warn};
+use tracing::{error, trace};
 
 #[derive(Debug)]
 pub struct RetrievedReplySurb {
@@ -91,9 +91,9 @@ impl ReceivedReplySurbsMap {
         self.inner.data.iter_mut()
     }
 
-    pub fn remove(&self, target: &AnonymousSenderTag) {
-        self.inner.data.remove(target);
-    }
+    // pub fn remove(&self, target: &AnonymousSenderTag) {
+    //     self.inner.data.remove(target);
+    // }
 
     pub fn retain(&self, f: impl FnMut(&AnonymousSenderTag, &mut ReceivedReplySurbs) -> bool) {
         self.inner.data.retain(f);
@@ -158,6 +158,14 @@ impl ReceivedReplySurbsMap {
             .unwrap_or_default()
     }
 
+    pub fn available_fresh_surbs(&self, target: &AnonymousSenderTag) -> usize {
+        self.inner
+            .data
+            .get(target)
+            .map(|entry| entry.fresh_left())
+            .unwrap_or_default()
+    }
+
     pub fn contains_surbs_for(&self, target: &AnonymousSenderTag) -> bool {
         self.inner.data.contains_key(target)
     }
@@ -213,6 +221,7 @@ impl ReceivedReplySurbsMap {
         target: &AnonymousSenderTag,
         surbs: Vec<RetrievedReplySurb>,
     ) {
+        error!("re-inserting {} unused surbs", surbs.len());
         let mut entry = self.inner.data.entry(*target).or_insert_with(|| {
             // this branch should realistically NEVER happen, but software be software, so let's not crash
             error!("attempting to return surbs to no longer existing entry {target}");
@@ -241,12 +250,11 @@ impl ReceivedReplySurbsMap {
                 return;
             }
 
-            let todo = "downgrade that log";
-            // if we're above double the minimum threshold, remove stale surbs
-            let threshold = 2 * self.min_surb_threshold();
+            // if we're above the minimum threshold, remove stale surbs
+            let threshold = self.min_surb_threshold();
             let diff = existing_data.data.len().saturating_sub(threshold);
 
-            warn!("will attempt to remove up to {diff} stale surbs");
+            trace!("will attempt to remove up to {diff} stale surbs");
             if diff > 0 {
                 existing_data.remove_stale_surbs(diff);
             }
@@ -339,7 +347,11 @@ impl ReceivedReplySurbs {
         self.possibly_stale.retain(f);
     }
 
-    pub fn possibly_stale(&self) -> usize {
+    pub fn fresh_left(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn possibly_stale_left(&self) -> usize {
         self.possibly_stale.len()
     }
 
@@ -375,7 +387,7 @@ impl ReceivedReplySurbs {
         if self.items_left() < amount {
             (None, self.items_left())
         } else {
-            let available_fresh = self.data.len();
+            let available_fresh = self.fresh_left();
 
             // prefer the 'fresh' data if available. otherwise fallback to the possibly stale entries
             let mut reply_surbs = Vec::with_capacity(amount);
@@ -419,6 +431,7 @@ impl ReceivedReplySurbs {
     pub fn remove_stale_surbs(&mut self, amount: usize) {
         // remove up to amount number of possibly stale surbs
         let amount = min(amount, self.possibly_stale.len());
+
         self.possibly_stale.drain(..amount);
     }
 

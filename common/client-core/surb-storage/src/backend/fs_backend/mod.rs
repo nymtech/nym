@@ -278,10 +278,10 @@ impl Backend {
             }
 
             // TODO: should we also retain the stale ones?
-            if received_surbs.possibly_stale() != 0 {
+            if received_surbs.possibly_stale_left() != 0 {
                 warn!(
                     "dropping {} possibly stale surbs for {tag}",
-                    received_surbs.possibly_stale()
+                    received_surbs.possibly_stale_left()
                 );
             }
         }

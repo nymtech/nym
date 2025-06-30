@@ -639,9 +639,7 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match self.get_topology(&topology_permit) {
             Ok(topology) => topology,
-            Err(err) => {
-                return Err(err.return_surbs(reply_surbs.into_iter().map(Into::into).collect()))
-            }
+            Err(err) => return Err(err.return_surbs(reply_surbs.into_iter().collect())),
         };
 
         Ok(fragments

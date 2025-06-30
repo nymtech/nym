@@ -57,8 +57,11 @@ impl KeyRotationConfig {
     }
 
     fn initial_rotation_epoch_start(&self) -> OffsetDateTime {
-        let epochs_diff =
-            self.reference_epoch.absolute_epoch_id - self.rotation_state.validity_epochs;
+        let epochs_diff = self
+            .reference_epoch
+            .absolute_epoch_id
+            .saturating_sub(self.rotation_state.initial_epoch_id);
+
         self.reference_epoch.start_time - epochs_diff * self.epoch_duration
     }
 
@@ -93,5 +96,72 @@ impl KeyRotationConfig {
 
         topology_metadata.absolute_epoch_id != expected_epoch_lower
             && topology_metadata.absolute_epoch_id != expected_epoch_upper
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use time::macros::datetime;
+
+    fn mock_config() -> KeyRotationConfig {
+        KeyRotationConfig {
+            epoch_duration: Duration::from_secs(60 * 60),
+            rotation_state: KeyRotationState {
+                validity_epochs: 10,
+                initial_epoch_id: 80,
+            },
+            reference_epoch: ReferenceEpoch {
+                absolute_epoch_id: 100,
+                start_time: datetime!(2025-06-30 12:00:00+00:00),
+            },
+        }
+    }
+
+    #[test]
+    fn expected_current_key_rotation_start() {
+        // rot0: 80-89
+        // rot1: 90-99
+        // rot2: 100-109
+        // rot3: 110-119
+        // ... etc
+        let cfg = mock_config();
+
+        assert_eq!(
+            cfg.initial_rotation_epoch_start(),
+            datetime!(2025-06-29 16:00:00+00:00)
+        );
+
+        let fake_now = datetime!(2025-06-30 12:00:00+00:00);
+        assert_eq!(cfg.expected_current_epoch_id(fake_now), 100);
+        assert_eq!(cfg.expected_current_key_rotation_id(fake_now), 2);
+        assert_eq!(
+            cfg.expected_current_key_rotation_start(fake_now),
+            datetime!(2025-06-30 12:00:00+00:00)
+        );
+
+        let fake_now = datetime!(2025-06-30 12:30:00+00:00);
+        assert_eq!(cfg.expected_current_epoch_id(fake_now), 100);
+        assert_eq!(cfg.expected_current_key_rotation_id(fake_now), 2);
+        assert_eq!(
+            cfg.expected_current_key_rotation_start(fake_now),
+            datetime!(2025-06-30 12:00:00+00:00)
+        );
+
+        let fake_now = datetime!(2025-06-30 13:01:00+00:00);
+        assert_eq!(cfg.expected_current_epoch_id(fake_now), 101);
+        assert_eq!(cfg.expected_current_key_rotation_id(fake_now), 2);
+        assert_eq!(
+            cfg.expected_current_key_rotation_start(fake_now),
+            datetime!(2025-06-30 12:00:00+00:00)
+        );
+
+        let fake_now = datetime!(2025-06-30 22:02:00+00:00);
+        assert_eq!(cfg.expected_current_epoch_id(fake_now), 110);
+        assert_eq!(cfg.expected_current_key_rotation_id(fake_now), 3);
+        assert_eq!(
+            cfg.expected_current_key_rotation_start(fake_now),
+            datetime!(2025-06-30 22:00:00+00:00)
+        );
     }
 }

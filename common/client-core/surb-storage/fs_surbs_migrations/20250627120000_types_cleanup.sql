@@ -55,6 +55,27 @@ SELECT id,
        tag
 FROM reply_surb_sender;
 
+
+-- recreate `reply_surb` table due to foreign key constraint
+CREATE TABLE reply_surb_new
+(
+    reply_surb_sender_id INTEGER NOT NULL,
+    reply_surb           BLOB    NOT NULL,
+    encoded_key_rotation TINYINT NOT NULL,
+
+    FOREIGN KEY (reply_surb_sender_id) REFERENCES reply_surb_sender_new (id)
+);
+
+INSERT INTO reply_surb_new
+SELECT *
+FROM reply_surb;
+
+DROP TABLE reply_surb;
+ALTER TABLE reply_surb_new
+    RENAME TO reply_surb;
+
 DROP TABLE reply_surb_sender;
 ALTER TABLE reply_surb_sender_new
     RENAME TO reply_surb_sender;
+
+

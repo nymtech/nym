@@ -195,10 +195,11 @@ where
 
         let total_queue = pending_queue_size + retransmission_queue;
 
+        // only consider 'fresh' surbs
         let available_surbs = self
             .full_reply_storage
             .surbs_storage_ref()
-            .available_surbs(target);
+            .available_fresh_surbs(target);
         let pending_surbs = self
             .full_reply_storage
             .surbs_storage_ref()
@@ -255,6 +256,7 @@ where
         let total_size = fragments.len();
         trace!("This reply requires {:?} SURBs", total_size);
 
+        // for the purposes of sending reply, do allow using possibly stale entries
         let available_surbs = self
             .full_reply_storage
             .surbs_storage_ref()
@@ -278,7 +280,7 @@ where
 
             if let Some(reply_surbs) = surbs {
                 let to_send = fragments
-                    .drain(..max_to_send)
+                    .drain(..reply_surbs.len())
                     .map(|f| FragmentWithMaxRetransmissions {
                         fragment: f,
                         max_retransmissions,
@@ -352,7 +354,7 @@ where
 
         if let Err(err) = self
             .message_handler
-            .try_request_additional_reply_surbs(target, reply_surb.into(), amount)
+            .try_request_additional_reply_surbs(target, reply_surb, amount)
             .await
         {
             let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
@@ -629,6 +631,8 @@ where
         timed_out_ack: Weak<PendingAcknowledgement>,
         extra_surbs_request: bool,
     ) {
+        info!("RETRANSMISSION");
+
         // seems we got the ack in the end
         let ack_ref = match timed_out_ack.upgrade() {
             Some(ack) => ack,
@@ -653,10 +657,7 @@ where
         if let Some(reply_surb) = maybe_reply_surb {
             match self
                 .message_handler
-                .try_prepare_single_reply_chunk_for_sending(
-                    reply_surb.into(),
-                    ack_ref.fragment_data(),
-                )
+                .try_prepare_single_reply_chunk_for_sending(reply_surb, ack_ref.fragment_data())
                 .await
             {
                 Ok(prepared) => {
@@ -795,7 +796,7 @@ where
             .request_additional_reply_surbs(target, request_size)
             .await
         {
-            info!("{err}")
+            info!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
         }
     }
 
@@ -865,7 +866,7 @@ where
                 // of time to perform the upgrade.
                 // but wait for one more call before doing this so that the clients could also resync
                 // their topologies and discover new rotation
-                self.surb_refresh_state = SurbRefreshState::ScheduledForNextInvocation
+                self.surb_refresh_state = SurbRefreshState::ScheduledForNextInvocation;
             }
             return;
         }
@@ -882,6 +883,7 @@ where
         {
             let (sender, received) = map_entry.pair_mut();
             let num_downgraded = received.downgrade_freshness();
+            trace!("{sender}: {num_downgraded} downgraded");
             if num_downgraded != 0 {
                 marked_as_stale.insert(*sender, num_downgraded);
             }
@@ -937,6 +939,38 @@ where
         let following_epoch_start =
             expected_current_key_rotation_start + self.key_rotation_config.epoch_duration;
 
+        // define a closure for validating individual surbs
+        // (we have to run it twice for different piles)
+        let basic_surb_retention_logic = |received_surb: &ReceivedReplySurb| {
+            if is_epoch_stuck {
+                let diff = now - received_surb.received_at();
+                return diff < self.key_rotation_config.rotation_lifetime();
+            }
+
+            if received_surb.received_at() < prior_epoch_start {
+                // it's definitely from previous rotation
+                return false;
+            }
+            let surb_rotation = received_surb.key_rotation();
+
+            if surb_rotation.is_unknown() {
+                // can't do anything, so just retain it
+                return true;
+            }
+
+            // TODO: will this backfire during transition period where we need surbs to refresh surbs
+            // and we failed to send a request?
+            if surb_rotation.is_even() && expected_current_key_rotation % 2 == 1 {
+                return false;
+            }
+
+            if surb_rotation.is_odd() && expected_current_key_rotation % 2 == 0 {
+                return false;
+            }
+
+            true
+        };
+
         // 1. purge full old clients data (this applies to RECEIVER)
         self.full_reply_storage
             .surbs_storage_ref()
@@ -958,58 +992,32 @@ where
                     return false;
                 }
 
-                // define a closure for validating individual surbs
-                // (we have to run it twice for different piles)
-                let basic_surb_retention_logic = |received_surb: &ReceivedReplySurb| {
-                    if is_epoch_stuck {
-                        let diff = now - received_surb.received_at();
-                        return diff < self.key_rotation_config.rotation_lifetime();
-                    }
-
-                    if received_surb.received_at() < prior_epoch_start {
-                        // it's definitely from previous rotation
-                        return false;
-                    }
-                    let surb_rotation = received_surb.key_rotation();
-
-                    if surb_rotation.is_unknown() {
-                        // can't do anything, so just retain it
-                        return true;
-                    }
-
-                    // TODO: will this backfire during transition period where we need surbs to refresh surbs
-                    // and we failed to send a request?
-                    if surb_rotation.is_even() && expected_current_key_rotation % 2 == 1 {
-                        return false;
-                    }
-
-                    if surb_rotation.is_odd() && expected_current_key_rotation % 2 == 0 {
-                        return false;
-                    }
-
-                    true
-                };
-
                 // 1.1. check individual surbs (same basic logic applies)
-                received
-                    .retain_fresh_surbs(|received_surb| basic_surb_retention_logic(received_surb));
+                received.retain_fresh_surbs(&basic_surb_retention_logic);
 
                 // 1.2. check the possibly stale entries
-                received.retain_possibly_stale_surbs(|received_surb| {
-                    // 1.2.1. check if we're beyond the key rotation transition period,
-                    // if so those surbs are definitely unusable
-                    if now > following_epoch_start {
-                        return false;
-                    }
+                // 1.2.1. check if we're beyond the key rotation transition period,
+                // if so those surbs are definitely unusable
+                if now > following_epoch_start {
+                    received.drop_possibly_stale_surbs();
+                }
 
-                    // otherwise continue with the same logic as the fresh ones
-                    basic_surb_retention_logic(received_surb)
-                });
+                // 1.2.2. otherwise continue with the same logic as the fresh ones
+                received.retain_possibly_stale_surbs(&basic_surb_retention_logic);
 
-                // no surbs left and we're not expecting any
-                if received.is_empty() && received.pending_reception() == 0 {
+                // no surbs left, we're not expecting any AND we haven't received anything in a while
+                // (i.e. sender probably abandoned us)
+                let max_drop_wait = self
+                    .config
+                    .reply_surbs
+                    .maximum_reply_surb_drop_waiting_period;
+                let last_received = received.surbs_last_received_at();
+
+                let possibly_abandoned = last_received + max_drop_wait < now;
+                if received.is_empty() && received.pending_reception() == 0 && possibly_abandoned {
                     return false;
                 }
+
                 true
             });
 
@@ -1017,7 +1025,9 @@ where
         self.full_reply_storage.key_storage_ref().retain(|_, reply_key| {
             let diff = now - reply_key.sent_at;
             if diff > self.config.reply_surbs.maximum_reply_key_age {
-                debug!("it's been {diff:?} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
+                let std_diff = Duration::try_from(diff).unwrap_or_default();
+                let diff_formatted = humantime::format_duration(std_diff);
+                debug!("it's been {diff_formatted} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
                 false
             } else {
                 true

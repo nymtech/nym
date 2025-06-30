@@ -310,13 +310,15 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
             };
 
-            if let Err(err) = self.reply_controller_sender.send_additional_surbs(
-                msg.sender_tag,
-                reply_surbs,
-                from_surb_request,
-            ) {
-                if !self.task_client.is_shutdown_poll() {
-                    error!("{err}");
+            if !reply_surbs.is_empty() {
+                if let Err(err) = self.reply_controller_sender.send_additional_surbs(
+                    msg.sender_tag,
+                    reply_surbs,
+                    from_surb_request,
+                ) {
+                    if !self.task_client.is_shutdown_poll() {
+                        error!("{err}");
+                    }
                 }
             }
         }

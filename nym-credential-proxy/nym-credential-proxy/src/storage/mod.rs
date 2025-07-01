@@ -389,7 +389,7 @@ mod tests {
             let file = NamedTempFile::new()?;
             let path = file.into_temp_path();
 
-            println!("Creating database at {:?}...", path);
+            println!("Creating database at {path:?}...");
 
             Ok(StorageTestWrapper {
                 inner: VpnApiStorage::init(&path).await?,
@@ -455,11 +455,11 @@ mod tests {
             .insert_new_pending_async_shares_request(dummy_uuid, "1234", "1234")
             .await;
         if let Err(e) = &res {
-            println!("❌ {}", e);
+            println!("❌ {e}");
         }
         assert!(res.is_ok());
         let res = res.unwrap();
-        println!("res = {:?}", res);
+        println!("res = {res:?}");
         assert_eq!(res.status, BlindedSharesStatus::Pending);
 
         println!("🚀 update_pending_blinded_share_error...");
@@ -467,11 +467,11 @@ mod tests {
             .update_pending_async_blinded_shares_error(0, "1234", "1234", "this is an error")
             .await;
         if let Err(e) = &res {
-            println!("❌ {}", e);
+            println!("❌ {e}");
         }
         assert!(res.is_ok());
         let res = res.unwrap();
-        println!("res = {:?}", res);
+        println!("res = {res:?}");
         assert!(res.error_message.is_some());
         assert_eq!(res.status, BlindedSharesStatus::Error);
 
@@ -480,11 +480,11 @@ mod tests {
             .update_pending_async_blinded_shares_issued(42, "1234", "1234")
             .await;
         if let Err(e) = &res {
-            println!("❌ {}", e);
+            println!("❌ {e}");
         }
         assert!(res.is_ok());
         let res = res.unwrap();
-        println!("res = {:?}", res);
+        println!("res = {res:?}");
         assert_eq!(res.status, BlindedSharesStatus::Issued);
         assert!(res.error_message.is_none());
 

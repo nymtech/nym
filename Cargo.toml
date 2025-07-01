@@ -34,11 +34,12 @@ members = [
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/contracts-common-testing",
     "common/cosmwasm-smart-contracts/easy_addr",
     "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
-    "common/cosmwasm-smart-contracts/multisig-contract",
+    "common/cosmwasm-smart-contracts/multisig-contract", "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/credential-storage",
@@ -135,7 +136,6 @@ members = [
     "tools/internal/ssl-inject",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/internal/validator-status-check",
     "tools/nym-cli",
@@ -371,9 +371,6 @@ subtle = "2.5.0"
 # cosmwasm-related
 cosmwasm-schema = "=2.2.2"
 cosmwasm-std = "=2.2.2"
-# use 1.0.1 as that's the version used by cosmwasm-std 2.2.1
-# (and ideally we don't want to pull the same dependency twice)
-serde-json-wasm = "=1.0.1"
 # same version as used by cosmwasm
 cw-utils = "=2.0.0"
 cw-storage-plus = "=2.0.0"
@@ -381,6 +378,7 @@ cw2 = { version = "=2.0.0" }
 cw3 = { version = "=2.0.0" }
 cw4 = { version = "=2.0.0" }
 cw-controllers = { version = "=2.0.0" }
+cw-multi-test = "=2.3.2"
 
 # cosmrs-related
 bip32 = { version = "0.5.3", default-features = false }

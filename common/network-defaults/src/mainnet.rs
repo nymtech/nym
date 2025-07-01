@@ -17,6 +17,11 @@ pub const MIXNET_CONTRACT_ADDRESS: &str =
     "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr";
 pub const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
+
+// \/ TODO: this has to be updated once the contract is deployed
+pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+// /\ TODO: this has to be updated once the contract is deployed
+
 pub const ECASH_CONTRACT_ADDRESS: &str =
     "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";
 pub const GROUP_CONTRACT_ADDRESS: &str =
@@ -30,7 +35,7 @@ pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772
 
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
-pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
+
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 #[cfg(feature = "network")]
 pub const NYM_APIS: &[ApiUrlConst] = &[
@@ -47,6 +52,7 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
 ];
+
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 #[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
@@ -149,7 +155,6 @@ pub fn export_to_env() {
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
-    set_var_to_default(var_names::EXPLORER_API, EXPLORER_API);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
 }
@@ -191,6 +196,5 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
-    set_var_conditionally_to_default(var_names::EXPLORER_API, EXPLORER_API);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
 }

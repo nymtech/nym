@@ -163,7 +163,7 @@ fn main() -> io::Result<()> {
         write_output_to_file(&mut file, output)?;
 
         for (subcommand, subsubcommands) in subcommands {
-            writeln!(file, "\n## `{}` ", subcommand)?;
+            writeln!(file, "\n## `{subcommand}` ")?;
             let output = Command::new(main_command)
                 .arg(subcommand)
                 .arg("--help")
@@ -195,12 +195,12 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
         || get_last_word_from_filepath(main_command).unwrap() == "nym-node")
         && subcommand == "run"
     {
-        info!("SKIPPING {} {}", main_command, subcommand);
+        info!("SKIPPING {main_command} {subcommand}");
     } else {
         let last_word = get_last_word_from_filepath(main_command);
         let output = Command::new(main_command).arg(subcommand).output()?;
         if !output.stdout.is_empty() {
-            info!("creating own file for {} {}", main_command, subcommand,);
+            info!("creating own file for {main_command} {subcommand}",);
             if !fs::metadata(WRITE_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
@@ -216,10 +216,7 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
             write_output_to_file(&mut file, output)?;
 
             // execute help
-            info!(
-                "creating own file for {} {} --help",
-                main_command, subcommand,
-            );
+            info!("creating own file for {main_command} {subcommand} --help",);
             if !fs::metadata(COMMAND_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
@@ -243,10 +240,7 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 debug!("empty stdout - nothing to write");
             }
         } else {
-            info!(
-                "creating own file for {} {} --help",
-                main_command, subcommand,
-            );
+            info!("creating own file for {main_command} {subcommand} --help",);
             if !fs::metadata(COMMAND_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
@@ -281,7 +275,7 @@ fn execute_command(
     if subsubcommand.is_some() {
         writeln!(file, "\n## `{} {}`", subcommand, subsubcommand.unwrap())?;
 
-        info!("executing {} {} --help ", main_command, subcommand);
+        info!("executing {main_command} {subcommand} --help ");
         let output = Command::new(main_command)
             .arg(subcommand)
             .arg(subsubcommand.unwrap())
@@ -294,7 +288,7 @@ fn execute_command(
         }
     // just subcommands
     } else {
-        writeln!(file, "\n## `{}`", subcommand)?;
+        writeln!(file, "\n## `{subcommand}`")?;
 
         // execute help
         let output = Command::new(main_command)
@@ -318,9 +312,9 @@ fn execute_command(
             || get_last_word_from_filepath(main_command).unwrap() == "nymvisor"
                 && subcommand == "run"
         {
-            info!("SKIPPING {} {}", main_command, subcommand);
+            info!("SKIPPING {main_command} {subcommand}");
         } else {
-            info!("executing {} {}", main_command, subcommand);
+            info!("executing {main_command} {subcommand}");
             let output = Command::new(main_command).arg(subcommand).output()?;
             if !output.stdout.is_empty() {
                 writeln!(file, "Example output:")?;

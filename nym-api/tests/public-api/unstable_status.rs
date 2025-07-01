@@ -87,7 +87,7 @@ async fn test_get_latest_network_monitor_run_details() -> Result<(), String> {
         .get(&follow_up_url)
         .send()
         .await
-        .map_err(|err| format!("Failed to follow up with URL {}: {}", follow_up_url, err))?;
+        .map_err(|err| format!("Failed to follow up with URL {follow_up_url}: {err}"))?;
     assert!(follow_up_res.status().is_success());
     Ok(())
 }

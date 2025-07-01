@@ -197,7 +197,7 @@ where
         let res = tokio::select! {
             biased;
             message = receiver.next() => {
-                log::debug!("Received message: {:?}", message);
+                log::debug!("Received message: {message:?}");
                 match message {
                     Some(Socks5ControlMessage::Stop) => {
                         log::info!("Received stop message");
@@ -209,7 +209,7 @@ where
                 Ok(())
             }
             Some(msg) = shutdown.wait_for_error() => {
-                log::info!("Task error: {:?}", msg);
+                log::info!("Task error: {msg:?}");
                 Err(msg)
             }
             _ = tokio::signal::ctrl_c() => {

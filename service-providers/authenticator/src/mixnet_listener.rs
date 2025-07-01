@@ -840,7 +840,7 @@ impl MixnetListener {
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {
-        log::info!("Using authenticator version {}", CURRENT_VERSION);
+        log::info!("Using authenticator version {CURRENT_VERSION}");
         let mut task_client = self.task_handle.fork("main_loop");
 
         while !task_client.is_shutdown() {
@@ -850,7 +850,7 @@ impl MixnetListener {
                 },
                 _ = self.timeout_check_interval.next() => {
                     if let Err(e) = self.remove_stale_registrations().await {
-                        log::error!("Could not clear stale registrations. The registration process might get jammed soon - {:?}", e);
+                        log::error!("Could not clear stale registrations. The registration process might get jammed soon - {e:?}");
                     }
                     self.seen_credential_cache.remove_stale();
                 }

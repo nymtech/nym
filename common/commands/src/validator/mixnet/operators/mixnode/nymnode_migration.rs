@@ -15,5 +15,5 @@ pub async fn migrate_to_nymnode(_args: Args, client: SigningClient) {
         .await
         .expect("failed to migrate mixnode!");
 
-    info!("migration result: {:?}", res)
+    info!("migration result: {res:?}")
 }

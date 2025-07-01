@@ -221,10 +221,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         let stored_messages = std::mem::take(&mut guard.messages);
         if !stored_messages.is_empty() {
             if let Err(err) = sender.unbounded_send(stored_messages) {
-                error!(
-                    "The sender channel we just received is already invalidated - {:?}",
-                    err
-                );
+                error!("The sender channel we just received is already invalidated - {err:?}");
                 // put the values back to the buffer
                 // the returned error has two fields: err: SendError and val: T,
                 // where val is the value that was failed to get sent;

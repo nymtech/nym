@@ -9,14 +9,14 @@ const SQLITE_DB_FILENAME: &str = "nym-api-example.sqlite";
 #[tokio::main]
 async fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    let database_path = format!("{}/{}", out_dir, SQLITE_DB_FILENAME);
+    let database_path = format!("{out_dir}/{SQLITE_DB_FILENAME}");
 
     #[cfg(target_family = "unix")]
     write_db_path_to_file(&out_dir, SQLITE_DB_FILENAME)
         .await
         .ok();
 
-    let mut conn = SqliteConnection::connect(&format!("sqlite://{}?mode=rwc", database_path))
+    let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
         .await
         .expect("Failed to create SQLx database connection");
 
@@ -87,8 +87,7 @@ async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Resu
     let mut file = File::create("enter_db.sh").await?;
     let contents = format!(
         "#!/bin/sh\n\
-        sqlite3 -init settings.sql {}/{}",
-        out_dir, db_filename,
+        sqlite3 -init settings.sql {out_dir}/{db_filename}",
     );
     file.write_all(contents.as_bytes()).await?;
 

@@ -31,7 +31,7 @@ pub async fn upload(args: Args, client: SigningClient) {
         .await
         .expect("failed to upload the contract!");
 
-    info!("Upload result: {:?}", res);
+    info!("Upload result: {res:?}");
 
     println!("{}", res.code_id)
 }

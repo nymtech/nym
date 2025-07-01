@@ -7,9 +7,9 @@ use std::env;
 #[tokio::main]
 async fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    let database_path = format!("{}/gateway-stats-example.sqlite", out_dir);
+    let database_path = format!("{out_dir}/gateway-stats-example.sqlite");
 
-    let mut conn = SqliteConnection::connect(&format!("sqlite://{}?mode=rwc", database_path))
+    let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
         .await
         .expect("Failed to create SQLx database connection");
 

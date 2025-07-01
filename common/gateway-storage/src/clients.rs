@@ -50,7 +50,7 @@ impl std::fmt::Display for ClientType {
             ClientType::EntryWireguard => "entry_wireguard",
             ClientType::ExitWireguard => "exit_wireguard",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

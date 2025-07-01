@@ -16,10 +16,6 @@ pub(crate) struct Cli {
     #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,
 
-    /// Explorer api url.
-    #[clap(short, long, env = "EXPLORER_API")]
-    pub(crate) explorer_api: String,
-
     /// Nym api url.
     #[clap(short, long, env = "NYM_API")]
     pub(crate) nym_api: String,
@@ -48,6 +44,10 @@ pub(crate) struct Cli {
     /// Connection url for the database.
     #[clap(long, env = "DATABASE_URL")]
     pub(crate) database_url: String,
+
+    #[clap(long, default_value = "5", env = "SQLX_BUSY_TIMEOUT_S")]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) sqlx_busy_timeout_s: Duration,
 
     #[clap(
         long,

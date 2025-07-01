@@ -360,7 +360,7 @@ impl Socks5RequestContent {
                 let query_bytes: Vec<u8> = make_bincode_serializer()
                     .serialize(&query)
                     .tap_err(|err| {
-                        log::error!("Failed to serialize query request: {:?}: {err}", query);
+                        log::error!("Failed to serialize query request: {query:?}: {err}");
                     })
                     .unwrap_or_default();
                 std::iter::once(RequestFlag::Query as u8)

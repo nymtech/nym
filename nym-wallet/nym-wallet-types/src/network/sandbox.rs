@@ -24,6 +24,10 @@ pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n1v3n2ly2dp3a9ng3ff6rh26yfkn0pc5hed7w2shc5u9ca5c865utqj5elvh";
 
+// \/ TODO: this has to be updated once the contract is deployed
+pub(crate) const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+// /\ TODO: this has to be updated once the contract is deployed
+
 // -- Constructor functions --
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
@@ -33,8 +37,6 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
         Some("wss://rpc.sandbox.nymtech.net/websocket"),
     )]
 }
-
-pub(crate) const EXPLORER_API: &str = "https://sandbox-explorer.nymtech.net/api/";
 
 pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
     nym_network_defaults::NymNetworkDetails {
@@ -48,12 +50,12 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
         contracts: NymContracts {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
+            performance_contract_address: parse_optional_str(PERFORMANCE_CONTRACT_ADDRESS),
             ecash_contract_address: parse_optional_str(ECASH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
-        explorer_api: parse_optional_str(EXPLORER_API),
         nym_vpn_api_url: None,
         nym_vpn_api_urls: None,
         nym_api_urls: None,

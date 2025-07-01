@@ -1924,6 +1924,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-multi-test"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "533b31c94b9e10e77e2468a2b1559aa506505d18c4e52eb64cbfc624ca876ad2"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "itertools 0.14.0",
+ "prost 0.13.5",
+ "schemars",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "cw-storage-plus"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5452,6 +5472,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
+ "anyhow",
  "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5477,6 +5498,19 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "vergen",
+]
+
+[[package]]
+name = "nym-contracts-common-testing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
 ]
 
 [[package]]
@@ -6106,6 +6140,7 @@ dependencies = [
  "futures",
  "mime",
  "serde",
+ "serde_json",
  "serde_yaml",
  "subtle 2.6.1",
  "time",
@@ -6293,7 +6328,6 @@ dependencies = [
  "schemars",
  "semver 1.0.26",
  "serde",
- "serde-json-wasm",
  "serde_repr",
  "thiserror 2.0.12",
  "time",
@@ -6656,7 +6690,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "3.1.0"
+version = "3.1.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6899,6 +6933,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-performance-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-contracts-common 0.5.0",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-pool-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -6957,6 +7004,7 @@ dependencies = [
  "tap",
  "tempfile",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -7444,7 +7492,7 @@ dependencies = [
 
 [[package]]
 name = "nym-statistics-api"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "axum 0.7.9",
@@ -7717,6 +7765,7 @@ dependencies = [
  "nym-mixnet-contract-common 0.6.0",
  "nym-multisig-contract-common 0.1.0",
  "nym-network-defaults 0.1.0",
+ "nym-performance-contract-common",
  "nym-serde-helpers 0.1.0",
  "nym-vesting-contract-common 0.7.0",
  "prost 0.13.5",
@@ -10764,6 +10813,7 @@ dependencies = [
  "nym-mixnet-contract-common 0.6.0",
  "nym-multisig-contract-common 0.1.0",
  "nym-pemstore 0.3.0",
+ "nym-performance-contract-common",
  "nym-validator-client 0.1.0",
  "nym-vesting-contract-common 0.7.0",
  "rand 0.8.5",

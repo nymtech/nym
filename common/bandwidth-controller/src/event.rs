@@ -11,7 +11,7 @@ impl std::fmt::Display for BandwidthStatusMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BandwidthStatusMessage::RemainingBandwidth(b) => {
-                write!(f, "remaining bandwidth: {}", b)
+                write!(f, "remaining bandwidth: {b}")
             }
             BandwidthStatusMessage::NoBandwidth => write!(f, "no bandwidth left"),
         }

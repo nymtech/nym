@@ -20,6 +20,8 @@ pub struct ChainDetails {
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
     pub vesting_contract_address: Option<String>,
+    #[serde(default)]
+    pub performance_contract_address: Option<String>,
     pub ecash_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
@@ -35,7 +37,6 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
-    pub explorer_api: Option<String>,
     pub nym_vpn_api_url: Option<String>,
     pub nym_api_urls: Option<Vec<ApiUrl>>,
     pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
@@ -96,7 +97,6 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
-            explorer_api: Default::default(),
             nym_vpn_api_url: Default::default(),
             nym_api_urls: Default::default(),
             nym_vpn_api_urls: Default::default(),
@@ -119,7 +119,7 @@ impl NymNetworkDetails {
                     }
                 }
                 Err(VarError::NotPresent) => None,
-                err => panic!("Unable to set: {:?}", err),
+                err => panic!("Unable to set: {err:?}"),
             }
         }
 
@@ -157,7 +157,6 @@ impl NymNetworkDetails {
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
-            .with_explorer_api(get_optional_env(var_names::EXPLORER_API))
             .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
     }
 
@@ -178,6 +177,9 @@ impl NymNetworkDetails {
             contracts: NymContracts {
                 mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),
                 vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
+                performance_contract_address: parse_optional_str(
+                    mainnet::PERFORMANCE_CONTRACT_ADDRESS,
+                ),
                 ecash_contract_address: parse_optional_str(mainnet::ECASH_CONTRACT_ADDRESS),
                 group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
@@ -185,7 +187,6 @@ impl NymNetworkDetails {
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
             },
-            explorer_api: parse_optional_str(mainnet::EXPLORER_API),
             nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
             nym_api_urls: None,
             nym_vpn_api_urls: None,
@@ -228,7 +229,6 @@ impl NymNetworkDetails {
         set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
         set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
-        set_optional_var(var_names::EXPLORER_API, self.explorer_api);
         set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
     }
 
@@ -329,12 +329,6 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
-        self
-    }
-
-    #[must_use]
-    pub fn with_explorer_api<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
-        self.explorer_api = endpoint.map(Into::into);
         self
     }
 

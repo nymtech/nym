@@ -299,7 +299,7 @@ impl Monitor {
 
         let mut log_lines: Vec<String> = vec![];
         for (key, value) in nodes_summary.iter() {
-            log_lines.push(format!("{} = {}", key, value));
+            log_lines.push(format!("{key} = {value}"));
         }
 
         tracing::info!("Directory summary: \n{}", log_lines.join("\n"));

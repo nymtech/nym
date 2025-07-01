@@ -193,8 +193,8 @@ mod tests {
         #[cfg(test)]
         mod setting_initial_grants {
             use super::*;
-            use crate::testing::deps_with_balance;
             use cosmwasm_std::{coin, Order, Storage};
+            use nym_contracts_common_testing::deps_with_balance;
             use nym_pool_contract_common::{Allowance, BasicAllowance, Grant, GranteeAddress};
             use std::collections::HashMap;
 

@@ -25,5 +25,5 @@ pub async fn decrease_pledge(args: Args, client: SigningClient) {
         .await
         .expect("failed to decrease pledge!");
 
-    info!("decreasing pledge: {:?}", res);
+    info!("decreasing pledge: {res:?}");
 }

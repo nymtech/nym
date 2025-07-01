@@ -426,6 +426,13 @@ impl Config {
     pub fn validate(&self) -> Result<(), NymNodeError> {
         self.mixnet.validate()?;
 
+        // it's not allowed to run mixnode mode alongside entry mode
+        if self.modes.mixnode && self.modes.entry {
+            return Err(NymNodeError::config_validation_failure(
+                "illegal modes configuration - node cannot run as a mixnode and an entry gateway",
+            ));
+        }
+
         Ok(())
     }
 }

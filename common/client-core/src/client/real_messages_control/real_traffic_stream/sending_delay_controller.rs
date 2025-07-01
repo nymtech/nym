@@ -164,11 +164,11 @@ impl SendingDelayController {
                 self.current_multiplier()
             );
             if self.current_multiplier() > 0 {
-                log::debug!("{}", status_str);
+                log::debug!("{status_str}");
             } else if self.current_multiplier() > 1 {
-                log::info!("{}", status_str);
+                log::info!("{status_str}");
             } else if self.current_multiplier() > 2 {
-                log::warn!("{}", status_str);
+                log::warn!("{status_str}");
             }
             self.time_when_logged_about_elevated_multiplier = now;
         }

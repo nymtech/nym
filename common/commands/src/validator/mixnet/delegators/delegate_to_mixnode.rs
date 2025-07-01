@@ -47,5 +47,5 @@ pub async fn delegate_to_mixnode(args: Args, client: SigningClient) {
         .await
         .expect("failed to delegate to mixnode!");
 
-    info!("delegating to mixnode: {:?}", res);
+    info!("delegating to mixnode: {res:?}");
 }

@@ -22,7 +22,7 @@ pub async fn vesting_claim_operator_reward(
         .vesting_withdraw_operator_reward(None)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -34,10 +34,7 @@ pub async fn vesting_claim_delegator_reward(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    log::info!(
-        ">>> Vesting account: claim delegator reward: mix_id = {}",
-        mix_id
-    );
+    log::info!(">>> Vesting account: claim delegator reward: mix_id = {mix_id}");
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
@@ -46,7 +43,7 @@ pub async fn vesting_claim_delegator_reward(
         .vesting_withdraw_delegator_reward(mix_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

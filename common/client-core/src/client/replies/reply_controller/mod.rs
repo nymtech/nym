@@ -217,14 +217,14 @@ where
             .surbs_storage_ref()
             .contains_surbs_for(&recipient_tag)
         {
-            warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
+            warn!("received reply request for {recipient_tag:?} but we don't have any surbs stored for that recipient!");
             return;
         }
 
-        trace!("handling reply to {:?}", recipient_tag);
+        trace!("handling reply to {recipient_tag:?}");
         let mut fragments = self.message_handler.split_reply_message(data);
         let total_size = fragments.len();
-        trace!("This reply requires {:?} SURBs", total_size);
+        trace!("This reply requires {total_size:?} SURBs");
 
         let available_surbs = self
             .full_reply_storage
@@ -327,10 +327,7 @@ where
             .await
         {
             let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-            warn!(
-                "failed to request additional surbs from {:?} - {err}",
-                target
-            );
+            warn!("failed to request additional surbs from {target:?} - {err}");
             return Err(err);
         } else {
             self.full_reply_storage
@@ -409,10 +406,7 @@ where
                     err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
                 self.re_insert_pending_retransmission(&target, to_take);
 
-                warn!(
-                    "failed to clear pending retransmission queue for {:?} - {err}",
-                    target
-                );
+                warn!("failed to clear pending retransmission queue for {target:?} - {err}");
                 return;
             }
         };
@@ -489,7 +483,7 @@ where
                 let err =
                     err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
                 self.re_insert_pending_replies(&target, to_send);
-                warn!("failed to clear pending queue for {:?} - {err}", target);
+                warn!("failed to clear pending queue for {target:?} - {err}");
             }
         } else {
             trace!("the pending queue is empty");
@@ -816,7 +810,7 @@ where
                 if diff > max_drop_wait {
                     to_remove.push(*pending_reply_target)
                 } else {
-                    debug!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
+                    debug!("We haven't received any surbs in {diff:?} from {pending_reply_target}. Going to explicitly ask for more");
                     to_request.push(*pending_reply_target);
                 }
             }

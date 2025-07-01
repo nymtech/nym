@@ -25,7 +25,7 @@ fn print_env_vars_with_keys_in_file<P: AsRef<Path> + Copy>(config_env_file: P) {
         .expect("Invalid path to environment configuration file");
     for item in items {
         let (key, val) = item.expect("Invalid item in environment configuration file");
-        log::debug!("{}: {}", key, val);
+        log::debug!("{key}: {val}");
     }
 }
 

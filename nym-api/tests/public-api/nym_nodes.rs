@@ -90,7 +90,7 @@ async fn test_get_historical_performance() -> Result<(), String> {
         .query(&[("date", date)])
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     assert!(

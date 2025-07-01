@@ -73,5 +73,5 @@ pub async fn vesting_bond_gateway(args: Args, client: SigningClient) {
         .await
         .expect("failed to bond gateway!");
 
-    info!("Vesting bonding gateway result: {:?}", res)
+    info!("Vesting bonding gateway result: {res:?}")
 }

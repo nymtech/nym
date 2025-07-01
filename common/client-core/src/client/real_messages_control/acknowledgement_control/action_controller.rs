@@ -126,7 +126,7 @@ impl ActionController {
     fn handle_insert(&mut self, pending_acks: Vec<PendingAcknowledgement>) {
         for pending_ack in pending_acks {
             let frag_id = pending_ack.message_chunk.fragment_identifier();
-            trace!("{} is inserted", frag_id);
+            trace!("{frag_id} is inserted");
 
             if self
                 .pending_acks_data
@@ -161,22 +161,16 @@ impl ActionController {
             let new_queue_key = self.pending_acks_timers.insert(frag_id, timeout);
             *queue_key = Some(new_queue_key)
         } else {
-            debug!(
-                "Tried to START TIMER on pending ack that is already gone! - {}",
-                frag_id
-            );
+            debug!("Tried to START TIMER on pending ack that is already gone! - {frag_id}");
         }
     }
 
     fn handle_remove(&mut self, frag_id: FragmentIdentifier) {
-        trace!("{} is getting removed", frag_id);
+        trace!("{frag_id} is getting removed");
 
         match self.pending_acks_data.remove(&frag_id) {
             None => {
-                debug!(
-                    "Tried to REMOVE pending ack that is already gone! - {}",
-                    frag_id
-                );
+                debug!("Tried to REMOVE pending ack that is already gone! - {frag_id}");
             }
             Some((_, queue_key)) => {
                 if let Some(queue_key) = queue_key {
@@ -188,10 +182,7 @@ impl ActionController {
                 } else {
                     // I'm not 100% sure if having a `None` key is even possible here
                     // (REMOVE would have to be called before START TIMER),
-                    debug!(
-                        "Tried to REMOVE pending ack without TIMER active - {}",
-                        frag_id
-                    );
+                    debug!("Tried to REMOVE pending ack without TIMER active - {frag_id}");
                 }
             }
         }
@@ -200,7 +191,7 @@ impl ActionController {
     // initiated basically as a first step of retransmission. At first data has its delay updated
     // (as new sphinx packet was created with new expected delivery time)
     fn handle_update_pending_ack(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
-        trace!("{} is updating its delay", frag_id);
+        trace!("{frag_id} is updating its delay");
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
             // this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
@@ -213,10 +204,7 @@ impl ActionController {
             self.pending_acks_data
                 .insert(frag_id, (Arc::new(inner_data), queue_key));
         } else {
-            debug!(
-                "Tried to UPDATE TIMER on pending ack that is already gone! - {}",
-                frag_id
-            );
+            debug!("Tried to UPDATE TIMER on pending ack that is already gone! - {frag_id}");
         }
     }
 

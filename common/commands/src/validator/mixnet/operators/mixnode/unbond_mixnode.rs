@@ -18,5 +18,5 @@ pub async fn unbond_mixnode(_args: Args, client: SigningClient) {
         .await
         .expect("failed to unbond mixnode!");
 
-    info!("Unbonding result: {:?}", res)
+    info!("Unbonding result: {res:?}")
 }

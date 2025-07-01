@@ -510,7 +510,7 @@ where
             Ok(active) => {
                 if let Some(active) = active.registration {
                     let id = active.details.gateway_id();
-                    debug!("currently selected gateway: {0}", id);
+                    debug!("currently selected gateway: {id}");
                 }
             }
         }

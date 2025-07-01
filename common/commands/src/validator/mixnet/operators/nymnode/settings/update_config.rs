@@ -46,5 +46,5 @@ pub async fn update_config(args: Args, client: SigningClient) {
         .await
         .expect("updating nym node config");
 
-    info!("nym node config updated: {:?}", res)
+    info!("nym node config updated: {res:?}")
 }

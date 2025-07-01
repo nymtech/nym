@@ -579,7 +579,7 @@ impl SocksClient {
         );
         // Get valid auth methods
         let methods = self.get_available_methods().await?;
-        trace!("methods: {:?}", methods);
+        trace!("methods: {methods:?}");
 
         let mut response = [0u8; 2];
 

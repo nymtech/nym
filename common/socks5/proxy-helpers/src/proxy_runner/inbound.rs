@@ -122,8 +122,7 @@ where
             biased;
             _ = &mut shutdown_future => {
                 debug!(
-                    "closing inbound proxy after outbound was closed {:?} ago",
-                    SHUTDOWN_TIMEOUT
+                    "closing inbound proxy after outbound was closed {SHUTDOWN_TIMEOUT:?} ago"
                 );
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
@@ -169,7 +168,7 @@ where
             }
         }
     }
-    trace!("{} - inbound closed", connection_id);
+    trace!("{connection_id} - inbound closed");
     shutdown_notify.notify_one();
 
     shutdown_listener.disarm();

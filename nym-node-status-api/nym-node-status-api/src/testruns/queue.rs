@@ -85,10 +85,7 @@ pub(crate) async fn try_queue_testrun(
     // save test run
     //
     let status = TestRunStatus::Queued as u32;
-    let log = format!(
-        "Test for {identity_key} requested at {} UTC\n\n",
-        timestamp_pretty
-    );
+    let log = format!("Test for {identity_key} requested at {timestamp_pretty} UTC\n\n");
 
     let id = sqlx::query!(
         "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",

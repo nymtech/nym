@@ -20,11 +20,7 @@ pub async fn vesting_delegate_to_mixnode(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
     log::info!(
-      ">>> Delegate to mixnode with locked tokens: mix_id = {}, amount_display = {}, amount_base = {}, fee = {:?}",
-      mix_id,
-      amount,
-      delegation,
-      fee
+      ">>> Delegate to mixnode with locked tokens: mix_id = {mix_id}, amount_display = {amount}, amount_base = {delegation}, fee = {fee:?}"
     );
     let res = guard
         .current_client()?
@@ -32,7 +28,7 @@ pub async fn vesting_delegate_to_mixnode(
         .vesting_delegate_to_mixnode(mix_id, delegation, None, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -47,9 +43,7 @@ pub async fn vesting_undelegate_from_mixnode(
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
-        ">>> Undelegate from mixnode delegated with locked tokens: mix_id = {}, fee = {:?}",
-        mix_id,
-        fee,
+        ">>> Undelegate from mixnode delegated with locked tokens: mix_id = {mix_id}, fee = {fee:?}",
     );
     let res = guard
         .current_client()?
@@ -57,7 +51,7 @@ pub async fn vesting_undelegate_from_mixnode(
         .vesting_undelegate_from_mixnode(mix_id, None, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

@@ -106,5 +106,5 @@ pub async fn bond_mixnode(args: Args, client: SigningClient) {
         .await
         .expect("failed to bond mixnode!");
 
-    info!("Bonding result: {:?}", res)
+    info!("Bonding result: {res:?}")
 }

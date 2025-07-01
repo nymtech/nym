@@ -191,7 +191,7 @@ impl fmt::Display for IpPacketRequestData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IpPacketRequestData::Data(_) => write!(f, "Data"),
-            IpPacketRequestData::Control(c) => write!(f, "Control({})", c),
+            IpPacketRequestData::Control(c) => write!(f, "Control({c})"),
         }
     }
 }

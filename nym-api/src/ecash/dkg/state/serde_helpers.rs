@@ -19,7 +19,7 @@ pub(super) mod bte_pk_serde {
     {
         let vec: Vec<u8> = Deserialize::deserialize(deserializer)?;
         PublicKeyWithProof::try_from_bytes(&vec)
-            .map_err(|err| Error::custom(format_args!("{:?}", err)))
+            .map_err(|err| Error::custom(format_args!("{err:?}")))
             .map(Box::new)
     }
 }
@@ -55,7 +55,7 @@ pub(super) mod recovered_keys {
             .into_iter()
             .map(|(idx, rec)| {
                 RecoveredVerificationKeys::try_from_bytes(&rec)
-                    .map_err(|err| D::Error::custom(format_args!("{:?}", err)))
+                    .map_err(|err| D::Error::custom(format_args!("{err:?}")))
                     .map(|vk| (idx, vk))
             })
             .collect()

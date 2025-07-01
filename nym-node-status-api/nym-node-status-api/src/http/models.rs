@@ -230,7 +230,7 @@ impl DVpnGateway {
 
 fn to_percent(performance: u8) -> String {
     let fraction = performance as f32 / 100.0;
-    format!("{:.2}", fraction)
+    format!("{fraction:.2}")
 }
 
 #[cfg(test)]

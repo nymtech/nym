@@ -68,6 +68,6 @@ pub async fn update_cost_params(args: Args, client: SigningClient) -> anyhow::Re
         .await
         .expect("failed to update cost params");
 
-    info!("Cost params result: {:?}", res);
+    info!("Cost params result: {res:?}");
     Ok(())
 }

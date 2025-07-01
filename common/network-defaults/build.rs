@@ -30,7 +30,7 @@ fn main() {
 
     for var in variables_to_track {
         // if script fails, debug with `cargo check -vv``
-        println!("Looking for {}", var);
+        println!("Looking for {var}");
 
         // read pattern that looks like:
         // <var>: &str = "<whatever is between quotes>"
@@ -41,7 +41,7 @@ fn main() {
             .captures(source_of_truth)
             .and_then(|caps| caps.get(1).map(|match_| match_.as_str().to_string()))
             .expect("Couldn't find var in source file");
-        println!("Storing {}={}", var, value);
+        println!("Storing {var}={value}");
         replace_with.insert(var, value);
     }
 
@@ -57,13 +57,11 @@ fn main() {
         // <var>=<value>
         let re = Regex::new(&pattern).unwrap();
         contents = re
-            .replace(&contents, |_: &regex::Captures| {
-                format!(r#"{}={}"#, var, value)
-            })
+            .replace(&contents, |_: &regex::Captures| format!(r#"{var}={value}"#))
             .to_string();
     }
 
-    println!("File contents to write:\n{}", contents);
+    println!("File contents to write:\n{contents}");
     if output_path.exists() {
         fs::write(output_path, contents).unwrap();
     } else {

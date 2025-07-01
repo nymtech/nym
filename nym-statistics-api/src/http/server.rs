@@ -19,7 +19,7 @@ pub(crate) async fn build_http_api(
     let state = AppState::new(storage, cached_network).await;
     let router = router_builder.with_state(state);
 
-    let bind_addr = format!("0.0.0.0:{}", http_port);
+    let bind_addr = format!("0.0.0.0:{http_port}");
     tracing::info!("Binding server to {bind_addr}");
 
     router.build_server(bind_addr).await

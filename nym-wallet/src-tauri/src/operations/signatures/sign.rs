@@ -40,7 +40,7 @@ pub async fn sign(
         signature_as_hex: signature.to_string(),
     };
     let output_json = json!(output).to_string();
-    log::info!(">>> Signing data {}", output_json);
+    log::info!(">>> Signing data {output_json}");
     Ok(output_json)
 }
 
@@ -48,17 +48,17 @@ async fn get_pubkey_from_account_address(
     address: &AccountId,
     state: &tauri::State<'_, WalletState>,
 ) -> Result<PublicKey, BackendError> {
-    log::info!("Getting public key for address {} from chain...", address);
+    log::info!("Getting public key for address {address} from chain...");
     let guard = state.read().await;
     let client = guard.current_client()?;
     let account = client.nyxd.get_account(address).await?.ok_or_else(|| {
-        log::error!("No account associated with address {}", address);
+        log::error!("No account associated with address {address}");
         BackendError::SignatureError(format!("No account associated with address {address}"))
     })?;
     let base_account = account.try_get_base_account()?;
 
     base_account.pubkey.ok_or_else(|| {
-        log::error!("No pubkey found for address {}", address);
+        log::error!("No pubkey found for address {address}");
         BackendError::SignatureError(format!("No pubkey found for address {address}"))
     })
 }
@@ -125,7 +125,7 @@ pub async fn verify(
         ));
     }
 
-    log::info!("<<< Verifying signature [{}]", signature_as_hex);
+    log::info!("<<< Verifying signature [{signature_as_hex}]");
     let verifying_key = VerifyingKey::from_sec1_bytes(&public_key.to_bytes())?;
     let signature = Signature::from_str(&signature_as_hex)?;
     let message_as_bytes = message.into_bytes();

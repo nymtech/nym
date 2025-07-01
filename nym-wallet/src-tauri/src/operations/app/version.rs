@@ -10,13 +10,13 @@ pub async fn check_version(handle: tauri::AppHandle) -> Result<AppVersion, Backe
     log::info!(">>> Getting app version info");
 
     let updater = handle.updater().map_err(|e| {
-        log::error!("Failed to get updater: {}", e);
+        log::error!("Failed to get updater: {e}");
         BackendError::CheckAppVersionError
     })?;
 
     // Then check for updates
     let update_info = updater.check().await.map_err(|e| {
-        log::error!("An error occurred while checking for app update {}", e);
+        log::error!("An error occurred while checking for app update {e}");
         BackendError::CheckAppVersionError
     })?;
 
@@ -35,10 +35,7 @@ pub async fn check_version(handle: tauri::AppHandle) -> Result<AppVersion, Backe
     } else {
         // No update available
         let current_version = handle.package_info().version.to_string();
-        log::debug!(
-            "<<< update available: [false], current version {}",
-            current_version
-        );
+        log::debug!("<<< update available: [false], current version {current_version}");
         Ok(AppVersion {
             current_version: current_version.clone(),
             latest_version: current_version,

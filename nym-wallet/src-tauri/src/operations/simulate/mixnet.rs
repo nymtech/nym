@@ -114,17 +114,11 @@ pub async fn simulate_update_pledge(
 
     match new_pledge.amount.cmp(&current_pledge.amount) {
         Ordering::Greater => {
-            log::info!(
-                "Simulate pledge increase, calculated additional pledge {}",
-                dec_delta,
-            );
+            log::info!("Simulate pledge increase, calculated additional pledge {dec_delta}",);
             simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(dec_delta), &state).await
         }
         Ordering::Less => {
-            log::info!(
-                "Simulate pledge reduction, calculated reduction pledge {}",
-                dec_delta,
-            );
+            log::info!("Simulate pledge reduction, calculated reduction pledge {dec_delta}",);
             simulate_mixnet_operation(
                 ExecuteMsg::DecreasePledge {
                     decrease_by: guard.attempt_convert_to_base_coin(dec_delta)?.into(),

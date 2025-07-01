@@ -386,8 +386,10 @@ pub(crate) trait PerformanceContractTesterExt:
         node_id: NodeId,
         performance: Percent,
     ) -> Result<(), NymPerformanceContractError> {
+        let env = self.env();
         NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(
             self.deps_mut(),
+            env,
             addr,
             epoch_id,
             NodePerformance {

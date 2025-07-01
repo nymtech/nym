@@ -7,9 +7,9 @@ use cosmwasm_schema::cw_serde;
 #[cfg(feature = "schema")]
 use crate::types::{
     EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, NetworkMonitorResponse, NetworkMonitorsPagedResponse,
-    NodeMeasurementsResponse, NodePerformancePagedResponse, NodePerformanceResponse,
-    RetiredNetworkMonitorsPagedResponse,
+    FullHistoricalPerformancePagedResponse, LastSubmission, NetworkMonitorResponse,
+    NetworkMonitorsPagedResponse, NodeMeasurementsResponse, NodePerformancePagedResponse,
+    NodePerformanceResponse, RetiredNetworkMonitorsPagedResponse,
 };
 
 #[cw_serde]
@@ -113,6 +113,10 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+
+    /// Returns information regarding the latest submitted performance data
+    #[cfg_attr(feature = "schema", returns(LastSubmission))]
+    LastSubmittedMeasurement {},
 }
 
 #[cw_serde]

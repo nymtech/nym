@@ -1,20 +1,20 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
 use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
@@ -1279,9 +1279,8 @@ impl TestFixture {
             chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
-            nym_contract_cache: NymContractCache::new(),
+            mixnet_contract_cache: MixnetContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
-            circulating_supply_cache: CirculatingSupplyCache::new("unym".to_owned()),
             storage,
             described_nodes_cache: SharedCache::<DescribedNodes>::new(),
             network_details: NetworkDetails::new(
@@ -1289,6 +1288,7 @@ impl TestFixture {
                 NymNetworkDetails::new_empty(),
             ),
             node_info_cache: unstable::NodeInfoCache::default(),
+            contract_info_cache: ContractDetailsCache::new(Duration::from_secs(42)),
             api_status: ApiStatusState::new(None),
             ecash_state: Arc::new(ecash_state),
         }

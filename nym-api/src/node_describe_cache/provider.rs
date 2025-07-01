@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_describe_cache::refresh::RefreshData;
 use crate::node_describe_cache::NodeDescribeCacheError;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use tracing::{error, info};
 
 pub struct NodeDescriptionProvider {
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
 
     allow_all_ips: bool,
     batch_size: usize,
@@ -23,7 +23,7 @@ pub struct NodeDescriptionProvider {
 
 impl NodeDescriptionProvider {
     pub(crate) fn new(
-        contract_cache: NymContractCache,
+        contract_cache: MixnetContractCache,
         allow_all_ips: bool,
     ) -> NodeDescriptionProvider {
         NodeDescriptionProvider {
@@ -49,7 +49,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         self.contract_cache.naive_wait_for_initial_values().await
     }
 
-    async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
+    async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         // we need to query:
         // - legacy mixnodes (because they might already be running nym-nodes, but haven't updated contract info)
         // - legacy gateways (because they might already be running nym-nodes, but haven't updated contract info)
@@ -110,45 +110,37 @@ impl CacheItemProvider for NodeDescriptionProvider {
         info!("refreshed self described data for {} nodes", nodes.len());
         info!("with {} unique ip addresses", addresses_cache.len());
 
-        Ok(DescribedNodes {
+        Ok(Some(DescribedNodes {
             nodes,
             addresses_cache,
-        })
+        }))
     }
 }
 
 // currently dead code : (
 #[allow(dead_code)]
 pub(crate) fn new_refresher(
-    config: &config::TopologyCacher,
-    contract_cache: NymContractCache,
+    config: &config::DescribeCache,
+    contract_cache: MixnetContractCache,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
-        Box::new(
-            NodeDescriptionProvider::new(
-                contract_cache,
-                config.debug.node_describe_allow_illegal_ips,
-            )
-            .with_batch_size(config.debug.node_describe_batch_size),
-        ),
-        config.debug.node_describe_caching_interval,
+        NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
+            .with_batch_size(config.debug.batch_size),
+        config.debug.caching_interval,
     )
 }
 
 pub(crate) fn new_provider_with_initial_value(
-    config: &config::TopologyCacher,
-    contract_cache: NymContractCache,
+    config: &config::DescribeCache,
+    contract_cache: MixnetContractCache,
     initial: SharedCache<DescribedNodes>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(
         Box::new(
-            NodeDescriptionProvider::new(
-                contract_cache,
-                config.debug.node_describe_allow_illegal_ips,
-            )
-            .with_batch_size(config.debug.node_describe_batch_size),
+            NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
+                .with_batch_size(config.debug.batch_size),
         ),
-        config.debug.node_describe_caching_interval,
+        config.debug.caching_interval,
         initial,
     )
 }

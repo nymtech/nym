@@ -5,7 +5,7 @@ use crate::network::models::{ContractInformation, NetworkDetails};
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
-use axum::{extract, Router};
+use axum::Router;
 use nym_api_requests::models::ChainStatusResponse;
 use nym_contracts_common::ContractBuildInformation;
 use nym_http_api_common::{FormattedResponse, OutputParams};
@@ -40,7 +40,7 @@ pub(crate) fn nym_network_routes() -> Router<AppState> {
 )]
 async fn network_details(
     Query(output): Query<OutputParams>,
-    extract::State(state): extract::State<AppState>,
+    State(state): State<AppState>,
 ) -> FormattedResponse<NetworkDetails> {
     let output = output.output.unwrap_or_default();
 
@@ -116,13 +116,18 @@ pub struct ContractInformationContractVersion {
 )]
 async fn nym_contracts(
     Query(output): Query<OutputParams>,
-    extract::State(state): extract::State<AppState>,
-) -> FormattedResponse<HashMap<String, ContractInformation<cw2::ContractVersion>>> {
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<HashMap<String, ContractInformation<cw2::ContractVersion>>>> {
     let output = output.output.unwrap_or_default();
 
-    let info = state.nym_contract_cache().contract_details().await;
-    output.to_response(
-        info.iter()
+    let contract_info = state
+        .contract_info_cache
+        .get_or_refresh(&state.nyxd_client)
+        .await?;
+
+    Ok(output.to_response(
+        contract_info
+            .iter()
             .map(|(contract, info)| {
                 (
                     contract.to_owned(),
@@ -133,7 +138,7 @@ async fn nym_contracts(
                 )
             })
             .collect::<HashMap<_, _>>(),
-    )
+    ))
 }
 
 #[allow(dead_code)] // not dead, used in OpenAPI docs
@@ -158,13 +163,18 @@ pub struct ContractInformationBuildInformation {
 )]
 async fn nym_contracts_detailed(
     Query(output): Query<OutputParams>,
-    extract::State(state): extract::State<AppState>,
-) -> FormattedResponse<HashMap<String, ContractInformation<ContractBuildInformation>>> {
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<HashMap<String, ContractInformation<ContractBuildInformation>>>> {
     let output = output.output.unwrap_or_default();
 
-    let info = state.nym_contract_cache().contract_details().await;
-    output.to_response(
-        info.iter()
+    let contract_info = state
+        .contract_info_cache
+        .get_or_refresh(&state.nyxd_client)
+        .await?;
+
+    Ok(output.to_response(
+        contract_info
+            .iter()
             .map(|(contract, info)| {
                 (
                     contract.to_owned(),
@@ -175,5 +185,5 @@ async fn nym_contracts_detailed(
                 )
             })
             .collect::<HashMap<_, _>>(),
-    )
+    ))
 }

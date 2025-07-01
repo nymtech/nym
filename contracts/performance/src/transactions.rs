@@ -23,11 +23,18 @@ pub fn try_update_contract_admin(
 
 pub fn try_submit_performance_results(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
     data: NodePerformance,
 ) -> Result<Response, NymPerformanceContractError> {
-    NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(deps, &info.sender, epoch_id, data)?;
+    NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(
+        deps,
+        env,
+        &info.sender,
+        epoch_id,
+        data,
+    )?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -35,12 +42,14 @@ pub fn try_submit_performance_results(
 
 pub fn try_batch_submit_performance_results(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
     data: Vec<NodePerformance>,
 ) -> Result<Response, NymPerformanceContractError> {
     let res = NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
         deps,
+        env,
         &info.sender,
         epoch_id,
         data,

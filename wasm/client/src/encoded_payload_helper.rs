@@ -61,7 +61,7 @@ pub fn encode_payload_with_headers(
             Ok([size, metadata, payload].concat())
         }
         Err(e) => Err(JsValue::from(JsError::new(
-            format!("Could not encode message: {}", e).as_str(),
+            format!("Could not encode message: {e}").as_str(),
         ))),
     }
 }
@@ -84,7 +84,7 @@ pub fn decode_payload(message: Vec<u8>) -> Result<IEncodedPayload, JsValue> {
         .unwrap()
         .unchecked_into::<IEncodedPayload>()),
         Err(e) => Err(JsValue::from(JsError::new(
-            format!("Could not parse message: {}", e).as_str(),
+            format!("Could not parse message: {e}").as_str(),
         ))),
     }
 }

@@ -286,7 +286,7 @@ fn remove_login_at_file(filepath: &Path, id: &LoginId) -> Result<(), BackendErro
     let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
 
     if stored_wallet.is_empty() {
-        log::info!("Removing file: {:#?}", filepath);
+        log::info!("Removing file: {filepath:#?}");
         return Ok(fs::remove_file(filepath)?);
     }
 
@@ -295,7 +295,7 @@ fn remove_login_at_file(filepath: &Path, id: &LoginId) -> Result<(), BackendErro
         .ok_or(BackendError::WalletNoSuchLoginId)?;
 
     if stored_wallet.is_empty() {
-        log::info!("Removing file: {:#?}", filepath);
+        log::info!("Removing file: {filepath:#?}");
         Ok(fs::remove_file(filepath)?)
     } else {
         write_to_file(filepath, &stored_wallet)
@@ -345,7 +345,7 @@ fn _archive_wallet_file(path: &Path) -> Result<(), BackendError> {
             additional_number += 1;
         } else {
             if let Some(new_path) = new_path.to_str() {
-                log::info!("Archived to: {}", new_path);
+                log::info!("Archived to: {new_path}");
             } else {
                 log::warn!("Archived wallet file to filename that is not a valid UTF-8 string");
             }
@@ -363,17 +363,14 @@ pub(crate) fn archive_wallet_file() -> Result<(), BackendError> {
 
     if filepath.exists() {
         if let Some(filepath) = filepath.to_str() {
-            log::info!("Archiving wallet file: {}", filepath);
+            log::info!("Archiving wallet file: {filepath}");
         } else {
             log::info!("Archiving wallet file");
         }
         _archive_wallet_file(&filepath)
     } else {
         if let Some(filepath) = filepath.to_str() {
-            log::info!(
-                "Skipping archiving wallet file, as it's not found: {}",
-                filepath
-            );
+            log::info!("Skipping archiving wallet file, as it's not found: {filepath}");
         } else {
             log::info!("Skipping archiving wallet file, as it's not found");
         }
@@ -430,7 +427,7 @@ fn remove_account_from_login_at_file(
 
     // Remove the file, or write the new file
     if stored_wallet.is_empty() {
-        log::info!("Removing file: {:#?}", filepath);
+        log::info!("Removing file: {filepath:#?}");
         Ok(fs::remove_file(filepath)?)
     } else {
         write_to_file(filepath, &stored_wallet)

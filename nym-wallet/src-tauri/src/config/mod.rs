@@ -145,8 +145,8 @@ impl Config {
                 .map_err(io::Error::other)
                 .map(|toml| fs::write(location.clone(), toml))
             {
-                Ok(_) => log::debug!("Writing to: {:#?}", location),
-                Err(err) => log::warn!("Failed to write to {:#?}: {err}", location),
+                Ok(_) => log::debug!("Writing to: {location:#?}"),
+                Err(err) => log::warn!("Failed to write to {location:#?}: {err}"),
             }
         }
 
@@ -165,8 +165,8 @@ impl Config {
                 .map_err(io::Error::other)
                 .map(|toml| fs::write(location.clone(), toml))
             {
-                Ok(_) => log::debug!("Writing to: {:#?}", location),
-                Err(err) => log::warn!("Failed to write to {:#?}: {err}", location),
+                Ok(_) => log::debug!("Writing to: {location:#?}"),
+                Err(err) => log::warn!("Failed to write to {location:#?}: {err}"),
             }
         }
         Ok(())
@@ -178,11 +178,11 @@ impl Config {
             let file = Self::config_file_path(None);
             match load_from_file::<GlobalConfig>(file.clone()) {
                 Ok(global) => {
-                    log::debug!("Loaded from file {:#?}", file);
+                    log::debug!("Loaded from file {file:#?}");
                     Some(global)
                 }
                 Err(err) => {
-                    log::trace!("Not loading {:#?}: {err}", file);
+                    log::trace!("Not loading {file:#?}: {err}");
                     None
                 }
             }
@@ -194,10 +194,10 @@ impl Config {
             let file = Self::config_file_path(Some(network));
             match load_from_file::<NetworkConfig>(file.clone()) {
                 Ok(config) => {
-                    log::trace!("Loaded from file {:#?}", file);
+                    log::trace!("Loaded from file {file:#?}");
                     networks.insert(network.as_key(), config);
                 }
-                Err(err) => log::trace!("Not loading {:#?}: {err}", file),
+                Err(err) => log::trace!("Not loading {file:#?}: {err}"),
             };
         }
 

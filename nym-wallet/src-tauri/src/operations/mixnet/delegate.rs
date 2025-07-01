@@ -62,10 +62,7 @@ pub async fn get_pending_delegation_events(
         "<<< {} pending delegation events",
         client_specific_events.len()
     );
-    log::trace!(
-        "<<< pending delegation events = {:?}",
-        client_specific_events
-    );
+    log::trace!("<<< pending delegation events = {client_specific_events:?}");
 
     Ok(client_specific_events)
 }
@@ -83,15 +80,11 @@ pub async fn delegate_to_mixnode(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
     log::info!(
-        ">>> Delegate to mixnode: mix_id = {}, display_amount = {}, base_amount = {}, fee = {:?}",
-        mix_id,
-        amount,
-        delegation_base,
-        fee,
+        ">>> Delegate to mixnode: mix_id = {mix_id}, display_amount = {amount}, base_amount = {delegation_base}, fee = {fee:?}",
     );
     let res = client.nyxd.delegate(mix_id, delegation_base, fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -106,14 +99,10 @@ pub async fn undelegate_from_mixnode(
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
-    log::info!(
-        ">>> Undelegate from mixnode: mix_id = {}, fee = {:?}",
-        mix_id,
-        fee
-    );
+    log::info!(">>> Undelegate from mixnode: mix_id = {mix_id}, fee = {fee:?}");
     let res = guard.current_client()?.nyxd.undelegate(mix_id, fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -128,11 +117,7 @@ pub async fn undelegate_all_from_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<TransactionExecuteResult>, BackendError> {
     log::info!(
-        ">>> Undelegate all from mixnode: mix_id = {}, uses_vesting_contract_tokens = {}, fee_liquid = {:?}, fee_vesting = {:?}",
-        mix_id,
-        uses_vesting_contract_tokens,
-        fee_liquid,
-        fee_vesting,
+        ">>> Undelegate all from mixnode: mix_id = {mix_id}, uses_vesting_contract_tokens = {uses_vesting_contract_tokens}, fee_liquid = {fee_liquid:?}, fee_vesting = {fee_vesting:?}",
     );
     let mut res: Vec<TransactionExecuteResult> =
         vec![undelegate_from_mixnode(mix_id, fee_liquid, state.clone()).await?];
@@ -178,7 +163,7 @@ pub(crate) async fn get_node_information(
             let str_err = format!(
                 "Failed to get legacy mixnode details for node_id = {node_id}. Error: {err}",
             );
-            log::error!("  <<< {}", str_err);
+            log::error!("  <<< {str_err}");
             error_strings.push(str_err);
         })?
         .mixnode_details;
@@ -222,7 +207,7 @@ pub async fn get_all_mix_delegations(
         .get_all_delegator_delegations(&address)
         .await
         .tap_err(|err| {
-            log::error!("  <<< Failed to get delegations. Error: {}", err);
+            log::error!("  <<< Failed to get delegations. Error: {err}");
         })?;
     log::info!("  <<< {} delegations", delegations.len());
 
@@ -230,7 +215,7 @@ pub async fn get_all_mix_delegations(
         get_pending_delegation_events(state.clone())
             .await
             .tap_err(|err| {
-                log::error!("  <<< Failed to get pending delegations. Error: {}", err);
+                log::error!("  <<< Failed to get pending delegations. Error: {err}");
             })?;
 
     log::info!(
@@ -276,7 +261,7 @@ pub async fn get_all_mix_delegations(
                     "Failed to get operator rewards as a display coin for mix_id = {}. Error: {}",
                     d.mix_id, err
                 );
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             })
             .unwrap_or_default();
@@ -295,7 +280,7 @@ pub async fn get_all_mix_delegations(
                     "Failed to get delegator rewards as a display coin for mix_id = {}. Error: {}",
                     d.mix_id, err
                 );
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             })
             .unwrap_or_default();
@@ -314,12 +299,12 @@ pub async fn get_all_mix_delegations(
                     "Failed to mixnode cost params for mix_id = {}. Error: {}",
                     d.mix_id, err
                 );
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             })
             .unwrap_or_default();
 
-        log::trace!("  >>> Get accumulated rewards: address = {}", address);
+        log::trace!("  >>> Get accumulated rewards: address = {address}");
         let pending_reward = client
             .nyxd
             .get_pending_delegator_reward(&address, d.mix_id, d.proxy.clone())
@@ -329,7 +314,7 @@ pub async fn get_all_mix_delegations(
                     "Failed to get accumulated rewards for mix_id = {}. Error: {}",
                     d.mix_id, err
                 );
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             })
             .unwrap_or_default();
@@ -340,15 +325,11 @@ pub async fn get_all_mix_delegations(
                     .attempt_convert_to_display_dec_coin(reward.clone().into())
                     .tap_err(|err| {
                         let str_err = format!("Failed to get convert reward to a display coin for mix_id = {}. Error: {}", d.mix_id, err);
-                        log::error!("  <<< {}", str_err);
+                        log::error!("  <<< {str_err}");
                         error_strings.push(str_err);
                     })
                     .ok();
-                log::trace!(
-                    "  <<< rewards = {:?}, amount = {:?}",
-                    pending_reward,
-                    amount
-                );
+                log::trace!("  <<< rewards = {pending_reward:?}, amount = {amount:?}");
                 amount
             }
             None => {
@@ -367,7 +348,7 @@ pub async fn get_all_mix_delegations(
                     "Failed to get stake saturation for mix_id = {}. Error: {}",
                     d.mix_id, err
                 );
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             })
             .unwrap_or(MixStakeSaturationResponse {
@@ -375,7 +356,7 @@ pub async fn get_all_mix_delegations(
                 uncapped_saturation: None,
                 current_saturation: None,
             });
-        log::trace!("  <<< {:?}", stake_saturation);
+        log::trace!("  <<< {stake_saturation:?}");
 
         log::trace!(
             "  >>> Get average uptime percentage: mix_iid = {}",
@@ -391,7 +372,7 @@ pub async fn get_all_mix_delegations(
                     "Failed to get current node performance for node_id = {}. Error: {err}",
                     d.mix_id
                 );
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             })
             .ok()
@@ -400,7 +381,7 @@ pub async fn get_all_mix_delegations(
         // convert to old u8
         let current_uptime = current_performance.map(|p| (p * 100.) as u8);
 
-        log::trace!("  <<< {:?}", current_uptime);
+        log::trace!("  <<< {current_uptime:?}");
 
         log::trace!(
             "  >>> Convert delegated on block height to timestamp: block_height = {}",
@@ -415,19 +396,17 @@ pub async fn get_all_mix_delegations(
             // Check if the error is related to height not being available (pruning)
             if error_message.contains("height") && error_message.contains("not available") {
                 let str_err = "Due to pruning strategies from validators, please navigate to the Settings tab and change your RPC node for your validator to retrieve your delegations.";
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err.to_string());
             } else {
                 let str_err = format!("Failed to get block timestamp for height = {} for delegation to mix_id = {}. Error: {}", d.height, d.mix_id, err);
-                log::error!("  <<< {}", str_err);
+                log::error!("  <<< {str_err}");
                 error_strings.push(str_err);
             }
         }).ok();
         let delegated_on_iso_datetime = timestamp.map(|ts| ts.to_rfc3339());
         log::trace!(
-            "  <<< timestamp = {:?}, delegated_on_iso_datetime = {:?}",
-            timestamp,
-            delegated_on_iso_datetime
+            "  <<< timestamp = {timestamp:?}, delegated_on_iso_datetime = {delegated_on_iso_datetime:?}"
         );
 
         let pending_events = filter_pending_events(d.mix_id, &pending_events_for_account);
@@ -466,7 +445,7 @@ pub async fn get_all_mix_delegations(
             },
         })
     }
-    log::trace!("<<< {:?}", with_everything);
+    log::trace!("<<< {with_everything:?}");
 
     Ok(with_everything)
 }
@@ -490,11 +469,7 @@ pub async fn get_pending_delegator_rewards(
     proxy: Option<String>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    log::info!(
-        ">>> Get pending delegator rewards: mix_id = {}, proxy = {:?}",
-        mix_id,
-        proxy
-    );
+    log::info!(">>> Get pending delegator rewards: mix_id = {mix_id}, proxy = {proxy:?}");
     let guard = state.read().await;
     let res = guard
         .current_client()?
@@ -518,11 +493,7 @@ pub async fn get_pending_delegator_rewards(
         .transpose()?
         .unwrap_or_else(|| guard.default_zero_mix_display_coin());
 
-    log::info!(
-        "<<< rewards_base = {:?}, rewards_display = {}",
-        base_coin,
-        display_coin
-    );
+    log::info!("<<< rewards_base = {base_coin:?}, rewards_display = {display_coin}");
     Ok(display_coin)
 }
 
@@ -554,7 +525,7 @@ pub async fn get_delegation_summary(
         total_delegations,
         total_rewards
     );
-    log::trace!("<<< {:?}", delegations);
+    log::trace!("<<< {delegations:?}");
 
     Ok(DelegationsSummaryResponse {
         delegations,

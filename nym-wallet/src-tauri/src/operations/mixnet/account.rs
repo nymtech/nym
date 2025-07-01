@@ -108,7 +108,7 @@ async fn _connect_with_mnemonic(
                 "{}",
                 state.get_config_validator_entries(network).format(",\n")
             );
-            log::debug!("List of validators for {network}: [\n{}\n]", f,);
+            log::debug!("List of validators for {network}: [\n{f}\n]",);
         }
 
         state.config().clone()
@@ -598,7 +598,7 @@ pub async fn list_accounts(
             address: account.addresses[&network].to_string(),
         })
         .map(|account| {
-            log::trace!("{:?}", account);
+            log::trace!("{account:?}");
             account
         })
         .collect();

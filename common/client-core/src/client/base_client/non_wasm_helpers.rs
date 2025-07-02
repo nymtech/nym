@@ -88,7 +88,7 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     let db_path = db_path.as_ref();
     if db_path.exists() {
         info!("loading existing surb database");
-        match fs_backend::Backend::try_load(db_path, surb_config.fresh_sender_tags).await {
+        match fs_backend::Backend::try_load(db_path).await {
             Ok(backend) => Ok(backend),
             Err(err) => {
                 error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");

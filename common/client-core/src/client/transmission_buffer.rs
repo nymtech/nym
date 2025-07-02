@@ -234,10 +234,6 @@ impl<T> TransmissionBuffer<T> {
             self.remove(&lane);
         }
     }
-
-    pub(crate) fn clear(&mut self) {
-        self.buffer.clear()
-    }
 }
 
 pub(crate) struct LaneBufferEntry<T> {

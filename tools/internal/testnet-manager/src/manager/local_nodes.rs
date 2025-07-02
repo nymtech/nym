@@ -19,7 +19,7 @@ use std::fs;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use time::{Duration, OffsetDateTime};
+use time::OffsetDateTime;
 use tokio::process::Command;
 use tokio::time::sleep;
 use tracing::error;
@@ -408,13 +408,24 @@ impl NetworkManager {
         let expected_end = original_epoch.interval.current_epoch_end();
         let now = OffsetDateTime::now_utc();
         if expected_end > now {
-            let diff = expected_end - now;
-            let std_diff = diff.unsigned_abs();
-            let fut = sleep(std_diff);
-            ctx.set_pb_message(format!(
-                "waiting for {} for the epoch end...",
-                humantime::format_duration(std_diff)
-            ));
+            loop {
+                let now = OffsetDateTime::now_utc();
+                let diff = expected_end - now;
+                if diff.is_negative() {
+                    break;
+                }
+
+                let std_diff = diff.unsigned_abs();
+                let fut = sleep(std::time::Duration::from_millis(500));
+                ctx.set_pb_message(format!(
+                    "waiting for {} for the epoch end...",
+                    humantime::format_duration(std_diff)
+                ));
+                ctx.async_with_progress(fut).await;
+            }
+            // wait extra 10s due to possible block time desync
+            ctx.set_pb_message("waiting extra 10s to make sure blocks have advanced".to_string());
+            let fut = sleep(std::time::Duration::from_secs(10));
             ctx.async_with_progress(fut).await;
         }
 

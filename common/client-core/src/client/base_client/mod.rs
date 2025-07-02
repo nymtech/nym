@@ -65,6 +65,7 @@ use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
 use tracing::*;
 use url::Url;
@@ -680,6 +681,7 @@ where
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
     async fn setup_persistent_reply_storage(
         backend: S::ReplyStore,
+        key_rotation_config: KeyRotationConfig,
         shutdown: TaskClient,
     ) -> Result<CombinedReplyStorage, ClientCoreError>
     where
@@ -687,9 +689,18 @@ where
         S::ReplyStore: Send + Sync,
     {
         tracing::trace!("Setup persistent reply storage");
+        let now = OffsetDateTime::now_utc();
+        let expected_current_key_rotation_start =
+            key_rotation_config.expected_current_key_rotation_start(now);
+        // time of the start of one epoch BEFORE the CURRENT rotation has begun
+        // this indicates the starting time of when packets with the current keys might have been constructed
+        // (i.e. any surbs OLDER than that MUST BE invalid)
+        let prior_epoch_start =
+            expected_current_key_rotation_start - key_rotation_config.epoch_duration;
+
         let persistent_storage = PersistentReplyStorage::new(backend);
         let mem_store = persistent_storage
-            .load_state_from_backend()
+            .load_state_from_backend(prior_epoch_start)
             .await
             .map_err(|err| ClientCoreError::SurbStorageError {
                 source: Box::new(err),
@@ -864,6 +875,7 @@ where
 
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
+            key_rotation_config,
             shutdown.fork("persistent_reply_storage"),
         )
         .await?;

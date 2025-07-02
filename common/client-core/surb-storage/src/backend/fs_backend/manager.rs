@@ -3,10 +3,7 @@
 
 use crate::backend::fs_backend::{
     error::StorageError,
-    models::{
-        ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag,
-        StoredSurbSender,
-    },
+    models::{ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSurbSender},
 };
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
@@ -123,32 +120,6 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn delete_all_tags(&self) -> Result<(), sqlx::Error> {
-        sqlx::query!("DELETE FROM sender_tag;")
-            .execute(&self.connection_pool)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn get_tags(&self) -> Result<Vec<StoredSenderTag>, sqlx::Error> {
-        sqlx::query_as!(StoredSenderTag, "SELECT * FROM sender_tag;",)
-            .fetch_all(&self.connection_pool)
-            .await
-    }
-
-    pub async fn insert_tag(&self, stored_tag: StoredSenderTag) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO sender_tag(recipient, tag) VALUES (?, ?);
-            "#,
-            stored_tag.recipient,
-            stored_tag.tag
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
     pub async fn delete_all_reply_keys(&self) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM reply_key;")
             .execute(&self.connection_pool)
@@ -209,7 +180,7 @@ impl StorageManager {
         sqlx::query_as!(
             StoredReplySurb,
             r#"
-                SELECT reply_surb_sender_id, reply_surb, encoded_key_rotation as "encoded_key_rotation: u8" FROM reply_surb 
+                SELECT reply_surb_sender_id, reply_surb, encoded_key_rotation as "encoded_key_rotation: u8" FROM reply_surb
                 WHERE reply_surb_sender_id = ?
             "#,
             sender_id

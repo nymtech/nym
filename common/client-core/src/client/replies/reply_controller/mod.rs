@@ -139,7 +139,7 @@ where
         }
     }
 
-    async fn remove_stale_storage(&self) {
+    async fn remove_stale_storage(&mut self) {
         let now = OffsetDateTime::now_utc();
 
         self.receiver_controller
@@ -173,7 +173,7 @@ where
                     }
                 },
                 _ = stale_inspection.next() => {
-                    self.receiver_controller.inspect_stale_pending_replies().await
+                    self.receiver_controller.inspect_stale_pending_data().await
                 },
                 _ = invalidation_inspection.next() => {
                     self.receiver_controller.check_surb_refresh().await;

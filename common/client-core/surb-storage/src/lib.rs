@@ -6,6 +6,7 @@ pub use combined::CombinedReplyStorage;
 pub use key_storage::SentReplyKeys;
 pub use surb_storage::{ReceivedReplySurb, ReceivedReplySurbsMap, RetrievedReplySurb};
 pub use tag_storage::UsedSenderTags;
+use time::OffsetDateTime;
 
 mod backend;
 mod combined;
@@ -29,8 +30,11 @@ where
         PersistentReplyStorage { backend }
     }
 
-    pub async fn load_state_from_backend(&self) -> Result<CombinedReplyStorage, T::StorageError> {
-        self.backend.load_surb_storage().await
+    pub async fn load_state_from_backend(
+        &self,
+        surb_freshness_cutoff: OffsetDateTime,
+    ) -> Result<CombinedReplyStorage, T::StorageError> {
+        self.backend.load_surb_storage(surb_freshness_cutoff).await
     }
 
     // this will have to get enabled after merging develop

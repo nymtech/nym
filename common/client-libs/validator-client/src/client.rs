@@ -72,7 +72,7 @@ macro_rules! collect_paged_skimmed_v2 {
                 .$f(false, Some(page), None, $self.use_bincode)
                 .await?;
 
-            if metadata != res.metadata {
+            if !metadata.consistency_check(&res.metadata) {
                 return Err(ValidatorClientError::InconsistentPagedMetadata);
             }
 

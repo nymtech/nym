@@ -324,7 +324,10 @@ where
             Some(chunk.fragment_identifier()),
         );
         let delay = prepared_fragment.total_delay;
-        let max_retransmissions = None;
+
+        // we have to set a maximum number of retransmissions in case we fail to retrieve
+        // surbs for a long period of time; we don't want to be stuck constantly resending the data
+        let max_retransmissions = Some(10);
         let pending_ack = PendingAcknowledgement::new_anonymous(
             chunk,
             delay,

@@ -27,6 +27,7 @@ use tracing::{debug, error, info, trace, warn};
 
 #[derive(Default)]
 struct PendingSenderData {
+    current_clear_rerequest_counter: usize,
     pending_replies: TransmissionBuffer<FragmentWithMaxRetransmissions>,
     pending_retransmissions: BTreeMap<FragmentIdentifier, Weak<PendingAcknowledgement>>,
 }
@@ -41,6 +42,14 @@ impl PendingSenderData {
 
         total_pending
     }
+
+    pub(crate) fn increment_current_clear_rerequest_counter(&mut self) {
+        self.current_clear_rerequest_counter += 1;
+    }
+
+    pub(crate) fn reset_current_clear_rerequest_counter(&mut self) {
+        self.current_clear_rerequest_counter = 0;
+    }
 }
 
 /// Reply controller responsible for controlling receiver-related part
@@ -52,6 +61,7 @@ pub struct ReceiverReplyController<R> {
     topology_access: TopologyAccessor,
 
     pending: HashMap<AnonymousSenderTag, PendingSenderData>,
+    unavailable: HashMap<AnonymousSenderTag, OffsetDateTime>,
     surbs_storage: ReceivedReplySurbsMap,
 
     // TODO: incorporate that field at some point
@@ -81,6 +91,7 @@ where
             },
             topology_access,
             pending: Default::default(),
+            unavailable: Default::default(),
             surbs_storage: storage,
             message_handler,
         }
@@ -187,14 +198,23 @@ where
         max_retransmissions: Option<u32>,
     ) {
         if !self.surbs_storage.contains_surbs_for(&recipient_tag) {
-            warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
+            if self
+                .unavailable
+                .insert(recipient_tag, OffsetDateTime::now_utc())
+                .is_none()
+            {
+                // don't report it every single time
+                warn!("received reply request for {recipient_tag} but we don't have any surbs stored for that recipient!");
+            } else {
+                trace!("received reply request for {recipient_tag} but we don't have any surbs stored for that recipient!");
+            }
             return;
         }
 
-        trace!("handling reply to {:?}", recipient_tag);
+        trace!("handling reply to {recipient_tag}");
         let mut fragments = self.message_handler.split_reply_message(data);
         let total_size = fragments.len();
-        trace!("This reply requires {:?} SURBs", total_size);
+        trace!("This reply requires {total_size} SURBs");
 
         // for the purposes of sending reply, do allow using possibly stale entries
         let available_surbs = self.surbs_storage.available_surbs(&recipient_tag);
@@ -207,10 +227,14 @@ where
         };
 
         if max_to_send > 0 {
-            let (surbs, _surbs_left) = self
+            let (surbs, surbs_left) = self
                 .surbs_storage
                 .get_reply_surbs(&recipient_tag, max_to_send);
 
+            debug!(
+                "retrieved {} reply surbs. {surbs_left} surbs remaining in storage",
+                surbs.as_ref().map(|s| s.len()).unwrap_or_default()
+            );
             if let Some(reply_surbs) = surbs {
                 let to_send = fragments
                     .drain(..reply_surbs.len())
@@ -355,10 +379,7 @@ where
                 let err = err.return_unused_surbs(&self.surbs_storage, &target);
                 self.re_insert_pending_retransmission(&target, to_take);
 
-                warn!(
-                    "failed to clear pending retransmission queue for {:?} - {err}",
-                    target
-                );
+                warn!("failed to clear pending retransmission queue for {target}: {err}",);
                 return;
             }
         };
@@ -428,10 +449,16 @@ where
             {
                 let err = err.return_unused_surbs(&self.surbs_storage, &target);
                 self.re_insert_pending_replies(&target, to_send);
-                warn!("failed to clear pending queue for {:?} - {err}", target);
+                warn!("failed to clear pending queue for {target}: {err}");
             }
         } else {
             trace!("the pending queue is empty");
+        }
+    }
+
+    fn reset_rerequest_counter(&mut self, from: &AnonymousSenderTag) {
+        if let Some(pending) = self.pending.get_mut(from) {
+            pending.reset_current_clear_rerequest_counter()
         }
     }
 
@@ -451,6 +478,9 @@ where
 
         // store received surbs
         self.surbs_storage.insert_fresh_surbs(&from, reply_surbs);
+
+        // reset, if applicable, request counter
+        self.reset_rerequest_counter(&from);
 
         // use as many as we can for clearing pending retransmission queue
         self.try_clear_pending_retransmission(from).await;
@@ -603,16 +633,16 @@ where
         }
     }
 
-    pub(crate) async fn inspect_stale_pending_replies(&mut self) {
+    pub(crate) async fn inspect_stale_pending_data(&mut self) {
         let mut to_request = Vec::new();
         let mut to_remove = Vec::new();
 
         let now = OffsetDateTime::now_utc();
-        for (pending_reply_target, vals) in &self.pending {
+        for (pending_reply_target, vals) in self.pending.iter_mut() {
             // for now recreate old behaviour
-            let vals = &vals.pending_replies;
+            let retransmission_buf = &vals.pending_replies;
 
-            if vals.is_empty() {
+            if retransmission_buf.is_empty() {
                 continue;
             }
 
@@ -620,7 +650,7 @@ where
                 .surbs_storage
                 .surbs_last_received_at(pending_reply_target)
             else {
-                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.total_size());
+                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", retransmission_buf.total_size());
                 to_remove.push(*pending_reply_target);
                 continue;
             };
@@ -634,12 +664,23 @@ where
                 .config
                 .reply_surbs
                 .maximum_reply_surb_drop_waiting_period;
+            let max_rerequests = self.config.reply_surbs.maximum_reply_surbs_rerequests;
+
+            // if we have already requested extra surbs because of the stale entry,
+            // don't do it again (otherwise we'll get stuck in a constant cycle of requesting more surbs
+            // if client is offline)
+            if vals.current_clear_rerequest_counter > max_rerequests {
+                to_remove.push(*pending_reply_target);
+                debug!("we have reached the maximum threshold of attempting to request surbs from {pending_reply_target}. dropping the sender");
+                continue;
+            }
 
             if diff > max_rerequest_wait {
                 if diff > max_drop_wait {
                     to_remove.push(*pending_reply_target)
                 } else {
-                    debug!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
+                    debug!("We haven't received any surbs in {} from {pending_reply_target}. Going to explicitly ask for more", humantime::format_duration(diff.unsigned_abs()));
+                    vals.increment_current_clear_rerequest_counter();
                     to_request.push(*pending_reply_target);
                 }
             }
@@ -652,14 +693,10 @@ where
                 .reset_pending_reception(&pending_reply_target)
         }
         for to_remove in to_remove {
-            // SAFETY: we just iterated through those items
-            #[allow(clippy::unwrap_used)]
-            let entry = self.pending.get_mut(&to_remove).unwrap();
-            if entry.pending_retransmissions.is_empty() {
-                self.pending.remove(&to_remove);
-            } else {
-                entry.pending_replies.clear()
-            }
+            // TODO: in the 'old' version we just removed pending messages,
+            // not retransmissions, but I think those should follow the same logic.
+            // if something breaks because of that. I guess here is your explanation, future reader
+            self.pending.remove(&to_remove);
         }
     }
 
@@ -714,7 +751,7 @@ where
         };
     }
 
-    pub(crate) async fn inspect_and_clear_stale_data(&self, now: OffsetDateTime) {
+    pub(crate) async fn inspect_and_clear_stale_data(&mut self, now: OffsetDateTime) {
         // technically we don't know if epoch is stuck, but we're flying in blind here,
         // so we have to assume the worst and not purge anything depending on proper epoch progression
         let is_epoch_stuck = self
@@ -825,5 +862,9 @@ where
 
             true
         });
+
+        // 1.3 inspect old unavailable receivers to clear any stale data
+        self.unavailable
+            .retain(|_, last_reported| now - *last_reported < time::Duration::seconds(30));
     }
 }

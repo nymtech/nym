@@ -195,7 +195,7 @@ impl From<ConfigV6> for Config {
                         .debug
                         .reply_surbs
                         .minimum_reply_surb_threshold_buffer,
-                    fresh_sender_tags: value.debug.reply_surbs.fresh_sender_tags,
+                    ..Default::default()
                 },
                 stats_reporting: StatsReporting {
                     enabled: value.debug.stats_reporting.enabled,

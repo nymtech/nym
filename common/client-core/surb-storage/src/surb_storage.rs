@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tracing::{error, trace};
+use tracing::{error, info, trace};
 
 #[derive(Debug)]
 pub struct RetrievedReplySurb {
@@ -91,9 +91,30 @@ impl ReceivedReplySurbsMap {
         self.inner.data.iter_mut()
     }
 
-    // pub fn remove(&self, target: &AnonymousSenderTag) {
-    //     self.inner.data.remove(target);
-    // }
+    fn total_surbs(&self) -> usize {
+        self.inner
+            .data
+            .iter()
+            .map(|entry| entry.value().data.len())
+            .sum()
+    }
+
+    pub fn drop_stale_loaded_surbs(&self, cutoff: OffsetDateTime) {
+        let before = self.total_surbs();
+        self.inner.data.retain(|_, v| {
+            if v.surbs_last_received_at() < cutoff {
+                return false;
+            }
+
+            v.data.retain(|s| s.received_at > cutoff);
+            !v.data.is_empty()
+        });
+        let after = self.total_surbs();
+        let diff = after - before;
+        if diff != 0 {
+            info!("removed {diff} stale reply SURBs")
+        }
+    }
 
     pub fn retain(&self, f: impl FnMut(&AnonymousSenderTag, &mut ReceivedReplySurbs) -> bool) {
         self.inner.data.retain(f);

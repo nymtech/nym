@@ -388,6 +388,11 @@ pub struct ReplySurbsWasmOverride {
     #[tsify(optional)]
     pub maximum_reply_key_age_ms: Option<u32>,
 
+    /// Defines maximum number of times the client is going to re-request reply surbs
+    /// for clearing pending messages before giving up after making no progress.
+    #[tsify(optional)]
+    pub maximum_reply_surbs_rerequests: Option<usize>,
+
     #[tsify(optional)]
     pub surb_mix_hops: Option<u8>,
 
@@ -428,7 +433,9 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),
             surb_mix_hops: value.surb_mix_hops,
-            fresh_sender_tags: value.fresh_sender_tags,
+            maximum_reply_surbs_rerequests: value
+                .maximum_reply_surbs_rerequests
+                .unwrap_or(def.maximum_reply_surbs_rerequests),
         }
     }
 }

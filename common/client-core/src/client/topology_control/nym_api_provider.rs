@@ -123,7 +123,7 @@ impl NymApiTopologyProvider {
             let metadata = mixnodes_res.metadata;
             let mixnodes = mixnodes_res.nodes;
 
-            if gateways_res.metadata != metadata {
+            if !gateways_res.metadata.consistency_check(&metadata) {
                 warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
                 return None;
             }

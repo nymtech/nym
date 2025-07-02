@@ -430,10 +430,12 @@ pub fn start_controller(
     request_tx: mpsc::Sender<PeerControlRequest>,
     request_rx: mpsc::Receiver<PeerControlRequest>,
 ) -> (
-    nym_gateway_storage::traits::mock::MockGatewayStorage,
+    Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
     nym_task::TaskManager,
 ) {
-    let storage = nym_gateway_storage::traits::mock::MockGatewayStorage::default();
+    let storage = Arc::new(RwLock::new(
+        nym_gateway_storage::traits::mock::MockGatewayStorage::default(),
+    ));
     let wg_api = Arc::new(MockWgApi::default());
     let task_manager = nym_task::TaskManager::default();
     let mut peer_controller = PeerController::new(
@@ -467,36 +469,4 @@ mod tests {
         let (_, task_manager) = start_controller(request_tx.clone(), request_rx);
         stop_controller(task_manager).await;
     }
-
-    // #[tokio::test]
-    // async fn add_peer() {
-    //     let (request_tx, storage, mut task_manager) = start_controller();
-    //     let peer = Peer::default();
-
-    //     let (response_tx, response_rx) = oneshot::channel();
-    //     request_tx
-    //         .send(PeerControlRequest::AddPeer {
-    //             peer: peer.clone(),
-    //             response_tx,
-    //         })
-    //         .await
-    //         .unwrap();
-    //     let response = response_rx.await.unwrap();
-    //     assert!(!response.success);
-
-    //     storage
-    //         .insert_wireguard_peer(&peer, FromStr::from_str("entry_wireguard").unwrap())
-    //         .await
-    //         .unwrap();
-    //     let (response_tx, response_rx) = oneshot::channel();
-    //     request_tx
-    //         .send(PeerControlRequest::AddPeer { peer, response_tx })
-    //         .await
-    //         .unwrap();
-    //     let response = response_rx.await.unwrap();
-    //     assert!(response.success);
-
-    //     task_manager.signal_shutdown().unwrap();
-    //     task_manager.wait_for_shutdown().await;
-    // }
 }

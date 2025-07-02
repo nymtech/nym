@@ -10719,6 +10719,7 @@ dependencies = [
  "console",
  "cw-utils",
  "dkg-bypass-contract",
+ "humantime",
  "indicatif",
  "nym-bin-common 0.6.0",
  "nym-coconut-dkg-common 0.1.0",

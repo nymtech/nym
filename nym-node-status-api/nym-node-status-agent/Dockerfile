@@ -2,6 +2,8 @@
 FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 ARG GIT_REF=main
+ARG MNEMONIC
+ENV MNEMONIC=${MNEMONIC}
 
 RUN apt update && apt install -yy libdbus-1-dev pkg-config libclang-dev
 

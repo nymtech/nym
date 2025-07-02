@@ -57,5 +57,5 @@ jobs:
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
+          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} --build-arg MNEMONIC="${{ secrets.CANARY_PROBE_MNEMONIC }}" -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

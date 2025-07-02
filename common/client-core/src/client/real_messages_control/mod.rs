@@ -86,12 +86,6 @@ impl<'a> From<&'a Config> for real_traffic_stream::Config {
     }
 }
 
-impl<'a> From<&'a Config> for reply_controller::Config {
-    fn from(cfg: &'a Config) -> Self {
-        reply_controller::Config::new(cfg.reply_surbs)
-    }
-}
-
 impl<'a> From<&'a Config> for message_handler::Config {
     fn from(cfg: &'a Config) -> Self {
         message_handler::Config::new(
@@ -171,7 +165,8 @@ impl RealMessagesController<OsRng> {
         // create all configs for the components
         let ack_control_config = (&config).into();
         let out_queue_config = (&config).into();
-        let reply_controller_config = (&config).into();
+        let reply_controller_config =
+            reply_controller::Config::new(config.reply_surbs, key_rotation_config);
         let message_handler_config = (&config).into();
 
         // create the actual components
@@ -198,7 +193,6 @@ impl RealMessagesController<OsRng> {
 
         let reply_control = ReplyController::new(
             reply_controller_config,
-            key_rotation_config,
             message_handler,
             reply_storage,
             reply_controller_receiver,

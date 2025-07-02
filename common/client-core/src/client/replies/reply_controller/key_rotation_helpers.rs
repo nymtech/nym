@@ -14,11 +14,13 @@ pub(crate) enum SurbRefreshState {
     ScheduledForNextInvocation,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ReferenceEpoch {
     pub(crate) absolute_epoch_id: EpochId,
     pub(crate) start_time: OffsetDateTime,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct KeyRotationConfig {
     pub(crate) epoch_duration: Duration,
     pub(crate) rotation_state: KeyRotationState,

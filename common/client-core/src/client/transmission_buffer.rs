@@ -36,9 +36,16 @@ impl SizedData for Fragment {
     }
 }
 
-#[derive(Default)]
 pub(crate) struct TransmissionBuffer<T> {
     buffer: HashMap<TransmissionLane, LaneBufferEntry<T>>,
+}
+
+impl<T> Default for TransmissionBuffer<T> {
+    fn default() -> Self {
+        TransmissionBuffer {
+            buffer: HashMap::new(),
+        }
+    }
 }
 
 impl<T> TransmissionBuffer<T> {
@@ -226,6 +233,10 @@ impl<T> TransmissionBuffer<T> {
         for lane in stale_entries {
             self.remove(&lane);
         }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.buffer.clear()
     }
 }
 

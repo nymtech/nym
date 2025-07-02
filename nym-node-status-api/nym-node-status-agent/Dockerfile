@@ -2,6 +2,7 @@
 FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 ARG GIT_REF=main
+ARG MNEMONIC
 
 RUN apt update && apt install -yy libdbus-1-dev pkg-config libclang-dev
 
@@ -38,4 +39,5 @@ COPY --from=builder /usr/src/nym/target/release/nym-node-status-agent ./
 COPY --from=builder /usr/src/nym-vpn-client/nym-vpn-core/target/release/nym-gateway-probe ./
 
 ENV NODE_STATUS_AGENT_PROBE_PATH=/nym/nym-gateway-probe
+ENV NODE_STATUS_AGENT_PROBE_MNEMONIC="$MNEMONIC"
 ENTRYPOINT [ "/nym/nym-node-status-agent", "run-probe" ]

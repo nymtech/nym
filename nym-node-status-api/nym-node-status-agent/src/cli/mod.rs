@@ -36,6 +36,10 @@ pub(crate) enum Command {
         #[arg(long, env = "NODE_STATUS_AGENT_PROBE_PATH")]
         probe_path: String,
 
+        /// mnemonic for acquiring zk-nyms
+        #[arg(long, env = "NODE_STATUS_AGENT_PROBE_MNEMONIC")]
+        mnemonic: String,
+
         #[arg(
             long,
             env = "NODE_STATUS_AGENT_PROBE_EXTRA_ARGS",
@@ -58,12 +62,14 @@ impl Args {
                 server_port,
                 ns_api_auth_key,
                 probe_path,
+                mnemonic,
                 probe_extra_args,
             } => run_probe::run_probe(
                 server_address,
                 server_port.to_owned(),
                 ns_api_auth_key,
                 probe_path,
+                mnemonic,
                 probe_extra_args,
             )
             .await

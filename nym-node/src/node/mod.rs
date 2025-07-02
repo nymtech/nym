@@ -1114,12 +1114,12 @@ impl NymNode {
         .await?;
 
         self.shutdown_manager.close();
-        self.shutdown_manager.wait_for_shutdown_signal().await;
+        self.shutdown_manager.run_until_shutdown().await;
 
         Ok(())
     }
 
-    pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
+    async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
         info!("starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
             self.ed25519_identity_key(),
             self.config.modes.mixnode,
@@ -1189,9 +1189,27 @@ impl NymNode {
             .await?;
 
         network_refresher.start();
-
         self.shutdown_manager.close();
-        self.shutdown_manager.wait_for_shutdown_signal().await;
+
+        Ok(self.shutdown_manager)
+    }
+
+    pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
+        let mut shutdown_signals = self.shutdown_manager.detach_shutdown_signals();
+
+        // listen for shutdown signal in case we received it when attempting to spawn all the tasks
+        tokio::select! {
+            _ = shutdown_signals.wait_for_signal() => {
+                info!("received shutdown signal during setup - exiting");
+                // ideally we'd also do some cleanup here, but currently there's no easy way to access the handles
+                return Ok(())
+            }
+            startup_result = self.start_nym_node_tasks() => {
+                let mut shutdown_manager = startup_result?;
+                shutdown_manager.replace_shutdown_signals(shutdown_signals);
+                shutdown_manager.run_until_shutdown().await;
+            }
+        }
 
         Ok(())
     }

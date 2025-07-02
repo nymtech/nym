@@ -5,6 +5,7 @@ use crate::{TaskClient, TaskManager};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::future::Future;
+use std::mem;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
@@ -185,12 +186,21 @@ impl ShutdownDropGuard {
     }
 }
 
+#[derive(Default)]
+pub struct ShutdownSignals(JoinSet<()>);
+
+impl ShutdownSignals {
+    pub async fn wait_for_signal(&mut self) {
+        self.0.join_next().await;
+    }
+}
+
 pub struct ShutdownManager {
     pub root_token: ShutdownToken,
 
     legacy_task_manager: Option<TaskManager>,
 
-    shutdown_signals: JoinSet<()>,
+    shutdown_signals: ShutdownSignals,
 
     // the reason I'm not using a `JoinSet` is because it forces us to use futures with the same `::Output` type
     tracker: TaskTracker,
@@ -261,7 +271,7 @@ impl ShutdownManager {
         F: Send + 'static,
     {
         let shutdown_token = self.root_token.clone();
-        self.shutdown_signals.spawn(async move {
+        self.shutdown_signals.0.spawn(async move {
             shutdown.await;
 
             info!("sending cancellation after receiving shutdown signal");
@@ -356,9 +366,20 @@ impl ShutdownManager {
         wait_futures.next().await;
     }
 
-    pub async fn wait_for_shutdown_signal(mut self) {
-        self.shutdown_signals.join_next().await;
+    pub fn detach_shutdown_signals(&mut self) -> ShutdownSignals {
+        mem::take(&mut self.shutdown_signals)
+    }
 
+    pub fn replace_shutdown_signals(&mut self, signals: ShutdownSignals) {
+        self.shutdown_signals = signals;
+    }
+
+    // cancellation safe
+    pub async fn wait_for_shutdown_signal(&mut self) {
+        self.shutdown_signals.0.join_next().await;
+    }
+
+    pub async fn perform_shutdown(mut self) {
         if let Some(legacy_manager) = self.legacy_task_manager.as_mut() {
             info!("attempting to shutdown legacy tasks");
             let _ = legacy_manager.signal_shutdown();
@@ -366,5 +387,11 @@ impl ShutdownManager {
 
         info!("waiting for tasks to finish... (press ctrl-c to force)");
         self.finish_shutdown().await;
+    }
+
+    pub async fn run_until_shutdown(mut self) {
+        self.wait_for_shutdown_signal().await;
+
+        self.perform_shutdown().await;
     }
 }

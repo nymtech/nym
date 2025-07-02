@@ -131,6 +131,7 @@ mod tests {
     use nym_wireguard::peer_controller::{start_controller, stop_controller};
     use rand::rngs::OsRng;
     use time::{Duration, OffsetDateTime};
+    use tokio::sync::RwLock;
 
     use crate::{config::Authenticator, mixnet_listener::credential_storage_preparation};
 
@@ -166,7 +167,10 @@ mod tests {
         stop_controller(task_manager).await;
     }
 
-    async fn helper_add_peer(storage: &MockGatewayStorage, peer_manager: &mut PeerManager) -> i64 {
+    async fn helper_add_peer(
+        storage: &Arc<RwLock<MockGatewayStorage>>,
+        peer_manager: &mut PeerManager,
+    ) -> i64 {
         let peer = Peer::default();
         let ecash_manager = MockEcashManager::new(Box::new(storage.clone()));
         let client_id = storage

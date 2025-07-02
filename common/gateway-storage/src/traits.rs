@@ -203,22 +203,22 @@ pub mod mock {
         _accepted: bool,
     }
 
-    #[derive(Clone, Default)]
+    #[derive(Default)]
     pub struct MockGatewayStorage {
-        available_bandwidth: Arc<RwLock<HashMap<i64, PersistedBandwidth>>>,
-        ecash_signers: Arc<RwLock<Vec<EcashSigner>>>,
-        received_ticket: Arc<RwLock<HashMap<i64, ReceivedTicket>>>,
-        ticket_data: Arc<RwLock<HashMap<i64, TicketData>>>,
-        ticket_verification: Arc<RwLock<HashMap<i64, TicketVerification>>>,
-        verified_tickets: Arc<RwLock<Vec<i64>>>,
-        wireguard_peers: Arc<RwLock<HashMap<String, WireguardPeer>>>,
-        clients: Arc<RwLock<HashMap<i64, String>>>,
+        available_bandwidth: HashMap<i64, PersistedBandwidth>,
+        ecash_signers: Vec<EcashSigner>,
+        received_ticket: HashMap<i64, ReceivedTicket>,
+        ticket_data: HashMap<i64, TicketData>,
+        ticket_verification: HashMap<i64, TicketVerification>,
+        verified_tickets: Vec<i64>,
+        wireguard_peers: HashMap<String, WireguardPeer>,
+        clients: HashMap<i64, String>,
     }
 
     #[async_trait]
-    impl BandwidthGatewayStorage for MockGatewayStorage {
+    impl BandwidthGatewayStorage for Arc<RwLock<MockGatewayStorage>> {
         async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), GatewayStorageError> {
-            self.available_bandwidth.write().await.insert(
+            self.write().await.available_bandwidth.insert(
                 client_id,
                 PersistedBandwidth {
                     client_id,
@@ -234,14 +234,14 @@ pub mod mock {
             client_id: i64,
             expiration: OffsetDateTime,
         ) -> Result<(), GatewayStorageError> {
-            if let Some(bw) = self.available_bandwidth.write().await.get_mut(&client_id) {
+            if let Some(bw) = self.write().await.available_bandwidth.get_mut(&client_id) {
                 bw.expiration = Some(expiration);
             }
             Ok(())
         }
 
         async fn reset_bandwidth(&self, client_id: i64) -> Result<(), GatewayStorageError> {
-            if let Some(bw) = self.available_bandwidth.write().await.get_mut(&client_id) {
+            if let Some(bw) = self.write().await.available_bandwidth.get_mut(&client_id) {
                 bw.available = 0;
                 bw.expiration = Some(OffsetDateTime::UNIX_EPOCH);
             }
@@ -253,9 +253,9 @@ pub mod mock {
             client_id: i64,
         ) -> Result<Option<PersistedBandwidth>, GatewayStorageError> {
             Ok(self
-                .available_bandwidth
                 .read()
                 .await
+                .available_bandwidth
                 .get(&client_id)
                 .cloned())
         }
@@ -265,9 +265,9 @@ pub mod mock {
             client_id: i64,
             amount: i64,
         ) -> Result<i64, GatewayStorageError> {
-            self.available_bandwidth
-                .write()
+            self.write()
                 .await
+                .available_bandwidth
                 .get_mut(&client_id)
                 .map(|bw| {
                     bw.available += amount;
@@ -283,14 +283,13 @@ pub mod mock {
             ticket_id: i64,
             amount: i64,
         ) -> Result<(), GatewayStorageError> {
-            if let Some(client_id) = self
+            let mut guard = self.write().await;
+            if let Some(client_id) = guard
                 .received_ticket
-                .read()
-                .await
                 .get(&ticket_id)
                 .map(|ticket| ticket.client_id)
             {
-                if let Some(bw) = self.available_bandwidth.write().await.get_mut(&client_id) {
+                if let Some(bw) = guard.available_bandwidth.get_mut(&client_id) {
                     bw.available -= amount;
                 }
             }
@@ -302,9 +301,9 @@ pub mod mock {
             client_id: i64,
             amount: i64,
         ) -> Result<i64, GatewayStorageError> {
-            self.available_bandwidth
-                .write()
+            self.write()
                 .await
+                .available_bandwidth
                 .get_mut(&client_id)
                 .map(|bw| {
                     bw.available -= amount;
@@ -320,9 +319,9 @@ pub mod mock {
             _epoch_id: i64,
             signer_ids: Vec<i64>,
         ) -> Result<(), GatewayStorageError> {
-            self.ecash_signers
-                .write()
+            self.write()
                 .await
+                .ecash_signers
                 .extend(signer_ids.iter().map(|signer_id| EcashSigner {
                     _epoch_id,
                     _signer_id: *signer_id,
@@ -337,10 +336,9 @@ pub mod mock {
             serial_number: Vec<u8>,
             data: Vec<u8>,
         ) -> Result<i64, GatewayStorageError> {
-            let mut received_ticket = self.received_ticket.write().await;
-            let mut ticket_data = self.ticket_data.write().await;
-            let ticket_id = received_ticket.len() as i64;
-            received_ticket.insert(
+            let mut guard = self.write().await;
+            let ticket_id = guard.received_ticket.len() as i64;
+            guard.received_ticket.insert(
                 ticket_id,
                 ReceivedTicket {
                     client_id,
@@ -348,7 +346,7 @@ pub mod mock {
                     rejected: None,
                 },
             );
-            ticket_data.insert(
+            guard.ticket_data.insert(
                 ticket_id,
                 TicketData {
                     serial_number,
@@ -360,9 +358,9 @@ pub mod mock {
 
         async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, GatewayStorageError> {
             Ok(self
-                .ticket_data
                 .read()
                 .await
+                .ticket_data
                 .values()
                 .any(|ticket_data| ticket_data.serial_number == serial_number))
         }
@@ -374,7 +372,7 @@ pub mod mock {
             _verified_at: OffsetDateTime,
             _accepted: bool,
         ) -> Result<(), GatewayStorageError> {
-            self.ticket_verification.write().await.insert(
+            self.write().await.ticket_verification.insert(
                 _ticket_id,
                 TicketVerification {
                     _ticket_id,
@@ -387,16 +385,18 @@ pub mod mock {
         }
 
         async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), GatewayStorageError> {
-            if let Some(ticket) = self.received_ticket.write().await.get_mut(&ticket_id) {
+            let mut guard = self.write().await;
+            if let Some(ticket) = guard.received_ticket.get_mut(&ticket_id) {
                 ticket.rejected = Some(true);
             }
-            self.ticket_data.write().await.remove(&ticket_id);
+            guard.ticket_data.remove(&ticket_id);
             Ok(())
         }
 
         async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), GatewayStorageError> {
-            self.verified_tickets.write().await.push(ticket_id);
-            self.ticket_verification.write().await.remove(&ticket_id);
+            let mut guard = self.write().await;
+            guard.verified_tickets.push(ticket_id);
+            guard.ticket_verification.remove(&ticket_id);
             Ok(())
         }
 
@@ -404,7 +404,7 @@ pub mod mock {
             &self,
             ticket_id: i64,
         ) -> Result<(), GatewayStorageError> {
-            if let Some(ticket) = self.ticket_data.write().await.get_mut(&ticket_id) {
+            if let Some(ticket) = self.write().await.ticket_data.get_mut(&ticket_id) {
                 ticket.data = None;
             }
             Ok(())
@@ -468,16 +468,16 @@ pub mod mock {
             peer: &defguard_wireguard_rs::host::Peer,
             client_type: ClientType,
         ) -> Result<i64, GatewayStorageError> {
-            let mut wireguard_peers = self.wireguard_peers.write().await;
-            let mut clients = self.clients.write().await;
-            let client_id = if let Some(peer) = wireguard_peers.get(&peer.public_key.to_string()) {
-                peer.client_id
-            } else {
-                let client_id = clients.len() as i64;
-                clients.insert(client_id, client_type.to_string());
-                client_id
-            };
-            wireguard_peers.insert(
+            let mut guard = self.write().await;
+            let client_id =
+                if let Some(peer) = guard.wireguard_peers.get(&peer.public_key.to_string()) {
+                    peer.client_id
+                } else {
+                    let client_id = guard.clients.len() as i64;
+                    guard.clients.insert(client_id, client_type.to_string());
+                    client_id
+                };
+            guard.wireguard_peers.insert(
                 peer.public_key.to_string(),
                 WireguardPeer::from_defguard_peer(peer.clone(), client_id)?,
             );
@@ -489,9 +489,9 @@ pub mod mock {
             peer_public_key: &str,
         ) -> Result<Option<WireguardPeer>, GatewayStorageError> {
             Ok(self
-                .wireguard_peers
                 .read()
                 .await
+                .wireguard_peers
                 .get(peer_public_key)
                 .cloned())
         }
@@ -504,7 +504,7 @@ pub mod mock {
             &self,
             peer_public_key: &str,
         ) -> Result<(), GatewayStorageError> {
-            self.wireguard_peers.write().await.remove(peer_public_key);
+            self.write().await.wireguard_peers.remove(peer_public_key);
             Ok(())
         }
     }

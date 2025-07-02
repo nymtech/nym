@@ -73,6 +73,7 @@ impl GwProbe {
     pub(crate) fn run_and_get_log(
         &self,
         gateway_key: &Option<String>,
+        mnemonic: &str,
         probe_extra_args: &Vec<String>,
     ) -> String {
         let mut command = std::process::Command::new(&self.path);
@@ -81,6 +82,8 @@ impl GwProbe {
         if let Some(gateway_id) = gateway_key {
             command.arg("--gateway").arg(gateway_id);
         }
+        command.arg("--mnemonic").arg(mnemonic);
+        tracing::info!("Mnemonic used: {}", mnemonic);
 
         tracing::info!("Extra args for the probe:");
         for arg in probe_extra_args {

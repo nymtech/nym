@@ -7,6 +7,8 @@ use sqlx::{
 };
 use std::{path::PathBuf, str::FromStr};
 
+use crate::storage::models::SessionInfoDto;
+
 pub(crate) mod models;
 
 pub(crate) type DbPool = sqlx::PgPool;
@@ -114,6 +116,36 @@ impl StatisticsStorage {
             connection_info.received_from,
             connection_info.country_code,
             connection_info.from_mixnet
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn store_vpn_session_report(
+        &self,
+        session_info: SessionInfoDto,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"INSERT INTO sessions_stats (
+                received_at,
+                day,
+                connection_time_ms,
+                session_duration_min,
+                two_hop,
+                exit_id,
+                error,
+                country_code,
+                from_mixnet) VALUES ($1::timestamptz, $2::date, $3, $4, $5, $6, $7, $8, $9)"#,
+            session_info.received_at as time::OffsetDateTime,
+            session_info.day as time::Date,
+            session_info.connection_time_ms,
+            session_info.session_duration_min,
+            session_info.two_hop,
+            session_info.exit_id,
+            session_info.error,
+            session_info.country_code,
+            session_info.from_mixnet
         )
         .execute(&self.connection_pool)
         .await?;

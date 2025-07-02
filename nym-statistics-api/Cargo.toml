@@ -27,7 +27,7 @@ sqlx = { workspace = true, features = [
     "postgres",
     "time",
 ] }
-time.workspace = true
+time = { workspace = true, features = ["serde-human-readable"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util.workspace = true
 tracing.workspace = true

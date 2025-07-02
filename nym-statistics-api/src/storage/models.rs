@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use axum_extra::headers::UserAgent;
 use celes::Country;
-use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
+use nym_statistics_common::report::vpn_client::{VpnClientStatsReport, VpnSessionReport};
 use time::{Date, OffsetDateTime};
 
 pub type StatsId = String;
@@ -65,5 +65,39 @@ impl ConnectionInfoDto {
             country_code: maybe_country.map(|c| c.alpha2.into()),
             from_mixnet,
         })
+    }
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct SessionInfoDto {
+    pub received_at: OffsetDateTime,
+    pub day: Date,
+    pub connection_time_ms: i32,
+    pub session_duration_min: i32,
+    pub two_hop: bool,
+    pub exit_id: String,
+    pub error: Option<String>,
+    pub country_code: Option<String>,
+    pub from_mixnet: bool,
+}
+
+impl SessionInfoDto {
+    pub(crate) fn new(
+        received_at: OffsetDateTime,
+        session_report: &VpnSessionReport,
+        maybe_country: Option<Country>,
+        from_mixnet: bool,
+    ) -> Self {
+        Self {
+            received_at,
+            day: session_report.day,
+            connection_time_ms: session_report.connection_time_ms,
+            session_duration_min: session_report.session_duration_min,
+            two_hop: session_report.two_hop,
+            exit_id: session_report.exit_id.clone(),
+            error: session_report.error.clone(),
+            country_code: maybe_country.map(|c| c.alpha2.into()),
+            from_mixnet,
+        }
     }
 }

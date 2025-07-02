@@ -1,7 +1,7 @@
 use axum::{extract::State, Json, Router};
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers::UserAgent, TypedHeader};
-use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
+use nym_statistics_common::report::vpn_client::{VpnClientStatsReport, VpnSessionReport};
 use tracing::debug;
 
 use crate::{
@@ -9,11 +9,13 @@ use crate::{
         error::{HttpError, HttpResult},
         state::AppState,
     },
-    storage::models::{ConnectionInfoDto, DailyActiveDeviceDto},
+    storage::models::{ConnectionInfoDto, DailyActiveDeviceDto, SessionInfoDto},
 };
 
 pub(crate) fn routes() -> Router<AppState> {
-    Router::new().route("/report", axum::routing::post(submit_stats_report))
+    Router::new()
+        .route("/report", axum::routing::post(submit_stats_report))
+        .route("/session", axum::routing::post(submit_session_report))
 }
 
 #[utoipa::path(
@@ -61,6 +63,41 @@ async fn submit_stats_report(
     state
         .storage()
         .store_vpn_client_report(active_device, maybe_connection_info)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    Ok(Json(()))
+}
+
+#[utoipa::path(
+    post,
+    request_body = VpnSessionReport,
+    tag = "Stats",
+    path = "/session",
+    context_path = "/v1/stats",
+    responses(
+        (status = 200)
+    )
+)]
+#[tracing::instrument(level = "info", skip_all)]
+async fn submit_session_report(
+    State(mut state): State<AppState>,
+    Json(report): Json<VpnSessionReport>,
+) -> HttpResult<Json<()>> {
+    let now = time::OffsetDateTime::now_utc();
+    let gateway_record = state
+        .network_view()
+        .get_country_by_id(&report.exit_id)
+        .await;
+
+    let from_mixnet = gateway_record.is_some();
+    let maybe_location = gateway_record.unwrap_or_default();
+
+    let session_info = SessionInfoDto::new(now, &report, maybe_location, from_mixnet);
+
+    state
+        .storage()
+        .store_vpn_session_report(session_info)
         .await
         .map_err(HttpError::internal_with_logging)?;
 

@@ -37,7 +37,11 @@ mod stale_data_cleaner;
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
-pub use nym_gateway_storage::{error::GatewayStorageError, traits::*, GatewayStorage};
+pub use nym_gateway_storage::{
+    error::GatewayStorageError,
+    traits::{BandwidthGatewayStorage, InboxGatewayStorage},
+    GatewayStorage,
+};
 use nym_node_metrics::NymNodeMetrics;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 

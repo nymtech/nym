@@ -150,7 +150,7 @@ pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
         client_type: ClientType,
     ) -> Result<i64, GatewayStorageError>;
 
-    /// Tries to retrieve available bandwidth for the particular peer.
+    /// Tries to retrieve a particular peer with the given public key.
     ///
     /// # Arguments
     ///

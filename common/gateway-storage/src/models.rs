@@ -122,8 +122,9 @@ impl WireguardPeer {
         Ok(WireguardPeer {
             public_key: value.public_key.to_string(),
             allowed_ips: bincode::Options::serialize(make_bincode_serializer(), &value.allowed_ips)
-                .map_err(|e| {
-                    crate::error::GatewayStorageError::TypeConversion(format!("allowed ips {e}"))
+                .map_err(|source| crate::error::GatewayStorageError::Serialize {
+                    field_key: "allowed_ips",
+                    source,
                 })?,
             client_id,
         })
@@ -135,16 +136,19 @@ impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
 
     fn try_from(value: WireguardPeer) -> Result<Self, Self::Error> {
         Ok(Self {
-            public_key: value
-                .public_key
-                .as_str()
-                .try_into()
-                .map_err(|e| Self::Error::TypeConversion(format!("public key {e}")))?,
+            public_key: value.public_key.as_str().try_into().map_err(|_| {
+                Self::Error::TypeConversion {
+                    field_key: "public_key",
+                }
+            })?,
             allowed_ips: bincode::Options::deserialize(
                 bincode::DefaultOptions::new(),
                 &value.allowed_ips,
             )
-            .map_err(|e| Self::Error::TypeConversion(format!("allowed ips {e}")))?,
+            .map_err(|source| Self::Error::Deserialize {
+                field_key: "allowed_ips",
+                source,
+            })?,
             ..Default::default()
         })
     }

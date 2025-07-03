@@ -11,6 +11,7 @@ pub mod legacy;
 pub mod models;
 pub mod nym_nodes;
 pub mod pagination;
+pub mod signable;
 
 // The response type we fetch from the network details endpoint.
 #[derive(Clone, Debug, Serialize, Deserialize)]

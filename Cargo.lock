@@ -4900,13 +4900,11 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum 0.7.9",
- "axum-extra",
  "axum-test 16.4.1",
  "bincode",
  "bip39",
  "bs58",
  "cfg-if",
- "chrono",
  "clap",
  "console-subscriber",
  "cosmwasm-std",
@@ -4915,13 +4913,9 @@ dependencies = [
  "cw3",
  "cw4",
  "dashmap",
- "dirs",
  "dotenv",
  "futures",
- "getset",
  "humantime-serde",
- "itertools 0.14.0",
- "k256",
  "moka",
  "nym-api-requests 0.1.0",
  "nym-bandwidth-controller",
@@ -4936,12 +4930,11 @@ dependencies = [
  "nym-crypto 0.4.0",
  "nym-dkg",
  "nym-ecash-contract-common 0.1.0",
+ "nym-ecash-signer-check",
  "nym-ecash-time 0.1.0",
  "nym-gateway-client",
  "nym-http-api-common 0.1.0",
- "nym-inclusion-probability",
  "nym-mixnet-contract-common 0.6.0",
- "nym-multisig-contract-common 0.1.0",
  "nym-node-requests 0.1.0",
  "nym-node-tester-utils",
  "nym-pemstore 0.3.0",
@@ -4953,7 +4946,6 @@ dependencies = [
  "nym-topology 0.1.0",
  "nym-types",
  "nym-validator-client 0.1.0",
- "nym-vesting-contract-common 0.7.0",
  "pin-project",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -4989,14 +4981,15 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "ecdsa",
- "getset",
  "hex",
  "humantime-serde",
+ "nym-coconut-dkg-common 0.1.0",
  "nym-compact-ecash 0.1.0",
  "nym-config 0.1.0",
  "nym-contracts-common 0.5.0",
  "nym-credentials-interface 0.1.0",
  "nym-crypto 0.4.0",
+ "nym-ecash-signer-check-types",
  "nym-ecash-time 0.1.0",
  "nym-mixnet-contract-common 0.6.0",
  "nym-network-defaults 0.1.0",
@@ -5899,6 +5892,36 @@ dependencies = [
  "cw-utils",
  "nym-multisig-contract-common 0.1.0 (git+https://github.com/nymtech/nym.git?branch=release/2025.11-cheddar)",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-ecash-signer-check"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "nym-ecash-signer-check-types",
+ "nym-network-defaults 0.1.0",
+ "nym-validator-client 0.1.0",
+ "semver 1.0.26",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "nym-ecash-signer-check-types"
+version = "0.1.0"
+dependencies = [
+ "nym-coconut-dkg-common 0.1.0",
+ "nym-crypto 0.4.0",
+ "semver 1.0.26",
+ "serde",
+ "thiserror 2.0.12",
+ "time",
+ "tracing",
+ "url",
+ "utoipa",
 ]
 
 [[package]]

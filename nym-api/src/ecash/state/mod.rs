@@ -50,7 +50,6 @@ use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
-use std::ops::Deref;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
@@ -162,14 +161,11 @@ impl EcashState {
         }
     }
 
-    /// Ensures that this nym-api is one of ecash signers for the current epoch
-    pub(crate) async fn ensure_signer(&self) -> Result<()> {
-        if self.local.explicitly_disabled {
-            return Err(EcashError::NotASigner);
-        }
+    pub(crate) async fn current_dkg_epoch(&self) -> Result<EpochId> {
+        self.aux.current_epoch().await
+    }
 
-        let epoch_id = self.aux.current_epoch().await?;
-
+    pub(crate) async fn is_dkg_signer(&self, epoch_id: EpochId) -> Result<bool> {
         let is_epoch_signer = self
             .local
             .active_signer
@@ -183,8 +179,19 @@ impl EcashState {
                 Ok(ecash_signers.iter().any(|c| c.cosmos_address == address))
             })
             .await?;
+        Ok(*is_epoch_signer)
+    }
 
-        if !is_epoch_signer.deref() {
+    /// Ensures that this nym-api is one of ecash signers for the current epoch
+    pub(crate) async fn ensure_signer(&self) -> Result<()> {
+        if self.local.explicitly_disabled {
+            return Err(EcashError::NotASigner);
+        }
+
+        let epoch_id = self.current_dkg_epoch().await?;
+        let is_epoch_signer = self.is_dkg_signer(epoch_id).await?;
+
+        if !is_epoch_signer {
             return Err(EcashError::NotASigner);
         }
 

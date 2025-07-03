@@ -1,5 +1,5 @@
 use crate::utils::{base_url, get_any_node_id, make_request, test_client, validate_json_response};
-use chrono::Utc;
+use time::OffsetDateTime;
 
 #[tokio::test]
 async fn test_get_bonded_nodes() -> Result<(), String> {
@@ -83,7 +83,7 @@ async fn test_get_annotation_for_node() -> Result<(), String> {
 #[tokio::test]
 async fn test_get_historical_performance() -> Result<(), String> {
     let id = get_any_node_id().await?;
-    let date = Utc::now().date_naive().to_string();
+    let date = OffsetDateTime::now_utc().date().to_string();
     let url = format!("{}/v1/nym-nodes/historical-performance/{}", base_url()?, id);
     let res = test_client()
         .get(&url)

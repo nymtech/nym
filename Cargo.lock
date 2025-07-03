@@ -1447,7 +1447,7 @@ checksum = "c2895653b4d9f1538a83970077cb01dfc77a4810524e51a110944688e916b18e"
 dependencies = [
  "prost 0.11.9",
  "prost-types",
- "tonic",
+ "tonic 0.9.2",
  "tracing-core",
 ]
 
@@ -1469,7 +1469,7 @@ dependencies = [
  "thread_local",
  "tokio",
  "tokio-stream",
- "tonic",
+ "tonic 0.9.2",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -1560,13 +1560,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmos-sdk-proto"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95ac39be7373404accccaede7cc1ec942ccef14f0ca18d209967a756bf1dbb1f"
+dependencies = [
+ "informalsystems-pbjson",
+ "prost 0.13.5",
+ "serde",
+ "tendermint-proto",
+ "tonic 0.13.1",
+]
+
+[[package]]
 name = "cosmrs"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1394c263335da09e8ba8c4b2c675d804e3e0deb44cce0866a5f838d3ddd43d02"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto",
+ "cosmos-sdk-proto 0.26.1",
+ "ecdsa",
+ "eyre",
+ "k256",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "signature",
+ "subtle-encoding",
+ "tendermint",
+ "tendermint-rpc",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cosmrs"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34e74fa7a22930fe0579bef560f2d64b78415d4c47b9dd976c0635136809471d"
+dependencies = [
+ "bip32",
+ "cosmos-sdk-proto 0.27.0",
  "ecdsa",
  "eyre",
  "k256",
@@ -1940,7 +1974,7 @@ dependencies = [
  "openssl-probe",
  "openssl-sys",
  "schannel",
- "socket2",
+ "socket2 0.5.10",
  "windows-sys 0.59.0",
 ]
 
@@ -3564,7 +3598,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -3580,6 +3614,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
+ "h2 0.4.11",
  "http 1.3.1",
  "http-body 1.0.1",
  "httparse",
@@ -3635,10 +3670,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyper-util"
-version = "0.1.15"
+name = "hyper-timeout"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f66d5bd4c6f02bf0542fad85d626775bab9258cf795a4256dcaf3161114d1df"
+checksum = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0"
+dependencies = [
+ "hyper 1.6.0",
+ "hyper-util",
+ "pin-project-lite",
+ "tokio",
+ "tower-service",
+]
+
+[[package]]
+name = "hyper-util"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d9b05277c7e8da2c93a568989bb6207bef0112e8d17df7a6eda4a3cf143bc5e"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -3652,7 +3700,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2",
+ "socket2 0.6.0",
  "tokio",
  "tower-service",
  "tracing",
@@ -3680,6 +3728,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ibc-proto"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a650b51e384e54264b53974feb38e95e37aac70f7f2f9c07eb8022fe15eb8e20"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "cosmos-sdk-proto 0.27.0",
+ "flex-error",
+ "ics23",
+ "informalsystems-pbjson",
+ "prost 0.13.5",
+ "serde",
+ "subtle-encoding",
+ "tendermint-proto",
+ "tonic 0.13.1",
+]
+
+[[package]]
+name = "ics23"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73b17f1a5bd7d12ad30a21445cfa5f52fd7651cb3243ba866f9916b1ec112f12"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "hex",
+ "informalsystems-pbjson",
+ "prost 0.13.5",
+ "serde",
 ]
 
 [[package]]
@@ -3925,6 +4006,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "informalsystems-pbjson"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9aa4a0980c8379295100d70854354e78df2ee1c6ca0f96ffe89afeb3140e3a3d"
+dependencies = [
+ "base64 0.21.7",
+ "serde",
+]
+
+[[package]]
 name = "inotify"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3996,9 +4087,9 @@ dependencies = [
 
 [[package]]
 name = "io-uring"
-version = "0.7.8"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b86e202f00093dcba4275d4636b93ef9dd75d025ae560d2521b45ea28ab49013"
+checksum = "d93587f37623a1a17d94ef2bc9ada592f5465fe7732084ab7beefabe5c77c0c4"
 dependencies = [
  "bitflags 2.9.1",
  "cfg-if",
@@ -4017,7 +4108,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b58db92f96b720de98181bbbe63c831e87005ab460c1bf306eb2622b4707997f"
 dependencies = [
- "socket2",
+ "socket2 0.5.10",
  "widestring",
  "windows-sys 0.48.0",
  "winreg",
@@ -4986,7 +5077,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "ecdsa",
  "getset",
@@ -5024,7 +5115,7 @@ version = "0.1.0"
 source = "git+https://github.com/nymtech/nym.git?branch=release/2025.11-cheddar#0d420fb0a56f010b86562fb037034b1ae477a3b8"
 dependencies = [
  "bs58",
- "cosmrs",
+ "cosmrs 0.21.1",
  "cosmwasm-std",
  "ecdsa",
  "getset",
@@ -5218,7 +5309,7 @@ dependencies = [
  "clap",
  "colored",
  "comfy-table",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "csv",
  "cw-utils",
@@ -5379,7 +5470,7 @@ name = "nym-client-core-gateways-storage"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "cosmrs",
+ "cosmrs 0.22.0",
  "nym-crypto 0.4.0",
  "nym-gateway-requests",
  "serde",
@@ -5739,7 +5830,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bls12_381",
- "cosmrs",
+ "cosmrs 0.22.0",
  "log",
  "nym-api-requests 0.1.0",
  "nym-credentials-interface 0.1.0",
@@ -7766,7 +7857,7 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "eyre",
  "hmac",
@@ -7800,7 +7891,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -7851,7 +7942,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored",
- "cosmrs",
+ "cosmrs 0.21.1",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -7916,7 +8007,7 @@ dependencies = [
  "nym-task 0.1.0",
  "nym-ticketbooks-merkle 0.1.0",
  "nym-validator-client 0.1.0",
- "nyxd-scraper",
+ "nyxd-scraper-sqlite",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -8007,7 +8098,7 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "cosmrs",
+ "cosmrs 0.21.1",
  "cosmwasm-std",
  "hex-literal",
  "nym-config 0.1.0",
@@ -8123,7 +8214,7 @@ dependencies = [
  "nym-network-defaults 0.1.0",
  "nym-task 0.1.0",
  "nym-validator-client 0.1.0",
- "nyxd-scraper",
+ "nyxd-scraper-sqlite",
  "reqwest 0.12.22",
  "schemars 0.8.22",
  "serde",
@@ -8141,18 +8232,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "nyxd-scraper"
+name = "nyxd-scraper-psql"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
+ "cosmrs 0.22.0",
+ "itertools 0.14.0",
+ "nyxd-scraper-shared",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "nyxd-scraper-shared"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
  "const_format",
- "cosmrs",
+ "cosmos-sdk-proto 0.27.0",
+ "cosmrs 0.22.0",
  "eyre",
  "futures",
  "humantime",
+ "ibc-proto",
+ "prost 0.13.5",
  "serde",
+ "serde_json",
  "sha2 0.10.9",
- "sqlx",
  "tendermint",
  "tendermint-rpc",
  "thiserror 2.0.12",
@@ -8162,6 +8274,18 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "nyxd-scraper-sqlite"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "nyxd-scraper-shared",
+ "sqlx",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -8961,7 +9085,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls 0.23.29",
- "socket2",
+ "socket2 0.5.10",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -8998,7 +9122,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2",
+ "socket2 0.5.10",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -10285,6 +10409,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "socket2"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "233504af464074f9d066d7b5416c5f9b894a5862a6506e306f7b816cdd6f1807"
+dependencies = [
+ "libc",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "sphinx-packet"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11112,7 +11246,7 @@ dependencies = [
  "pin-project-lite",
  "signal-hook-registry",
  "slab",
- "socket2",
+ "socket2 0.5.10",
  "tokio-macros",
  "tracing",
  "windows-sys 0.52.0",
@@ -11159,7 +11293,7 @@ dependencies = [
  "postgres-protocol",
  "postgres-types",
  "rand 0.9.2",
- "socket2",
+ "socket2 0.5.10",
  "tokio",
  "tokio-util",
  "whoami",
@@ -11330,13 +11464,41 @@ dependencies = [
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.32",
- "hyper-timeout",
+ "hyper-timeout 0.4.1",
  "percent-encoding",
  "pin-project",
  "prost 0.11.9",
  "tokio",
  "tokio-stream",
  "tower 0.4.13",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tonic"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e581ba15a835f4d9ea06c55ab1bd4dce26fc53752c69a04aac00703bfb49ba9"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bytes",
+ "h2 0.4.11",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-timeout 0.5.2",
+ "hyper-util",
+ "percent-encoding",
+ "pin-project",
+ "prost 0.13.5",
+ "socket2 0.5.10",
+ "tokio",
+ "tokio-stream",
+ "tower 0.5.2",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -11370,9 +11532,12 @@ checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
 dependencies = [
  "futures-core",
  "futures-util",
+ "indexmap 2.10.0",
  "pin-project-lite",
+ "slab",
  "sync_wrapper 1.0.2",
  "tokio",
+ "tokio-util",
  "tower-layer",
  "tower-service",
  "tracing",

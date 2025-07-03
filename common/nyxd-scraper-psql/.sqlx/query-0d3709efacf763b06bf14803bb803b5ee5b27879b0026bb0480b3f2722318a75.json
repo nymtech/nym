@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO validator (consensus_address, consensus_pubkey)\n            VALUES ($1, $2)\n            ON CONFLICT DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0d3709efacf763b06bf14803bb803b5ee5b27879b0026bb0480b3f2722318a75"
+}

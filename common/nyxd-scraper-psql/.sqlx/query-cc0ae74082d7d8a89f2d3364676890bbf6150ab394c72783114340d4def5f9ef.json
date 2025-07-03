@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height)\n            VALUES ($1, $2, $3, $4, $5, $6)\n            ON CONFLICT (transaction_hash, index) DO UPDATE\n                SET height = excluded.height,\n                    type = excluded.type,\n                    value = excluded.value,\n                    involved_accounts_addresses = excluded.involved_accounts_addresses\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text",
+        "Json",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc0ae74082d7d8a89f2d3364676890bbf6150ab394c72783114340d4def5f9ef"
+}

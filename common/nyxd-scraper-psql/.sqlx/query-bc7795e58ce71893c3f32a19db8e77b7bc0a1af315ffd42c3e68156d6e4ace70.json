@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT COUNT(*) as count FROM pre_commit\n                WHERE\n                    validator_address = $1\n                    AND height >= $2\n                    AND height <= $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "bc7795e58ce71893c3f32a19db8e77b7bc0a1af315ffd42c3e68156d6e4ace70"
+}

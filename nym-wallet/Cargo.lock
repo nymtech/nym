@@ -11,7 +11,7 @@ dependencies = [
  "bip39",
  "cfg-if",
  "colored 2.2.0",
- "cosmrs",
+ "cosmrs 0.21.1",
  "cosmwasm-std",
  "dirs 4.0.0",
  "dotenvy",
@@ -1204,13 +1204,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmos-sdk-proto"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95ac39be7373404accccaede7cc1ec942ccef14f0ca18d209967a756bf1dbb1f"
+dependencies = [
+ "prost",
+ "tendermint-proto",
+]
+
+[[package]]
 name = "cosmrs"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1394c263335da09e8ba8c4b2c675d804e3e0deb44cce0866a5f838d3ddd43d02"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto",
+ "cosmos-sdk-proto 0.26.1",
+ "ecdsa",
+ "eyre",
+ "k256",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "signature",
+ "subtle-encoding",
+ "tendermint",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cosmrs"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34e74fa7a22930fe0579bef560f2d64b78415d4c47b9dd976c0635136809471d"
+dependencies = [
+ "bip32",
+ "cosmos-sdk-proto 0.27.0",
  "ecdsa",
  "eyre",
  "k256",
@@ -4017,7 +4047,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "ecdsa",
  "getset",
@@ -4390,7 +4420,7 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "eyre",
  "hmac",
@@ -4423,7 +4453,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored 2.2.0",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -4493,7 +4523,7 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "cosmrs",
+ "cosmrs 0.21.1",
  "cosmwasm-std",
  "hex-literal",
  "nym-config",

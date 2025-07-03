@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::UtcDateTime;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
     pub moniker: Option<String>,
     pub website: Option<String>,
@@ -116,7 +116,7 @@ pub fn sanitize_description(
     }
 }
 
-pub async fn scrape_and_store_description(pool: &DbPool, node: &ScraperNodeInfo) -> Result<()> {
+pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -151,15 +151,12 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: &ScraperNodeInfo)
     })?;
 
     let sanitized_description = sanitize_description(description, *node.node_id());
-    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
+    insert_scraped_node_description(pool, node.node_kind.clone(), sanitized_description).await?;
 
     Ok(())
 }
 
-pub async fn scrape_and_store_packet_stats(
-    pool: &DbPool,
-    node: &ScraperNodeInfo,
-) -> Result<()> {
+pub async fn scrape_and_store_packet_stats(pool: &DbPool, node: ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -189,7 +186,7 @@ pub async fn scrape_and_store_packet_stats(
 
     let timestamp = now_utc();
     let timestamp_utc = timestamp.unix_timestamp();
-    insert_node_packet_stats(pool, &node.node_kind, &stats, timestamp_utc).await?;
+    insert_node_packet_stats(pool, node.node_kind.clone(), &stats, timestamp_utc).await?;
 
     // Update daily stats
     update_daily_stats(pool, node, timestamp, &stats).await?;
@@ -199,7 +196,7 @@ pub async fn scrape_and_store_packet_stats(
 
 pub async fn update_daily_stats(
     pool: &DbPool,
-    node: &ScraperNodeInfo,
+    node: ScraperNodeInfo,
     timestamp: UtcDateTime,
     current_stats: &NodeStats,
 ) -> Result<()> {
@@ -211,7 +208,7 @@ pub async fn update_daily_stats(
     );
 
     // Get previous stats
-    let previous_stats = get_raw_node_stats(pool, node).await?;
+    let previous_stats = get_raw_node_stats(pool, node.clone()).await?;
 
     let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
         (
@@ -226,7 +223,7 @@ pub async fn update_daily_stats(
     insert_daily_node_stats(
         pool,
         node,
-        &date_utc,
+        date_utc,
         NodeStats {
             packets_received: diff_received,
             packets_sent: diff_sent,

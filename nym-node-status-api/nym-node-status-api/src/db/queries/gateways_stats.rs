@@ -101,7 +101,8 @@ pub(crate) async fn get_sessions_stats(pool: &DbPool) -> anyhow::Result<Vec<Sess
 
 pub(crate) async fn delete_old_records(pool: &DbPool, cut_off: Date) -> anyhow::Result<()> {
     let mut conn = pool.acquire().await?;
-    sqlx::query!("DELETE FROM gateway_session_stats WHERE day <= ?", cut_off)
+    crate::db::query("DELETE FROM gateway_session_stats WHERE day <= ?")
+        .bind(cut_off)
         .execute(&mut *conn)
         .await?;
     Ok(())

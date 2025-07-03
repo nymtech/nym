@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use futures_util::TryStreamExt;
+use sqlx::Row;
 use tracing::error;
 
 use crate::{
@@ -19,7 +20,7 @@ pub(crate) async fn update_mixnodes(
     let mut tx = pool.begin().await?;
 
     // mark all as unbonded
-    sqlx::query!(
+    crate::db::query(
         r#"UPDATE
             mixnodes
         SET
@@ -77,10 +78,10 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
             mn.full_details as "full_details!",
             mn.self_described as "self_described",
             mn.last_updated_utc as "last_updated_utc!",
-            COALESCE(md.moniker, "NA") as "moniker!",
-            COALESCE(md.website, "NA") as "website!",
-            COALESCE(md.security_contact, "NA") as "security_contact!",
-            COALESCE(md.details, "NA") as "details!"
+            md.moniker as "moniker!",
+            md.website as "website!",
+            md.security_contact as "security_contact!",
+            md.details as "details!"
          FROM mixnodes mn
          LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id
          ORDER BY mn.mix_id"#
@@ -143,17 +144,17 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
 
 pub(crate) async fn get_bonded_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<i64>> {
     let mut conn = pool.acquire().await?;
-    let items = sqlx::query!(
+    let items = crate::db::query(
         r#"
             SELECT mix_id
             FROM mixnodes
             WHERE bonded = true
-        "#
+        "#,
     )
     .fetch_all(&mut *conn)
     .await?
     .into_iter()
-    .map(|record| record.mix_id)
+    .map(|record| record.try_get::<i64, _>("mix_id").unwrap())
     .collect::<HashSet<_>>();
 
     Ok(items)
@@ -161,11 +162,11 @@ pub(crate) async fn get_bonded_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<
 
 pub(crate) async fn insert_mixnode_description(
     conn: &mut DbConnection,
-    mix_id: &i64,
-    description: &NodeDescriptionResponse,
+    mix_id: i64,
+    description: NodeDescriptionResponse,
     timestamp: i64,
 ) -> anyhow::Result<()> {
-    sqlx::query!(
+    crate::db::query(
         r#"
         INSERT INTO mixnode_description (
             mix_id, moniker, website, security_contact, details, last_updated_utc
@@ -177,13 +178,13 @@ pub(crate) async fn insert_mixnode_description(
             details = excluded.details,
             last_updated_utc = excluded.last_updated_utc
         "#,
-        mix_id,
-        description.moniker,
-        description.website,
-        description.security_contact,
-        description.details,
-        timestamp,
     )
+    .bind(mix_id)
+    .bind(description.moniker)
+    .bind(description.website)
+    .bind(description.security_contact)
+    .bind(description.details)
+    .bind(timestamp)
     .execute(conn.as_mut())
     .await
     .map(drop)

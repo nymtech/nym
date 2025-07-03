@@ -252,17 +252,23 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            (NYMNODE_COUNT, nym_node_count),
-            (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
-            (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
-            (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
-            (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
-            (ASSIGNED_ENTRY_COUNT, assigned_entry_count),
-            (ASSIGNED_EXIT_COUNT, assigned_exit_count),
+            (NYMNODE_COUNT.to_string(), nym_node_count),
+            (ASSIGNED_MIXING_COUNT.to_string(), assigned_mixing_count),
+            (MIXNODES_LEGACY_COUNT.to_string(), count_legacy_mixnodes),
+            (NYMNODES_DESCRIBED_COUNT.to_string(), described_nodes.len()),
+            (GATEWAYS_BONDED_COUNT.to_string(), count_bonded_gateways),
+            (ASSIGNED_ENTRY_COUNT.to_string(), assigned_entry_count),
+            (ASSIGNED_EXIT_COUNT.to_string(), assigned_exit_count),
             // TODO dz doesn't make sense, could make sense with historical Nym
             // Nodes if we really need this data
-            (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
-            (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
+            (
+                MIXNODES_HISTORICAL_COUNT.to_string(),
+                all_historical_mixnodes,
+            ),
+            (
+                GATEWAYS_HISTORICAL_COUNT.to_string(),
+                all_historical_gateways,
+            ),
         ];
 
         let last_updated = now_utc();
@@ -295,7 +301,8 @@ impl Monitor {
             },
         };
 
-        queries::insert_summaries(&pool, &nodes_summary, &network_summary, last_updated).await?;
+        queries::insert_summaries(&pool, nodes_summary.clone(), network_summary, last_updated)
+            .await?;
 
         let mut log_lines: Vec<String> = vec![];
         for (key, value) in nodes_summary.iter() {

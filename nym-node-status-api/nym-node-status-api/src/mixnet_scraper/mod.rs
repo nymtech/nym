@@ -2,9 +2,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 pub mod helpers;
+use crate::db::DbPool;
 use anyhow::Result;
 use helpers::{scrape_and_store_description, scrape_and_store_packet_stats};
-use crate::db::DbPool;
 use tracing::{debug, error, instrument, warn};
 
 use crate::db::models::ScraperNodeInfo;
@@ -127,7 +127,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match scrape_and_store_description(&pool, &node).await {
+                    match scrape_and_store_description(&pool, node.clone()).await {
                         Ok(_) => debug!(
                             "📝 ✅ Description task #{} for node {} complete",
                             task_id,
@@ -172,7 +172,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match scrape_and_store_packet_stats(&pool, &node).await {
+                    match scrape_and_store_packet_stats(&pool, node.clone()).await {
                         Ok(_) => debug!(
                             "📊 ✅ Packet stats task #{} for node {} complete",
                             task_id,

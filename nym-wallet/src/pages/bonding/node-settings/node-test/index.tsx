@@ -8,7 +8,7 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Results } from 'src/components/TestNode/Results';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { PrintResults } from 'src/components/TestNode/PrintResults';
-import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from 'src/constants';
+import { MAINNET_VALIDATOR_URL } from 'src/constants';
 import { TestStatus } from 'src/components/TestNode/types';
 import { isMixnode } from 'src/types';
 
@@ -63,7 +63,7 @@ export const NodeTestPage = () => {
   const loadNodeTestClient = useCallback(async () => {
     try {
       const nodeTesterId = new Date().toISOString(); // make a new tester id for each session
-      const validator = network === 'MAINNET' ? MAINNET_VALIDATOR_URL : QA_VALIDATOR_URL;
+      const validator = network === 'MAINNET' ? MAINNET_VALIDATOR_URL : 'https://rpc.nymtech.net/api/';
       const client = await createNodeTesterClient();
       await client.tester.init(validator, nodeTesterId);
       setNodeTestClient(client);

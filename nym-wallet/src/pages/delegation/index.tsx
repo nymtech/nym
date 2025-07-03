@@ -19,18 +19,9 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 import { VestingWarningModal } from '../../components/VestingWarningModal';
 
-const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
-  isStorybook
-    ? {
-        backdropProps: { ...backDropStyles(theme), ...backdropProps },
-        sx: modalStyles(theme),
-      }
-    : {};
-
-export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
+export const Delegation: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
@@ -472,7 +463,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
-          {...storybookStyles(theme, isStorybook)}
         />
       )}
 
@@ -548,10 +538,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   );
 };
 
-export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => (
+export const DelegationPage: FC = () => (
   <DelegationContextProvider>
     <RewardsContextProvider>
-      <Delegation isStorybook={isStorybook} />
+      <Delegation />
     </RewardsContextProvider>
   </DelegationContextProvider>
 );

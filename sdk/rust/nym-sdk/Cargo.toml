@@ -49,6 +49,10 @@ nym-sphinx-addressing = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
 ] }
+
+nym-ip-packet-client = { git = "https://github.com/nymtech/nym-vpn-client", rev = "5c3aacfce158aac73cbd3fd905d90269f8bacc01" } # max/re-export-test https://github.com/nymtech/nym-vpn-client/commit/5c3aacfce158aac73cbd3fd905d90269f8bacc01
+# nym-gateway-directory
+
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }
 bytes = { workspace = true }

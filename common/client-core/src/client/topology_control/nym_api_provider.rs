@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::{debug, error, warn};
+use log::{debug, error};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopology;
-use nym_validator_client::UserAgent;
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use nym_validator_client::{nym_api, NymApiClient, UserAgent};
 use std::cmp::min;
 use url::Url;
 
@@ -41,48 +39,30 @@ pub struct NymApiTopologyProvider {
     config: Config,
 
     validator_client: nym_validator_client::client::NymApiClient,
-    nym_api_urls: Vec<Url>,
-    currently_used_api: usize,
 }
 
 impl NymApiTopologyProvider {
     pub fn new(
         config: impl Into<Config>,
-        mut nym_api_urls: Vec<Url>,
+        nym_api_urls: Vec<Url>,
         user_agent: Option<UserAgent>,
     ) -> Self {
-        nym_api_urls.shuffle(&mut thread_rng());
-
-        let validator_client = if let Some(user_agent) = user_agent {
-            nym_validator_client::client::NymApiClient::new_with_user_agent(
-                nym_api_urls[0].clone(),
-                user_agent,
-            )
-        } else {
-            nym_validator_client::client::NymApiClient::new(nym_api_urls[0].clone())
-        };
+        let urls = nym_api_urls.iter().map(Into::into).collect();
+        let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)
+            .with_user_agent(user_agent)
+            .with_retries(3)
+            .build::<&str>()
+            .expect("failed to create NymApiClient");
+        let validator_client = NymApiClient::new_with_client(client);
 
         NymApiTopologyProvider {
             config: config.into(),
             validator_client,
-            nym_api_urls,
-            currently_used_api: 0,
         }
     }
 
     pub fn disable_bincode(&mut self) {
         self.validator_client.use_bincode = false;
-    }
-
-    fn use_next_nym_api(&mut self) {
-        if self.nym_api_urls.len() == 1 {
-            warn!("There's only a single nym API available - it won't be possible to use a different one");
-            return;
-        }
-
-        self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
-        self.validator_client
-            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
@@ -155,7 +135,6 @@ impl NymApiTopologyProvider {
 impl TopologyProvider for NymApiTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
         let Some(topology) = self.get_current_compatible_topology().await else {
-            self.use_next_nym_api();
             return None;
         };
         Some(topology)
@@ -167,7 +146,6 @@ impl TopologyProvider for NymApiTopologyProvider {
 impl TopologyProvider for NymApiTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
         let Some(topology) = self.get_current_compatible_topology().await else {
-            self.use_next_nym_api();
             return None;
         };
         Some(topology)

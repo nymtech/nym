@@ -11,6 +11,8 @@ use itertools::Itertools;
 use url::form_urlencoded;
 pub use url::ParseError;
 
+pub use nym_network_defaults::ApiUrl;
+
 /// A trait to try to convert some type into a `Url`.
 pub trait IntoUrl {
     /// Parse as a valid `Url`
@@ -113,13 +115,58 @@ impl From<Url> for url::Url {
     }
 }
 
-impl From<reqwest::Url> for Url {
+impl From<&url::Url> for Url {
+    fn from(url: &url::Url) -> Self {
+        Self {
+            url: url.clone(),
+            fronts: None,
+            current_front: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+impl From<url::Url> for Url {
     fn from(url: url::Url) -> Self {
         Self {
             url,
             fronts: None,
             current_front: Arc::new(AtomicUsize::new(0)),
         }
+    }
+}
+
+impl From<tendermint_rpc::HttpClientUrl> for Url {
+    fn from(url: tendermint_rpc::HttpClientUrl) -> Self {
+        let url: url::Url = url.into();
+        Self {
+            url,
+            fronts: None,
+            current_front: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+impl TryInto<tendermint_rpc::HttpClientUrl> for Url {
+    type Error = tendermint_rpc::Error;
+
+    fn try_into(self) -> Result<tendermint_rpc::HttpClientUrl, Self::Error> {
+        tendermint_rpc::HttpClientUrl::try_from(self.as_str())
+    }
+}
+
+impl TryFrom<ApiUrl> for Url {
+    type Error = reqwest::Error;
+
+    fn try_from(value: ApiUrl) -> Result<Self, Self::Error> {
+        Url::new(value.url, value.front_hosts)
+    }
+}
+
+impl TryFrom<&ApiUrl> for Url {
+    type Error = reqwest::Error;
+
+    fn try_from(value: &ApiUrl) -> Result<Self, Self::Error> {
+        Url::new(value.url.clone(), value.front_hosts.clone())
     }
 }
 
@@ -224,6 +271,11 @@ impl Url {
             }
         }
         true
+    }
+
+    /// If this URL has a host and it is a domain name (not an IP address), return it. Non-ASCII domains are punycode-encoded per IDNA if this is the host of a special URL, or percent encoded for non-special URLs.
+    pub fn domain(&self) -> Option<&str> {
+        self.url.domain()
     }
 
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ‘:’ delimiter.

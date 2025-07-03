@@ -151,8 +151,7 @@ where
     let content = fs::read_to_string(path)?;
 
     // TODO: should we be preserving original error type instead?
-    deserialize_config_from_toml_str(&content)
-        .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+    deserialize_config_from_toml_str(&content).map_err(io::Error::other)
 }
 
 //

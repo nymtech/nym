@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use nym_http_api_client::{
     parse_response, ApiClient, HttpClientError, Params, PathSegments, NO_PARAMS,
 };
-use reqwest::IntoUrl;
+use reqwest::header::USER_AGENT;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -22,20 +22,11 @@ pub struct VpnApiClient {
     bearer_token: String,
 }
 
-pub fn new_client(
-    base_url: impl IntoUrl,
-    bearer_token: impl Into<String>,
-) -> Result<VpnApiClient, VpnApiClientError> {
-    let url = base_url.into_url()?;
-    Ok(VpnApiClient {
-        inner: Client::builder(url)?
-            .with_user_agent(format!(
-                "nym-credential-proxy-requests/{}",
-                env!("CARGO_PKG_VERSION")
-            ))
-            .build()?,
+pub fn new_from_client(client: Client, bearer_token: impl Into<String>) -> VpnApiClient {
+    VpnApiClient {
+        inner: client,
         bearer_token: bearer_token.into(),
-    })
+    }
 }
 
 // TODO: do it properly by implementing auth headers on `ApiClient` trait
@@ -99,6 +90,13 @@ impl NymVpnApiClient for VpnApiClient {
             .inner
             .create_get_request(path, NO_PARAMS)
             .bearer_auth(&self.bearer_token)
+            .header(
+                USER_AGENT,
+                format!(
+                    "nym-credential-proxy-requests/{}",
+                    env!("CARGO_PKG_VERSION")
+                ),
+            )
             .send();
 
         // the only reason for that target lock is so that I could call this method from an ephemeral test
@@ -131,6 +129,13 @@ impl NymVpnApiClient for VpnApiClient {
             .inner
             .create_post_request(path, params, json_body)
             .bearer_auth(&self.bearer_token)
+            .header(
+                USER_AGENT,
+                format!(
+                    "nym-credential-proxy-requests/{}",
+                    env!("CARGO_PKG_VERSION")
+                ),
+            )
             .send();
 
         // the only reason for that target lock is so that I could call this method from an ephemeral test

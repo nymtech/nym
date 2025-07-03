@@ -27,12 +27,11 @@ use nym_api_requests::models::{
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
 use nym_coconut_dkg_common::types::EpochId;
-use nym_http_api_client::UserAgent;
+use nym_http_api_client::{Url, UserAgent};
 use nym_mixnet_contract_common::EpochRewardedSet;
 use nym_network_defaults::NymNetworkDetails;
 use std::net::IpAddr;
 use time::Date;
-use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
@@ -49,7 +48,7 @@ use crate::{DirectSigningHttpRpcValidatorClient, HttpRpcClient, QueryHttpRpcVali
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Config {
-    api_url: Url,
+    api_urls: Vec<Url>,
     nyxd_url: Url,
 
     // TODO: until refactored, this is a dead field under some features
@@ -68,19 +67,23 @@ impl Config {
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
     ) -> Result<Self, ValidatorClientError> {
-        let mut api_url = details
-            .endpoints
-            .iter()
-            .filter_map(|d| d.api_url.as_ref())
-            .map(|url| Url::parse(url))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        if api_url.is_empty() {
+        if details
+            .nym_api_urls
+            .as_ref()
+            .is_none_or(|urls| urls.is_empty())
+        {
             return Err(ValidatorClientError::NoAPIUrlAvailable);
         }
+        let api_urls = details
+            .nym_api_urls
+            .clone()
+            .ok_or(ValidatorClientError::NoAPIUrlAvailable)?
+            .iter()
+            .map(TryInto::<Url>::try_into)
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Config {
-            api_url: api_url.pop().unwrap(),
+            api_urls,
             nyxd_url: details.endpoints[0]
                 .nyxd_url
                 .parse()
@@ -91,9 +94,9 @@ impl Config {
 
     // TODO: this method shouldn't really exist as all information should be included immediately
     // via `from_nym_network_details`, but it's here for, you guessed it, legacy compatibility
-    pub fn with_urls(mut self, nyxd_url: Url, api_url: Url) -> Self {
+    pub fn with_urls(mut self, nyxd_url: Url, api_urls: Vec<Url>) -> Self {
         self.nyxd_url = nyxd_url;
-        self.api_url = api_url;
+        self.api_urls = api_urls;
         self
     }
 
@@ -132,7 +135,8 @@ impl Client<HttpRpcClient, DirectSecp256k1HdWallet> {
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nyxd.change_endpoint(new_endpoint.as_ref())?;
+        self.nyxd
+            .change_endpoint(<Url as Into<url::Url>>::into(new_endpoint).as_ref())?;
         Ok(())
     }
 }
@@ -142,7 +146,7 @@ impl Client<ReqwestRpcClient, DirectSecp256k1HdWallet> {
         config: Config,
         mnemonic: bip39::Mnemonic,
     ) -> DirectSigningReqwestRpcValidatorClient {
-        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone());
+        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone().into());
         let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
@@ -158,21 +162,24 @@ impl Client<HttpRpcClient> {
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nyxd = NyxdClient::connect(self.nyxd.current_config().clone(), new_endpoint.as_ref())?;
+        self.nyxd = NyxdClient::connect(self.nyxd.current_config().clone(), new_endpoint)?;
         Ok(())
     }
 }
 
 impl Client<ReqwestRpcClient> {
     pub fn new_reqwest_query(config: Config) -> QueryReqwestRpcValidatorClient {
-        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone());
+        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone().into());
         Self::new_with_rpc_client(config, rpc_client)
     }
 }
 
 impl<C> Client<C> {
     pub fn new_with_rpc_client(config: Config, rpc_client: C) -> Self {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
+        let nym_api_client =
+            nym_http_api_client::ClientBuilder::new_with_urls(config.api_urls.clone())
+                .build::<ValidatorClientError>()
+                .expect("failed to build nym api client");
 
         Client {
             nym_api: nym_api_client,
@@ -186,7 +193,10 @@ impl<C, S> Client<C, S> {
     where
         S: OfflineSigner,
     {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
+        let nym_api_client =
+            nym_http_api_client::ClientBuilder::new_with_urls(config.api_urls.clone())
+                .build::<ValidatorClientError>()
+                .expect("failed to build nym api client");
 
         Client {
             nym_api: nym_api_client,
@@ -199,7 +209,7 @@ impl<C, S> Client<C, S> {
 // we have to allow the use of deprecated method here as they're calling the deprecated trait methods
 #[allow(deprecated)]
 impl<C, S> Client<C, S> {
-    pub fn api_url(&self) -> &Url {
+    pub fn api_url(&self) -> &url::Url {
         self.nym_api.current_url().as_ref()
     }
 
@@ -363,8 +373,16 @@ impl From<nym_api::Client> for NymApiClient {
 // we have to allow the use of deprecated method here as they're calling the deprecated trait methods
 #[allow(deprecated)]
 impl NymApiClient {
+    pub fn new_with_client(client: nym_api::Client) -> Self {
+        NymApiClient {
+            use_bincode: false,
+            nym_api: client,
+        }
+    }
+
     pub fn new(api_url: Url) -> Self {
-        let nym_api = nym_api::Client::new(api_url, None);
+        let nym_api =
+            nym_api::Client::new_url(api_url, None).expect("Failed to create Nym API client");
 
         NymApiClient {
             use_bincode: true,
@@ -374,7 +392,8 @@ impl NymApiClient {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_with_timeout(api_url: Url, timeout: std::time::Duration) -> Self {
-        let nym_api = nym_api::Client::new(api_url, Some(timeout));
+        let nym_api = nym_api::Client::new_url(api_url, Some(timeout))
+            .expect("Failed to create Nym API client with timeout");
 
         NymApiClient {
             use_bincode: true,
@@ -391,7 +410,7 @@ impl NymApiClient {
     pub fn new_with_user_agent(api_url: Url, user_agent: impl Into<UserAgent>) -> Self {
         let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
             .expect("invalid api url")
-            .with_user_agent(user_agent.into())
+            .with_user_agent(Some(user_agent.into()))
             .build::<ValidatorClientError>()
             .expect("failed to build nym api client");
 
@@ -401,7 +420,7 @@ impl NymApiClient {
         }
     }
 
-    pub fn api_url(&self) -> &Url {
+    pub fn api_url(&self) -> &url::Url {
         self.nym_api.current_url().as_ref()
     }
 

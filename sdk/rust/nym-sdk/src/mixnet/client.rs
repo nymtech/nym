@@ -547,7 +547,6 @@ where
         let topology_cfg = &self.config.debug_config.topology;
         let mut rng = OsRng;
         let available_gateways = gateways_for_init(
-            &mut rng,
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,

@@ -24,4 +24,7 @@ pub enum ValidatorClientError {
 
     #[error("No validator API url has been provided")]
     NoAPIUrlAvailable,
+
+    #[error("reqwest request failed: {0}")]
+    ReqwestError(#[from] reqwest::Error),
 }

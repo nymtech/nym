@@ -26,6 +26,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 itertools = { workspace = true }
+tendermint-rpc = { workspace = true, features = ["http-client"] }
 
 # used for decoding text responses (they were already implicitly included)
 bytes = { workspace = true }
@@ -34,6 +35,7 @@ mime = { workspace = true }
 
 nym-http-api-common = { path = "../http-api-common", default-features = false }
 nym-bin-common = { path = "../bin-common" }
+nym-network-defaults = { path = "../network-defaults" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 hickory-resolver = { workspace = true, features = ["https-ring", "tls-ring", "webpki-roots"] }

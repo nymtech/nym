@@ -90,7 +90,7 @@ impl TryFrom<ContractVKShare> for EcashApiClient {
         // failure. This indicates that the long lived https connection was closed by the remote
         // peer and the resolver will have to reconnect. It should not impact actual functionality
         Ok(EcashApiClient {
-            api_client: NymApiClient::new(url_address),
+            api_client: NymApiClient::new(url_address.into()),
             verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
             node_id: share.node_index,
             cosmos_address: share.owner.as_str().parse()?,

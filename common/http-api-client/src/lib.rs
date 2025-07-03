@@ -427,6 +427,12 @@ impl ClientBuilder {
         }
     }
 
+    /// Set multiple base URLs for this client.
+    pub fn with_urls(mut self, urls: Vec<Url>) -> Self {
+        self.urls = Self::check_urls(urls);
+        self
+    }
+
     fn check_urls(mut urls: Vec<Url>) -> Vec<Url> {
         // remove any duplicate URLs
         urls = urls.into_iter().unique().collect();
@@ -470,13 +476,23 @@ impl ClientBuilder {
     }
 
     /// Sets the `User-Agent` header to be used by this client.
-    pub fn with_user_agent<V>(mut self, value: V) -> Self
+    pub fn with_user_agent<V>(mut self, value: Option<V>) -> Self
     where
         V: TryInto<HeaderValue>,
         V::Error: Into<http::Error>,
     {
-        self.custom_user_agent = true;
-        self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
+        match value {
+            Some(value) => {
+                self.custom_user_agent = true;
+                self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
+            }
+            None => {
+                // if no user agent is provided, we will use the default one
+                // if it was set this resets it to an empty value
+                self.custom_user_agent = false;
+                self.reqwest_client_builder = self.reqwest_client_builder.user_agent("");
+            }
+        }
         self
     }
 
@@ -541,6 +557,8 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     base_urls: Vec<Url>,
+    /// for clients configured with multiple equivalent base urls, this is used to track the
+    /// current index of the base url that is in active use.
     current_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
 
@@ -560,17 +578,13 @@ impl Client {
     // In order to prevent interference in API requests at the DNS phase we default to a resolver
     // that uses DoT and DoH.
     pub fn new(base_url: ::url::Url, timeout: Option<Duration>) -> Self {
-        Self::new_url::<_, String>(base_url, timeout).expect(
+        Self::new_url(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",
         )
     }
 
     /// Attempt to create a new http client from a something that can be converted to a URL
-    pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
-    where
-        U: IntoUrl,
-        E: Display,
-    {
+    pub fn new_url<U: IntoUrl>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError> {
         let builder = Self::builder(url)?;
         match timeout {
             Some(timeout) => builder.with_timeout(timeout).build(),

@@ -89,23 +89,20 @@ impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
     }
 }
 
-pub async fn gateways_for_init<R: Rng>(
-    rng: &mut R,
+pub async fn gateways_for_init(
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
     ignore_epoch_roles: bool,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
-    let nym_api = nym_apis
-        .choose(rng)
-        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = if let Some(user_agent) = user_agent {
-        nym_validator_client::client::NymApiClient::new_with_user_agent(nym_api.clone(), user_agent)
-    } else {
-        nym_validator_client::client::NymApiClient::new(nym_api.clone())
-    };
+    let api_urls = nym_apis.iter().map(Into::into).collect();
+    let http_client = nym_http_api_client::ClientBuilder::new_with_urls(api_urls)
+        .with_user_agent(user_agent)
+        .build()
+        .map_err(|e| ClientCoreError::ValidatorClientError(e.into()))?;
+    let client = nym_validator_client::client::NymApiClient::new_with_client(http_client);
 
-    log::debug!("Fetching list of gateways from: {nym_api}");
+    log::debug!("Fetching list of gateways from: {:?}", client.api_url());
 
     let gateways = client.get_all_basic_entry_assigned_nodes().await?;
     info!("nym api reports {} gateways", gateways.len());

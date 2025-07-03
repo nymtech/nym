@@ -88,7 +88,7 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
     });
 
     let api_connection_test_clients = api_urls.map(|(network, url)| {
-        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url))
+        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url.into()))
     });
 
     nyxd_connection_test_clients.chain(api_connection_test_clients)

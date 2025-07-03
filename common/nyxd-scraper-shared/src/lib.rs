@@ -1,14 +1,17 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) mod block_processor;
+pub(crate) mod block_requester;
+pub mod constants;
+pub mod error;
+pub(crate) mod helpers;
+pub mod modules;
+pub(crate) mod rpc_client;
+pub(crate) mod scraper;
+mod storage;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use block_processor::pruning::{PruningOptions, PruningStrategy};
+pub use block_processor::types::ParsedTransactionResponse;
+pub use modules::{BlockModule, MsgModule, TxModule};
+pub use scraper::{Config, NyxdScraper, StartingBlockOpts};

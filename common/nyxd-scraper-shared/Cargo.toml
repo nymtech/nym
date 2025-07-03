@@ -11,6 +11,23 @@ rust-version.workspace = true
 readme.workspace = true
 
 [dependencies]
+async-trait.workspace = true
+const_format = { workspace = true }
+cosmrs.workspace = true
+eyre = { workspace = true }
+futures.workspace = true
+humantime = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tendermint.workspace = true
+tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
+thiserror.workspace = true
+time = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+url.workspace = true
 
 [lints]
 workspace = true

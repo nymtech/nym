@@ -28,11 +28,15 @@ moka = { workspace = true, features = ["future"] }
 # Nym API: revert after Cheddar is out
 nym-contracts-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-mixnet-contract-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
-nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = ["openapi"]}
+nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [
+    "openapi",
+] }
 nym-node-status-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-http-api-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
-nym-http-api-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = ["middleware"]}
+nym-http-api-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [
+    "middleware",
+] }
 nym-network-defaults = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-serde-helpers = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-statistics-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
@@ -62,7 +66,7 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -77,13 +81,16 @@ utoipauto = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 
+[features]
+default = ["pg"]
+sqlite = ["sqlx/sqlite"]
+pg = ["sqlx/postgres"]
 
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
-    "sqlite",
     "macros",
     "migrate",
 ] }

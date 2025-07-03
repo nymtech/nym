@@ -495,14 +495,30 @@ impl Monitor {
 async fn historical_count(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
     let mut conn = pool.acquire().await?;
 
+    #[cfg(feature = "sqlite")]
     let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
         .fetch_one(&mut *conn)
         .await?
         .cast_checked()?;
 
+    #[cfg(feature = "pg")]
+    let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
+        .fetch_one(&mut *conn)
+        .await?
+        .unwrap_or(0)
+        .cast_checked()?;
+
+    #[cfg(feature = "sqlite")]
     let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
         .fetch_one(&mut *conn)
         .await?
+        .cast_checked()?;
+
+    #[cfg(feature = "pg")]
+    let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
+        .fetch_one(&mut *conn)
+        .await?
+        .unwrap_or(0)
         .cast_checked()?;
 
     Ok((all_historical_gateways, all_historical_mixnodes))

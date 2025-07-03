@@ -1,16 +1,16 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "\n            SELECT mix_id\n            FROM mixnodes\n            WHERE bonded = true\n        ",
   "describe": {
     "columns": [
       {
-        "name": "mix_id",
         "ordinal": 0,
-        "type_info": "Integer"
+        "name": "mix_id",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": [
       false

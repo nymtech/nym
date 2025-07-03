@@ -1,16 +1,16 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "\n            SELECT gateway_identity_key\n            FROM gateways\n            WHERE bonded = true\n        ",
   "describe": {
     "columns": [
       {
-        "name": "gateway_identity_key",
         "ordinal": 0,
-        "type_info": "Text"
+        "name": "gateway_identity_key",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": [
       false

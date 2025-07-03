@@ -5,13 +5,14 @@ use crate::{
             get_raw_node_stats, insert_daily_node_stats_uncommitted,
             insert_scraped_node_description,
         },
+        DbPool,
     },
     utils::{generate_node_name, now_utc},
 };
 use ammonia::Builder;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, Transaction};
+use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
 
@@ -115,7 +116,7 @@ pub fn sanitize_description(
     }
 }
 
-pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeInfo) -> Result<()> {
+pub async fn scrape_and_store_description(pool: &DbPool, node: &ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -195,8 +196,28 @@ pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRe
     Ok(result)
 }
 
+#[cfg(feature = "sqlite")]
 pub async fn update_daily_stats_uncommitted(
     tx: &mut Transaction<'static, sqlx::Sqlite>,
+    node_kind: &ScrapeNodeKind,
+    timestamp: UtcDateTime,
+    current_stats: &NodeStats,
+) -> Result<()> {
+    update_daily_stats_impl(tx, node_kind, timestamp, current_stats).await
+}
+
+#[cfg(feature = "pg")]
+pub async fn update_daily_stats_uncommitted(
+    tx: &mut Transaction<'static, sqlx::Postgres>,
+    node_kind: &ScrapeNodeKind,
+    timestamp: UtcDateTime,
+    current_stats: &NodeStats,
+) -> Result<()> {
+    update_daily_stats_impl(tx, node_kind, timestamp, current_stats).await
+}
+
+async fn update_daily_stats_impl<'a, DB: sqlx::Database>(
+    tx: &mut Transaction<'a, DB>,
     node_kind: &ScrapeNodeKind,
     timestamp: UtcDateTime,
     current_stats: &NodeStats,

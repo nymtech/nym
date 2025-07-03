@@ -1,29 +1,27 @@
 use crate::db::models::{TestRunDto, TestRunStatus};
+use crate::db::DbConnection;
 use crate::db::DbPool;
 use crate::http::models::TestrunAssignment;
 use crate::utils::now_utc;
-use sqlx::{pool::PoolConnection, Sqlite};
 use time::Duration;
 
-pub(crate) async fn count_testruns_in_progress(
-    conn: &mut PoolConnection<Sqlite>,
-) -> anyhow::Result<i64> {
-    sqlx::query_scalar!(
-        r#"SELECT
-            COUNT(id) as "count: i64"
-         FROM testruns
-         WHERE
-            status = ?
-         "#,
-        TestRunStatus::InProgress as i64,
-    )
-    .fetch_one(conn.as_mut())
-    .await
-    .map_err(anyhow::Error::from)
+pub(crate) async fn count_testruns_in_progress(conn: &mut DbConnection) -> anyhow::Result<i64> {
+    #[cfg(feature = "sqlite")]
+    let sql = "SELECT COUNT(id) FROM testruns WHERE status = ?";
+
+    #[cfg(feature = "pg")]
+    let sql = "SELECT COUNT(id) FROM testruns WHERE status = $1";
+
+    let count: i64 = sqlx::query_scalar(sql)
+        .bind(TestRunStatus::InProgress as i64)
+        .fetch_one(conn.as_mut())
+        .await?;
+
+    Ok(count)
 }
 
 pub(crate) async fn get_in_progress_testrun_by_id(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     testrun_id: i64,
 ) -> anyhow::Result<TestRunDto> {
     sqlx::query_as!(
@@ -89,7 +87,7 @@ pub(crate) async fn update_testruns_assigned_before(
 }
 
 pub(crate) async fn assign_oldest_testrun(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
@@ -142,7 +140,7 @@ pub(crate) async fn assign_oldest_testrun(
 }
 
 pub(crate) async fn update_testrun_status(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     testrun_id: i64,
     status: TestRunStatus,
 ) -> anyhow::Result<()> {
@@ -159,7 +157,7 @@ pub(crate) async fn update_testrun_status(
 }
 
 pub(crate) async fn update_gateway_last_probe_log(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     gateway_pk: i64,
     log: &str,
 ) -> anyhow::Result<()> {
@@ -175,7 +173,7 @@ pub(crate) async fn update_gateway_last_probe_log(
 }
 
 pub(crate) async fn update_gateway_last_probe_result(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     gateway_pk: i64,
     result: &str,
 ) -> anyhow::Result<()> {
@@ -191,7 +189,7 @@ pub(crate) async fn update_gateway_last_probe_result(
 }
 
 pub(crate) async fn update_gateway_score(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     gateway_pk: i64,
 ) -> anyhow::Result<()> {
     let now = now_utc().unix_timestamp();

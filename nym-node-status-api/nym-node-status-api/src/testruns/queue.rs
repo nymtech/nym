@@ -1,13 +1,12 @@
 use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunStatus};
+use crate::db::DbConnection;
 use crate::testruns::models::TestRun;
 use crate::utils::now_utc;
 use anyhow::anyhow;
 use futures_util::TryStreamExt;
-use sqlx::pool::PoolConnection;
-use sqlx::Sqlite;
 
 pub(crate) async fn try_queue_testrun(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     identity_key: String,
     ip_address: String,
 ) -> anyhow::Result<TestRun> {
@@ -88,7 +87,7 @@ pub(crate) async fn try_queue_testrun(
     let log = format!("Test for {identity_key} requested at {timestamp_pretty} UTC\n\n");
 
     let id = sqlx::query!(
-        "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES ($1, $2, $3, $4, $5)",
         gateway_id,
         status,
         ip_address,

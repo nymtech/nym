@@ -6,10 +6,11 @@ use crate::nym_api::routes::{ecash, CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
-    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
-    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse,
-    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashSignerStatusResponse,
+    EcashTicketVerificationResponse, IssuedTicketbooksChallengeCommitmentRequest,
+    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequest,
+    IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponse,
+    VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
@@ -1329,6 +1330,11 @@ pub trait NymApiClientExt: ApiClient {
             NO_PARAMS,
         )
         .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_signer_status(&self) -> Result<EcashSignerStatusResponse, NymAPIError> {
+        self.get_json("/v1/ecash/signer-status", NO_PARAMS).await
     }
 
     #[instrument(level = "debug", skip(self))]

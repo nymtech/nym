@@ -6,4 +6,5 @@ pub(crate) mod handlers;
 mod helpers;
 pub(crate) mod issued;
 pub(crate) mod partial_signing;
+pub(crate) mod signer_status;
 pub(crate) mod spending;

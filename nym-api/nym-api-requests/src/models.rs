@@ -1669,19 +1669,19 @@ impl From<nym_mixnet_contract_common::EpochRewardedSet> for RewardedSetResponse 
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct ChainStatusResponse {
     pub connected_nyxd: String,
     pub status: DetailedChainStatus,
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct DetailedChainStatus {
     pub abci: crate::models::tendermint_types::AbciInfo,
     pub latest_block: BlockInfo,
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct BlockInfo {
     pub block_id: BlockId,
     pub block: FullBlockInfo,
@@ -1699,7 +1699,7 @@ impl From<tendermint_rpc::endpoint::block::Response> for BlockInfo {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct FullBlockInfo {
     pub header: BlockHeader,
 }
@@ -1713,7 +1713,7 @@ pub mod tendermint_types {
     use tendermint::{block, Hash};
     use utoipa::ToSchema;
 
-    #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+    #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
     pub struct AbciInfo {
         /// Some arbitrary information.
         pub data: String,

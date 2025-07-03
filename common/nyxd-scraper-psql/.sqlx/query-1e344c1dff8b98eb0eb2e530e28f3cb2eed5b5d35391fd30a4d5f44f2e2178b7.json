@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO transaction\n        (hash, height, index, success, messages, memo, signatures, signer_infos, fee, gas_wanted, gas_used, raw_log, logs)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n        ON CONFLICT (hash) DO UPDATE\n            SET height = excluded.height,\n                index = excluded.index,\n                success = excluded.success,\n                messages = excluded.messages,\n                memo = excluded.memo,\n                signatures = excluded.signatures,\n                signer_infos = excluded.signer_infos,\n                fee = excluded.fee,\n                gas_wanted = excluded.gas_wanted,\n                gas_used = excluded.gas_used,\n                raw_log = excluded.raw_log,\n                logs = excluded.logs\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int4",
+        "Bool",
+        "Json",
+        "Text",
+        "TextArray",
+        "Jsonb",
+        "Jsonb",
+        "Int8",
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1e344c1dff8b98eb0eb2e530e28f3cb2eed5b5d35391fd30a4d5f44f2e2178b7"
+}

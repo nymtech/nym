@@ -87,7 +87,9 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/routing",
     "common/nymsphinx/types",
-    "common/nyxd-scraper",
+    "common/nyxd-scraper-sqlite",
+    "common/nyxd-scraper-psql",
+    "common/nyxd-scraper-shared",
     "common/pemstore",
     "common/registration",
     "common/serde-helpers",
@@ -398,7 +400,9 @@ cw-multi-test = "=2.3.2"
 bip32 = { version = "0.5.3", default-features = false }
 
 
-cosmrs = { version = "0.21.1" }
+cosmrs = { version = "0.22.0" }
+cosmos-sdk-proto = { version = "0.27.0" }
+ibc-proto = { version = "0.52.0" }
 tendermint = "0.40.4"
 tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }

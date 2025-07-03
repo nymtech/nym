@@ -78,6 +78,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         }
         config
     };
+    config.validate()?;
 
     if !config.modes.any_enabled() {
         warn!("this node is going to run without mixnode or gateway support! consider providing `mode` value");

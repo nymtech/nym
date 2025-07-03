@@ -39,6 +39,7 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -67,6 +68,9 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     forget_me: ForgetMe,
     remember_me: RememberMe,
     derivation_material: Option<DerivationMaterial>,
+    // Shared derivation material for thread-safe access across multiple clients
+    // Wrapped in Arc<Mutex<>> to allow concurrent access while maintaining safety
+    shared_derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -106,6 +110,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             forget_me: Default::default(),
             remember_me: Default::default(),
             derivation_material: None,
+            shared_derivation_material: None,
         })
     }
 }
@@ -140,6 +145,7 @@ where
             forget_me: Default::default(),
             remember_me: Default::default(),
             derivation_material: None,
+            shared_derivation_material: None,
         }
     }
 
@@ -163,12 +169,25 @@ where
             forget_me: self.forget_me,
             remember_me: self.remember_me,
             derivation_material: self.derivation_material,
+            shared_derivation_material: self.shared_derivation_material,
         }
     }
 
     #[must_use]
     pub fn with_derivation_material(mut self, derivation_material: DerivationMaterial) -> Self {
         self.derivation_material = Some(derivation_material);
+        self
+    }
+
+    /// Set shared derivation material for deterministic key generation across multiple clients.
+    /// This allows multiple client instances to derive keys from the same source material
+    /// while ensuring thread-safe access through Arc<Mutex<>>.
+    #[must_use]
+    pub fn with_shared_derivation_material(
+        mut self,
+        derivation_material: Arc<Mutex<DerivationMaterial>>,
+    ) -> Self {
+        self.shared_derivation_material = Some(derivation_material);
         self
     }
 
@@ -335,6 +354,7 @@ where
         client.forget_me = self.forget_me;
         client.remember_me = self.remember_me;
         client.derivation_material = self.derivation_material;
+        client.shared_derivation_material = self.shared_derivation_material;
         Ok(client)
     }
 }
@@ -394,6 +414,11 @@ where
 
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
+
+    /// Shared derivation material that can be safely accessed across multiple threads/clients.
+    /// This is useful when multiple clients need to derive keys from the same source while
+    /// maintaining thread safety through Arc<Mutex<>> wrapping.
+    shared_derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -451,6 +476,7 @@ where
             forget_me,
             remember_me,
             derivation_material: None,
+            shared_derivation_material: None,
         })
     }
 
@@ -678,7 +704,8 @@ where
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
-                .with_derivation_material(self.derivation_material);
+                .with_derivation_material(self.derivation_material)
+                .with_shared_derivation_material(self.shared_derivation_material);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

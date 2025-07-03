@@ -6,6 +6,7 @@ use log::{info, warn};
 use nym_bin_common::bin_info;
 use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
+use nym_crypto::hkdf::DerivationMaterial;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
@@ -13,6 +14,7 @@ use nym_sphinx::chunking::monitoring;
 use nym_topology::{HardcodedTopologyProvider, NymTopology, NymTopologyMetadata};
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::time::Duration;
 use std::{
@@ -21,6 +23,7 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
 use tokio_util::sync::CancellationToken;
@@ -45,6 +48,7 @@ async fn make_clients(
     n_clients: usize,
     lifetime: u64,
     topology: NymTopology,
+    derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
 ) {
     loop {
         let spawned_clients = clients.read().await.len();
@@ -71,7 +75,12 @@ async fn make_clients(
             }
         }
         info!("Spawning new client");
-        let client = match make_client(topology.clone()).await {
+        let client = match make_client(
+            topology.clone(),
+            derivation_material.as_ref().map(Arc::clone),
+        )
+        .await
+        {
             Ok(client) => client,
             Err(err) => {
                 warn!("{err}, moving on");
@@ -85,16 +94,29 @@ async fn make_clients(
     }
 }
 
-async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
+/// Creates a new mixnet client, optionally using shared derivation material
+/// for deterministic key generation. This allows multiple monitor clients
+/// to derive keys from the same source while maintaining thread safety.
+async fn make_client(
+    topology: NymTopology,
+    derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
+) -> Result<MixnetClient> {
     let net = mixnet::NymNetworkDetails::new_from_env();
     let topology_provider = Box::new(HardcodedTopologyProvider::new(topology));
-    let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
+    let mut mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(net)
         .custom_topology_provider(topology_provider)
         .debug_config(mixnet_debug_config(0))
-        .with_forget_me(ForgetMe::new_all())
-        // .enable_credentials_mode()
-        .build()?;
+        .with_forget_me(ForgetMe::new_all());
+
+    // Configure the client with shared derivation material if available
+    // This ensures all monitor clients use the same key derivation source
+    if let Some(derivation_material) = derivation_material {
+        mixnet_client =
+            mixnet_client.with_shared_derivation_material(Arc::clone(&derivation_material));
+    }
+
+    let mixnet_client = mixnet_client.build()?;
 
     let client = mixnet_client.connect_to_mixnet().await?;
     Ok(client)
@@ -138,6 +160,12 @@ struct Args {
 
     #[arg(long, env = "DATABASE_URL")]
     database_url: Option<String>,
+
+    /// Path to a JSON file containing serialized DerivationMaterial for deterministic
+    /// client key generation. When provided, all monitor clients will derive keys
+    /// from this shared material instead of generating random keys.
+    #[arg(long, env = "DERIVATION_MATERIAL_PATH")]
+    derivation_material_path: Option<PathBuf>,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -214,12 +242,24 @@ async fn main() -> Result<()> {
 
     MIXNET_TIMEOUT.set(args.mixnet_timeout).ok();
 
+    // Load shared derivation material from file if provided
+    // This enables deterministic key generation across all monitor clients
+    let derivation_material = args
+        .derivation_material_path
+        .map(|derivation_material_path| {
+            let file = File::open(derivation_material_path)?;
+            let derivation_material: DerivationMaterial = serde_json::from_reader(file)?;
+            Ok::<_, anyhow::Error>(Arc::new(Mutex::new(derivation_material)))
+        })
+        .transpose()?;
+
     let spawn_clients = Arc::clone(&clients);
     tokio::spawn(make_clients(
         spawn_clients,
         args.n_clients,
         args.client_lifetime,
         TOPOLOGY.get().expect("Topology not set yet!").clone(),
+        derivation_material,
     ));
 
     let clients_server = clients.clone();

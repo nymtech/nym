@@ -16,7 +16,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
-use nyxd_scraper::NyxdScraper;
+use nyxd_scraper_sqlite::NyxdScraper;
 use std::sync::Arc;
 use time::Date;
 use tokio::pin;

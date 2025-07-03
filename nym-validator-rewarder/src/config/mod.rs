@@ -12,7 +12,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_validator_client::nyxd::{AccountId, Coin};
-use nyxd_scraper::{PruningOptions, StartingBlockOpts};
+use nyxd_scraper_sqlite::{PruningOptions, StartingBlockOpts};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::io;
@@ -119,8 +119,8 @@ impl Config {
         }
     }
 
-    pub fn scraper_config(&self) -> nyxd_scraper::Config {
-        nyxd_scraper::Config {
+    pub fn scraper_config(&self) -> nyxd_scraper_sqlite::Config {
+        nyxd_scraper_sqlite::Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),

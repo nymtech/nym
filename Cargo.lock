@@ -7854,7 +7854,7 @@ dependencies = [
  "nym-task 0.1.0",
  "nym-ticketbooks-merkle 0.1.0",
  "nym-validator-client 0.1.0",
- "nyxd-scraper",
+ "nyxd-scraper-sqlite",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -8061,7 +8061,7 @@ dependencies = [
  "nym-network-defaults 0.1.0",
  "nym-task 0.1.0",
  "nym-validator-client 0.1.0",
- "nyxd-scraper",
+ "nyxd-scraper-sqlite",
  "reqwest 0.12.15",
  "schemars",
  "serde",
@@ -8079,7 +8079,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "nyxd-scraper"
+name = "nyxd-scraper-psql"
+version = "0.1.0"
+
+[[package]]
+name = "nyxd-scraper-shared"
+version = "0.1.0"
+
+[[package]]
+name = "nyxd-scraper-sqlite"
 version = "0.1.0"
 dependencies = [
  "async-trait",

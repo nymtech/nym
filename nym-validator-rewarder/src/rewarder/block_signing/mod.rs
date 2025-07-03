@@ -7,7 +7,7 @@ use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use nym_validator_client::nyxd::module_traits::staking;
 use nym_validator_client::nyxd::{AccountId, PageRequest};
-use nyxd_scraper::NyxdScraper;
+use nyxd_scraper_sqlite::NyxdScraper;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Range;

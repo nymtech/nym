@@ -78,7 +78,7 @@ pub enum NymRewarderError {
     #[error("chain scraping failure: {source}")]
     ScraperFailure {
         #[from]
-        source: nyxd_scraper::error::ScraperError,
+        source: nyxd_scraper_sqlite::error::ScraperError,
     },
 
     // this should never happen but unwrapping everywhere was more cumbersome than just propagating the error

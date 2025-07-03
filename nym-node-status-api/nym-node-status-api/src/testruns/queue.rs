@@ -14,20 +14,19 @@ pub(crate) async fn try_queue_testrun(
     let timestamp = now.unix_timestamp();
     let timestamp_pretty = now.to_string();
 
-    let items = sqlx::query_as!(
-        GatewayInfoDto,
+    let items = crate::db::query_as::<GatewayInfoDto>(
         r#"SELECT
-            id as "id!",
-            gateway_identity_key as "gateway_identity_key!",
-            self_described as "self_described?",
-            explorer_pretty_bond as "explorer_pretty_bond?"
+            id,
+            gateway_identity_key,
+            self_described,
+            explorer_pretty_bond
          FROM gateways
          WHERE gateway_identity_key = ?
          AND bonded = true
          ORDER BY gateway_identity_key
          LIMIT 1"#,
-        identity_key,
     )
+    .bind(identity_key.clone())
     // TODO dz should call .fetch_one
     // TODO dz replace this in other queries as well
     .fetch(conn.as_mut())
@@ -47,22 +46,21 @@ pub(crate) async fn try_queue_testrun(
     //
     // check if there is already a test run for this gateway
     //
-    let items = sqlx::query_as!(
-        TestRunDto,
+    let items = crate::db::query_as::<TestRunDto>(
         r#"SELECT
-            id as "id!",
-            gateway_id as "gateway_id!",
-            status as "status!",
-            created_utc as "created_utc!",
-            ip_address as "ip_address!",
-            log as "log!",
+            id,
+            gateway_id,
+            status,
+            created_utc,
+            ip_address,
+            log,
             last_assigned_utc
          FROM testruns
          WHERE gateway_id = ? AND status != 2
          ORDER BY id DESC
          LIMIT 1"#,
-        gateway_id,
     )
+    .bind(gateway_id)
     .fetch(conn.as_mut())
     .try_collect::<Vec<_>>()
     .await?;
@@ -70,8 +68,8 @@ pub(crate) async fn try_queue_testrun(
     if !items.is_empty() {
         let testrun = items.first().unwrap();
         return Ok(TestRun {
-            id: testrun.id as u32,
-            identity_key,
+            id: testrun.id as i32,
+            identity_key: identity_key.clone(),
             status: format!(
                 "{}",
                 TestRunStatus::from_repr(testrun.status as u8).unwrap()
@@ -83,24 +81,43 @@ pub(crate) async fn try_queue_testrun(
     //
     // save test run
     //
-    let status = TestRunStatus::Queued as u32;
+    let status = TestRunStatus::Queued as i32;
     let log = format!("Test for {identity_key} requested at {timestamp_pretty} UTC\n\n");
 
-    let id = sqlx::query!(
-        "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES ($1, $2, $3, $4, $5)",
-        gateway_id,
-        status,
-        ip_address,
-        timestamp,
-        log,
-    )
+    #[cfg(feature = "sqlite")]
+    let id = {
+        sqlx::query!(
+            "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",
+            gateway_id,
+            status,
+            ip_address,
+            timestamp,
+            log,
+        )
         .execute(conn.as_mut())
         .await?
-        .last_insert_rowid();
+        .last_insert_rowid()
+    };
+
+    #[cfg(feature = "pg")]
+    let id = {
+        let record = sqlx::query!(
+            "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            gateway_id as i32,
+            status,
+            ip_address,
+            timestamp,
+            log,
+        )
+        .fetch_one(conn.as_mut())
+        .await?;
+        record.id
+    };
 
     Ok(TestRun {
-        id: id as u32,
-        identity_key,
+        #[allow(clippy::useless_conversion)]
+        id: id.try_into().unwrap(),
+        identity_key: identity_key.clone(),
         status: format!("{}", TestRunStatus::Queued),
         log,
     })

@@ -16,7 +16,7 @@ use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
     pub moniker: Option<String>,
     pub website: Option<String>,
@@ -116,7 +116,7 @@ pub fn sanitize_description(
     }
 }
 
-pub async fn scrape_and_store_description(pool: &DbPool, node: &ScraperNodeInfo) -> Result<()> {
+pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -151,7 +151,7 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: &ScraperNodeInfo)
     })?;
 
     let sanitized_description = sanitize_description(description, *node.node_id());
-    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
+    insert_scraped_node_description(pool, node.node_kind.clone(), sanitized_description).await?;
 
     Ok(())
 }

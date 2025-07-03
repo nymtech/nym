@@ -80,6 +80,19 @@ check-sqlite: ## Check code with SQLite feature
 	@echo "Checking code with SQLite feature..."
 	cargo check --features sqlite --no-default-features
 
+.PHONY: clippy
+clippy: clippy-pg clippy-sqlite
+
+.PHONY: clippy-pg
+clippy-pg: ## Run clippy with PostgreSQL feature
+	@echo "Running clippy with PostgreSQL feature..."
+	cargo clippy --features pg --no-default-features -- -D warnings
+
+.PHONY: clippy-sqlite
+clippy-sqlite: ## Run clippy with SQLite feature (default)
+	@echo "Running clippy with SQLite feature..."
+	cargo clippy --features sqlite --no-default-features -- -D warnings
+
 # --- Cleanup Targets ---
 .PHONY: clean
 clean: ## Clean build artifacts and SQLx cache

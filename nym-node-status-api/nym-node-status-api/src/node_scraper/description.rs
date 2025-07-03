@@ -88,7 +88,7 @@ impl DescriptionScraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match scrape_and_store_description(&pool, &node).await {
+                    match scrape_and_store_description(&pool, node.clone()).await {
                         Ok(_) => debug!(
                             "📝 ✅ Description task #{} for node {} complete",
                             task_id,

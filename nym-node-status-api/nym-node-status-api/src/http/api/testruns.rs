@@ -138,7 +138,7 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_log(
         &mut conn,
         assigned_testrun.gateway_id,
-        &submitted_result.payload.probe_result,
+        submitted_result.payload.probe_result.clone(),
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
@@ -146,7 +146,7 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_result(
         &mut conn,
         assigned_testrun.gateway_id,
-        &result,
+        result,
     )
     .await
     .map_err(HttpError::internal_with_logging)?;

@@ -110,7 +110,7 @@ impl ReceivedReplySurbsMap {
             !v.data.is_empty()
         });
         let after = self.total_surbs();
-        let diff = after - before;
+        let diff = before - after;
         if diff != 0 {
             info!("removed {diff} stale reply SURBs")
         }

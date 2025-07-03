@@ -1,29 +1,29 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "SELECT\n            key as \"key!\",\n            value_json as \"value_json!\",\n            last_updated_utc as \"last_updated_utc!\"\n         FROM summary",
   "describe": {
     "columns": [
       {
-        "name": "key!",
         "ordinal": 0,
-        "type_info": "Text"
+        "name": "key!",
+        "type_info": "Varchar"
       },
       {
-        "name": "value_json!",
         "ordinal": 1,
-        "type_info": "Text"
+        "name": "value_json!",
+        "type_info": "Varchar"
       },
       {
-        "name": "last_updated_utc!",
         "ordinal": 2,
-        "type_info": "Integer"
+        "name": "last_updated_utc!",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": [
-      true,
+      false,
       true,
       false
     ]

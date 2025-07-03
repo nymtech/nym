@@ -1,10 +1,10 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "UPDATE nym_nodes\n        SET\n            self_described = NULL,\n            bond_info = NULL",
   "describe": {
     "columns": [],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": []
   },

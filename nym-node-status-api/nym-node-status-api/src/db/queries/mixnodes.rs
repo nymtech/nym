@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
 use futures_util::TryStreamExt;
-use sqlx::{pool::PoolConnection, Sqlite};
 use tracing::error;
 
 use crate::{
     db::{
         models::{MixnodeDto, MixnodeRecord},
-        DbPool,
+        DbConnection, DbPool,
     },
     http::models::{DailyStats, Mixnode},
     mixnet_scraper::helpers::NodeDescriptionResponse,
@@ -31,9 +30,9 @@ pub(crate) async fn update_mixnodes(
     .await?;
 
     // existing nodes get updated on insert
-    for record in mixnodes.iter() {
+    for record in mixnodes.into_iter() {
         // https://www.sqlite.org/lang_upsert.html
-        sqlx::query!(
+        crate::db::query(
             "INSERT INTO mixnodes
                 (mix_id, identity_key, bonded, total_stake,
                     host, http_api_port, full_details,
@@ -46,17 +45,17 @@ pub(crate) async fn update_mixnodes(
                 full_details=excluded.full_details,self_described=excluded.self_described,
                 last_updated_utc=excluded.last_updated_utc,
                 is_dp_delegatee = excluded.is_dp_delegatee;",
-            record.mix_id,
-            record.identity_key,
-            record.bonded,
-            record.total_stake,
-            record.host,
-            record.http_port,
-            record.full_details,
-            record.self_described,
-            record.last_updated_utc,
-            record.is_dp_delegatee
         )
+        .bind(record.mix_id as i64)
+        .bind(record.identity_key)
+        .bind(record.bonded)
+        .bind(record.total_stake)
+        .bind(record.host)
+        .bind(record.http_port as i32)
+        .bind(record.full_details)
+        .bind(record.self_described)
+        .bind(record.last_updated_utc)
+        .bind(record.is_dp_delegatee)
         .execute(&mut *tx)
         .await?;
     }
@@ -161,7 +160,7 @@ pub(crate) async fn get_bonded_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<
 }
 
 pub(crate) async fn insert_mixnode_description(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     mix_id: &i64,
     description: &NodeDescriptionResponse,
     timestamp: i64,

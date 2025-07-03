@@ -3,17 +3,16 @@ use std::collections::HashSet;
 use crate::{
     db::{
         models::{GatewayDto, GatewayInsertRecord},
-        DbPool,
+        DbConnection, DbPool,
     },
     http::models::Gateway,
     mixnet_scraper::helpers::NodeDescriptionResponse,
 };
 use futures_util::TryStreamExt;
-use sqlx::{pool::PoolConnection, Sqlite};
 use tracing::error;
 
 pub(crate) async fn select_gateway_identity(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     gateway_pk: i64,
 ) -> anyhow::Result<String> {
     let record = sqlx::query!(
@@ -131,7 +130,7 @@ pub(crate) async fn get_bonded_gateway_id_keys(pool: &DbPool) -> anyhow::Result<
 }
 
 pub(crate) async fn insert_gateway_description(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     identity_key: &str,
     description: &NodeDescriptionResponse,
     timestamp: i64,

@@ -4,14 +4,13 @@ use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::NymNodeDescription,
 };
-use sqlx::{pool::PoolConnection, Sqlite};
 use std::collections::HashMap;
 use tracing::instrument;
 
 use crate::{
     db::{
         models::{NymNodeDto, NymNodeInsertRecord},
-        DbPool,
+        DbConnection, DbPool,
     },
     mixnet_scraper::helpers::NodeDescriptionResponse,
 };
@@ -266,7 +265,7 @@ pub(crate) async fn get_bonded_node_description(
 }
 
 pub(crate) async fn insert_nym_node_description(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
     node_id: &i64,
     description: &NodeDescriptionResponse,
     timestamp: i64,

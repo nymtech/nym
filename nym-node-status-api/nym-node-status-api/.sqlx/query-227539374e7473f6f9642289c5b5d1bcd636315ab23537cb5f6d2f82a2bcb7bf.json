@@ -1,21 +1,21 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "SELECT\n            node_id,\n            bond_info as \"bond_info: serde_json::Value\"\n        FROM\n            nym_nodes\n        WHERE\n            bond_info IS NOT NULL\n        AND\n            self_described IS NOT NULL\n        ",
   "describe": {
     "columns": [
       {
-        "name": "node_id",
         "ordinal": 0,
-        "type_info": "Integer"
+        "name": "node_id",
+        "type_info": "Int4"
       },
       {
-        "name": "bond_info: serde_json::Value",
         "ordinal": 1,
+        "name": "bond_info: serde_json::Value",
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": [
       false,

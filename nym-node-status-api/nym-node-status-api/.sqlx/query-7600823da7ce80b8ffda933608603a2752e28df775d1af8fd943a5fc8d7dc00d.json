@@ -1,34 +1,34 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "SELECT\n            id as \"id!\",\n            date as \"date!\",\n            timestamp_utc as \"timestamp_utc!\",\n            value_json as \"value_json!\"\n         FROM summary_history\n         ORDER BY date DESC\n         LIMIT 30",
   "describe": {
     "columns": [
       {
-        "name": "id!",
         "ordinal": 0,
-        "type_info": "Integer"
+        "name": "id!",
+        "type_info": "Int4"
       },
       {
-        "name": "date!",
         "ordinal": 1,
-        "type_info": "Text"
+        "name": "date!",
+        "type_info": "Varchar"
       },
       {
-        "name": "timestamp_utc!",
         "ordinal": 2,
-        "type_info": "Integer"
+        "name": "timestamp_utc!",
+        "type_info": "Int8"
       },
       {
-        "name": "value_json!",
         "ordinal": 3,
-        "type_info": "Text"
+        "name": "value_json!",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": [
-      true,
+      false,
       false,
       false,
       true

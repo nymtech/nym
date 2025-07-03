@@ -5,6 +5,7 @@ use crate::{
             get_raw_node_stats, insert_daily_node_stats, insert_node_packet_stats,
             insert_scraped_node_description,
         },
+        DbPool,
     },
     utils::{generate_node_name, now_utc},
 };
@@ -12,7 +13,6 @@ use ammonia::Builder;
 use anyhow::{anyhow, Result};
 use reqwest;
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
 use std::time::Duration;
 use time::UtcDateTime;
 
@@ -116,7 +116,7 @@ pub fn sanitize_description(
     }
 }
 
-pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeInfo) -> Result<()> {
+pub async fn scrape_and_store_description(pool: &DbPool, node: &ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -157,7 +157,7 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
 }
 
 pub async fn scrape_and_store_packet_stats(
-    pool: &SqlitePool,
+    pool: &DbPool,
     node: &ScraperNodeInfo,
 ) -> Result<()> {
     let client = build_client()?;
@@ -198,7 +198,7 @@ pub async fn scrape_and_store_packet_stats(
 }
 
 pub async fn update_daily_stats(
-    pool: &SqlitePool,
+    pool: &DbPool,
     node: &ScraperNodeInfo,
     timestamp: UtcDateTime,
     current_stats: &NodeStats,

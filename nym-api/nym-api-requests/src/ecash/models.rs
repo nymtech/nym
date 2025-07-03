@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::AccountId;
+use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::utils::try_deserialize_g1_projective;
@@ -546,11 +547,7 @@ pub struct CommitedDeposit {
 
 // make sure only our types can implement this trait (to ensure infallible serialisation)
 mod private {
-    use crate::ecash::models::{
-        IssuedTicketbooksChallengeCommitmentRequestBody,
-        IssuedTicketbooksChallengeCommitmentResponseBody, IssuedTicketbooksDataRequestBody,
-        IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponseBody,
-    };
+    use crate::ecash::models::*;
 
     pub trait Sealed {}
 
@@ -562,6 +559,7 @@ mod private {
     impl Sealed for IssuedTicketbooksChallengeCommitmentResponseBody {}
     impl Sealed for IssuedTicketbooksForResponseBody {}
     impl Sealed for IssuedTicketbooksDataResponseBody {}
+    impl Sealed for EcashSignerStatusResponseBody {}
 }
 
 // the trait is not public as it's only defined on types that are guaranteed to not panic when serialised
@@ -824,6 +822,33 @@ pub struct IssuedTicketbooksForCount {
     pub issuance_date: Date,
 
     pub count: u32,
+}
+
+pub type EcashSignerStatusResponse = SignedMessage<EcashSignerStatusResponseBody>;
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+// includes all pre-requisites for successful (assuming valid request) `/blind-sign`
+pub struct EcashSignerStatusResponseBody {
+    /// Current, perceived, dkg epoch id
+    pub dkg_ecash_epoch_id: EpochId,
+
+    /// Flag indicating whether the operator has explicitly disabled signer functionalities in the api
+    pub signer_disabled: bool,
+
+    /// Flag indicating whether this api thinks it's a valid ecash signer for the current epoch
+    pub is_ecash_signer: bool,
+
+    /// Flag indicating whether this api thinks it has valid signing keys.
+    /// It might be a valid signer that's not disabled, but the keys might have accidentally been
+    /// removed due to invalid data migration.
+    pub has_signing_keys: bool,
+}
+
+impl EcashSignerStatusResponseBody {
+    pub fn is_active(&self) -> bool {
+        !self.signer_disabled && self.is_ecash_signer && self.has_signing_keys
+    }
 }
 
 #[cfg(test)]

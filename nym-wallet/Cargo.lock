@@ -4023,6 +4023,7 @@ dependencies = [
  "getset",
  "hex",
  "humantime-serde",
+ "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",

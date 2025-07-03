@@ -4912,6 +4912,7 @@ dependencies = [
  "getset",
  "hex",
  "humantime-serde",
+ "nym-coconut-dkg-common 0.1.0",
  "nym-compact-ecash 0.1.0",
  "nym-config 0.1.0",
  "nym-contracts-common 0.5.0",
@@ -5816,6 +5817,19 @@ dependencies = [
  "cw-utils",
  "nym-multisig-contract-common 0.1.0 (git+https://github.com/nymtech/nym.git?branch=release/2025.11-cheddar)",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-ecash-signer-check"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "nym-network-defaults 0.1.0",
+ "nym-validator-client 0.1.0",
+ "semver 1.0.26",
+ "thiserror 2.0.12",
+ "tracing",
+ "url",
 ]
 
 [[package]]

@@ -12,7 +12,7 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
 };
 use nym_validator_client::nyxd::{AccountId, Coin};
-use nyxd_scraper::{PruningOptions, StartingBlockOpts};
+use nyxd_scraper_sqlite::{PruningOptions, StartingBlockOpts};
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
 use std::io;
@@ -119,11 +119,11 @@ impl Config {
         }
     }
 
-    pub fn scraper_config(&self) -> nyxd_scraper::Config {
-        nyxd_scraper::Config {
+    pub fn scraper_config(&self) -> nyxd_scraper_sqlite::Config {
+        nyxd_scraper_sqlite::Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
-            database_path: self.storage_paths.nyxd_scraper.clone(),
+            database_storage: self.storage_paths.nyxd_scraper.clone(),
             pruning_options: self.nyxd_scraper.pruning,
             store_precommits: self.nyxd_scraper.store_precommits,
             start_block: StartingBlockOpts {

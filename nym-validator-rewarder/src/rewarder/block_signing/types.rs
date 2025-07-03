@@ -7,7 +7,7 @@ use crate::{
 };
 use cosmwasm_std::{Decimal, Uint128};
 use nym_validator_client::nyxd::{AccountId, Coin, module_traits::staking};
-use nyxd_scraper::models;
+use nyxd_scraper_sqlite::models;
 use std::collections::HashMap;
 use tracing::info;
 

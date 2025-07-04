@@ -1,10 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-pub use nym_sdk::mixnet::{NodeIdentity, Recipient};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_validator_client::models::NymNodeData;
 
-use crate::{Error, error::Result};
+use crate::{error::Result, Error};
 
 #[derive(Debug, Copy, Clone)]
 pub struct IpPacketRouterAddress(Recipient);

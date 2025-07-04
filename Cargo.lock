@@ -1120,9 +1120,9 @@ checksum = "a2698f953def977c68f935bb0dfa959375ad4638570e969e2f1e9f433cbf1af6"
 
 [[package]]
 name = "cc"
-version = "1.2.27"
+version = "1.2.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d487aa071b5f64da6f19a3e848e3578944b726ee5a4854b82172f02aa876bfdc"
+checksum = "4ad45f4f74e4e20eaa392913b7b33a7091c87e59628f4dd27888205ad888843c"
 dependencies = [
  "jobserver",
  "libc",
@@ -5833,7 +5833,7 @@ dependencies = [
  "nym-common",
  "nym-http-api-client",
  "nym-offline-monitor",
- "nym-sdk",
+ "nym-sphinx",
  "nym-topology",
  "nym-validator-client",
  "rand 0.8.5",
@@ -6012,21 +6012,6 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "thiserror 2.0.12",
-]
-
-[[package]]
-name = "nym-ip-packet-client"
-version = "0.0.0"
-dependencies = [
- "bytes",
- "futures",
- "nym-gateway-directory",
- "nym-ip-packet-requests",
- "nym-sdk",
- "thiserror 2.0.12",
- "tokio",
- "tokio-util",
- "tracing",
 ]
 
 [[package]]
@@ -6662,7 +6647,9 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-gateway-directory",
  "nym-gateway-requests",
+ "nym-ip-packet-requests",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-service-providers-common",

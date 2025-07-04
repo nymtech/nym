@@ -3,9 +3,9 @@
 
 use std::fmt::Display;
 
-pub use nym_sdk::mixnet::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 
-use crate::{Error, error::Result};
+use crate::{error::Result, Error};
 
 // optional, until we remove the wireguard feature flag
 #[derive(Debug, Copy, Clone)]

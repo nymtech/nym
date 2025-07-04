@@ -3,11 +3,12 @@
 
 use std::fmt::{Display, Formatter};
 
-pub use nym_sdk::mixnet::{NodeIdentity, Recipient};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use serde::{Deserialize, Serialize};
 
 use super::gateway::{Gateway, GatewayList};
-use crate::{Error, IpPacketRouterAddress, error::Result};
+use crate::{error::Result, Error, IpPacketRouterAddress};
 
 // The exit point is a nym-address, but if the exit ip-packet-router is running embedded on a
 // gateway, we can refer to it by the gateway identity.

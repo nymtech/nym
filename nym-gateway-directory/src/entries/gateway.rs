@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use itertools::Itertools;
-pub use nym_sdk::mixnet::NodeIdentity;
+use nym_sphinx::addressing::nodes::NodeIdentity;
+
 use nym_topology::{NodeId, RoutingNode};
 use nym_vpn_api_client::types::{NaiveFloat, Percent, ScoreThresholds};
 use rand::seq::IteratorRandom;
 use std::{fmt, net::IpAddr};
 use tracing::error;
 
-use crate::{AuthAddress, Country, Error, IpPacketRouterAddress, error::Result};
+use crate::{error::Result, AuthAddress, Country, Error, IpPacketRouterAddress};
 
-use super::score::{HIGH_SCORE_THRESHOLD, LOW_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, Score};
+use super::score::{Score, HIGH_SCORE_THRESHOLD, LOW_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD};
 
 pub type NymNode = Gateway;
 

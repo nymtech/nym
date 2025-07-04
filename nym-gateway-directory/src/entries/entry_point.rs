@@ -3,12 +3,13 @@
 
 use std::fmt::{Display, Formatter};
 
-pub use nym_sdk::mixnet::NodeIdentity;
+use nym_sphinx::addressing::nodes::NodeIdentity;
+
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use super::gateway::{Gateway, GatewayList};
-use crate::{Error, error::Result};
+use crate::{error::Result, Error};
 
 // The entry point is always a gateway identity, or some other entry that can be resolved to a
 // gateway identity.

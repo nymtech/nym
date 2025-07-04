@@ -12,7 +12,6 @@ use crate::PruningOptions;
 use futures::StreamExt;
 use std::cmp::max;
 use std::collections::{BTreeMap, HashSet, VecDeque};
-use std::fmt::Display;
 use std::ops::{Add, Range};
 use std::sync::Arc;
 use std::time::Duration;
@@ -105,8 +104,6 @@ pub struct BlockProcessor<S> {
 impl<S> BlockProcessor<S>
 where
     S: NyxdScraperStorage,
-    S::Error: 'static,
-    ScraperError: From<<S as NyxdScraperStorage>::Error>,
 {
     pub async fn new(
         config: BlockProcessorConfig,
@@ -178,30 +175,28 @@ where
 
         persist_block(&full_info, &mut tx, self.config.store_precommits).await?;
 
-        todo!();
+        // let the modules do whatever they want
+        // the ones wanting the full block:
+        for block_module in &mut self.block_modules {
+            block_module.handle_block(&full_info, &mut tx).await?;
+        }
 
-        // // let the modules do whatever they want
-        // // the ones wanting the full block:
-        // for block_module in &mut self.block_modules {
-        //     block_module.handle_block(&full_info, &mut tx).await?;
-        // }
-        //
-        // // the ones wanting transactions:
-        // for block_tx in full_info.transactions {
-        //     for tx_module in &mut self.tx_modules {
-        //         tx_module.handle_tx(&block_tx, &mut tx).await?;
-        //     }
-        //     // the ones concerned with individual messages
-        //     for (index, msg) in block_tx.tx.body.messages.iter().enumerate() {
-        //         for msg_module in &mut self.msg_modules {
-        //             if msg.type_url == msg_module.type_url() {
-        //                 msg_module
-        //                     .handle_msg(index, msg, &block_tx, &mut tx)
-        //                     .await?
-        //             }
-        //         }
-        //     }
-        // }
+        // the ones wanting transactions:
+        for block_tx in full_info.transactions {
+            for tx_module in &mut self.tx_modules {
+                tx_module.handle_tx(&block_tx, &mut tx).await?;
+            }
+            // the ones concerned with individual messages
+            for (index, msg) in block_tx.tx.body.messages.iter().enumerate() {
+                for msg_module in &mut self.msg_modules {
+                    if msg.type_url == msg_module.type_url() {
+                        msg_module
+                            .handle_msg(index, msg, &block_tx, &mut tx)
+                            .await?
+                    }
+                }
+            }
+        }
 
         let commit_start = Instant::now();
         tx.commit().await.map_err(ScraperError::tx_commit_failure)?;

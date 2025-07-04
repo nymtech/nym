@@ -9,63 +9,71 @@ use std::path::PathBuf;
 use tendermint::block::Commit;
 use tendermint::Block;
 use tendermint_rpc::endpoint::validators;
+use thiserror::Error;
 use tracing::warn;
 
 pub(crate) mod helpers;
 
+// a workaround for needing associated type (which is a no-no in dynamic dispatch)
+#[derive(Error, Debug)]
+#[error(transparent)]
+pub struct NyxdScraperStorageError(Box<dyn std::error::Error + Send + Sync>);
+
 #[async_trait]
 pub trait NyxdScraperStorage: Clone + Sized {
-    type Error: Into<ScraperError> + std::error::Error + Send + Sync;
-    type StorageTransaction: NyxdScraperTransaction<Error = Self::Error>;
+    type StorageTransaction: NyxdScraperTransaction;
 
-    async fn initialise(storage_path: &PathBuf) -> Result<Self, Self::Error>;
+    async fn initialise(storage_path: &PathBuf) -> Result<Self, NyxdScraperStorageError>;
 
-    async fn begin_processing_tx(&self) -> Result<Self::StorageTransaction, Self::Error>;
+    async fn begin_processing_tx(
+        &self,
+    ) -> Result<Self::StorageTransaction, NyxdScraperStorageError>;
 
-    async fn get_last_processed_height(&self) -> Result<u32, Self::Error>;
+    async fn get_last_processed_height(&self) -> Result<u32, NyxdScraperStorageError>;
 
-    async fn get_pruned_height(&self) -> Result<u32, Self::Error>;
+    async fn get_pruned_height(&self) -> Result<u32, NyxdScraperStorageError>;
 
-    async fn lowest_block_height(&self) -> Result<Option<i64>, Self::Error>;
+    async fn lowest_block_height(&self) -> Result<Option<i64>, NyxdScraperStorageError>;
 
     async fn prune_storage(
         &self,
         oldest_to_keep: u32,
         current_height: u32,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), NyxdScraperStorageError>;
 }
 
 #[async_trait]
 pub trait NyxdScraperTransaction {
-    type Error: Into<ScraperError> + std::error::Error + Send + Sync;
-
-    async fn commit(mut self) -> Result<(), Self::Error>;
+    async fn commit(mut self) -> Result<(), NyxdScraperStorageError>;
 
     async fn persist_validators(
         &mut self,
         validators: &validators::Response,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), NyxdScraperStorageError>;
 
     async fn persist_block_data(
         &mut self,
         block: &Block,
         total_gas: i64,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), NyxdScraperStorageError>;
 
     async fn persist_commits(
         &mut self,
         commits: &Commit,
         validators: &validators::Response,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), NyxdScraperStorageError>;
 
-    async fn persist_txs(&mut self, txs: &[ParsedTransactionResponse]) -> Result<(), Self::Error>;
+    async fn persist_txs(
+        &mut self,
+        txs: &[ParsedTransactionResponse],
+    ) -> Result<(), NyxdScraperStorageError>;
 
     async fn persist_messages(
         &mut self,
         txs: &[ParsedTransactionResponse],
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), NyxdScraperStorageError>;
 
-    async fn update_last_processed(&mut self, height: i64) -> Result<(), Self::Error>;
+    async fn update_last_processed(&mut self, height: i64) -> Result<(), NyxdScraperStorageError>;
 }
 
 pub async fn persist_block<Tx>(
@@ -75,7 +83,6 @@ pub async fn persist_block<Tx>(
 ) -> Result<(), ScraperError>
 where
     Tx: NyxdScraperTransaction,
-    ScraperError: From<<Tx as NyxdScraperTransaction>::Error>,
 {
     let total_gas = crate::helpers::tx_gas_sum(&block.transactions);
 

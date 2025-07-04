@@ -3,7 +3,7 @@
 
 use crate::block_processor::types::FullBlockInformation;
 use crate::error::ScraperError;
-use crate::storage::NyxdScraperStorage;
+use crate::storage::NyxdScraperTransaction;
 use async_trait::async_trait;
 
 #[async_trait]
@@ -11,16 +11,6 @@ pub trait BlockModule {
     async fn handle_block(
         &mut self,
         block: &FullBlockInformation,
-        storage_tx: &mut (),
+        storage_tx: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError>;
-
-    /*
-        async fn handle_block<S>(
-        &mut self,
-        block: &FullBlockInformation,
-        storage_tx: &mut S::StorageTransaction,
-    ) -> Result<(), ScraperError>
-    where
-        S: NyxdScraperStorage;
-     */
 }

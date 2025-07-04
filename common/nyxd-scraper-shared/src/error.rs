@@ -4,6 +4,7 @@
 use crate::block_processor::pruning::{
     EVERYTHING_PRUNING_INTERVAL, EVERYTHING_PRUNING_KEEP_RECENT,
 };
+use crate::storage::NyxdScraperStorageError;
 use tendermint::Hash;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
@@ -11,7 +12,7 @@ use tokio::sync::mpsc::error::SendError;
 #[derive(Debug, Error)]
 pub enum ScraperError {
     #[error("experienced internal database error: {0}")]
-    InternalDatabaseError(Box<dyn std::error::Error + Send + Sync>),
+    InternalDatabaseError(#[from] NyxdScraperStorageError),
 
     // #[error("failed to perform startup SQL migration: {0}")]
     // StartupMigrationFailure(#[from] Box<dyn std::error::Error + Send + Sync>),
@@ -103,13 +104,13 @@ pub enum ScraperError {
     #[error("failed to begin storage tx: {source}")]
     StorageTxBeginFailure {
         #[source]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: NyxdScraperStorageError,
     },
 
     #[error("failed to commit storage tx: {source}")]
     StorageTxCommitFailure {
         #[source]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: NyxdScraperStorageError,
     },
 
     #[error("failed to send on a closed channel")]
@@ -148,29 +149,14 @@ pub enum ScraperError {
 }
 
 impl ScraperError {
-    pub fn internal_database<E>(error: E) -> ScraperError
-    where
-        E: std::error::Error + Send + Sync + 'static,
-    {
-        ScraperError::InternalDatabaseError(Box::new(error))
+    pub fn tx_begin_failure(source: NyxdScraperStorageError) -> ScraperError
+where {
+        ScraperError::StorageTxBeginFailure { source }
     }
 
-    pub fn tx_begin_failure<E>(error: E) -> ScraperError
-    where
-        E: std::error::Error + Send + Sync + 'static,
-    {
-        ScraperError::StorageTxBeginFailure {
-            source: Box::new(error),
-        }
-    }
-
-    pub fn tx_commit_failure<E>(error: E) -> ScraperError
-    where
-        E: std::error::Error + Send + Sync + 'static,
-    {
-        ScraperError::StorageTxCommitFailure {
-            source: Box::new(error),
-        }
+    pub fn tx_commit_failure(source: NyxdScraperStorageError) -> ScraperError
+where {
+        ScraperError::StorageTxCommitFailure { source }
     }
 }
 

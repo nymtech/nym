@@ -5,7 +5,7 @@ pub(crate) mod block_processor;
 pub(crate) mod block_requester;
 pub mod constants;
 pub mod error;
-pub(crate) mod helpers;
+pub mod helpers;
 pub mod modules;
 pub(crate) mod rpc_client;
 pub(crate) mod scraper;

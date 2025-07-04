@@ -3,7 +3,7 @@
 
 use crate::block_processor::types::ParsedTransactionResponse;
 use crate::error::ScraperError;
-use crate::storage::NyxdScraperStorage;
+use crate::storage::NyxdScraperTransaction;
 use async_trait::async_trait;
 use cosmrs::Any;
 
@@ -16,18 +16,6 @@ pub trait MsgModule {
         index: usize,
         msg: &Any,
         tx: &ParsedTransactionResponse,
-        storage_tx: (),
+        storage_tx: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError>;
-
-    /*
-        async fn handle_msg<S>(
-        &mut self,
-        index: usize,
-        msg: &Any,
-        tx: &ParsedTransactionResponse,
-        storage_tx: &mut S::StorageTransaction,
-    ) -> Result<(), ScraperError>
-    where
-        S: NyxdScraperStorage;
-     */
 }

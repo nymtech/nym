@@ -62,9 +62,7 @@ pub struct NyxdScraperBuilder<S> {
 impl<S> NyxdScraperBuilder<S>
 where
     S: NyxdScraperStorage + Send + Sync + 'static,
-    S::Error: Send + Sync + 'static,
     S::StorageTransaction: Send + Sync + 'static,
-    ScraperError: From<<S as NyxdScraperStorage>::Error>,
 {
     pub async fn build_and_start(self) -> Result<NyxdScraper<S>, ScraperError> {
         let scraper = NyxdScraper::<S>::new(self.config).await?;
@@ -155,9 +153,7 @@ pub struct NyxdScraper<S> {
 impl<S> NyxdScraper<S>
 where
     S: NyxdScraperStorage + Send + Sync + 'static,
-    S::Error: Send + Sync + 'static,
     S::StorageTransaction: Send + Sync + 'static,
-    ScraperError: From<<S as NyxdScraperStorage>::Error>,
 {
     pub fn builder(config: Config) -> NyxdScraperBuilder<S> {
         NyxdScraperBuilder::new(config)
@@ -177,11 +173,6 @@ where
             rpc_client,
         })
     }
-
-    const TODO: &'static str = "maybe remove?";
-    // pub fn storage(&self) -> ScraperStorage {
-    //     self.storage.clone()
-    // }
 
     fn start_tasks(
         &self,

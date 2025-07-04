@@ -11,11 +11,7 @@ use crate::storage::transaction::PostgresStorageTransaction;
 use async_trait::async_trait;
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use nyxd_scraper_shared::storage::{NyxdScraperStorage, NyxdScraperStorageError};
-use sqlx::postgres::PgConnectOptions;
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
-use sqlx::ConnectOptions;
-use std::fmt::Debug;
-use std::path::Path;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 

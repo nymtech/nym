@@ -125,7 +125,7 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     );
     info!(
         "Chain History Database path is {:?}",
-        std::path::Path::new(&config.chain_scraper_database_path()).canonicalize()
+        std::path::Path::new(&config.chain_scraper_connection_string()).canonicalize()
     );
 
     // Ensure parent directory exists

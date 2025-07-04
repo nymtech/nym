@@ -6,9 +6,9 @@ use crate::env::vars::{
 use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
-use nyxd_scraper_sqlite::{
-    MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, PruningOptions, ScraperError,
-    SqliteNyxdScraper,
+use nyxd_scraper_psql::{
+    MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, PostgresNyxdScraper,
+    PruningOptions, ScraperError,
 };
 use sqlx::SqlitePool;
 use std::fs;
@@ -18,7 +18,7 @@ pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
     db_pool: SqlitePool,
     shared_state: BankScraperModuleState,
-) -> anyhow::Result<SqliteNyxdScraper> {
+) -> anyhow::Result<PostgresNyxdScraper> {
     let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
 
     let rpc_url = std::env::var("NYXD").expect("NYXD not defined");
@@ -47,16 +47,16 @@ pub(crate) async fn run_chain_scraper(
 
     if nuke_db {
         warn!("☢️☢️☢️ NUKING THE SCRAPER DATABASE");
-        fs::remove_file(config.chain_scraper_database_path())?;
+        fs::remove_file(config.chain_scraper_connection_string())?;
     }
 
-    let scraper = SqliteNyxdScraper::builder(nyxd_scraper_sqlite::Config {
+    let scraper = PostgresNyxdScraper::builder(nyxd_scraper_psql::Config {
         websocket_url,
         rpc_url,
-        database_storage: config.chain_scraper_database_path().into(),
+        database_storage: config.chain_scraper_connection_string.clone(),
         pruning_options: PruningOptions::nothing(),
         store_precommits: false,
-        start_block: nyxd_scraper_sqlite::StartingBlockOpts {
+        start_block: nyxd_scraper_psql::StartingBlockOpts {
             start_block_height,
             use_best_effort_start_height,
         },

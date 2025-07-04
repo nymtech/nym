@@ -2,9 +2,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 pub mod helpers;
+use crate::db::DbPool;
 use anyhow::Result;
 use helpers::{scrape_and_store_description, scrape_and_store_packet_stats};
-use sqlx::SqlitePool;
 use tracing::{debug, error, instrument, warn};
 
 use crate::db::models::ScraperNodeInfo;
@@ -19,13 +19,13 @@ static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct Scraper {
-    pool: SqlitePool,
+    pool: DbPool,
     description_queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     packet_queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
 }
 
 impl Scraper {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: DbPool) -> Self {
         Self {
             pool,
             description_queue: Arc::new(Mutex::new(Vec::new())),
@@ -71,7 +71,7 @@ impl Scraper {
 
     #[instrument(level = "info", name = "description_scraper", skip_all)]
     async fn run_description_scraper(
-        pool: &SqlitePool,
+        pool: &DbPool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
         let nodes = get_nodes_for_scraping(pool).await?;
@@ -88,7 +88,7 @@ impl Scraper {
 
     #[instrument(level = "info", name = "packet_scraper", skip_all)]
     async fn run_packet_scraper(
-        pool: &SqlitePool,
+        pool: &DbPool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
         let nodes = get_nodes_for_scraping(pool).await?;
@@ -104,7 +104,7 @@ impl Scraper {
         Ok(())
     }
 
-    async fn process_description_queue(pool: &SqlitePool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
+    async fn process_description_queue(pool: &DbPool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
@@ -127,7 +127,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match scrape_and_store_description(&pool, &node).await {
+                    match scrape_and_store_description(&pool, node.clone()).await {
                         Ok(_) => debug!(
                             "📝 ✅ Description task #{} for node {} complete",
                             task_id,
@@ -149,7 +149,7 @@ impl Scraper {
         }
     }
 
-    async fn process_packet_queue(pool: &SqlitePool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
+    async fn process_packet_queue(pool: &DbPool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
@@ -172,7 +172,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match scrape_and_store_packet_stats(&pool, &node).await {
+                    match scrape_and_store_packet_stats(&pool, node.clone()).await {
                         Ok(_) => debug!(
                             "📊 ✅ Packet stats task #{} for node {} complete",
                             task_id,

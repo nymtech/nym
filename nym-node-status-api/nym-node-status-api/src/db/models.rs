@@ -38,7 +38,7 @@ pub(crate) struct GatewayInsertRecord {
     pub(crate) performance: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub(crate) struct GatewayDto {
     pub(crate) gateway_identity_key: String,
     pub(crate) bonded: bool,
@@ -121,7 +121,7 @@ pub(crate) struct MixnodeRecord {
     pub(crate) is_dp_delegatee: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub(crate) struct MixnodeDto {
     pub(crate) mix_id: i64,
     pub(crate) bonded: bool,
@@ -183,14 +183,14 @@ pub(crate) struct BondedStatusDto {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, FromRow)]
 pub(crate) struct SummaryDto {
     pub(crate) key: String,
     pub(crate) value_json: String,
     pub(crate) last_updated_utc: i64,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, FromRow)]
 pub(crate) struct SummaryHistoryDto {
     #[allow(dead_code)]
     pub id: i64,
@@ -287,7 +287,7 @@ pub(crate) mod gateway {
 }
 
 #[allow(dead_code)] // not dead code, this is SQL data model
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub struct TestRunDto {
     pub id: i64,
     pub gateway_id: i64,
@@ -313,7 +313,7 @@ pub struct GatewayIdentityDto {
 }
 
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub struct GatewayInfoDto {
     pub id: i64,
     pub gateway_identity_key: String,
@@ -362,7 +362,7 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
-#[derive(strum_macros::Display)]
+#[derive(strum_macros::Display, Clone)]
 pub(crate) enum ScrapeNodeKind {
     LegacyMixnode { mix_id: i64 },
     MixingNymNode { node_id: i64 },
@@ -379,6 +379,7 @@ impl ScrapeNodeKind {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct ScraperNodeInfo {
     pub node_kind: ScrapeNodeKind,
     pub hosts: Vec<String>,
@@ -514,7 +515,7 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Decode)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Decode, FromRow)]
 pub struct NodeStats {
     pub packets_received: i64,
     pub packets_sent: i64,

@@ -4,7 +4,7 @@
 use bytes::Bytes;
 use futures::StreamExt;
 use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v8::response::ControlResponse};
-use nym_sdk::mixnet::ReconstructedMessage;
+pub use nym_sdk::mixnet::ReconstructedMessage;
 use tokio_util::codec::FramedRead;
 use tracing::{debug, error, info, warn};
 

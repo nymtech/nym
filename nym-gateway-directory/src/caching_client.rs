@@ -8,14 +8,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures::{FutureExt, StreamExt, stream::FuturesUnordered};
+use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use nym_offline_monitor::ConnectivityHandle;
-pub use nym_sdk::mixnet::NodeIdentity;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use strum::IntoEnumIterator;
 use tokio::sync::Mutex;
 
 use crate::{
-    Config, Country, Error, Gateway, GatewayClient, GatewayList, GatewayType, error::Result,
+    error::Result, Config, Country, Error, Gateway, GatewayClient, GatewayList, GatewayType,
 };
 
 #[derive(Clone)]

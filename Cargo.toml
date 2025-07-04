@@ -130,7 +130,6 @@ members = [
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-data-observatory",
     "nym-gateway-directory",
-    "nym-ip-packet-client",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",

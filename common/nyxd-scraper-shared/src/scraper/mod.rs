@@ -174,6 +174,10 @@ where
         })
     }
 
+    pub fn storage(&self) -> &S {
+        &self.storage
+    }
+
     fn start_tasks(
         &self,
         mut block_requester: BlockRequester,

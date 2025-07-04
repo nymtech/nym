@@ -3,7 +3,7 @@
 
 use crate::cli::{try_load_current_config, ConfigOverridableArgs};
 use crate::error::NymRewarderError;
-use nyxd_scraper_sqlite::NyxdScraper;
+use nyxd_scraper_sqlite::SqliteNyxdScraper;
 use std::path::PathBuf;
 
 #[derive(Debug, clap::Args)]
@@ -37,7 +37,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
     let config =
         try_load_current_config(&args.custom_config_path)?.with_override(args.config_override);
 
-    NyxdScraper::new(config.scraper_config())
+    SqliteNyxdScraper::new(config.scraper_config())
         .await?
         .unsafe_process_block_range(args.start_height, args.stop_height)
         .await?;

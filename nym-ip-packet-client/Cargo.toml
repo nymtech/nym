@@ -1,0 +1,20 @@
+[package]
+name = "nym-ip-packet-client"
+# version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bytes.workspace = true
+futures.workspace = true
+nym-gateway-directory = { path = "../nym-gateway-directory" }
+nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
+nym-sdk = {path = "../sdk/rust/nym-sdk" }
+thiserror.workspace = true
+tokio-util.workspace = true
+tokio.workspace = true
+tracing.workspace = true

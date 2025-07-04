@@ -1,0 +1,40 @@
+[package]
+name = "nym-vpn-api-client"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+backon.workspace = true
+base64-url.workspace = true
+bip39 = { workspace = true, features = ["zeroize"] }
+bs58.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+itertools.workspace = true
+nym-compact-ecash.workspace = true
+nym-config.workspace = true
+nym-contracts-common.workspace = true
+nym-credential-proxy-requests.workspace = true
+nym-crypto = { workspace = true, features = ["asymmetric", "stream_cipher"] }
+nym-http-api-client.workspace = true
+nym-validator-client.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sha2.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+time = { workspace = true, features = [
+    "serde-human-readable",
+    "serde-well-known",
+] }
+tokio = { workspace = true, features = [] }
+tracing.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+bip39 = { workspace = true, features = ["zeroize"] }

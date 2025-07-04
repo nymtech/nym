@@ -18,11 +18,7 @@ use sqlx::{
 };
 
 #[cfg(feature = "pg")]
-use sqlx::{
-    migrate::Migrator,
-    postgres::PgConnectOptions,
-    ConnectOptions, PgPool,
-};
+use sqlx::{migrate::Migrator, postgres::PgConnectOptions, ConnectOptions, PgPool};
 
 #[cfg(feature = "sqlite")]
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
@@ -72,8 +68,8 @@ impl Storage {
 
     #[cfg(feature = "pg")]
     pub async fn init(connection_url: String, _busy_timeout: Duration) -> Result<Self> {
-        let connect_options = PgConnectOptions::from_str(&connection_url)?
-            .disable_statement_logging();
+        let connect_options =
+            PgConnectOptions::from_str(&connection_url)?.disable_statement_logging();
 
         let pool = sqlx::PgPool::connect_with(connect_options)
             .await

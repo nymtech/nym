@@ -55,7 +55,7 @@ async fn get_summary_dto(pool: &DbPool) -> anyhow::Result<Vec<SummaryDto>> {
             key,
             value_json,
             last_updated_utc
-         FROM summary"#
+         FROM summary"#,
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<_>>()

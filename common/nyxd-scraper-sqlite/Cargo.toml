@@ -11,30 +11,14 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait.workspace = true
-const_format = { workspace = true }
-cosmrs.workspace = true
-eyre = { workspace = true }
-futures.workspace = true
+async-trait = { workspace = true }
 humantime = { workspace = true }
-sha2 = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
-tendermint.workspace = true
-tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
-thiserror.workspace = true
-time = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tokio-stream = { workspace = true }
-tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true
-url.workspace = true
 
 nyxd-scraper-shared = { path = "../nyxd-scraper-shared" }
-
-
-# TEMP
-#nym-bin-common = { path = "../bin-common", features = ["basic_tracing"]}
 
 
 [build-dependencies]

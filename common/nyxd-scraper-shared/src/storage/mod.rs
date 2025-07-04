@@ -1,37 +1,47 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::block_processor::types::FullBlockInformation;
 use crate::error::ScraperError;
-use crate::ParsedTransactionResponse;
 use async_trait::async_trait;
-use std::path::PathBuf;
-use tendermint::block::Commit;
-use tendermint::Block;
-use tendermint_rpc::endpoint::validators;
+use std::path::Path;
 use thiserror::Error;
 use tracing::warn;
 
-pub(crate) mod helpers;
+pub use crate::block_processor::types::FullBlockInformation;
+pub use crate::ParsedTransactionResponse;
+pub use tendermint::block::{Commit, CommitSig};
+pub use tendermint::Block;
+pub use tendermint_rpc::endpoint::validators;
+
+pub mod helpers;
 
 // a workaround for needing associated type (which is a no-no in dynamic dispatch)
 #[derive(Error, Debug)]
 #[error(transparent)]
 pub struct NyxdScraperStorageError(Box<dyn std::error::Error + Send + Sync>);
 
+impl NyxdScraperStorageError {
+    pub fn new<E>(error: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        NyxdScraperStorageError(Box::new(error))
+    }
+}
+
 #[async_trait]
 pub trait NyxdScraperStorage: Clone + Sized {
     type StorageTransaction: NyxdScraperTransaction;
 
-    async fn initialise(storage_path: &PathBuf) -> Result<Self, NyxdScraperStorageError>;
+    async fn initialise(storage_path: &Path) -> Result<Self, NyxdScraperStorageError>;
 
     async fn begin_processing_tx(
         &self,
     ) -> Result<Self::StorageTransaction, NyxdScraperStorageError>;
 
-    async fn get_last_processed_height(&self) -> Result<u32, NyxdScraperStorageError>;
+    async fn get_last_processed_height(&self) -> Result<i64, NyxdScraperStorageError>;
 
-    async fn get_pruned_height(&self) -> Result<u32, NyxdScraperStorageError>;
+    async fn get_pruned_height(&self) -> Result<i64, NyxdScraperStorageError>;
 
     async fn lowest_block_height(&self) -> Result<Option<i64>, NyxdScraperStorageError>;
 

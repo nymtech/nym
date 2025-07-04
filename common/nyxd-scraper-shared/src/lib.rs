@@ -9,7 +9,7 @@ pub mod helpers;
 pub mod modules;
 pub(crate) mod rpc_client;
 pub(crate) mod scraper;
-mod storage;
+pub mod storage;
 
 pub use block_processor::pruning::{PruningOptions, PruningStrategy};
 pub use block_processor::types::ParsedTransactionResponse;

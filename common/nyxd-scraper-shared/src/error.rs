@@ -4,6 +4,7 @@
 use crate::block_processor::pruning::{
     EVERYTHING_PRUNING_INTERVAL, EVERYTHING_PRUNING_KEEP_RECENT,
 };
+use crate::helpers::MalformedDataError;
 use crate::storage::NyxdScraperStorageError;
 use tendermint::Hash;
 use thiserror::Error;
@@ -11,11 +12,9 @@ use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, Error)]
 pub enum ScraperError {
-    #[error("experienced internal database error: {0}")]
-    InternalDatabaseError(#[from] NyxdScraperStorageError),
+    #[error("storage error: {0}")]
+    StorageError(#[from] NyxdScraperStorageError),
 
-    // #[error("failed to perform startup SQL migration: {0}")]
-    // StartupMigrationFailure(#[from] Box<dyn std::error::Error + Send + Sync>),
     #[error("the block scraper is already running")]
     ScraperAlreadyRunning,
 
@@ -116,27 +115,13 @@ pub enum ScraperError {
     #[error("failed to send on a closed channel")]
     ClosedChannelError,
 
-    #[error("failed to parse validator's address: {source}")]
-    MalformedValidatorAddress {
-        #[source]
-        source: eyre::Report,
-    },
-
-    #[error("failed to parse validator's address: {source}")]
-    MalformedValidatorPubkey {
-        #[source]
-        source: eyre::Report,
-    },
+    #[error(transparent)]
+    MalformedData(#[from] MalformedDataError),
 
     #[error(
         "could not find the block proposer ('{proposer}') for height {height} in the validator set"
     )]
     BlockProposerNotInValidatorSet { height: u32, proposer: String },
-
-    #[error(
-        "could not find validator information for {address}; the validator has signed a commit"
-    )]
-    MissingValidatorInfoCommitted { address: String },
 
     #[error("pruning.interval must not be set to 0. If you want to disable pruning, select pruning.strategy = \"nothing\"")]
     ZeroPruningInterval,

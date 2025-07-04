@@ -4,7 +4,7 @@
 use tokio::time::Instant;
 use tracing::{debug, error, info, trace, warn};
 
-pub(crate) fn log_db_operation_time(op_name: &str, start_time: Instant) {
+pub fn log_db_operation_time(op_name: &str, start_time: Instant) {
     let elapsed = start_time.elapsed();
     let formatted = humantime::format_duration(elapsed);
 

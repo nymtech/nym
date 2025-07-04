@@ -135,6 +135,21 @@ impl PendingAcknowledgement {
             global_max_retransmissions.is_some_and(|limit| self.retransmissions >= limit);
         reached_local_max || reached_global_max
     }
+
+    #[deprecated]
+    pub fn retransmission_counter(&self) -> u32 {
+        self.retransmissions
+    }
+
+    #[deprecated]
+    pub fn max_retransmissions(&self) -> Option<u32> {
+        self.max_retransmissions
+    }
+
+    #[deprecated]
+    pub fn id(&self) -> FragmentIdentifier {
+        self.message_chunk.fragment_identifier()
+    }
 }
 
 /// AcknowledgementControllerConnectors represents set of channels for communication with

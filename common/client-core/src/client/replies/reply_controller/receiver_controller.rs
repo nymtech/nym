@@ -285,7 +285,7 @@ where
         }
 
         if self.should_request_more_surbs(&recipient_tag) {
-            self.request_reply_surbs_for_queue_clearing(recipient_tag)
+            self.request_reply_surbs_for_queue_clearing(recipient_tag, "handle_send_reply")
                 .await;
         }
     }
@@ -490,7 +490,8 @@ where
 
         // if we have to, request more
         if self.should_request_more_surbs(&from) {
-            self.request_reply_surbs_for_queue_clearing(from).await;
+            self.request_reply_surbs_for_queue_clearing(from, "handle_received_surbs")
+                .await;
         }
     }
     fn buffer_pending_ack(
@@ -560,16 +561,25 @@ where
                     self.buffer_pending_ack(recipient_tag, ack_ref, timed_out_ack);
 
                     if self.should_request_more_surbs(&recipient_tag) {
-                        self.request_reply_surbs_for_queue_clearing(recipient_tag)
-                            .await;
+                        self.request_reply_surbs_for_queue_clearing(
+                            recipient_tag,
+                            &format!("handle_reply_retransmission #1"),
+                        )
+                        .await;
                     }
                 }
             };
         } else {
+            let log = format!(
+                "handle_reply_retransmission #2 [{}] ({} / {:?})",
+                ack_ref.id(),
+                ack_ref.retransmission_counter(),
+                ack_ref.max_retransmissions()
+            );
             self.buffer_pending_ack(recipient_tag, ack_ref, timed_out_ack);
 
             if self.should_request_more_surbs(&recipient_tag) {
-                self.request_reply_surbs_for_queue_clearing(recipient_tag)
+                self.request_reply_surbs_for_queue_clearing(recipient_tag, &log)
                     .await;
             }
         }
@@ -602,7 +612,11 @@ where
     // TODO: modify this method to more accurately determine the amount of surbs it needs to request
     // it should take into consideration the average latency, sending rate and queue size.
     // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
-    async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
+    async fn request_reply_surbs_for_queue_clearing(
+        &mut self,
+        target: AnonymousSenderTag,
+        source: &str,
+    ) {
         trace!("requesting surbs for queue clearing");
 
         let total_queue = self
@@ -629,7 +643,9 @@ where
             .request_additional_reply_surbs(target, request_size)
             .await
         {
-            info!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+            let todo = "downgrade that log to dbg";
+            // info!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+            info!("⚠️ SOURCE: {source}: failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
         }
     }
 
@@ -687,8 +703,11 @@ where
         }
 
         for pending_reply_target in to_request {
-            self.request_reply_surbs_for_queue_clearing(pending_reply_target)
-                .await;
+            self.request_reply_surbs_for_queue_clearing(
+                pending_reply_target,
+                "inspect_stale_pending_data",
+            )
+            .await;
             self.surbs_storage
                 .reset_pending_reception(&pending_reply_target)
         }

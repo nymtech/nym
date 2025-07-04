@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::log_db_operation_time;
 use crate::storage::models::{CommitSignature, Validator};
+use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use sqlx::types::time::OffsetDateTime;
 use sqlx::{Executor, Sqlite};
 use tokio::time::Instant;

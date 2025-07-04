@@ -11,6 +11,17 @@ rust-version.workspace = true
 readme.workspace = true
 
 [dependencies]
+async-trait = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing.workspace = true
+
+nyxd-scraper-shared = { path = "../nyxd-scraper-shared" }
+
+[build-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [lints]
 workspace = true

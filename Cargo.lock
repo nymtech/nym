@@ -8081,6 +8081,14 @@ dependencies = [
 [[package]]
 name = "nyxd-scraper-psql"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "nyxd-scraper-shared",
+ "sqlx",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "nyxd-scraper-shared"
@@ -8110,7 +8118,6 @@ name = "nyxd-scraper-sqlite"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "humantime",
  "nyxd-scraper-shared",
  "sqlx",
  "thiserror 2.0.12",

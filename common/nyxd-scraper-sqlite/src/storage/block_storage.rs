@@ -207,8 +207,8 @@ impl SqliteScraperStorage {
 impl NyxdScraperStorage for SqliteScraperStorage {
     type StorageTransaction = SqliteStorageTransaction;
 
-    async fn initialise(storage_path: &Path) -> Result<Self, NyxdScraperStorageError> {
-        SqliteScraperStorage::init(&storage_path)
+    async fn initialise(storage: &str) -> Result<Self, NyxdScraperStorageError> {
+        SqliteScraperStorage::init(storage)
             .await
             .map_err(NyxdScraperStorageError::from)
     }

@@ -3,7 +3,6 @@
 
 use crate::error::ScraperError;
 use async_trait::async_trait;
-use std::path::Path;
 use thiserror::Error;
 use tracing::warn;
 
@@ -33,7 +32,8 @@ impl NyxdScraperStorageError {
 pub trait NyxdScraperStorage: Clone + Sized {
     type StorageTransaction: NyxdScraperTransaction;
 
-    async fn initialise(storage_path: &Path) -> Result<Self, NyxdScraperStorageError>;
+    /// Either connection string (postgres) or storage path (sqlite)
+    async fn initialise(storage: &str) -> Result<Self, NyxdScraperStorageError>;
 
     async fn begin_processing_tx(
         &self,

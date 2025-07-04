@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT * FROM validator\n                WHERE EXISTS (\n                    SELECT 1 FROM pre_commit\n                    WHERE height = $1\n                    AND pre_commit.validator_address = validator.consensus_address\n                )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "consensus_address",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "consensus_pubkey",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "be43d4873911deca784b7be0531ab7bd82ecd68041aa932a56c8ce09623251e4"
+}

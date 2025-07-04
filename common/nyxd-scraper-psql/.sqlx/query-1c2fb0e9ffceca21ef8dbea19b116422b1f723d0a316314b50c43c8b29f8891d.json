@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pre_commit WHERE height < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1c2fb0e9ffceca21ef8dbea19b116422b1f723d0a316314b50c43c8b29f8891d"
+}

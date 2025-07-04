@@ -8083,7 +8083,11 @@ name = "nyxd-scraper-psql"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
+ "cosmrs",
  "nyxd-scraper-shared",
+ "serde",
+ "serde_json",
  "sqlx",
  "thiserror 2.0.12",
  "tokio",

@@ -11,7 +11,8 @@ use crate::storage::transaction::PostgresStorageTransaction;
 use async_trait::async_trait;
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use nyxd_scraper_shared::storage::{NyxdScraperStorage, NyxdScraperStorageError};
-use sqlx::types::time::OffsetDateTime;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
 use std::path::Path;
@@ -25,50 +26,33 @@ pub struct PostgresScraperStorage {
 
 impl PostgresScraperStorage {
     #[instrument]
-    pub async fn init<P: AsRef<Path> + Debug>(
-        database_path: P,
-    ) -> Result<Self, PostgresScraperError> {
-        todo!()
-        // let database_path = database_path.as_ref();
-        // debug!(
-        //     "initialising scraper database path to '{}'",
-        //     database_path.display()
-        // );
-        //
-        // let opts = sqlx::Postgres::PostgresConnectOptions::new()
-        //     .journal_mode(sqlx::Postgres::PostgresJournalMode::Wal)
-        //     .synchronous(PostgresSynchronous::Normal)
-        //     .auto_vacuum(PostgresAutoVacuum::Incremental)
-        //     .filename(database_path)
-        //     .create_if_missing(true)
-        //     .disable_statement_logging();
-        //
-        // // TODO: do we want auto_vacuum ?
-        //
-        // let connection_pool = match sqlx::PostgresPool::connect_with(opts).await {
-        //     Ok(db) => db,
-        //     Err(err) => {
-        //         error!("Failed to connect to SQLx database: {err}");
-        //         return Err(err.into());
-        //     }
-        // };
-        //
-        // if let Err(err) = sqlx::migrate!("./sql_migrations")
-        //     .run(&connection_pool)
-        //     .await
-        // {
-        //     error!("Failed to initialize SQLx database: {err}");
-        //     return Err(err.into());
-        // }
-        //
-        // info!("Database migration finished!");
-        //
-        // let manager = StorageManager { connection_pool };
-        // manager.set_initial_metadata().await?;
-        //
-        // let storage = PostgresScraperStorage { manager };
-        //
-        // Ok(storage)
+    pub async fn init(connection_string: &str) -> Result<Self, PostgresScraperError> {
+        debug!("initialising scraper database with '{connection_string}'",);
+
+        let connection_pool = match sqlx::PgPool::connect(connection_string).await {
+            Ok(db) => db,
+            Err(err) => {
+                error!("Failed to connect to SQLx database: {err}");
+                return Err(err.into());
+            }
+        };
+
+        if let Err(err) = sqlx::migrate!("./sql_migrations")
+            .run(&connection_pool)
+            .await
+        {
+            error!("Failed to initialize SQLx database: {err}");
+            return Err(err.into());
+        }
+
+        info!("Database migration finished!");
+
+        let manager = StorageManager { connection_pool };
+        manager.set_initial_metadata().await?;
+
+        let storage = PostgresScraperStorage { manager };
+
+        Ok(storage)
     }
 
     #[instrument(skip(self))]
@@ -118,6 +102,8 @@ impl PostgresScraperStorage {
         &self,
         time: OffsetDateTime,
     ) -> Result<Option<i64>, PostgresScraperError> {
+        let time = PrimitiveDateTime::new(time.date(), time.time());
+
         Ok(self.manager.get_first_block_height_after(time).await?)
     }
 
@@ -125,6 +111,8 @@ impl PostgresScraperStorage {
         &self,
         time: OffsetDateTime,
     ) -> Result<Option<i64>, PostgresScraperError> {
+        let time = PrimitiveDateTime::new(time.date(), time.time());
+
         Ok(self.manager.get_last_block_height_before(time).await?)
     }
 
@@ -207,8 +195,8 @@ impl PostgresScraperStorage {
 impl NyxdScraperStorage for PostgresScraperStorage {
     type StorageTransaction = PostgresStorageTransaction;
 
-    async fn initialise(storage_path: &Path) -> Result<Self, NyxdScraperStorageError> {
-        PostgresScraperStorage::init(&storage_path)
+    async fn initialise(storage: &str) -> Result<Self, NyxdScraperStorageError> {
+        PostgresScraperStorage::init(storage)
             .await
             .map_err(NyxdScraperStorageError::from)
     }

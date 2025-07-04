@@ -13,6 +13,7 @@ pub mod storage;
 
 pub use block_processor::pruning::{PruningOptions, PruningStrategy};
 pub use block_processor::types::ParsedTransactionResponse;
+pub use cosmrs::Any;
 pub use modules::{BlockModule, MsgModule, TxModule};
 pub use scraper::{Config, NyxdScraper, StartingBlockOpts};
 pub use storage::{NyxdScraperStorage, NyxdScraperTransaction};

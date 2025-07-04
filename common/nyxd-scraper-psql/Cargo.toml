@@ -12,12 +12,18 @@ readme.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
+base64 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
 
 nyxd-scraper-shared = { path = "../nyxd-scraper-shared" }
+
+# temp due to cosmrs redefinitions for serde
+cosmrs = { workspace = true }
 
 [build-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate"] }

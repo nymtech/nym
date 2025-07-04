@@ -12,7 +12,6 @@ use crate::storage::NyxdScraperStorage;
 use crate::PruningOptions;
 use futures::future::join_all;
 use std::marker::PhantomData;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender,
@@ -41,7 +40,8 @@ pub struct Config {
     /// Url to the rpc endpoint of a validator, for example `https://rpc.nymtech.net/`
     pub rpc_url: Url,
 
-    pub database_path: PathBuf,
+    /// Points to either underlying file (sqlite) or connection string (postgres)
+    pub database_storage: String,
 
     pub pruning_options: PruningOptions,
 
@@ -161,7 +161,7 @@ where
 
     pub async fn new(config: Config) -> Result<Self, ScraperError> {
         config.pruning_options.validate()?;
-        let storage = S::initialise(&config.database_path).await?;
+        let storage = S::initialise(&config.database_storage).await?;
         let rpc_client = RpcClient::new(&config.rpc_url)?;
 
         Ok(NyxdScraper {

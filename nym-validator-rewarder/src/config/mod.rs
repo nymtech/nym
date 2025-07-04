@@ -123,7 +123,7 @@ impl Config {
         nyxd_scraper_sqlite::Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
-            database_path: self.storage_paths.nyxd_scraper.clone(),
+            database_storage: self.storage_paths.nyxd_scraper.clone(),
             pruning_options: self.nyxd_scraper.pruning,
             store_precommits: self.nyxd_scraper.store_precommits,
             start_block: StartingBlockOpts {

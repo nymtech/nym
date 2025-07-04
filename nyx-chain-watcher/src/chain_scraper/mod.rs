@@ -53,7 +53,7 @@ pub(crate) async fn run_chain_scraper(
     let scraper = SqliteNyxdScraper::builder(nyxd_scraper_sqlite::Config {
         websocket_url,
         rpc_url,
-        database_path: config.chain_scraper_database_path().into(),
+        database_storage: config.chain_scraper_database_path().into(),
         pruning_options: PruningOptions::nothing(),
         store_precommits: false,
         start_block: nyxd_scraper_sqlite::StartingBlockOpts {

@@ -27,6 +27,13 @@ pub enum PostgresScraperError {
 
     #[error(transparent)]
     MalformedData(#[from] MalformedDataError),
+
+    // TOOD: add struct name
+    #[error("json serialisation failure: {source}")]
+    SerialisationFailure {
+        #[from]
+        source: serde_json::Error,
+    },
 }
 
 impl From<PostgresScraperError> for NyxdScraperStorageError {

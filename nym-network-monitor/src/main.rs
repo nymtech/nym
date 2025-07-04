@@ -10,7 +10,8 @@ use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
-use nym_topology::{HardcodedTopologyProvider, NymTopology, NymTopologyMetadata};
+use nym_topology::provider_trait::ToTopologyMetadata;
+use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -26,7 +27,7 @@ use tokio::{signal::ctrl_c, sync::RwLock};
 use tokio_util::sync::CancellationToken;
 
 static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
-    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{} env var not set", NYM_API))
+    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{NYM_API} env var not set"))
 });
 
 static MIXNET_TIMEOUT: OnceCell<u64> = OnceCell::const_new();
@@ -48,10 +49,10 @@ async fn make_clients(
 ) {
     loop {
         let spawned_clients = clients.read().await.len();
-        info!("Currently spawned clients: {}", spawned_clients);
+        info!("Currently spawned clients: {spawned_clients}");
         // If we have enough clients, sleep for a minute and remove the oldest one
         if spawned_clients >= n_clients {
-            info!("New client will be spawned in {} seconds", lifetime);
+            info!("New client will be spawned in {lifetime} seconds");
             tokio::time::sleep(tokio::time::Duration::from_secs(lifetime)).await;
             info!("Removing oldest client");
             if let Some(dropped_client) = clients.write().await.pop_front() {
@@ -74,7 +75,7 @@ async fn make_clients(
         let client = match make_client(topology.clone()).await {
             Ok(client) => client,
             Err(err) => {
-                warn!("{}, moving on", err);
+                warn!("{err}, moving on");
                 continue;
             }
         };
@@ -171,12 +172,10 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let nodes = nodes_response.nodes;
     let metadata = nodes_response.metadata;
 
-    Ok(NymTopology::new(
-        NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-        rewarded_set,
-        Vec::new(),
+    Ok(
+        NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+            .with_skimmed_nodes(&nodes),
     )
-    .with_skimmed_nodes(&nodes))
 }
 
 #[tokio::main]

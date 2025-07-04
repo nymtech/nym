@@ -15,6 +15,24 @@ pub enum SphinxKeyRotation {
     EvenRotation = 2,
 }
 
+impl SphinxKeyRotation {
+    pub fn from_key_rotation_id(rotation_id: u32) -> Self {
+        rotation_id.into()
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, SphinxKeyRotation::Unknown)
+    }
+
+    pub fn is_even(&self) -> bool {
+        matches!(self, SphinxKeyRotation::EvenRotation)
+    }
+
+    pub fn is_odd(&self) -> bool {
+        matches!(self, SphinxKeyRotation::OddRotation)
+    }
+}
+
 #[derive(Debug, Error)]
 #[error("{received} is not a valid encoding of a sphinx key rotation")]
 pub struct InvalidSphinxKeyRotation {

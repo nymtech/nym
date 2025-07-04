@@ -10,14 +10,18 @@ use console::style;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::RoleAssignment;
-use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
+use nym_validator_client::nyxd::contract_traits::{
+    MixnetQueryClient, MixnetSigningClient, PagedMixnetQueryClient,
+};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use time::OffsetDateTime;
 use tokio::process::Command;
+use tokio::time::sleep;
 use tracing::error;
 use zeroize::Zeroizing;
 
@@ -87,6 +91,16 @@ impl<'a> LocalNodesCtx<'a> {
                 .mixnet_rewarder
                 .mnemonic
                 .clone(),
+        )?)
+    }
+
+    fn signing_mixnet_contract_admin(
+        &self,
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NetworkManagerError> {
+        Ok(DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            self.network.client_config()?,
+            self.network.rpc_endpoint.as_str(),
+            self.network.contracts.mixnet.admin_mnemonic.clone(),
         )?)
     }
 }
@@ -227,6 +241,40 @@ impl NetworkManager {
         Ok(())
     }
 
+    async fn check_if_network_is_empty(
+        &self,
+        ctx: &LocalNodesCtx<'_>,
+    ) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "🐽 {}Making sure the network is fresh...",
+            style("[0/5]").bold().dim()
+        ));
+
+        ctx.set_pb_message("checking network state...");
+
+        let client = ctx.signing_mixnet_contract_admin()?;
+        let fut = client.get_all_nymnode_bonds();
+        let nym_nodes = ctx.async_with_progress(fut).await?;
+
+        if !nym_nodes.is_empty() {
+            return Err(NetworkManagerError::NetworkNotEmpty);
+        }
+
+        let fut = client.get_all_mixnode_bonds();
+        let mixnodes = ctx.async_with_progress(fut).await?;
+        if !mixnodes.is_empty() {
+            return Err(NetworkManagerError::NetworkNotEmpty);
+        }
+
+        let fut = client.get_all_gateways();
+        let gateways = ctx.async_with_progress(fut).await?;
+        if !gateways.is_empty() {
+            return Err(NetworkManagerError::NetworkNotEmpty);
+        }
+
+        Ok(())
+    }
+
     async fn initialise_nym_nodes(
         &self,
         ctx: &mut LocalNodesCtx<'_>,
@@ -353,6 +401,75 @@ impl NetworkManager {
         // this could be batched in a single tx, but that's too much effort for now
         let rewarder = ctx.signing_rewarder()?;
 
+        ctx.set_pb_message("checking and temporarily adjusting epoch lengths...");
+        let fut = rewarder.get_current_interval_details();
+        let original_epoch = ctx.async_with_progress(fut).await?;
+
+        let expected_end = original_epoch.interval.current_epoch_end();
+        let now = OffsetDateTime::now_utc();
+        if expected_end > now {
+            loop {
+                let now = OffsetDateTime::now_utc();
+                let diff = expected_end - now;
+                if diff.is_negative() {
+                    break;
+                }
+
+                let std_diff = diff.unsigned_abs();
+                let fut = sleep(std::time::Duration::from_millis(500));
+                ctx.set_pb_message(format!(
+                    "waiting for {} for the epoch end...",
+                    humantime::format_duration(std_diff)
+                ));
+                ctx.async_with_progress(fut).await;
+            }
+            // wait extra 10s due to possible block time desync
+            ctx.set_pb_message("waiting extra 10s to make sure blocks have advanced".to_string());
+            let fut = sleep(std::time::Duration::from_secs(10));
+            ctx.async_with_progress(fut).await;
+        }
+
+        // TODO: for some reason contract rejects correct admin. won't be debugging it now.
+        // let changed_length = if expected_end > now {
+        //
+        //     // if it's < 10s, just wait
+        //     let diff = expected_end - now;
+        //
+        //     if diff < Duration::seconds(10) {
+        //         let std_diff = diff.unsigned_abs();
+        //         let fut = sleep(std_diff);
+        //         ctx.set_pb_message(format!(
+        //             "waiting for {} for the epoch end...",
+        //             humantime::format_duration(std_diff)
+        //         ));
+        //         ctx.async_with_progress(fut).await;
+        //         false
+        //     } else {
+        //         ctx.println(format!(
+        //             "🙈 {}Reducing epoch length...",
+        //             style("[4.pre/5]").bold().dim()
+        //         ));
+        //
+        //         // just lower the epoch length and later restore it
+        //         let admin = ctx.signing_mixnet_contract_admin()?;
+        //         let fut = admin.update_interval_config(
+        //             original_epoch.interval.epochs_in_interval(),
+        //             10,
+        //             true,
+        //             None,
+        //         );
+        //         ctx.async_with_progress(fut).await?;
+        //         let fut = sleep(std::time::Duration::from_secs(10));
+        //         ctx.set_pb_message("waiting for 10s for the epoch end...");
+        //         ctx.async_with_progress(fut).await;
+        //         true
+        //     }
+        // } else {
+        //     false
+        // };
+
+        // reduce epoch length if it would prevent us from the advancing the state
+
         ctx.set_pb_message("starting epoch transition...");
         let fut = rewarder.begin_epoch_transition(None);
         ctx.async_with_progress(fut).await?;
@@ -420,6 +537,23 @@ impl NetworkManager {
             None,
         );
         ctx.async_with_progress(fut).await?;
+
+        // TODO: for some reason contract rejects correct admin. won't be debugging it now.
+        // if changed_length {
+        //     ctx.println(format!(
+        //         "🙈 {}Restoring epoch length...",
+        //         style("[4.post/5]").bold().dim()
+        //     ));
+        //     ctx.set_pb_message("restoring original epoch length...");
+        //     let admin = ctx.signing_mixnet_contract_admin()?;
+        //     let fut = admin.update_interval_config(
+        //         original_epoch.interval.epochs_in_interval(),
+        //         original_epoch.interval.epoch_length_secs(),
+        //         true,
+        //         None,
+        //     );
+        //     ctx.async_with_progress(fut).await?;
+        // }
 
         Ok(())
     }
@@ -507,6 +641,7 @@ impl NetworkManager {
             return Err(NetworkManagerError::EnvFileNotGenerated);
         }
 
+        self.check_if_network_is_empty(&ctx).await?;
         self.initialise_nym_nodes(&mut ctx, mixnodes, gateways)
             .await?;
         self.transfer_bonding_tokens(&ctx).await?;

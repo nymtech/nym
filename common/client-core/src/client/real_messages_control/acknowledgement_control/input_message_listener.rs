@@ -5,7 +5,6 @@ use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -13,6 +12,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
+use tracing::*;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -228,16 +228,16 @@ where
                         self.on_input_message(input_msg).await;
                     },
                     None => {
-                        log::trace!("InputMessageListener: Stopping since channel closed");
+                        tracing::trace!("InputMessageListener: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv() => {
-                    log::trace!("InputMessageListener: Received shutdown");
+                    tracing::trace!("InputMessageListener: Received shutdown");
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("InputMessageListener: Exiting");
+        tracing::debug!("InputMessageListener: Exiting");
     }
 }

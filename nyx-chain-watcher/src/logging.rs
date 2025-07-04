@@ -36,7 +36,7 @@ pub(crate) fn setup_tracing_logger() {
         "axum",
     ];
     for crate_name in filter_crates {
-        filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name)));
+        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn")));
     }
 
     log_builder.with_env_filter(filter).init();

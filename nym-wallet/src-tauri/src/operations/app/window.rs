@@ -25,7 +25,7 @@ async fn create_window(
     try_close_window_label: &str,
 ) -> Result<(), BackendError> {
     // create the new window first, to stop the app process from exiting
-    log::info!("Creating {} window...", new_window_label);
+    log::info!("Creating {new_window_label} window...");
     match tauri::WebviewWindowBuilder::new(
         &app_handle,
         new_window_label,

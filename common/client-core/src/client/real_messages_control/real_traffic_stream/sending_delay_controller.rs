@@ -98,12 +98,12 @@ impl SendingDelayController {
             self.current_multiplier =
                 (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
             self.time_when_changed = get_time_now();
-            log::debug!(
+            tracing::debug!(
                 "Increasing sending delay multiplier to: {}",
                 self.current_multiplier
             );
         } else {
-            log::warn!("Trying to increase delay multipler higher than allowed");
+            tracing::warn!("Trying to increase delay multipler higher than allowed");
         }
     }
 
@@ -112,7 +112,7 @@ impl SendingDelayController {
             self.current_multiplier =
                 (self.current_multiplier - 1).clamp(self.lower_bound, self.upper_bound);
             self.time_when_changed = get_time_now();
-            log::debug!(
+            tracing::debug!(
                 "Decreasing sending delay multiplier to: {}",
                 self.current_multiplier
             );
@@ -164,11 +164,11 @@ impl SendingDelayController {
                 self.current_multiplier()
             );
             if self.current_multiplier() > 0 {
-                log::debug!("{}", status_str);
+                tracing::debug!("{}", status_str);
             } else if self.current_multiplier() > 1 {
-                log::info!("{}", status_str);
+                tracing::info!("{}", status_str);
             } else if self.current_multiplier() > 2 {
-                log::warn!("{}", status_str);
+                tracing::warn!("{}", status_str);
             }
             self.time_when_logged_about_elevated_multiplier = now;
         }

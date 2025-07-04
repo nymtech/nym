@@ -77,7 +77,7 @@ async fn main() {
     let gateways = starting_topology.topology.entry_capable_nodes();
 
     // you should have obtained valid metadata information, in particular the key rotation ID!
-    let metadata = NymTopologyMetadata::new(u32::MAX, 123);
+    let metadata = NymTopologyMetadata::new(u32::MAX, 123, time::OffsetDateTime::now_utc());
 
     let mut custom_topology = NymTopology::new(metadata, rewarded_set, Vec::new());
     custom_topology.add_routing_nodes(nodes);

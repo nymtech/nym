@@ -43,7 +43,7 @@ pub struct Args {
 pub async fn generate(args: Args) {
     info!("Starting to generate vesting contract instantiate msg");
 
-    debug!("Received arguments: {:?}", args);
+    debug!("Received arguments: {args:?}");
 
     let multisig_addr = args.multisig_addr.unwrap_or_else(|| {
         let address = std::env::var(nym_network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
@@ -97,7 +97,7 @@ pub async fn generate(args: Args) {
         key_size: DEFAULT_DEALINGS as u32,
     };
 
-    debug!("instantiate_msg: {:?}", instantiate_msg);
+    debug!("instantiate_msg: {instantiate_msg:?}");
 
     let res =
         serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");

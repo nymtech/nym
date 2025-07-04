@@ -135,7 +135,9 @@ impl InputMessage {
             recipient_tag,
             data,
             lane,
-            max_retransmissions: None,
+            // \/ set it to SOME sane default so that if we run out of surbs and constantly
+            // fail to request more, we wouldn't be stuck in limbo
+            max_retransmissions: Some(10),
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)

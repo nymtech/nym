@@ -17,5 +17,5 @@ pub async fn unbond_gateway(client: SigningClient) {
         .await
         .expect("failed to unbond gateway!");
 
-    info!("Unbonding result: {:?}", res)
+    info!("Unbonding result: {res:?}")
 }

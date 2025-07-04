@@ -70,9 +70,7 @@ impl<T: ToSchema> CachedNodesResponse<T> {
     }
 }
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema, PartialEq,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct NodesResponseMetadata {
     pub status: Option<TopologyRequestStatus>,
     #[schema(value_type = u32)]
@@ -82,6 +80,12 @@ pub struct NodesResponseMetadata {
 }
 
 impl NodesResponseMetadata {
+    pub fn consistency_check(&self, other: &NodesResponseMetadata) -> bool {
+        self.status == other.status
+            && self.absolute_epoch_id == other.absolute_epoch_id
+            && self.rotation_id == other.rotation_id
+    }
+
     pub fn refreshed_at(&self) -> OffsetDateTime {
         self.refreshed_at.into()
     }

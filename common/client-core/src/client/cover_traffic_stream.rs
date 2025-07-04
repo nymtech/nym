@@ -6,7 +6,6 @@ use crate::client::topology_control::TopologyAccessor;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
-use log::*;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
@@ -19,6 +18,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TrySendError;
+use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
@@ -210,10 +210,10 @@ impl LoopCoverTrafficStream<OsRng> {
                 TrySendError::Full(_) => {
                     // This isn't a problem, if the channel is full means we're already sending the
                     // max amount of messages downstream can handle.
-                    log::debug!("Failed to send cover message - channel full");
+                    tracing::debug!("Failed to send cover message - channel full");
                 }
                 TrySendError::Closed(_) => {
-                    log::warn!("Failed to send cover message - channel closed");
+                    tracing::warn!("Failed to send cover message - channel closed");
                 }
             }
         } else {
@@ -258,20 +258,20 @@ impl LoopCoverTrafficStream<OsRng> {
                 tokio::select! {
                     biased;
                     _ = shutdown.recv() => {
-                        log::trace!("LoopCoverTrafficStream: Received shutdown");
+                        tracing::trace!("LoopCoverTrafficStream: Received shutdown");
                     }
                     next = self.next() => {
                         if next.is_some() {
                             self.on_new_message().await;
                         } else {
-                            log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
+                            tracing::trace!("LoopCoverTrafficStream: Stopping since channel closed");
                             break;
                         }
                     }
                 }
             }
             shutdown.recv_timeout().await;
-            log::debug!("LoopCoverTrafficStream: Exiting");
+            tracing::debug!("LoopCoverTrafficStream: Exiting");
         })
     }
 }

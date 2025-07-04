@@ -9,11 +9,11 @@ license.workspace = true
 [dependencies]
 async-trait.workspace = true
 cosmrs.workspace = true
-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
 url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 

@@ -5,7 +5,6 @@ use super::action_controller::{AckActionSender, Action};
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
 
 use futures::StreamExt;
-use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::{
     acknowledgements::{identifier::recover_identifier, AckKey},
@@ -13,6 +12,7 @@ use nym_sphinx::{
 };
 use nym_task::TaskClient;
 use std::sync::Arc;
+use tracing::*;
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
 /// and firing actions to remove them from the 'Pending' state.
@@ -93,16 +93,16 @@ impl AcknowledgementListener {
                 acks = self.ack_receiver.next() => match acks {
                     Some(acks) => self.handle_ack_receiver_item(acks).await,
                     None => {
-                        log::trace!("AcknowledgementListener: Stopping since channel closed");
+                        tracing::trace!("AcknowledgementListener: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv() => {
-                    log::trace!("AcknowledgementListener: Received shutdown");
+                    tracing::trace!("AcknowledgementListener: Received shutdown");
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("AcknowledgementListener: Exiting");
+        tracing::debug!("AcknowledgementListener: Exiting");
     }
 }

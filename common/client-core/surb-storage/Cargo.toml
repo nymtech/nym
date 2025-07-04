@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 async-trait.workspace = true
 dashmap.workspace = true
-log.workspace = true
+tracing.workspace = true
 thiserror.workspace = true
 time.workspace = true
 
@@ -20,7 +20,7 @@ nym-task = { path = "../../task" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
 optional = true
 
 [build-dependencies]

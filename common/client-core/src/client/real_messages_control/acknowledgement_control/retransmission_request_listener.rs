@@ -10,13 +10,13 @@ use crate::client::real_messages_control::message_handler::{MessageHandler, Prep
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use futures::StreamExt;
-use log::*;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
 use nym_task::{connections::TransmissionLane, TaskClient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
+use tracing::*;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R> {
@@ -182,16 +182,16 @@ where
                 timed_out_ack = self.request_receiver.next() => match timed_out_ack {
                     Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack, packet_type).await,
                     None => {
-                        log::trace!("RetransmissionRequestListener: Stopping since channel closed");
+                        tracing::trace!("RetransmissionRequestListener: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv() => {
-                    log::trace!("RetransmissionRequestListener: Received shutdown");
+                    tracing::trace!("RetransmissionRequestListener: Received shutdown");
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("RetransmissionRequestListener: Exiting");
+        tracing::debug!("RetransmissionRequestListener: Exiting");
     }
 }

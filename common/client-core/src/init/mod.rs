@@ -63,7 +63,7 @@ where
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
 {
-    log::trace!("Setting up new gateway");
+    tracing::trace!("Setting up new gateway");
 
     // if we're setting up new gateway, we must have had generated long-term client keys before
     let client_keys = load_client_keys(key_store).await?;
@@ -202,10 +202,10 @@ where
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
 {
-    log::debug!("Setting up gateway");
+    tracing::debug!("Setting up gateway");
     match setup {
         GatewaySetup::MustLoad { gateway_id } => {
-            log::debug!("GatewaySetup::MustLoad with id: {gateway_id:?}");
+            tracing::debug!("GatewaySetup::MustLoad with id: {gateway_id:?}");
             use_loaded_gateway_details(key_store, details_store, gateway_id).await
         }
         GatewaySetup::New {
@@ -214,7 +214,7 @@ where
             #[cfg(unix)]
             connection_fd_callback,
         } => {
-            log::debug!("GatewaySetup::New with spec: {specification:?}");
+            tracing::debug!("GatewaySetup::New with spec: {specification:?}");
             setup_new_gateway(
                 key_store,
                 details_store,
@@ -230,7 +230,7 @@ where
             gateway_details,
             client_keys: managed_keys,
         } => {
-            log::debug!("GatewaySetup::ReuseConnection");
+            tracing::debug!("GatewaySetup::ReuseConnection");
             Ok(reuse_gateway_connection(
                 *authenticated_ephemeral_client,
                 *gateway_details,

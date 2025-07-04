@@ -7,7 +7,7 @@ async fn test_get_chain_status() -> Result<(), String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     let block_header = json
@@ -35,7 +35,7 @@ async fn test_get_network_details() -> Result<(), String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     assert!(
@@ -60,7 +60,7 @@ async fn test_get_nym_contracts() -> Result<(), String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     assert!(
@@ -81,7 +81,7 @@ async fn test_get_nym_contracts_detailed() -> Result<(), String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     let mixnet_contract = json

@@ -7,7 +7,6 @@ use crate::client::replies::reply_storage::{
 use crate::config;
 use crate::config::Config;
 use crate::error::ClientCoreError;
-use log::{error, info, trace};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
@@ -16,6 +15,7 @@ use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::path::Path;
 use std::{fs, io};
 use time::OffsetDateTime;
+use tracing::{error, info, trace};
 use url::Url;
 
 async fn setup_fresh_backend<P: AsRef<Path>>(
@@ -88,7 +88,7 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     let db_path = db_path.as_ref();
     if db_path.exists() {
         info!("loading existing surb database");
-        match fs_backend::Backend::try_load(db_path, surb_config.fresh_sender_tags).await {
+        match fs_backend::Backend::try_load(db_path).await {
             Ok(backend) => Ok(backend),
             Err(err) => {
                 error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");

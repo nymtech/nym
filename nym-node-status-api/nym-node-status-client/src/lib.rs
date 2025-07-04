@@ -16,7 +16,7 @@ pub struct NsApiClient {
 
 impl NsApiClient {
     pub fn new(server_ip: &str, server_port: u16, auth_key: PrivateKey) -> Self {
-        let server_address = format!("{}:{}", server_ip, server_port);
+        let server_address = format!("{server_ip}:{server_port}");
         let api = ApiPaths::new(server_address);
         let client = reqwest::Client::new();
 

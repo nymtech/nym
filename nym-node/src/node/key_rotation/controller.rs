@@ -7,7 +7,7 @@ use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use futures::pin_mut;
 use nym_task::ShutdownToken;
-use nym_validator_client::models::{KeyRotationInfoResponse, KeyRotationState};
+use nym_validator_client::models::{KeyRotationDetails, KeyRotationInfoResponse, KeyRotationState};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{interval, sleep, Instant};
@@ -27,8 +27,8 @@ impl RotationConfig {
 impl From<KeyRotationInfoResponse> for RotationConfig {
     fn from(value: KeyRotationInfoResponse) -> Self {
         RotationConfig {
-            epoch_duration: value.epoch_duration,
-            rotation_state: value.key_rotation_state,
+            epoch_duration: value.details.epoch_duration,
+            rotation_state: value.details.key_rotation_state,
         }
     }
 }
@@ -166,11 +166,11 @@ impl KeyRotationController {
         // unfortunate time, just wait until the next rotation rather than do all the work only to throw it
         // away immediately
         let Some(until_next_rotation) = key_rotation_info.until_next_rotation() else {
-            warn!("failed to determine time remaining until the next key rotation");
+            debug!("key rotation is overdue - waiting...");
             return NextAction::wait(Duration::from_secs(30));
         };
         if until_next_rotation < Duration::from_secs(30) {
-            debug!("less than 30s until next rotation - waiting until until then");
+            debug!("less than 30s until next rotation - waiting until then");
             return NextAction::wait(Duration::from_secs(30));
         }
 
@@ -265,13 +265,13 @@ impl KeyRotationController {
         NextAction::wait(Duration::from_secs(240))
     }
 
-    async fn try_get_key_rotation_info(&self) -> Option<KeyRotationInfoResponse> {
+    async fn try_get_key_rotation_info(&self) -> Option<KeyRotationDetails> {
         let Ok(rotation_info) = self.client.get_key_rotation_info().await else {
             warn!("failed to retrieve key rotation information from ANY nym-api - we might miss configuration changes");
             return None;
         };
 
-        Some(rotation_info)
+        Some(rotation_info.details)
     }
 
     async fn pre_announce_new_key(&self, rotation_id: u32) {

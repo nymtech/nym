@@ -69,8 +69,8 @@ impl ConnectedClientHandler {
         oneshot::Sender<()>,
         tokio::task::JoinHandle<()>,
     ) {
-        log::debug!("Starting connected client handler for: {}", client_id);
-        log::debug!("client version: {:?}", client_version);
+        log::debug!("Starting connected client handler for: {client_id}");
+        log::debug!("client version: {client_version:?}");
         let (close_tx, close_rx) = oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
 

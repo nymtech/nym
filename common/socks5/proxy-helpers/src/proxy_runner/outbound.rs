@@ -72,12 +72,12 @@ pub(super) async fn run_outbound(
                 }
             }
             _ = &mut mix_timeout => {
-                warn!("didn't get anything from the client on {} mixnet in {:?}. Shutting down the proxy.", connection_id, MIX_TTL);
+                warn!("didn't get anything from the client on {connection_id} mixnet in {MIX_TTL:?}. Shutting down the proxy.");
                 // If they were online it's kinda their fault they didn't send any heartbeat messages.
                 break;
             }
             _ = &mut shutdown_future => {
-                debug!("closing outbound proxy after inbound was closed {:?} ago", SHUTDOWN_TIMEOUT);
+                debug!("closing outbound proxy after inbound was closed {SHUTDOWN_TIMEOUT:?} ago");
                 break;
             }
             _ = shutdown_listener.recv() => {
@@ -87,7 +87,7 @@ pub(super) async fn run_outbound(
         }
     }
 
-    trace!("{} - outbound closed", connection_id);
+    trace!("{connection_id} - outbound closed");
     shutdown_notify.notify_one();
 
     shutdown_listener.disarm();

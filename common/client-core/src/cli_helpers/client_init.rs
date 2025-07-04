@@ -12,7 +12,6 @@ use crate::{
     },
     init::types::{GatewaySelectionSpecification, GatewaySetup, InitResults},
 };
-use log::info;
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::addressing::Recipient;
@@ -20,6 +19,7 @@ use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
 use rand::rngs::OsRng;
 use std::path::PathBuf;
+use tracing::info;
 
 // we can suppress this warning (as suggested by linter itself) since we're only using it in our own code
 #[allow(async_fn_in_trait)]
@@ -130,23 +130,23 @@ where
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway;
-    log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
+    tracing::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
 
     let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         common_args.force_tls_gateway,
     );
-    log::debug!("Gateway selection specification: {selection_spec:?}");
+    tracing::debug!("Gateway selection specification: {selection_spec:?}");
 
     // Load and potentially override config
-    log::debug!("Init arguments: {init_args:#?}");
+    tracing::debug!("Init arguments: {init_args:#?}");
     let config = C::construct_config(&init_args);
-    log::debug!("Constructed config: {config:#?}");
+    tracing::debug!("Constructed config: {config:#?}");
     let paths = config.common_paths();
     let core = config.core_config();
 
-    log::info!(
+    tracing::info!(
         "Using nym-api: {}",
         core.client
             .nym_api_urls

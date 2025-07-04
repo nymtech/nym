@@ -36,9 +36,16 @@ impl SizedData for Fragment {
     }
 }
 
-#[derive(Default)]
 pub(crate) struct TransmissionBuffer<T> {
     buffer: HashMap<TransmissionLane, LaneBufferEntry<T>>,
+}
+
+impl<T> Default for TransmissionBuffer<T> {
+    fn default() -> Self {
+        TransmissionBuffer {
+            buffer: HashMap::new(),
+        }
+    }
 }
 
 impl<T> TransmissionBuffer<T> {
@@ -211,7 +218,7 @@ impl<T> TransmissionBuffer<T> {
         };
 
         let msg = self.pop_front_from_lane(&lane)?;
-        log::trace!("picking to send from lane: {:?}", lane);
+        tracing::trace!("picking to send from lane: {:?}", lane);
         Some((lane, msg))
     }
 

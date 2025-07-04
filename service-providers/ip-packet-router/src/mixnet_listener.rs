@@ -310,7 +310,7 @@ impl MixnetListener {
 
         // Check if the client is connected
         if !self.connected_clients.is_client_connected(&client_id) {
-            log::info!("Client {} is not connected, cannot disconnect", client_id);
+            log::info!("Client {client_id} is not connected, cannot disconnect");
             return Ok(Some(VersionedResponse {
                 version,
                 reply_to: client_id,
@@ -322,7 +322,7 @@ impl MixnetListener {
         }
 
         // Disconnect the client
-        log::info!("Disconnecting client {}", client_id);
+        log::info!("Disconnecting client {client_id}");
         self.connected_clients.disconnect_client(&client_id);
 
         Ok(Some(VersionedResponse {

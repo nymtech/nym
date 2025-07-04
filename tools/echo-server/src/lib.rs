@@ -61,7 +61,7 @@ impl NymEchoServer {
         let home_dir = dirs::home_dir().expect("Unable to get home directory");
         let default_path = format!("{}/tmp/nym-proxy-server-config", home_dir.display());
         let config_path = config_path.unwrap_or(&default_path);
-        let listen_addr = format!("127.0.0.1:{}", listen_port);
+        let listen_addr = format!("127.0.0.1:{listen_port}");
 
         let client = Arc::new(Mutex::new(
             tcp_proxy::NymProxyServer::new(&listen_addr, config_path, env, gateway).await?,
@@ -337,7 +337,7 @@ mod tests {
         );
         let coded_message = bincode::serialize(&outgoing)?;
 
-        println!("sending {:?}", coded_message);
+        println!("sending {coded_message:?}");
 
         let mut client = MixnetClient::connect_new().await?;
 

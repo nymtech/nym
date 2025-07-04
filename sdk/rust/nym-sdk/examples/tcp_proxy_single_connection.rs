@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
     let server_port = env::args()
         .nth(1)
         .expect("Server listen port not specified");
-    let upstream_tcp_addr = format!("127.0.0.1:{}", server_port);
+    let upstream_tcp_addr = format!("127.0.0.1:{server_port}");
 
     // This dir gets cleaned up at the end: NOTE if you switch env between tests without letting the file do the automatic cleanup, make sure to manually remove this directory up before running again, otherwise your client will attempt to use these keys for the new env
     let home_dir = dirs::home_dir().expect("Unable to get home directory");
@@ -155,7 +155,7 @@ async fn main() -> anyhow::Result<()> {
     // The assumption regarding integration is that you know what you're sending, and will do proper
     // framing before and after, know what data types you're expecting, etc; the proxies are just piping bytes
     // back and forth using tokio's `Bytecodec` under the hood.
-    let local_tcp_addr = format!("127.0.0.1:{}", client_port);
+    let local_tcp_addr = format!("127.0.0.1:{client_port}");
     let stream = TcpStream::connect(local_tcp_addr).await?;
     let (read, mut write) = stream.into_split();
 

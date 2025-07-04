@@ -44,7 +44,7 @@ impl HttpError {
 
     pub(crate) fn no_delegations_for_node(node_id: NodeId) -> Self {
         Self {
-            message: format!("No delegation data for node_id={}", node_id),
+            message: format!("No delegation data for node_id={node_id}"),
             status: axum::http::StatusCode::NOT_FOUND,
         }
     }

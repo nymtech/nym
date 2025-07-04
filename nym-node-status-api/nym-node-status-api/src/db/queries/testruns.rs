@@ -196,3 +196,78 @@ pub(crate) async fn update_gateway_score(
         .map(drop)
         .map_err(From::from)
 }
+
+pub(crate) async fn get_testrun_by_id(
+    conn: &mut DbConnection,
+    testrun_id: i64,
+) -> anyhow::Result<TestRunDto> {
+    crate::db::query_as::<TestRunDto>(
+        r#"SELECT
+            id,
+            gateway_id,
+            status,
+            created_utc,
+            ip_address,
+            log,
+            last_assigned_utc
+         FROM testruns
+         WHERE id = ?"#,
+    )
+    .bind(testrun_id)
+    .fetch_one(conn.as_mut())
+    .await
+    .map_err(|e| anyhow::anyhow!("Testrun {} not found: {}", testrun_id, e))
+}
+
+pub(crate) async fn insert_external_testrun(
+    conn: &mut DbConnection,
+    testrun_id: i64,
+    gateway_id: i64,
+    assigned_at_utc: i64,
+) -> anyhow::Result<()> {
+    let now = crate::utils::now_utc().unix_timestamp();
+
+    crate::db::query(
+        r#"INSERT INTO testruns (
+            id, 
+            gateway_id, 
+            status, 
+            created_utc, 
+            last_assigned_utc, 
+            ip_address, 
+            log
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
+    )
+    .bind(testrun_id)
+    .bind(gateway_id)
+    .bind(TestRunStatus::InProgress as i64)
+    .bind(now)
+    .bind(assigned_at_utc)
+    .bind("external") // Marker for external origin
+    .bind("") // Empty initial log
+    .execute(conn.as_mut())
+    .await?;
+
+    tracing::debug!(
+        "Created external testrun {} for gateway {}",
+        testrun_id,
+        gateway_id
+    );
+    Ok(())
+}
+
+pub(crate) async fn update_testrun_status_by_gateway(
+    conn: &mut DbConnection,
+    gateway_id: i64,
+    status: TestRunStatus,
+) -> anyhow::Result<()> {
+    let status = status as i32;
+    crate::db::query("UPDATE testruns SET status = ? WHERE gateway_id = ? AND status = ?")
+        .bind(status)
+        .bind(gateway_id)
+        .bind(TestRunStatus::InProgress as i32)
+        .execute(conn.as_mut())
+        .await?;
+
+    Ok(())
+}

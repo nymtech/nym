@@ -1,4 +1,4 @@
-use crate::models::{get_testrun, submit_results, TestrunAssignment};
+use crate::models::{get_testrun, submit_results, submit_results_v2, TestrunAssignment};
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
@@ -91,6 +91,37 @@ impl NsApiClient {
             .and_then(|response| response.error_for_status())?;
 
         tracing::debug!("Submitted results: {})", res.status());
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self, probe_result))]
+    pub async fn submit_results_with_context(
+        &self,
+        testrun_id: i64,
+        probe_result: String,
+        assigned_at_utc: i64,
+        gateway_identity_key: String,
+    ) -> anyhow::Result<()> {
+        let target_url = self.api.submit_results_v2(testrun_id);
+
+        let payload = submit_results_v2::Payload {
+            probe_result,
+            agent_public_key: self.auth_key.public_key(),
+            assigned_at_utc,
+            gateway_identity_key,
+        };
+        let signature = self.sign_message(&payload)?;
+        let submit_results = submit_results_v2::SubmitResultsV2 { payload, signature };
+
+        let res = self
+            .client
+            .post(target_url)
+            .json(&submit_results)
+            .send()
+            .await
+            .and_then(|response| response.error_for_status())?;
+
+        tracing::debug!("Submitted results with context: {})", res.status());
         Ok(())
     }
 

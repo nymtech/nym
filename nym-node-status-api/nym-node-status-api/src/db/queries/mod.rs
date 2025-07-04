@@ -9,7 +9,8 @@ mod summary;
 pub(crate) mod testruns;
 
 pub(crate) use gateways::{
-    get_all_gateways, get_bonded_gateway_id_keys, select_gateway_identity, update_bonded_gateways,
+    get_all_gateways, get_bonded_gateway_id_keys, get_or_create_gateway, select_gateway_identity,
+    update_bonded_gateways,
 };
 pub(crate) use gateways_stats::{delete_old_records, get_sessions_stats, insert_session_records};
 pub(crate) use misc::insert_summaries;

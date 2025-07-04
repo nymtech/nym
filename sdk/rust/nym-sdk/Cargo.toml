@@ -48,7 +48,6 @@ nym-bin-common = { path = "../../../common/bin-common", features = [
     "basic_tracing",
 ] }
 
-nym-ip-packet-client = { path = "../../../nym-ip-packet-client" }
 nym-gateway-directory = { path = "../../../nym-gateway-directory" }
 
 bytecodec = { workspace = true }
@@ -65,6 +64,8 @@ thiserror = { workspace = true }
 url = { workspace = true }
 toml = { workspace = true }
 tempfile = { workspace = true }
+
+nym-ip-packet-requests = { path = "../../../common/ip-packet-requests" }
 
 # tcpproxy dependencies
 clap = { workspace = true, features = ["derive"] }

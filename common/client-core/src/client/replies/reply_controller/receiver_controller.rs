@@ -21,18 +21,30 @@ use rand::Rng;
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
+use std::mem;
 use std::sync::{Arc, Weak};
 use time::OffsetDateTime;
 use tracing::{debug, error, info, trace, warn};
 
-#[derive(Default)]
-struct PendingSenderData {
+struct SenderData {
     current_clear_rerequest_counter: usize,
     pending_replies: TransmissionBuffer<FragmentWithMaxRetransmissions>,
     pending_retransmissions: BTreeMap<FragmentIdentifier, Weak<PendingAcknowledgement>>,
+    last_request_failure: OffsetDateTime,
 }
 
-impl PendingSenderData {
+impl Default for SenderData {
+    fn default() -> Self {
+        SenderData {
+            current_clear_rerequest_counter: 0,
+            pending_replies: Default::default(),
+            pending_retransmissions: Default::default(),
+            last_request_failure: OffsetDateTime::UNIX_EPOCH,
+        }
+    }
+}
+
+impl SenderData {
     fn total_pending(&self) -> usize {
         let pending_replies = self.pending_replies.total_size();
         let pending_retransmissions = self.pending_retransmissions.len();
@@ -50,6 +62,10 @@ impl PendingSenderData {
     pub(crate) fn reset_current_clear_rerequest_counter(&mut self) {
         self.current_clear_rerequest_counter = 0;
     }
+
+    pub(crate) fn reset_last_request_failure(&mut self, now: OffsetDateTime) -> OffsetDateTime {
+        mem::replace(&mut self.last_request_failure, now)
+    }
 }
 
 /// Reply controller responsible for controlling receiver-related part
@@ -60,7 +76,7 @@ pub struct ReceiverReplyController<R> {
     surb_refresh_state: SurbRefreshState,
     topology_access: TopologyAccessor,
 
-    pending: HashMap<AnonymousSenderTag, PendingSenderData>,
+    surb_senders: HashMap<AnonymousSenderTag, SenderData>,
     unavailable: HashMap<AnonymousSenderTag, OffsetDateTime>,
     surbs_storage: ReceivedReplySurbsMap,
 
@@ -90,11 +106,15 @@ where
                     .expected_current_key_rotation_id(OffsetDateTime::now_utc()),
             },
             topology_access,
-            pending: Default::default(),
+            surb_senders: Default::default(),
             unavailable: Default::default(),
             surbs_storage: storage,
             message_handler,
         }
+    }
+
+    fn get_or_create_surb_sender(&mut self, tag: &AnonymousSenderTag) -> &mut SenderData {
+        self.surb_senders.entry(*tag).or_default()
     }
 
     async fn current_topology_metadata(&self) -> Option<NymTopologyMetadata> {
@@ -108,7 +128,7 @@ where
         lane: TransmissionLane,
     ) {
         trace!("buffering pending replies for {recipient}");
-        self.pending
+        self.surb_senders
             .entry(*recipient)
             .or_default()
             .pending_replies
@@ -122,7 +142,7 @@ where
     ) {
         trace!("re-inserting pending replies for {recipient}");
         // the buffer should ALWAYS exist at this point, if it doesn't, it's a bug...
-        self.pending
+        self.surb_senders
             .entry(*recipient)
             .or_default()
             .pending_replies
@@ -138,7 +158,7 @@ where
         // the underlying entry MUST exist as we've just got data from there
         // and we hold a mut reference
         let map_entry = &mut self
-            .pending
+            .surb_senders
             .get_mut(recipient)
             .expect("our pending retransmission entry is somehow gone!")
             .pending_retransmissions;
@@ -157,7 +177,7 @@ where
         trace!("checking if we should request more surbs from {target}");
 
         let total_queue = self
-            .pending
+            .surb_senders
             .get(target)
             .map(|pending| pending.total_pending())
             .unwrap_or_default();
@@ -285,7 +305,7 @@ where
         }
 
         if self.should_request_more_surbs(&recipient_tag) {
-            self.request_reply_surbs_for_queue_clearing(recipient_tag, "handle_send_reply")
+            self.request_reply_surbs_for_queue_clearing(recipient_tag)
                 .await;
         }
     }
@@ -334,7 +354,7 @@ where
         };
         trace!("we can clear up to {max_to_clear} entries");
 
-        let Some(pending) = self.pending.get_mut(&target) else {
+        let Some(pending) = self.surb_senders.get_mut(&target) else {
             trace!("no pending entry for {target}!");
             return;
         };
@@ -398,7 +418,7 @@ where
         amount: usize,
     ) -> Option<Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
-        let pending = self.pending.get_mut(from)?;
+        let pending = self.surb_senders.get_mut(from)?;
         let total = pending.pending_replies.total_size();
         trace!("pending queue has {total} elements");
         if total == 0 {
@@ -457,7 +477,7 @@ where
     }
 
     fn reset_rerequest_counter(&mut self, from: &AnonymousSenderTag) {
-        if let Some(pending) = self.pending.get_mut(from) {
+        if let Some(pending) = self.surb_senders.get_mut(from) {
             pending.reset_current_clear_rerequest_counter()
         }
     }
@@ -490,8 +510,7 @@ where
 
         // if we have to, request more
         if self.should_request_more_surbs(&from) {
-            self.request_reply_surbs_for_queue_clearing(from, "handle_received_surbs")
-                .await;
+            self.request_reply_surbs_for_queue_clearing(from).await;
         }
     }
     fn buffer_pending_ack(
@@ -502,7 +521,7 @@ where
     ) {
         let frag_id = ack_ref.inner_fragment_identifier();
 
-        let pending = self.pending.entry(recipient).or_default();
+        let pending = self.surb_senders.entry(recipient).or_default();
         if let Entry::Vacant(e) = pending.pending_retransmissions.entry(frag_id) {
             e.insert(weak_ack_ref);
         } else {
@@ -561,25 +580,16 @@ where
                     self.buffer_pending_ack(recipient_tag, ack_ref, timed_out_ack);
 
                     if self.should_request_more_surbs(&recipient_tag) {
-                        self.request_reply_surbs_for_queue_clearing(
-                            recipient_tag,
-                            &format!("handle_reply_retransmission #1"),
-                        )
-                        .await;
+                        self.request_reply_surbs_for_queue_clearing(recipient_tag)
+                            .await;
                     }
                 }
             };
         } else {
-            let log = format!(
-                "handle_reply_retransmission #2 [{}] ({} / {:?})",
-                ack_ref.id(),
-                ack_ref.retransmission_counter(),
-                ack_ref.max_retransmissions()
-            );
             self.buffer_pending_ack(recipient_tag, ack_ref, timed_out_ack);
 
             if self.should_request_more_surbs(&recipient_tag) {
-                self.request_reply_surbs_for_queue_clearing(recipient_tag, &log)
+                self.request_reply_surbs_for_queue_clearing(recipient_tag)
                     .await;
             }
         }
@@ -595,7 +605,7 @@ where
         // TODO: if we ever have duplicate ids for different senders, it means our rng is super weak
         // thus I don't think we have to worry about it?
         let lane = TransmissionLane::ConnectionId(connection_id);
-        for buf in self.pending.values().map(|p| &p.pending_replies) {
+        for buf in self.surb_senders.values().map(|p| &p.pending_replies) {
             if let Some(length) = buf.lane_length(&lane) {
                 if response_channel.send(length).is_err() {
                     error!("the requester for lane queue length has dropped the response channel!")
@@ -612,15 +622,11 @@ where
     // TODO: modify this method to more accurately determine the amount of surbs it needs to request
     // it should take into consideration the average latency, sending rate and queue size.
     // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
-    async fn request_reply_surbs_for_queue_clearing(
-        &mut self,
-        target: AnonymousSenderTag,
-        source: &str,
-    ) {
+    async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
         trace!("requesting surbs for queue clearing");
 
         let total_queue = self
-            .pending
+            .surb_senders
             .get(&target)
             .map(|pending| pending.total_pending() as u32)
             .unwrap_or_default();
@@ -643,9 +649,16 @@ where
             .request_additional_reply_surbs(target, request_size)
             .await
         {
-            let todo = "downgrade that log to dbg";
-            // info!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
-            info!("⚠️ SOURCE: {source}: failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+            let now = OffsetDateTime::now_utc();
+            let sender_info = self.get_or_create_surb_sender(&target);
+            let last_failure = sender_info.reset_last_request_failure(now);
+
+            // only log at higher level if it's the first time this error has occurred in a while
+            if now - last_failure > time::Duration::seconds(30) {
+                warn!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+            } else {
+                debug!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+            }
         }
     }
 
@@ -654,7 +667,7 @@ where
         let mut to_remove = Vec::new();
 
         let now = OffsetDateTime::now_utc();
-        for (pending_reply_target, vals) in self.pending.iter_mut() {
+        for (pending_reply_target, vals) in self.surb_senders.iter_mut() {
             // for now recreate old behaviour
             let retransmission_buf = &vals.pending_replies;
 
@@ -703,11 +716,8 @@ where
         }
 
         for pending_reply_target in to_request {
-            self.request_reply_surbs_for_queue_clearing(
-                pending_reply_target,
-                "inspect_stale_pending_data",
-            )
-            .await;
+            self.request_reply_surbs_for_queue_clearing(pending_reply_target)
+                .await;
             self.surbs_storage
                 .reset_pending_reception(&pending_reply_target)
         }
@@ -715,7 +725,7 @@ where
             // TODO: in the 'old' version we just removed pending messages,
             // not retransmissions, but I think those should follow the same logic.
             // if something breaks because of that. I guess here is your explanation, future reader
-            self.pending.remove(&to_remove);
+            self.surb_senders.remove(&to_remove);
         }
     }
 

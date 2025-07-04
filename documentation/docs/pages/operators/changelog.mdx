@@ -62,12 +62,60 @@ This page displays a full list of all the changes during our release cycle from 
     - [**NIP-1:** Proposing NIP as process to propose and log changes to the Nym network](https://governator.nym.com/proposal/prop-9719838a-e86d-4227-8141-dfd5c651ed92) 
     - [**NIP-2:** Change stake saturation and active set to improve network decentralisation and efficiency](https://governator.nym.com/proposal/prop-8dfa4a28-55b1-45a5-968f-f2897c2670df)
 
-{/* 
-Fill these following parts same like in the releases below, using a rough changelog from QA
 ### Features
 
+- [Nympool contract](https://github.com/nymtech/nym/pull/5464): This is the first iteration of the nympool contract. It's currently **not yet** integrated with the mixnet contract.
+
+- [Noise XKpsk3 integration (2025 version)](https://github.com/nymtech/nym/pull/5692)
+
+- [Key rotation](https://github.com/nymtech/nym/pull/5777)
+
+- [HTTP Client Retries, Fallbacks, and Redirects](https://github.com/nymtech/nym/pull/5789)
+
+- [Close sqlite pool before moving or reopening databases](https://github.com/nymtech/nym/pull/5796): Our sqlite db recovery and backup strategies don't work on Windows because the OS prevents moving the already open file. This PR attempts to address this and in principle it attempts to close all connections to the database and ensure that sqlx relinquishes the access to db file(s). Short summary of what this PR introduces:
+ 
+  1. Close sqlx connection pools in order to close/release the db file
+  2. Poll until there are no more db file descriptors left open.
+  
+- [Replace chrono with time in NS API](https://github.com/nymtech/nym/pull/5811)
+
+- [Use the same client bandwidth for top up](https://github.com/nymtech/nym/pull/5813)
+
+- [ Node status dvpn directory](https://github.com/nymtech/nym/pull/5829)
+
+- [Removing test-net faucet](https://github.com/nymtech/nym/pull/5840)
+
+- [Amended the buy section](https://github.com/nymtech/nym/pull/5841): Change the wallet to include the buy options for NYM
+
+- [Remove bity dir](https://github.com/nymtech/nym/pull/5844)
+
+- [Remove not used old `mock-api`](https://github.com/nymtech/nym/pull/5845)
+
+- [Remove qa env](https://github.com/nymtech/nym/pull/5847)
+
+- [Remove/old env references](https://github.com/nymtech/nym/pull/5848)
+
+- [Updated browser extension piece removal](https://github.com/nymtech/nym/pull/5849): Keep all the `internal-dev wasm` pieces as future examples
+  - everything previously was going to be removed
+  - shows functioning `wasm` interaction with the `js`
+
 ### Bugfix
-*/}
+
+- [Fixed typo in API endpoint parameter](https://github.com/nymtech/nym/pull/5449)
+
+- [Adjust heuristic for wireguard peer activity](https://github.com/nymtech/nym/pull/5818)
+
+- [Url scheme warning log](https://github.com/nymtech/nym/pull/5819): Fix conditions for logging about url scheme. Warns only if the provided urls are not HTTP or HTTPS, as intended.
+
+- [Bug Fix for Wallet build](https://github.com/nymtech/nym/pull/5820): Revert url used for `connection-tester` to default `url::Url`.
+
+- [Fix swapped total and circulating supplies](https://github.com/nymtech/nym/pull/5822)
+
+- [Fixed client route for obtaining v2 list of gateways](https://github.com/nymtech/nym/pull/5859)
+
+- [Allow gateways to permit authentication from v4 clients](https://github.com/nymtech/nym/pull/5862)
+
+- [Backwards compat](https://github.com/nymtech/nym/pull/5865)
 
 ## `v2025.11-cheddar`
 

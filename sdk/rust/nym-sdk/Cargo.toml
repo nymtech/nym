@@ -48,8 +48,8 @@ nym-bin-common = { path = "../../../common/bin-common", features = [
     "basic_tracing",
 ] }
 
-# nym-ip-packet-client = { git = "https://github.com/nymtech/nym-vpn-client", rev = "5c3aacfce158aac73cbd3fd905d90269f8bacc01" }
-# nym-gateway-directory
+nym-ip-packet-client = { path = "../../../nym-ip-packet-client" }
+nym-gateway-directory = { path = "../../../nym-gateway-directory" }
 
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }

@@ -164,3 +164,42 @@ pub(crate) async fn insert_gateway_description(
     .map(drop)
     .map_err(From::from)
 }
+
+pub(crate) async fn get_or_create_gateway(
+    conn: &mut DbConnection,
+    gateway_identity_key: &str,
+) -> anyhow::Result<i64> {
+    // Try to find existing gateway
+    let existing = crate::db::query("SELECT id FROM gateways WHERE gateway_identity_key = ?")
+        .bind(gateway_identity_key.to_string())
+        .fetch_optional(conn.as_mut())
+        .await?;
+
+    if let Some(row) = existing {
+        return Ok(row.try_get("id")?);
+    }
+
+    // Create new gateway
+    tracing::info!("Creating new gateway record for {}", gateway_identity_key);
+    let now = crate::utils::now_utc().unix_timestamp();
+
+    let result = crate::db::query(
+        r#"INSERT INTO gateways (
+            gateway_identity_key, 
+            bonded, 
+            performance, 
+            self_described, 
+            last_updated_utc
+        ) VALUES (?, ?, ?, ?, ?)
+        RETURNING id"#,
+    )
+    .bind(gateway_identity_key.to_string())
+    .bind(true) // Assume bonded since being tested
+    .bind(0) // Initial performance
+    .bind("null")
+    .bind(now)
+    .fetch_one(conn.as_mut())
+    .await?;
+
+    Ok(result.try_get("id")?)
+}

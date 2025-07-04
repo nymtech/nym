@@ -31,7 +31,7 @@ nym-mixnet-contract-common = { git = "https://github.com/nymtech/nym.git", branc
 nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [
     "openapi",
 ] }
-nym-node-status-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-http-api-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-http-api-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [

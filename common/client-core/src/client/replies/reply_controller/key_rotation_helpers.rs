@@ -30,11 +30,11 @@ pub(crate) struct KeyRotationConfig {
 impl From<KeyRotationInfoResponse> for KeyRotationConfig {
     fn from(value: KeyRotationInfoResponse) -> Self {
         KeyRotationConfig {
-            epoch_duration: value.epoch_duration,
-            rotation_state: value.key_rotation_state,
+            epoch_duration: value.details.epoch_duration,
+            rotation_state: value.details.key_rotation_state,
             reference_epoch: ReferenceEpoch {
-                absolute_epoch_id: value.current_absolute_epoch_id,
-                start_time: value.current_epoch_start,
+                absolute_epoch_id: value.details.current_absolute_epoch_id,
+                start_time: value.details.current_epoch_start,
             },
         }
     }

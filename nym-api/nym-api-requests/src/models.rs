@@ -1477,8 +1477,43 @@ impl NodeRefreshBody {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct KeyRotationInfoResponse {
+    #[serde(flatten)]
+    pub details: KeyRotationDetails,
+
+    // helper field that holds calculated data based on the `details` field
+    // this is to expose the information in a format more easily accessible by humans
+    // without having to do any calculations
+    pub progress: KeyRotationProgressInfo,
+}
+
+impl From<KeyRotationDetails> for KeyRotationInfoResponse {
+    fn from(details: KeyRotationDetails) -> Self {
+        KeyRotationInfoResponse {
+            details,
+            progress: KeyRotationProgressInfo {
+                current_key_rotation_id: details.current_key_rotation_id(),
+                current_rotation_starting_epoch: details.current_rotation_starting_epoch_id(),
+                current_rotation_ending_epoch: details.current_rotation_starting_epoch_id()
+                    + details.key_rotation_state.validity_epochs
+                    - 1,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KeyRotationProgressInfo {
+    pub current_key_rotation_id: u32,
+
+    pub current_rotation_starting_epoch: u32,
+
+    pub current_rotation_ending_epoch: u32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KeyRotationDetails {
     pub key_rotation_state: KeyRotationState,
 
     #[schema(value_type = u32)]
@@ -1492,7 +1527,7 @@ pub struct KeyRotationInfoResponse {
     pub epoch_duration: Duration,
 }
 
-impl KeyRotationInfoResponse {
+impl KeyRotationDetails {
     pub fn current_key_rotation_id(&self) -> u32 {
         self.key_rotation_state
             .key_rotation_id(self.current_absolute_epoch_id)

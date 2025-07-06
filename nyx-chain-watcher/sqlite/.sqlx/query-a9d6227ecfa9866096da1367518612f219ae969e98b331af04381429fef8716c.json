@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO payments (\n            transaction_hash, sender_address, receiver_address,\n            amount, height, timestamp, memo\n        ) VALUES (?, ?, ?, ?, ?, ?, ?)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "a9d6227ecfa9866096da1367518612f219ae969e98b331af04381429fef8716c"
+}

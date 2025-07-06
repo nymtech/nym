@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT timestamp, chf, usd, eur, gbp, btc FROM price_history WHERE timestamp >= $1;",
+  "describe": {
+    "columns": [
+      {
+        "name": "timestamp",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "chf",
+        "ordinal": 1,
+        "type_info": "Float"
+      },
+      {
+        "name": "usd",
+        "ordinal": 2,
+        "type_info": "Float"
+      },
+      {
+        "name": "eur",
+        "ordinal": 3,
+        "type_info": "Float"
+      },
+      {
+        "name": "gbp",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "btc",
+        "ordinal": 5,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a57b74a049b33aee36b72741056d60df8ad35a747808d5d1d3d525a76bbf0618"
+}

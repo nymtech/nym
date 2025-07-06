@@ -8061,6 +8061,37 @@ dependencies = [
  "nym-network-defaults 0.1.0",
  "nym-task 0.1.0",
  "nym-validator-client 0.1.0",
+ "nyxd-scraper-sqlite",
+ "reqwest 0.12.15",
+ "schemars",
+ "serde",
+ "sqlx",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
+]
+
+[[package]]
+name = "nyx-chain-watcher-pgsql"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "chrono",
+ "clap",
+ "nym-bin-common 0.6.0",
+ "nym-config 0.1.0",
+ "nym-network-defaults 0.1.0",
+ "nym-task 0.1.0",
+ "nym-validator-client 0.1.0",
  "nyxd-scraper-psql",
  "reqwest 0.12.15",
  "schemars",

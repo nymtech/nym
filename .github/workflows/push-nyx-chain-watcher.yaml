@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 
 env:
-  WORKING_DIRECTORY: "nyx-chain-watcher"
+  WORKING_DIRECTORY: "nyx-chain-watcher/sqlite"
   CONTAINER_NAME: "nyx-chain-watcher"
 
 jobs:

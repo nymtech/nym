@@ -5,7 +5,7 @@ pub async fn get_last_checked_height(pool: &DbPool) -> Result<i64> {
     let result = sqlx::query_scalar!("SELECT MAX(height) FROM payments")
         .fetch_one(pool)
         .await?;
-    Ok(result.unwrap_or(0))
+    Ok(result.unwrap_or(0) as i64)
 }
 
 pub async fn insert_payment(
@@ -24,7 +24,7 @@ pub async fn insert_payment(
         INSERT INTO payments (
             transaction_hash, sender_address, receiver_address,
             amount, height, timestamp, memo
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
         transaction_hash,
         sender_address,

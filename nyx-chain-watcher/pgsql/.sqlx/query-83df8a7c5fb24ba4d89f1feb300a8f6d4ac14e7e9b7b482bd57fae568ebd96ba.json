@@ -1,19 +1,19 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "SELECT MAX(height) FROM payments",
   "describe": {
     "columns": [
       {
-        "name": "MAX(height)",
         "ordinal": 0,
-        "type_info": "Integer"
+        "name": "max",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Left": []
     },
     "nullable": [
-      true
+      null
     ]
   },
   "hash": "83df8a7c5fb24ba4d89f1feb300a8f6d4ac14e7e9b7b482bd57fae568ebd96ba"

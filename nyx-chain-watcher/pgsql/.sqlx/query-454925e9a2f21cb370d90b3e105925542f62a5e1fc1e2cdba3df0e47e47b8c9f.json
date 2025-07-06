@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO payments (\n            transaction_hash, sender_address, receiver_address,\n            amount, height, timestamp, memo\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Float8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "454925e9a2f21cb370d90b3e105925542f62a5e1fc1e2cdba3df0e47e47b8c9f"
+}

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, SqlitePool};
+use sqlx::{migrate::Migrator, postgres::PgConnectOptions, Postgres};
 use std::str::FromStr;
 
 pub(crate) mod models;
@@ -10,7 +10,7 @@ pub(crate) mod queries {
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
-pub(crate) type DbPool = SqlitePool;
+pub(crate) type DbPool = sqlx::Pool<Postgres>;
 
 pub(crate) struct Storage {
     pool: DbPool,
@@ -18,8 +18,7 @@ pub(crate) struct Storage {
 
 impl Storage {
     pub async fn init(connection_url: String) -> Result<Self> {
-        let connect_options =
-            SqliteConnectOptions::from_str(&connection_url)?.create_if_missing(true);
+        let connect_options = PgConnectOptions::from_str(&connection_url)?;
 
         let pool = DbPool::connect_with(connect_options)
             .await

@@ -1,10 +1,17 @@
 {
-  "db_name": "SQLite",
+  "db_name": "PostgreSQL",
   "query": "INSERT INTO price_history\n                (timestamp, chf, usd, eur, gbp, btc)\n                VALUES\n                ($1, $2, $3, $4, $5, $6)\n            ON CONFLICT(timestamp) DO UPDATE SET\n            chf=excluded.chf,\n            usd=excluded.usd,\n            eur=excluded.eur,\n            gbp=excluded.gbp,\n            btc=excluded.btc;",
   "describe": {
     "columns": [],
     "parameters": {
-      "Right": 6
+      "Left": [
+        "Int8",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Float8"
+      ]
     },
     "nullable": []
   },

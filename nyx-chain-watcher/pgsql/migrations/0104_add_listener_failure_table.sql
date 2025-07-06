@@ -5,7 +5,7 @@
 
 CREATE TABLE watcher_execution
 (
-    start         TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    end           TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    start_ts         TIMESTAMPTZ NOT NULL,
+    end_ts           TIMESTAMPTZ NOT NULL,
     error_message TEXT
-)
+);

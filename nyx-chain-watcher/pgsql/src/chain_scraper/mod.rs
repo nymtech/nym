@@ -1,4 +1,5 @@
 use crate::config::PaymentWatchersConfig;
+use crate::db::DbPool;
 use crate::env::vars::{
     NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_UNSAFE_NUKE_DB,
     NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT,
@@ -10,13 +11,12 @@ use nyxd_scraper_psql::{
     MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, PostgresNyxdScraper,
     PruningOptions, ScraperError,
 };
-use sqlx::SqlitePool;
 use std::fs;
 use tracing::{info, warn};
 
 pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
-    db_pool: SqlitePool,
+    connection_pool: DbPool,
     shared_state: BankScraperModuleState,
 ) -> anyhow::Result<PostgresNyxdScraper> {
     let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
@@ -62,7 +62,7 @@ pub(crate) async fn run_chain_scraper(
         },
     })
     .with_msg_module(BankScraperModule::new(
-        db_pool,
+        connection_pool,
         config.payment_watcher_config.clone(),
         shared_state,
     ));
@@ -76,19 +76,19 @@ pub(crate) async fn run_chain_scraper(
 }
 
 pub struct BankScraperModule {
-    db_pool: SqlitePool,
+    connection_pool: DbPool,
     payment_config: PaymentWatchersConfig,
     shared_state: BankScraperModuleState,
 }
 
 impl BankScraperModule {
     pub fn new(
-        db_pool: SqlitePool,
+        connection_pool: DbPool,
         payment_config: PaymentWatchersConfig,
         shared_state: BankScraperModuleState,
     ) -> Self {
         Self {
-            db_pool,
+            connection_pool,
             payment_config,
             shared_state,
         }
@@ -108,7 +108,7 @@ impl BankScraperModule {
         sqlx::query!(
             r#"
             INSERT INTO transactions (tx_hash, height, message_index, sender, recipient, amount, memo)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
             tx_hash,
             height,
@@ -118,7 +118,7 @@ impl BankScraperModule {
             amount,
             memo
         )
-            .execute(&self.db_pool)
+            .execute(&self.connection_pool)
             .await?;
 
         Ok(())

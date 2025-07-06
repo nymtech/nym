@@ -1,21 +1,21 @@
 services:
   postgres-test:
     image: postgres:16-alpine
-    container_name: nyxd_scraper_psql_test
+    container_name: nyx_chain_watcher_postgres_test
     environment:
-      POSTGRES_DB: nyxd_scraper_test
+      POSTGRES_DB: nyx_chain_watcher_test
       POSTGRES_USER: testuser
       POSTGRES_PASSWORD: testpass
     ports:
       - '5433:5432' # Map to 5433 to avoid conflicts with default PostgreSQL
     healthcheck:
-      test: [ 'CMD-SHELL', 'pg_isready -U testuser -d nyxd_scraper_test' ]
+      test: ['CMD-SHELL', 'pg_isready -U testuser -d nyx_chain_watcher_test']
       interval: 5s
       timeout: 5s
       retries: 5
     # Optional: Add volume for persistent data during development
-    # volumes:
-    #   - nyxd_scraper_postgres_test_data:/var/lib/postgresql/data
+#    volumes:
+#      - nyx_chain_watcher_postgres_test_data:/var/lib/postgresql/data
 
-# volumes:
-#   nyxd_scraper_postgres_test_data:
+#volumes:
+#  nyx_chain_watcher_postgres_test_data:

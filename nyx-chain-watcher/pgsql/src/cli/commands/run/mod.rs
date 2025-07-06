@@ -29,11 +29,11 @@ async fn try_insert_watcher_execution_information(
 ) {
     let _ = sqlx::query!(
         r#"
-        INSERT INTO watcher_execution(start, end, error_message)
-        VALUES (?, ?, ?)
+        INSERT INTO watcher_execution(start_ts, end_ts, error_message)
+        VALUES ($1, $2, $3)
     "#,
-        start,
-        end,
+        start.into(),
+        end.into(),
         error_message
     )
     .execute(&db_pool)
@@ -114,27 +114,15 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
 
     let config = config::get_run_config(args)?;
 
-    let db_path = config.database_path();
+    let db_connection_string = config.chain_scraper_connection_string();
 
     info!("Config is {config:#?}");
-    info!(
-        "Database path is {:?}",
-        std::path::Path::new(&db_path)
-            .canonicalize()
-            .unwrap_or_default()
-    );
     info!(
         "Chain History Database path is {:?}",
         std::path::Path::new(&config.chain_scraper_connection_string()).canonicalize()
     );
 
-    // Ensure parent directory exists
-    if let Some(parent) = std::path::Path::new(&db_path).parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let connection_url = format!("sqlite://{db_path}?mode=rwc");
-    let storage = db::Storage::init(connection_url).await?;
+    let storage = db::Storage::init(db_connection_string).await?;
     let watcher_pool = storage.pool_owned();
 
     let mut tasks = JoinSet::new();

@@ -12,7 +12,6 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
         ref watch_for_transfer_recipient_accounts,
         mut watch_for_chain_message_types,
         webhook_auth,
-        ref chain_watcher_db_path,
         webhook_url,
         ..
     } = args;
@@ -47,11 +46,6 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
         data_dir,
         args.chain_history_db_connection_string,
     );
-
-    if let Some(db_path) = chain_watcher_db_path {
-        info!("Overriding database url with '{db_path}'");
-        builder = builder.with_db_path(db_path.clone());
-    }
 
     if let Some(webhook_url) = webhook_url {
         let authentication =

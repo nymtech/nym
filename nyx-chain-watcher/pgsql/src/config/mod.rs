@@ -19,8 +19,6 @@ use crate::error::NyxChainWatcherError;
 
 const DEFAULT_NYM_CHAIN_WATCHER_DIR: &str = "nym-chain-watcher";
 
-pub(crate) const DEFAULT_NYM_CHAIN_WATCHER_DB_FILENAME: &str = "nyx_chain_watcher.sqlite";
-
 /// Derive default path to nym-chain-watcher's config directory.
 /// It should get resolved to `$HOME/.nym/nym-chain-watcher/config`
 pub fn default_config_directory() -> PathBuf {
@@ -41,8 +39,6 @@ pub struct ConfigBuilder {
 
     pub data_dir: PathBuf,
 
-    pub db_path: Option<String>,
-
     pub chain_scraper_connection_string: String,
     pub payment_watcher_config: Option<PaymentWatchersConfig>,
 
@@ -60,14 +56,8 @@ impl ConfigBuilder {
             data_dir,
             payment_watcher_config: None,
             logging: None,
-            db_path: None,
             chain_scraper_connection_string,
         }
-    }
-
-    pub fn with_db_path(mut self, db_path: String) -> Self {
-        self.db_path = Some(db_path);
-        self
     }
 
     #[allow(dead_code)]
@@ -91,7 +81,6 @@ impl ConfigBuilder {
             save_path: Some(self.config_path),
             payment_watcher_config: self.payment_watcher_config.unwrap_or_default(),
             data_dir: self.data_dir,
-            db_path: self.db_path,
             chain_scraper_connection_string: self.chain_scraper_connection_string,
         }
     }
@@ -106,9 +95,6 @@ pub struct Config {
 
     #[serde(skip)]
     pub(crate) data_dir: PathBuf,
-
-    #[serde(skip)]
-    db_path: Option<String>,
 
     pub chain_scraper_connection_string: String,
 
@@ -192,16 +178,6 @@ impl Config {
         };
 
         Ok(node_dir.join(DEFAULT_DATA_DIR))
-    }
-
-    pub fn database_path(&self) -> String {
-        self.db_path.clone().unwrap_or_else(|| {
-            let mut path = self.data_dir.clone().to_path_buf();
-            path.push(DEFAULT_NYM_CHAIN_WATCHER_DB_FILENAME);
-            path.to_str()
-                .unwrap_or(DEFAULT_NYM_CHAIN_WATCHER_DB_FILENAME)
-                .to_string()
-        })
     }
 
     pub fn chain_scraper_connection_string(&self) -> String {

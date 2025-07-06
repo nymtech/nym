@@ -1,11 +1,11 @@
-# Makefile for nyxd-scraper-psql database management
+# Makefile for nyx_chain_watcher database management
 
 # --- Configuration ---
-TEST_DATABASE_URL := postgres://testuser:testpass@localhost:5433/nyxd_scraper_test
+TEST_DATABASE_URL := postgres://testuser:testpass@localhost:5433/nyx_chain_watcher_test
 
 # Docker compose service names
 DB_SERVICE_NAME := postgres-test
-DB_CONTAINER_NAME := nyxd_scraper_psql_test
+DB_CONTAINER_NAME := nyx_chain_watcher_postgres_test
 
 # Default target
 .PHONY: default
@@ -46,29 +46,31 @@ test-db-down: ## Stop and remove the test database
 # --- SQLx Targets ---
 .PHONY: test-db-migrate
 test-db-migrate: ## Run database migrations against PostgreSQL
-	@echo "Running PostgreSQL migrations..."
-	DATABASE_URL="$(TEST_DATABASE_URL)" sqlx migrate run --source sql_migrations
+	@echo "Copying common PostgreSQL migrations..."
+	cp ../../common/nyxd-scraper-psql/sql_migrations/* migrations
+	@echo "Running watcher PostgreSQL migrations..."
+	RUST_LOG=debug DATABASE_URL="$(TEST_DATABASE_URL)" sqlx migrate run --source migrations
 
 .PHONY: test-db-prepare
 test-db-prepare: ## Run sqlx prepare for compile-time query verification
 	@echo "Running sqlx prepare for PostgreSQL..."
-	DATABASE_URL="$(TEST_DATABASE_URL)" cargo sqlx prepare
+	DATABASE_URL="$(TEST_DATABASE_URL)" cargo sqlx prepare --
 
 # --- Build and Test Targets ---
 .PHONY: test-db-run
 test-db-run: ## Run tests with PostgreSQL feature
 	@echo "Running tests with PostgreSQL..."
-	DATABASE_URL="$(TEST_DATABASE_URL)" cargo test --features pg --no-default-features
+	DATABASE_URL="$(TEST_DATABASE_URL)" cargo test --no-default-features
 
 .PHONY: build-pg
 build-pg: ## Build with PostgreSQL feature
 	@echo "Building with PostgreSQL feature..."
-	cargo build
+	cargo build --no-default-features
 
 .PHONY: check-pg
 check-pg: ## Check code with PostgreSQL feature
 	@echo "Checking code with PostgreSQL feature..."
-	cargo check
+	cargo check --no-default-features
 
 .PHONY: clippy
 clippy: clippy-pg
@@ -76,7 +78,7 @@ clippy: clippy-pg
 .PHONY: clippy-pg
 clippy-pg: ## Run clippy with PostgreSQL feature
 	@echo "Running clippy with PostgreSQL feature..."
-	cargo clippy -- -D warnings
+	cargo clippy --no-default-features -- -D warnings
 
 # --- Cleanup Targets ---
 .PHONY: clean
@@ -86,7 +88,7 @@ clean: ## Clean build artifacts and SQLx cache
 
 .PHONY: clean-db
 clean-db: test-db-down ## Stop database and clean volumes
-	docker volume rm -f nyxd_scraper_postgres_test_data 2>/dev/null || true
+	docker volume rm -f nyx_chain_watcher_postgres_test_data 2>/dev/null || true
 
 # --- Utility Targets ---
 .PHONY: sqlx-cli
@@ -95,7 +97,7 @@ sqlx-cli: ## Install sqlx-cli if not already installed
 
 .PHONY: psql
 psql: ## Connect to the running PostgreSQL database with psql
-	@docker exec -it $(DB_CONTAINER_NAME) psql -U testuser -d nyxd_scraper_test
+	@docker exec -it $(DB_CONTAINER_NAME) psql -U testuser -d nyx_chain_watcher_test
 
 .PHONY: help
 help: ## Show help for Makefile targets

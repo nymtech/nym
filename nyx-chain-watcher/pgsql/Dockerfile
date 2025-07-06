@@ -2,7 +2,7 @@
 FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
 COPY ./ /usr/src/nym
-WORKDIR /usr/src/nym/nyx-chain-watcher
+WORKDIR /usr/src/nym/nyx-chain-watcher/pgsql
 
 RUN cargo build --release
 
@@ -28,6 +28,6 @@ RUN apt update && apt install -yy curl ca-certificates
 
 WORKDIR /nym
 
-COPY --from=builder /usr/src/nym/target/release/nyx-chain-watcher ./
+COPY --from=builder /usr/src/nym/target/release/nyx-chain-watcher/pgsql ./
 ENTRYPOINT [ "/nym/nyx-chain-watcher", "run" ]
 

@@ -16,4 +16,7 @@ NYX_CHAIN_WATCHER_WEBHOOK_AUTH=1234 \
 cargo run -- run
 ```
 
+## sqlx
+
+If you have issues with `sqlx` please see [README_SQLX.md](../README_SQLX.md).
 

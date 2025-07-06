@@ -3,28 +3,27 @@
 
 use crate::config::PaymentWatchersConfig;
 use crate::db::models::Transaction;
-use crate::db::queries;
+use crate::db::{queries, DbPool};
 use crate::http::state::{
     PaymentListenerFailureDetails, PaymentListenerState, ProcessedPayment, WatcherFailureDetails,
 };
 use crate::models::WebhookPayload;
 use crate::payment_listener::watcher::PaymentWatcher;
 use anyhow::Context;
-use sqlx::SqlitePool;
 use tokio::time::{self, Duration};
 use tracing::{debug, error, info};
 
 pub(crate) mod watcher;
 
 pub(crate) struct PaymentListener {
-    db_pool: SqlitePool,
+    db_pool: DbPool,
     payment_watchers: Vec<PaymentWatcher>,
     shared_state: PaymentListenerState,
 }
 
 impl PaymentListener {
     pub(crate) fn new(
-        db_pool: SqlitePool,
+        db_pool: DbPool,
         config: PaymentWatchersConfig,
         shared_state: PaymentListenerState,
     ) -> anyhow::Result<Self> {
@@ -46,8 +45,8 @@ impl PaymentListener {
             r#"
                 SELECT id, tx_hash, height, message_index, sender, recipient, amount, memo, created_at as "created_at: ::time::OffsetDateTime"
                 FROM transactions
-                WHERE height > ?
-                ORDER BY height ASC, message_index ASC
+                WHERE height > $1
+                ORDER BY height, message_index
             "#,
             last_checked_height
         )

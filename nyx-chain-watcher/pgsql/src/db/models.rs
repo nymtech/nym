@@ -7,11 +7,11 @@ use utoipa::ToSchema;
 
 #[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 pub(crate) struct CurrencyPrices {
-    pub(crate) chf: f32,
-    pub(crate) usd: f32,
-    pub(crate) eur: f32,
-    pub(crate) gbp: f32,
-    pub(crate) btc: f32,
+    pub(crate) chf: f64,
+    pub(crate) usd: f64,
+    pub(crate) eur: f64,
+    pub(crate) gbp: f64,
+    pub(crate) btc: f64,
 }
 
 // Struct to hold Coingecko response

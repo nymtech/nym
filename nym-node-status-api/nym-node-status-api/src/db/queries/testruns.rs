@@ -96,9 +96,9 @@ pub(crate) async fn assign_oldest_testrun(
             SET
                 status = ?,
                 last_assigned_utc = ?
-            WHERE rowid =
+            WHERE id =
         (
-            SELECT rowid
+            SELECT id
             FROM testruns
             WHERE status = ?
             ORDER BY created_utc asc

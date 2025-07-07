@@ -10,9 +10,9 @@ pub(crate) struct Args {
     #[arg(long, env = NYX_CHAIN_WATCHER_DATABASE_PATH)]
     pub(crate) chain_watcher_db_path: Option<String>,
 
-    /// (Override) Postgres connection string for chain scraper history
-    #[arg(long, env = NYX_CHAIN_WATCHER_HISTORY_DATABASE_PATH, alias = "chain_history_db_path")]
-    pub(crate) chain_history_db_connection_string: String,
+    /// (Override) SQLite database file path for chain scraper history
+    #[arg(long, env = NYX_CHAIN_WATCHER_HISTORY_DATABASE_PATH)]
+    pub(crate) chain_history_db_path: Option<String>,
 
     /// (Override) Watch for transfers to these recipient accounts
     #[clap(

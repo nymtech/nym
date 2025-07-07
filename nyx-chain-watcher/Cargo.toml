@@ -24,7 +24,7 @@ nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nyxd-scraper-psql = { path = "../common/nyxd-scraper-psql" }
+nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
 reqwest = { workspace = true, features = ["rustls-tls"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

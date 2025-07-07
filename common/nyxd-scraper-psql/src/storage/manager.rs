@@ -4,7 +4,7 @@
 use crate::storage::models::{CommitSignature, Validator};
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use sqlx::types::time::PrimitiveDateTime;
-use sqlx::types::JsonValue;
+use sqlx::types::{Json, JsonValue};
 use sqlx::{Executor, Postgres};
 use tokio::time::Instant;
 use tracing::{instrument, trace};

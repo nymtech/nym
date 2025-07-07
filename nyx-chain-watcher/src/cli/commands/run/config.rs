@@ -13,8 +13,8 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
         mut watch_for_chain_message_types,
         webhook_auth,
         ref chain_watcher_db_path,
+        ref chain_history_db_path,
         webhook_url,
-        ..
     } = args;
 
     // if there are no args set, then try load the config
@@ -42,15 +42,16 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NyxChainWatcherError>
     let config_path = default_config_filepath();
     let data_dir = Config::default_data_directory(&config_path)?;
 
-    let mut builder = ConfigBuilder::new(
-        config_path,
-        data_dir,
-        args.chain_history_db_connection_string,
-    );
+    let mut builder = ConfigBuilder::new(config_path, data_dir);
 
     if let Some(db_path) = chain_watcher_db_path {
         info!("Overriding database url with '{db_path}'");
         builder = builder.with_db_path(db_path.clone());
+    }
+
+    if let Some(db_path) = chain_history_db_path {
+        info!("Overriding chain history database url with '{db_path}'");
+        builder = builder.with_chain_scraper_db_path(db_path.clone());
     }
 
     if let Some(webhook_url) = webhook_url {

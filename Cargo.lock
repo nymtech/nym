@@ -8088,7 +8088,7 @@ dependencies = [
  "nym-network-defaults 0.1.0",
  "nym-task 0.1.0",
  "nym-validator-client 0.1.0",
- "nyxd-scraper-psql",
+ "nyxd-scraper-sqlite",
  "reqwest 0.12.15",
  "schemars",
  "serde",

@@ -20,6 +20,7 @@ use crate::error::NyxChainWatcherError;
 const DEFAULT_NYM_CHAIN_WATCHER_DIR: &str = "nym-chain-watcher";
 
 pub(crate) const DEFAULT_NYM_CHAIN_WATCHER_DB_FILENAME: &str = "nyx_chain_watcher.sqlite";
+pub(crate) const DEFAULT_NYM_CHAIN_SCRAPER_HISTORY_DB_FILENAME: &str = "chain_history.sqlite";
 
 /// Derive default path to nym-chain-watcher's config directory.
 /// It should get resolved to `$HOME/.nym/nym-chain-watcher/config`
@@ -43,30 +44,32 @@ pub struct ConfigBuilder {
 
     pub db_path: Option<String>,
 
-    pub chain_scraper_connection_string: String,
+    pub chain_scraper_db_path: Option<String>,
+
     pub payment_watcher_config: Option<PaymentWatchersConfig>,
 
     pub logging: Option<LoggingSettings>,
 }
 
 impl ConfigBuilder {
-    pub fn new(
-        config_path: PathBuf,
-        data_dir: PathBuf,
-        chain_scraper_connection_string: String,
-    ) -> Self {
+    pub fn new(config_path: PathBuf, data_dir: PathBuf) -> Self {
         ConfigBuilder {
             config_path,
             data_dir,
             payment_watcher_config: None,
             logging: None,
             db_path: None,
-            chain_scraper_connection_string,
+            chain_scraper_db_path: None,
         }
     }
 
     pub fn with_db_path(mut self, db_path: String) -> Self {
         self.db_path = Some(db_path);
+        self
+    }
+
+    pub fn with_chain_scraper_db_path(mut self, chain_scraper_db_path: String) -> Self {
+        self.chain_scraper_db_path = Some(chain_scraper_db_path);
         self
     }
 
@@ -92,7 +95,7 @@ impl ConfigBuilder {
             payment_watcher_config: self.payment_watcher_config.unwrap_or_default(),
             data_dir: self.data_dir,
             db_path: self.db_path,
-            chain_scraper_connection_string: self.chain_scraper_connection_string,
+            chain_scraper_db_path: self.chain_scraper_db_path,
         }
     }
 }
@@ -110,7 +113,8 @@ pub struct Config {
     #[serde(skip)]
     db_path: Option<String>,
 
-    pub chain_scraper_connection_string: String,
+    #[serde(skip)]
+    chain_scraper_db_path: Option<String>,
 
     #[serde(default)]
     pub payment_watcher_config: PaymentWatchersConfig,
@@ -204,8 +208,14 @@ impl Config {
         })
     }
 
-    pub fn chain_scraper_connection_string(&self) -> String {
-        self.chain_scraper_connection_string.clone()
+    pub fn chain_scraper_database_path(&self) -> String {
+        self.chain_scraper_db_path.clone().unwrap_or_else(|| {
+            let mut path = self.data_dir.clone().to_path_buf();
+            path.push(DEFAULT_NYM_CHAIN_SCRAPER_HISTORY_DB_FILENAME);
+            path.to_str()
+                .unwrap_or(DEFAULT_NYM_CHAIN_SCRAPER_HISTORY_DB_FILENAME)
+                .to_string()
+        })
     }
 
     // simple wrapper that reads config file and assigns path location

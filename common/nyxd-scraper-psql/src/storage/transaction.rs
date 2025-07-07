@@ -193,7 +193,7 @@ impl PostgresStorageTransaction {
                 chain_tx.tx_result.gas_wanted,
                 chain_tx.tx_result.gas_used,
                 chain_tx.tx_result.log.clone(),
-                json!({ "value": "yep, another todo. on first glance corresponding field doesn't exist in rust" }),
+                json!("null"),
                 self.inner.as_mut(),
             )
             .await?;

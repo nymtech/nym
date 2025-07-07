@@ -474,3 +474,11 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
+
+[patch."https://github.com/nymtech/nym-vpn-client"]
+nym-http-api-client = { path = "common/http-api-client" }
+nym-contracts-common = { path = "common/cosmwasm-smart-contracts/contracts-common" }
+
+[patch."https://github.com/nymtech/nym"]
+nym-http-api-client = { path = "common/http-api-client" }
+nym-contracts-common = { path = "common/cosmwasm-smart-contracts/contracts-common" }

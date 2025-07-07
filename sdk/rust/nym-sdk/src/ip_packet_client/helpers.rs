@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::cmp::Ordering;
-
 pub use crate::mixnet::ReconstructedMessage;
-
-use crate::{current::VERSION as CURRENT_VERSION, error::Result, Error};
+use crate::ip_packet_client::current::VERSION as CURRENT_VERSION;
+use super::error::{Error, Result};
 
 pub(crate) fn check_ipr_message_version(message: &ReconstructedMessage) -> Result<()> {
     // Assuming it's a IPR message, it will have a version as its first byte

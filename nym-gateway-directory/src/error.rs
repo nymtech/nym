@@ -6,13 +6,13 @@ pub enum Error {
     #[error("identity not formatted correctly: {identity}")]
     NodeIdentityFormattingError {
         identity: String,
-        source: nym_sdk::mixnet::ed25519::Ed25519RecoveryError,
+        source: nym_crypto::asymmetric::ed25519::Ed25519RecoveryError
     },
 
     #[error("recipient is not formatted correctly: {address}")]
     RecipientFormattingError {
         address: String,
-        source: nym_sdk::mixnet::RecipientFormattingError,
+        source: nym_sphinx::addressing::clients::RecipientFormattingError,
     },
 
     #[error(transparent)]

@@ -14,16 +14,17 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 
 use crate::{
-    current::{
+    ip_packet_client::current::{
         request::IpPacketRequest,
         response::{
             ConnectResponse, ConnectResponseReply, ControlResponse, IpPacketResponse,
             IpPacketResponseData,
         },
     },
-    error::{Error, Result},
-    helpers::check_ipr_message_version,
+    ip_packet_client::helpers::check_ipr_message_version,
 };
+use super::error::{Error, Result};
+
 
 pub type SharedMixnetClient = Arc<tokio::sync::Mutex<Option<MixnetClient>>>;
 
@@ -94,7 +95,7 @@ impl IprClientConnect {
     }
 
     async fn send_connect_request(
-        &self,
+        &mut self,
         ip_packet_router_address: IpPacketRouterAddress,
     ) -> Result<u64> {
         let (request, request_id) = IpPacketRequest::new_connect_request(None);

@@ -479,7 +479,7 @@ impl nym_client_core::init::helpers::ConnectableGateway for Gateway {
         self.node_id()
     }
 
-    fn identity(&self) -> nym_sdk::mixnet::NodeIdentity {
+    fn identity(&self) -> NodeIdentity {
         self.identity()
     }
 

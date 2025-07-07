@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_noise_keys::NoiseVersion;
+use nympsq::*;
 use snow::error::Prerequisite;
 use snow::Error;
 use tokio::net::TcpStream;
 use tracing::{error, warn};
+
+use libcrux_psq::impls::X25519;
 
 pub mod config;
 pub mod connection;
@@ -24,11 +27,16 @@ pub const LATEST_NOISE_VERSION: NoiseVersion = NoiseVersion::V1;
 // TODO: this should be behind some trait because presumably, depending on the version,
 // other arguments would be needed
 mod psk_gen {
+    use std::time::Duration;
+
     use crate::error::NoiseError;
     use crate::stream::Psk;
     use crate::NOISE_PSK_PREFIX;
-    use nym_crypto::asymmetric::x25519;
+    use libcrux_kem::PublicKey;
+    use libcrux_psq::{impls::X25519, traits::Encode};
+    use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_noise_keys::NoiseVersion;
+    use nympsq::psq::{PSQInitiator, CONTEXT_LEN};
     use sha2::{Digest, Sha256};
 
     pub(crate) fn generate_psk(
@@ -37,6 +45,21 @@ mod psk_gen {
     ) -> Result<Psk, NoiseError> {
         match version {
             NoiseVersion::V1 => Ok(generate_psk_v1(responder_pub_key)),
+            // this should be taken out
+            NoiseVersion::V2 => Ok(generate_psk_v1(responder_pub_key)),
+            NoiseVersion::Unknown(noise_version) => {
+                Err(NoiseError::PskGenerationFailure { noise_version })
+            }
+        }
+    }
+    pub(crate) fn generate_psk_v2(
+        initiator_keypair: &ed25519::KeyPair,
+        responder_pub_key: x25519::PublicKey,
+        version: NoiseVersion,
+    ) -> Result<(Vec<u8>, Psk), NoiseError> {
+        match version {
+            NoiseVersion::V1 => Ok((vec![], generate_psk_v1(responder_pub_key))),
+            NoiseVersion::V2 => Ok(generate_psk_psq(&initiator_keypair, responder_pub_key)),
             NoiseVersion::Unknown(noise_version) => {
                 Err(NoiseError::PskGenerationFailure { noise_version })
             }
@@ -48,6 +71,27 @@ mod psk_gen {
         hasher.update(NOISE_PSK_PREFIX);
         hasher.update(responder_pub_key.to_bytes());
         hasher.finalize().into()
+    }
+
+    fn generate_psk_psq(
+        initiator_keypair: &ed25519::KeyPair,
+        responder_pub_key: &x25519::PublicKey,
+        context: &[u8; CONTEXT_LEN],
+        psq_ttl: Duration,
+    ) -> Result<(Vec<u8>, [u8; 32]), NoiseError> {
+        let mut psq_initiator_state: PSQInitiator<X25519> = PSQInitiator::init(initiator_keypair);
+
+        let libcrux_key = PublicKey::X25519(responder_pub_key.as_bytes().into());
+
+        match psq_initiator_state.compute_initiator_message(
+            &mut rand::rng(),
+            &libcrux_key,
+            context,
+            psq_ttl,
+        ) {
+            Ok(res) => Ok(res.encode()),
+            Err(_) => todo!(),
+        }
     }
 }
 
@@ -73,6 +117,7 @@ pub async fn upgrade_noise_initiator(
 
     let handshake_version = match key.supported_version {
         NoiseVersion::V1 => NoiseVersion::V1,
+        NoiseVersion::V2 => NoiseVersion::V2,
 
         // We're talking to a more recent node, but we can't adapt. Let's try to do our best and if it fails, it fails.
         // If that node sees we're older, it will try to adapt too.

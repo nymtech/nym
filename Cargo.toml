@@ -68,6 +68,7 @@ members = [
     "common/nym_offline_compact_ecash",
     "common/nymnoise",
     "common/nymnoise/keys",
+    "common/nympsq",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",

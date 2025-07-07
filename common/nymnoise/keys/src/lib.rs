@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(from = "u8", into = "u8")]
 pub enum NoiseVersion {
     V1,
+    V2,
     Unknown(u8), //Implies a newer version we don't know
 }
 
@@ -16,6 +17,7 @@ impl From<u8> for NoiseVersion {
     fn from(value: u8) -> Self {
         match value {
             1 => NoiseVersion::V1,
+            2 => NoiseVersion::V1,
             other => NoiseVersion::Unknown(other),
         }
     }
@@ -25,6 +27,7 @@ impl From<NoiseVersion> for u8 {
     fn from(version: NoiseVersion) -> Self {
         match version {
             NoiseVersion::V1 => 1,
+            NoiseVersion::V2 => 2,
             NoiseVersion::Unknown(other) => other,
         }
     }

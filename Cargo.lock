@@ -1458,6 +1458,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "core-models"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "hax-lib",
+ "pastey",
+ "rand 0.9.1",
+]
+
+[[package]]
 name = "cosmos-sdk-proto"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3142,6 +3152,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "hax-lib"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a89999d4446ba7d86c777bc6a30c106b9bf60d12eb1952242af5d1d7cb33943d"
+dependencies = [
+ "hax-lib-macros",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
+name = "hax-lib-macros"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704a31fb12a8c50243e8d4c88d006f64852822b0e24488a0de9986803a661792"
+dependencies = [
+ "hax-lib-macros-types",
+ "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "hax-lib-macros-types"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f302d2a43ba5888c61454ffeb8719dc43e7c0e83082d0fe302ac82d8d898b075"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "hdrhistogram"
 version = "7.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3250,7 +3297,7 @@ dependencies = [
  "idna",
  "ipnet",
  "once_cell",
- "rand 0.9.0",
+ "rand 0.9.1",
  "ring",
  "rustls 0.23.25",
  "thiserror 2.0.12",
@@ -3275,7 +3322,7 @@ dependencies = [
  "moka",
  "once_cell",
  "parking_lot",
- "rand 0.9.0",
+ "rand 0.9.1",
  "resolv-conf",
  "rustls 0.23.25",
  "smallvec",
@@ -4149,6 +4196,194 @@ name = "libc"
 version = "0.2.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
+
+[[package]]
+name = "libcrux-chacha20poly1305"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-poly1305",
+]
+
+[[package]]
+name = "libcrux-curve25519"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-ecdh"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-curve25519",
+ "libcrux-p256",
+ "rand 0.9.1",
+]
+
+[[package]]
+name = "libcrux-ed25519"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+ "rand_core 0.9.1",
+]
+
+[[package]]
+name = "libcrux-hacl-rs"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-hkdf"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-hmac",
+]
+
+[[package]]
+name = "libcrux-hmac"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+]
+
+[[package]]
+name = "libcrux-intrinsics"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "core-models",
+ "hax-lib",
+]
+
+[[package]]
+name = "libcrux-kem"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-ecdh",
+ "libcrux-ml-kem",
+ "libcrux-sha3",
+ "libcrux-traits",
+ "rand 0.9.1",
+]
+
+[[package]]
+name = "libcrux-macros"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "libcrux-ml-kem"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-secrets",
+ "libcrux-sha3",
+ "rand 0.9.1",
+]
+
+[[package]]
+name = "libcrux-p256"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+]
+
+[[package]]
+name = "libcrux-platform"
+version = "0.0.2"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "libcrux-poly1305"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-psq"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-chacha20poly1305",
+ "libcrux-ecdh",
+ "libcrux-ed25519",
+ "libcrux-hkdf",
+ "libcrux-hmac",
+ "libcrux-kem",
+ "libcrux-traits",
+ "rand 0.9.1",
+]
+
+[[package]]
+name = "libcrux-secrets"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "hax-lib",
+]
+
+[[package]]
+name = "libcrux-sha2"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-sha3"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+]
+
+[[package]]
+name = "libcrux-traits"
+version = "0.0.3-alpha.3"
+source = "git+https://github.com/cryspen/libcrux#59ca63af40fe6fc54e4cf5df9471ea7810fbeb0e"
+dependencies = [
+ "rand 0.9.1",
+]
 
 [[package]]
 name = "libm"
@@ -6781,9 +7016,13 @@ dependencies = [
  "arc-swap",
  "bytes",
  "futures",
+ "libcrux-kem",
+ "libcrux-psq",
  "nym-crypto 0.4.0",
  "nym-noise-keys",
+ "nympsq",
  "pin-project",
+ "rand 0.9.1",
  "rand_chacha 0.3.1",
  "sha2 0.10.9",
  "snow",
@@ -7969,6 +8208,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "nympsq"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "bytes",
+ "criterion",
+ "futures",
+ "libcrux-kem",
+ "libcrux-psq",
+ "libcrux-traits",
+ "nym-crypto 0.4.0",
+ "pin-project",
+ "rand 0.9.1",
+ "sha2 0.10.9",
+ "snow",
+ "strum 0.26.3",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "nymvisor"
 version = "0.1.22"
 dependencies = [
@@ -8285,6 +8547,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "pastey"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3a8cb46bdc156b1c90460339ae6bfd45ba0394e5effbaa640badb4987fdc261"
 
 [[package]]
 name = "peg"
@@ -8606,7 +8874,7 @@ dependencies = [
  "hmac",
  "md-5",
  "memchr",
- "rand 0.9.0",
+ "rand 0.9.1",
  "sha2 0.10.9",
  "stringprep",
 ]
@@ -8857,7 +9125,7 @@ checksum = "b820744eb4dc9b57a3398183639c511b5a26d2ed702cedd3febaa1393caa22cc"
 dependencies = [
  "bytes",
  "getrandom 0.3.1",
- "rand 0.9.0",
+ "rand 0.9.1",
  "ring",
  "rustc-hash",
  "rustls 0.23.25",
@@ -8911,13 +9179,12 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3779b94aeb87e8bd4e834cee3650289ee9e0d5677f976ecdb6d219e5f4f6cd94"
+checksum = "9fbfd9d094a40bf3ae768db9361049ace4c0e04a4fd6b359518bd7b73a73dd97"
 dependencies = [
  "rand_chacha 0.9.0",
  "rand_core 0.9.1",
- "zerocopy 0.8.20",
 ]
 
 [[package]]
@@ -10982,7 +11249,7 @@ dependencies = [
  "pin-project-lite",
  "postgres-protocol",
  "postgres-types",
- "rand 0.9.0",
+ "rand 0.9.1",
  "socket2",
  "tokio",
  "tokio-util",

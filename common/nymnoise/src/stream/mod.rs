@@ -3,7 +3,7 @@
 
 use crate::config::{NoiseConfig, NoisePattern};
 use crate::error::NoiseError;
-use crate::psk_gen::generate_psk;
+use crate::psk_gen::{generate_psk, generate_psk_v2};
 use crate::stream::codec::NymNoiseCodec;
 use crate::stream::framing::NymNoiseFrame;
 use bytes::{Bytes, BytesMut};
@@ -46,6 +46,7 @@ impl<C> NoiseStreamBuilder<C> {
         local_private_key: impl AsRef<[u8]>,
         remote_pub_key: impl AsRef<[u8]>,
         psk: Psk,
+        payload: impl AsRef<[u8]>,
         version: NoiseVersion,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
@@ -57,7 +58,8 @@ impl<C> NoiseStreamBuilder<C> {
             .psk(pattern.psk_position(), &psk)
             .build_initiator()?;
 
-        self.perform_handshake(handshake, version, pattern).await
+        self.perform_handshake(handshake, payload, version, pattern)
+            .await
     }
 
     pub(crate) async fn perform_initiator_handshake(
@@ -69,20 +71,44 @@ impl<C> NoiseStreamBuilder<C> {
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        let psk = generate_psk(remote_pub_key, version)?;
+        match version {
+            NoiseVersion::V1 => {
+                let psk = generate_psk(remote_pub_key, version)?;
 
-        let timeout = config.timeout;
-        tokio::time::timeout(
-            timeout,
-            self.perform_initiator_handshake_inner(
-                config.pattern,
-                config.local_key.private_key(),
-                remote_pub_key,
-                psk,
-                version,
-            ),
-        )
-        .await?
+                let timeout = config.timeout;
+                tokio::time::timeout(
+                    timeout,
+                    self.perform_initiator_handshake_inner(
+                        config.pattern,
+                        config.local_key.private_key(),
+                        remote_pub_key,
+                        psk,
+                        [],
+                        version,
+                    ),
+                )
+                .await?
+            }
+            NoiseVersion::V2 => {
+                let (psq_initiator_msg, psk) =
+                    generate_psk_v2(*(config.local_key), remote_pub_key, version)?;
+
+                let timeout = config.timeout;
+                tokio::time::timeout(
+                    timeout,
+                    self.perform_initiator_handshake_inner(
+                        config.pattern,
+                        config.local_key.private_key(),
+                        remote_pub_key,
+                        psk,
+                        psq_initiator_msg,
+                        version,
+                    ),
+                )
+                .await?
+            }
+            NoiseVersion::Unknown(_) => todo!(),
+        }
     }
 
     async fn perform_responder_handshake_inner(
@@ -129,8 +155,10 @@ impl<C> NoiseStreamBuilder<C> {
         let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN);
         handshake.read_message(&initial_frame.data, &mut buf)?;
 
+        // psq stuff here with buf as payload
+
         // 3. run handshake to completion
-        self.perform_handshake(handshake, initial_frame.version(), pattern)
+        self.perform_handshake(handshake, &[], initial_frame.version(), pattern)
             .await
     }
 
@@ -156,6 +184,7 @@ impl<C> NoiseStreamBuilder<C> {
     async fn send_handshake_msg(
         &mut self,
         handshake: &mut HandshakeState,
+        payload: impl AsRef<[u8]>,
         version: NoiseVersion,
         pattern: NoisePattern,
     ) -> Result<(), NoiseError>
@@ -163,7 +192,7 @@ impl<C> NoiseStreamBuilder<C> {
         C: AsyncRead + AsyncWrite + Unpin,
     {
         let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN); // we're in the handshake, we can afford a smaller buffer
-        let len = handshake.write_message(&[], &mut buf)?;
+        let len = handshake.write_message(payload.as_ref(), &mut buf)?;
         buf.truncate(len);
 
         let frame = NymNoiseFrame::new_handshake_frame(buf.freeze(), version, pattern)?;
@@ -176,7 +205,7 @@ impl<C> NoiseStreamBuilder<C> {
         handshake: &mut HandshakeState,
         version: NoiseVersion,
         pattern: NoisePattern,
-    ) -> Result<(), NoiseError>
+    ) -> Result<Bytes, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
@@ -199,9 +228,12 @@ impl<C> NoiseStreamBuilder<C> {
                     });
                 }
 
-                let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN); // we're in the handshake, we can afford a smaller buffer
+                // The buffer below is the payload...
+                // we're in the handshake, we can afford a smaller buffer
+
+                let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN);
                 handshake.read_message(&frame.data, &mut buf)?;
-                Ok(())
+                Ok(buf.into())
             }
             Some(Err(err)) => Err(err),
             None => Err(NoiseError::HandshakeError),
@@ -211,15 +243,18 @@ impl<C> NoiseStreamBuilder<C> {
     async fn perform_handshake(
         mut self,
         mut handshake_state: HandshakeState,
+        payload: impl AsRef<[u8]>,
         version: NoiseVersion,
         pattern: NoisePattern,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
+        let message_count = 0;
+
         while !handshake_state.is_handshake_finished() {
             if handshake_state.is_my_turn() {
-                self.send_handshake_msg(&mut handshake_state, version, pattern)
+                self.send_handshake_msg(&mut handshake_state, &payload, version, pattern)
                     .await?;
             } else {
                 self.recv_handshake_msg(&mut handshake_state, version, pattern)
@@ -519,7 +554,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn noise_handshake() -> anyhow::Result<()> {
+    async fn noise_handshake_v1() -> anyhow::Result<()> {
         let dummy_seed = [42u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
@@ -538,6 +573,67 @@ mod tests {
                 responder_keys.public_key().to_bytes(),
                 psk,
                 NoiseVersion::V1,
+            );
+
+        let stream_responder = NoiseStreamBuilder::new(responder_stream)
+            .perform_responder_handshake_inner(
+                pattern,
+                responder_keys.private_key().to_bytes(),
+                *responder_keys.public_key(),
+            );
+
+        let initiator_fut =
+            tokio::spawn(
+                async move { timeout(Duration::from_millis(200), stream_initiator).await },
+            );
+        let responder_fut =
+            tokio::spawn(
+                async move { timeout(Duration::from_millis(200), stream_responder).await },
+            );
+
+        let (initiator, responder) = join!(initiator_fut, responder_fut);
+
+        let mut initiator = initiator???;
+        let mut responder = responder???;
+
+        let msg = b"hello there";
+        // if noise was successful we should be able to write a proper message across
+        timeout(Duration::from_millis(200), initiator.write_all(msg)).await??;
+
+        initiator.inner_stream.flush().await?;
+
+        let inner_buf = initiator.inner_stream.get_ref().unchecked_tx_data();
+
+        let mut buf = [0u8; 11];
+        timeout(Duration::from_millis(200), responder.read(&mut buf)).await??;
+
+        assert_eq!(&buf[..], msg);
+
+        // the inner content is different from the actual msg since it was encrypted
+        assert_ne!(inner_buf, buf);
+        assert_ne!(inner_buf.len(), msg.len());
+
+        Ok(())
+    }
+    async fn noise_handshake_v2() -> anyhow::Result<()> {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let initiator_keys = Arc::new(x25519::KeyPair::new(&mut rng));
+        let responder_keys = Arc::new(x25519::KeyPair::new(&mut rng));
+
+        let (initiator_stream, responder_stream) = mock_streams();
+
+        let psk = generate_psk(*responder_keys.public_key(), NoiseVersion::V2)?;
+        let pattern = NoisePattern::default();
+
+        let stream_initiator = NoiseStreamBuilder::new(initiator_stream)
+            .perform_initiator_handshake_inner(
+                pattern,
+                initiator_keys.private_key().to_bytes(),
+                responder_keys.public_key().to_bytes(),
+                psk,
+                NoiseVersion::V2,
             );
 
         let stream_responder = NoiseStreamBuilder::new(responder_stream)

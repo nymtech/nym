@@ -6,7 +6,8 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 
-pub use nym_sdk::UserAgent;
+// pub use ::UserAgent
+use nym_http_api_client::UserAgent;
 use nym_validator_client::{NymApiClient, models::NymNodeDescription, nym_nodes::SkimmedNode};
 use nym_vpn_api_client::types::{GatewayMinPerformance, Percent, ScoreThresholds};
 use rand::{prelude::SliceRandom, thread_rng};
@@ -446,7 +447,7 @@ fn filter_on_mixnet_min_performance(
 
 #[cfg(test)]
 mod test {
-    use nym_sdk::UserAgent;
+    use nym_http_api_client::UserAgent;
 
     use super::*;
 

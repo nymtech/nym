@@ -4,6 +4,7 @@
 pub(crate) mod block_processor;
 pub(crate) mod block_requester;
 pub mod constants;
+mod cosmos_module;
 pub mod error;
 pub mod helpers;
 pub mod modules;

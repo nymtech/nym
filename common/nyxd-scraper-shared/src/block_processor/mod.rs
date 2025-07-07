@@ -4,6 +4,7 @@
 use crate::block_processor::helpers::split_request_range;
 use crate::block_processor::types::BlockToProcess;
 use crate::block_requester::BlockRequest;
+use crate::cosmos_module::message_registry::{default_message_registry, MessageRegistry};
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
@@ -91,6 +92,7 @@ pub struct BlockProcessor<S> {
     incoming: UnboundedReceiverStream<BlockToProcess>,
     block_requester: Sender<BlockRequest>,
     storage: S,
+    message_registry: MessageRegistry,
 
     // future work: rather than sending each msg to every msg module,
     // let them subscribe based on `type_url` inside the message itself
@@ -135,6 +137,7 @@ where
             incoming: incoming.into(),
             block_requester,
             storage,
+            message_registry: default_message_registry(),
             block_modules: vec![],
             tx_modules: vec![],
             msg_modules: vec![],

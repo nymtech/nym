@@ -131,6 +131,37 @@ pub enum ScraperError {
 
     #[error("pruning.keep_recent must not be smaller than {}. got: {keep_recent}. for most aggressive pruning, select pruning.strategy = \"everything\"", EVERYTHING_PRUNING_KEEP_RECENT)]
     TooSmallKeepRecent { keep_recent: u32 },
+
+    #[error("'{type_url}' is not registered in the message registry")]
+    MissingTypeUrlRegistration { type_url: String },
+
+    #[error("failed to decode message of type '{type_url}': {error}")]
+    InvalidProtoRepresentation {
+        type_url: String,
+        #[source]
+        error: prost::DecodeError,
+    },
+
+    #[error("failed to encode message of type '{type_url}' to json: '{error}'")]
+    JsonSerialisationFailure {
+        type_url: String,
+        #[source]
+        error: serde_json::Error,
+    },
+
+    #[error("serialisation of message of type '{type_url}' didn't result in an object!")]
+    JsonSerialisationFailureNotObject { type_url: String },
+
+    #[error("field '{field}' in '{type_url}' is not a string")]
+    JsonWasmSerialisationFailureNotString { field: String, type_url: String },
+
+    #[error("field '{field}' in '{type_url}' has invalid base64 encoding: {error}")]
+    JsonWasmSerialisationFailureInvalidBase64Encoding {
+        field: String,
+        type_url: String,
+        #[source]
+        error: base64::DecodeError,
+    },
 }
 
 impl ScraperError {

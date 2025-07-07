@@ -12,13 +12,17 @@ readme.workspace = true
 
 [dependencies]
 async-trait.workspace = true
+base64.workspace = true
 const_format = { workspace = true }
 cosmrs.workspace = true
+cosmos-sdk-proto = { workspace = true, features = ["serde", "cosmwasm"] } # we need to explicitly include serde feature
 eyre = { workspace = true }
 futures.workspace = true
 humantime = { workspace = true }
+prost = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 tendermint.workspace = true
 tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
 thiserror.workspace = true
@@ -28,6 +32,7 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 url.workspace = true
+
 
 [lints]
 workspace = true

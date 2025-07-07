@@ -3,7 +3,7 @@
 
 use crate::cosmos_module::message_registry::MessageRegistry;
 
-pub(crate) mod message_registry;
+pub mod message_registry;
 mod modules;
 
 pub trait CosmosModule {

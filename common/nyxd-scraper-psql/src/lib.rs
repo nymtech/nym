@@ -13,7 +13,6 @@ pub use nyxd_scraper_shared::{
 pub use storage::models;
 
 pub mod error;
-mod proto_registry;
 pub mod storage;
 
 pub type PostgresNyxdScraper = NyxdScraper<PostgresScraperStorage>;

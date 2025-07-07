@@ -14,6 +14,10 @@ pub mod storage;
 
 pub use block_processor::pruning::{PruningOptions, PruningStrategy};
 pub use block_processor::types::ParsedTransactionResponse;
+pub use cosmos_module::{
+    message_registry::{default_message_registry, MessageRegistry},
+    CosmosModule,
+};
 pub use cosmrs::Any;
 pub use modules::{BlockModule, MsgModule, TxModule};
 pub use scraper::{Config, NyxdScraper, StartingBlockOpts};

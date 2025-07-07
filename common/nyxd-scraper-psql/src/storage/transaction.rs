@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::PostgresScraperError;
-use crate::storage::helpers::{PlaceholderMessage, PlaceholderStruct};
+use crate::storage::helpers::PlaceholderStruct;
 use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
 };
@@ -16,29 +16,43 @@ use nyxd_scraper_shared::storage::validators::Response;
 use nyxd_scraper_shared::storage::{
     validators, Block, Commit, CommitSig, NyxdScraperStorageError, NyxdScraperTransaction,
 };
-use nyxd_scraper_shared::ParsedTransactionResponse;
+use nyxd_scraper_shared::{Any, MessageRegistry, ParsedTransactionResponse};
 use serde_json::json;
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use sqlx::{Postgres, Transaction};
 use std::ops::{Deref, DerefMut};
 use tracing::{debug, trace, warn};
 
-pub struct PostgresStorageTransaction(pub(crate) Transaction<'static, Postgres>);
+pub struct PostgresStorageTransaction {
+    pub(super) inner: Transaction<'static, Postgres>,
+
+    pub(super) registry: MessageRegistry,
+}
 
 impl Deref for PostgresStorageTransaction {
     type Target = Transaction<'static, Postgres>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.inner
     }
 }
 
 impl DerefMut for PostgresStorageTransaction {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.inner
     }
 }
 
 impl PostgresStorageTransaction {
+    fn decode_or_skip(&self, msg: &Any) -> Option<serde_json::Value> {
+        match self.registry.try_decode(msg) {
+            Ok(decoded) => Some(decoded),
+            Err(err) => {
+                warn!("{err}");
+                None
+            }
+        }
+    }
+
     async fn persist_validators(
         &mut self,
         validators: &validators::Response,
@@ -51,7 +65,7 @@ impl PostgresStorageTransaction {
             insert_validator(
                 consensus_address.to_string(),
                 consensus_pubkey.to_string(),
-                self.0.as_mut(),
+                self.inner.as_mut(),
             )
             .await?;
         }
@@ -77,7 +91,7 @@ impl PostgresStorageTransaction {
             total_gas,
             proposer_address,
             time,
-            self.0.as_mut(),
+            self.inner.as_mut(),
         )
         .await?;
         Ok(())
@@ -126,7 +140,7 @@ impl PostgresStorageTransaction {
                 time,
                 validator.power.into(),
                 validator.proposer_priority.value(),
-                self.0.as_mut(),
+                self.inner.as_mut(),
             )
             .await?;
         }
@@ -149,14 +163,12 @@ impl PostgresStorageTransaction {
                 .map(|sig| general_purpose::STANDARD.encode(sig))
                 .collect();
 
-            // TODO: uncover the secrets of juno's usage of `jsonpb` and how they're recovering
-            // field names from proto data
             let messages = chain_tx
                 .tx
                 .body
                 .messages
                 .iter()
-                .map(|msg| PlaceholderMessage::from(msg))
+                .filter_map(|msg| self.decode_or_skip(msg))
                 .collect::<Vec<_>>();
 
             // TODO: missing cosmrs' derives
@@ -173,7 +185,7 @@ impl PostgresStorageTransaction {
                 chain_tx.height.into(),
                 chain_tx.index as i32,
                 chain_tx.tx_result.code.is_ok(),
-                serde_json::to_value(messages)?,
+                serde_json::Value::Array(messages),
                 chain_tx.tx.body.memo.clone(),
                 signatures,
                 serde_json::to_value(signer_infos)?,
@@ -182,7 +194,7 @@ impl PostgresStorageTransaction {
                 chain_tx.tx_result.gas_used,
                 chain_tx.tx_result.log.clone(),
                 json!({ "value": "yep, another todo. on first glance corresponding field doesn't exist in rust" }),
-                self.0.as_mut(),
+                self.inner.as_mut(),
             )
             .await?;
         }
@@ -202,10 +214,10 @@ impl PostgresStorageTransaction {
                     chain_tx.hash.to_string(),
                     index as i64,
                     msg.type_url.clone(),
-                    serde_json::to_value(PlaceholderMessage::from(msg))?,
+                    serde_json::to_value(self.decode_or_skip(msg))?,
                     vec!["PLACEHOLDER".to_owned()],
                     chain_tx.height.into(),
-                    self.0.as_mut(),
+                    self.inner.as_mut(),
                 )
                 .await?
             }
@@ -218,7 +230,7 @@ impl PostgresStorageTransaction {
 #[async_trait]
 impl NyxdScraperTransaction for PostgresStorageTransaction {
     async fn commit(self) -> Result<(), NyxdScraperStorageError> {
-        self.0
+        self.inner
             .commit()
             .await
             .map_err(PostgresScraperError::from)

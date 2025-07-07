@@ -60,7 +60,7 @@ pub(crate) fn default_proto_to_json<T: Message + Default + Serialize>(
 
 type ConvertFn = fn(&Any) -> Result<serde_json::Value, ScraperError>;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MessageRegistry {
     // type url to function converting bytes to proto and finally to json
     registered_types: HashMap<String, ConvertFn>,

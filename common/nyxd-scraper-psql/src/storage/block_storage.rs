@@ -11,6 +11,7 @@ use crate::storage::transaction::PostgresStorageTransaction;
 use async_trait::async_trait;
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use nyxd_scraper_shared::storage::{NyxdScraperStorage, NyxdScraperStorageError};
+use nyxd_scraper_shared::{default_message_registry, MessageRegistry};
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
@@ -18,6 +19,9 @@ use tracing::{debug, error, info, instrument};
 #[derive(Clone)]
 pub struct PostgresScraperStorage {
     pub(crate) manager: StorageManager,
+
+    // kinda like very limited cosmos sdk codec
+    pub(crate) message_registry: MessageRegistry,
 }
 
 impl PostgresScraperStorage {
@@ -46,7 +50,10 @@ impl PostgresScraperStorage {
         let manager = StorageManager { connection_pool };
         manager.set_initial_metadata().await?;
 
-        let storage = PostgresScraperStorage { manager };
+        let storage = PostgresScraperStorage {
+            manager,
+            message_registry: default_message_registry(),
+        };
 
         Ok(storage)
     }
@@ -68,7 +75,8 @@ impl PostgresScraperStorage {
         update_last_pruned(current_height.into(), &mut **tx).await?;
 
         let commit_start = Instant::now();
-        tx.0.commit()
+        tx.inner
+            .commit()
             .await
             .map_err(|source| PostgresScraperError::StorageTxCommitFailure { source })?;
         log_db_operation_time("committing pruning tx", commit_start);
@@ -86,7 +94,10 @@ impl PostgresScraperStorage {
             .connection_pool
             .begin()
             .await
-            .map(PostgresStorageTransaction)
+            .map(|inner| PostgresStorageTransaction {
+                inner,
+                registry: self.message_registry.clone(),
+            })
             .map_err(|source| PostgresScraperError::StorageTxBeginFailure { source })
     }
 

@@ -11,13 +11,20 @@ license.workspace = true
 futures.workspace = true
 itertools.workspace = true
 nym-client-core = { path = "../common/client-core" }
-nym-common = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "c7e38aae038748f7d577a8b1ae02931fff97e868" }          # nym-vpn-core 1.11.0
+nym-common = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "c7e38aae038748f7d577a8b1ae02931fff97e868" } # nym-vpn-core 1.11.0
 nym-http-api-client = { path = "../common/http-api-client" }
-nym-offline-monitor = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "c7e38aae038748f7d577a8b1ae02931fff97e868" }
-nym-sphinx = { path = "../common/nymsphinx" }                                                                                  # replaces the types pulled in from nym-sdk
-nym-topology = { path = "../common/topology" }                                                                                 # replaces the types pulled in from nym-sdk
+nym-offline-monitor = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "c7e38aae038748f7d577a8b1ae02931fff97e868" } # nym-vpn-core 1.11.0
+nym-vpn-api-client = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "c7e38aae038748f7d577a8b1ae02931fff97e868" } # nym-vpn-core 1.11.0
+nym-sphinx = { path = "../common/nymsphinx" } # replaces the types pulled in from nym-sdk
+nym-topology = { path = "../common/topology" } # replaces the types pulled in from nym-sdk
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-# nym-vpn-api-client = { path = "../nym-vpn-api-client" } TODO modify gateway-directory so it isn't reliant on this
+nym-crypto = { path = "../common/crypto", features = [
+    "rand",
+    "asymmetric",
+    "stream_cipher",
+    "aes",
+    "hashing",
+] } # TODO probably dont need all these features, cut down
 rand.workspace = true
 serde.workspace = true
 strum.workspace = true

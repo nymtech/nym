@@ -1,12 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::current::response::ConnectFailureReason;
+use crate::ip_packet_client::current::response::ConnectFailureReason;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("nym sdk")]
-    SdkError(#[source] Box<nym_sdk::Error>),
+    // SdkError(#[source] Box<nym_sdk::Error>),
+    SdkError(#[source] Box<crate::error::Error>),
 
     #[error(
         "received response with version v{received}, the client is too new and can only understand v{expected}"

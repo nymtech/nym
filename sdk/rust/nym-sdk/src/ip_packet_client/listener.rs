@@ -4,16 +4,16 @@
 use bytes::Bytes;
 use futures::StreamExt;
 use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v8::response::ControlResponse};
-pub use nym_sdk::mixnet::ReconstructedMessage;
+use nym_sphinx::receiver::ReconstructedMessage;
 use tokio_util::codec::FramedRead;
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    current::{
+    ip_packet_client::current::{
         request::{ControlRequest, IpPacketRequest, IpPacketRequestData},
         response::{InfoLevel, IpPacketResponse, IpPacketResponseData},
     },
-    helpers::check_ipr_message_version,
+    ip_packet_client::helpers::check_ipr_message_version,
 };
 
 pub enum MixnetMessageOutcome {
@@ -28,6 +28,19 @@ pub struct IprListener {}
 pub enum IprListenerError {
     #[error(transparent)]
     IprClientError(#[from] crate::Error),
+}
+
+impl From<super::error::Error> for IprListenerError {
+    fn from(err: super::error::Error) -> Self {
+        match err {
+            super::error::Error::SdkError(sdk_err) => {
+                IprListenerError::IprClientError(*sdk_err)
+            }
+            other => IprListenerError::IprClientError(
+                crate::Error::new_unsupported(format!("IP packet error: {}", other))
+            )
+        }
+    }
 }
 
 impl IprListener {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::PostgresScraperError;
-use crate::storage::helpers::PlaceholderStruct;
+use crate::storage::helpers::{parse_addresses_from_events, PlaceholderStruct};
 use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
 };
@@ -209,13 +209,14 @@ impl PostgresStorageTransaction {
         debug!("persisting messages");
 
         for chain_tx in txs {
+            let involved_addresses = parse_addresses_from_events(chain_tx);
             for (index, msg) in chain_tx.tx.body.messages.iter().enumerate() {
                 insert_message(
                     chain_tx.hash.to_string(),
                     index as i64,
                     msg.type_url.clone(),
                     serde_json::to_value(self.decode_or_skip(msg))?,
-                    vec!["PLACEHOLDER".to_owned()],
+                    involved_addresses.clone(),
                     chain_tx.height.into(),
                     self.inner.as_mut(),
                 )

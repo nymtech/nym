@@ -390,7 +390,6 @@ cosmos-sdk-proto = { version = "0.26.1" }
 tendermint = "0.40.4"
 tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }
-prost-reflect = { version = "0.16.0" }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"

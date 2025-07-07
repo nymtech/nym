@@ -442,7 +442,7 @@ pub(crate) struct NymNodeInsertRecord {
     pub entry: Option<serde_json::Value>,
     pub self_described: Option<serde_json::Value>,
     pub bond_info: Option<serde_json::Value>,
-    pub last_updated_utc: String,
+    pub last_updated_utc: i64,
 }
 
 impl NymNodeInsertRecord {
@@ -451,7 +451,7 @@ impl NymNodeInsertRecord {
         bond_info: Option<&NymNodeDetails>,
         self_described: Option<&NymNodeDescription>,
     ) -> anyhow::Result<Self> {
-        let now = OffsetDateTime::now_utc().to_string();
+        let now = OffsetDateTime::now_utc().unix_timestamp();
 
         // if bond info is missing, set stake to 0
         let total_stake = bond_info

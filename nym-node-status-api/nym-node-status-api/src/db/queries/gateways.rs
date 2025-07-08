@@ -66,7 +66,7 @@ pub(crate) async fn update_bonded_gateways(
         .bind(record.self_described)
         .bind(record.explorer_pretty_bond)
         .bind(record.last_updated_utc)
-        .bind(record.performance as i8)
+        .bind(record.performance as i32)
         .execute(&mut *tx)
         .await?;
     }

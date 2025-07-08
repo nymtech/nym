@@ -9,6 +9,7 @@ use crate::storage::manager::{
 use async_trait::async_trait;
 use base64::engine::general_purpose;
 use base64::Engine as _;
+use cosmrs::proto;
 use nyxd_scraper_shared::helpers::{
     validator_consensus_address, validator_info, validator_pubkey_to_bech32,
 };
@@ -171,13 +172,12 @@ impl PostgresStorageTransaction {
                 .filter_map(|msg| self.decode_or_skip(msg))
                 .collect::<Vec<_>>();
 
-            // TODO: missing cosmrs' derives
             let signer_infos = chain_tx
                 .tx
                 .auth_info
                 .signer_infos
                 .iter()
-                .map(PlaceholderStruct::new)
+                .map(|info| proto::cosmos::tx::v1beta1::SignerInfo::from(info.clone()))
                 .collect::<Vec<_>>();
 
             insert_transaction(

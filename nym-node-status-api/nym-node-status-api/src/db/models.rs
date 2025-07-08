@@ -413,11 +413,11 @@ impl ScraperNodeInfo {
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(FromRow, Debug)]
 pub(crate) struct NymNodeDto {
-    pub node_id: i64,
+    pub node_id: i32,
     pub ed25519_identity_pubkey: String,
     pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
-    pub mix_port: i64,
+    pub mix_port: i32,
     pub x25519_sphinx_pubkey: String,
     pub node_role: serde_json::Value,
     pub supported_roles: serde_json::Value,
@@ -430,11 +430,11 @@ pub(crate) struct NymNodeDto {
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(Debug)]
 pub(crate) struct NymNodeInsertRecord {
-    pub node_id: i64,
+    pub node_id: i32,
     pub ed25519_identity_pubkey: String,
     pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
-    pub mix_port: i64,
+    pub mix_port: i32,
     pub x25519_sphinx_pubkey: String,
     pub node_role: serde_json::Value,
     pub supported_roles: serde_json::Value,
@@ -462,11 +462,11 @@ impl NymNodeInsertRecord {
         let self_described = serialize_opt_to_value!(self_described)?;
 
         let record = Self {
-            node_id: skimmed_node.node_id.into(),
+            node_id: skimmed_node.node_id as i32,
             ed25519_identity_pubkey: skimmed_node.ed25519_identity_pubkey.to_base58_string(),
             total_stake,
             ip_addresses: serde_json::to_value(&skimmed_node.ip_addresses)?,
-            mix_port: skimmed_node.mix_port as i64,
+            mix_port: skimmed_node.mix_port as i32,
             x25519_sphinx_pubkey: skimmed_node.x25519_sphinx_pubkey.to_base58_string(),
             node_role: serde_json::to_value(&skimmed_node.role)?,
             supported_roles: serde_json::to_value(skimmed_node.supported_roles)?,

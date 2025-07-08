@@ -132,7 +132,7 @@ pub(crate) async fn update_nym_nodes(
         .bind(record.ed25519_identity_pubkey)
         .bind(record.total_stake)
         .bind(record.ip_addresses)
-        .bind(record.mix_port as i32)
+        .bind(record.mix_port)
         .bind(record.x25519_sphinx_pubkey)
         .bind(record.node_role)
         .bind(record.supported_roles)
@@ -174,11 +174,11 @@ pub(crate) async fn get_described_node_bond_info(
         records
             .into_iter()
             .filter_map(|record| {
-                let node_id: i64 = record.try_get("node_id").ok()?;
+                let node_id: i32 = record.try_get("node_id").ok()?;
                 let bond_info: serde_json::Value = record.try_get("bond_info").ok()?;
                 serde_json::from_value::<NymNodeDetails>(bond_info)
                     .ok()
-                    .map(|res| (node_id as NodeId, res))
+                    .map(|res| (node_id as i64 as NodeId, res))
             })
             .collect::<HashMap<_, _>>()
     })
@@ -208,11 +208,11 @@ pub(crate) async fn get_node_self_description(
         records
             .into_iter()
             .filter_map(|record| {
-                let node_id: i64 = record.try_get("node_id").ok()?;
+                let node_id: i32 = record.try_get("node_id").ok()?;
                 let self_described: serde_json::Value = record.try_get("self_described").ok()?;
                 serde_json::from_value::<NymNodeDescription>(self_described)
                     .ok()
-                    .map(|res| (node_id as NodeId, res))
+                    .map(|res| (node_id as i64 as NodeId, res))
             })
             .collect::<HashMap<_, _>>()
     })

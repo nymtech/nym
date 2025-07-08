@@ -112,6 +112,10 @@ impl ServerResponse {
             _ => false,
         }
     }
+
+    pub fn is_send(&self) -> bool {
+        matches!(self, ServerResponse::Send { .. })
+    }
 }
 
 impl From<ServerResponse> for Message {

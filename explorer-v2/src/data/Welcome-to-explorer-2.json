@@ -10,7 +10,7 @@
   },
   "iconLight": "explorerCard",
   "iconDark": "explorerCardDark",
-  "image": "/explorer/images/Network.webp",
+  "image": "/images/Network.webp",
   "overview": {
     "content": [
       {

@@ -10,7 +10,7 @@
   },
   "iconLight": "gateway",
   "iconDark": "gatewayDark",
-  "image": "/explorer/images/placeholder.webp",
+  "image": "/images/placeholder.webp",
   "overview": {
     "content": [
       {

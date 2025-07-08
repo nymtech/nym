@@ -17,7 +17,7 @@ export default async function BlogPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-
+  const { NEXT_PUBLIC_EXPLORER_BASEPATH } = process.env;
   try {
     const blogArticle: BlogArticle = await import(`@/data/${slug}.json`);
 
@@ -87,7 +87,7 @@ export default async function BlogPage({
                   </Typography>
                 </Box>
                 <Image
-                  src={blogArticle.image}
+                  src={`/${NEXT_PUBLIC_EXPLORER_BASEPATH}${blogArticle.image}`}
                   alt="blog-image"
                   width={120}
                   height={60}

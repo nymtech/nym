@@ -10,7 +10,7 @@
   },
   "iconLight": "stakeCard",
   "iconDark": "stakeCardDark",
-  "image": "/explorer/images/stake-article.webp",
+  "image": "/images/stake-article.webp",
   "overview": {
     "content": [
       {

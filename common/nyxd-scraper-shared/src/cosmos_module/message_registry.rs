@@ -13,6 +13,11 @@ use crate::cosmos_module::modules::feegrant::Feegrant;
 use crate::cosmos_module::modules::gov_v1::GovV1;
 use crate::cosmos_module::modules::gov_v1beta1::GovV1Beta1;
 use crate::cosmos_module::modules::group::Group;
+use crate::cosmos_module::modules::ibc_core::IbcCore;
+use crate::cosmos_module::modules::ibc_fee::IbcFee;
+use crate::cosmos_module::modules::ibc_interchain_accounts_controller::IbcInterchainAccountsController;
+use crate::cosmos_module::modules::ibc_transfer_v1::IbcTransferV1;
+use crate::cosmos_module::modules::ibc_transfer_v2::IbcTransferV2;
 use crate::cosmos_module::modules::mint::Mint;
 use crate::cosmos_module::modules::nft::Nft;
 use crate::cosmos_module::modules::params::Params;
@@ -120,6 +125,11 @@ pub fn default_message_registry() -> MessageRegistry {
         Box::new(GovV1),
         Box::new(GovV1Beta1),
         Box::new(Group),
+        Box::new(IbcCore),
+        Box::new(IbcFee),
+        Box::new(IbcTransferV1),
+        Box::new(IbcTransferV2),
+        Box::new(IbcInterchainAccountsController),
         Box::new(Mint),
         Box::new(Nft),
         Box::new(Params),

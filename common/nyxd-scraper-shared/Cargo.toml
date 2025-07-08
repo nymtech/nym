@@ -19,6 +19,7 @@ cosmos-sdk-proto = { workspace = true, features = ["serde", "cosmwasm"] } # we n
 eyre = { workspace = true }
 futures.workspace = true
 humantime = { workspace = true }
+ibc-proto = { workspace = true, features = ["serde"] }
 prost = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

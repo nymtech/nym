@@ -35,6 +35,8 @@ validator-api/keypair
 contracts/mixnet/code_id
 contracts/mixnet/Justfile
 contracts/mixnet/Makefile
+artifacts
+contracts/artifacts
 validator-config
 *.patch
 validator-api-config.toml

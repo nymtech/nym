@@ -26,10 +26,9 @@ jobs:
           git config --global user.name "Lawrence Stalder"
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.45.4
         id: get_version
-        with:
-          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+        run: |
+          yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
       - name: Check if tag exists
         run: |

@@ -63,6 +63,7 @@ use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use url::Url;
 
 #[cfg(all(
@@ -195,6 +196,10 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 
     derivation_material: Option<DerivationMaterial>,
+    // Shared derivation material wrapped in Arc<Mutex<>> for thread-safe access
+    // across multiple clients. This allows multiple clients to share the same
+    // derivation source while maintaining safe concurrent access.
+    shared_derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
 }
 
 impl<C, S> BaseClientBuilder<C, S>
@@ -220,6 +225,7 @@ where
             #[cfg(unix)]
             connection_fd_callback: None,
             derivation_material: None,
+            shared_derivation_material: None,
         }
     }
 
@@ -229,6 +235,18 @@ where
         derivation_material: Option<DerivationMaterial>,
     ) -> Self {
         self.derivation_material = derivation_material;
+        self
+    }
+
+    /// Set shared derivation material for thread-safe sharing across multiple clients.
+    /// This is useful when multiple clients need to derive keys from the same source
+    /// while ensuring thread-safe access through Arc<Mutex<>>.
+    #[must_use]
+    pub fn with_shared_derivation_material(
+        mut self,
+        derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
+    ) -> Self {
+        self.shared_derivation_material = derivation_material;
         self
     }
 
@@ -704,6 +722,7 @@ where
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
         derivation_material: Option<DerivationMaterial>,
+        shared_derivation_material: Option<Arc<Mutex<DerivationMaterial>>>,
     ) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
@@ -713,12 +732,24 @@ where
         if key_store.load_keys().await.is_err() {
             info!("could not find valid client keys - a new set will be generated");
             let mut rng = OsRng;
-            let keys = if let Some(derivation_material) = derivation_material {
-                ClientKeys::from_master_key(&mut rng, &derivation_material)
-                    .map_err(|_| ClientCoreError::HkdfDerivationError {})?
-            } else {
-                ClientKeys::generate_new(&mut rng)
+
+            // Key generation priority: individual derivation material > shared derivation material > random generation
+            let keys = match (derivation_material, shared_derivation_material) {
+                // Individual derivation material takes precedence if provided
+                (Some(derivation_material), _) => {
+                    ClientKeys::from_master_key(&mut rng, &derivation_material)
+                        .map_err(|_| ClientCoreError::HkdfDerivationError {})?
+                }
+                // Use shared derivation material if no individual material is provided
+                (None, Some(shared_derivation_material)) => {
+                    let shared_derivation_material = shared_derivation_material.lock().await;
+                    ClientKeys::from_master_key(&mut rng, &shared_derivation_material)
+                        .map_err(|_| ClientCoreError::HkdfDerivationError {})?
+                }
+                // Fall back to random key generation if no derivation material is available
+                (None, None) => ClientKeys::generate_new(&mut rng),
             };
+
             store_client_keys(keys, key_store).await?;
         }
 
@@ -741,6 +772,7 @@ where
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
             self.derivation_material,
+            self.shared_derivation_material,
         )
         .await?;
 

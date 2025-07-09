@@ -2,7 +2,7 @@ use crate::probe::GwProbe;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
-use std::sync::OnceLock;
+use std::{env, sync::OnceLock};
 
 pub(crate) mod generate_keypair;
 pub(crate) mod run_probe;
@@ -22,8 +22,8 @@ fn pretty_build_info_static() -> &'static str {
 
 fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
     let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 3 {
-        return Err("Server config must be in format 'address:port:auth_key'".to_string());
+    if parts.len() != 2 {
+        return Err("Server config must be in format 'address:port'".to_string());
     }
 
     let address = parts[0].to_string();
@@ -31,7 +31,7 @@ fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
         .parse::<u16>()
         .map_err(|_| "Invalid port number".to_string())?;
     let auth_key =
-        PrivateKey::from_base58_string(parts[2]).map_err(|_| "Invalid auth key".to_string())?;
+        PrivateKey::from_base58_string(env::var("NODE_STATUS_AGENT_AUTH_KEY").unwrap()).unwrap();
 
     Ok(ServerConfig {
         address,

@@ -3,8 +3,8 @@
 
 mod connect;
 mod error;
-mod helpers;
-mod listener;
+pub mod helpers;
+pub mod listener;
 
 pub use connect::IprClientConnect;
 pub use error::Error;

@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_validator_client::coconut::EcashApiError;
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
 
@@ -13,10 +13,16 @@ pub enum SignerCheckError {
     #[error("failed to query the DKG contract: {source}")]
     DKGContractQueryFailure { source: NyxdError },
 
-    #[error("dealer at {dealer_url} has provided invalid data: {source}")]
-    InvalidDkgDealer {
+    #[error("dealer at {dealer_url} has provided invalid ed25519 pubkey: {source}")]
+    InvalidDealerPubkey {
         dealer_url: String,
-        source: EcashApiError,
+        source: Ed25519RecoveryError,
+    },
+
+    #[error("dealer at {dealer_url} has provided invalid announce url: {source}")]
+    InvalidDealerAddress {
+        dealer_url: String,
+        source: url::ParseError,
     },
 }
 

@@ -14,12 +14,15 @@ readme.workspace = true
 futures = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
 url = { workspace = true }
 
 
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-network-defaults = { path = "../network-defaults" }
+nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 
 
 

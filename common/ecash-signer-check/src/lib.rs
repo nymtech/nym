@@ -31,6 +31,13 @@ pub async fn check_signers(
     )
     .map_err(SignerCheckError::invalid_nyxd_connection_details)?;
 
+    check_signers_with_client(&client).await
+}
+
+pub async fn check_signers_with_client<C>(client: &C) -> Result<Vec<SignerResult>, SignerCheckError>
+where
+    C: DkgQueryClient + Sync,
+{
     // 2. retrieve current dkg epoch
     let dkg_epoch = client
         .get_current_epoch()

@@ -18,6 +18,7 @@ pub(crate) struct LoadedNymContracts {
     pub(crate) cw3_multisig: LoadedContract,
     pub(crate) cw4_group: LoadedContract,
     pub(crate) dkg: LoadedContract,
+    pub(crate) performance: LoadedContract,
 }
 
 impl From<NymContracts> for LoadedNymContracts {
@@ -29,6 +30,7 @@ impl From<NymContracts> for LoadedNymContracts {
             cw3_multisig: value.cw3_multisig.into(),
             cw4_group: value.cw4_group.into(),
             dkg: value.dkg.into(),
+            performance: value.performance.into(),
         }
     }
 }
@@ -41,6 +43,7 @@ pub(crate) struct NymContracts {
     pub(crate) cw3_multisig: Contract,
     pub(crate) cw4_group: Contract,
     pub(crate) dkg: Contract,
+    pub(crate) performance: Contract,
 }
 
 impl NymContracts {
@@ -52,6 +55,7 @@ impl NymContracts {
             &self.cw3_multisig,
             &self.cw4_group,
             &self.dkg,
+            &self.performance,
         ]
     }
 
@@ -63,11 +67,12 @@ impl NymContracts {
             &mut self.cw3_multisig,
             &mut self.cw4_group,
             &mut self.dkg,
+            &mut self.performance,
         ]
     }
 
     pub(crate) fn count(&self) -> usize {
-        6
+        7
     }
 
     pub(crate) fn discover_paths<P: AsRef<Path>>(
@@ -100,6 +105,9 @@ impl NymContracts {
                 if name.contains("dkg") {
                     self.dkg.wasm_path = Some(entry.path())
                 }
+                if name.contains("performance") {
+                    self.performance.wasm_path = Some(entry.path())
+                }
             }
         }
 
@@ -122,6 +130,7 @@ impl Default for NymContracts {
             cw4_group: Contract::new("cw4_group"),
             cw3_multisig: Contract::new("cw3_multisig"),
             dkg: Contract::new("dkg"),
+            performance: Contract::new("performance"),
         }
     }
 }

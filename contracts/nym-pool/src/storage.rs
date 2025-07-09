@@ -489,19 +489,21 @@ mod tests {
     #[cfg(test)]
     mod nympool_storage {
         use super::*;
-        use crate::testing::{TestSetup, TEST_DENOM};
+        use crate::testing::{init_contract_tester, NymPoolContractTesterExt, TEST_DENOM};
         use cosmwasm_std::testing::{
             mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage,
         };
         use cosmwasm_std::{coin, coins, Empty, OwnedDeps};
+        use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
         use nym_pool_contract_common::BasicAllowance;
 
         #[cfg(test)]
         mod initialisation {
             use super::*;
-            use crate::testing::{deps_with_balance, TEST_DENOM};
+            use crate::testing::TEST_DENOM;
             use cosmwasm_std::testing::{mock_dependencies, mock_env};
             use cosmwasm_std::{coin, Order};
+            use nym_contracts_common_testing::deps_with_balance;
             use nym_pool_contract_common::BasicAllowance;
 
             fn all_grants(storage: &dyn Storage) -> HashMap<GranteeAddress, Grant> {
@@ -914,7 +916,7 @@ mod tests {
         #[test]
         fn loading_granter_information() -> anyhow::Result<()> {
             let storage = NymPoolStorage::new();
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let granter = test.generate_account();
 
@@ -941,7 +943,7 @@ mod tests {
         #[test]
         fn checking_granter_permission() -> anyhow::Result<()> {
             let storage = NymPoolStorage::new();
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let granter = test.generate_account();
             test.add_granter(&granter);
@@ -957,7 +959,7 @@ mod tests {
         #[test]
         fn ensuring_granter_permission() -> anyhow::Result<()> {
             let storage = NymPoolStorage::new();
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
 
             let granter = test.generate_account();
             test.add_granter(&granter);
@@ -1047,7 +1049,7 @@ mod tests {
 
         #[test]
         fn attempting_to_load_grant() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let storage = NymPoolStorage::new();
 
             // doesn't exist...
@@ -1070,7 +1072,7 @@ mod tests {
 
         #[test]
         fn loading_grant() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let storage = NymPoolStorage::new();
 
             // doesn't exist...
@@ -1094,11 +1096,12 @@ mod tests {
         #[cfg(test)]
         mod adding_new_granter {
             use super::*;
+            use crate::testing::init_contract_tester;
             use cw_controllers::AdminError;
 
             #[test]
             fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1121,7 +1124,7 @@ mod tests {
 
             #[test]
             fn can_only_be_performed_if_account_is_not_already_a_granter() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1143,7 +1146,7 @@ mod tests {
 
             #[test]
             fn saves_basic_metadata() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1194,10 +1197,11 @@ mod tests {
         #[cfg(test)]
         mod removing_granter {
             use super::*;
+            use crate::testing::init_contract_tester;
 
             #[test]
             fn requires_granter_to_exist() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1217,7 +1221,7 @@ mod tests {
 
             #[test]
             fn can_only_be_performed_by_admin() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let random_address = test.generate_account();
@@ -1259,7 +1263,7 @@ mod tests {
 
             #[test]
             fn removes_it_from_granter_list() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1284,11 +1288,12 @@ mod tests {
         #[cfg(test)]
         mod adding_new_grant {
             use super::*;
+            use crate::testing::init_contract_tester;
             use nym_pool_contract_common::ClassicPeriodicAllowance;
 
             #[test]
             fn can_only_be_done_by_whitelisted_granter() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let not_valid_granter = test.generate_account();
@@ -1319,7 +1324,7 @@ mod tests {
 
             #[test]
             fn cant_be_done_if_grant_already_existed() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1340,7 +1345,7 @@ mod tests {
 
             #[test]
             fn only_accepts_valid_allowances() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 // allowance with 0 limit and wrong denom
@@ -1364,7 +1369,7 @@ mod tests {
 
             #[test]
             fn explicit_limit_cant_be_larger_than_available_tokens() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1401,7 +1406,7 @@ mod tests {
                 assert!(res.is_ok());
 
                 // and below the available
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let mut limit = available.clone();
                 limit.amount -= Uint128::new(1);
                 let allowance = Allowance::Basic(BasicAllowance {
@@ -1418,7 +1423,7 @@ mod tests {
 
             #[test]
             fn updates_allowances_initial_state_and_saves_it_to_storage() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1456,10 +1461,11 @@ mod tests {
         #[cfg(test)]
         mod spending_part_of_grant {
             use super::*;
+            use crate::testing::init_contract_tester;
 
             #[test]
             fn requires_grant_to_exist() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let grantee = test.generate_account();
@@ -1485,7 +1491,7 @@ mod tests {
 
             #[test]
             fn requires_grant_to_be_spendable() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1514,7 +1520,7 @@ mod tests {
 
             #[test]
             fn updates_stored_grant() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1548,7 +1554,7 @@ mod tests {
 
             #[test]
             fn removes_grant_from_storage_if_its_used_up() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1612,7 +1618,7 @@ mod tests {
 
         #[test]
         fn removing_grant() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let storage = NymPoolStorage::new();
 
             let grantee = test.generate_account();
@@ -1656,10 +1662,11 @@ mod tests {
         #[cfg(test)]
         mod revoking_grant {
             use super::*;
+            use crate::testing::init_contract_tester;
 
             #[test]
             fn requires_grant_to_exist() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1684,7 +1691,7 @@ mod tests {
 
             #[test]
             fn can_always_be_called_by_current_admin() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let grantee = test.add_dummy_grant().grantee;
@@ -1717,7 +1724,7 @@ mod tests {
 
             #[test]
             fn can_be_called_by_original_granter_if_its_still_whitelisted() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1761,7 +1768,7 @@ mod tests {
 
             #[test]
             fn removes_the_underlying_grant() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 let admin = test.admin_unchecked();
@@ -1780,10 +1787,12 @@ mod tests {
         #[cfg(test)]
         mod locking_part_of_allowance {
             use super::*;
+            use crate::testing::init_contract_tester;
+            use nym_contracts_common_testing::DenomExt;
 
             #[test]
             fn requires_providing_valid_coin() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let grantee = test.add_dummy_grant().grantee;
 
@@ -1804,7 +1813,7 @@ mod tests {
 
             #[test]
             fn requires_grant_to_exist() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let grantee = test.generate_account();
                 let env = test.env();
@@ -1826,7 +1835,7 @@ mod tests {
 
             #[test]
             fn does_not_allow_locking_more_than_spend_limit() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let admin = test.admin_unchecked();
                 let env = test.env();
@@ -1853,7 +1862,7 @@ mod tests {
 
             #[test]
             fn deducts_locked_amount_from_the_allowance() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let admin = test.admin_unchecked();
                 let env = test.env();
@@ -1892,7 +1901,7 @@ mod tests {
 
             #[test]
             fn preserves_grant_even_if_resultant_allowance_is_zero() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let admin = test.admin_unchecked();
                 let env = test.env();
@@ -1918,7 +1927,7 @@ mod tests {
 
             #[test]
             fn updates_internal_locked_counter() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let env = test.env();
                 let grantee = test.add_dummy_grant().grantee;
@@ -1953,8 +1962,10 @@ mod tests {
         #[cfg(test)]
         mod unlocking_part_of_allowance {
             use super::*;
+            use crate::testing::{init_contract_tester, NymPoolContract};
+            use nym_contracts_common_testing::{ContractTester, DenomExt};
 
-            fn setup_locked_grant(test: &mut TestSetup) -> Addr {
+            fn setup_locked_grant(test: &mut ContractTester<NymPoolContract>) -> Addr {
                 let grantee = test.add_dummy_grant().grantee;
                 test.lock_allowance(&grantee, Uint128::new(100));
                 grantee
@@ -1962,7 +1973,7 @@ mod tests {
 
             #[test]
             fn requires_providing_valid_coin() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let grantee = setup_locked_grant(&mut test);
 
@@ -1981,7 +1992,7 @@ mod tests {
 
             #[test]
             fn does_not_allow_unlocking_more_than_currently_locked() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let grantee = setup_locked_grant(&mut test);
 
@@ -1999,7 +2010,7 @@ mod tests {
 
             #[test]
             fn requires_grant_to_exist() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let grantee = test.generate_account();
 
@@ -2018,7 +2029,7 @@ mod tests {
 
             #[test]
             fn requires_having_locked_coins() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let grantee = test.add_dummy_grant().grantee;
 
@@ -2036,7 +2047,7 @@ mod tests {
 
             #[test]
             fn increases_internal_grant_spend_limit() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
                 let admin = test.admin_unchecked();
                 let env = test.env();
@@ -2082,7 +2093,7 @@ mod tests {
 
             #[test]
             fn updates_internal_locked_counter() -> anyhow::Result<()> {
-                let mut test = TestSetup::init();
+                let mut test = init_contract_tester();
                 let storage = NymPoolStorage::new();
 
                 // 100tokens locked
@@ -2116,8 +2127,9 @@ mod tests {
     #[cfg(test)]
     mod locked_storage {
         use super::*;
-        use crate::testing::TestSetup;
+        use crate::testing::{init_contract_tester, NymPoolContractTesterExt};
         use cosmwasm_std::testing::mock_dependencies;
+        use nym_contracts_common_testing::{ContractOpts, RandExt};
 
         #[test]
         fn is_initialised_with_zero_total_locked() -> anyhow::Result<()> {
@@ -2136,7 +2148,7 @@ mod tests {
 
         #[test]
         fn getting_grantee_locked() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.generate_account();
 
             let storage = LockedStorage::new();
@@ -2167,7 +2179,7 @@ mod tests {
 
         #[test]
         fn getting_maybe_grantee_locked() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let grantee = test.generate_account();
 
             let storage = LockedStorage::new();
@@ -2198,7 +2210,7 @@ mod tests {
 
         #[test]
         fn locking_tokens() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let storage = LockedStorage::new();
 
             let grantee1 = test.generate_account();
@@ -2259,7 +2271,7 @@ mod tests {
 
         #[test]
         fn unlocking_tokens() -> anyhow::Result<()> {
-            let mut test = TestSetup::init();
+            let mut test = init_contract_tester();
             let storage = LockedStorage::new();
 
             let grantee1 = test.generate_account();

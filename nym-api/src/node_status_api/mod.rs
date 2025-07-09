@@ -3,11 +3,12 @@
 
 use self::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::provider::NodePerformanceProvider;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
 use crate::{
-    nym_contract_cache::cache::NymContractCache,
-    support::{self, storage},
+    mixnet_contract_cache::cache::MixnetContractCache,
+    support::{self},
 };
 pub(crate) use cache::NodeStatusCache;
 use nym_task::TaskManager;
@@ -18,7 +19,6 @@ pub(crate) mod cache;
 pub(crate) mod handlers;
 pub(crate) mod helpers;
 pub(crate) mod models;
-pub(crate) mod reward_estimate;
 pub(crate) mod uptime_updater;
 pub(crate) mod utils;
 
@@ -33,10 +33,10 @@ pub(crate) const ONE_DAY: Duration = Duration::from_secs(86400);
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn start_cache_refresh(
     config: &config::NodeStatusAPI,
-    nym_contract_cache_state: &NymContractCache,
+    nym_contract_cache_state: &MixnetContractCache,
     described_cache: &SharedCache<DescribedNodes>,
     node_status_cache_state: &NodeStatusCache,
-    storage: storage::NymApiStorage,
+    performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
     nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     described_cache_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     shutdown: &TaskManager,
@@ -48,7 +48,7 @@ pub(crate) fn start_cache_refresh(
         described_cache.clone(),
         nym_contract_cache_listener,
         described_cache_cache_listener,
-        storage,
+        performance_provider,
     );
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });

@@ -1,15 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::backend::fs_backend::manager::StorageManager;
-use crate::backend::fs_backend::models::{
-    ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSurbSender,
+use crate::{
+    backend::fs_backend::{
+        manager::StorageManager,
+        models::{ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSurbSender},
+    },
+    surb_storage::ReceivedReplySurbs,
+    CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys,
 };
-use crate::surb_storage::ReceivedReplySurbs;
-use crate::{CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys};
 use async_trait::async_trait;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use tracing::{error, info, warn};
@@ -39,15 +40,17 @@ impl Backend {
         }
 
         let manager = StorageManager::init(database_path, true).await?;
-        manager.create_status_table().await?;
-
-        let backend = Backend {
-            temporary_old_path: None,
-            database_path: owned_path,
-            manager,
-        };
-
-        Ok(backend)
+        match manager.create_status_table().await {
+            Ok(()) => Ok(Backend {
+                temporary_old_path: None,
+                database_path: owned_path,
+                manager,
+            }),
+            Err(err) => {
+                manager.close_pool().await;
+                Err(err.into())
+            }
+        }
     }
 
     pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
@@ -59,7 +62,25 @@ impl Backend {
         }
 
         let manager = StorageManager::init(database_path, false).await?;
+        match Self::try_load_inner(&manager).await {
+            Ok(()) => Ok(Backend {
+                temporary_old_path: None,
+                database_path: owned_path,
+                manager,
+            }),
+            Err(e) => {
+                manager.close_pool().await;
+                Err(e)
+            }
+        }
+    }
 
+    /// Gracefully close sqlite connection pool and drop backend.
+    pub async fn shutdown(self) {
+        self.manager.close_pool().await
+    }
+
+    async fn try_load_inner(manager: &StorageManager) -> Result<(), StorageError> {
         // the database flush wasn't fully finished and thus the data is in inconsistent state
         // (we don't really know what's properly saved or what's not)
         if manager.get_flush_status().await? {
@@ -104,20 +125,11 @@ impl Backend {
             manager.delete_all_reply_keys().await?;
         }
 
-        Ok(Backend {
-            temporary_old_path: None,
-            database_path: owned_path,
-            // manager: StorageManagerState::Storage(manager),
-            manager,
-        })
-    }
-
-    async fn close_pool(&mut self) {
-        self.manager.connection_pool.close().await;
+        Ok(())
     }
 
     async fn rotate(&mut self) -> Result<(), StorageError> {
-        self.close_pool().await;
+        self.manager.close_pool().await;
 
         let new_extension = if let Some(existing_extension) =
             self.database_path.extension().and_then(|ext| ext.to_str())
@@ -130,7 +142,8 @@ impl Backend {
         let mut temp_old = self.database_path.clone();
         temp_old.set_extension(new_extension);
 
-        fs::rename(&self.database_path, &temp_old)
+        tokio::fs::rename(&self.database_path, &temp_old)
+            .await
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
         self.manager = StorageManager::init(&self.database_path, true).await?;
         self.manager.create_status_table().await?;
@@ -139,9 +152,10 @@ impl Backend {
         Ok(())
     }
 
-    fn remove_old(&mut self) -> Result<(), StorageError> {
+    async fn remove_old(&mut self) -> Result<(), StorageError> {
         if let Some(old_path) = self.temporary_old_path.take() {
-            fs::remove_file(old_path)
+            tokio::fs::remove_file(old_path)
+                .await
                 .map_err(|err| StorageError::DatabaseOldFileRemoveError { source: err })
         } else {
             warn!("the old database file doesn't seem to exist!");
@@ -302,7 +316,7 @@ impl ReplyStorageBackend for Backend {
         self.dump_reply_surb_storage_metadata(surbs_ref).await?;
         self.dump_reply_surbs(surbs_ref).await?;
 
-        self.remove_old()?;
+        self.remove_old().await?;
         self.end_storage_flush().await
     }
 

@@ -65,7 +65,7 @@ impl AcknowledgementListener {
             return;
         }
 
-        trace!("Received {} from the mix network", frag_id);
+        trace!("Received {frag_id} from the mix network");
         self.stats_tx
             .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()).into());
         if let Err(err) = self

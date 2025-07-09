@@ -46,6 +46,7 @@ nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/g
 nym-ecash-contract-common = { path = "../../../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-performance-contract-common = { path = "../../../common/cosmwasm-smart-contracts/nym-performance-contract" }
 nym-pemstore = { path = "../../../common/pemstore" }
 
 

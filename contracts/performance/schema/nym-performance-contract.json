@@ -1,0 +1,1240 @@
+{
+  "contract_name": "nym-performance-contract",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "authorised_network_monitors",
+      "mixnet_contract_address"
+    ],
+    "properties": {
+      "authorised_network_monitors": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "mixnet_contract_address": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Change the admin",
+        "type": "object",
+        "required": [
+          "update_admin"
+        ],
+        "properties": {
+          "update_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to submit performance data of a particular node for given epoch",
+        "type": "object",
+        "required": [
+          "submit"
+        ],
+        "properties": {
+          "submit": {
+            "type": "object",
+            "required": [
+              "data",
+              "epoch"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/NodePerformance"
+              },
+              "epoch": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to submit performance data of a batch of nodes for given epoch",
+        "type": "object",
+        "required": [
+          "batch_submit"
+        ],
+        "properties": {
+          "batch_submit": {
+            "type": "object",
+            "required": [
+              "data",
+              "epoch"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/NodePerformance"
+                }
+              },
+              "epoch": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to authorise new network monitor for submitting performance data",
+        "type": "object",
+        "required": [
+          "authorise_network_monitor"
+        ],
+        "properties": {
+          "authorise_network_monitor": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to retire an existing network monitor and forbid it from submitting any future performance data",
+        "type": "object",
+        "required": [
+          "retire_network_monitor"
+        ],
+        "properties": {
+          "retire_network_monitor": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
+      "NodePerformance": {
+        "type": "object",
+        "required": [
+          "n",
+          "p"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "p": {
+            "$ref": "#/definitions/Percent"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Percent": {
+        "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
+          }
+        ]
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "admin"
+        ],
+        "properties": {
+          "admin": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns performance of particular node for the provided epoch",
+        "type": "object",
+        "required": [
+          "node_performance"
+        ],
+        "properties": {
+          "node_performance": {
+            "type": "object",
+            "required": [
+              "epoch_id",
+              "node_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns historical performance for particular node",
+        "type": "object",
+        "required": [
+          "node_performance_paged"
+        ],
+        "properties": {
+          "node_performance_paged": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all submitted measurements for the particular node",
+        "type": "object",
+        "required": [
+          "node_measurements"
+        ],
+        "properties": {
+          "node_measurements": {
+            "type": "object",
+            "required": [
+              "epoch_id",
+              "node_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns (paged) measurements for particular epoch",
+        "type": "object",
+        "required": [
+          "epoch_measurements_paged"
+        ],
+        "properties": {
+          "epoch_measurements_paged": {
+            "type": "object",
+            "required": [
+              "epoch_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns (paged) performance for particular epoch",
+        "type": "object",
+        "required": [
+          "epoch_performance_paged"
+        ],
+        "properties": {
+          "epoch_performance_paged": {
+            "type": "object",
+            "required": [
+              "epoch_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns full (paged) historical performance of the whole network",
+        "type": "object",
+        "required": [
+          "full_historical_performance_paged"
+        ],
+        "properties": {
+          "full_historical_performance_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information about particular network monitor",
+        "type": "object",
+        "required": [
+          "network_monitor"
+        ],
+        "properties": {
+          "network_monitor": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information about all network monitors",
+        "type": "object",
+        "required": [
+          "network_monitors_paged"
+        ],
+        "properties": {
+          "network_monitors_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information about all retired network monitors",
+        "type": "object",
+        "required": [
+          "retired_network_monitors_paged"
+        ],
+        "properties": {
+          "retired_network_monitors_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information regarding the latest submitted performance data",
+        "type": "object",
+        "required": [
+          "last_submitted_measurement"
+        ],
+        "properties": {
+          "last_submitted_measurement": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {
+    "admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminResponse",
+      "description": "Returned from Admin.query_admin()",
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "epoch_measurements_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EpochMeasurementsPagedResponse",
+      "type": "object",
+      "required": [
+        "epoch_id",
+        "measurements"
+      ],
+      "properties": {
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "measurements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NodeMeasurement"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "NodeMeasurement": {
+          "type": "object",
+          "required": [
+            "measurements",
+            "node_id"
+          ],
+          "properties": {
+            "measurements": {
+              "$ref": "#/definitions/NodeResults"
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Percent"
+          }
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "epoch_performance_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EpochPerformancePagedResponse",
+      "type": "object",
+      "required": [
+        "epoch_id",
+        "performance"
+      ],
+      "properties": {
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "performance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NodePerformance"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "NodePerformance": {
+          "type": "object",
+          "required": [
+            "n",
+            "p"
+          ],
+          "properties": {
+            "n": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "p": {
+              "$ref": "#/definitions/Percent"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "full_historical_performance_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FullHistoricalPerformancePagedResponse",
+      "type": "object",
+      "required": [
+        "performance"
+      ],
+      "properties": {
+        "performance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HistoricalPerformance"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "HistoricalPerformance": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id",
+            "performance"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "performance": {
+              "$ref": "#/definitions/Percent"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "last_submitted_measurement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LastSubmission",
+      "type": "object",
+      "required": [
+        "block_height",
+        "block_time"
+      ],
+      "properties": {
+        "block_height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "block_time": {
+          "$ref": "#/definitions/Timestamp"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LastSubmittedData"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "LastSubmittedData": {
+          "type": "object",
+          "required": [
+            "data",
+            "epoch_id",
+            "sender"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/NodePerformance"
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "sender": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodePerformance": {
+          "type": "object",
+          "required": [
+            "n",
+            "p"
+          ],
+          "properties": {
+            "n": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "p": {
+              "$ref": "#/definitions/Percent"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "network_monitor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NetworkMonitorResponse",
+      "type": "object",
+      "properties": {
+        "info": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NetworkMonitorInformation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "NetworkMonitorDetails": {
+          "type": "object",
+          "required": [
+            "address",
+            "authorised_at_height",
+            "authorised_by"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "authorised_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "authorised_by": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NetworkMonitorInformation": {
+          "type": "object",
+          "required": [
+            "current_submission_metadata",
+            "details"
+          ],
+          "properties": {
+            "current_submission_metadata": {
+              "$ref": "#/definitions/NetworkMonitorSubmissionMetadata"
+            },
+            "details": {
+              "$ref": "#/definitions/NetworkMonitorDetails"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NetworkMonitorSubmissionMetadata": {
+          "type": "object",
+          "required": [
+            "last_submitted_epoch_id",
+            "last_submitted_node_id"
+          ],
+          "properties": {
+            "last_submitted_epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "last_submitted_node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "network_monitors_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NetworkMonitorsPagedResponse",
+      "type": "object",
+      "required": [
+        "info"
+      ],
+      "properties": {
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NetworkMonitorInformation"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "NetworkMonitorDetails": {
+          "type": "object",
+          "required": [
+            "address",
+            "authorised_at_height",
+            "authorised_by"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "authorised_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "authorised_by": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NetworkMonitorInformation": {
+          "type": "object",
+          "required": [
+            "current_submission_metadata",
+            "details"
+          ],
+          "properties": {
+            "current_submission_metadata": {
+              "$ref": "#/definitions/NetworkMonitorSubmissionMetadata"
+            },
+            "details": {
+              "$ref": "#/definitions/NetworkMonitorDetails"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NetworkMonitorSubmissionMetadata": {
+          "type": "object",
+          "required": [
+            "last_submitted_epoch_id",
+            "last_submitted_node_id"
+          ],
+          "properties": {
+            "last_submitted_epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "last_submitted_node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "node_measurements": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeMeasurementsResponse",
+      "type": "object",
+      "properties": {
+        "measurements": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeResults"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "NodeResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Percent"
+          }
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "node_performance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodePerformanceResponse",
+      "type": "object",
+      "properties": {
+        "performance": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "node_performance_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodePerformancePagedResponse",
+      "type": "object",
+      "required": [
+        "node_id",
+        "performance"
+      ],
+      "properties": {
+        "node_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "performance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EpochNodePerformance"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "EpochNodePerformance": {
+          "type": "object",
+          "required": [
+            "epoch"
+          ],
+          "properties": {
+            "epoch": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "performance": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "retired_network_monitors_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RetiredNetworkMonitorsPagedResponse",
+      "type": "object",
+      "required": [
+        "info"
+      ],
+      "properties": {
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RetiredNetworkMonitor"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "NetworkMonitorDetails": {
+          "type": "object",
+          "required": [
+            "address",
+            "authorised_at_height",
+            "authorised_by"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "authorised_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "authorised_by": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "RetiredNetworkMonitor": {
+          "type": "object",
+          "required": [
+            "details",
+            "retired_at_height",
+            "retired_by"
+          ],
+          "properties": {
+            "details": {
+              "$ref": "#/definitions/NetworkMonitorDetails"
+            },
+            "retired_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "retired_by": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}

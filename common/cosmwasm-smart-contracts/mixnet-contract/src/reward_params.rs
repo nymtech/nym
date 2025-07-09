@@ -5,7 +5,7 @@ use crate::helpers::IntoBaseDecimal;
 use crate::nym_node::Role;
 use crate::{error::MixnetContractError, Percent};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{to_json_string, Decimal};
 
 pub type Performance = Percent;
 pub type WorkFactor = Decimal;
@@ -84,7 +84,7 @@ pub struct IntervalRewardParams {
 
 impl IntervalRewardParams {
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 
@@ -410,7 +410,7 @@ impl IntervalRewardingParamsUpdate {
     }
 
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 

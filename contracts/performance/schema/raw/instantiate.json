@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "authorised_network_monitors",
+    "mixnet_contract_address"
+  ],
+  "properties": {
+    "authorised_network_monitors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mixnet_contract_address": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

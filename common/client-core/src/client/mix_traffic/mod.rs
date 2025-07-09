@@ -146,7 +146,7 @@ impl MixTrafficController {
                         Some(client_request) => {
                             match self.gateway_transceiver.send_client_request(client_request).await {
                                 Ok(_) => (),
-                                Err(e) => error!("Failed to send client request: {}", e),
+                                Err(e) => error!("Failed to send client request: {e}"),
                             };
                         },
                         None => {

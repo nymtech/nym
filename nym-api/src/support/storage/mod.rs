@@ -9,7 +9,7 @@ use crate::node_status_api::models::{
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
-use crate::storage::models::{NodeStatus, TestingRoute};
+use crate::storage::models::TestingRoute;
 use crate::support::storage::models::{
     GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
     TestedGatewayStatus, TestedMixnodeStatus,
@@ -131,124 +131,6 @@ impl NymApiStorage {
             return Ok(Some(retrieved));
         }
         Ok(None)
-    }
-
-    /// Gets all statuses for particular mixnode that were inserted
-    /// since the provided timestamp.
-    ///
-    /// # Arguments
-    ///
-    /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode to query.
-    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
-    async fn get_mixnode_statuses(
-        &self,
-        mix_id: NodeId,
-        since: i64,
-    ) -> Result<Vec<NodeStatus>, NymApiStorageError> {
-        let statuses = self
-            .manager
-            .get_mixnode_statuses_since(mix_id, since)
-            .await?;
-
-        Ok(statuses)
-    }
-
-    /// Gets all statuses for particular gateway that were inserted
-    /// since the provided timestamp.
-    ///
-    /// # Arguments
-    ///
-    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
-    async fn get_gateway_statuses(
-        &self,
-        node_id: NodeId,
-        since: i64,
-    ) -> Result<Vec<NodeStatus>, NymApiStorageError> {
-        let statuses = self
-            .manager
-            .get_gateway_statuses_since(node_id, since)
-            .await?;
-
-        Ok(statuses)
-    }
-
-    /// Tries to construct a status report for mixnode with the specified mix_id.
-    ///
-    /// # Arguments
-    ///
-    /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    pub(crate) async fn construct_mixnode_report(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<MixnodeStatusReport, NymApiStorageError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
-
-        let statuses = self.get_mixnode_statuses(mix_id, day_ago).await?;
-
-        // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
-        if statuses.is_empty() {
-            return Err(NymApiStorageError::MixnodeReportNotFound { mix_id });
-        }
-
-        // determine the number of runs the mixnode should have been online for
-        let last_hour_runs_count = self
-            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
-            .await?;
-        let last_day_runs_count = self
-            .get_monitor_runs_count(day_ago, now.unix_timestamp())
-            .await?;
-
-        let Some(mixnode_identity) = self.manager.get_mixnode_identity_key(mix_id).await? else {
-            return Err(NymApiStorageError::DatabaseInconsistency { reason: format!("The node {mix_id} doesn't have an identity even though we have status information on it!") });
-        };
-
-        Ok(MixnodeStatusReport::construct_from_last_day_reports(
-            now,
-            mix_id,
-            mixnode_identity,
-            statuses,
-            last_hour_runs_count,
-            last_day_runs_count,
-        ))
-    }
-
-    pub(crate) async fn construct_gateway_report(
-        &self,
-        node_id: NodeId,
-    ) -> Result<GatewayStatusReport, NymApiStorageError> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
-
-        let statuses = self.get_gateway_statuses(node_id, day_ago).await?;
-
-        // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
-        if statuses.is_empty() {
-            return Err(NymApiStorageError::GatewayReportNotFound { node_id });
-        }
-
-        // determine the number of runs the gateway should have been online for
-        let last_hour_runs_count = self
-            .get_monitor_runs_count(hour_ago, now.unix_timestamp())
-            .await?;
-        let last_day_runs_count = self
-            .get_monitor_runs_count(day_ago, now.unix_timestamp())
-            .await?;
-
-        let Some(gateway_identity) = self.manager.get_gateway_identity_key(node_id).await? else {
-            return Err(NymApiStorageError::DatabaseInconsistency { reason: format!("The node {node_id} doesn't have an identity even though we have status information on it!") });
-        };
-
-        Ok(GatewayStatusReport::construct_from_last_day_reports(
-            now,
-            node_id,
-            gateway_identity,
-            statuses,
-            last_hour_runs_count,
-            last_day_runs_count,
-        ))
     }
 
     pub(crate) async fn get_mixnode_uptime_history(

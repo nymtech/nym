@@ -1,17 +1,14 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-#![warn(clippy::todo)]
-#![warn(clippy::dbg_macro)]
-
 use crate::epoch_operations::EpochAdvancer;
 use crate::support::cli;
 use crate::support::storage;
 use ::nym_config::defaults::setup_env;
 use clap::Parser;
+use mixnet_contract_cache::cache::MixnetContractCache;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_tracing_logger;
-use nym_contract_cache::cache::NymContractCache;
 use support::nyxd;
 use tracing::{info, trace};
 
@@ -19,11 +16,12 @@ mod circulating_supply_api;
 mod ecash;
 mod epoch_operations;
 mod key_rotation;
+pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network;
 mod network_monitor;
 pub(crate) mod node_describe_cache;
+mod node_performance;
 pub(crate) mod node_status_api;
-pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;

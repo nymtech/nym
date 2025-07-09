@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "3.0.0"
+version = "3.1.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -28,7 +28,7 @@ moka = { workspace = true, features = ["future"] }
 # Nym API: revert after Cheddar is out
 nym-contracts-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-mixnet-contract-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
-nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
+nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = ["openapi"]}
 nym-node-status-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
 nym-http-api-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }

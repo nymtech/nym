@@ -1,0 +1,24 @@
+[package]
+name = "nym-contracts-common-testing"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+cosmwasm-std = { workspace = true }
+cw-storage-plus = { workspace = true }
+
+serde = { workspace = true }
+rand_chacha = { workspace = true }
+rand = { workspace = true }
+cw-multi-test = { workspace = true }
+
+[lints]
+workspace = true

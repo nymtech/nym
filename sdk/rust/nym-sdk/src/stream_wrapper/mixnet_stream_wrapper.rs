@@ -27,14 +27,16 @@ use tracing::{debug, info, warn};
 /// However, we can't map this one to one onto the TcpSocket as there isn't really a concept of binding to a port with the MixnetClient; it connects to its Gateway and then just accepts incoming messages from the Gw via the Websocket connection. However, we can stick with the idea of creating a Socket in an unconnected state, either using it to make a new Stream (connecting it to its EntryGw) or connecting it *to* something (once the IPR functionality is enabled, this will mean the creation of a Stream + kicking off the creation of a tunnel to an ExitGw + IPR).
 /// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it. Once LP is implemented, this will also allow us to follow something like what is implemented for the Tokio::net::UdpFramed abstraction, where we can create multiple MixStream instances from a single MixSocket, all connected to different Recipients.
 pub struct MixSocket {
-    inner: MixnetClient,
+    pub inner: MixnetClient,
 }
 
 impl MixSocket {
     /// Create a new socket that is disconnected from the Mixnet - kick off the Mixnet client with config for builder.
     /// Following idea of having single client with multiple concurrent connections represented by per-Recipient MixStream instance.
     pub async fn new() -> Result<Self, Error> {
-        todo!()
+        // TODO make this take an option, if Some create with builder pattern, if None make ephemeral like we already are.
+        let inner = MixnetClient::connect_new().await?;
+        Ok(MixSocket { inner })
     }
 
     /// Connect to a specific peer (Nym Client) and return a Stream (cf TcpSocket::connect() / TcpStream::new()).
@@ -61,7 +63,7 @@ impl MixSocket {
 }
 
 pub struct MixStream {
-    client: MixnetClient,
+    pub client: MixnetClient,
     peer: Option<Recipient>, // We might be accepting incoming messages and replying, so might not have a Nym addr to talk to..
     peer_surbs: Option<AnonymousSenderTag>, // ..since we might just be using SURBs instead
 }
@@ -156,6 +158,11 @@ impl MixStream {
         debug!("Flushed");
 
         Ok(())
+    }
+
+    /// Sidesteps the AsyncRead/codec in place of using the Mixnet Client's message-based functionality for getting messages: using to debug connection with the IPR Stream Wrapper.
+    pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
+        self.client.wait_for_messages().await
     }
 
     /// Disconnect client from the Mixnet - note that disconnected clients cannot currently be reconnected.

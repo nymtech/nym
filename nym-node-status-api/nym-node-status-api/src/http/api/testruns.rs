@@ -83,7 +83,7 @@ async fn request_testrun(
 
 #[tracing::instrument(level = "debug", skip_all)]
 async fn submit_testrun(
-    Path(submitted_testrun_id): Path<i64>,
+    Path(submitted_testrun_id): Path<i32>,
     State(state): State<AppState>,
     Json(submitted_result): Json<submit_results::SubmitResults>,
 ) -> HttpResult<StatusCode> {
@@ -174,7 +174,7 @@ async fn submit_testrun(
 
 #[tracing::instrument(level = "debug", skip_all)]
 async fn submit_testrun_v2(
-    Path(submitted_testrun_id): Path<i64>,
+    Path(submitted_testrun_id): Path<i32>,
     State(state): State<AppState>,
     Json(submission): Json<submit_results_v2::SubmitResultsV2>,
 ) -> HttpResult<StatusCode> {
@@ -301,7 +301,7 @@ async fn process_testrun_submission(
 }
 
 async fn process_testrun_submission_by_gateway(
-    gateway_id: i64,
+    gateway_id: i32,
     payload: submit_results_v2::Payload,
     conn: &mut DbConnection,
 ) -> HttpResult<StatusCode> {

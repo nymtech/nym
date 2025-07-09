@@ -289,9 +289,9 @@ pub(crate) mod gateway {
 #[allow(dead_code)] // not dead code, this is SQL data model
 #[derive(Debug, Clone, FromRow)]
 pub struct TestRunDto {
-    pub id: i64,
-    pub gateway_id: i64,
-    pub status: i64,
+    pub id: i32,
+    pub gateway_id: i32,
+    pub status: i32,
     pub created_utc: i64,
     pub ip_address: String,
     pub log: String,
@@ -315,7 +315,7 @@ pub struct GatewayIdentityDto {
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(Debug, Clone, FromRow)]
 pub struct GatewayInfoDto {
-    pub id: i64,
+    pub id: i32,
     pub gateway_identity_key: String,
     pub self_described: Option<String>,
     pub explorer_pretty_bond: Option<String>,

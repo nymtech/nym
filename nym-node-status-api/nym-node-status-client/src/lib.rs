@@ -97,7 +97,7 @@ impl NsApiClient {
     #[instrument(level = "debug", skip(self, probe_result))]
     pub async fn submit_results_with_context(
         &self,
-        testrun_id: i64,
+        testrun_id: i32,
         probe_result: String,
         assigned_at_utc: i64,
         gateway_identity_key: String,

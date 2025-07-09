@@ -36,7 +36,7 @@ pub mod get_testrun {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TestrunAssignment {
-    pub testrun_id: i64,
+    pub testrun_id: i32,
     pub assigned_at_utc: i64,
     pub gateway_identity_key: String,
 }

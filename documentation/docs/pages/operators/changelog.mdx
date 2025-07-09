@@ -47,6 +47,85 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.12-dolcelatte`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.12-dolcelatte)
+- [`nym-node`](nodes/nym-node.mdx) version `1.14.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-07-09T12:50:32.123212812Z
+Build Version:      1.14.0
+Commit SHA:         089c47cce70ef8ea5ecfe3d00b52e510d006e120
+Commit Date:        2025-07-07T15:44:15.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- **[Nym Governator](https://governator.nym.com) is out!** Make sure to check out this new operators governance tool and vote on:
+    - [**NIP-1:** Proposing NIP as process to propose and log changes to the Nym network](https://governator.nym.com/proposal/prop-9719838a-e86d-4227-8141-dfd5c651ed92)
+    - [**NIP-2:** Change stake saturation and active set to improve network decentralisation and efficiency](https://governator.nym.com/proposal/prop-8dfa4a28-55b1-45a5-968f-f2897c2670df)
+
+### Features
+
+- [Nympool contract](https://github.com/nymtech/nym/pull/5464): This is the first iteration of the nympool contract. It's currently **not yet** integrated with the mixnet contract.
+
+- [Noise XKpsk3 integration (2025 version)](https://github.com/nymtech/nym/pull/5692)
+
+- [Key rotation](https://github.com/nymtech/nym/pull/5777)
+
+- [HTTP Client Retries, Fallbacks, and Redirects](https://github.com/nymtech/nym/pull/5789)
+
+- [Close sqlite pool before moving or reopening databases](https://github.com/nymtech/nym/pull/5796): Our sqlite db recovery and backup strategies don't work on Windows because the OS prevents moving the already open file. This PR attempts to address this and in principle it attempts to close all connections to the database and ensure that sqlx relinquishes the access to db file(s). Short summary of what this PR introduces:
+
+  1. Close sqlx connection pools in order to close/release the db file
+  2. Poll until there are no more db file descriptors left open.
+
+- [Replace chrono with time in NS API](https://github.com/nymtech/nym/pull/5811)
+
+- [Use the same client bandwidth for top up](https://github.com/nymtech/nym/pull/5813)
+
+- [ Node status dvpn directory](https://github.com/nymtech/nym/pull/5829)
+
+- [Removing test-net faucet](https://github.com/nymtech/nym/pull/5840)
+
+- [Amended the buy section](https://github.com/nymtech/nym/pull/5841): Change the wallet to include the buy options for NYM
+
+- [Remove bity dir](https://github.com/nymtech/nym/pull/5844)
+
+- [Remove not used old `mock-api`](https://github.com/nymtech/nym/pull/5845)
+
+- [Remove qa env](https://github.com/nymtech/nym/pull/5847)
+
+- [Remove/old env references](https://github.com/nymtech/nym/pull/5848)
+
+- [Updated browser extension piece removal](https://github.com/nymtech/nym/pull/5849): Keep all the `internal-dev wasm` pieces as future examples
+  - everything previously was going to be removed
+  - shows functioning `wasm` interaction with the `js`
+
+### Bugfix
+
+- [Fixed typo in API endpoint parameter](https://github.com/nymtech/nym/pull/5449)
+
+- [Adjust heuristic for wireguard peer activity](https://github.com/nymtech/nym/pull/5818)
+
+- [Url scheme warning log](https://github.com/nymtech/nym/pull/5819): Fix conditions for logging about url scheme. Warns only if the provided urls are not HTTP or HTTPS, as intended.
+
+- [Bug Fix for Wallet build](https://github.com/nymtech/nym/pull/5820): Revert url used for `connection-tester` to default `url::Url`.
+
+- [Fix swapped total and circulating supplies](https://github.com/nymtech/nym/pull/5822)
+
+- [Fixed client route for obtaining v2 list of gateways](https://github.com/nymtech/nym/pull/5859)
+
+- [Allow gateways to permit authentication from v4 clients](https://github.com/nymtech/nym/pull/5862)
+
+- [Backwards compat](https://github.com/nymtech/nym/pull/5865)
+
 ## `v2025.11-cheddar`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.11-cheddar)
@@ -82,9 +161,9 @@ cargo Profile:      release
 
 - [QoL: `RequestPath` trait for `http-api-client`](https://github.com/nymtech/nym/pull/5788): Those `PathSegments` in `ApiClient` weren't very user-friendly. Instead we've defined a `RequestPath` trait that allows you to also pass a good old `&str` or `String` and internally it does exactly the same sanitization as before. `PathSegments` are also fully supported to not break any existing compatibility.
 
-- [Nym Statistics API](https://github.com/nymtech/nym/pull/5800): 
+- [Nym Statistics API](https://github.com/nymtech/nym/pull/5800):
     - Types for `nym-vpn-client`: It introduces `VpnClientStatsReport` which will be used by nym vpn clients to report statistics. Those types are in the monorepo because they're used by the `num-statistics-API`
-    - Nym Statistics API: Basically a `REST API` with a `postgres` backend. In this first iteration, it only accepts `VpnClientStatsReport` and stores them in its database. It optionally connects to the Nym API to confirm reports are coming from the network and attach country code to them if it's the case (exit node country code). 
+    - Nym Statistics API: Basically a `REST API` with a `postgres` backend. In this first iteration, it only accepts `VpnClientStatsReport` and stores them in its database. It optionally connects to the Nym API to confirm reports are coming from the network and attach country code to them if it's the case (exit node country code).
 
 - [Resolve 1.87 clippy warnings](https://github.com/nymtech/nym/pull/5802)
 
@@ -115,7 +194,7 @@ cargo Profile:      release
 ### Operators Updates & Tools
 
 - [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--calculation): A quick app to calculate rewards for any node included in the Mixnet active set
-- **Backup your nodes: Stark Industries Solutions and its subsidy PQ.Hosting were added to EU's sanction list**. Everyone running a node on PQ or Stark in Europe should get additional service free of charge and back up their node there. 
+- **Backup your nodes: Stark Industries Solutions and its subsidy PQ.Hosting were added to EU's sanction list**. Everyone running a node on PQ or Stark in Europe should get additional service free of charge and back up their node there.
 - **We recommend operators using Stark Industries Solutions and PQ.Hosting to start looking for alternatives.** Here are some useful pages:
   - [Backup a node](nodes/maintenance#backup-a-node)
   - [Backup proxy conf](nodes/maintenance#backup-proxy-configuration)
@@ -168,10 +247,10 @@ cargo Profile:      release
 
 - [Downgrade deranged crate to `0.4.0`](https://github.com/nymtech/nym/pull/5746): Downgrade the crate `deranged` from `0.4.1` to `0.4.0`, as `0.4.1` was yanked
  and is flagged by `cargo audit`
- 
+
 - [Upgrade prometheus crate to fix security warning](https://github.com/nymtech/nym/pull/5747): Upgrade the `prometheus` crate to bump the version of the `protobuf`
  crate, which is flagged by `cargo audit` as having a security issue:
- 
+
 ```bash
  Crate:     protobuf
  Version:   2.28.0
@@ -186,7 +265,7 @@ cargo Profile:      release
 ```
 - [Update `pretty_env_logger` to latest to not depend on unmaintained crate atty](https://github.com/nymtech/nym/pull/5748): The crate `atty` is flagged to be unmaintained and also having some security issues.
 
-- [Remove `pretty_env_logger` and switch remaining crates to use tracing](https://github.com/nymtech/nym/pull/5749) 
+- [Remove `pretty_env_logger` and switch remaining crates to use tracing](https://github.com/nymtech/nym/pull/5749)
 
 ## `v2025.9-appenzeller`
 
@@ -214,7 +293,7 @@ cargo Profile:      release
 ### Features
 
 - [Add contains ticketbook data db query](https://github.com/nymtech/nym/pull/5670)
-- [Add `/account/{address}`](https://github.com/nymtech/nym/pull/5673): Meant to replace `https://explorer.nymtech.net/api/v1/tmp/unstable/account/{address}` for Explorer v2  
+- [Add `/account/{address}`](https://github.com/nymtech/nym/pull/5673): Meant to replace `https://explorer.nymtech.net/api/v1/tmp/unstable/account/{address}` for Explorer v2
 
 ### Bugfix
 
@@ -254,15 +333,15 @@ cargo Profile:      release
 
 - [Adding fresh nym-api tests and workflow](https://github.com/nymtech/nym/pull/5659)
 
-- [Replay protection](https://github.com/nymtech/nym/pull/5682): Introduces replay detection into a `nym-node`. Currently it uses a bloomfilter that's reset every 25h. In the future this will be controlled by the key rotation. The bloomfilter is also periodically flushed to disk in order to be able to recover from a crash/shutdown. 
+- [Replay protection](https://github.com/nymtech/nym/pull/5682): Introduces replay detection into a `nym-node`. Currently it uses a bloomfilter that's reset every 25h. In the future this will be controlled by the key rotation. The bloomfilter is also periodically flushed to disk in order to be able to recover from a crash/shutdown.
 
-- [Tauri V2 - Wallet Migration](https://github.com/nymtech/nym/pull/5687): 
+- [Tauri V2 - Wallet Migration](https://github.com/nymtech/nym/pull/5687):
   - The core of the lifting was done via the migrate command
   - A lot of API's changed
   - Improved styling
   - Pipelines are fixed for all platforms
-  
-- [Make mix hops optional for Mixnet Client](https://github.com/nymtech/nym/pull/5696): As is the route selection for packets, reply SURBs, and acknowledgements are selected deep withing the `MixnetClient` machinery. This makes custom route selection (i.e. for authenticating / registering wiregaurd mode vpn clients) is not supported. This PR adds configuration toggle that allows `MixnetClient` to be built where packets are sent direct through entry to Exit Gateway nodes -- no mix hops. 
+
+- [Make mix hops optional for Mixnet Client](https://github.com/nymtech/nym/pull/5696): As is the route selection for packets, reply SURBs, and acknowledgements are selected deep withing the `MixnetClient` machinery. This makes custom route selection (i.e. for authenticating / registering wiregaurd mode vpn clients) is not supported. This PR adds configuration toggle that allows `MixnetClient` to be built where packets are sent direct through entry to Exit Gateway nodes -- no mix hops.
 
 - [Bump the `nym-vpn deb` metapackage to `1.0`](https://github.com/nymtech/nym/pull/5697)
 
@@ -274,7 +353,7 @@ cargo Profile:      release
 
 - [Peer handle should die more gracefully](https://github.com/nymtech/nym/pull/5704)
 
-- [Update `hickory` DNS `0.24.4` to `0.25`](https://github.com/nymtech/nym/pull/5709): Update the dependency on `hickory` DNS to the latest minor version 
+- [Update `hickory` DNS `0.24.4` to `0.25`](https://github.com/nymtech/nym/pull/5709): Update the dependency on `hickory` DNS to the latest minor version
 
 - [Remove inactive peers](https://github.com/nymtech/nym/pull/5721)
 
@@ -301,7 +380,7 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-- **[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions Debian bullseye/sid (11) / Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) / Ubuntu 22.04 (and newer)!** Alternatively compile the binaries from source. 
+- **[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions Debian bullseye/sid (11) / Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) / Ubuntu 22.04 (and newer)!** Alternatively compile the binaries from source.
 
 - The Nym Squad League Winter Season has concluded. Changes are coming to NSL, including the new NSL council, monthly payments for contributions, revamped reports, and more. Details available in the [Winter Season report](https://forum.nym.com/t/nym-squad-league-winter-season-report/1265).
 
@@ -317,7 +396,7 @@ cargo Profile:      release
 
 - [Mix throughput tester](https://github.com/nymtech/nym/pull/5661): A utility to measure mixing throughput of a node. Especially since there are some design choices with non-obvious performance penalties. For example 1 bloomfilter per connection vs 1 global bloomfilter with additional locking for replay protection.
 
-- [Update log crate](https://github.com/nymtech/nym/pull/5667): Update `log crate` to latest, fix `format_in_format_args`, fix `to_string_in_format_args` 
+- [Update log crate](https://github.com/nymtech/nym/pull/5667): Update `log crate` to latest, fix `format_in_format_args`, fix `to_string_in_format_args`
 
 - [Bump the patch-updates group across 1 directory with 7 updates](https://github.com/nymtech/nym/pull/5668):
 
@@ -333,8 +412,8 @@ cargo Profile:      release
 
 - [Improve explorer caching](https://github.com/nymtech/nym/pull/5669): Fix:
     - `tanstack` caching
-    - graphs data bug 
-    - "auto" gas fee for redeem rewards 
+    - graphs data bug
+    - "auto" gas fee for redeem rewards
 
 - [Update node versions in CI](https://github.com/nymtech/nym/pull/5677)
 
@@ -346,7 +425,7 @@ cargo Profile:      release
 
 - [`clippy` for `1.86`](https://github.com/nymtech/nym/pull/5685)
 
-- [Expand `/v3/nym-nodes` with geodata](https://github.com/nymtech/nym/pull/5686): Includes node description and geodata.  
+- [Expand `/v3/nym-nodes` with geodata](https://github.com/nymtech/nym/pull/5686): Includes node description and geodata.
 
 ### Bugfix
 
@@ -382,11 +461,11 @@ cargo Profile:      release
 
 - [**Nym Explorer v2.1.0**](https://nym.com/explorer) is out as a beta release
 
-- Since last release [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration). Make sure to apply it on the servers hosting `nym-node` in `exit-gateway` mode. 
+- Since last release [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration). Make sure to apply it on the servers hosting `nym-node` in `exit-gateway` mode.
 
 #### Community Tools
 
-Nym operators are coming with diverse backgrounds. While for some running a `nym-node` is an introduction to sys-administration, others are well seasoned builders and hackers. It's amazing to see the effort people put in order to lift each other by day-to-day mutual problem solving support in [Matrix channel](https://matrix.to/#/#operators:nymtech.chat). More and more people take it further and build tools to improve network monitoring and node administration. 
+Nym operators are coming with diverse backgrounds. While for some running a `nym-node` is an introduction to sys-administration, others are well seasoned builders and hackers. It's amazing to see the effort people put in order to lift each other by day-to-day mutual problem solving support in [Matrix channel](https://matrix.to/#/#operators:nymtech.chat). More and more people take it further and build tools to improve network monitoring and node administration.
 
 While we are planning to make a page aggregating these tools together, here are some tools released lately by the technical community:
 
@@ -410,7 +489,7 @@ While we are planning to make a page aggregating these tools together, here are 
 
 - [Bump `nanoid` from `3.3.7` to `3.3.8` in `/documentation/docs`](https://github.com/nymtech/nym/pull/5335): Bumps [`nanoid`](https://github.com/ai/nanoid)
 
-- [Bump `store2` from `2.14.3` to `2.14.4`](https://github.com/nymtech/nym/pull/5391): Bumps [`store2`](https://github.com/nbubna/store) 
+- [Bump `store2` from `2.14.3` to `2.14.4`](https://github.com/nymtech/nym/pull/5391): Bumps [`store2`](https://github.com/nbubna/store)
 
 - [Bump `@octokit/plugin-paginate-rest` and `@actions/github` in `/.github/actions/nym-hash-releases/src`](https://github.com/nymtech/nym/pull/5488): Bumps [`@octokit/plugin-paginate-rest`](https://github.com/octokit/plugin-paginate-rest.js)
 
@@ -435,16 +514,16 @@ While we are planning to make a page aggregating these tools together, here are 
   - `/issued-ticketbooks-on-count/:issuance_date`
   - `/issued-ticketbooks-challenge-commitment`
   - `/issued-ticketbooks-data`
- 
+
 - removed:
   - `/issued-ticketbooks-challenge`
 </AccordionTemplate>
 
 <AccordionTemplate name={<TestingSteps/>}>
 Testing Steps Performed:
-New issue ticketbook related endpoints work -  tickets are issued and consumed as before. 
+New issue ticketbook related endpoints work -  tickets are issued and consumed as before.
 Redeeming tickets is happening as normal on the gateway side.
- 
+
 Notes (if any):
 Chuckles will not require the rewarder binary to be updated; as there will be additional changes to rewarding, this will be extensively tested in the future.
 </AccordionTemplate>
@@ -479,15 +558,15 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 - [Bump `tempfile` from `3.18.0` to `3.19.0`](https://github.com/nymtech/nym/pull/5631): Bumps [`tempfile`](https://github.com/Stebalien/tempfile)
 
 - [Rework IPR codec to extract out timer and implement AsyncWrite](https://github.com/nymtech/nym/pull/5632): The goal is to be able to handle back pressure in the vpn client. For that we need to extract out the timer from the codec since we want to move control over that to the mixnet processor. Once the timer is removed we can reformulate the mixnet sender as a `Sink` wrapped in a `FramedWrite`
- 
+
   - Extract out timer from IPR codec
   - Implement AsyncWrite on mixnet client sender
   - Add functions to wait for lanes to clear on `LaneQueueLenghts`
-  
+
 - [Remove `explorer-api` from the main workspace](https://github.com/nymtech/nym/pull/5635)
 
 - [Bump `dtolnay/rust-toolchain` from `1.90.0` to `1.100.0`](https://github.com/nymtech/nym/pull/5638): Bumps [`dtolnay/rust-toolchain`](https://github.com/dtolnay/rust-toolchain)
- 
+
 - [Bump `zip` from `2.2.2` to `2.4.1`](https://github.com/nymtech/nym/pull/5639): Bumps [`zip`](https://github.com/zip-rs/zip2)
 
 - [Add `max_retransmissions` flag on each message](https://github.com/nymtech/nym/pull/5642): Add an optional `max_retransmissions` field on `InputMessage`, to be able to selectively disable or turn down the number of `retransmissions` done for specific packets
@@ -503,7 +582,7 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 - [Update wallet to include Interval Operator Cost and Profit Margin](https://github.com/nymtech/nym/pull/5652): Created a new modal for Interval Operator Cost and Profit Margin changes
   - Uses existing update node operating cost functionality for old mixnodes (If it works it works)
   - Prompts a warning that a user "Can send the request as many times as they want but it will only update the last message when the interval changes"
- 
+
 - [Wallet-revamp to be in line with new nym-theming](https://github.com/nymtech/nym/pull/5653): Updating colour palette to match the [nym.com](https://nym.com) sites:
   - Used the same font too
   - Updated icons
@@ -512,7 +591,7 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 
 - [Revert using `AsyncWrite` sink in IPR](https://github.com/nymtech/nym/pull/5656): Revert the use of the `AsyncWrite` sink in the IPR until it's fully ready.
 
-- [Remove Google public DNS](https://github.com/nymtech/nym/pull/5660): We had a lot of complaints about Google, so we're removing this in VPN client, Nym should follow to avoid issues with firewall. 
+- [Remove Google public DNS](https://github.com/nymtech/nym/pull/5660): We had a lot of complaints about Google, so we're removing this in VPN client, Nym should follow to avoid issues with firewall.
 
 ### Bugfix
 
@@ -543,14 +622,14 @@ cargo Profile:      release
 2. Security Fixes in Dependencies: Address known security vulnerabilities, making updating highly recommended
 
 3. Authorisation & Timestamp Changes: Modifies how timestamps are validated in Auth v2 - this is going to be what the clients use. For example: the clients will start to use v2 variants of everything (prepping the network for the breaking change to come on April 1st which will force clients to only use v2).
-    
+
 4. Wireguard exit policy [scripts](https://github.com/nymtech/nym/tree/develop/scripts/wireguard-exit-policy)
 
 ### Operators Updates & Tools
 
 - [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration) Operators can use a new guide with our scripts to setup wireguard exit policy using IP tables rules.
 
-- [Setup commands for `nym-node` simplified](nodes/nym-node/setup#setup--run): `config.toml` defaults to correct binding addresses and ports, no need to specify unless operators want to change those values. 
+- [Setup commands for `nym-node` simplified](nodes/nym-node/setup#setup--run): `config.toml` defaults to correct binding addresses and ports, no need to specify unless operators want to change those values.
 
 - [Virtualising dedicated server with KVM now includes IPv6 setup](nodes/preliminary-steps/vps-setup/advanced#installing-kvm-on-a-server-with-ubuntu-2204): Thanks to [LunarDAO](https://lunardao.net) squad we caught a missing IPv6 configuration in KVM installation guide. Operators can now run a bare metal or dedicated server and virtualise it into VMs each with a fully functional node, having all specs fully under control.
 
@@ -619,17 +698,17 @@ cargo Profile:      release
   - Add `bond_info` & `self_described` to DB `nym_nodes`
   - Update mixnode & gateway bond status on data refresh
   - Add `active` column to DB `nym_nodes`
-  - Use only active & bonded nodes in scraping/testrun tasks 
+  - Use only active & bonded nodes in scraping/testrun tasks
 
 - [Rust SDK SURB example: change hardcoded file to tempdir](https://github.com/nymtech/nym/pull/5576): Change hardcoded filepath for client to tempdir
 
-- [Server Side internal DoT/DoH opt out](https://github.com/nymtech/nym/pull/5577): Allow server side (nodes and nym-api) to use nym-http-api-client without  DoH/DoT resolver. 
+- [Server Side internal DoT/DoH opt out](https://github.com/nymtech/nym/pull/5577): Allow server side (nodes and nym-api) to use nym-http-api-client without  DoH/DoT resolver.
 
 - [Delete double memo field in send modal](https://github.com/nymtech/nym/pull/5578)
 
 - [Bump ring from `0.17.3` to `0.17.13` in /nym-wallet](https://github.com/nymtech/nym/pull/5582): Bumps [ring](https://github.com/briansmith/ring)
 
-- [Bump the patch-updates group with 8 updates](https://github.com/nymtech/nym/pull/5585): 
+- [Bump the patch-updates group with 8 updates](https://github.com/nymtech/nym/pull/5585):
 
 | Package | From | To |
 | --- | --- | --- |
@@ -696,7 +775,7 @@ cargo Profile:      release
 
 ## `v2025.4-dorina-patched`
 
-Patched version of `dorina` with a few fixes and tweaks to the release. We would like to ask `nym-node` operators to upgrade to this version as quickly as possible to implement the fixes across the network and improve general quality before NymVPN launch. 
+Patched version of `dorina` with a few fixes and tweaks to the release. We would like to ask `nym-node` operators to upgrade to this version as quickly as possible to implement the fixes across the network and improve general quality before NymVPN launch.
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-patched)
 - [`nym-node`](nodes/nym-node.mdx) version `1.6.2`

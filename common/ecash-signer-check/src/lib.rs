@@ -1,68 +1,22 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::chain_status::LocalChainStatus;
 use crate::client_check::check_client;
-use crate::signing_status::SigningStatus;
 use futures::stream::{FuturesUnordered, StreamExt};
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::ContractVKShare;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use url::Url;
 
+pub use crate::status::SignerResult;
 pub use error::SignerCheckError;
 
-mod chain_status;
+pub mod chain_status;
 mod client_check;
+pub mod dealer_information;
 pub mod error;
-pub(crate) mod signing_status;
-
-#[derive(Debug)]
-pub struct SignerInformation {
-    pub announce_address: String,
-    pub owner_address: String,
-    pub node_index: u64,
-}
-
-impl From<&ContractVKShare> for SignerInformation {
-    fn from(share: &ContractVKShare) -> Self {
-        SignerInformation {
-            announce_address: share.announce_address.clone(),
-            owner_address: share.owner.to_string(),
-            node_index: share.node_index,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct SignerResult {
-    pub information: SignerInformation,
-    pub status: SignerStatus,
-}
-
-#[derive(Debug)]
-pub enum SignerStatus {
-    Unreachable,
-    ProvidedInvalidDetails,
-    Tested { result: SignerTestResult },
-}
-
-impl SignerStatus {
-    pub fn with_signer_information(self, information: SignerInformation) -> SignerResult {
-        SignerResult {
-            status: self,
-            information,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct SignerTestResult {
-    pub reported_version: String,
-    pub signing_status: SigningStatus,
-    pub local_chain_status: LocalChainStatus,
-}
+pub mod signing_status;
+pub mod status;
 
 pub async fn check_signers(
     rpc_endpoint: Url,
@@ -82,16 +36,16 @@ pub async fn check_signers(
         .await
         .map_err(SignerCheckError::dkg_contract_query_failure)?;
 
-    // 3. retrieve list of all current dealers (signers)
-    let shares = client
-        .get_all_verification_key_shares(dkg_epoch.epoch_id)
+    // 3. retrieve information on current DKG dealers (i.e. eligible signers)
+    let dealers = client
+        .get_all_current_dealers()
         .await
         .map_err(SignerCheckError::dkg_contract_query_failure)?;
 
-    // 4. for each share, attempt to check corresponding signer
-    let results = shares
+    // 4. for each dealer attempt to perform the checks
+    let results = dealers
         .into_iter()
-        .map(check_client)
+        .map(|d| check_client(d, dkg_epoch.epoch_id))
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<_>>()
         .await;

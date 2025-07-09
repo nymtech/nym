@@ -5811,10 +5811,13 @@ name = "nym-ecash-signer-check"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "nym-crypto 0.4.0",
  "nym-network-defaults 0.1.0",
  "nym-validator-client 0.1.0",
  "semver 1.0.26",
  "thiserror 2.0.12",
+ "time",
+ "tokio",
  "tracing",
  "url",
 ]

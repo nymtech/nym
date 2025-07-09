@@ -845,12 +845,6 @@ pub struct EcashSignerStatusResponseBody {
     pub has_signing_keys: bool,
 }
 
-impl EcashSignerStatusResponseBody {
-    pub fn is_active(&self) -> bool {
-        !self.signer_disabled && self.is_ecash_signer && self.has_signing_keys
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

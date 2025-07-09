@@ -2,26 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::chain_status::LocalChainStatus;
+use crate::dealer_information::RawDealerInformation;
 use crate::signing_status::SigningStatus;
-use crate::{
-    chain_status, signing_status, SignerInformation, SignerResult, SignerStatus, SignerTestResult,
-};
+use crate::status::{SignerStatus, SignerTestResult};
+use crate::{chain_status, signing_status, SignerResult};
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::BinaryBuildInformationOwned;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::ContractVKShare;
-use nym_validator_client::EcashApiClient;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::DealerDetails;
+use nym_validator_client::NymApiClient;
 use std::time::Duration;
 use tracing::{error, warn};
+use url::Url;
 
 struct ClientUnderTest {
-    api_client: EcashApiClient,
+    api_client: NymApiClient,
     build_info: Option<BinaryBuildInformationOwned>,
 }
 
 impl ClientUnderTest {
-    pub(crate) fn new(api_client: EcashApiClient) -> Self {
+    pub(crate) fn new(api_url: &Url) -> Self {
         ClientUnderTest {
-            api_client,
+            api_client: NymApiClient::new(api_url.clone()),
             build_info: None,
         }
     }
@@ -29,7 +30,7 @@ impl ClientUnderTest {
     pub(crate) async fn try_retrieve_build_information(&mut self) -> bool {
         match tokio::time::timeout(
             Duration::from_secs(5),
-            self.api_client.api_client.nym_api.build_information(),
+            self.api_client.nym_api.build_information(),
         )
         .await
         {
@@ -38,13 +39,13 @@ impl ClientUnderTest {
                 true
             }
             Ok(Err(err)) => {
-                warn!("{}: failed to retrieve build information: {err}. the signer is most likely down", self.api_client);
+                warn!("{}: failed to retrieve build information: {err}. the signer is most likely down", self.api_client.api_url());
                 false
             }
             Err(_timeout) => {
                 warn!(
                     "{}: timed out while attempting to retrieve build information",
-                    self.api_client
+                    self.api_client.api_url()
                 );
                 false
             }
@@ -59,7 +60,8 @@ impl ClientUnderTest {
                 .inspect_err(|err| {
                     error!(
                         "ecash signer '{}' reports invalid version {}: {err}",
-                        self.api_client, build_info.build_version
+                        self.api_client.api_url(),
+                        build_info.build_version
                     )
                 })
                 .ok()
@@ -85,14 +87,14 @@ impl ClientUnderTest {
             return LocalChainStatus::Outdated;
         }
 
-        match self.api_client.api_client.nym_api.get_chain_status().await {
-            Ok(status) => LocalChainStatus::Reachable {
+        match self.api_client.nym_api.get_chain_status().await {
+            Ok(status) => LocalChainStatus::ReachableLegacy {
                 response: Box::new(status),
             },
             Err(err) => {
                 warn!(
                     "{}: failed to retrieve local chain status: {err}",
-                    self.api_client
+                    self.api_client.api_url()
                 );
                 LocalChainStatus::Unreachable
             }
@@ -104,12 +106,12 @@ impl ClientUnderTest {
             return SigningStatus::Outdated;
         }
 
-        match self.api_client.api_client.nym_api.get_signer_status().await {
+        match self.api_client.nym_api.get_signer_status().await {
             Ok(response) => SigningStatus::Reachable { response },
             Err(err) => {
                 warn!(
                     "{}: failed to retrieve signer chain status: {err}",
-                    self.api_client
+                    self.api_client.api_url()
                 );
                 SigningStatus::Unreachable
             }
@@ -117,28 +119,25 @@ impl ClientUnderTest {
     }
 }
 
-pub(crate) async fn check_client(raw_share: ContractVKShare) -> SignerResult {
-    let signer_information: SignerInformation = (&raw_share).into();
+pub(crate) async fn check_client(dealer_details: DealerDetails, dkg_epoch: u64) -> SignerResult {
+    let dealer_information = RawDealerInformation::from(&dealer_details);
 
-    // 4. attempt to construct client instances out of them
-    // (don't use `all_ecash_api_clients` as we want to treat each error individually;
-    // for example during epoch advancement we still want to be able to perform monitoring
-    // even if some shares are unverified)
-    let Ok(client) = EcashApiClient::try_from(raw_share) else {
-        return SignerStatus::ProvidedInvalidDetails.with_signer_information(signer_information);
+    // 5. attempt to construct client instances out of them
+    let Ok(parsed_information) = dealer_information.parse() else {
+        return SignerStatus::ProvidedInvalidDetails.with_details(dealer_information, dkg_epoch);
     };
 
-    let mut client = ClientUnderTest::new(client);
+    let mut client = ClientUnderTest::new(&parsed_information.announce_address);
 
-    // 5. check basic connection status - can you retrieve build information?
+    // 6. check basic connection status - can you retrieve build information?
     if !client.try_retrieve_build_information().await {
-        return SignerStatus::Unreachable.with_signer_information(signer_information);
+        return SignerStatus::Unreachable.with_details(dealer_information, dkg_epoch);
     }
 
-    // 6. check perceived chain status
+    // 7. check perceived chain status
     let local_chain_status = client.check_local_chain().await;
 
-    // 7. check signer status
+    // 8. check signer status
     let signing_status = client.check_signing_status().await;
 
     SignerStatus::Tested {
@@ -148,5 +147,5 @@ pub(crate) async fn check_client(raw_share: ContractVKShare) -> SignerResult {
             local_chain_status,
         },
     }
-    .with_signer_information(signer_information)
+    .with_details(dealer_information, dkg_epoch)
 }

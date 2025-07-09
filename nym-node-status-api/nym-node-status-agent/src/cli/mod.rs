@@ -21,9 +21,9 @@ fn pretty_build_info_static() -> &'static str {
 }
 
 fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
-    let parts: Vec<&str> = s.split(':').collect();
+    let parts: Vec<&str> = s.split('|').collect();
     if parts.len() != 2 {
-        return Err("Server config must be in format 'address:port'".to_string());
+        return Err("Server config must be in format 'address|port'".to_string());
     }
 
     let address = parts[0].to_string();

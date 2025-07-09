@@ -3,7 +3,9 @@
 
 use crate::SignerCheckError;
 use nym_crypto::asymmetric::ed25519;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::DealerDetails;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
+    ContractVKShare, DealerDetails, VerificationKeyShare,
+};
 use url::Url;
 
 #[derive(Debug)]
@@ -12,9 +14,25 @@ pub struct RawDealerInformation {
     pub owner_address: String,
     pub node_index: u64,
     pub public_key: String,
+    pub verification_key_share: Option<VerificationKeyShare>,
+    pub share_verified: bool,
 }
 
 impl RawDealerInformation {
+    pub fn new(
+        dealer_details: &DealerDetails,
+        contract_share: Option<&ContractVKShare>,
+    ) -> RawDealerInformation {
+        RawDealerInformation {
+            announce_address: dealer_details.announce_address.clone(),
+            owner_address: dealer_details.address.to_string(),
+            node_index: dealer_details.assigned_index,
+            public_key: dealer_details.ed25519_identity.clone(),
+            verification_key_share: contract_share.map(|s| s.share.clone()),
+            share_verified: contract_share.map(|s| s.verified).unwrap_or(false),
+        }
+    }
+
     pub fn parse(&self) -> Result<DealerInformation, SignerCheckError> {
         Ok(DealerInformation {
             announce_address: self.announce_address.parse().map_err(|source| {
@@ -31,18 +49,9 @@ impl RawDealerInformation {
                     source,
                 }
             })?,
+            verification_key_share: self.verification_key_share.clone(),
+            share_verified: self.share_verified,
         })
-    }
-}
-
-impl From<&DealerDetails> for RawDealerInformation {
-    fn from(d: &DealerDetails) -> Self {
-        RawDealerInformation {
-            announce_address: d.announce_address.clone(),
-            owner_address: d.address.to_string(),
-            node_index: d.assigned_index,
-            public_key: d.ed25519_identity.clone(),
-        }
     }
 }
 
@@ -52,6 +61,9 @@ pub struct DealerInformation {
     pub owner_address: String,
     pub node_index: u64,
     pub public_key: ed25519::PublicKey,
+    // no need to parse it into the full type as it doesn't get us anything
+    pub verification_key_share: Option<VerificationKeyShare>,
+    pub share_verified: bool,
 }
 
 impl From<DealerInformation> for RawDealerInformation {
@@ -61,6 +73,8 @@ impl From<DealerInformation> for RawDealerInformation {
             owner_address: d.owner_address,
             node_index: d.node_index,
             public_key: d.public_key.to_base58_string(),
+            verification_key_share: d.verification_key_share,
+            share_verified: d.share_verified,
         }
     }
 }

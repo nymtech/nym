@@ -4,6 +4,9 @@
 use crate::chain_status::LocalChainStatus;
 use crate::dealer_information::RawDealerInformation;
 use crate::signing_status::SigningStatus;
+use std::time::Duration;
+
+pub(crate) const STALE_RESPONSE_THRESHOLD: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Debug)]
 pub struct SignerResult {
@@ -14,10 +17,14 @@ pub struct SignerResult {
 
 impl SignerResult {
     pub fn chain_available(&self) -> bool {
+        let Ok(parsed_info) = self.information.parse() else {
+            return false;
+        };
+
         let SignerStatus::Tested { result } = &self.status else {
             return false;
         };
-        result.local_chain_status.available()
+        result.local_chain_status.available(parsed_info.public_key)
     }
 
     pub fn signer_available(&self) -> bool {
@@ -28,9 +35,12 @@ impl SignerResult {
             return false;
         };
 
-        result
-            .signing_status
-            .available(parsed_info.public_key, self.dkg_epoch_id)
+        result.signing_status.available(
+            parsed_info.public_key,
+            self.dkg_epoch_id,
+            parsed_info.verification_key_share,
+            parsed_info.share_verified,
+        )
     }
 }
 

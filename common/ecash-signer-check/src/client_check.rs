@@ -8,7 +8,9 @@ use crate::status::{SignerStatus, SignerTestResult};
 use crate::{chain_status, signing_status, SignerResult};
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::BinaryBuildInformationOwned;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::DealerDetails;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
+    ContractVKShare, DealerDetails,
+};
 use nym_validator_client::NymApiClient;
 use std::time::Duration;
 use tracing::{error, warn};
@@ -68,6 +70,13 @@ impl ClientUnderTest {
         })
     }
 
+    pub(crate) fn supports_legacy_signing_status_query(&self) -> bool {
+        let Some(version) = self.version() else {
+            return false;
+        };
+        version >= signing_status::MINIMUM_LEGACY_VERSION
+    }
+
     pub(crate) fn supports_signing_status_query(&self) -> bool {
         let Some(version) = self.version() else {
             return false;
@@ -82,18 +91,43 @@ impl ClientUnderTest {
         version >= chain_status::MINIMUM_VERSION
     }
 
+    pub(crate) fn supports_legacy_chain_status_query(&self) -> bool {
+        let Some(version) = self.version() else {
+            return false;
+        };
+        version >= chain_status::MINIMUM_VERSION_LEGACY
+    }
+
     pub(crate) async fn check_local_chain(&self) -> LocalChainStatus {
-        if !self.supports_chain_status_query() {
+        // check if it at least supports legacy query
+        if !self.supports_legacy_chain_status_query() {
             return LocalChainStatus::Outdated;
         }
 
+        // check if it supports the current query
+        if self.supports_chain_status_query() {
+            return match self.api_client.nym_api.get_chain_blocks_status().await {
+                Ok(status) => LocalChainStatus::Reachable {
+                    response: Box::new(status),
+                },
+                Err(err) => {
+                    warn!(
+                        "{}: failed to retrieve local chain status: {err}",
+                        self.api_client.api_url()
+                    );
+                    LocalChainStatus::Unreachable
+                }
+            };
+        }
+
+        // fallback to the legacy query
         match self.api_client.nym_api.get_chain_status().await {
             Ok(status) => LocalChainStatus::ReachableLegacy {
                 response: Box::new(status),
             },
             Err(err) => {
                 warn!(
-                    "{}: failed to retrieve local chain status: {err}",
+                    "{}: failed to retrieve [legacy] local chain status: {err}",
                     self.api_client.api_url()
                 );
                 LocalChainStatus::Unreachable
@@ -102,42 +136,65 @@ impl ClientUnderTest {
     }
 
     pub(crate) async fn check_signing_status(&self) -> SigningStatus {
-        if !self.supports_signing_status_query() {
+        // check if it at least supports legacy query
+        if !self.supports_legacy_signing_status_query() {
             return SigningStatus::Outdated;
         }
 
-        match self.api_client.nym_api.get_signer_status().await {
-            Ok(response) => SigningStatus::Reachable { response },
+        // check if it supports the current query
+        if self.supports_signing_status_query() {
+            return match self.api_client.nym_api.get_signer_status().await {
+                Ok(response) => SigningStatus::Reachable { response },
+                Err(err) => {
+                    warn!(
+                        "{}: failed to retrieve signer chain status: {err}",
+                        self.api_client.api_url()
+                    );
+                    SigningStatus::Unreachable
+                }
+            };
+        }
+
+        // fallback to the legacy query
+        match self.api_client.nym_api.get_signer_information().await {
+            Ok(status) => SigningStatus::ReachableLegacy {
+                response: Box::new(status),
+            },
             Err(err) => {
                 warn!(
-                    "{}: failed to retrieve signer chain status: {err}",
+                    "{}: failed to retrieve [legacy] signer chain status: {err}",
                     self.api_client.api_url()
                 );
+                // NOTE: this might equally mean the signing is disabled
                 SigningStatus::Unreachable
             }
         }
     }
 }
 
-pub(crate) async fn check_client(dealer_details: DealerDetails, dkg_epoch: u64) -> SignerResult {
-    let dealer_information = RawDealerInformation::from(&dealer_details);
+pub(crate) async fn check_client(
+    dealer_details: DealerDetails,
+    dkg_epoch: u64,
+    contract_share: Option<&ContractVKShare>,
+) -> SignerResult {
+    let dealer_information = RawDealerInformation::new(&dealer_details, contract_share);
 
-    // 5. attempt to construct client instances out of them
+    // 6. attempt to construct client instances out of them
     let Ok(parsed_information) = dealer_information.parse() else {
         return SignerStatus::ProvidedInvalidDetails.with_details(dealer_information, dkg_epoch);
     };
 
     let mut client = ClientUnderTest::new(&parsed_information.announce_address);
 
-    // 6. check basic connection status - can you retrieve build information?
+    // 7. check basic connection status - can you retrieve build information?
     if !client.try_retrieve_build_information().await {
         return SignerStatus::Unreachable.with_details(dealer_information, dkg_epoch);
     }
 
-    // 7. check perceived chain status
+    // 8. check perceived chain status
     let local_chain_status = client.check_local_chain().await;
 
-    // 8. check signer status
+    // 9. check signer status
     let signing_status = client.check_signing_status().await;
 
     SignerStatus::Tested {

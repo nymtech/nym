@@ -14,7 +14,7 @@ use tracing::error;
 
 pub(crate) async fn select_gateway_identity(
     conn: &mut DbConnection,
-    gateway_pk: i64,
+    gateway_pk: i32,
 ) -> anyhow::Result<String> {
     let record = crate::db::query(
         r#"SELECT
@@ -168,7 +168,7 @@ pub(crate) async fn insert_gateway_description(
 pub(crate) async fn get_or_create_gateway(
     conn: &mut DbConnection,
     gateway_identity_key: &str,
-) -> anyhow::Result<i64> {
+) -> anyhow::Result<i32> {
     // Try to find existing gateway
     let existing = crate::db::query("SELECT id FROM gateways WHERE gateway_identity_key = ?")
         .bind(gateway_identity_key.to_string())

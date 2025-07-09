@@ -14,7 +14,7 @@ pub(crate) async fn count_testruns_in_progress(conn: &mut DbConnection) -> anyho
     let sql = "SELECT COUNT(id) FROM testruns WHERE status = $1";
 
     let count: i64 = sqlx::query_scalar(sql)
-        .bind(TestRunStatus::InProgress as i64)
+        .bind(TestRunStatus::InProgress as i32)
         .fetch_one(conn.as_mut())
         .await?;
 
@@ -23,7 +23,7 @@ pub(crate) async fn count_testruns_in_progress(conn: &mut DbConnection) -> anyho
 
 pub(crate) async fn get_in_progress_testrun_by_id(
     conn: &mut DbConnection,
-    testrun_id: i64,
+    testrun_id: i32,
 ) -> anyhow::Result<TestRunDto> {
     crate::db::query_as::<TestRunDto>(
         r#"SELECT
@@ -43,7 +43,7 @@ pub(crate) async fn get_in_progress_testrun_by_id(
          LIMIT 1"#,
     )
     .bind(testrun_id)
-    .bind(TestRunStatus::InProgress as i64)
+    .bind(TestRunStatus::InProgress as i32)
     .fetch_one(conn.as_mut())
     .await
     .map_err(|e| anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}"))
@@ -68,8 +68,8 @@ pub(crate) async fn update_testruns_assigned_before(
             last_assigned_utc < ?
             "#,
     )
-    .bind(TestRunStatus::Queued as i64)
-    .bind(TestRunStatus::InProgress as i64)
+    .bind(TestRunStatus::Queued as i32)
+    .bind(TestRunStatus::InProgress as i32)
     .bind(cutoff_timestamp)
     .execute(conn.as_mut())
     .await?;
@@ -109,9 +109,9 @@ pub(crate) async fn assign_oldest_testrun(
             gateway_id
             "#,
     )
-    .bind(TestRunStatus::InProgress as i64)
+    .bind(TestRunStatus::InProgress as i32)
     .bind(now)
-    .bind(TestRunStatus::Queued as i64)
+    .bind(TestRunStatus::Queued as i32)
     .fetch_optional(conn.as_mut())
     .await?;
 
@@ -125,7 +125,7 @@ pub(crate) async fn assign_oldest_testrun(
                 WHERE id = ?
                 LIMIT 1"#,
         )
-        .bind(testrun.try_get::<i64, _>("gateway_id")?)
+        .bind(testrun.try_get::<i32, _>("gateway_id")?)
         .fetch_one(conn.as_mut())
         .await?;
 
@@ -141,7 +141,7 @@ pub(crate) async fn assign_oldest_testrun(
 
 pub(crate) async fn update_testrun_status(
     conn: &mut DbConnection,
-    testrun_id: i64,
+    testrun_id: i32,
     status: TestRunStatus,
 ) -> anyhow::Result<()> {
     let status = status as i32;
@@ -156,7 +156,7 @@ pub(crate) async fn update_testrun_status(
 
 pub(crate) async fn update_gateway_last_probe_log(
     conn: &mut DbConnection,
-    gateway_pk: i64,
+    gateway_pk: i32,
     log: String,
 ) -> anyhow::Result<()> {
     crate::db::query("UPDATE gateways SET last_probe_log = ? WHERE id = ?")
@@ -170,7 +170,7 @@ pub(crate) async fn update_gateway_last_probe_log(
 
 pub(crate) async fn update_gateway_last_probe_result(
     conn: &mut DbConnection,
-    gateway_pk: i64,
+    gateway_pk: i32,
     result: String,
 ) -> anyhow::Result<()> {
     crate::db::query("UPDATE gateways SET last_probe_result = ? WHERE id = ?")
@@ -184,7 +184,7 @@ pub(crate) async fn update_gateway_last_probe_result(
 
 pub(crate) async fn update_gateway_score(
     conn: &mut DbConnection,
-    gateway_pk: i64,
+    gateway_pk: i32,
 ) -> anyhow::Result<()> {
     let now = now_utc().unix_timestamp();
     crate::db::query("UPDATE gateways SET last_testrun_utc = ?, last_updated_utc = ? WHERE id = ?")
@@ -199,7 +199,7 @@ pub(crate) async fn update_gateway_score(
 
 pub(crate) async fn get_testrun_by_id(
     conn: &mut DbConnection,
-    testrun_id: i64,
+    testrun_id: i32,
 ) -> anyhow::Result<TestRunDto> {
     crate::db::query_as::<TestRunDto>(
         r#"SELECT
@@ -221,8 +221,8 @@ pub(crate) async fn get_testrun_by_id(
 
 pub(crate) async fn insert_external_testrun(
     conn: &mut DbConnection,
-    testrun_id: i64,
-    gateway_id: i64,
+    testrun_id: i32,
+    gateway_id: i32,
     assigned_at_utc: i64,
 ) -> anyhow::Result<()> {
     let now = crate::utils::now_utc().unix_timestamp();
@@ -240,7 +240,7 @@ pub(crate) async fn insert_external_testrun(
     )
     .bind(testrun_id)
     .bind(gateway_id)
-    .bind(TestRunStatus::InProgress as i64)
+    .bind(TestRunStatus::InProgress as i32)
     .bind(now)
     .bind(assigned_at_utc)
     .bind("external") // Marker for external origin
@@ -258,7 +258,7 @@ pub(crate) async fn insert_external_testrun(
 
 pub(crate) async fn update_testrun_status_by_gateway(
     conn: &mut DbConnection,
-    gateway_id: i64,
+    gateway_id: i32,
     status: TestRunStatus,
 ) -> anyhow::Result<()> {
     let status = status as i32;

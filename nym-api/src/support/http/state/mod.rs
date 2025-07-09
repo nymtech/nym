@@ -20,6 +20,7 @@ use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::unstable_routes::v1::account::models::NyxAccountDetails;
 use axum::extract::FromRef;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
@@ -101,6 +102,12 @@ impl FromRef<AppState> for MixnetContractCache {
 }
 
 impl AppState {
+    pub(crate) fn private_signing_key(&self) -> &ed25519::PrivateKey {
+        // even though we have to go through ecash state, the key is always available
+        // (moving it would involve some refactoring that's not worth it now)
+        self.ecash_state.local.identity_keypair.private_key()
+    }
+
     pub(crate) fn nym_contract_cache(&self) -> &MixnetContractCache {
         &self.mixnet_contract_cache
     }

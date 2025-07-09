@@ -4,11 +4,11 @@
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::ApiResult;
 use axum::extract::{Query, State};
-use nym_api_requests::ecash::models::{
-    EcashSignerStatusResponse, EcashSignerStatusResponseBody, SignableMessageBody,
-};
+use nym_api_requests::ecash::models::{EcashSignerStatusResponse, EcashSignerStatusResponseBody};
+use nym_api_requests::signable::SignableMessageBody;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use std::sync::Arc;
+use time::OffsetDateTime;
 
 #[utoipa::path(
     tag = "Ecash",
@@ -21,7 +21,6 @@ use std::sync::Arc;
             (EcashSignerStatusResponse = "application/yaml"),
             (EcashSignerStatusResponse = "application/bincode")
         )),
-        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     ),
     params(OutputParams)
 )]
@@ -35,6 +34,7 @@ pub(crate) async fn signer_status(
 
     Ok(output.to_response(
         EcashSignerStatusResponseBody {
+            current_time: OffsetDateTime::now_utc(),
             dkg_ecash_epoch_id,
             signer_disabled: state.local.explicitly_disabled,
             is_ecash_signer: state.is_dkg_signer(dkg_ecash_epoch_id).await?,

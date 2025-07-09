@@ -8,9 +8,11 @@ use crate::helpers::PlaceholderJsonSchemaImpl;
 use crate::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
+use crate::models::tendermint_types::{BlockHeader, BlockId};
 use crate::nym_nodes::SemiSkimmedNode;
 use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
+use crate::signable::SignedMessage;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
@@ -1344,6 +1346,12 @@ pub enum ChainStatus {
     },
 }
 
+impl ChainStatus {
+    pub fn is_synced(&self) -> bool {
+        matches!(self, ChainStatus::Synced)
+    }
+}
+
 impl ApiHealthResponse {
     pub fn new_healthy(uptime: Duration) -> Self {
         ApiHealthResponse {
@@ -1669,6 +1677,21 @@ impl From<nym_mixnet_contract_common::EpochRewardedSet> for RewardedSetResponse 
     }
 }
 
+pub type ChainBlocksStatusResponse = SignedMessage<ChainBlocksStatusResponseBody>;
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainBlocksStatusResponseBody {
+    #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
+    pub current_time: OffsetDateTime,
+
+    pub latest_cached_block: Option<DetailedChainStatus>,
+
+    // explicit indication of THIS signer whether it thinks the chain is stalled
+    pub chain_status: ChainStatus,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct ChainStatusResponse {
     pub connected_nyxd: String,
@@ -1679,6 +1702,20 @@ pub struct ChainStatusResponse {
 pub struct DetailedChainStatus {
     pub abci: crate::models::tendermint_types::AbciInfo,
     pub latest_block: BlockInfo,
+}
+
+impl DetailedChainStatus {
+    pub fn stall_status(&self, now: OffsetDateTime, threshold: Duration) -> ChainStatus {
+        let block_time: OffsetDateTime = self.latest_block.block.header.time.into();
+        let diff = now - block_time;
+        if diff > threshold {
+            ChainStatus::Stalled {
+                approximate_amount: diff.unsigned_abs(),
+            }
+        } else {
+            ChainStatus::Synced
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -1957,7 +1994,6 @@ pub mod tendermint_types {
     }
 }
 
-use crate::models::tendermint_types::{BlockHeader, BlockId};
 pub use config_score::*;
 
 pub mod config_score {

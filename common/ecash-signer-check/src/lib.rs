@@ -6,6 +6,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::QueryHttpRpcNyxdClient;
+use std::collections::HashMap;
 use url::Url;
 
 pub use crate::status::SignerResult;
@@ -42,10 +43,22 @@ pub async fn check_signers(
         .await
         .map_err(SignerCheckError::dkg_contract_query_failure)?;
 
-    // 4. for each dealer attempt to perform the checks
+    // 4. retrieve their published keys (if available)
+    let shares: HashMap<_, _> = client
+        .get_all_verification_key_shares(dkg_epoch.epoch_id)
+        .await
+        .map_err(SignerCheckError::dkg_contract_query_failure)?
+        .into_iter()
+        .map(|share| (share.node_index, share))
+        .collect();
+
+    // 5. for each dealer attempt to perform the checks
     let results = dealers
         .into_iter()
-        .map(|d| check_client(d, dkg_epoch.epoch_id))
+        .map(|d| {
+            let share = shares.get(&d.assigned_index);
+            check_client(d, dkg_epoch.epoch_id, share)
+        })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<_>>()
         .await;

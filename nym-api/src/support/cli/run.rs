@@ -202,164 +202,165 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         None
     };
 
-    ecash_state.spawn_background_cleaner();
-    let router = router.with_state(AppState {
-        nyxd_client: nyxd_client.clone(),
-        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-        address_info_cache: AddressInfoCache::new(
-            config.address_cache.time_to_live,
-            config.address_cache.capacity,
-        ),
-        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-        mixnet_contract_cache: mixnet_contract_cache_state.clone(),
-        node_status_cache: node_status_cache_state.clone(),
-        storage: storage.clone(),
-        described_nodes_cache: described_nodes_cache.clone(),
-        network_details: network_details.clone(),
-        node_info_cache,
-        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
-        api_status: ApiStatusState::new(signer_information),
-        ecash_state: Arc::new(ecash_state),
-    });
-
-    // start note describe cache refresher
-    // we should be doing the below, but can't due to our current startup structure
-    // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
-    // let cache = refresher.get_shared_cache();
-    let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
-        &config.describe_cache,
-        mixnet_contract_cache_state.clone(),
-        described_nodes_cache.clone(),
-    )
-    .named("node-self-described-data-refresher");
-
-    let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
-
-    let describe_cache_watcher = describe_cache_refresher
-        .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
-
-    let performance_provider = if config.performance_provider.use_performance_contract_data {
-        if network_details
-            .network
-            .contracts
-            .performance_contract_address
-            .is_none()
-        {
-            bail!("can't use performance contract data without setting the address of the contract")
-        }
-
-        let performance_contract_cache = node_performance::contract_cache::start_cache_refresher(
-            &config.performance_provider,
-            nyxd_client.clone(),
-            mixnet_contract_cache_state.clone(),
-            &task_manager,
-        )
-        .await?;
-        let provider = ContractPerformanceProvider::new(
-            &config.performance_provider,
-            performance_contract_cache,
-        );
-        Box::new(provider) as Box<dyn NodePerformanceProvider + Send + Sync>
-    } else {
-        Box::new(LegacyStoragePerformanceProvider::new(
-            storage.clone(),
-            mixnet_contract_cache_state.clone(),
-        ))
-    };
-
-    // start all the caches first
-    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
-        &config.mixnet_contract_cache,
-        &mixnet_contract_cache_state.clone(),
-        nyxd_client.clone(),
-    );
-    let contract_cache_watcher =
-        mixnet_contract_cache_refresher.start_with_watcher(task_manager.subscribe());
-
-    node_status_api::start_cache_refresh(
-        &config.node_status_api,
-        &mixnet_contract_cache_state,
-        &described_nodes_cache,
-        &node_status_cache_state,
-        performance_provider,
-        contract_cache_watcher.clone(),
-        describe_cache_watcher,
-        &task_manager,
-    );
-
-    // start dkg task
-    if config.ecash_signer.enabled {
-        let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
-
-        DkgController::start(
-            &config.ecash_signer,
-            nyxd_client.clone(),
-            ecash_keypair_wrapper,
-            dkg_bte_keypair,
-            identity_public_key,
-            rand::rngs::OsRng,
-            &task_manager,
-        )?;
-    }
-
-    let has_performance_data =
-        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
-
-    // and then only start the uptime updater (and the monitor itself, duh)
-    // if the monitoring is enabled
-    if config.network_monitor.enabled {
-        network_monitor::start::<SphinxMessageReceiver>(
-            config,
-            &mixnet_contract_cache_state,
-            described_nodes_cache.clone(),
-            node_status_cache_state.clone(),
-            &storage,
-            nyxd_client.clone(),
-            &task_manager,
-        )
-        .await;
-
-        HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
-    }
-
-    // start 'rewarding' if its enabled and there exists source for performance data
-    if config.rewarding.enabled && has_performance_data {
-        epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-        EpochAdvancer::start(
-            nyxd_client,
-            &mixnet_contract_cache_state,
-            &node_status_cache_state,
-            described_nodes_cache.clone(),
-            &storage,
-            &task_manager,
-        );
-    }
-
-    // finally start a background task watching the contract changes and requesting
-    // self-described cache refresh upon being close to key rotation rollover
-    KeyRotationController::new(
-        describe_cache_refresh_requester,
-        contract_cache_watcher,
-        mixnet_contract_cache_state,
-    )
-    .start(task_manager.subscribe_named("KeyRotationController"));
-
-    let bind_address = config.base.bind_address.to_owned();
-    let server = router.build_server(&bind_address).await?;
-
-    let cancellation_token = CancellationToken::new();
-    let shutdown_button = cancellation_token.clone();
-    let axum_shutdown_receiver = cancellation_token.cancelled_owned();
-    let server_handle = tokio::spawn(async move {
-        {
-            info!("Started Axum HTTP V2 server on {bind_address}");
-            server.run(axum_shutdown_receiver).await
-        }
-    });
-
-    let shutdown = ShutdownHandles::new(task_manager, server_handle, shutdown_button);
-
-    Ok(shutdown)
+    todo!()
+    // ecash_state.spawn_background_cleaner();
+    // let router = router.with_state(AppState {
+    //     nyxd_client: nyxd_client.clone(),
+    //     chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+    //     address_info_cache: AddressInfoCache::new(
+    //         config.address_cache.time_to_live,
+    //         config.address_cache.capacity,
+    //     ),
+    //     forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+    //     mixnet_contract_cache: mixnet_contract_cache_state.clone(),
+    //     node_status_cache: node_status_cache_state.clone(),
+    //     storage: storage.clone(),
+    //     described_nodes_cache: described_nodes_cache.clone(),
+    //     network_details: network_details.clone(),
+    //     node_info_cache,
+    //     contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
+    //     api_status: ApiStatusState::new(signer_information),
+    //     ecash_state: Arc::new(ecash_state),
+    // });
+    //
+    // // start note describe cache refresher
+    // // we should be doing the below, but can't due to our current startup structure
+    // // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
+    // // let cache = refresher.get_shared_cache();
+    // let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
+    //     &config.describe_cache,
+    //     mixnet_contract_cache_state.clone(),
+    //     described_nodes_cache.clone(),
+    // )
+    // .named("node-self-described-data-refresher");
+    //
+    // let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
+    //
+    // let describe_cache_watcher = describe_cache_refresher
+    //     .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
+    //
+    // let performance_provider = if config.performance_provider.use_performance_contract_data {
+    //     if network_details
+    //         .network
+    //         .contracts
+    //         .performance_contract_address
+    //         .is_none()
+    //     {
+    //         bail!("can't use performance contract data without setting the address of the contract")
+    //     }
+    //
+    //     let performance_contract_cache = node_performance::contract_cache::start_cache_refresher(
+    //         &config.performance_provider,
+    //         nyxd_client.clone(),
+    //         mixnet_contract_cache_state.clone(),
+    //         &task_manager,
+    //     )
+    //     .await?;
+    //     let provider = ContractPerformanceProvider::new(
+    //         &config.performance_provider,
+    //         performance_contract_cache,
+    //     );
+    //     Box::new(provider) as Box<dyn NodePerformanceProvider + Send + Sync>
+    // } else {
+    //     Box::new(LegacyStoragePerformanceProvider::new(
+    //         storage.clone(),
+    //         mixnet_contract_cache_state.clone(),
+    //     ))
+    // };
+    //
+    // // start all the caches first
+    // let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
+    //     &config.mixnet_contract_cache,
+    //     &mixnet_contract_cache_state.clone(),
+    //     nyxd_client.clone(),
+    // );
+    // let contract_cache_watcher =
+    //     mixnet_contract_cache_refresher.start_with_watcher(task_manager.subscribe());
+    //
+    // node_status_api::start_cache_refresh(
+    //     &config.node_status_api,
+    //     &mixnet_contract_cache_state,
+    //     &described_nodes_cache,
+    //     &node_status_cache_state,
+    //     performance_provider,
+    //     contract_cache_watcher.clone(),
+    //     describe_cache_watcher,
+    //     &task_manager,
+    // );
+    //
+    // // start dkg task
+    // if config.ecash_signer.enabled {
+    //     let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
+    //
+    //     DkgController::start(
+    //         &config.ecash_signer,
+    //         nyxd_client.clone(),
+    //         ecash_keypair_wrapper,
+    //         dkg_bte_keypair,
+    //         identity_public_key,
+    //         rand::rngs::OsRng,
+    //         &task_manager,
+    //     )?;
+    // }
+    //
+    // let has_performance_data =
+    //     config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
+    //
+    // // and then only start the uptime updater (and the monitor itself, duh)
+    // // if the monitoring is enabled
+    // if config.network_monitor.enabled {
+    //     network_monitor::start::<SphinxMessageReceiver>(
+    //         config,
+    //         &mixnet_contract_cache_state,
+    //         described_nodes_cache.clone(),
+    //         node_status_cache_state.clone(),
+    //         &storage,
+    //         nyxd_client.clone(),
+    //         &task_manager,
+    //     )
+    //     .await;
+    //
+    //     HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
+    // }
+    //
+    // // start 'rewarding' if its enabled and there exists source for performance data
+    // if config.rewarding.enabled && has_performance_data {
+    //     epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+    //     EpochAdvancer::start(
+    //         nyxd_client,
+    //         &mixnet_contract_cache_state,
+    //         &node_status_cache_state,
+    //         described_nodes_cache.clone(),
+    //         &storage,
+    //         &task_manager,
+    //     );
+    // }
+    //
+    // // finally start a background task watching the contract changes and requesting
+    // // self-described cache refresh upon being close to key rotation rollover
+    // KeyRotationController::new(
+    //     describe_cache_refresh_requester,
+    //     contract_cache_watcher,
+    //     mixnet_contract_cache_state,
+    // )
+    // .start(task_manager.subscribe_named("KeyRotationController"));
+    //
+    // let bind_address = config.base.bind_address.to_owned();
+    // let server = router.build_server(&bind_address).await?;
+    //
+    // let cancellation_token = CancellationToken::new();
+    // let shutdown_button = cancellation_token.clone();
+    // let axum_shutdown_receiver = cancellation_token.cancelled_owned();
+    // let server_handle = tokio::spawn(async move {
+    //     {
+    //         info!("Started Axum HTTP V2 server on {bind_address}");
+    //         server.run(axum_shutdown_receiver).await
+    //     }
+    // });
+    //
+    // let shutdown = ShutdownHandles::new(task_manager, server_handle, shutdown_button);
+    //
+    // Ok(shutdown)
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

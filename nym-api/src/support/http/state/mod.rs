@@ -8,6 +8,7 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
+use crate::signers_cache::cache::SignersCacheData;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
@@ -41,6 +42,10 @@ pub(crate) struct AppState {
     /// Holds information about the latest chain block it has queried.
     /// Note, it is not updated on every request. It follows the embedded ttl.
     pub(crate) chain_status_cache: ChainStatusCache,
+
+    /// Holds cached state of the statuses of all [ecash] signers on the network -
+    /// their perceived chain statuses and signing capabilities.
+    pub(crate) ecash_signers_cache: SharedCache<SignersCacheData>,
 
     /// Holds mapping between a nyx address and tokens/delegations it holds
     pub(crate) address_info_cache: AddressInfoCache,

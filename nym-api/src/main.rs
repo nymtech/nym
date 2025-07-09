@@ -23,6 +23,7 @@ pub(crate) mod node_describe_cache;
 mod node_performance;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_nodes;
+mod signers_cache;
 mod status;
 pub(crate) mod support;
 mod unstable_routes;
@@ -32,9 +33,9 @@ async fn main() -> Result<(), anyhow::Error> {
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
+    } else {
+        setup_tracing_logger();
     }}
-
-    setup_tracing_logger();
 
     info!("Starting nym api...");
 

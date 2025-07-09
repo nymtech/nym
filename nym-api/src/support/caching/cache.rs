@@ -7,6 +7,7 @@ use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
+use tracing::debug;
 
 #[derive(Debug, Error)]
 #[error("the cache item has not been initialised")]
@@ -31,13 +32,23 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
-    pub(crate) async fn update(&self, value: impl Into<T>) {
-        let mut guard = self.0.write().await;
+    pub(crate) async fn try_update(&self, value: impl Into<T>, typ: &str) -> Result<(), T> {
+        let value = value.into();
+        let mut guard = match tokio::time::timeout(Duration::from_millis(200), self.0.write()).await
+        {
+            Ok(guard) => guard,
+            Err(_) => {
+                debug!("failed to obtain write permit for {typ} cache");
+                return Err(value);
+            }
+        };
+
         if let Some(ref mut existing) = guard.inner {
             existing.unchecked_update(value)
         } else {
-            guard.inner = Some(Cache::new(value.into()))
-        }
+            guard.inner = Some(Cache::new(value))
+        };
+        Ok(())
     }
 
     pub(crate) async fn get(&self) -> Result<RwLockReadGuard<'_, Cache<T>>, UninitialisedCache> {
@@ -104,6 +115,7 @@ pub struct Cache<T> {
 }
 
 impl<T> Cache<Option<T>> {
+    #[allow(dead_code)]
     pub(crate) fn transpose(self) -> Option<Cache<T>> {
         self.value.map(|value| Cache {
             value,
@@ -129,6 +141,16 @@ impl<T> Cache<T> {
     {
         Cache {
             value: f(this.value),
+            as_at: this.as_at,
+        }
+    }
+
+    pub(crate) fn as_mapped<F, U>(this: &Self, f: F) -> Cache<U>
+    where
+        F: Fn(&T) -> U,
+    {
+        Cache {
+            value: f(&this.value),
             as_at: this.as_at,
         }
     }

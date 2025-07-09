@@ -45,6 +45,10 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<QueryBandwidthControlResponse>,
     },
+    GetClientBandwidth {
+        key: Key,
+        response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
+    },
 }
 
 pub struct AddPeerControlResponse {
@@ -63,6 +67,10 @@ pub struct QueryPeerControlResponse {
 pub struct QueryBandwidthControlResponse {
     pub success: bool,
     pub bandwidth_data: Option<RemainingBandwidthData>,
+}
+
+pub struct GetClientBandwidthControlResponse {
+    pub client_bandwidth: Option<ClientBandwidth>,
 }
 
 pub struct PeerController {
@@ -267,9 +275,17 @@ impl PeerController {
         }))
     }
 
+    async fn handle_get_client_bandwidth(&self, key: &Key) -> Option<ClientBandwidth> {
+        if let Some(Some(bandwidth_storage_manager)) = self.bw_storage_managers.get(key) {
+            Some(bandwidth_storage_manager.read().await.client_bandwidth())
+        } else {
+            None
+        }
+    }
+
     async fn update_metrics(&self, new_host: &Host) {
         let now = SystemTime::now();
-        const ACTIVITY_THRESHOLD: Duration = Duration::from_secs(60);
+        const ACTIVITY_THRESHOLD: Duration = Duration::from_secs(180);
 
         let old_host = self.host_information.read().await;
 
@@ -279,26 +295,51 @@ impl PeerController {
         let mut new_tx = 0;
 
         for (peer_key, peer) in new_host.peers.iter() {
-            // only consider pre-existing peers,
-            // so that the value would always be increasing
-            if let Some(prior) = old_host.peers.get(peer_key) {
-                let delta_rx = peer.rx_bytes.saturating_sub(prior.rx_bytes);
-                let delta_tx = prior.tx_bytes.saturating_sub(prior.tx_bytes);
+            match old_host.peers.get(peer_key) {
+                // only consider pre-existing peers for the purposes of bandwidth accounting,
+                // so that the value would always be increasing.
+                Some(prior) => {
+                    // 1. determine bandwidth changes
+                    let delta_rx = peer.rx_bytes.saturating_sub(prior.rx_bytes);
+                    let delta_tx = peer.tx_bytes.saturating_sub(prior.tx_bytes);
 
-                new_rx += delta_rx;
-                new_tx += delta_tx;
-            }
+                    new_rx += delta_rx;
+                    new_tx += delta_tx;
 
-            // if a peer hasn't performed a handshake in last minute,
-            // I think it's reasonable to assume it's no longer active
-            let Some(last_handshake) = peer.last_handshake else {
-                continue;
-            };
-            let Ok(elapsed) = now.duration_since(last_handshake) else {
-                continue;
-            };
-            if elapsed < ACTIVITY_THRESHOLD {
-                active_peers += 1;
+                    // 2. attempt to determine if the peer is still active
+
+                    // 2.1. if there were bytes sent and received on the link since last it was called,
+                    // the peer is definitely still active
+                    if delta_rx > 0 && delta_tx > 0 {
+                        active_peers += 1;
+                        continue;
+                    }
+
+                    // 2.2. otherwise attempt to look at time since last handshake -
+                    // if no handshake occurred in the last 3min, we assume the connection might be dead
+                    let Some(last_handshake) = peer.last_handshake else {
+                        continue;
+                    };
+                    let Ok(elapsed) = now.duration_since(last_handshake) else {
+                        continue;
+                    };
+                    if elapsed < ACTIVITY_THRESHOLD {
+                        active_peers += 1;
+                    }
+                }
+                None => {
+                    // if it's a brand-new peer, and it hasn't repeated the handshake in the last 3 min,
+                    // we assume the connection might be dead
+                    let Some(last_handshake) = peer.last_handshake else {
+                        continue;
+                    };
+                    let Ok(elapsed) = now.duration_since(last_handshake) else {
+                        continue;
+                    };
+                    if elapsed < ACTIVITY_THRESHOLD {
+                        active_peers += 1;
+                    }
+                }
             }
         }
 
@@ -362,6 +403,10 @@ impl PeerController {
                             } else {
                                 response_tx.send(QueryBandwidthControlResponse { success: false, bandwidth_data: None }).ok();
                             }
+                        }
+                        Some(PeerControlRequest::GetClientBandwidth { key, response_tx }) => {
+                            let client_bandwidth = self.handle_get_client_bandwidth(&key).await;
+                            response_tx.send(GetClientBandwidthControlResponse { client_bandwidth }).ok();
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");

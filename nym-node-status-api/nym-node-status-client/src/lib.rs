@@ -16,7 +16,7 @@ pub struct NsApiClient {
 
 impl NsApiClient {
     pub fn new(server_ip: &str, server_port: u16, auth_key: PrivateKey) -> Self {
-        let server_address = format!("{}:{}", server_ip, server_port);
+        let server_address = format!("{server_ip}:{server_port}");
         let api = ApiPaths::new(server_address);
         let client = reqwest::Client::new();
 
@@ -33,7 +33,7 @@ impl NsApiClient {
 
         let payload = get_testrun::Payload {
             agent_public_key: self.auth_key.public_key(),
-            timestamp: chrono::offset::Utc::now().timestamp(),
+            timestamp: time::UtcDateTime::now().unix_timestamp(),
         };
         let signature = self.sign_message(&payload)?;
         let request = get_testrun::GetTestrunRequest { payload, signature };

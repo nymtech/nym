@@ -25,7 +25,7 @@ pub async fn migrate_vested_mixnode(
         .migrate_vested_mixnode(fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -52,7 +52,7 @@ pub async fn migrate_vested_delegations(
         .get_all_delegator_delegations(&address)
         .await
         .inspect_err(|err| {
-            log::error!("  <<< Failed to get delegations. Error: {}", err);
+            log::error!("  <<< Failed to get delegations. Error: {err}");
         })?;
     log::info!("  <<< {} delegations", delegations.len());
 
@@ -91,6 +91,6 @@ pub async fn migrate_vested_delegations(
         .await?;
 
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(res, None)?)
 }

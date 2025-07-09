@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.13.0"
+version = "1.14.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -50,11 +50,13 @@ nym-bin-common = { path = "../common/bin-common", features = [
     "basic_tracing",
     "output_format",
 ] }
-nym-client-core-config-types = { path = "../common/client-core/config-types" }
+nym-client-core-config-types = { path = "../common/client-core/config-types", features = ["disk-persistence"] }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
+nym-noise = { path = "../common/nymnoise" }
+nym-noise-keys = { path = "../common/nymnoise/keys" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
@@ -115,6 +117,7 @@ cargo_metadata = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rand_chacha = { workspace = true }
 
 
 [lints]

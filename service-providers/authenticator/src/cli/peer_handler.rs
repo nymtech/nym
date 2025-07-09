@@ -3,8 +3,8 @@
 
 use nym_sdk::TaskClient;
 use nym_wireguard::peer_controller::{
-    AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,
-    QueryPeerControlResponse, RemovePeerControlResponse,
+    AddPeerControlResponse, GetClientBandwidthControlResponse, PeerControlRequest,
+    QueryBandwidthControlResponse, QueryPeerControlResponse, RemovePeerControlResponse,
 };
 use tokio::sync::mpsc;
 
@@ -28,20 +28,24 @@ impl DummyHandler {
                     if let Some(msg) = msg {
                         match msg {
                             PeerControlRequest::AddPeer { peer, client_id, response_tx } => {
-                                log::info!("[DUMMY] Adding peer {:?} with client id {:?}", peer, client_id);
+                                log::info!("[DUMMY] Adding peer {peer:?} with client id {client_id:?}");
                                 response_tx.send(AddPeerControlResponse { success: true }).ok();
                             }
                             PeerControlRequest::RemovePeer { key, response_tx } => {
-                                log::info!("[DUMMY] Removing peer {:?}", key);
+                                log::info!("[DUMMY] Removing peer {key:?}");
                                 response_tx.send(RemovePeerControlResponse { success: true }).ok();
                             }
                             PeerControlRequest::QueryPeer{key, response_tx} => {
-                                log::info!("[DUMMY] Querying peer {:?}", key);
+                                log::info!("[DUMMY] Querying peer {key:?}");
                                 response_tx.send(QueryPeerControlResponse { success: true, peer: None }).ok();
                             }
                             PeerControlRequest::QueryBandwidth{key, response_tx} => {
-                                log::info!("[DUMMY] Querying bandwidth for peer {:?}", key);
+                                log::info!("[DUMMY] Querying bandwidth for peer {key:?}");
                                 response_tx.send(QueryBandwidthControlResponse { success: true, bandwidth_data: None }).ok();
+                            }
+                            PeerControlRequest::GetClientBandwidth{key, response_tx} => {
+                                log::info!("[DUMMY] Getting client bandwidth for peer {key:?}");
+                                response_tx.send(GetClientBandwidthControlResponse {client_bandwidth: None }).ok();
                             }
                         }
                     } else {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::upgrade_helpers::try_load_current_config;
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::NymNode;
 use crate::throughput_tester::client::ThroughputTestingClient;
 use crate::throughput_tester::global_stats::GlobalStatsUpdater;
@@ -9,12 +10,10 @@ use crate::throughput_tester::stats::ClientStats;
 use futures::future::join_all;
 use human_repr::HumanDuration;
 use indicatif::{ProgressState, ProgressStyle};
-use nym_crypto::asymmetric::x25519;
 use nym_task::ShutdownToken;
 use rand::{thread_rng, Rng};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime;
 use tokio::runtime::Runtime;
@@ -72,7 +71,7 @@ impl ThroughputTest {
 #[allow(clippy::too_many_arguments)]
 async fn run_testing_client(
     sender_id: usize,
-    node_keys: Arc<x25519::KeyPair>,
+    node_keys: ActiveSphinxKeys,
     node_listener: SocketAddr,
     packet_latency_threshold: Duration,
     starting_sending_batch_size: usize,
@@ -85,7 +84,7 @@ async fn run_testing_client(
         starting_sending_delay,
         starting_sending_batch_size,
         packet_latency_threshold,
-        &node_keys,
+        node_keys,
         node_listener,
         stats,
         shutdown_token,
@@ -117,7 +116,7 @@ pub(crate) fn test_mixing_throughput(
     let nym_node = tester.prepare_nymnode(config_path)?;
     let listener = nym_node.config().mixnet.bind_address;
 
-    let sphinx_keys = nym_node.x25519_sphinx_keys();
+    let sphinx_keys = nym_node.active_sphinx_keys()?;
 
     let mut stats = Vec::with_capacity(senders);
     for _ in 0..senders {

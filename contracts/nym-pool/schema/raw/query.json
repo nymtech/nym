@@ -1,0 +1,201 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_available_tokens"
+      ],
+      "properties": {
+        "get_available_tokens": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_total_locked_tokens"
+      ],
+      "properties": {
+        "get_total_locked_tokens": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_locked_tokens"
+      ],
+      "properties": {
+        "get_locked_tokens": {
+          "type": "object",
+          "required": [
+            "grantee"
+          ],
+          "properties": {
+            "grantee": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_grant"
+      ],
+      "properties": {
+        "get_grant": {
+          "type": "object",
+          "required": [
+            "grantee"
+          ],
+          "properties": {
+            "grantee": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_granter"
+      ],
+      "properties": {
+        "get_granter": {
+          "type": "object",
+          "required": [
+            "granter"
+          ],
+          "properties": {
+            "granter": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_locked_tokens_paged"
+      ],
+      "properties": {
+        "get_locked_tokens_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_granters_paged"
+      ],
+      "properties": {
+        "get_granters_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_grants_paged"
+      ],
+      "properties": {
+        "get_grants_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

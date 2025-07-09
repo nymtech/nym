@@ -28,7 +28,7 @@ pub struct Args {
 pub async fn generate(args: Args) {
     info!("Starting to generate vesting contract instantiate msg");
 
-    debug!("Received arguments: {:?}", args);
+    debug!("Received arguments: {args:?}");
 
     let group_addr = args.group_addr.unwrap_or_else(|| {
         let address = std::env::var(nym_network_defaults::var_names::GROUP_CONTRACT_ADDRESS)
@@ -51,7 +51,7 @@ pub async fn generate(args: Args) {
         deposit_amount: args.deposit_amount,
     };
 
-    debug!("instantiate_msg: {:?}", instantiate_msg);
+    debug!("instantiate_msg: {instantiate_msg:?}");
 
     let res =
         serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");

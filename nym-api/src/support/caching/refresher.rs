@@ -5,10 +5,28 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::CacheNotification;
 use async_trait::async_trait;
 use nym_task::TaskClient;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::watch;
+use tokio::sync::{watch, Notify};
 use tokio::time::interval;
 use tracing::{error, info, trace, warn};
+
+pub(crate) type CacheUpdateWatcher = watch::Receiver<CacheNotification>;
+
+#[derive(Clone)]
+pub struct RefreshRequester(Arc<Notify>);
+
+impl RefreshRequester {
+    pub(crate) fn request_cache_refresh(&self) {
+        self.0.notify_waiters()
+    }
+}
+
+impl Default for RefreshRequester {
+    fn default() -> Self {
+        RefreshRequester(Arc::new(Notify::new()))
+    }
+}
 
 pub struct CacheRefresher<T, E> {
     name: String,
@@ -18,11 +36,11 @@ pub struct CacheRefresher<T, E> {
     // TODO: the Send + Sync bounds are only required for the `start` method. could we maybe make it less restrictive?
     provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
     shared_cache: SharedCache<T>,
-    // triggers: Vec<Box<dyn RefreshTriggerTrait>>,
+    refresh_requester: RefreshRequester,
 }
 
 #[async_trait]
-pub trait CacheItemProvider {
+pub(crate) trait CacheItemProvider {
     type Item;
     type Error: std::error::Error;
 
@@ -30,28 +48,6 @@ pub trait CacheItemProvider {
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error>;
 }
-
-// pub struct TriggerFailure;
-//
-// #[async_trait]
-// pub trait RefreshTriggerTrait {
-//     async fn triggerred(&mut self) -> Result<(), TriggerFailure>;
-// }
-//
-// // TODO: how to get rid of `T: Send + Sync`? it really doesn't need to be Send + Sync
-// // since it's wrapped in Shared<T> internally anyway
-// #[async_trait]
-// impl<T> RefreshTriggerTrait for watch::Receiver<T>
-// where
-//     T: Send + Sync,
-// {
-//     async fn triggerred(&mut self) -> Result<(), TriggerFailure> {
-//         self.changed().await.map_err(|err| {
-//             error!("failed to process refresh trigger: {err}");
-//             TriggerFailure
-//         })
-//     }
-// }
 
 impl<T, E> CacheRefresher<T, E>
 where
@@ -69,6 +65,7 @@ where
             refresh_notification_sender,
             provider: item_provider,
             shared_cache: SharedCache::new(),
+            refresh_requester: Default::default(),
         }
     }
 
@@ -85,6 +82,7 @@ where
             refresh_notification_sender,
             provider: item_provider,
             shared_cache,
+            refresh_requester: Default::default(),
         }
     }
 
@@ -94,8 +92,12 @@ where
         self
     }
 
-    pub(crate) fn update_watcher(&self) -> watch::Receiver<CacheNotification> {
+    pub(crate) fn update_watcher(&self) -> CacheUpdateWatcher {
         self.refresh_notification_sender.subscribe()
+    }
+
+    pub(crate) fn refresh_requester(&self) -> RefreshRequester {
+        self.refresh_requester.clone()
     }
 
     #[allow(dead_code)]
@@ -106,21 +108,44 @@ where
     // TODO: in the future offer 2 options of refreshing cache. either provide `T` directly
     // or via `FnMut(&mut T)` closure
     async fn do_refresh_cache(&self) {
-        match self.provider.try_refresh().await {
-            Ok(updated_items) => {
-                self.shared_cache.update(updated_items).await;
-                if !self.refresh_notification_sender.is_closed()
-                    && self
-                        .refresh_notification_sender
-                        .send(CacheNotification::Updated)
-                        .is_err()
-                {
-                    warn!("failed to send cache update notification");
-                }
-            }
+        let mut updated_items = match self.provider.try_refresh().await {
             Err(err) => {
-                error!("{}: failed to refresh the cache: {err}", self.name)
+                error!("{}: failed to refresh the cache: {err}", self.name);
+                return;
             }
+            Ok(items) => items,
+        };
+
+        let mut failures = 0;
+        loop {
+            match self
+                .shared_cache
+                .try_update(updated_items, &self.name)
+                .await
+            {
+                Ok(_) => break,
+                Err(returned) => {
+                    failures += 1;
+                    updated_items = returned
+                }
+            };
+            if failures % 10 == 0 {
+                warn!(
+                    "failed to obtain write permit for {} cache {failures} times in a row!",
+                    self.name
+                );
+            }
+
+            tokio::time::sleep(Duration::from_secs_f32(0.5)).await
+        }
+
+        if !self.refresh_notification_sender.is_closed()
+            && self
+                .refresh_notification_sender
+                .send(CacheNotification::Updated)
+                .is_err()
+        {
+            warn!("failed to send cache update notification");
         }
     }
 
@@ -147,6 +172,13 @@ where
                     trace!("{}: Received shutdown", self.name)
                 }
                 _ = refresh_interval.tick() => self.refresh(&mut task_client).await,
+                // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
+                // so it doesn't matter if we lose our queue position
+                _ = self.refresh_requester.0.notified() => {
+                    self.refresh(&mut task_client).await;
+                    // since we just performed the full request, we can reset our existing interval
+                    refresh_interval.reset();
+                }
             }
         }
     }
@@ -159,7 +191,7 @@ where
         tokio::spawn(async move { self.run(task_client).await });
     }
 
-    pub fn start_with_watcher(self, task_client: TaskClient) -> watch::Receiver<CacheNotification>
+    pub fn start_with_watcher(self, task_client: TaskClient) -> CacheUpdateWatcher
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,

@@ -47,5 +47,5 @@ pub async fn migrate(args: Args, client: SigningClient) {
             .expect("failed to migrate the contract!")
     };
 
-    info!("Migrate result: {:?}", res);
+    info!("Migrate result: {res:?}");
 }

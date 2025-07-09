@@ -3,12 +3,12 @@
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use futures::channel::{mpsc, oneshot};
-use log::error;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::anonymous_replies::ReplySurb;
+use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use std::sync::Weak;
+use tracing::error;
 
 pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
     let (tx, rx) = mpsc::unbounded();
@@ -81,7 +81,7 @@ impl ReplyControllerSender {
     pub(crate) fn send_additional_surbs(
         &self,
         sender_tag: AnonymousSenderTag,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
         from_surb_request: bool,
     ) -> Result<(), ReplyControllerSenderError> {
         self.0
@@ -167,7 +167,7 @@ pub enum ReplyControllerMessage {
 
     AdditionalSurbs {
         sender_tag: AnonymousSenderTag,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
         from_surb_request: bool,
     },
 

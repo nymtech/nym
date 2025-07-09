@@ -37,7 +37,7 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
 
     let rows = InputFileReader::new(&args.input);
     if let Err(e) = rows {
-        error!("Failed to read input file: {}", e);
+        error!("Failed to read input file: {e}");
         return;
     }
     let rows = rows.unwrap();
@@ -67,7 +67,7 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
         .prompt();
 
     if let Err(e) = ans {
-        info!("Aborting, {}...", e);
+        info!("Aborting, {e}...");
         return;
     }
     if let Ok(false) = ans {
@@ -95,18 +95,15 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
         "Nodesguru: https://nym.explorers.guru/transaction/{}",
         &res.hash
     );
-    println!("Mintscan: https://www.mintscan.io/nyx/txs/{}", &res.hash);
+    println!("Mintscan: https://ping.pub/nyx/tx/{}", &res.hash);
     println!("Transaction result code: {}", &res.tx_result.code.value());
     println!("Transaction hash: {}", &res.hash);
 
     if let Some(output_filename) = args.output {
-        println!("\nWriting output log to {}", output_filename);
+        println!("\nWriting output log to {output_filename}");
 
         if let Err(e) = write_output_file(rows, res, &output_filename) {
-            error!(
-                "Failed to write output file {} with error {}",
-                output_filename, e
-            );
+            error!("Failed to write output file {output_filename} with error {e}");
         }
     }
 }
@@ -136,7 +133,7 @@ fn write_output_file(
         .collect::<Vec<String>>()
         .join("\n");
 
-    Ok(file.write_all(format!("{}\n", data).as_bytes())?)
+    Ok(file.write_all(format!("{data}\n").as_bytes())?)
 }
 
 #[derive(Debug)]
@@ -171,7 +168,7 @@ impl InputFileReader {
 
             // multiply when a whole token amount, e.g. 50nym (50.123456nym is not allowed, that must be input as 50123456unym)
             let (amount, denom) = if !denom.starts_with('u') {
-                (amount * 1_000_000u128, format!("u{}", denom))
+                (amount * 1_000_000u128, format!("u{denom}"))
             } else {
                 (amount, denom)
             };

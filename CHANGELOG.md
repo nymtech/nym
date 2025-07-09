@@ -4,6 +4,74 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.12-dolcelatte] (2025-07-07)
+
+- bugfix: key-rotation + reply SURBs ([#5876])
+- Bugfix/backwards compat ([#5865])
+- bugfix: allow gateways to permit authentication from v4 clients ([#5862])
+- fixed client route for obtaining v2 list of gateways ([#5859])
+- Updated browser extension piece removal ([#5849])
+- Remove/old env references ([#5848])
+- Remove qa env ([#5847])
+- remove not used old mock-api ([#5845])
+- remove bity dir ([#5844])
+- build(deps-dev): bump webpack-dev-server from 4.13.2 to 5.2.1 in /wasm/mix-fetch/internal-dev ([#5843])
+- Amended the buy section ([#5841])
+- Removing test-net faucet ([#5840])
+- Feature/node status dvpn directory ([#5829])
+- build(deps-dev): bump webpack-dev-server from 4.15.2 to 5.2.1 in /nym-credential-proxy/vpn-api-lib-wasm/internal-dev ([#5826])
+- bugfix: fix swapped total and circulating supplies ([#5822])
+- build(deps): bump tar-fs from 3.0.8 to 3.0.9 in /sdk/typescript/tests/integration-tests/mix-fetch ([#5821])
+- Url scheme warning log ([#5819])
+- chore: adjust heuristic for wireguard peer activity ([#5818])
+- Use the same client bandwidth for top up ([#5813])
+- Replace chrono with time in NS API ([#5811])
+- build(deps-dev): bump http-proxy-middleware from 2.0.4 to 2.0.9 in /clients/native/examples/js-examples/websocket ([#5810])
+- build(deps): bump tokio from 1.44.2 to 1.45.1 ([#5798])
+- Close sqlite pool before moving or reopening databases ([#5796])
+- HTTP Client Retries, Fallbacks, and Redirects ([#5789])
+- feat: key rotation ([#5777])
+- build(deps): bump next from 14.2.15 to 14.2.26 in /documentation/docs ([#5772])
+- build(deps): bump undici from 5.28.5 to 5.29.0 in /.github/actions/nym-hash-releases/src ([#5771])
+- build(deps): bump cargo_metadata from 0.18.1 to 0.19.2 ([#5765])
+- build(deps): bump tempfile from 3.19.1 to 3.20.0 ([#5764])
+- [Feature] Noise XKpsk3 integration (2025 version) ([#5692])
+- feature: nympool contract ([#5464])
+- chore: fixed typo in API endpoint parameter ([#5449])
+
+[#5876]: https://github.com/nymtech/nym/pull/5876
+[#5865]: https://github.com/nymtech/nym/pull/5865
+[#5862]: https://github.com/nymtech/nym/pull/5862
+[#5859]: https://github.com/nymtech/nym/pull/5859
+[#5849]: https://github.com/nymtech/nym/pull/5849
+[#5848]: https://github.com/nymtech/nym/pull/5848
+[#5847]: https://github.com/nymtech/nym/pull/5847
+[#5845]: https://github.com/nymtech/nym/pull/5845
+[#5844]: https://github.com/nymtech/nym/pull/5844
+[#5843]: https://github.com/nymtech/nym/pull/5843
+[#5841]: https://github.com/nymtech/nym/pull/5841
+[#5840]: https://github.com/nymtech/nym/pull/5840
+[#5829]: https://github.com/nymtech/nym/pull/5829
+[#5826]: https://github.com/nymtech/nym/pull/5826
+[#5822]: https://github.com/nymtech/nym/pull/5822
+[#5821]: https://github.com/nymtech/nym/pull/5821
+[#5819]: https://github.com/nymtech/nym/pull/5819
+[#5818]: https://github.com/nymtech/nym/pull/5818
+[#5813]: https://github.com/nymtech/nym/pull/5813
+[#5811]: https://github.com/nymtech/nym/pull/5811
+[#5810]: https://github.com/nymtech/nym/pull/5810
+[#5798]: https://github.com/nymtech/nym/pull/5798
+[#5796]: https://github.com/nymtech/nym/pull/5796
+[#5789]: https://github.com/nymtech/nym/pull/5789
+[#5777]: https://github.com/nymtech/nym/pull/5777
+[#5772]: https://github.com/nymtech/nym/pull/5772
+[#5771]: https://github.com/nymtech/nym/pull/5771
+[#5765]: https://github.com/nymtech/nym/pull/5765
+[#5764]: https://github.com/nymtech/nym/pull/5764
+[#5692]: https://github.com/nymtech/nym/pull/5692
+[#5464]: https://github.com/nymtech/nym/pull/5464
+[#5449]: https://github.com/nymtech/nym/pull/5449
+
 ## [2025.11-cheddar] (2025-06-10)
 
 - No autoremoval of peers ([#5831])

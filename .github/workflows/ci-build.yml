@@ -5,7 +5,6 @@ on:
     paths:
       - 'clients/**'
       - 'common/**'
-      - 'explorer-api/**'
       - 'gateway/**'
       - 'integrations/**'
       - 'nym-api/**'
@@ -39,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ arc-ubuntu-22.04, custom-windows-11, custom-runner-mac-m1 ]
+        os: [ arc-ubuntu-22.04, custom-windows-11, custom-macos-15 ]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always

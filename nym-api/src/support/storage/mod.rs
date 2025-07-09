@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
 use crate::network_monitor::monitor::summary_producer::TestReport;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
@@ -132,30 +131,6 @@ impl NymApiStorage {
             return Ok(Some(retrieved));
         }
         Ok(None)
-    }
-
-    pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
-        &self,
-        end_ts_secs: i64,
-    ) -> Result<Vec<AvgGatewayReliability>, NymApiStorageError> {
-        let result = self
-            .manager
-            .get_all_avg_gateway_reliability_in_last_24hr(end_ts_secs)
-            .await?;
-
-        Ok(result)
-    }
-
-    pub(crate) async fn get_all_avg_mix_reliability_in_last_24hr(
-        &self,
-        end_ts_secs: i64,
-    ) -> Result<Vec<AvgMixnodeReliability>, NymApiStorageError> {
-        let result = self
-            .manager
-            .get_all_avg_mix_reliability_in_last_24hr(end_ts_secs)
-            .await?;
-
-        Ok(result)
     }
 
     /// Gets all statuses for particular mixnode that were inserted
@@ -679,7 +654,7 @@ impl NymApiStorage {
         &self,
         mix_id: NodeId,
         since: Option<i64>,
-    ) -> Result<i32, NymApiStorageError> {
+    ) -> Result<i64, NymApiStorageError> {
         let db_id = self.manager.get_mixnode_database_id(mix_id).await?;
 
         if let Some(node_id) = db_id {
@@ -707,7 +682,7 @@ impl NymApiStorage {
         &self,
         identity: &str,
         since: Option<i64>,
-    ) -> Result<i32, NymApiStorageError> {
+    ) -> Result<i64, NymApiStorageError> {
         let node_id = self
             .manager
             .get_gateway_database_id_by_identity(identity)

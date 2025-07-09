@@ -41,7 +41,7 @@ fn generate_stats_id<M: AsRef<[u8]>>(prefix: &str, id_seed: M) -> String {
     hasher.update(prefix);
     hasher.update(&id_seed);
     let output = hasher.finalize();
-    format!("{:x}", output)
+    format!("{output:x}")
 }
 
 pub fn hash_identifier<M: AsRef<[u8]>>(identifier: M) -> String {

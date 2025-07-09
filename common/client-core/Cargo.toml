@@ -15,8 +15,7 @@ bs58 = { workspace = true }
 clap = { workspace = true, optional = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
-humantime-serde = { workspace = true }
-log = { workspace = true }
+humantime = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -25,26 +24,23 @@ sha2 = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["macros"] }
 time = { workspace = true }
+tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
 nym-id = { path = "../nym-id" }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
-nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-http-api-client = { path = "../http-api-client" }
-nym-metrics = { path = "../nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-statistics-common = { path = "../statistics" }
 nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology", features = ["persistence"] }
-nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
 nym-credentials-interface = { path = "../credentials-interface" }
@@ -56,6 +52,9 @@ nym-client-core-config-types = { path = "./config-types", features = [
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 nym-ecash-time = { path = "../ecash-time" }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies]
+nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]

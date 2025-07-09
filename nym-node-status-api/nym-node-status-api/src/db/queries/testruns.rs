@@ -1,11 +1,9 @@
+use crate::db::models::{TestRunDto, TestRunStatus};
 use crate::db::DbPool;
 use crate::http::models::TestrunAssignment;
-use crate::{
-    db::models::{TestRunDto, TestRunStatus},
-    testruns::now_utc,
-};
-use chrono::Duration;
+use crate::utils::now_utc;
 use sqlx::{pool::PoolConnection, Sqlite};
+use time::Duration;
 
 pub(crate) async fn count_testruns_in_progress(
     conn: &mut PoolConnection<Sqlite>,
@@ -59,7 +57,7 @@ pub(crate) async fn update_testruns_assigned_before(
 ) -> anyhow::Result<u64> {
     let mut conn = db.acquire().await?;
     let previous_run = now_utc() - max_age;
-    let cutoff_timestamp = previous_run.timestamp();
+    let cutoff_timestamp = previous_run.unix_timestamp();
 
     let res = sqlx::query!(
         r#"UPDATE
@@ -93,7 +91,7 @@ pub(crate) async fn update_testruns_assigned_before(
 pub(crate) async fn assign_oldest_testrun(
     conn: &mut PoolConnection<Sqlite>,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
-    let now = now_utc().timestamp();
+    let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
     let returning = sqlx::query!(
         r#"UPDATE testruns
@@ -196,7 +194,7 @@ pub(crate) async fn update_gateway_score(
     conn: &mut PoolConnection<Sqlite>,
     gateway_pk: i64,
 ) -> anyhow::Result<()> {
-    let now = now_utc().timestamp();
+    let now = now_utc().unix_timestamp();
     sqlx::query!(
         "UPDATE gateways SET last_testrun_utc = ?, last_updated_utc = ? WHERE id = ?",
         now,

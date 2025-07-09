@@ -25,7 +25,7 @@ pub async fn make_request(url: &str) -> Result<Response, String> {
         .get(url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
 
     if res.status().is_success() {
         Ok(res)
@@ -43,7 +43,7 @@ pub async fn validate_json_response(res: Response) -> Result<Value, String> {
 
     res.json::<Value>()
         .await
-        .map_err(|err| format!("Invalid JSON response: {}", err))
+        .map_err(|err| format!("Invalid JSON response: {err}"))
 }
 
 #[allow(dead_code)]
@@ -54,11 +54,11 @@ pub async fn get_any_node_id() -> Result<String, String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json: Value = res
         .json()
         .await
-        .map_err(|err| format!("Failed to parse response as JSON: {}", err))?;
+        .map_err(|err| format!("Failed to parse response as JSON: {err}"))?;
 
     let id = json
         .get("data")
@@ -80,11 +80,11 @@ pub async fn get_mixnode_node_id() -> Result<u64, String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json: Value = res
         .json()
         .await
-        .map_err(|err| format!("Failed to parse response as JSON: {}", err))?;
+        .map_err(|err| format!("Failed to parse response as JSON: {err}"))?;
 
     json.get("data")
         .and_then(|v| v.as_array())
@@ -110,11 +110,11 @@ pub async fn get_gateway_identity_key() -> Result<String, String> {
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json: Value = res
         .json()
         .await
-        .map_err(|err| format!("Failed to parse response as JSON: {}", err))?;
+        .map_err(|err| format!("Failed to parse response as JSON: {err}"))?;
 
     let key = json
         .get("data")

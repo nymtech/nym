@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KeyRotationIdResponse",
+  "type": "object",
+  "required": [
+    "rotation_id"
+  ],
+  "properties": {
+    "rotation_id": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

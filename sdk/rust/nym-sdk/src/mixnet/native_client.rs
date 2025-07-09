@@ -226,14 +226,14 @@ impl MixnetClient {
             log::debug!("Sending forget me request: {:?}", self.forget_me);
             match self.send_forget_me().await {
                 Ok(_) => (),
-                Err(e) => error!("Failed to send forget me request: {}", e),
+                Err(e) => error!("Failed to send forget me request: {e}"),
             };
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         } else if self.remember_me.stats() {
             log::debug!("Sending remember me request: {:?}", self.remember_me);
             match self.send_remember_me().await {
                 Ok(_) => (),
-                Err(e) => error!("Failed to send remember me request: {}", e),
+                Err(e) => error!("Failed to send remember me request: {e}"),
             };
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
@@ -255,7 +255,7 @@ impl MixnetClient {
         match self.client_request_sender.send(client_request).await {
             Ok(_) => Ok(()),
             Err(e) => {
-                error!("Failed to send forget me request: {}", e);
+                error!("Failed to send forget me request: {e}");
                 Err(Error::MessageSendingFailure)
             }
         }
@@ -268,7 +268,7 @@ impl MixnetClient {
         match self.client_request_sender.send(client_request).await {
             Ok(_) => Ok(()),
             Err(e) => {
-                error!("Failed to send forget me request: {}", e);
+                error!("Failed to send forget me request: {e}");
                 Err(Error::MessageSendingFailure)
             }
         }

@@ -45,5 +45,5 @@ pub async fn vesting_undelegate_from_mixnode(args: Args, client: SigningClient) 
         .await
         .expect("failed to remove stake from vesting account on mixnode!");
 
-    info!("removing stake from vesting mixnode: {:?}", res)
+    info!("removing stake from vesting mixnode: {res:?}")
 }

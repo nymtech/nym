@@ -18,6 +18,7 @@ use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
 use crate::client::replies::reply_controller;
+use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyControllerSender};
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
@@ -34,7 +35,6 @@ use crate::init::{
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
-use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
@@ -56,13 +56,18 @@ use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, 
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
-use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
+use nym_validator_client::nym_api::NymApiClientExt;
+use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, NymApiClient, UserAgent};
+use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
+use rand::thread_rng;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
+use tracing::*;
 use url::Url;
 
 #[cfg(all(
@@ -338,6 +343,7 @@ where
     #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         controller_config: real_messages_control::Config,
+        key_rotation_config: KeyRotationConfig,
         topology_accessor: TopologyAccessor,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
@@ -355,6 +361,7 @@ where
 
         RealMessagesController::new(
             controller_config,
+            key_rotation_config,
             ack_receiver,
             input_receiver,
             mix_sender,
@@ -453,7 +460,7 @@ where
             };
 
         let gateway_failure = |err| {
-            log::error!("Could not authenticate and start up the gateway connection - {err}");
+            tracing::error!("Could not authenticate and start up the gateway connection - {err}");
             ClientCoreError::GatewayClientError {
                 gateway_id: details.gateway_id.to_base58_string(),
                 source: Box::new(err),
@@ -555,14 +562,14 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
-        user_agent: Option<UserAgent>,
+        nym_api_client: NymApiClient,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
             Box::new(NymApiTopologyProvider::new(
                 config_topology,
                 nym_api_urls,
-                user_agent,
+                nym_api_client,
             ))
         })
     }
@@ -598,7 +605,7 @@ where
         topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
-            log::error!(
+            tracing::error!(
                 "The current network topology seem to be insufficient to route any packets through \
                 - check if enough nodes and a gateway are online - source: {err}"
             );
@@ -674,16 +681,26 @@ where
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
     async fn setup_persistent_reply_storage(
         backend: S::ReplyStore,
+        key_rotation_config: KeyRotationConfig,
         shutdown: TaskClient,
     ) -> Result<CombinedReplyStorage, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
     {
-        log::trace!("Setup persistent reply storage");
+        tracing::trace!("Setup persistent reply storage");
+        let now = OffsetDateTime::now_utc();
+        let expected_current_key_rotation_start =
+            key_rotation_config.expected_current_key_rotation_start(now);
+        // time of the start of one epoch BEFORE the CURRENT rotation has begun
+        // this indicates the starting time of when packets with the current keys might have been constructed
+        // (i.e. any surbs OLDER than that MUST BE invalid)
+        let prior_epoch_start =
+            expected_current_key_rotation_start - key_rotation_config.epoch_duration;
+
         let persistent_storage = PersistentReplyStorage::new(backend);
         let mem_store = persistent_storage
-            .load_state_from_backend()
+            .load_state_from_backend(prior_epoch_start)
             .await
             .map_err(|err| ClientCoreError::SurbStorageError {
                 source: Box::new(err),
@@ -723,6 +740,23 @@ where
         }
 
         setup_gateway(setup_method, key_store, details_store).await
+    }
+
+    fn construct_nym_api_client(config: &Config, user_agent: Option<UserAgent>) -> NymApiClient {
+        let mut nym_api_urls = config.get_nym_api_endpoints();
+        nym_api_urls.shuffle(&mut thread_rng());
+
+        if let Some(user_agent) = user_agent {
+            NymApiClient::new_with_user_agent(nym_api_urls[0].clone(), user_agent)
+        } else {
+            NymApiClient::new(nym_api_urls[0].clone())
+        }
+    }
+
+    async fn determine_key_rotation_state(
+        client: &NymApiClient,
+    ) -> Result<KeyRotationConfig, ClientCoreError> {
+        Ok(client.nym_api.get_key_rotation_info().await?.into())
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
@@ -789,11 +823,14 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
+        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone());
+        let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
+
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
             self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
-            self.user_agent.clone(),
+            nym_api_client,
         );
 
         let stats_reporter = Self::start_statistics_control(
@@ -838,6 +875,7 @@ where
 
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
+            key_rotation_config,
             shutdown.fork("persistent_reply_storage"),
         )
         .await?;
@@ -878,6 +916,7 @@ where
 
         Self::start_real_traffic_controller(
             controller_config,
+            key_rotation_config,
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,

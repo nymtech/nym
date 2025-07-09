@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::cache::refresher::NodeStatusCacheRefresher;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
 use crate::{

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::IpAddr;
 
 use axum_extra::headers::UserAgent;
 use celes::Country;
@@ -53,13 +53,13 @@ impl ConnectionInfoDto {
     pub(crate) fn maybe_new(
         received_at: OffsetDateTime,
         stats_report: &VpnClientStatsReport,
-        received_from: SocketAddr,
+        received_from: IpAddr,
         maybe_country: Option<Country>,
         from_mixnet: bool,
     ) -> Option<Self> {
         stats_report.basic_usage.as_ref().map(|usage_report| Self {
             received_at,
-            received_from: received_from.ip().to_string(),
+            received_from: received_from.to_string(),
             connection_time_ms: usage_report.connection_time_ms,
             two_hop: usage_report.two_hop,
             country_code: maybe_country.map(|c| c.alpha2.into()),

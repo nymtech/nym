@@ -9,7 +9,7 @@ use log::{debug, error, info};
 use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{NymRouteProvider, RoutingNode};
 use nym_types::monitoring::{MonitorMessage, NodeResult};
-use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
+use nym_validator_client::nym_api::routes::{STATUS, SUBMIT_GATEWAY, SUBMIT_NODE, V1_API_VERSION};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -430,7 +430,7 @@ async fn db_connection(database_url: Option<&String>) -> Result<Option<(Client, 
 
         let handle = tokio::spawn(async move {
             if let Err(e) = connection.await {
-                error!("Postgres connection error: {}", e);
+                error!("Postgres connection error: {e}");
             }
         });
 
@@ -487,7 +487,7 @@ async fn submit_accounting_routes_to_db(client: Arc<Client>) -> anyhow::Result<(
 
 pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()> {
     if let Err(e) = submit_metrics_to_db(database_url).await {
-        error!("Error submitting metrics to db: {}", e);
+        error!("Error submitting metrics to db: {e}");
     }
 
     if let Some(private_key) = PRIVATE_KEY.get() {
@@ -497,9 +497,11 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
         info!("Submitting metrics to {}", *NYM_API_URL);
         let client = reqwest::Client::new();
 
-        let node_submit_url = format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
-        let gateway_submit_url =
-            format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", &*NYM_API_URL);
+        let node_submit_url = format!("{}/{V1_API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
+        let gateway_submit_url = format!(
+            "{}/{V1_API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}",
+            &*NYM_API_URL
+        );
 
         info!("Submitting {} mixnode measurements", node_stats.len());
 

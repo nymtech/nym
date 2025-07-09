@@ -7,7 +7,6 @@ use axum::http::{header, HeaderValue};
 use axum::response::{IntoResponse, Response};
 use bytes::{BufMut, BytesMut};
 use serde::Serialize;
-use utoipa::gen::serde_json;
 
 // don't use axum's Json directly as we need to be able to define custom headers
 #[derive(Debug, Clone, Default)]
@@ -31,6 +30,10 @@ impl<T> Json<T> {
     ) -> Self {
         self.0.headers.insert(name, value.into());
         self
+    }
+
+    pub(crate) fn map<U, F: FnOnce(T) -> U>(self, op: F) -> Json<U> {
+        Json(self.0.map(op))
     }
 }
 

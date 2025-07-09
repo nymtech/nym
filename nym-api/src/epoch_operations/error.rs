@@ -56,9 +56,6 @@ pub enum RewardingError {
         source: rand::distributions::WeightedError,
     },
 
-    #[error("could not obtain the current interval rewarding parameters")]
-    RewardingParamsRetrievalFailure,
-
     #[error("{0}")]
     GenericError(#[from] anyhow::Error),
 }

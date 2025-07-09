@@ -1,6 +1,6 @@
 use clap::Parser;
 use nym_bin_common::bin_info;
-use std::sync::OnceLock;
+use std::{path::PathBuf, sync::OnceLock};
 use url::Url;
 
 // Helper for passing LONG_VERSION to clap
@@ -35,4 +35,8 @@ pub(crate) struct Cli {
     /// PgSQL port for the database.
     #[clap(long, default_value_t = 5432, env = "PGPORT")]
     pub(crate) pg_port: u16,
+
+    /// SSL root certificate path. Providing this will also set the ssl mode to `Require`
+    #[clap(long, env = "PG_SSL_CERT")]
+    pub(crate) ssl_cert_path: Option<PathBuf>,
 }

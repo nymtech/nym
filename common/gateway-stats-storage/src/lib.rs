@@ -193,7 +193,7 @@ impl PersistentStatsStorage {
     pub async fn get_started_sessions_count(
         &self,
         start_date: Date,
-    ) -> Result<i32, StatsStorageError> {
+    ) -> Result<i64, StatsStorageError> {
         Ok(self
             .session_manager
             .get_started_sessions_count(start_date)

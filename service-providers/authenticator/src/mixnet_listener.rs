@@ -716,6 +716,7 @@ impl MixnetListener {
         let Some(ecash_verifier) = self.ecash_verifier.clone() else {
             return Err(AuthenticatorError::UnsupportedOperation);
         };
+
         let client_id = ecash_verifier
             .storage()
             .get_wireguard_peer(&msg.pub_key().to_string())
@@ -723,19 +724,16 @@ impl MixnetListener {
             .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
             .client_id
             .ok_or(AuthenticatorError::OldClient)?;
-        let bandwidth = ecash_verifier
-            .storage()
-            .get_available_bandwidth(client_id)
+        let client_bandwidth = self
+            .peer_manager
+            .query_client_bandwidth(msg.pub_key())
             .await?
-            .ok_or(AuthenticatorError::InternalError(
-                "bandwidth entry should have just been created".to_string(),
-            ))?;
+            .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?;
 
-        let available_bandwidth = if self.received_retry(&*msg) {
+        let available_bandwidth = if self.received_retry(msg.as_ref()) {
             // don't process the credential and just return the current bandwidth
-            bandwidth.available
+            client_bandwidth.available().await
         } else {
-            let client_bandwidth = ClientBandwidth::new(bandwidth.into());
             let credential = msg.credential();
             let mut verifier = CredentialVerifier::new(
                 CredentialSpendingRequest::new(credential.clone()),
@@ -868,7 +866,7 @@ impl MixnetListener {
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {
-        log::info!("Using authenticator version {}", CURRENT_VERSION);
+        log::info!("Using authenticator version {CURRENT_VERSION}");
         let mut task_client = self.task_handle.fork("main_loop");
 
         while !task_client.is_shutdown() {
@@ -878,7 +876,7 @@ impl MixnetListener {
                 },
                 _ = self.timeout_check_interval.next() => {
                     if let Err(e) = self.remove_stale_registrations().await {
-                        log::error!("Could not clear stale registrations. The registration process might get jammed soon - {:?}", e);
+                        log::error!("Could not clear stale registrations. The registration process might get jammed soon - {e:?}");
                     }
                     self.seen_credential_cache.remove_stale();
                 }

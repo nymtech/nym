@@ -72,11 +72,7 @@ pub struct FragmentIdentifier {
 
 impl fmt::Display for FragmentIdentifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Fragment Identifier: id: {} position: {}",
-            self.set_id, self.fragment_position
-        )
+        write!(f, "{} @ {}", self.set_id, self.fragment_position)
     }
 }
 

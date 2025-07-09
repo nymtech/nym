@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES, ROLES_METADATA};
-use crate::nodes::storage::{nym_nodes, NYMNODE_ID_COUNTER};
+use crate::nodes::storage::{nym_nodes, KEY_ROTATION_STATE, NYMNODE_ID_COUNTER};
 use cosmwasm_std::{StdResult, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
-use mixnet_contract_common::{EpochId, NodeId, NymNodeBond, RoleAssignment};
+use mixnet_contract_common::{EpochId, KeyRotationState, NodeId, NymNodeBond, RoleAssignment};
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -103,7 +103,10 @@ pub(crate) fn next_nymnode_id_counter(store: &mut dyn Storage) -> StdResult<Node
     Ok(id)
 }
 
-pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), MixnetContractError> {
+pub(crate) fn initialise_storage(
+    storage: &mut dyn Storage,
+    key_rotation_validity: u32,
+) -> Result<(), MixnetContractError> {
     let active_bucket = RoleStorageBucket::default();
     let inactive_bucket = active_bucket.other();
 
@@ -123,6 +126,15 @@ pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), Mixnet
 
     ROLES_METADATA.save(storage, active_bucket as u8, &Default::default())?;
     ROLES_METADATA.save(storage, inactive_bucket as u8, &Default::default())?;
+
+    // since we're initialising fresh storage, the current epoch_id is 0
+    KEY_ROTATION_STATE.save(
+        storage,
+        &KeyRotationState {
+            validity_epochs: key_rotation_validity,
+            initial_epoch_id: 0,
+        },
+    )?;
 
     Ok(())
 }

@@ -13,7 +13,6 @@ use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
-use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -30,6 +29,7 @@ use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
+use tracing::*;
 
 pub(crate) use action_controller::{AckActionSender, Action};
 

@@ -86,7 +86,7 @@ impl NymNetworkDetails {
                     }
                 }
                 Err(VarError::NotPresent) => None,
-                err => panic!("Unable to set: {:?}", err),
+                err => panic!("Unable to set: {err:?}"),
             }
         }
 

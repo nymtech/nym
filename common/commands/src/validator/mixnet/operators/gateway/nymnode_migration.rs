@@ -52,5 +52,5 @@ pub async fn migrate_to_nymnode(args: Args, client: SigningClient) {
         .await
         .expect("failed to migrate gateway!");
 
-    info!("migration result: {:?}", res)
+    info!("migration result: {res:?}")
 }

@@ -47,8 +47,12 @@ impl SentReplyKeys {
         self.inner.data.iter()
     }
 
+    pub fn retain(&self, f: impl FnMut(&EncryptionKeyDigest, &mut UsedReplyKey) -> bool) {
+        self.inner.data.retain(f);
+    }
+
     pub fn insert_multiple(&self, keys: Vec<SurbEncryptionKey>) {
-        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let now = OffsetDateTime::now_utc();
         for key in keys {
             self.insert(UsedReplyKey::new(key, now))
         }
@@ -71,15 +75,12 @@ impl SentReplyKeys {
 pub struct UsedReplyKey {
     key: SurbEncryptionKey,
     // the purpose of this field is to perform invalidation at relatively very long intervals
-    pub sent_at_timestamp: i64,
+    pub sent_at: OffsetDateTime,
 }
 
 impl UsedReplyKey {
-    pub(crate) fn new(key: SurbEncryptionKey, sent_at_timestamp: i64) -> Self {
-        UsedReplyKey {
-            key,
-            sent_at_timestamp,
-        }
+    pub(crate) fn new(key: SurbEncryptionKey, sent_at: OffsetDateTime) -> Self {
+        UsedReplyKey { key, sent_at }
     }
 }
 

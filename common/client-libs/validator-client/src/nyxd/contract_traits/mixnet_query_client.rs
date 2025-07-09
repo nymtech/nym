@@ -12,8 +12,8 @@ use nym_mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, Preassi
 use nym_mixnet_contract_common::nym_node::{
     EpochAssignmentResponse, NodeDetailsByIdentityResponse, NodeDetailsResponse,
     NodeOwnershipResponse, NodeRewardingDetailsResponse, PagedNymNodeBondsResponse,
-    PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, Role, RolesMetadataResponse,
-    StakeSaturationResponse, UnbondedNodeResponse, UnbondedNymNode,
+    PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, RewardedSetMetadata, Role,
+    RolesMetadataResponse, StakeSaturationResponse, UnbondedNodeResponse, UnbondedNymNode,
 };
 use nym_mixnet_contract_common::reward_params::WorkFactor;
 use nym_mixnet_contract_common::{
@@ -28,12 +28,12 @@ use nym_mixnet_contract_common::{
     ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
     CurrentNymNodeVersionResponse, Delegation, EpochEventId, EpochRewardedSet, EpochStatus,
     GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, HistoricalNymNodeVersionEntry,
-    IdentityKey, IdentityKeyRef, IntervalEventId, MixNodeBond, MixNodeDetails,
-    MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NodeId,
-    NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails, NymNodeVersionHistoryResponse,
-    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
-    PagedMixnodeBondsResponse, PagedNodeDelegationsResponse, PendingEpochEvent,
-    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
+    IdentityKey, IdentityKeyRef, IntervalEventId, KeyRotationIdResponse, KeyRotationState,
+    MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, NodeId, NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails,
+    NymNodeVersionHistoryResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedGatewayResponse, PagedMixnodeBondsResponse, PagedNodeDelegationsResponse,
+    PendingEpochEvent, PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
     PendingIntervalEventResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
     RewardedSet, UnbondedMixnode,
 };
@@ -546,6 +546,16 @@ pub trait MixnetQueryClient {
         })
         .await
     }
+
+    async fn get_key_rotation_state(&self) -> Result<KeyRotationState, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetKeyRotationState {})
+            .await
+    }
+
+    async fn get_key_rotation_id(&self) -> Result<KeyRotationIdResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetKeyRotationId {})
+            .await
+    }
 }
 
 // extension trait to the query client to deal with the paged queries
@@ -673,11 +683,19 @@ pub trait MixnetQueryClientExt: MixnetQueryClient {
     async fn get_rewarded_set(&self) -> Result<EpochRewardedSet, NyxdError> {
         let error_response = |message| Err(NyxdError::extension_query_failure("mixnet", message));
 
+        // bypass for catch 22 for fresh contracts. we can't refresh cache because there's no rewarded set,
+        // but we can't set the rewarded set because we didn't refresh the cache
         let metadata = self.get_rewarded_set_metadata().await?;
-        if !metadata.metadata.fully_assigned {
+
+        let is_default = metadata.metadata == RewardedSetMetadata::default();
+        if !metadata.metadata.fully_assigned && !is_default {
             return error_response("the rewarded set hasn't been fully assigned for this epoch");
         }
         let expected_epoch_id = metadata.metadata.epoch_id;
+
+        if is_default {
+            return Ok(Default::default());
+        }
 
         // if we have to query those things more frequently, we could do it concurrently,
         // but as it stands now, it happens so infrequently it might as well be sequential
@@ -955,6 +973,8 @@ mod tests {
             QueryMsg::GetNymNodeVersionHistory { limit, start_after } => client
                 .get_nym_node_version_history_paged(start_after, limit)
                 .ignore(),
+            QueryMsg::GetKeyRotationState {} => client.get_key_rotation_state().ignore(),
+            QueryMsg::GetKeyRotationId {} => client.get_key_rotation_id().ignore(),
         }
     }
 }

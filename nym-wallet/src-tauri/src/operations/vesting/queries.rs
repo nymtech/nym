@@ -146,7 +146,7 @@ pub(crate) async fn vesting_start_time(
         .vesting_start_time(vesting_account_address)
         .await?
         .seconds();
-    log::info!("<<< vesting start time = {}", res);
+    log::info!("<<< vesting start time = {res}");
     Ok(res)
 }
 
@@ -160,7 +160,7 @@ pub(crate) async fn vesting_end_time(
         .vesting_end_time(vesting_account_address)
         .await?
         .seconds();
-    log::info!("<<< vesting end time = {}", res);
+    log::info!("<<< vesting end time = {res}");
     Ok(res)
 }
 
@@ -180,7 +180,7 @@ pub(crate) async fn original_vesting(
         .await?;
 
     let res = OriginalVestingResponse::from_vesting_contract(res, reg)?;
-    log::info!("<<< {:?}", res);
+    log::info!("<<< {res:?}");
     Ok(res)
 }
 
@@ -347,7 +347,7 @@ pub(crate) async fn vesting_get_mixnode_pledge(
         .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
         .transpose()?;
 
-    log::info!("<<< {:?}", res);
+    log::info!("<<< {res:?}");
     Ok(res)
 }
 
@@ -368,7 +368,7 @@ pub(crate) async fn vesting_get_gateway_pledge(
         .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
         .transpose()?;
 
-    log::info!("<<< {:?}", res);
+    log::info!("<<< {res:?}");
     Ok(res)
 }
 
@@ -381,7 +381,7 @@ pub(crate) async fn get_current_vesting_period(
     let res = nyxd_client!(state)
         .get_current_vesting_period(address)
         .await?;
-    log::info!("<<< {:?}", res);
+    log::info!("<<< {res:?}");
     Ok(res)
 }
 
@@ -397,6 +397,6 @@ pub(crate) async fn get_account_info(
     let vesting_account = guard.current_client()?.nyxd.get_account(address).await?;
     let res = VestingAccountInfo::from_vesting_contract(vesting_account, res)?;
 
-    log::info!("<<< {:?}", res);
+    log::info!("<<< {res:?}");
     Ok(res)
 }

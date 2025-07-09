@@ -3,6 +3,7 @@
 
 use crate::packet::{FramedNymPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
+use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nym_sphinx_params::packet_types::InvalidPacketType;
 use nym_sphinx_params::packet_version::{InvalidPacketVersion, PacketVersion};
@@ -22,6 +23,9 @@ pub enum NymCodecError {
 
     #[error("the packet version information was malformed: {0}")]
     InvalidPacketVersion(#[from] InvalidPacketVersion),
+
+    #[error("the sphinx key rotation information was malformed: {0}")]
+    InvalidSphinxKeyRotation(#[from] InvalidSphinxKeyRotation),
 
     #[error("received unsupported packet version {received}. max supported is {max_supported}")]
     UnsupportedPacketVersion {
@@ -65,8 +69,8 @@ impl Decoder for NymCodec {
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if src.is_empty() {
             // can't do anything if we have no bytes, but let's reserve enough for the most
-            // conservative case, i.e. receiving an ack packet
-            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
+            // conservative case, i.e. receiving a legacy ack packet
+            src.reserve(Header::INITIAL_SIZE + PacketSize::AckPacket.size());
             return Ok(None);
         }
 
@@ -77,17 +81,20 @@ impl Decoder for NymCodec {
             None => return Ok(None), // we have some data but not enough to get header back
         };
 
+        let header_size = header.encoded_size();
         let packet_size = header.packet_size.size();
-        let frame_len = Header::SIZE + packet_size;
 
-        if src.len() < frame_len {
+        let frame_size = header_size + packet_size;
+
+        if src.len() < frame_size {
             // we don't have enough bytes to read the rest of frame
+            // (we have already read the full header)
             src.reserve(packet_size);
             return Ok(None);
         }
 
         // advance buffer past the header - at this point we have enough bytes
-        src.advance(Header::SIZE);
+        src.advance(header_size);
         let packet_bytes = src.split_to(packet_size);
         let packet = if let Some(slice) = packet_bytes.get(..) {
             // here it could be debatable whether stream is corrupt or not,
@@ -100,8 +107,7 @@ impl Decoder for NymCodec {
             return Ok(None);
         };
 
-        // let packet = SphinxPacket::from_bytes(&sphinx_packet_bytes)?;
-        let nymsphinx_packet = FramedNymPacket { header, packet };
+        let framed_packet = FramedNymPacket { header, packet };
 
         // As per docs:
         // Before returning from the function, implementations should ensure that the buffer
@@ -114,11 +120,11 @@ impl Decoder for NymCodec {
         // we also assume the next packet coming from the same client will use exactly the same versioning
         // as the current packet
 
-        let mut allocate_for_next_packet = Header::SIZE + PacketSize::AckPacket.size();
+        let mut allocate_for_next_packet = header.encoded_size() + PacketSize::AckPacket.size();
         if !src.is_empty() {
             match Header::decode(src) {
                 Ok(Some(next_header)) => {
-                    allocate_for_next_packet = Header::SIZE + next_header.packet_size.size();
+                    allocate_for_next_packet = next_header.frame_size();
                 }
                 Ok(None) => {
                     // we don't have enough information to know how much to reserve, fallback to the ack case
@@ -126,21 +132,51 @@ impl Decoder for NymCodec {
 
                 // the next frame will be malformed but let's leave handling the error to the next
                 // call to 'decode', as presumably, the current sphinx packet is still valid
-                Err(_) => return Ok(Some(nymsphinx_packet)),
+                Err(_) => return Ok(Some(framed_packet)),
             };
         }
         src.reserve(allocate_for_next_packet);
-        Ok(Some(nymsphinx_packet))
+        Ok(Some(framed_packet))
     }
 }
 
 #[cfg(test)]
 mod packet_encoding {
     use super::*;
+    use nym_sphinx_params::packet_version::{
+        CURRENT_PACKET_VERSION, INITIAL_PACKET_VERSION_NUMBER,
+    };
+    use nym_sphinx_params::PacketType;
     use nym_sphinx_types::{
         Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        PrivateKey, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        NymPacket, PrivateKey, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
+
+    fn dummy_header() -> Header {
+        Header {
+            packet_version: CURRENT_PACKET_VERSION,
+            packet_size: Default::default(),
+            key_rotation: Default::default(),
+            packet_type: Default::default(),
+        }
+    }
+
+    fn dummy_outfox() -> Header {
+        Header {
+            packet_type: PacketType::Outfox,
+            packet_size: PacketSize::OutfoxRegularPacket,
+            ..dummy_legacy_header()
+        }
+    }
+
+    fn dummy_legacy_header() -> Header {
+        Header {
+            packet_version: PacketVersion::try_from(INITIAL_PACKET_VERSION_NUMBER).unwrap(),
+            packet_size: Default::default(),
+            key_rotation: Default::default(),
+            packet_type: Default::default(),
+        }
+    }
 
     fn random_pubkey() -> nym_sphinx_types::PublicKey {
         let private_key = PrivateKey::random();
@@ -222,7 +258,7 @@ mod packet_encoding {
 
     #[test]
     fn whole_packet_can_be_decoded_from_a_valid_encoded_instance() {
-        let header = Default::default();
+        let header = dummy_header();
         let sphinx_packet = make_valid_sphinx_packet(Default::default());
         let sphinx_bytes = sphinx_packet.to_bytes().unwrap();
 
@@ -241,7 +277,7 @@ mod packet_encoding {
 
     #[test]
     fn whole_outfox_can_be_decoded_from_a_valid_encoded_instance() {
-        let header = Header::outfox();
+        let header = dummy_outfox();
         let packet = make_valid_outfox_packet(PacketSize::OutfoxRegularPacket);
         let packet_bytes = packet.to_bytes().unwrap();
 
@@ -269,7 +305,7 @@ mod packet_encoding {
             assert!(NymCodec.decode(&mut empty_bytes).unwrap().is_none());
             assert_eq!(
                 empty_bytes.capacity(),
-                Header::SIZE + PacketSize::AckPacket.size()
+                Header::INITIAL_SIZE + PacketSize::AckPacket.size()
             );
         }
 
@@ -287,13 +323,14 @@ mod packet_encoding {
                 let header = Header {
                     packet_version: PacketVersion::new(),
                     packet_size,
-                    ..Default::default()
+                    key_rotation: Default::default(),
+                    packet_type: Default::default(),
                 };
                 let mut bytes = BytesMut::new();
                 header.encode(&mut bytes);
                 assert!(NymCodec.decode(&mut bytes).unwrap().is_none());
 
-                assert_eq!(bytes.capacity(), Header::SIZE + packet_size.size())
+                assert_eq!(bytes.capacity(), Header::V8_SIZE + packet_size.size())
             }
         }
 
@@ -301,7 +338,7 @@ mod packet_encoding {
         fn for_full_frame_with_versioned_header() {
             // if full frame is used exactly, there should be enough space for header + ack packet
             let packet = FramedNymPacket {
-                header: Header::default(),
+                header: dummy_header(),
                 packet: make_valid_sphinx_packet(Default::default()),
             };
 
@@ -310,7 +347,7 @@ mod packet_encoding {
             assert!(NymCodec.decode(&mut bytes).unwrap().is_some());
             assert_eq!(
                 bytes.capacity(),
-                Header::SIZE + PacketSize::AckPacket.size()
+                Header::V8_SIZE + PacketSize::AckPacket.size()
             );
         }
 
@@ -327,7 +364,7 @@ mod packet_encoding {
 
             for packet_size in packet_sizes {
                 let first_packet = FramedNymPacket {
-                    header: Header::default(),
+                    header: dummy_header(),
                     packet: make_valid_sphinx_packet(Default::default()),
                 };
 
@@ -346,12 +383,12 @@ mod packet_encoding {
     #[test]
     fn can_decode_two_packets_immediately() {
         let packet1 = FramedNymPacket {
-            header: Header::default(),
+            header: dummy_header(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
 
         let packet2 = FramedNymPacket {
-            header: Header::default(),
+            header: dummy_header(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
 
@@ -368,12 +405,12 @@ mod packet_encoding {
     #[test]
     fn can_decode_two_packets_in_separate_calls() {
         let packet1 = FramedNymPacket {
-            header: Header::default(),
+            header: dummy_header(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
 
         let packet2 = FramedNymPacket {
-            header: Header::default(),
+            header: dummy_header(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
 

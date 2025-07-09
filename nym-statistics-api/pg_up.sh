@@ -16,14 +16,21 @@ DB_NAME=$DB_NAME
 DATABASE_URL=$DATABASE_URL
 EOF
 
+cat <<EOF > init_schema.sql
+CREATE SCHEMA private_statistics_api;
+EOF
+
 
 docker run --rm -it \
   --name ${DB_NAME} \
   -e POSTGRES_USER=${PGUSER} \
   -e POSTGRES_PASSWORD=${PGPASSWORD} \
   -e POSTGRES_DB=${DB_NAME} \
+  -v $(pwd)/init_schema.sql:/docker-entrypoint-initdb.d/init_schema.sql \
   -p ${PGPORT}:${PGPORT} \
   postgres
+
+rm init_schema.sql
 
 
 # sqlx migrate run

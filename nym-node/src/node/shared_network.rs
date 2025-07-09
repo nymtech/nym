@@ -2,18 +2,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use async_trait::async_trait;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::UserAgent;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
+use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
-use nym_topology::{EpochRewardedSet, NymTopology, Role, TopologyProvider};
+use nym_topology::provider_trait::ToTopologyMetadata;
+use nym_topology::{
+    EntryDetails, EpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, Role,
+    TopologyProvider,
+};
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::nym_nodes::{NodesByAddressesResponse, SkimmedNode};
+use nym_validator_client::nym_nodes::{
+    NodesByAddressesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata,
+};
 use nym_validator_client::{NymApiClient, ValidatorClientError};
-use std::collections::HashSet;
-use std::net::IpAddr;
+use std::collections::{HashMap, HashSet};
+use std::net::{IpAddr, SocketAddr};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -21,6 +31,8 @@ use tokio::time::interval;
 use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
+
+const LOCAL_NODE_ID: NodeId = 1234567890;
 
 struct NodesQuerier {
     client: NymApiClient,
@@ -53,10 +65,12 @@ impl NodesQuerier {
         res
     }
 
-    async fn current_nymnodes(&mut self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+    async fn current_nymnodes(
+        &mut self,
+    ) -> Result<SemiSkimmedNodesWithMetadata, ValidatorClientError> {
         let res = self
             .client
-            .get_all_basic_nodes()
+            .get_all_expanded_nodes()
             .await
             .inspect_err(|err| error!("failed to get network nodes: {err}"));
 
@@ -84,16 +98,40 @@ impl NodesQuerier {
     }
 }
 
+pub(crate) struct LocalGatewayNode {
+    pub(crate) active_sphinx_keys: ActiveSphinxKeys,
+    pub(crate) mix_host: SocketAddr,
+    pub(crate) identity_key: ed25519::PublicKey,
+    pub(crate) entry: EntryDetails,
+}
+
+impl LocalGatewayNode {
+    pub(crate) fn to_routing_node(&self) -> RoutingNode {
+        RoutingNode {
+            node_id: LOCAL_NODE_ID,
+            mix_host: self.mix_host,
+            entry: Some(self.entry.clone()),
+            identity_key: self.identity_key,
+            sphinx_key: self.active_sphinx_keys.primary().deref().x25519_pubkey(),
+            supported_roles: nym_topology::SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct CachedTopologyProvider {
-    gateway_node: Arc<RoutingNode>,
+    gateway_node: Arc<LocalGatewayNode>,
     cached_network: CachedNetwork,
     min_mix_performance: u8,
 }
 
 impl CachedTopologyProvider {
     pub(crate) fn new(
-        gateway_node: RoutingNode,
+        gateway_node: LocalGatewayNode,
         cached_network: CachedNetwork,
         min_mix_performance: u8,
     ) -> Self {
@@ -111,20 +149,30 @@ impl TopologyProvider for CachedTopologyProvider {
         let network_guard = self.cached_network.inner.read().await;
         let self_node = self.gateway_node.identity_key;
 
-        let mut topology = NymTopology::new_empty(network_guard.rewarded_set.clone())
-            .with_additional_nodes(network_guard.network_nodes.iter().filter(|node| {
-                if node.supported_roles.mixnode {
-                    node.performance.round_to_integer() >= self.min_mix_performance
-                } else {
-                    true
-                }
-            }));
+        let mut topology = NymTopology::new(
+            network_guard.topology_metadata,
+            network_guard.rewarded_set.clone(),
+            Vec::new(),
+        )
+        .with_additional_nodes(
+            network_guard
+                .network_nodes
+                .iter()
+                .map(|node| &node.basic)
+                .filter(|node| {
+                    if node.supported_roles.mixnode {
+                        node.performance.round_to_integer() >= self.min_mix_performance
+                    } else {
+                        true
+                    }
+                }),
+        );
 
-        if !topology.has_node_details(self.gateway_node.node_id) {
+        if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
-            topology.insert_node_details(self.gateway_node.as_ref().clone());
+            topology.insert_node_details(self.gateway_node.to_routing_node());
         }
-        topology.force_set_active(self.gateway_node.node_id, Role::EntryGateway);
+        topology.force_set_active(LOCAL_NODE_ID, Role::EntryGateway);
 
         Some(topology)
     }
@@ -140,6 +188,7 @@ impl CachedNetwork {
         CachedNetwork {
             inner: Arc::new(RwLock::new(CachedNetworkInner {
                 rewarded_set: Default::default(),
+                topology_metadata: Default::default(),
                 network_nodes: vec![],
             })),
         }
@@ -148,7 +197,8 @@ impl CachedNetwork {
 
 struct CachedNetworkInner {
     rewarded_set: EpochRewardedSet,
-    network_nodes: Vec<SkimmedNode>,
+    topology_metadata: NymTopologyMetadata,
+    network_nodes: Vec<SemiSkimmedNode>,
 }
 
 pub struct NetworkRefresher {
@@ -159,6 +209,7 @@ pub struct NetworkRefresher {
 
     network: CachedNetwork,
     routing_filter: NetworkRoutingFilter,
+    noise_view: NoiseNetworkView,
 }
 
 impl NetworkRefresher {
@@ -186,6 +237,7 @@ impl NetworkRefresher {
             shutdown_token,
             network: CachedNetwork::new_empty(),
             routing_filter: NetworkRoutingFilter::new_empty(testnet),
+            noise_view: NoiseNetworkView::new_empty(),
         };
 
         this.obtain_initial_network().await?;
@@ -235,12 +287,14 @@ impl NetworkRefresher {
 
     async fn refresh_network_nodes_inner(&mut self) -> Result<(), ValidatorClientError> {
         let rewarded_set = self.querier.rewarded_set().await?;
-        let nodes = self.querier.current_nymnodes().await?;
+        let res = self.querier.current_nymnodes().await?;
+        let nodes = res.nodes;
+        let metadata = res.metadata;
 
         // collect all known/allowed nodes information
         let known_nodes = nodes
             .iter()
-            .flat_map(|n| n.ip_addresses.iter())
+            .flat_map(|n| n.basic.ip_addresses.iter())
             .copied()
             .collect::<HashSet<_>>();
 
@@ -263,7 +317,24 @@ impl NetworkRefresher {
         self.routing_filter.resolved.swap_denied(current_denied);
         self.routing_filter.pending.clear().await;
 
+        //update noise Noise Nodes
+        let noise_nodes = nodes
+            .iter()
+            .filter(|n| n.x25519_noise_versioned_key.is_some())
+            .flat_map(|n| {
+                n.basic.ip_addresses.iter().map(|ip_addr| {
+                    (
+                        SocketAddr::new(*ip_addr, n.basic.mix_port),
+                        #[allow(clippy::unwrap_used)]
+                        n.x25519_noise_versioned_key.unwrap(), // SAFETY : we filtered out nodes where this option can be None
+                    )
+                })
+            })
+            .collect::<HashMap<_, _>>();
+        self.noise_view.swap_view(noise_nodes);
+
         let mut network_guard = self.network.inner.write().await;
+        network_guard.topology_metadata = metadata.to_topology_metadata();
         network_guard.network_nodes = nodes;
         network_guard.rewarded_set = rewarded_set;
 
@@ -294,6 +365,10 @@ impl NetworkRefresher {
 
     pub(crate) fn cached_network(&self) -> CachedNetwork {
         self.network.clone()
+    }
+
+    pub(crate) fn noise_view(&self) -> NoiseNetworkView {
+        self.noise_view.clone()
     }
 
     pub(crate) async fn run(&mut self) {

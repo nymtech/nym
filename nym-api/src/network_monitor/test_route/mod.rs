@@ -7,8 +7,9 @@ use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{EpochId, EpochRewardedSet, RewardedSet};
 use nym_topology::node::RoutingNode;
-use nym_topology::{NymRouteProvider, NymTopology};
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
 use std::fmt::{Debug, Formatter};
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub(crate) struct TestRoute {
@@ -19,6 +20,7 @@ pub(crate) struct TestRoute {
 impl TestRoute {
     pub(crate) fn new(
         id: u64,
+        key_rotation_id: u32,
         l1_mix: RoutingNode,
         l2_mix: RoutingNode,
         l3_mix: RoutingNode,
@@ -40,7 +42,11 @@ impl TestRoute {
 
         TestRoute {
             id,
-            nodes: NymTopology::new(fake_rewarded_set, nodes),
+            nodes: NymTopology::new(
+                NymTopologyMetadata::new(key_rotation_id, 0, OffsetDateTime::now_utc()),
+                fake_rewarded_set,
+                nodes,
+            ),
         }
     }
 

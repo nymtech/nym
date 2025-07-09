@@ -151,6 +151,9 @@ impl Simulator {
         }
     }
 
+    // this code is not meant to be used in production systems, only in tests
+    // so a panic due to inconsistent arguments is fine
+    #[allow(clippy::panic)]
     pub fn simulate_epoch(
         &mut self,
         node_params: &BTreeMap<NodeId, NodeRewardingParameters>,

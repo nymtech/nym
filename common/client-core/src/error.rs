@@ -6,6 +6,7 @@ use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::node::RoutingNodeError;
 use nym_topology::{NodeId, NymTopologyError};
+use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::ValidatorClientError;
 use std::error::Error;
 use std::path::PathBuf;
@@ -52,7 +53,15 @@ pub enum ClientCoreError {
     #[error("list of nym apis is empty")]
     ListOfNymApisIsEmpty,
 
-    #[error("the current network topology seem to be insufficient to route any packets through")]
+    #[error("failed to resolve a query to nym API: {source}")]
+    NymApiQueryFailure {
+        #[from]
+        source: NymAPIError,
+    },
+
+    #[error(
+        "the current network topology seem to be insufficient to route any packets through:\n\t{0}"
+    )]
     InsufficientNetworkTopology(#[from] NymTopologyError),
 
     #[error("experienced a failure with our reply surb persistent storage: {source}")]

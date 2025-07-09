@@ -4032,6 +4032,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-requests",
+ "nym-noise-keys",
  "nym-serde-helpers",
  "nym-ticketbooks-merkle",
  "schemars",
@@ -4042,6 +4043,7 @@ dependencies = [
  "tendermint-rpc",
  "thiserror 2.0.12",
  "time",
+ "tracing",
  "utoipa",
 ]
 
@@ -4207,6 +4209,7 @@ dependencies = [
  "encoding_rs",
  "hickory-resolver",
  "http 1.3.1",
+ "itertools 0.14.0",
  "mime",
  "nym-bin-common",
  "nym-http-api-common",
@@ -4226,6 +4229,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "serde",
+ "serde_json",
  "tracing",
 ]
 
@@ -4270,7 +4274,7 @@ dependencies = [
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
- "cargo_metadata 0.18.1",
+ "cargo_metadata 0.19.2",
  "dotenvy",
  "log",
  "regex",
@@ -4292,6 +4296,7 @@ dependencies = [
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
+ "nym-noise-keys",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -4303,11 +4308,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-noise-keys"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "schemars",
+ "serde",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "0.3.0"
 dependencies = [
  "pem",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]
@@ -7452,9 +7468,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.44.2"
+version = "1.45.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6b88822cbe49de4185e3a4cbf8321dd487cf5fe0c5c65695fef6346371e9c48"
+checksum = "75ef51a33ef1da925cea3e4eb122833cb377c61439ca401b770f54902b806779"
 dependencies = [
  "backtrace",
  "bytes",

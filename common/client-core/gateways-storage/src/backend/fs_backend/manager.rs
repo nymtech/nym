@@ -7,12 +7,12 @@ use crate::{
         RawActiveGateway, RawCustomGatewayDetails, RawRegisteredGateway, RawRemoteGatewayDetails,
     },
 };
-use log::{debug, error};
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
 use std::path::Path;
+use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct StorageManager {
@@ -87,7 +87,7 @@ impl StorageManager {
         sqlx::query!("SELECT EXISTS (SELECT 1 FROM registered_gateway WHERE gateway_id_bs58 = ?) AS 'exists'", gateway_id)
             .fetch_one(&self.connection_pool)
             .await
-            .map(|result| result.exists == Some(1))
+            .map(|result| result.exists == 1)
     }
 
     pub(crate) async fn maybe_get_registered_gateway(

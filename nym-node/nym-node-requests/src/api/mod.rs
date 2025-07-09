@@ -1,14 +1,15 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::api::v1::node::models::{LegacyHostInformation, LegacyHostInformationV2};
+use crate::api::v1::node::models::{
+    LegacyHostInformationV1, LegacyHostInformationV2, LegacyHostInformationV3,
+};
 use crate::error::Error;
 use nym_crypto::asymmetric::ed25519;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
-use utoipa::ToSchema;
 
 #[cfg(feature = "client")]
 pub mod client;
@@ -20,7 +21,7 @@ pub use client::Client;
 // create the type alias manually if openapi is not enabled
 pub type SignedHostInformation = SignedData<crate::api::v1::node::models::HostInformation>;
 
-#[derive(ToSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SignedDataHostInfo {
     // #[serde(flatten)]
     pub data: crate::api::v1::node::models::HostInformation,
@@ -40,6 +41,7 @@ impl<T> SignedData<T> {
         T: Serialize,
     {
         let plaintext = serde_json::to_string(&data)?;
+
         let signature = key.sign(plaintext).to_base58_string();
         Ok(SignedData { data, signature })
     }
@@ -66,9 +68,29 @@ impl SignedHostInformation {
             return true;
         }
 
+        // TODO: @JS: to remove downgrade support in future release(s)
+
+        let legacy_v3 = SignedData {
+            data: LegacyHostInformationV3::from(self.data.clone()),
+            signature: self.signature.clone(),
+        };
+
+        if legacy_v3.verify(&self.keys.ed25519_identity) {
+            return true;
+        }
+
         // attempt to verify legacy signatures
+        let legacy_v3 = SignedData {
+            data: LegacyHostInformationV3::from(self.data.clone()),
+            signature: self.signature.clone(),
+        };
+
+        if legacy_v3.verify(&self.keys.ed25519_identity) {
+            return true;
+        }
+
         let legacy_v2 = SignedData {
-            data: LegacyHostInformationV2::from(self.data.clone()),
+            data: LegacyHostInformationV2::from(legacy_v3.data),
             signature: self.signature.clone(),
         };
 
@@ -77,7 +99,7 @@ impl SignedHostInformation {
         }
 
         SignedData {
-            data: LegacyHostInformation::from(legacy_v2.data),
+            data: LegacyHostInformationV1::from(legacy_v2.data),
             signature: self.signature.clone(),
         }
         .verify(&self.keys.ed25519_identity)
@@ -103,10 +125,14 @@ impl Display for ErrorResponse {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use crate::api::v1::node::models::{HostKeys, SphinxKey};
     use nym_crypto::asymmetric::{ed25519, x25519};
+    use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]
@@ -114,15 +140,27 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
-        let x25519_noise = x25519::KeyPair::new(&mut rng);
+        let x25519_sphinx2 = x25519::KeyPair::new(&mut rng);
+        let x25519_versioned_noise = VersionedNoiseKey {
+            supported_version: NoiseVersion::V1,
+            x25519_pubkey: *x25519::KeyPair::new(&mut rng).public_key(),
+        };
 
+        let current_rotation_id = 1234;
+
+        // no pre-announced keys
         let host_info = crate::api::v1::node::models::HostInformation {
             ip_address: vec!["1.1.1.1".parse().unwrap()],
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
                 x25519_sphinx: *x25519_sphinx.public_key(),
-                x25519_noise: None,
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: current_rotation_id,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: None,
             },
         };
 
@@ -136,7 +174,12 @@ mod tests {
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: *ed22519.public_key(),
                 x25519_sphinx: *x25519_sphinx.public_key(),
-                x25519_noise: Some(*x25519_noise.public_key()),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: current_rotation_id,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: Some(x25519_versioned_noise),
             },
         };
 
@@ -144,6 +187,146 @@ mod tests {
             SignedHostInformation::new(host_info_with_noise, ed22519.private_key()).unwrap();
         assert!(signed_info.verify(ed22519.public_key()));
         assert!(signed_info.verify_host_information());
+
+        // with pre-announced keys
+        let host_info = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: current_rotation_id,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: Some(SphinxKey {
+                    rotation_id: current_rotation_id + 1,
+                    public_key: *x25519_sphinx2.public_key(),
+                }),
+                x25519_versioned_noise: None,
+            },
+        };
+
+        let signed_info = SignedHostInformation::new(host_info, ed22519.private_key()).unwrap();
+        assert!(signed_info.verify(ed22519.public_key()));
+        assert!(signed_info.verify_host_information());
+
+        let host_info_with_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: current_rotation_id,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: Some(SphinxKey {
+                    rotation_id: current_rotation_id + 1,
+                    public_key: *x25519_sphinx2.public_key(),
+                }),
+                x25519_versioned_noise: Some(x25519_versioned_noise),
+            },
+        };
+
+        let signed_info =
+            SignedHostInformation::new(host_info_with_noise, ed22519.private_key()).unwrap();
+        assert!(signed_info.verify(ed22519.public_key()));
+        assert!(signed_info.verify_host_information());
+    }
+
+    #[test]
+    fn dummy_legacy_v3_signed_host_verification() {
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let ed22519 = ed25519::KeyPair::new(&mut rng);
+        let x25519_sphinx = x25519::KeyPair::new(&mut rng);
+        let x25519_noise = x25519::KeyPair::new(&mut rng);
+
+        let legacy_info_no_noise = crate::api::v1::node::models::LegacyHostInformationV3 {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::LegacyHostKeysV3 {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: None,
+            },
+        };
+
+        // note the usage of u32::max rotation id (as that's what the legacy data would be deserialised into)
+        let current_struct = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: u32::MAX,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: None,
+            },
+        };
+
+        // signature on legacy data
+        let signature = SignedData::new(legacy_info_no_noise, ed22519.private_key())
+            .unwrap()
+            .signature;
+
+        // signed blob with the 'current' structure
+        let current_struct = SignedData {
+            data: current_struct,
+            signature,
+        };
+
+        assert!(!current_struct.verify(ed22519.public_key()));
+        assert!(current_struct.verify_host_information());
+
+        // //technically this variant should never happen
+        let legacy_info_noise = crate::api::v1::node::models::LegacyHostInformationV3 {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::LegacyHostKeysV3 {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: Some(*x25519_noise.public_key()),
+            },
+        };
+
+        // note the usage of u32::max rotation id (as that's what the legacy data would be deserialised into)
+        let current_struct_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: u32::MAX,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: Some(VersionedNoiseKey {
+                    supported_version: NoiseVersion::V1,
+                    x25519_pubkey: legacy_info_noise.keys.x25519_noise.unwrap(),
+                }),
+            },
+        };
+
+        // signature on legacy data
+
+        let signature_noise = SignedData::new(legacy_info_noise, ed22519.private_key())
+            .unwrap()
+            .signature;
+
+        // signed blob with the 'current' structure
+
+        let current_struct_noise = SignedData {
+            data: current_struct_noise,
+            signature: signature_noise,
+        };
+
+        assert!(!current_struct_noise.verify(ed22519.public_key()));
+        assert!(current_struct_noise.verify_host_information())
     }
 
     #[test]
@@ -173,23 +356,38 @@ mod tests {
             },
         };
 
+        // note the usage of u32::max rotation id (as that's what the legacy data would be deserialised into)
         let host_info_no_noise = crate::api::v1::node::models::HostInformation {
             ip_address: legacy_info_no_noise.ip_address.clone(),
             hostname: legacy_info_no_noise.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info_no_noise.keys.ed25519_identity.parse().unwrap(),
-                x25519_sphinx: legacy_info_no_noise.keys.x25519_sphinx.parse().unwrap(),
-                x25519_noise: None,
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: u32::MAX,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: None,
             },
         };
 
+        // note the usage of u32::max rotation id (as that's what the legacy data would be deserialised into)
         let host_info_noise = crate::api::v1::node::models::HostInformation {
             ip_address: legacy_info_noise.ip_address.clone(),
             hostname: legacy_info_noise.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info_noise.keys.ed25519_identity.parse().unwrap(),
-                x25519_sphinx: legacy_info_noise.keys.x25519_sphinx.parse().unwrap(),
-                x25519_noise: Some(legacy_info_noise.keys.x25519_noise.parse().unwrap()),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: u32::MAX,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: Some(VersionedNoiseKey {
+                    supported_version: NoiseVersion::V1,
+                    x25519_pubkey: legacy_info_noise.keys.x25519_noise.parse().unwrap(),
+                }),
             },
         };
 
@@ -216,33 +414,38 @@ mod tests {
         assert!(!current_struct_no_noise.verify(ed22519.public_key()));
         assert!(current_struct_no_noise.verify_host_information());
 
-        // if noise key is present, the signature is actually valid
-        assert!(current_struct_noise.verify(ed22519.public_key()));
+        assert!(!current_struct_noise.verify(ed22519.public_key()));
         assert!(current_struct_noise.verify_host_information())
     }
 
     #[test]
-    fn dummy_legacy_signed_host_verification() {
+    fn dummy_legacy_v1_signed_host_verification() {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
 
-        let legacy_info = crate::api::v1::node::models::LegacyHostInformation {
+        let legacy_info = crate::api::v1::node::models::LegacyHostInformationV1 {
             ip_address: vec!["1.1.1.1".parse().unwrap()],
             hostname: Some("foomp.com".to_string()),
-            keys: crate::api::v1::node::models::LegacyHostKeys {
+            keys: crate::api::v1::node::models::LegacyHostKeysV1 {
                 ed25519: ed22519.public_key().to_base58_string(),
                 x25519: x25519_sphinx.public_key().to_base58_string(),
             },
         };
 
+        // note the usage of u32::max rotation id (as that's what the legacy data would be deserialised into)
         let host_info = crate::api::v1::node::models::HostInformation {
             ip_address: legacy_info.ip_address.clone(),
             hostname: legacy_info.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
                 ed25519_identity: legacy_info.keys.ed25519.parse().unwrap(),
-                x25519_sphinx: legacy_info.keys.x25519.parse().unwrap(),
-                x25519_noise: None,
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                primary_x25519_sphinx_key: SphinxKey {
+                    rotation_id: u32::MAX,
+                    public_key: *x25519_sphinx.public_key(),
+                },
+                pre_announced_x25519_sphinx_key: None,
+                x25519_versioned_noise: None,
             },
         };
 

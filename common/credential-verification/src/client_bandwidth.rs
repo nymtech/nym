@@ -73,7 +73,7 @@ impl ClientBandwidth {
         false
     }
 
-    pub(crate) async fn available(&self) -> i64 {
+    pub async fn available(&self) -> i64 {
         self.inner.read().await.bandwidth.bytes
     }
 

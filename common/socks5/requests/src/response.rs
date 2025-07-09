@@ -213,7 +213,7 @@ impl Socks5ResponseContent {
                 let query_bytes: Vec<u8> = make_bincode_serializer()
                     .serialize(&query)
                     .tap_err(|err| {
-                        log::error!("Failed to serialize query response: {:?}: {err}", query);
+                        log::error!("Failed to serialize query response: {query:?}: {err}");
                     })
                     .unwrap_or_default();
                 std::iter::once(ResponseFlag::Query as u8)

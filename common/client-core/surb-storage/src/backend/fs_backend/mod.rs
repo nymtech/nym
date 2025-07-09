@@ -3,18 +3,16 @@
 
 use crate::backend::fs_backend::manager::StorageManager;
 use crate::backend::fs_backend::models::{
-    ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
+    ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSurbSender,
 };
 use crate::surb_storage::ReceivedReplySurbs;
-use crate::{
-    CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
-};
+use crate::{CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys};
 use async_trait::async_trait;
-use log::{debug, error, info, warn};
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
+use tracing::{error, info, warn};
 
 pub use self::error::StorageError;
 
@@ -52,10 +50,7 @@ impl Backend {
         Ok(backend)
     }
 
-    pub async fn try_load<P: AsRef<Path>>(
-        database_path: P,
-        fresh_sender_tags: bool,
-    ) -> Result<Self, StorageError> {
+    pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
         let owned_path: PathBuf = database_path.as_ref().into();
         if owned_path.file_name().is_none() {
             return Err(StorageError::DatabasePathWithoutFilename {
@@ -71,8 +66,8 @@ impl Backend {
             return Err(StorageError::IncompleteDataFlush);
         }
 
-        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
-        if last_flush_timestamp == 0 {
+        let last_flush = manager.get_previous_flush_time().await?;
+        if last_flush == OffsetDateTime::UNIX_EPOCH {
             // either this client has been running since 1970 or the flush failed
             return Err(StorageError::IncompleteDataFlush);
         }
@@ -92,15 +87,6 @@ impl Backend {
             return Err(err.into());
         }
 
-        let last_flush = match OffsetDateTime::from_unix_timestamp(last_flush_timestamp) {
-            Ok(last_flush) => last_flush,
-            Err(err) => {
-                return Err(StorageError::CorruptedData {
-                    details: format!("failed to parse stored timestamp - {err}"),
-                });
-            }
-        };
-
         // in theory clients can use our reply surbs whenever they want, even a year in the future
         // (assuming no key rotation has happened)
         // but the way it's currently coded, everyone will purge old data
@@ -116,14 +102,6 @@ impl Backend {
         if days > 1 {
             info!("it's been over {days} days and {hours} hours since we last used our data store. our reply keys are already outdated - we're going to purge them now.");
             manager.delete_all_reply_keys().await?;
-        }
-
-        if days > 2 {
-            info!("it's been over {days} days and {hours} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.");
-            manager.delete_all_tags().await?;
-        } else if fresh_sender_tags {
-            debug!("starting with fresh sender tags");
-            manager.delete_all_tags().await?;
         }
 
         Ok(Backend {
@@ -177,7 +155,7 @@ impl Backend {
 
     async fn end_storage_flush(&self) -> Result<(), StorageError> {
         self.manager
-            .set_previous_flush_timestamp(OffsetDateTime::now_utc().unix_timestamp())
+            .set_previous_flush(OffsetDateTime::now_utc())
             .await?;
         Ok(self.manager.set_flush_status(false).await?)
     }
@@ -188,29 +166,6 @@ impl Backend {
 
     async fn stop_client_use(&self) -> Result<(), StorageError> {
         Ok(self.manager.set_client_in_use_status(false).await?)
-    }
-
-    async fn get_stored_tags(&self) -> Result<UsedSenderTags, StorageError> {
-        let stored = self.manager.get_tags().await?;
-
-        // stop at the first instance of corruption. if even a single entry is malformed,
-        // something weird has happened and we can't trust the rest of the data
-        let raw = stored
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<_, _>>()?;
-
-        Ok(UsedSenderTags::from_raw(raw))
-    }
-
-    async fn dump_sender_tags(&self, tags: &UsedSenderTags) -> Result<(), StorageError> {
-        for map_ref in tags.as_raw_iter() {
-            let (recipient, tag) = map_ref.pair();
-            self.manager
-                .insert_tag(StoredSenderTag::new(*recipient, *tag))
-                .await?;
-        }
-        Ok(())
     }
 
     async fn get_stored_reply_keys(&self) -> Result<SentReplyKeys, StorageError> {
@@ -236,14 +191,17 @@ impl Backend {
         Ok(())
     }
 
-    async fn get_stored_reply_surbs(&self) -> Result<ReceivedReplySurbsMap, StorageError> {
+    async fn get_stored_reply_surbs(
+        &self,
+        surb_freshness_cutoff: OffsetDateTime,
+    ) -> Result<ReceivedReplySurbsMap, StorageError> {
         let surb_senders = self.manager.get_surb_senders().await?;
 
         let metadata = self.get_reply_surb_storage_metadata().await?;
         let mut received_surbs = Vec::with_capacity(surb_senders.len());
         for sender in surb_senders {
             let sender_id = sender.id;
-            let (sender_tag, surbs_last_received_at_timestamp): (AnonymousSenderTag, i64) =
+            let (sender_tag, surbs_last_received_at): (AnonymousSenderTag, OffsetDateTime) =
                 sender.try_into()?;
             let stored_surbs = self
                 .manager
@@ -255,15 +213,17 @@ impl Backend {
 
             received_surbs.push((
                 sender_tag,
-                ReceivedReplySurbs::new_retrieved(stored_surbs, surbs_last_received_at_timestamp),
+                ReceivedReplySurbs::new_retrieved(stored_surbs, surbs_last_received_at),
             ))
         }
 
-        Ok(ReceivedReplySurbsMap::from_raw(
+        let received_surbs = ReceivedReplySurbsMap::from_raw(
             metadata.min_reply_surb_threshold as usize,
             metadata.max_reply_surb_threshold as usize,
             received_surbs,
-        ))
+        );
+        received_surbs.drop_stale_loaded_surbs(surb_freshness_cutoff);
+        Ok(received_surbs)
     }
 
     async fn dump_reply_surbs(
@@ -284,6 +244,14 @@ impl Backend {
                 self.manager
                     .insert_reply_surb(StoredReplySurb::new(sender_id, reply_surb))
                     .await?
+            }
+
+            // TODO: should we also retain the stale ones?
+            if received_surbs.possibly_stale_left() != 0 {
+                warn!(
+                    "dropping {} possibly stale surbs for {tag}",
+                    received_surbs.possibly_stale_left()
+                );
             }
         }
         Ok(())
@@ -328,7 +296,6 @@ impl ReplyStorageBackend for Backend {
         self.rotate().await?;
         self.start_storage_flush().await?;
 
-        self.dump_sender_tags(storage.tags_storage_ref()).await?;
         self.dump_sender_reply_keys(storage.key_storage_ref())
             .await?;
         let surbs_ref = storage.surbs_storage_ref();
@@ -345,12 +312,14 @@ impl ReplyStorageBackend for Backend {
             .await
     }
 
-    async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
+    async fn load_surb_storage(
+        &self,
+        surb_freshness_cutoff: OffsetDateTime,
+    ) -> Result<CombinedReplyStorage, Self::StorageError> {
         let reply_keys = self.get_stored_reply_keys().await?;
-        let tags = self.get_stored_tags().await?;
-        let reply_surbs = self.get_stored_reply_surbs().await?;
+        let reply_surbs = self.get_stored_reply_surbs(surb_freshness_cutoff).await?;
 
-        Ok(CombinedReplyStorage::load(reply_keys, reply_surbs, tags))
+        Ok(CombinedReplyStorage::load(reply_keys, reply_surbs))
     }
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {

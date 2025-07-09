@@ -57,5 +57,5 @@ pub async fn vesting_update_config(args: Args, client: SigningClient) {
         .await
         .expect("updating vesting gateway config");
 
-    info!("gateway config updated: {:?}", res)
+    info!("gateway config updated: {res:?}")
 }

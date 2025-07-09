@@ -1,0 +1,2 @@
+.mode columns
+.headers on

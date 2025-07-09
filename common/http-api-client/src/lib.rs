@@ -136,29 +136,33 @@
 //! ```
 #![warn(missing_docs)]
 
-pub use reqwest::{IntoUrl, StatusCode};
+pub use reqwest::StatusCode;
 
 use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::header::CONTENT_TYPE;
 use http::HeaderMap;
+use itertools::Itertools;
 use mime::Mime;
 use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
-use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
-#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
+#[cfg(feature = "tunneling")]
+mod fronted;
+mod url;
+pub use url::{IntoUrl, Url};
 mod user_agent;
 pub use user_agent::UserAgent;
 
@@ -244,207 +248,6 @@ impl HttpClientError {
             HttpClientError::EndpointFailure { status, .. } => Some(*status),
             _ => None,
         }
-    }
-}
-
-/// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
-/// and state tracked across subsequent requests.
-pub struct ClientBuilder {
-    url: Url,
-    timeout: Option<Duration>,
-    custom_user_agent: bool,
-    reqwest_client_builder: reqwest::ClientBuilder,
-    #[allow(dead_code)] // not dead code, just unused in wasm
-    use_secure_dns: bool,
-}
-
-impl ClientBuilder {
-    /// Constructs a new `ClientBuilder`.
-    ///
-    /// This is the same as `Client::builder()`.
-    pub fn new<U, E>(url: U) -> Result<Self, HttpClientError<E>>
-    where
-        U: IntoUrl,
-        E: Display,
-    {
-        let str_url = url.as_str();
-
-        // a naive check: if the provided URL does not start with http(s), add that scheme
-        if !str_url.starts_with("http") {
-            let alt = format!("http://{str_url}");
-            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
-            // TODO: or should we maybe default to https?
-            Self::new(alt)
-        } else {
-            Ok(Self::new_with_url(url.into_url()?))
-        }
-    }
-
-    /// Constructs a new http `ClientBuilder` from a valid url.
-    pub fn new_with_url(url: Url) -> Self {
-        if !url.scheme().starts_with("http") {
-            warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        let reqwest_client_builder = reqwest::ClientBuilder::new();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client_builder = {
-            // Note: I believe the manual enable calls for the compression methods are extra
-            // as the various compression features for `reqwest` crate should be enabled
-            // just by including the feature which:
-            // `"Enable[s] auto decompression by checking the Content-Encoding response header."`
-            //
-            // I am going to leave these here anyways so that removing a decompression method
-            // from the features list will throw an error if it is not also removed here.
-            reqwest::ClientBuilder::new()
-                .gzip(true)
-                .deflate(true)
-                .brotli(true)
-                .zstd(true)
-        };
-
-        ClientBuilder {
-            url,
-            timeout: None,
-            custom_user_agent: false,
-            reqwest_client_builder,
-            use_secure_dns: true,
-        }
-    }
-
-    /// Enables a total request timeout other than the default.
-    ///
-    /// The timeout is applied from when the request starts connecting until the response body has finished. Also considered a total deadline.
-    ///
-    /// Default is [`DEFAULT_TIMEOUT`].
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = Some(timeout);
-        self
-    }
-
-    /// Provide a pre-configured [`reqwest::ClientBuilder`]
-    pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
-        self.reqwest_client_builder = reqwest_builder;
-        self
-    }
-
-    /// Sets the `User-Agent` header to be used by this client.
-    pub fn with_user_agent<V>(mut self, value: V) -> Self
-    where
-        V: TryInto<HeaderValue>,
-        V::Error: Into<http::Error>,
-    {
-        self.custom_user_agent = true;
-        self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
-        self
-    }
-
-    /// Override DNS resolution for specific domains to particular IP addresses.
-    ///
-    /// Set the port to `0` to use the conventional port for the given scheme (e.g. 80 for http).
-    /// Ports in the URL itself will always be used instead of the port in the overridden addr.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn resolve_to_addrs(mut self, domain: &str, addrs: &[SocketAddr]) -> ClientBuilder {
-        self.reqwest_client_builder = self.reqwest_client_builder.resolve_to_addrs(domain, addrs);
-        self
-    }
-
-    /// Returns a Client that uses this ClientBuilder configuration.
-    pub fn build<E>(self) -> Result<Client, HttpClientError<E>>
-    where
-        E: Display,
-    {
-        #[cfg(target_arch = "wasm32")]
-        let reqwest_client = self.reqwest_client_builder.build()?;
-
-        // TODO: we should probably be propagating the error rather than panicking,
-        // but that'd break bunch of things due to type changes
-        #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client = {
-            let mut builder = self
-                .reqwest_client_builder
-                .timeout(self.timeout.unwrap_or(DEFAULT_TIMEOUT));
-
-            // if no custom user agent was set, use a default
-            if !self.custom_user_agent {
-                builder =
-                    builder.user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
-            }
-
-            // unless explicitly disabled use the DoT/DoH enabled resolver
-            if self.use_secure_dns {
-                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
-            }
-
-            builder.build()?
-        };
-
-        Ok(Client {
-            base_url: self.url,
-            reqwest_client,
-
-            #[cfg(target_arch = "wasm32")]
-            request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
-        })
-    }
-}
-
-/// A simple extendable client wrapper for http request with extra url sanitization.
-#[derive(Debug, Clone)]
-pub struct Client {
-    base_url: Url,
-    reqwest_client: reqwest::Client,
-
-    #[cfg(target_arch = "wasm32")]
-    request_timeout: Duration,
-}
-
-impl Client {
-    /// Create a new http `Client`
-    // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
-    //
-    // In order to prevent interference in API requests at the DNS phase we default to a resolver
-    // that uses DoT and DoH.
-    pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
-        Self::new_url::<_, String>(base_url, timeout).expect(
-            "we provided valid url and we were unwrapping previous construction errors anyway",
-        )
-    }
-
-    /// Attempt to create a new http client from a something that can be converted to a URL
-    pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
-    where
-        U: IntoUrl,
-        E: Display,
-    {
-        let builder = Self::builder(url)?;
-        match timeout {
-            Some(timeout) => builder.with_timeout(timeout).build(),
-            None => builder.build(),
-        }
-    }
-
-    /// Creates a [`ClientBuilder`] to configure a [`Client`].
-    ///
-    /// This is the same as [`ClientBuilder::new()`].
-    pub fn builder<U, E>(url: U) -> Result<ClientBuilder, HttpClientError<E>>
-    where
-        U: IntoUrl,
-        E: Display,
-    {
-        ClientBuilder::new(url)
-    }
-
-    /// Update the host that this client uses when sending API requests.
-    pub fn change_base_url(&mut self, new_url: Url) {
-        self.base_url = new_url
-    }
-
-    /// Get the currently configured host that this client uses when sending API requests.
-    pub fn current_url(&self) -> &Url {
-        &self.base_url
     }
 }
 
@@ -548,6 +351,366 @@ pub trait ApiClientCore {
     }
 }
 
+/// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
+/// and state tracked across subsequent requests.
+pub struct ClientBuilder {
+    urls: Vec<Url>,
+
+    timeout: Option<Duration>,
+    custom_user_agent: bool,
+    reqwest_client_builder: reqwest::ClientBuilder,
+    #[allow(dead_code)] // not dead code, just unused in wasm
+    use_secure_dns: bool,
+
+    #[cfg(feature = "tunneling")]
+    front: Option<fronted::Front>,
+
+    retry_limit: usize,
+}
+
+impl ClientBuilder {
+    /// Constructs a new `ClientBuilder`.
+    ///
+    /// This is the same as `Client::builder()`.
+    pub fn new<U, E>(url: U) -> Result<Self, HttpClientError<E>>
+    where
+        U: IntoUrl,
+        E: Display,
+    {
+        let str_url = url.as_str();
+
+        // a naive check: if the provided URL does not start with http(s), add that scheme
+        if !str_url.starts_with("http") {
+            let alt = format!("http://{str_url}");
+            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
+            // TODO: or should we maybe default to https?
+            Self::new(alt)
+        } else {
+            let url = url.to_url()?;
+            Ok(Self::new_with_urls(vec![url]))
+        }
+    }
+
+    /// Constructs a new http `ClientBuilder` from a valid url.
+    pub fn new_with_urls(urls: Vec<Url>) -> Self {
+        let urls = Self::check_urls(urls);
+
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client_builder = reqwest::ClientBuilder::new();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client_builder = {
+            // Note: I believe the manual enable calls for the compression methods are extra
+            // as the various compression features for `reqwest` crate should be enabled
+            // just by including the feature which:
+            // `"Enable[s] auto decompression by checking the Content-Encoding response header."`
+            //
+            // I am going to leave these here anyways so that removing a decompression method
+            // from the features list will throw an error if it is not also removed here.
+            reqwest::ClientBuilder::new()
+                .gzip(true)
+                .deflate(true)
+                .brotli(true)
+                .zstd(true)
+        };
+
+        ClientBuilder {
+            urls,
+            timeout: None,
+            custom_user_agent: false,
+            reqwest_client_builder,
+            use_secure_dns: true,
+            #[cfg(feature = "tunneling")]
+            front: None,
+
+            retry_limit: 0,
+        }
+    }
+
+    /// Add an additional URL to the set usable by this constructed `Client`
+    pub fn add_url(mut self, url: Url) -> Self {
+        self.urls.push(url);
+        self
+    }
+
+    fn check_urls(mut urls: Vec<Url>) -> Vec<Url> {
+        // remove any duplicate URLs
+        urls = urls.into_iter().unique().collect();
+
+        // warn about any invalid URLs
+        urls.iter()
+            .filter(|url| !url.scheme().contains("http") && !url.scheme().contains("https"))
+            .for_each(|url| {
+                warn!("the provided url ('{url}') does not use HTTP / HTTPS scheme");
+            });
+
+        urls
+    }
+
+    /// Enables a total request timeout other than the default.
+    ///
+    /// The timeout is applied from when the request starts connecting until the response body has finished. Also considered a total deadline.
+    ///
+    /// Default is [`DEFAULT_TIMEOUT`].
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    /// Sets the maximum number of retries for a request. This defaults to 0, indicating no retries.
+    ///
+    /// Note that setting a retry limit of 3 (for example) will result in 4 attempts to send the
+    /// request in the case that all are unsuccessful.
+    ///
+    /// If multiple urls (or fronting configurations if enabled) are available, retried requests
+    /// will be sent to the next URL in the list.
+    pub fn with_retries(mut self, retry_limit: usize) -> Self {
+        self.retry_limit = retry_limit;
+        self
+    }
+
+    /// Provide a pre-configured [`reqwest::ClientBuilder`]
+    pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
+        self.reqwest_client_builder = reqwest_builder;
+        self
+    }
+
+    /// Sets the `User-Agent` header to be used by this client.
+    pub fn with_user_agent<V>(mut self, value: V) -> Self
+    where
+        V: TryInto<HeaderValue>,
+        V::Error: Into<http::Error>,
+    {
+        self.custom_user_agent = true;
+        self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
+        self
+    }
+
+    /// Override DNS resolution for specific domains to particular IP addresses.
+    ///
+    /// Set the port to `0` to use the conventional port for the given scheme (e.g. 80 for http).
+    /// Ports in the URL itself will always be used instead of the port in the overridden addr.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn resolve_to_addrs(mut self, domain: &str, addrs: &[SocketAddr]) -> ClientBuilder {
+        self.reqwest_client_builder = self.reqwest_client_builder.resolve_to_addrs(domain, addrs);
+        self
+    }
+
+    /// Returns a Client that uses this ClientBuilder configuration.
+    pub fn build<E>(self) -> Result<Client, HttpClientError<E>>
+    where
+        E: Display,
+    {
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client = self.reqwest_client_builder.build()?;
+
+        // TODO: we should probably be propagating the error rather than panicking,
+        // but that'd break bunch of things due to type changes
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client = {
+            let mut builder = self
+                .reqwest_client_builder
+                .timeout(self.timeout.unwrap_or(DEFAULT_TIMEOUT));
+
+            // if no custom user agent was set, use a default
+            if !self.custom_user_agent {
+                builder =
+                    builder.user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
+            }
+
+            // unless explicitly disabled use the DoT/DoH enabled resolver
+            if self.use_secure_dns {
+                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+            }
+
+            builder.build()?
+        };
+
+        let client = Client {
+            base_urls: self.urls,
+            current_idx: Arc::new(AtomicUsize::new(0)),
+            reqwest_client,
+
+            #[cfg(feature = "tunneling")]
+            front: self.front,
+
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
+            retry_limit: self.retry_limit,
+        };
+
+        Ok(client)
+    }
+}
+
+/// A simple extendable client wrapper for http request with extra url sanitization.
+#[derive(Debug, Clone)]
+pub struct Client {
+    base_urls: Vec<Url>,
+    current_idx: Arc<AtomicUsize>,
+    reqwest_client: reqwest::Client,
+
+    #[cfg(feature = "tunneling")]
+    front: Option<fronted::Front>,
+
+    #[cfg(target_arch = "wasm32")]
+    request_timeout: Duration,
+
+    retry_limit: usize,
+}
+
+impl Client {
+    /// Create a new http `Client`
+    // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
+    //
+    // In order to prevent interference in API requests at the DNS phase we default to a resolver
+    // that uses DoT and DoH.
+    pub fn new(base_url: ::url::Url, timeout: Option<Duration>) -> Self {
+        Self::new_url::<_, String>(base_url, timeout).expect(
+            "we provided valid url and we were unwrapping previous construction errors anyway",
+        )
+    }
+
+    /// Attempt to create a new http client from a something that can be converted to a URL
+    pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
+    where
+        U: IntoUrl,
+        E: Display,
+    {
+        let builder = Self::builder(url)?;
+        match timeout {
+            Some(timeout) => builder.with_timeout(timeout).build(),
+            None => builder.build(),
+        }
+    }
+
+    /// Creates a [`ClientBuilder`] to configure a [`Client`].
+    ///
+    /// This is the same as [`ClientBuilder::new()`].
+    pub fn builder<U, E>(url: U) -> Result<ClientBuilder, HttpClientError<E>>
+    where
+        U: IntoUrl,
+        E: Display,
+    {
+        ClientBuilder::new(url)
+    }
+
+    /// Update the set of hosts that this client uses when sending API requests.
+    pub fn change_base_urls(&mut self, new_urls: Vec<Url>) {
+        self.current_idx.store(0, Ordering::Relaxed);
+        self.base_urls = new_urls
+    }
+
+    /// Create new instance of `Client` using the provided base url and existing client config
+    pub fn clone_with_new_url(&self, new_url: Url) -> Self {
+        Client {
+            base_urls: vec![new_url],
+            current_idx: Arc::new(Default::default()),
+            reqwest_client: self.reqwest_client.clone(),
+
+            front: self.front.clone(),
+            retry_limit: self.retry_limit,
+
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: self.request_timeout,
+        }
+    }
+
+    /// Get the currently configured host that this client uses when sending API requests.
+    pub fn current_url(&self) -> &Url {
+        &self.base_urls[self.current_idx.load(std::sync::atomic::Ordering::Relaxed)]
+    }
+
+    /// Get the currently configured host that this client uses when sending API requests.
+    pub fn base_urls(&self) -> &[Url] {
+        &self.base_urls
+    }
+
+    /// Get a mutable reference to the hosts that this client uses when sending API requests.
+    pub fn base_urls_mut(&mut self) -> &mut [Url] {
+        &mut self.base_urls
+    }
+
+    /// Change the currently configured limit on the number of retries for a request.
+    pub fn change_retry_limit(&mut self, limit: usize) {
+        self.retry_limit = limit;
+    }
+
+    /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
+    fn update_host(&self) {
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            if front.is_enabled() {
+                // if we are using fronting, try updating to the next front
+                let url = self.current_url();
+
+                // try to update the current host to use a next front, if one is available, otherwise
+                // we move on and try the next base url (if one is available)
+                if url.has_front() && !url.update() {
+                    // we swapped to the next front for the current host
+                    return;
+                }
+            }
+        }
+
+        if self.base_urls.len() > 1 {
+            let orig = self.current_idx.load(Ordering::Relaxed);
+            let mut next = (orig + 1) % self.base_urls.len();
+
+            // if fronting is enabled we want to update to a host that has fronts configured
+            #[cfg(feature = "tunneling")]
+            if let Some(ref front) = self.front {
+                if front.is_enabled() {
+                    while next != orig {
+                        if self.base_urls[next].has_front() {
+                            // we have a front for the next host, so we can use it
+                            break;
+                        }
+
+                        next = (next + 1) % self.base_urls.len();
+                    }
+                }
+            }
+
+            self.current_idx.store(next, Ordering::Relaxed);
+        }
+    }
+
+    /// Make modifications to the request to apply the current state of this client i.e. the
+    /// currently configured host. This is required as a caller may use this client to create a
+    /// request, but then have the state of the client change before the caller uses the client to
+    /// send their request.
+    ///
+    /// This enures that the outgoing requests benefit from the configured fallback mechanisms, even
+    /// for requests that were created before the state of the client changed.
+    ///
+    /// This method assumes that any updates to the state of the client are made before the call to
+    /// this method. For example, if the client is configured to rotate hosts after each error, this
+    /// method should be called after the host has been updated -- i.e. as part of the subsequent
+    /// send.
+    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) {
+        let url = self.current_url();
+        r.url_mut().set_host(url.host_str()).unwrap();
+
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front {
+            if front.is_enabled() {
+                // this should never fail as we are transplanting the host from one url to another
+                r.url_mut().set_host(url.front_str()).unwrap();
+
+                let actual_host: HeaderValue = url
+                    .host_str()
+                    .unwrap_or("")
+                    .parse()
+                    .unwrap_or(HeaderValue::from_static(""));
+                // If the map did have this key present, the new value is associated with the key
+                // and all previous values are removed. (reqwest HeaderMap docs)
+                _ = r.headers_mut().insert(reqwest::header::HOST, actual_host);
+            }
+        }
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ApiClientCore for Client {
@@ -565,33 +728,77 @@ impl ApiClientCore for Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = sanitize_url(&self.base_url, path, params);
+        let url = self.current_url();
+        let url = sanitize_url(url, path, params);
 
-        let mut request = self.reqwest_client.request(method.clone(), url);
+        let mut req = reqwest::Request::new(method, url.into());
+
+        self.apply_hosts_to_req(&mut req);
+
+        let mut rb = RequestBuilder::from_parts(self.reqwest_client.clone(), req);
 
         if let Some(body) = json_body {
-            request = request.json(body);
+            rb = rb.json(body);
         }
 
-        request
+        rb
     }
 
     async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
     where
         E: Display,
     {
-        #[cfg(target_arch = "wasm32")]
-        {
-            Ok(
-                wasmtimer::tokio::timeout(self.request_timeout, request.send())
-                    .await
-                    .map_err(|_timeout| HttpClientError::RequestTimeout)??,
-            )
-        }
+        let mut attempts = 0;
+        loop {
+            // try_clone may fail if the body is a stream in which case using retries is not advised.
+            let r = request
+                .try_clone()
+                .ok_or(HttpClientError::GenericRequestFailure(
+                    "failed to send request".to_string(),
+                ))?;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(request.send().await?)
+            // apply any changes based on the current state of the client wrt. hosts,
+            // fronting domains, etc.
+            let mut req = r.build()?;
+            self.apply_hosts_to_req(&mut req);
+
+            #[cfg(target_arch = "wasm32")]
+            let response: Result<Response, HttpClientError<E>> = {
+                Ok(wasmtimer::tokio::timeout(
+                    self.request_timeout,
+                    self.reqwest_client.execute(req),
+                )
+                .await
+                .map_err(|_timeout| HttpClientError::RequestTimeout)??)
+            };
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let response = self.reqwest_client.execute(req).await;
+
+            match response {
+                Ok(resp) => return Ok(resp),
+                Err(e) => {
+                    // if we have multiple urls, update to the next
+                    self.update_host();
+
+                    #[cfg(feature = "tunneling")]
+                    if let Some(ref front) = self.front {
+                        // If fronting is set to be enabled on error, enable domain fronting as we
+                        // have encountered an error.
+                        front.retry_enable();
+                    }
+
+                    if attempts < self.retry_limit {
+                        warn!("Retrying request due to http error: {}", e);
+                        attempts += 1;
+                        continue;
+                    }
+
+                    // if we have exhausted our attempts, return the error
+                    #[allow(clippy::useless_conversion)] // conversion considered useless in wasm
+                    return Err(e.into());
+                }
+            }
         }
     }
 }
@@ -1049,88 +1256,4 @@ fn try_get_mime_type(headers: &HeaderMap) -> Option<Mime> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sanitizing_urls() {
-        let base_url: Url = "http://foomp.com".parse().unwrap();
-
-        // works with a full string
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, "/foo//bar/", NO_PARAMS).as_str()
-        );
-
-        // (and leading slash doesn't matter)
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, "foo//bar/", NO_PARAMS).as_str()
-        );
-
-        // works with 1 segment
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["foo"], NO_PARAMS).as_str()
-        );
-
-        // works with 2 segments
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo", "bar"], NO_PARAMS).as_str()
-        );
-
-        // works with leading slash
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["/foo"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["/foo", "bar"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo", "/bar"], NO_PARAMS).as_str()
-        );
-
-        // works with trailing slash
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["foo/"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo/", "bar"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["foo", "bar/"], NO_PARAMS).as_str()
-        );
-
-        // works with both leading and trailing slash
-        assert_eq!(
-            "http://foomp.com/foo",
-            sanitize_url(&base_url, &["/foo/"], NO_PARAMS).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar",
-            sanitize_url(&base_url, &["/foo/", "/bar/"], NO_PARAMS).as_str()
-        );
-
-        // adds params
-        assert_eq!(
-            "http://foomp.com/foo/bar?foomp=baz",
-            sanitize_url(&base_url, &["foo", "bar"], &[("foomp", "baz")]).as_str()
-        );
-        assert_eq!(
-            "http://foomp.com/foo/bar?arg1=val1&arg2=val2",
-            sanitize_url(
-                &base_url,
-                &["/foo/", "/bar/"],
-                &[("arg1", "val1"), ("arg2", "val2")]
-            )
-            .as_str()
-        );
-    }
-}
+mod tests;

@@ -55,8 +55,7 @@ async fn main() {
     // parse sender_tag: we will use this to reply to sender without needing their Nym address
     let return_recipient: AnonymousSenderTag = message[0].sender_tag.unwrap();
     println!(
-        "\nReceived the following message: {} \nfrom sender with surb bucket {}",
-        parsed, return_recipient
+        "\nReceived the following message: {parsed} \nfrom sender with surb bucket {return_recipient}"
     );
 
     // reply to self with it: note we use `send_str_reply` instead of `send_str`

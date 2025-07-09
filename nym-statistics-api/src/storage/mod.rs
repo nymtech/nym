@@ -1,12 +1,18 @@
 use anyhow::{anyhow, Result};
 use models::{ConnectionInfoDto, DailyActiveDeviceDto};
-use sqlx::{migrate::Migrator, postgres::PgConnectOptions};
-use std::str::FromStr;
+use sqlx::{
+    migrate::Migrator,
+    postgres::{PgConnectOptions, PgPoolOptions},
+    Executor,
+};
+use std::{path::PathBuf, str::FromStr};
 
 pub(crate) mod models;
 
 pub(crate) type DbPool = sqlx::PgPool;
+
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
+const SET_SEARCH_PATH: &str = "SET search_path = private_statistics_api";
 
 #[derive(Debug, Clone)]
 pub(crate) struct StatisticsStorage {
@@ -19,14 +25,31 @@ impl StatisticsStorage {
         user: String,
         password: String,
         port: u16,
+        ssl_cert_path: Option<PathBuf>,
     ) -> Result<Self> {
-        let connect_options = PgConnectOptions::from_str(&connection_url)?
+        let mut connect_options = PgConnectOptions::from_str(&connection_url)?
             .port(port)
             .username(&user)
             .password(&password)
             .application_name(nym_bin_common::bin_info!().binary_name);
 
-        let pool = sqlx::PgPool::connect_with(connect_options)
+        if let Some(ssl_cert) = ssl_cert_path {
+            connect_options = connect_options
+                .ssl_mode(sqlx::postgres::PgSslMode::Require)
+                .ssl_root_cert(ssl_cert);
+        }
+
+        // This is a custom connection so the _sqlx_migrations table is not written in the public schema
+        // It then ensures we'll only write in the given schema, allowing to have the schema name only once here
+        // Ref : https://github.com/launchbadge/sqlx/issues/1835
+        let pool = PgPoolOptions::new()
+            .after_connect(|conn, _meta| {
+                Box::pin(async move {
+                    conn.execute(SET_SEARCH_PATH).await?;
+                    Ok(())
+                })
+            })
+            .connect_with(connect_options)
             .await
             .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;
 
@@ -49,9 +72,6 @@ impl StatisticsStorage {
         Ok(())
     }
 
-    // Interestingly enough, because gateway-storage is using the `chrono` feature of sqlx and in 0.7.4 it takes priority over the `time` one, we cannot use the query! macro here.
-    // Due to features unification, the binary will not compile when built from the workspace root because it will expect `chrono` types.
-    // As a consequence, there is no compile time verification of these queries.
     async fn store_device(&self, active_device: DailyActiveDeviceDto) -> Result<()> {
         sqlx::query!(
             r#"INSERT INTO active_device (

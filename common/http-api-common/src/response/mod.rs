@@ -14,10 +14,9 @@ pub mod bincode;
 pub mod json;
 pub mod yaml;
 
+pub use bincode::Bincode;
 pub use json::Json;
 pub use yaml::Yaml;
-
-pub use bincode::Bincode;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ResponseWrapper<T> {
@@ -30,6 +29,13 @@ impl<T> ResponseWrapper<T> {
         ResponseWrapper {
             data: response,
             headers: Default::default(),
+        }
+    }
+
+    pub(crate) fn map<U, F: FnOnce(T) -> U>(self, op: F) -> ResponseWrapper<U> {
+        ResponseWrapper {
+            data: op(self.data),
+            headers: self.headers,
         }
     }
 
@@ -57,6 +63,14 @@ impl<T> FormattedResponse<T> {
             FormattedResponse::Json(inner) => inner.0.data,
             FormattedResponse::Yaml(inner) => inner.0.data,
             FormattedResponse::Bincode(inner) => inner.0.data,
+        }
+    }
+
+    pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> FormattedResponse<U> {
+        match self {
+            FormattedResponse::Json(inner) => FormattedResponse::Json(inner.map(op)),
+            FormattedResponse::Yaml(inner) => FormattedResponse::Yaml(inner.map(op)),
+            FormattedResponse::Bincode(inner) => FormattedResponse::Bincode(inner.map(op)),
         }
     }
 

@@ -25,5 +25,5 @@ pub async fn vesting_decrease_pledge(args: Args, client: SigningClient) {
         .await
         .expect("failed to vesting decrease pledge!");
 
-    info!("vesting decreasing pledge: {:?}", res);
+    info!("vesting decreasing pledge: {res:?}");
 }

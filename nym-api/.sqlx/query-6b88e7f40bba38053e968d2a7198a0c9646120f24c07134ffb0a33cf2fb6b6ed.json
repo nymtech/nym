@@ -6,7 +6,7 @@
       {
         "name": "db_id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "identity_key",
@@ -16,37 +16,37 @@
       {
         "name": "reliability: u8",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "timestamp!",
         "ordinal": 3,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "gateway_id!",
         "ordinal": 4,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "layer1_mix_id!",
         "ordinal": 5,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "layer2_mix_id!",
         "ordinal": 6,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "layer3_mix_id!",
         "ordinal": 7,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "monitor_run_id!",
         "ordinal": 8,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

@@ -6,15 +6,15 @@ use crate::{
             insert_scraped_node_description,
         },
     },
-    utils::generate_node_name,
+    utils::{generate_node_name, now_utc},
 };
 use ammonia::Builder;
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Datelike, Utc};
 use reqwest;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::time::Duration;
+use time::UtcDateTime;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDescriptionResponse {
@@ -187,8 +187,8 @@ pub async fn scrape_and_store_packet_stats(
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
-    let timestamp = Utc::now();
-    let timestamp_utc = timestamp.timestamp();
+    let timestamp = now_utc();
+    let timestamp_utc = timestamp.unix_timestamp();
     insert_node_packet_stats(pool, &node.node_kind, &stats, timestamp_utc).await?;
 
     // Update daily stats
@@ -200,13 +200,13 @@ pub async fn scrape_and_store_packet_stats(
 pub async fn update_daily_stats(
     pool: &SqlitePool,
     node: &ScraperNodeInfo,
-    timestamp: DateTime<Utc>,
+    timestamp: UtcDateTime,
     current_stats: &NodeStats,
 ) -> Result<()> {
     let date_utc = format!(
         "{:04}-{:02}-{:02}",
         timestamp.year(),
-        timestamp.month(),
+        timestamp.month() as u8,
         timestamp.day()
     );
 

@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Not, str::FromStr};
 use strum::EnumIter;
 
-mod qa;
 mod sandbox;
 
 #[allow(clippy::upper_case_acronyms)]
@@ -18,7 +17,6 @@ mod sandbox;
 )]
 #[derive(Copy, Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
-    QA,
     SANDBOX,
     MAINNET,
 }
@@ -30,7 +28,6 @@ impl Network {
 
     pub fn mix_denom(&self) -> DenomDetails {
         match self {
-            Network::QA => qa::MIX_DENOM,
             Network::SANDBOX => sandbox::MIX_DENOM,
             Network::MAINNET => mainnet::MIX_DENOM,
         }
@@ -38,7 +35,6 @@ impl Network {
 
     pub fn base_mix_denom(&self) -> &str {
         match self {
-            Network::QA => qa::MIX_DENOM.base,
             Network::SANDBOX => sandbox::MIX_DENOM.base,
             Network::MAINNET => mainnet::MIX_DENOM.base,
         }
@@ -46,7 +42,6 @@ impl Network {
 
     pub fn display_mix_denom(&self) -> &str {
         match self {
-            Network::QA => qa::MIX_DENOM.display,
             Network::SANDBOX => sandbox::MIX_DENOM.display,
             Network::MAINNET => mainnet::MIX_DENOM.display,
         }
@@ -72,7 +67,6 @@ impl fmt::Display for Network {
 impl From<Network> for NymNetworkDetails {
     fn from(network: Network) -> Self {
         match network {
-            Network::QA => qa::network_details(),
             Network::SANDBOX => sandbox::network_details(),
             Network::MAINNET => NymNetworkDetails::new_mainnet(),
         }
@@ -84,7 +78,6 @@ impl FromStr for Network {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "qa" => Ok(Network::QA),
             "sandbox" => Ok(Network::SANDBOX),
             "mainnet" => Ok(Network::MAINNET),
             _ => Err(TypesError::UnknownNetwork(s.to_string())),

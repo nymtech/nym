@@ -26,8 +26,9 @@ pub fn new_client(
     base_url: impl IntoUrl,
     bearer_token: impl Into<String>,
 ) -> Result<VpnApiClient, VpnApiClientError> {
+    let url = base_url.into_url()?;
     Ok(VpnApiClient {
-        inner: Client::builder(base_url)?
+        inner: Client::builder(url)?
             .with_user_agent(format!(
                 "nym-credential-proxy-requests/{}",
                 env!("CARGO_PKG_VERSION")

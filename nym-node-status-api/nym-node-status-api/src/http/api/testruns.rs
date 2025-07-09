@@ -1,6 +1,6 @@
 use crate::db::models::TestRunStatus;
 use crate::db::queries;
-use crate::testruns::now_utc;
+use crate::utils::{now_utc, unix_timestamp_to_utc_rfc3339};
 use crate::{
     db,
     http::{
@@ -20,6 +20,7 @@ use nym_node_status_client::{
     models::{get_testrun, submit_results},
 };
 use reqwest::StatusCode;
+use tracing::warn;
 
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs
@@ -153,16 +154,13 @@ async fn submit_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    let created_at = chrono::DateTime::from_timestamp(assigned_testrun.created_utc, 0)
-        .map(|d| d.to_rfc3339())
-        .unwrap_or_default();
+    let created_at = unix_timestamp_to_utc_rfc3339(assigned_testrun.created_utc);
     let last_assigned = assigned_testrun
         .last_assigned_utc
-        .and_then(|d| chrono::DateTime::from_timestamp(d, 0))
-        .map(|d| d.to_rfc3339())
-        .unwrap_or_default();
+        .map(unix_timestamp_to_utc_rfc3339)
+        .unwrap_or_else(|| String::from("never"));
     tracing::info!(
-        "✅ Testrun row_id {} for gateway {} complete (last assigned at {}, created at {})",
+        "✅ Testrun row_id {} for gateway {} complete (last assigned {}, created at {})",
         assigned_testrun.id,
         gw_identity,
         last_assigned,
@@ -188,12 +186,18 @@ fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResul
     Ok(())
 }
 
+static FRESHNESS_CUTOFF: time::Duration = time::Duration::minutes(1);
+
 fn is_fresh(request_time: &i64) -> HttpResult<()> {
     // if a request took longer than N minutes to reach NS API, something is very wrong
-    let freshness_cutoff = chrono::Duration::minutes(1);
-    let cutoff_timestamp = (now_utc() - freshness_cutoff).timestamp();
-    if *request_time < cutoff_timestamp {
-        tracing::warn!("Request older than {}s, rejecting", cutoff_timestamp);
+    let request_time = time::UtcDateTime::from_unix_timestamp(*request_time).map_err(|e| {
+        warn!("Failed to parse request time: {e}");
+        HttpError::unauthorized()
+    })?;
+
+    let cutoff_timestamp = now_utc() - FRESHNESS_CUTOFF;
+    if request_time < cutoff_timestamp {
+        warn!("Request older than {}s, rejecting", cutoff_timestamp);
         return Err(HttpError::unauthorized());
     }
     Ok(())

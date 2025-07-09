@@ -4,6 +4,7 @@
 use crate::backend::Empty;
 use crate::{CombinedReplyStorage, ReplyStorageBackend};
 use async_trait::async_trait;
+use time::OffsetDateTime;
 
 // well, right now we don't have the browser storage : (
 // so we keep everything in memory
@@ -38,7 +39,10 @@ impl ReplyStorageBackend for Backend {
         self.empty.init_fresh(fresh).await
     }
 
-    async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-        self.empty.load_surb_storage().await
+    async fn load_surb_storage(
+        &self,
+        surb_freshness_cutoff: OffsetDateTime,
+    ) -> Result<CombinedReplyStorage, Self::StorageError> {
+        self.empty.load_surb_storage(surb_freshness_cutoff).await
     }
 }

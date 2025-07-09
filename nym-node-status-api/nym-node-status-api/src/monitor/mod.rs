@@ -7,7 +7,7 @@ use crate::db::models::{
     NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
-use crate::monitor::geodata::{ExplorerPrettyBond, Location};
+use crate::utils::now_utc;
 use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
 use anyhow::anyhow;
 use moka::future::Cache;
@@ -29,7 +29,7 @@ use std::{
 use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
-pub(crate) use geodata::IpInfoClient;
+pub(crate) use geodata::{ExplorerPrettyBond, IpInfoClient, Location};
 pub(crate) use node_delegations::DelegationsCache;
 
 mod geodata;
@@ -132,6 +132,8 @@ impl Monitor {
             })
             .collect::<Vec<_>>();
 
+        tracing::info!("🟣 🚪 gateway nodes: {}", gateways.len());
+
         let bonded_nym_nodes = api_client
             .get_all_bonded_nym_nodes()
             .await?
@@ -148,7 +150,8 @@ impl Monitor {
             .await
             .log_error("get_all_basic_nodes")?;
 
-        tracing::info!("🟣 get_all_basic_nodes: {}", nym_nodes.len());
+        let nym_node_count = nym_nodes.len();
+        tracing::info!("🟣 get_all_basic_nodes: {}", nym_node_count);
 
         let nym_node_records =
             self.prepare_nym_node_data(nym_nodes.clone(), &bonded_nym_nodes, &described_nodes);
@@ -249,7 +252,7 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            (NYMNODE_COUNT, nym_nodes.len()),
+            (NYMNODE_COUNT, nym_node_count),
             (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
             (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
             (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
@@ -262,20 +265,20 @@ impl Monitor {
             (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
         ];
 
-        let last_updated = chrono::offset::Utc::now();
-        let last_updated_utc = last_updated.timestamp().to_string();
+        let last_updated = now_utc();
+        let last_updated_utc = last_updated.unix_timestamp().to_string();
         let network_summary = NetworkSummary {
-            total_nodes: nym_nodes.len().cast_checked()?,
+            total_nodes: nym_node_count.cast_checked()?,
             mixnodes: mixnode::MixnodeSummary {
                 bonded: mixnode::MixingNodesSummary {
                     count: assigned_mixing_count.cast_checked()?,
                     self_described: described_nodes.len().cast_checked()?,
                     legacy: count_legacy_mixnodes.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc: last_updated_utc.clone(),
                 },
                 historical: mixnode::MixnodeSummaryHistorical {
                     count: all_historical_mixnodes.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc: last_updated_utc.clone(),
                 },
             },
             gateways: gateway::GatewaySummary {
@@ -283,11 +286,11 @@ impl Monitor {
                     count: count_bonded_gateways.cast_checked()?,
                     entry: assigned_entry_count.cast_checked()?,
                     exit: assigned_exit_count.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc: last_updated_utc.clone(),
                 },
                 historical: gateway::GatewaySummaryHistorical {
                     count: all_historical_gateways.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
+                    last_updated_utc,
                 },
             },
         };
@@ -296,7 +299,7 @@ impl Monitor {
 
         let mut log_lines: Vec<String> = vec![];
         for (key, value) in nodes_summary.iter() {
-            log_lines.push(format!("{} = {}", key, value));
+            log_lines.push(format!("{key} = {value}"));
         }
 
         tracing::info!("Directory summary: \n{}", log_lines.join("\n"));
@@ -367,7 +370,7 @@ impl Monitor {
         for gateway in described_gateways {
             let identity_key = gateway.ed25519_identity_key().to_base58_string();
             let bonded = bonded_nodes.contains_key(&gateway.node_id);
-            let last_updated_utc = chrono::offset::Utc::now().timestamp();
+            let last_updated_utc = now_utc().unix_timestamp();
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
@@ -433,7 +436,7 @@ impl Monitor {
             let self_described = mixnode_described.and_then(|v| serde_json::to_string(v).ok());
             let is_dp_delegatee = delegation_program_members.contains(&mix_id);
 
-            let last_updated_utc = chrono::offset::Utc::now().timestamp();
+            let last_updated_utc = now_utc().unix_timestamp();
 
             mixnode_records.push(MixnodeRecord {
                 mix_id,
@@ -455,11 +458,7 @@ impl Monitor {
     async fn check_ipinfo_bandwidth(&self) {
         match self.ipinfo.check_remaining_bandwidth().await {
             Ok(bandwidth) => {
-                tracing::info!(
-                    "ipinfo monthly bandwidth: {}/{} spent",
-                    bandwidth.month,
-                    bandwidth.limit
-                );
+                tracing::info!("ipinfo monthly bandwidth: {} spent", bandwidth.month);
             }
             Err(err) => {
                 tracing::debug!("Couldn't check ipinfo bandwidth: {}", err);

@@ -35,7 +35,7 @@ pub(crate) async fn start_http_api(
     .await;
     let router = router_builder.with_state(state);
 
-    let bind_addr = format!("0.0.0.0:{}", http_port);
+    let bind_addr = format!("0.0.0.0:{http_port}");
     tracing::info!("Binding server to {bind_addr}");
     let server = router.build_server(bind_addr).await?;
 

@@ -49,5 +49,4 @@ pub enum Error {
     },
 }
 
-// Result type based on our error type
 pub type Result<T> = std::result::Result<T, Error>;

@@ -29,10 +29,11 @@ const DESCRIPTION_URL: &str = "/description";
 const PACKET_STATS_URL: &str = "/stats";
 
 // We need this as some of the mixnodes respond with float values for the packet statistics (?????)
-pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i64> {
+pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i32> {
     response
         .get(key)
         .and_then(|value| value.as_i64().or_else(|| value.as_f64().map(|f| f as i64)))
+        .map(|v| v as i32)
 }
 
 pub fn parse_mixnet_stats(response: serde_json::Value) -> Option<NodeStats> {
@@ -65,7 +66,7 @@ pub fn parse_mixnet_stats(response: serde_json::Value) -> Option<NodeStats> {
     None
 }
 
-pub fn calculate_packet_difference(current: i64, previous: i64) -> i64 {
+pub fn calculate_packet_difference(current: i32, previous: i32) -> i32 {
     if current >= previous {
         current - previous
     } else {

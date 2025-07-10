@@ -155,6 +155,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
 
+use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -447,6 +448,65 @@ impl ClientBuilder {
         urls
     }
 
+    /// Provide a set of static addresses to override DNS resolution for the domain(s) used by this
+    /// client.
+    ///
+    /// When there are multiple domains with separate socket addresses we need to make sure that
+    /// they are mapped properly as an incorrect mapping may break things.
+    pub fn with_resolver_overrides(
+        mut self,
+        static_addresses: Option<HashMap<String, Vec<SocketAddr>>>,
+    ) -> Self {
+        // if we have no static addresses, we don't need to do anything
+        if static_addresses.is_none() || static_addresses.as_ref().is_some_and(|s| s.is_empty()) {
+            tracing::info!(
+                "Not enabling DNS resolver overrides because static addresses are empty"
+            );
+            return self;
+        }
+
+        // if we have no URLs, we don't need to do anything
+        if self.urls.is_empty() {
+            tracing::info!("Not enabling DNS resolver overrides because URLs are empty");
+            return self;
+        }
+
+        // set static addresses for each domain in the URLs if present
+        // We already checked that static_addresses is not empty or None
+        // so we can safely unwrap it here
+        for (domain, addrs) in static_addresses.unwrap() {
+            if addrs.is_empty() {
+                tracing::warn!(
+                    "No static addresses provided for domain {domain}, skipping resolver override"
+                );
+                continue;
+            }
+
+            if self.all_domains().iter().any(|s| s == &domain) {
+                tracing::info!("Enabling DNS resolver overrides for {domain}: {addrs:?}");
+                self.reqwest_client_builder = self
+                    .reqwest_client_builder
+                    .resolve_to_addrs(&domain, &addrs);
+            }
+        }
+        self
+    }
+
+    fn all_domains(&self) -> Vec<&str> {
+        let mut domains: Vec<&str> = self.urls.iter().filter_map(|url| url.domain()).collect();
+
+        self.urls.iter().for_each(|url| {
+            if url.has_front() {
+                if let Some(fronts) = url.fronts() {
+                    // if the URL has front domains, we need to collect those as well
+                    domains.extend(fronts.iter().filter_map(|f| f.domain()));
+                }
+            }
+        });
+
+        domains
+    }
+
     /// Enables a total request timeout other than the default.
     ///
     /// The timeout is applied from when the request starts connecting until the response body has finished. Also considered a total deadline.
@@ -614,7 +674,7 @@ impl Client {
         &self.base_urls[self.current_idx.load(std::sync::atomic::Ordering::Relaxed)]
     }
 
-    /// Get the currently configured host that this client uses when sending API requests.
+    /// Get all currently configured hosts that this client can use when sending API requests.
     pub fn base_urls(&self) -> &[Url] {
         &self.base_urls
     }

@@ -238,6 +238,11 @@ impl Url {
         false
     }
 
+    /// Returns a list of the front domains (reverse proxy hosts) for this URL, if any.
+    pub fn fronts(&self) -> Option<&[url::Url]> {
+        self.fronts.as_deref()
+    }
+
     /// Return the string representation of the current front host (domain or IP address) for this
     /// URL, if any.
     pub fn front_str(&self) -> Option<&str> {

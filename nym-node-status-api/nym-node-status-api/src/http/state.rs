@@ -233,13 +233,16 @@ impl HttpCache {
                 tracing::info!("Found {} gateways in database", gateways.len());
 
                 let started_with = gateways.len();
-                let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db).await {
+                let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db)
+                    .await
+                {
                     Ok(records) => {
                         let mut nodes = HashMap::new();
                         for dto in records {
                             match SkimmedNode::try_from(dto) {
                                 Ok(skimmed_node) => {
-                                    let key = skimmed_node.ed25519_identity_pubkey.to_base58_string();
+                                    let key =
+                                        skimmed_node.ed25519_identity_pubkey.to_base58_string();
                                     nodes.insert(key, skimmed_node);
                                 }
                                 Err(err) => {
@@ -252,12 +255,14 @@ impl HttpCache {
                     }
                     Err(err) => {
                         error!("CRITICAL: Failed to query nym_nodes from database: {err}");
-                        panic!("Cannot read nym_nodes table - database connection issue? Error: {err}");
+                        panic!(
+                            "Cannot read nym_nodes table - database connection issue? Error: {err}"
+                        );
                     }
                 };
 
                 let res_gws = gateways
-                    .into_iter()
+                    .iter()
                     .filter(|gw| gw.bonded)
                     .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
                         Some(skimmed_node) => Some((gw, skimmed_node)),
@@ -270,12 +275,12 @@ impl HttpCache {
                         }
                     })
                     .filter_map(
-                        |(gw, skimmed_node)| match DVpnGateway::new(gw, skimmed_node) {
+                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node) {
                             Ok(gw) => Some(gw),
                             Err(err) => {
                                 error!(
                                     "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
-                                    skimmed_node.node_id, 
+                                    skimmed_node.node_id,
                                     skimmed_node.ed25519_identity_pubkey.to_base58_string(),
                                     err
                                 );
@@ -330,7 +335,10 @@ impl HttpCache {
                         min_node_version
                     );
                 } else {
-                    tracing::info!("Successfully loaded {} DVpn gateways into cache", res_gws.len());
+                    tracing::info!(
+                        "Successfully loaded {} DVpn gateways into cache",
+                        res_gws.len()
+                    );
                     self.upsert_dvpn_gateway_list(res_gws.clone()).await;
                 }
 

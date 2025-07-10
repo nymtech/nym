@@ -1,11 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::chain_status::LocalChainStatus;
-use crate::dealer_information::RawDealerInformation;
-use crate::signing_status::SigningStatus;
-use crate::status::{SignerStatus, SignerTestResult};
-use crate::{chain_status, signing_status, SignerResult};
+use crate::{LocalChainStatus, SigningStatus, TypedSignerResult};
+use nym_ecash_signer_check_types::dealer_information::RawDealerInformation;
+use nym_ecash_signer_check_types::status::{SignerStatus, SignerTestResult};
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::BinaryBuildInformationOwned;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
@@ -15,6 +13,23 @@ use nym_validator_client::NymApiClient;
 use std::time::Duration;
 use tracing::{error, warn};
 use url::Url;
+
+pub(crate) mod chain_status {
+
+    // Dorina
+    pub(crate) const MINIMUM_VERSION_LEGACY: semver::Version = semver::Version::new(1, 1, 51);
+
+    // Emmental
+    pub(crate) const MINIMUM_VERSION: semver::Version = semver::Version::new(1, 1, 62);
+}
+
+pub(crate) mod signing_status {
+    // Magura (possibly earlier)
+    pub(crate) const MINIMUM_LEGACY_VERSION: semver::Version = semver::Version::new(1, 1, 46);
+
+    // Emmental
+    pub(crate) const MINIMUM_VERSION: semver::Version = semver::Version::new(1, 1, 62);
+}
 
 struct ClientUnderTest {
     api_client: NymApiClient,
@@ -144,7 +159,9 @@ impl ClientUnderTest {
         // check if it supports the current query
         if self.supports_signing_status_query() {
             return match self.api_client.nym_api.get_signer_status().await {
-                Ok(response) => SigningStatus::Reachable { response },
+                Ok(response) => SigningStatus::Reachable {
+                    response: Box::new(response),
+                },
                 Err(err) => {
                     warn!(
                         "{}: failed to retrieve signer chain status: {err}",
@@ -176,7 +193,7 @@ pub(crate) async fn check_client(
     dealer_details: DealerDetails,
     dkg_epoch: u64,
     contract_share: Option<&ContractVKShare>,
-) -> SignerResult {
+) -> TypedSignerResult {
     let dealer_information = RawDealerInformation::new(&dealer_details, contract_share);
 
     // 6. attempt to construct client instances out of them

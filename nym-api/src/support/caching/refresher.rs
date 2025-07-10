@@ -60,6 +60,11 @@ pub(crate) trait CacheItemProvider {
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error>;
 }
 
+// Generics explanation:
+// T: the actual type held in the cache
+// E: Error type associated with refresh failure
+// S: data type retrieved during update operation. it must be convertible into T
+// (so that initial state could be established or when no `custom_fn` is set)
 impl<T, E, S> CacheRefresher<T, E, S>
 where
     E: std::error::Error,
@@ -107,6 +112,8 @@ where
         }
     }
 
+    /// Rather than performing default behaviour of overwriting all existing values in the cache,
+    /// provide a custom update function that will define the update behaviour.
     #[must_use]
     pub(crate) fn with_update_fn(
         mut self,

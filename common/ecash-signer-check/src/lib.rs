@@ -9,21 +9,30 @@ use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::collections::HashMap;
 use url::Url;
 
-pub use crate::status::SignerResult;
 pub use error::SignerCheckError;
+use nym_ecash_signer_check_types::status::{SignerResult, Status};
+use nym_validator_client::ecash::models::EcashSignerStatusResponse;
+use nym_validator_client::models::{
+    ChainBlocksStatusResponse, ChainStatusResponse, SignerInformationResponse,
+};
 
-pub mod chain_status;
 mod client_check;
-pub mod dealer_information;
 pub mod error;
-pub mod signing_status;
-pub mod status;
+
+pub type TypedSignerResult = SignerResult<
+    SignerInformationResponse,
+    EcashSignerStatusResponse,
+    ChainStatusResponse,
+    ChainBlocksStatusResponse,
+>;
+pub type LocalChainStatus = Status<ChainStatusResponse, ChainBlocksStatusResponse>;
+pub type SigningStatus = Status<SignerInformationResponse, EcashSignerStatusResponse>;
 
 pub async fn check_signers(
     rpc_endpoint: Url,
     // details such as denoms, prefixes, etc.
     network_details: NymNetworkDetails,
-) -> Result<Vec<SignerResult>, SignerCheckError> {
+) -> Result<Vec<TypedSignerResult>, SignerCheckError> {
     // 1. create nyx client instance
     let client = QueryHttpRpcNyxdClient::connect_with_network_details(
         rpc_endpoint.as_str(),
@@ -34,7 +43,9 @@ pub async fn check_signers(
     check_signers_with_client(&client).await
 }
 
-pub async fn check_signers_with_client<C>(client: &C) -> Result<Vec<SignerResult>, SignerCheckError>
+pub async fn check_signers_with_client<C>(
+    client: &C,
+) -> Result<Vec<TypedSignerResult>, SignerCheckError>
 where
     C: DkgQueryClient + Sync,
 {

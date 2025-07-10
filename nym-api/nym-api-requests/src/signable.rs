@@ -54,7 +54,9 @@ impl<T> SignedMessage<T> {
 // make sure only our types can implement this trait (to ensure infallible serialisation)
 pub(crate) mod sealed {
     use crate::ecash::models::*;
-    use crate::models::ChainBlocksStatusResponseBody;
+    use crate::models::{
+        ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody, SignersStatusResponseBody,
+    };
 
     pub trait Sealed {}
 
@@ -68,4 +70,6 @@ pub(crate) mod sealed {
     impl Sealed for IssuedTicketbooksDataResponseBody {}
     impl Sealed for EcashSignerStatusResponseBody {}
     impl Sealed for ChainBlocksStatusResponseBody {}
+    impl Sealed for SignersStatusResponseBody {}
+    impl Sealed for DetailedSignersStatusResponseBody {}
 }

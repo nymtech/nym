@@ -3,6 +3,7 @@
 
 use crate::network::models::{ContractInformation, NetworkDetails};
 use crate::node_status_api::models::AxumResult;
+use crate::signers_cache::handlers::signers_routes;
 use crate::support::config::CHAIN_STALL_THRESHOLD;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
@@ -31,6 +32,7 @@ pub(crate) fn nym_network_routes() -> Router<AppState> {
             "/nym-contracts-detailed",
             axum::routing::get(nym_contracts_detailed),
         )
+        .nest("/signers", signers_routes())
         .layer(CompressionLayer::new())
 }
 

@@ -42,7 +42,7 @@ pub(crate) struct GatewayInsertRecord {
 pub(crate) struct GatewayDto {
     pub(crate) gateway_identity_key: String,
     pub(crate) bonded: bool,
-    pub(crate) performance: i64,
+    pub(crate) performance: i32,
     pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_probe_result: Option<String>,

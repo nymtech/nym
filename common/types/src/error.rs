@@ -103,6 +103,7 @@ impl From<ValidatorClientError> for TypesError {
             ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured,
             ValidatorClientError::TendermintErrorRpc(err) => err.into(),
+            ValidatorClientError::ReqwestError(err) => err.into(),
         }
     }
 }

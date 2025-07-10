@@ -189,10 +189,11 @@ async fn try_get_client(
 
     for address in addresses_to_try {
         // if provided host was malformed, no point in continuing
+        // TODO: construct a client that supports multiple API URLs with fronting
         let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
             b.with_timeout(Duration::from_secs(5))
                 .no_hickory_dns()
-                .with_user_agent("nym-api-describe-cache")
+                .with_user_agent(Some("nym-api-describe-cache"))
                 .build()
         }) {
             Ok(client) => client,

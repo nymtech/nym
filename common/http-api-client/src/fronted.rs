@@ -52,12 +52,17 @@ impl Front {
     }
 }
 
+/// Policy for request tunneling (fronting).
 #[derive(Debug, Default, PartialEq, Clone)]
 #[cfg(feature = "tunneling")]
 pub enum FrontPolicy {
+    /// Always use fronting domain if available, warn if unavailable.
     Always,
+    /// Use fronting domain only if a request has failed previously and a fronting domain is
+    /// available.
     OnRetry,
     #[default]
+    /// Do not use fronting domain, even if available.
     Off,
 }
 

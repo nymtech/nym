@@ -37,7 +37,7 @@ impl NodesQuerier {
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.client
-            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
+            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone().into())
     }
 
     async fn rewarded_set(&mut self) -> Result<EpochRewardedSet, ValidatorClientError> {
@@ -170,9 +170,11 @@ impl NetworkRefresher {
         pending_check_interval: Duration,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
+        // TODO: construct a client that supports multiple API URLs with fronting
+        // - This is used by the mixnet client and as such should be able to handle multiple API URLs
         let nym_api = nym_http_api_client::Client::builder(nym_api_urls[0].clone())?
             .no_hickory_dns()
-            .with_user_agent(user_agent)
+            .with_user_agent(Some(user_agent))
             .build()?;
 
         let mut this = NetworkRefresher {

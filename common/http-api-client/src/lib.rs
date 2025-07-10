@@ -162,6 +162,8 @@ use std::sync::Arc;
 
 #[cfg(feature = "tunneling")]
 mod fronted;
+#[cfg(feature = "tunneling")]
+pub use fronted::FrontPolicy;
 mod url;
 pub use url::{IntoUrl, Url};
 mod user_agent;

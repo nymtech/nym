@@ -833,7 +833,7 @@ impl NymNode {
                 .clone()
                 .into()])
             .no_hickory_dns()
-            .with_user_agent(self.user_agent())
+            .with_user_agent(Some(self.user_agent()))
             .build::<&str>()
             {
                 Ok(b) => b,

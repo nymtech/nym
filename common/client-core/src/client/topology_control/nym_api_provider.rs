@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use log::{debug, error};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopology;
-use nym_validator_client::{nym_api, NymApiClient, UserAgent};
+use nym_validator_client::{NymApiClient, UserAgent};
 use std::cmp::min;
 use url::Url;
 

@@ -545,7 +545,6 @@ where
         let user_agent = self.user_agent.clone();
 
         let topology_cfg = &self.config.debug_config.topology;
-        let mut rng = OsRng;
         let available_gateways = gateways_for_init(
             &nym_api_endpoints,
             user_agent,

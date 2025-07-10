@@ -136,7 +136,7 @@ impl VerlocMeasurer {
         api_endpoints.shuffle(&mut thread_rng());
         for api_endpoint in api_endpoints {
             let client = NymApiClient::new_with_user_agent(
-                api_endpoint.clone(),
+                api_endpoint.clone().into(),
                 self.config.user_agent.clone(),
             );
             match client.get_all_described_nodes().await {

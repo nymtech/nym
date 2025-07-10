@@ -142,7 +142,7 @@ impl NyxdClient {
                 issuers.push(CredentialIssuer {
                     public_key,
                     operator_account: addr_to_account_id(share.owner),
-                    api_client: NymApiClient::new(api_address),
+                    api_client: NymApiClient::new(api_address.into()),
                     verification_key,
                     node_id: info.assigned_index,
                 })

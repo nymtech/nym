@@ -517,7 +517,7 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Decode, FromRow)]
 pub struct NodeStats {
-    pub packets_received: i64,
-    pub packets_sent: i64,
-    pub packets_dropped: i64,
+    pub packets_received: i32,
+    pub packets_sent: i32,
+    pub packets_dropped: i32,
 }

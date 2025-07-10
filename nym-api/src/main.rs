@@ -8,7 +8,6 @@ use ::nym_config::defaults::setup_env;
 use clap::Parser;
 use mixnet_contract_cache::cache::MixnetContractCache;
 use node_status_api::NodeStatusCache;
-use nym_bin_common::logging::setup_tracing_logger;
 use support::nyxd;
 use tracing::{info, trace};
 
@@ -34,7 +33,7 @@ async fn main() -> Result<(), anyhow::Error> {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
     } else {
-        setup_tracing_logger();
+        nym_bin_common::logging::setup_tracing_logger();
     }}
 
     info!("Starting nym api...");

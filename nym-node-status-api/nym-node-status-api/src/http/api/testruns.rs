@@ -108,8 +108,8 @@ async fn submit_testrun(
                     err
                 );
                 HttpError::invalid_input(format!(
-                    "Testrun {} not found in progress state (may be already completed or expired)",
-                    submitted_testrun_id
+                    "Testrun {submitted_testrun_id} not found in progress state (may be already completed or expired)"
+
                 ))
             })?;
     if Some(submitted_result.payload.assigned_at_utc) != assigned_testrun.last_assigned_utc {
@@ -288,10 +288,9 @@ fn is_fresh(request_time: &i64) -> HttpResult<()> {
 }
 
 fn get_result_from_log(log: &str) -> String {
-    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern")
-    });
-    
+    static RE: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern"));
+
     let result: Vec<_> = RE.splitn(log, 2).collect();
     if result.len() == 2 {
         let res = format!("{} {}", "{", result[1]).to_string();
@@ -314,8 +313,7 @@ async fn process_testrun_submission(
         );
         return Err(HttpError::invalid_input(format!(
             "Testrun timestamp mismatch: expected {:?}, got {}",
-            testrun.last_assigned_utc,
-            payload.assigned_at_utc
+            testrun.last_assigned_utc, payload.assigned_at_utc
         )));
     }
 

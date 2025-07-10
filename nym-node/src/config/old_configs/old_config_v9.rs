@@ -1417,6 +1417,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                 initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
                 maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
+                ..Default::default()
             },
         },
         storage_paths: NymNodePaths {

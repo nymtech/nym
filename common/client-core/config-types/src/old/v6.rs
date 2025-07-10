@@ -189,14 +189,13 @@ impl From<ConfigV6> for Config {
                         .debug
                         .reply_surbs
                         .maximum_reply_surb_drop_waiting_period,
-                    maximum_reply_surb_age: value.debug.reply_surbs.maximum_reply_surb_age,
                     maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
                     surb_mix_hops: value.debug.reply_surbs.surb_mix_hops,
                     minimum_reply_surb_threshold_buffer: value
                         .debug
                         .reply_surbs
                         .minimum_reply_surb_threshold_buffer,
-                    fresh_sender_tags: value.debug.reply_surbs.fresh_sender_tags,
+                    ..Default::default()
                 },
                 stats_reporting: StatsReporting {
                     enabled: value.debug.stats_reporting.enabled,

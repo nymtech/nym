@@ -5,6 +5,7 @@ use crate::CombinedReplyStorage;
 use async_trait::async_trait;
 use std::error::Error;
 use thiserror::Error;
+use time::OffsetDateTime;
 
 // TODO: this should now live inside our wasm/client-core
 pub mod browser_backend;
@@ -53,7 +54,10 @@ impl ReplyStorageBackend for Empty {
         Ok(())
     }
 
-    async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
+    async fn load_surb_storage(
+        &self,
+        _: OffsetDateTime,
+    ) -> Result<CombinedReplyStorage, Self::StorageError> {
         Ok(CombinedReplyStorage::new(
             self.min_surb_threshold,
             self.max_surb_threshold,
@@ -80,7 +84,10 @@ pub trait ReplyStorageBackend: Sized {
     /// (such as surb thresholds)
     async fn init_fresh(&mut self, fresh: &CombinedReplyStorage) -> Result<(), Self::StorageError>;
 
-    async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
+    async fn load_surb_storage(
+        &self,
+        surb_freshness_cutoff: OffsetDateTime,
+    ) -> Result<CombinedReplyStorage, Self::StorageError>;
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {
         Ok(())

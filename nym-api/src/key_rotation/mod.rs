@@ -90,8 +90,8 @@ impl KeyRotationController {
     async fn handle_contract_cache_update(&mut self) {
         let updated = self.get_contract_data().await;
 
-        info!(
-            "current rotation: {}",
+        debug!(
+            "current key rotation: {}",
             updated
                 .key_rotation_state
                 .key_rotation_id(updated.interval.current_epoch_absolute_id())

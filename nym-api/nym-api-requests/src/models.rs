@@ -18,9 +18,7 @@ use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{
-    EpochId, GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent,
-};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent};
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
@@ -42,7 +40,7 @@ use time::{Date, OffsetDateTime};
 use tracing::{error, warn};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
-pub use nym_mixnet_contract_common::KeyRotationState;
+pub use nym_mixnet_contract_common::{EpochId, KeyRotationId, KeyRotationState};
 pub use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
@@ -1483,8 +1481,43 @@ impl NodeRefreshBody {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct KeyRotationInfoResponse {
+    #[serde(flatten)]
+    pub details: KeyRotationDetails,
+
+    // helper field that holds calculated data based on the `details` field
+    // this is to expose the information in a format more easily accessible by humans
+    // without having to do any calculations
+    pub progress: KeyRotationProgressInfo,
+}
+
+impl From<KeyRotationDetails> for KeyRotationInfoResponse {
+    fn from(details: KeyRotationDetails) -> Self {
+        KeyRotationInfoResponse {
+            details,
+            progress: KeyRotationProgressInfo {
+                current_key_rotation_id: details.current_key_rotation_id(),
+                current_rotation_starting_epoch: details.current_rotation_starting_epoch_id(),
+                current_rotation_ending_epoch: details.current_rotation_starting_epoch_id()
+                    + details.key_rotation_state.validity_epochs
+                    - 1,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KeyRotationProgressInfo {
+    pub current_key_rotation_id: u32,
+
+    pub current_rotation_starting_epoch: u32,
+
+    pub current_rotation_ending_epoch: u32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KeyRotationDetails {
     pub key_rotation_state: KeyRotationState,
 
     #[schema(value_type = u32)]
@@ -1498,7 +1531,7 @@ pub struct KeyRotationInfoResponse {
     pub epoch_duration: Duration,
 }
 
-impl KeyRotationInfoResponse {
+impl KeyRotationDetails {
     pub fn current_key_rotation_id(&self) -> u32 {
         self.key_rotation_state
             .key_rotation_id(self.current_absolute_epoch_id)
@@ -1538,7 +1571,7 @@ impl KeyRotationInfoResponse {
     }
 
     // based on the current **TIME**, determine what's the expected current rotation id
-    pub fn expected_current_rotation_id(&self) -> u32 {
+    pub fn expected_current_rotation_id(&self) -> KeyRotationId {
         let now = OffsetDateTime::now_utc();
         let current_end = now + self.epoch_duration;
         if now < current_end {

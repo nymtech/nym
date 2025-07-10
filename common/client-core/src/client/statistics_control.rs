@@ -93,14 +93,14 @@ impl StatisticsControl {
             None,
         );
         if let Err(err) = self.report_tx.send(report_message).await {
-            log::error!("Failed to report client stats: {err:?}");
+            tracing::error!("Failed to report client stats: {err:?}");
         } else {
             self.stats.reset();
         }
     }
 
     async fn run(&mut self) {
-        log::debug!("Started StatisticsControl with graceful shutdown support");
+        tracing::debug!("Started StatisticsControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
         let mut stats_report_interval = tokio_stream::wrappers::IntervalStream::new(
@@ -133,13 +133,13 @@ impl StatisticsControl {
             tokio::select! {
                 biased;
                 _ = self.task_client.recv() => {
-                    log::trace!("StatisticsControl: Received shutdown");
+                    tracing::trace!("StatisticsControl: Received shutdown");
                     break;
                 },
                 stats_event = self.stats_rx.recv() => match stats_event {
                         Some(stats_event) => self.stats.handle_event(stats_event),
                         None => {
-                            log::trace!("StatisticsControl: shutting down due to closed stats channel");
+                            tracing::trace!("StatisticsControl: shutting down due to closed stats channel");
                             break;
                         }
                 },
@@ -161,7 +161,7 @@ impl StatisticsControl {
                 }
             }
         }
-        log::debug!("StatisticsControl: Exiting");
+        tracing::debug!("StatisticsControl: Exiting");
     }
 
     pub(crate) fn start(mut self) {

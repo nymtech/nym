@@ -15,8 +15,7 @@ bs58 = { workspace = true }
 clap = { workspace = true, optional = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
-humantime-serde = { workspace = true }
-log = { workspace = true }
+humantime = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -25,20 +24,18 @@ sha2 = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["macros"] }
 time = { workspace = true }
+tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
 nym-id = { path = "../nym-id" }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
-nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-http-api-client = { path = "../http-api-client" }
-nym-metrics = { path = "../nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-statistics-common = { path = "../statistics" }

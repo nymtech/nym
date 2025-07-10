@@ -9,7 +9,6 @@ use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
-use log::*;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
@@ -27,6 +26,7 @@ use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
@@ -280,7 +280,7 @@ where
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
             if !self.task_client.is_shutdown_poll() {
-                log::error!("Failed to send: {err}");
+                tracing::error!("Failed to send: {err}");
             }
         } else {
             let event = if fragment_id.is_some() {
@@ -313,7 +313,7 @@ where
     }
 
     fn on_close_connection(&mut self, connection_id: ConnectionId) {
-        log::debug!("Removing lane for connection: {connection_id}");
+        tracing::debug!("Removing lane for connection: {connection_id}");
         self.transmission_buffer
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
@@ -325,7 +325,7 @@ where
 
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
-        log::trace!(
+        tracing::trace!(
             "used_slots: {used_slots}, current_multiplier: {}",
             self.sending_delay_controller.current_multiplier()
         );
@@ -334,7 +334,7 @@ where
             .sending_delay_controller
             .is_backpressure_currently_detected(used_slots)
         {
-            log::trace!("Backpressure detected");
+            tracing::trace!("Backpressure detected");
             self.sending_delay_controller.record_backpressure_detected();
         }
 
@@ -436,7 +436,7 @@ where
                 Poll::Ready(None) => Poll::Ready(None),
 
                 Poll::Ready(Some((real_messages, conn_id))) => {
-                    log::trace!("handling real_messages: size: {}", real_messages.len());
+                    tracing::trace!("handling real_messages: size: {}", real_messages.len());
 
                     self.transmission_buffer.store(&conn_id, real_messages);
                     let real_next = self.pop_next_message().expect("Just stored one");
@@ -483,7 +483,7 @@ where
             Poll::Ready(None) => Poll::Ready(None),
 
             Poll::Ready(Some((real_messages, conn_id))) => {
-                log::trace!("handling real_messages: size: {}", real_messages.len());
+                tracing::trace!("handling real_messages: size: {}", real_messages.len());
 
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
@@ -538,11 +538,11 @@ where
         };
 
         if packets > 1000 {
-            log::warn!("{status_str}");
+            tracing::warn!("{status_str}");
         } else if packets > 0 {
-            log::info!("{status_str}");
+            tracing::info!("{status_str}");
         } else {
-            log::debug!("{status_str}");
+            tracing::debug!("{status_str}");
         }
 
         // Send status message to whoever is listening (possibly UI)
@@ -566,7 +566,7 @@ where
                 tokio::select! {
                     biased;
                     _ = shutdown.recv() => {
-                        log::trace!("OutQueueControl: Received shutdown");
+                        tracing::trace!("OutQueueControl: Received shutdown");
                         break;
                     }
                     _ = status_timer.tick() => {
@@ -575,7 +575,7 @@ where
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
                     } else {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;
                     }
                 }
@@ -589,18 +589,18 @@ where
                 tokio::select! {
                     biased;
                     _ = shutdown.recv() => {
-                        log::trace!("OutQueueControl: Received shutdown");
+                        tracing::trace!("OutQueueControl: Received shutdown");
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
                     } else {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;
                     }
                 }
             }
         }
-        log::debug!("OutQueueControl: Exiting");
+        tracing::debug!("OutQueueControl: Exiting");
     }
 }
 

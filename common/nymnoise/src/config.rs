@@ -131,7 +131,8 @@ impl NoiseConfig {
     }
 
     // Only for phased update
-    //SW This can lead to some troubles if two nodes shares the same IP and one support Noise but not the other. This in only for the progressive update though and there is no workaround
+    //SW This can lead to some troubles if two nodes share the same IP and one support Noise but not the other.
+    // This in only for the progressive update though and there is no workaround
     pub(crate) fn get_noise_support(&self, ip_addr: IpAddr) -> Option<NoiseVersion> {
         let plain_ip_support = self.network.support.inner.load().get(&ip_addr).copied();
 

@@ -349,6 +349,8 @@ impl IssuerUnderTest {
             }
         };
 
+        self.issued_commitment = Some(issued_ticketbooks.clone());
+
         // 1. check if the signature on the response matches
         if !issued_ticketbooks.verify_signature(&self.details.public_key) {
             error!("❗ RESPONSE SIGNATURE MISMATCH ❗");
@@ -374,7 +376,6 @@ impl IssuerUnderTest {
                 .merkle_root_hex()
                 .unwrap_or_default()
         );
-        self.issued_commitment = Some(issued_ticketbooks)
     }
 
     async fn issue_deposit_challenge(
@@ -428,6 +429,8 @@ impl IssuerUnderTest {
                 return;
             }
         };
+
+        self.challenge_commitment_response = Some(challenge_commitment.clone());
 
         // 2. check if the signature on the response matches
         if !challenge_commitment.verify_signature(&self.details.public_key) {
@@ -501,7 +504,6 @@ impl IssuerUnderTest {
         }
 
         info!("✅ obtained issued ticketbooks challenge commitment");
-        self.challenge_commitment_response = Some(challenge_commitment)
     }
 
     fn verify_partial_ticketbook(

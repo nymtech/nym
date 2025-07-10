@@ -10,7 +10,8 @@ use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
-use nym_topology::{HardcodedTopologyProvider, NymTopology, NymTopologyMetadata};
+use nym_topology::provider_trait::ToTopologyMetadata;
+use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -171,12 +172,10 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let nodes = nodes_response.nodes;
     let metadata = nodes_response.metadata;
 
-    Ok(NymTopology::new(
-        NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-        rewarded_set,
-        Vec::new(),
+    Ok(
+        NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+            .with_skimmed_nodes(&nodes),
     )
-    .with_skimmed_nodes(&nodes))
 }
 
 #[tokio::main]

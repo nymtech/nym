@@ -3,12 +3,12 @@
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use futures::channel::{mpsc, oneshot};
-use log::error;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use std::sync::Weak;
+use tracing::error;
 
 pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
     let (tx, rx) = mpsc::unbounded();

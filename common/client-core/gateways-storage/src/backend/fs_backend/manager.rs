@@ -7,12 +7,12 @@ use crate::{
         RawActiveGateway, RawCustomGatewayDetails, RawRegisteredGateway, RawRemoteGatewayDetails,
     },
 };
-use log::{debug, error};
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
 use std::path::Path;
+use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct StorageManager {

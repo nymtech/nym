@@ -8,7 +8,6 @@ use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use log::*;
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_gateway_client::MixnetMessageReceiver;
@@ -24,6 +23,7 @@ use nym_task::TaskClient;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tracing::*;
 
 // The interval at which we check for stale buffers
 const STALE_BUFFER_CHECK_INTERVAL: Duration = Duration::from_secs(10);
@@ -307,13 +307,15 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
             };
 
-            if let Err(err) = self.reply_controller_sender.send_additional_surbs(
-                msg.sender_tag,
-                reply_surbs,
-                from_surb_request,
-            ) {
-                if !self.task_client.is_shutdown_poll() {
-                    error!("{err}");
+            if !reply_surbs.is_empty() {
+                if let Err(err) = self.reply_controller_sender.send_additional_surbs(
+                    msg.sender_tag,
+                    reply_surbs,
+                    from_surb_request,
+                ) {
+                    if !self.task_client.is_shutdown_poll() {
+                        error!("{err}");
+                    }
                 }
             }
         }
@@ -497,20 +499,20 @@ impl<R: MessageReceiver> RequestReceiver<R> {
             tokio::select! {
                 biased;
                 _ = self.task_client.recv() => {
-                    log::trace!("RequestReceiver: Received shutdown");
+                    tracing::trace!("RequestReceiver: Received shutdown");
                 }
                 request = self.query_receiver.next() => {
                     if let Some(message) = request {
                         self.handle_message(message).await
                     } else {
-                        log::trace!("RequestReceiver: Stopping since channel closed");
+                        tracing::trace!("RequestReceiver: Stopping since channel closed");
                         break;
                     }
                 },
             }
         }
         self.task_client.recv().await;
-        log::debug!("RequestReceiver: Exiting");
+        tracing::debug!("RequestReceiver: Exiting");
     }
 }
 
@@ -541,17 +543,17 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
                     if let Some(new_messages) = new_messages {
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
-                        log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+                        tracing::trace!("FragmentedMessageReceiver: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv_with_delay() => {
-                    log::trace!("FragmentedMessageReceiver: Received shutdown");
+                    tracing::trace!("FragmentedMessageReceiver: Received shutdown");
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("FragmentedMessageReceiver: Exiting");
+        tracing::debug!("FragmentedMessageReceiver: Exiting");
         Ok(())
     }
 }

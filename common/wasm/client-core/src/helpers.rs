@@ -19,7 +19,7 @@ use nym_client_core::init::{
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::wasm_helpers::WasmFriendlyNymTopology;
-use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode};
+use nym_topology::{NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::{NymApiClient, UserAgent};
 use rand::thread_rng;
@@ -29,6 +29,7 @@ use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::error::PromisableResult;
 
 pub use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
+use nym_topology::provider_trait::ToTopologyMetadata;
 use wasm_utils::{console_log, console_warn};
 
 // don't get too excited about the name, under the hood it's just a big fat placeholder
@@ -79,21 +80,19 @@ pub async fn current_network_topology_async(
     let metadata = mixnodes_res.metadata;
     let mixnodes = mixnodes_res.nodes;
 
-    let gateways_res = api_client.get_all_basic_entry_assigned_nodes_v2().await?;
-    if gateways_res.metadata != metadata {
+    let gateways_res = api_client
+        .get_all_basic_entry_assigned_nodes_with_metadata()
+        .await?;
+    if !gateways_res.metadata.consistency_check(&metadata) {
         console_warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
         return Err(WasmCoreError::UnavailableNetworkTopology);
     }
 
     let gateways = gateways_res.nodes;
 
-    let topology = NymTopology::new(
-        NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-        rewarded_set,
-        Vec::new(),
-    )
-    .with_skimmed_nodes(&mixnodes)
-    .with_skimmed_nodes(&gateways);
+    let topology = NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+        .with_skimmed_nodes(&mixnodes)
+        .with_skimmed_nodes(&gateways);
 
     Ok(topology.into())
 }

@@ -13,6 +13,7 @@ use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::net::IpAddr;
+use time::OffsetDateTime;
 use tracing::{debug, trace, warn};
 
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
@@ -95,17 +96,25 @@ pub type MixLayer = u8;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct NymTopologyMetadata {
-    key_rotation_id: u32,
+    pub key_rotation_id: u32,
     // we have to keep track of key rotation id anyway, so we might as well also include the epoch id
     // to keep track of the data staleness
-    absolute_epoch_id: EpochId,
+    pub absolute_epoch_id: EpochId,
+
+    #[serde(with = "time::serde::rfc3339")]
+    pub refreshed_at: OffsetDateTime,
 }
 
 impl NymTopologyMetadata {
-    pub fn new(key_rotation_id: u32, absolute_epoch_id: EpochId) -> Self {
+    pub fn new(
+        key_rotation_id: u32,
+        absolute_epoch_id: EpochId,
+        refreshed_at: impl Into<OffsetDateTime>,
+    ) -> Self {
         NymTopologyMetadata {
             key_rotation_id,
             absolute_epoch_id,
+            refreshed_at: refreshed_at.into(),
         }
     }
 }
@@ -116,6 +125,7 @@ impl Default for NymTopologyMetadata {
         NymTopologyMetadata {
             key_rotation_id: u32::MAX,
             absolute_epoch_id: 0,
+            refreshed_at: OffsetDateTime::now_utc(),
         }
     }
 }
@@ -167,6 +177,10 @@ impl NymRouteProvider {
 
     pub fn absolute_epoch_id(&self) -> EpochId {
         self.topology.metadata.absolute_epoch_id
+    }
+
+    pub fn metadata(&self) -> NymTopologyMetadata {
+        self.topology.metadata
     }
 
     pub fn new_empty(ignore_egress_epoch_roles: bool) -> NymRouteProvider {

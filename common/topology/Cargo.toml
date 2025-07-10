@@ -17,6 +17,7 @@ rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+time = { workspace = true, features = ["serde"] }
 
 # 'serde' feature
 serde_json = { workspace = true, optional = true }
@@ -26,7 +27,6 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
-nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
@@ -34,7 +34,6 @@ nym-sphinx-types = { path = "../nymsphinx/types", features = [
     "sphinx",
     "outfox",
 ] }
-nym-sphinx-routing = { path = "../nymsphinx/routing" }
 
 
 # I'm not sure how to feel about pulling in this dependency here...

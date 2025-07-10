@@ -3,8 +3,8 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::provider_trait::{async_trait, TopologyProvider};
-use nym_topology::{NymTopology, NymTopologyMetadata};
+use nym_topology::provider_trait::{async_trait, ToTopologyMetadata, TopologyProvider};
+use nym_topology::NymTopology;
 use url::Url;
 
 struct MyTopologyProvider {
@@ -31,10 +31,8 @@ impl MyTopologyProvider {
             .await
             .unwrap();
 
-        let metadata = NymTopologyMetadata::new(
-            mixnodes_response.metadata.rotation_id,
-            mixnodes_response.metadata.absolute_epoch_id,
-        );
+        let metadata = mixnodes_response.metadata.to_topology_metadata();
+
         let mut base_topology = NymTopology::new(metadata, rewarded_set, Vec::new());
 
         // in our topology provider only use mixnodes that have node_id divisible by 3
@@ -48,7 +46,7 @@ impl MyTopologyProvider {
 
         let gateways = self
             .validator_client
-            .get_all_basic_entry_assigned_nodes_v2()
+            .get_all_basic_entry_assigned_nodes_with_metadata()
             .await
             .unwrap()
             .nodes;

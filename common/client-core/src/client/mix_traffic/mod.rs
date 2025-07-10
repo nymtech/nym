@@ -4,10 +4,10 @@
 use crate::client::mix_traffic::transceiver::GatewayTransceiver;
 use crate::error::ClientCoreError;
 use crate::spawn_future;
-use log::*;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
+use tracing::*;
 use transceiver::ErasedGatewayError;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
@@ -138,7 +138,7 @@ impl MixTrafficController {
                             }
                         },
                         None => {
-                            log::trace!("MixTrafficController: Stopping since channel closed");
+                            tracing::trace!("MixTrafficController: Stopping since channel closed");
                             break;
                         }
                     },
@@ -150,18 +150,18 @@ impl MixTrafficController {
                             };
                         },
                         None => {
-                            log::trace!("MixTrafficController, client request channel closed");
+                            tracing::trace!("MixTrafficController, client request channel closed");
                         }
                     },
                     _ = self.task_client.recv() => {
-                        log::trace!("MixTrafficController: Received shutdown");
+                        tracing::trace!("MixTrafficController: Received shutdown");
                         break;
                     }
                 }
             }
             self.task_client.recv_timeout().await;
 
-            log::debug!("MixTrafficController: Exiting");
+            tracing::debug!("MixTrafficController: Exiting");
         });
     }
 }

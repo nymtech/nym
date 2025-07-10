@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::{debug, error, warn};
-use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{NymTopology, NymTopologyMetadata};
-use nym_validator_client::UserAgent;
+use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
+use nym_topology::NymTopology;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::cmp::min;
+use tracing::{debug, error, warn};
 use url::Url;
 
 #[derive(Debug)]
@@ -49,18 +48,10 @@ impl NymApiTopologyProvider {
     pub fn new(
         config: impl Into<Config>,
         mut nym_api_urls: Vec<Url>,
-        user_agent: Option<UserAgent>,
+        mut validator_client: nym_validator_client::client::NymApiClient,
     ) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
-
-        let validator_client = if let Some(user_agent) = user_agent {
-            nym_validator_client::client::NymApiClient::new_with_user_agent(
-                nym_api_urls[0].clone(),
-                user_agent,
-            )
-        } else {
-            nym_validator_client::client::NymApiClient::new(nym_api_urls[0].clone())
-        };
+        validator_client.change_nym_api(nym_api_urls[0].clone());
 
         NymApiTopologyProvider {
             config: config.into(),
@@ -108,12 +99,8 @@ impl NymApiTopologyProvider {
                 .filter(|n| n.performance.round_to_integer() >= self.config.min_node_performance())
                 .collect::<Vec<_>>();
 
-            NymTopology::new(
-                NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-                rewarded_set,
-                Vec::new(),
-            )
-            .with_skimmed_nodes(&nodes_filtered)
+            NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+                .with_skimmed_nodes(&nodes_filtered)
         } else {
             // if we're not using extended topology, we're only getting active set mixnodes and gateways
 
@@ -124,7 +111,7 @@ impl NymApiTopologyProvider {
             // TODO: we really should be getting ACTIVE gateways only
             let gateways_fut = self
                 .validator_client
-                .get_all_basic_entry_assigned_nodes_v2();
+                .get_all_basic_entry_assigned_nodes_with_metadata();
 
             let (rewarded_set, mixnodes_res, gateways_res) =
                 futures::try_join!(rewarded_set_fut, mixnodes_fut, gateways_fut)
@@ -136,7 +123,7 @@ impl NymApiTopologyProvider {
             let metadata = mixnodes_res.metadata;
             let mixnodes = mixnodes_res.nodes;
 
-            if gateways_res.metadata != metadata {
+            if !gateways_res.metadata.consistency_check(&metadata) {
                 warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
                 return None;
             }
@@ -161,12 +148,8 @@ impl NymApiTopologyProvider {
                 }
             }
 
-            NymTopology::new(
-                NymTopologyMetadata::new(metadata.rotation_id, metadata.absolute_epoch_id),
-                rewarded_set,
-                Vec::new(),
-            )
-            .with_skimmed_nodes(&nodes)
+            NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+                .with_skimmed_nodes(&nodes)
         };
 
         if !topology.is_minimally_routable() {

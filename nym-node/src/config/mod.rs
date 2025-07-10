@@ -587,6 +587,13 @@ pub struct MixnetDebug {
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     pub maximum_connection_buffer_size: usize,
 
+    /// Specify whether any framed packets between nodes should use the legacy format (v7)
+    /// as opposed to the current (v8) one.
+    /// The legacy format has to be used until sufficient number of nodes on the network has upgraded and understand the new variant.
+    /// This will allow for optimisations to indicate which [sphinx] key is meant to be used when
+    /// processing received packets.
+    pub use_legacy_packet_encoding: bool,
+
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     pub unsafe_disable_noise: bool,
 }
@@ -772,6 +779,8 @@ impl Default for MixnetDebug {
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+            // TODO: update this in few releases...
+            use_legacy_packet_encoding: true,
             unsafe_disable_noise: false,
         }
     }

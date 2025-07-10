@@ -4815,7 +4815,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.60"
+version = "1.1.61"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5104,7 +5104,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.57"
+version = "1.1.58"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5186,7 +5186,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.57"
+version = "1.1.58"
 dependencies = [
  "bs58",
  "clap",
@@ -5233,15 +5233,13 @@ dependencies = [
  "futures",
  "gloo-timers",
  "http-body-util",
- "humantime-serde",
+ "humantime",
  "hyper 1.6.0",
  "hyper-util",
- "log",
  "nym-bandwidth-controller",
  "nym-client-core-config-types",
  "nym-client-core-gateways-storage",
  "nym-client-core-surb-storage",
- "nym-config 0.1.0",
  "nym-credential-storage",
  "nym-credentials-interface 0.1.0",
  "nym-crypto 0.4.0",
@@ -5250,7 +5248,6 @@ dependencies = [
  "nym-gateway-requests",
  "nym-http-api-client 0.1.0",
  "nym-id",
- "nym-metrics 0.1.0",
  "nym-mixnet-client",
  "nym-network-defaults 0.1.0",
  "nym-nonexhaustive-delayqueue",
@@ -5303,7 +5300,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "cosmrs",
- "log",
  "nym-crypto 0.4.0",
  "nym-gateway-requests",
  "serde",
@@ -5311,6 +5307,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "tracing",
  "url",
  "zeroize",
 ]
@@ -5321,7 +5318,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dashmap",
- "log",
  "nym-crypto 0.4.0",
  "nym-sphinx 0.1.0",
  "nym-task 0.1.0",
@@ -5330,6 +5326,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -6474,7 +6471,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.58"
+version = "1.1.59"
 dependencies = [
  "addr",
  "anyhow",
@@ -6524,7 +6521,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.13.0"
+version = "1.14.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7062,7 +7059,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.57"
+version = "1.1.58"
 dependencies = [
  "bs58",
  "clap",
@@ -7650,17 +7647,16 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "nym-api-requests 0.1.0",
- "nym-config 0.1.0",
  "nym-crypto 0.4.0",
  "nym-mixnet-contract-common 0.6.0",
  "nym-sphinx-addressing 0.1.0",
- "nym-sphinx-routing 0.1.0",
  "nym-sphinx-types 0.2.0",
  "rand 0.8.5",
  "reqwest 0.12.15",
  "serde",
  "serde_json",
  "thiserror 2.0.12",
+ "time",
  "tracing",
  "tsify",
  "wasm-bindgen",
@@ -8019,7 +8015,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "anyhow",
  "bytes",
@@ -10794,6 +10790,7 @@ dependencies = [
  "console",
  "cw-utils",
  "dkg-bypass-contract",
+ "humantime",
  "indicatif",
  "nym-bin-common 0.6.0",
  "nym-coconut-dkg-common 0.1.0",

@@ -28,6 +28,7 @@ pub struct Config {
     pub maximum_reconnection_backoff: Duration,
     pub initial_connection_timeout: Duration,
     pub maximum_connection_buffer_size: usize,
+    pub use_legacy_packet_encoding: bool,
 }
 
 impl Config {
@@ -36,12 +37,14 @@ impl Config {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
+        use_legacy_packet_encoding: bool,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
             maximum_connection_buffer_size,
+            use_legacy_packet_encoding,
         }
     }
 }
@@ -267,7 +270,12 @@ impl SendWithoutResponse for Client {
     fn send_without_response(&self, packet: MixPacket) -> io::Result<()> {
         let address = packet.next_hop_address();
         trace!("Sending packet to {address}");
-        let framed_packet = FramedNymPacket::from(packet);
+
+        // TODO: optimisation for the future: rather than constantly using legacy encoding,
+        // once we're addressing by node_id (and thus have full node info here),
+        // we could simply infer supported encoding based on their version
+        let framed_packet =
+            FramedNymPacket::from_mix_packet(packet, self.config.use_legacy_packet_encoding);
 
         let Some(sender) = self.active_connections.get_mut(&address) else {
             // there was never a connection to begin with
@@ -328,6 +336,7 @@ mod tests {
                 maximum_reconnection_backoff: Duration::from_millis(300_000),
                 initial_connection_timeout: Duration::from_millis(1_500),
                 maximum_connection_buffer_size: 128,
+                use_legacy_packet_encoding: false,
             },
             NoiseConfig::new(
                 Arc::new(x25519::KeyPair::new(&mut rng)),

@@ -11,7 +11,7 @@ use crate::support::legacy_helpers::{to_legacy_gateway, to_legacy_mixnode};
 use axum::extract::{Query, State};
 use axum::Router;
 use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
-use nym_api_requests::models::{KeyRotationInfoResponse, MixNodeBondAnnotated};
+use nym_api_requests::models::{KeyRotationDetails, KeyRotationInfoResponse, MixNodeBondAnnotated};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{reward_params::RewardingParams, GatewayBond, Interval, NodeId};
@@ -511,10 +511,12 @@ async fn get_current_key_rotation_info(
     let current_interval = contract_cache.current_interval().await?;
     let key_rotation_state = contract_cache.get_key_rotation_state().await?;
 
-    Ok(output.to_response(KeyRotationInfoResponse {
+    let details = KeyRotationDetails {
         key_rotation_state,
         current_absolute_epoch_id: current_interval.current_epoch_absolute_id(),
         current_epoch_start: current_interval.current_epoch_start(),
         epoch_duration: current_interval.epoch_length(),
-    }))
+    };
+
+    Ok(output.to_response(details.into()))
 }

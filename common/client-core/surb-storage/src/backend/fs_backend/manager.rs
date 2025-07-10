@@ -3,17 +3,15 @@
 
 use crate::backend::fs_backend::{
     error::StorageError,
-    models::{
-        ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag,
-        StoredSurbSender,
-    },
+    models::{ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSurbSender},
 };
-use log::{error, info};
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
 use std::path::Path;
+use time::OffsetDateTime;
+use tracing::{error, info};
 
 use sqlx_pool_guard::SqlitePoolGuard;
 
@@ -81,9 +79,11 @@ impl StorageManager {
     }
 
     pub async fn create_status_table(&self) -> Result<(), sqlx::Error> {
-        sqlx::query!("INSERT INTO status(flush_in_progress, previous_flush_timestamp, client_in_use) VALUES (0, 0, 1)")
-            .execute(&*self.connection_pool)
-            .await?;
+        sqlx::query!(
+            "INSERT INTO status(flush_in_progress, previous_flush, client_in_use) VALUES (0, 0, 1)"
+        )
+        .execute(&*self.connection_pool)
+        .await?;
         Ok(())
     }
 
@@ -94,18 +94,18 @@ impl StorageManager {
             .map(|r| r.flush_in_progress > 0)
     }
 
-    pub async fn set_previous_flush_timestamp(&self, timestamp: i64) -> Result<(), sqlx::Error> {
-        sqlx::query!("UPDATE status SET previous_flush_timestamp = ?", timestamp)
+    pub async fn set_previous_flush(&self, timestamp: OffsetDateTime) -> Result<(), sqlx::Error> {
+        sqlx::query!("UPDATE status SET previous_flush = ?", timestamp)
             .execute(&*self.connection_pool)
             .await?;
         Ok(())
     }
 
-    pub async fn get_previous_flush_timestamp(&self) -> Result<i64, sqlx::Error> {
-        sqlx::query!("SELECT previous_flush_timestamp FROM status;")
+    pub async fn get_previous_flush_time(&self) -> Result<OffsetDateTime, sqlx::Error> {
+        sqlx::query!(r#"SELECT previous_flush AS "previous_flush: OffsetDateTime" FROM status"#)
             .fetch_one(&*self.connection_pool)
             .await
-            .map(|r| r.previous_flush_timestamp)
+            .map(|r| r.previous_flush)
     }
 
     pub async fn set_flush_status(&self, in_progress: bool) -> Result<(), sqlx::Error> {
@@ -131,32 +131,6 @@ impl StorageManager {
         Ok(())
     }
 
-    pub async fn delete_all_tags(&self) -> Result<(), sqlx::Error> {
-        sqlx::query!("DELETE FROM sender_tag;")
-            .execute(&*self.connection_pool)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn get_tags(&self) -> Result<Vec<StoredSenderTag>, sqlx::Error> {
-        sqlx::query_as!(StoredSenderTag, "SELECT * FROM sender_tag;",)
-            .fetch_all(&*self.connection_pool)
-            .await
-    }
-
-    pub async fn insert_tag(&self, stored_tag: StoredSenderTag) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO sender_tag(recipient, tag) VALUES (?, ?);
-            "#,
-            stored_tag.recipient,
-            stored_tag.tag
-        )
-        .execute(&*self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
     pub async fn delete_all_reply_keys(&self) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM reply_key;")
             .execute(&*self.connection_pool)
@@ -165,7 +139,7 @@ impl StorageManager {
     }
 
     pub async fn get_reply_keys(&self) -> Result<Vec<StoredReplyKey>, sqlx::Error> {
-        sqlx::query_as!(StoredReplyKey, "SELECT * FROM reply_key;",)
+        sqlx::query_as("SELECT * FROM reply_key;")
             .fetch_all(&*self.connection_pool)
             .await
     }
@@ -176,11 +150,11 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO reply_key(key_digest, reply_key, sent_at_timestamp) VALUES (?, ?, ?);
+                INSERT INTO reply_key(key_digest, reply_key, sent_at) VALUES (?, ?, ?);
             "#,
             stored_reply_key.key_digest,
             stored_reply_key.reply_key,
-            stored_reply_key.sent_at_timestamp
+            stored_reply_key.sent_at
         )
         .execute(&*self.connection_pool)
         .await?;
@@ -188,7 +162,7 @@ impl StorageManager {
     }
 
     pub async fn get_surb_senders(&self) -> Result<Vec<StoredSurbSender>, sqlx::Error> {
-        sqlx::query_as!(StoredSurbSender, "SELECT * FROM reply_surb_sender;",)
+        sqlx::query_as("SELECT * FROM reply_surb_sender;")
             .fetch_all(&*self.connection_pool)
             .await
     }
@@ -199,10 +173,10 @@ impl StorageManager {
     ) -> Result<i64, sqlx::Error> {
         let id = sqlx::query!(
             r#"
-                INSERT INTO reply_surb_sender(tag, last_sent_timestamp) VALUES (?, ?);
+                INSERT INTO reply_surb_sender(tag, last_sent) VALUES (?, ?);
             "#,
             stored_surb_sender.tag,
-            stored_surb_sender.last_sent_timestamp
+            stored_surb_sender.last_sent
         )
         .execute(&*self.connection_pool)
         .await?
@@ -217,7 +191,7 @@ impl StorageManager {
         sqlx::query_as!(
             StoredReplySurb,
             r#"
-                SELECT reply_surb_sender_id, reply_surb, encoded_key_rotation as "encoded_key_rotation: u8" FROM reply_surb 
+                SELECT reply_surb_sender_id, reply_surb, encoded_key_rotation as "encoded_key_rotation: u8" FROM reply_surb
                 WHERE reply_surb_sender_id = ?
             "#,
             sender_id

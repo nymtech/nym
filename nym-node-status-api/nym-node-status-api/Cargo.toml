@@ -82,7 +82,6 @@ utoipauto = { workspace = true }
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 
 [features]
-default = ["pg"]
 sqlite = ["sqlx/sqlite"]
 pg = ["sqlx/postgres"]
 

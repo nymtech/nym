@@ -23,6 +23,5 @@ nym-validator-client = { path = "../client-libs/validator-client" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-ecash-signer-check-types = { path = "../ecash-signer-check-types" }
 
-
 [lints]
 workspace = true

@@ -266,6 +266,26 @@ where
         tokio::spawn(async move { self.run(task_client).await });
     }
 
+    pub fn start_with_delay(mut self, mut task_client: TaskClient, delay: Duration)
+    where
+        T: Send + Sync + 'static,
+        E: Send + Sync + 'static,
+        S: Send + Sync + 'static,
+    {
+        tokio::spawn(async move {
+            let sleep = tokio::time::sleep(delay);
+            tokio::select! {
+                biased;
+                _ = task_client.recv() => {
+                    trace!("{}: Received shutdown", self.name);
+                    return
+                }
+                _ = sleep => {},
+            }
+            self.run(task_client).await
+        });
+    }
+
     pub fn start_with_watcher(self, task_client: TaskClient) -> CacheUpdateWatcher
     where
         T: Send + Sync + 'static,

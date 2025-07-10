@@ -30,6 +30,8 @@ pub struct SignersStatusResponseBody {
     pub as_at: OffsetDateTime,
 
     pub overview: SignersStatusOverview,
+
+    pub results: Vec<MinimalSignerResult>,
 }
 
 pub type TypedSignerResult = SignerResult<
@@ -38,6 +40,31 @@ pub type TypedSignerResult = SignerResult<
     ChainStatusResponse,
     ChainBlocksStatusResponse,
 >;
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MinimalSignerResult {
+    pub announce_address: String,
+    pub owner_address: String,
+    pub node_index: u64,
+    pub public_key: String,
+
+    pub local_chain_working: bool,
+    pub credential_issuance_available: bool,
+}
+
+impl From<&TypedSignerResult> for MinimalSignerResult {
+    fn from(result: &TypedSignerResult) -> MinimalSignerResult {
+        MinimalSignerResult {
+            announce_address: result.information.announce_address.clone(),
+            owner_address: result.information.owner_address.clone(),
+            node_index: result.information.node_index,
+            public_key: result.information.public_key.clone(),
+            local_chain_working: result.chain_available(),
+            credential_issuance_available: result.signing_available(),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

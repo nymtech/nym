@@ -45,6 +45,7 @@ pub(crate) async fn signers_status(
         SignersStatusResponseBody {
             as_at,
             overview: SignersStatusOverview::new(&cached.signer_results),
+            results: cached.signer_results.iter().map(Into::into).collect(),
         }
         .sign(state.private_signing_key()),
     ))

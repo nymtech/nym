@@ -89,7 +89,7 @@ pub trait SignerResponse: Verifiable + TimestampedResponse {
         now: OffsetDateTime,
         stale_response_threshold: Duration,
     ) -> bool {
-        if !self.verify_signature(&pub_key) {
+        if !self.verify_signature(pub_key) {
             warn!("failed signature verification on chain status response");
             return false;
         }

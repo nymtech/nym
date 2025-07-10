@@ -60,7 +60,7 @@ impl RawDealerInformation {
             })?,
             owner_address: self.owner_address.clone(),
             node_index: self.node_index,
-            public_key: self.announce_address.parse().map_err(|source| {
+            public_key: self.public_key.parse().map_err(|source| {
                 MalformedDealer::InvalidDealerPubkey {
                     dealer_url: self.announce_address.clone(),
                     source,

@@ -71,6 +71,8 @@ pub(crate) const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
 pub(crate) const DEFAULT_CONTRACT_DETAILS_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
 
 pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
+pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY: Duration =
+    Duration::from_secs(30);
 
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
@@ -442,12 +444,18 @@ pub struct SignersCacheDebug {
     // the refresh interval would decrease
     #[serde(with = "humantime_serde")]
     pub refresh_interval: Duration,
+
+    // give it some time so that the actual api on THIS singer could start
+    // and it wouldn't self-report itself as being down
+    #[serde(with = "humantime_serde")]
+    pub refresher_start_delay: Duration,
 }
 
 impl Default for SignersCacheDebug {
     fn default() -> Self {
         SignersCacheDebug {
             refresh_interval: DEFAULT_NODE_SIGNERS_CACHE_REFRESH_INTERVAL,
+            refresher_start_delay: DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY,
         }
     }
 }

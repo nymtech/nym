@@ -22,6 +22,9 @@ pub(crate) fn start_refresher(
     )
     .named("signers-cache-refresher");
     let shared_cache = refresher.get_shared_cache();
-    refresher.start(task_manager.subscribe_named("signers-cache-refresher"));
+    refresher.start_with_delay(
+        task_manager.subscribe_named("signers-cache-refresher"),
+        config.debug.refresher_start_delay,
+    );
     shared_cache
 }

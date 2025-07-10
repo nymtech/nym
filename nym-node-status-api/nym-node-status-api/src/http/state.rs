@@ -181,14 +181,22 @@ impl HttpCache {
                 // the key is missing so populate it
                 tracing::trace!("No gateways in cache, refreshing cache from DB...");
 
-                let gateways = crate::db::queries::get_all_gateways(db)
-                    .await
-                    .unwrap_or_default();
+                let gateways = match crate::db::queries::get_all_gateways(db).await {
+                    Ok(gws) => {
+                        tracing::info!("Successfully fetched {} gateways from database", gws.len());
+                        if !gws.is_empty() {
+                            self.upsert_gateway_list(gws.clone()).await;
+                        }
+                        gws
+                    }
+                    Err(err) => {
+                        tracing::error!("CRITICAL: Failed to fetch gateways from database: {err}");
+                        panic!("Cannot read gateways table - this should never happen! Error: {err}");
+                    }
+                };
 
                 if gateways.is_empty() {
                     tracing::warn!("Database: gateway list is empty");
-                } else {
-                    self.upsert_gateway_list(gateways.clone()).await;
                 }
 
                 gateways

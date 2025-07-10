@@ -46,7 +46,7 @@ pub(crate) async fn get_in_progress_testrun_by_id(
     .bind(TestRunStatus::InProgress as i32)
     .fetch_one(conn.as_mut())
     .await
-    .map_err(|e| anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}"))
+    .map_err(|e| anyhow::anyhow!("Failed to retrieve in-progress testrun {testrun_id}: {e}"))
 }
 
 pub(crate) async fn update_testruns_assigned_before(
@@ -165,7 +165,7 @@ pub(crate) async fn update_gateway_last_probe_log(
         .execute(conn.as_mut())
         .await
         .map(drop)
-        .map_err(From::from)
+        .map_err(|e| anyhow::anyhow!("Failed to update probe log for gateway {}: {}", gateway_pk, e))
 }
 
 pub(crate) async fn update_gateway_last_probe_result(
@@ -179,7 +179,7 @@ pub(crate) async fn update_gateway_last_probe_result(
         .execute(conn.as_mut())
         .await
         .map(drop)
-        .map_err(From::from)
+        .map_err(|e| anyhow::anyhow!("Failed to update probe result for gateway {}: {}", gateway_pk, e))
 }
 
 pub(crate) async fn update_gateway_score(

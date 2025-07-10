@@ -106,6 +106,12 @@ impl FromRef<AppState> for MixnetContractCache {
     }
 }
 
+impl FromRef<AppState> for SharedCache<SignersCacheData> {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.ecash_signers_cache.clone()
+    }
+}
+
 impl AppState {
     pub(crate) fn private_signing_key(&self) -> &ed25519::PrivateKey {
         // even though we have to go through ecash state, the key is always available

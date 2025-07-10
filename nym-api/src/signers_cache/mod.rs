@@ -1,13 +1,27 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::signers_cache::cache::refresher::SignersCacheDataProvider;
 use crate::signers_cache::cache::SignersCacheData;
+use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheRefresher;
-use nym_validator_client::nyxd::error::NyxdError;
+use crate::support::{config, nyxd};
+use nym_task::TaskManager;
 
 pub(crate) mod cache;
 pub(crate) mod handlers;
 
-pub(crate) fn build_refresher() -> CacheRefresher<SignersCacheData, NyxdError> {
-    todo!()
+pub(crate) fn start_refresher(
+    config: &config::SignersCache,
+    nyxd_client: nyxd::Client,
+    task_manager: &TaskManager,
+) -> SharedCache<SignersCacheData> {
+    let refresher = CacheRefresher::new(
+        SignersCacheDataProvider::new(nyxd_client),
+        config.debug.refresh_interval,
+    )
+    .named("signers-cache-refresher");
+    let shared_cache = refresher.get_shared_cache();
+    refresher.start(task_manager.subscribe_named("signers-cache-refresher"));
+    shared_cache
 }

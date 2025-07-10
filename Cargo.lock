@@ -4901,7 +4901,6 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "ecdsa",
- "getset",
  "hex",
  "humantime-serde",
  "nym-coconut-dkg-common 0.1.0",
@@ -4910,6 +4909,7 @@ dependencies = [
  "nym-contracts-common 0.5.0",
  "nym-credentials-interface 0.1.0",
  "nym-crypto 0.4.0",
+ "nym-ecash-signer-check-types",
  "nym-ecash-time 0.1.0",
  "nym-mixnet-contract-common 0.6.0",
  "nym-network-defaults 0.1.0",
@@ -5816,15 +5816,29 @@ name = "nym-ecash-signer-check"
 version = "0.1.0"
 dependencies = [
  "futures",
- "nym-crypto 0.4.0",
+ "nym-ecash-signer-check-types",
  "nym-network-defaults 0.1.0",
  "nym-validator-client 0.1.0",
  "semver 1.0.26",
  "thiserror 2.0.12",
- "time",
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "nym-ecash-signer-check-types"
+version = "0.1.0"
+dependencies = [
+ "nym-coconut-dkg-common 0.1.0",
+ "nym-crypto 0.4.0",
+ "semver 1.0.26",
+ "serde",
+ "thiserror 2.0.12",
+ "time",
+ "tracing",
+ "url",
+ "utoipa",
 ]
 
 [[package]]

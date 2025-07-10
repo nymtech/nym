@@ -51,6 +51,7 @@ members = [
     "common/crypto",
     "common/dkg",
     "common/ecash-signer-check",
+    "common/ecash-signer-check-types",
     "common/ecash-time",
     "common/execute",
     "common/exit-policy",

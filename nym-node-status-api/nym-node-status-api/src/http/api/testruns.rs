@@ -93,7 +93,10 @@ async fn submit_testrun(
     let mut conn = db
         .acquire()
         .await
-        .map_err(HttpError::internal_with_logging)?;
+        .map_err(|e| {
+            tracing::error!(testrun_id = %submitted_testrun_id, error = %e, "Failed to acquire database connection for testrun submission");
+            HttpError::internal_with_logging(e)
+        })?;
 
     let assigned_testrun =
         queries::testruns::get_in_progress_testrun_by_id(&mut conn, submitted_testrun_id)
@@ -104,7 +107,10 @@ async fn submit_testrun(
                     submitted_testrun_id,
                     err
                 );
-                HttpError::invalid_input("Invalid testrun submitted")
+                HttpError::invalid_input(format!(
+                    "Testrun {} not found in progress state (may be already completed or expired)",
+                    submitted_testrun_id
+                ))
             })?;
     if Some(submitted_result.payload.assigned_at_utc) != assigned_testrun.last_assigned_utc {
         tracing::warn!(
@@ -112,7 +118,12 @@ async fn submit_testrun(
             submitted_result.payload.assigned_at_utc,
             assigned_testrun.last_assigned_utc
         );
-        return Err(HttpError::invalid_input("Invalid testrun submitted"));
+        return Err(HttpError::invalid_input(format!(
+            "Testrun {} timestamp mismatch: expected {:?}, got {}",
+            submitted_testrun_id,
+            assigned_testrun.last_assigned_utc,
+            submitted_result.payload.assigned_at_utc
+        )));
     }
 
     let gw_identity = db::queries::select_gateway_identity(&mut conn, assigned_testrun.gateway_id)
@@ -265,15 +276,23 @@ fn is_fresh(request_time: &i64) -> HttpResult<()> {
 
     let cutoff_timestamp = now_utc() - FRESHNESS_CUTOFF;
     if request_time < cutoff_timestamp {
-        warn!("Request older than {}s, rejecting", cutoff_timestamp);
+        warn!(
+            "Request time {} is older than cutoff {} ({}s ago), rejecting",
+            request_time,
+            cutoff_timestamp,
+            FRESHNESS_CUTOFF.whole_seconds()
+        );
         return Err(HttpError::unauthorized());
     }
     Ok(())
 }
 
 fn get_result_from_log(log: &str) -> String {
-    let re = regex::Regex::new(r"\n\{\s").unwrap();
-    let result: Vec<_> = re.splitn(log, 2).collect();
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern")
+    });
+    
+    let result: Vec<_> = RE.splitn(log, 2).collect();
     if result.len() == 2 {
         let res = format!("{} {}", "{", result[1]).to_string();
         return res;
@@ -293,7 +312,11 @@ async fn process_testrun_submission(
             payload.assigned_at_utc,
             testrun.last_assigned_utc
         );
-        return Err(HttpError::invalid_input("Invalid testrun submitted"));
+        return Err(HttpError::invalid_input(format!(
+            "Testrun timestamp mismatch: expected {:?}, got {}",
+            testrun.last_assigned_utc,
+            payload.assigned_at_utc
+        )));
     }
 
     // Process the submission

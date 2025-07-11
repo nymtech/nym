@@ -123,10 +123,7 @@ impl PacketScraper {
                 success_count += 1;
             }
         }
-        let msg = format!(
-            "Successfully completed {}/{} tasks ",
-            success_count, total_count
-        );
+        let msg = format!("Successfully completed {success_count}/{total_count} tasks ",);
         if success_count != total_count {
             warn!(msg);
         } else {

@@ -13,7 +13,6 @@ use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_storage::models::WireguardPeer;
 use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
@@ -38,7 +37,11 @@ mod stale_data_cleaner;
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
-pub use nym_gateway_storage::{error::GatewayStorageError, GatewayStorage};
+pub use nym_gateway_storage::{
+    error::GatewayStorageError,
+    traits::{BandwidthGatewayStorage, InboxGatewayStorage},
+    GatewayStorage,
+};
 use nym_node_metrics::NymNodeMetrics;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
@@ -93,7 +96,7 @@ pub struct GatewayTasksBuilder {
     // populated and cached as necessary
     ecash_manager: Option<Arc<EcashManager>>,
 
-    wireguard_peers: Option<Vec<WireguardPeer>>,
+    wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
     wireguard_networks: Option<Vec<IpAddr>>,
 }
@@ -357,12 +360,12 @@ impl GatewayTasksBuilder {
 
     async fn build_wireguard_peers_and_networks(
         &self,
-    ) -> Result<(Vec<WireguardPeer>, Vec<IpAddr>), GatewayError> {
+    ) -> Result<(Vec<defguard_wireguard_rs::host::Peer>, Vec<IpAddr>), GatewayError> {
         let mut used_private_network_ips = vec![];
         let mut all_peers = vec![];
         for wireguard_peer in self.storage.get_all_wireguard_peers().await?.into_iter() {
             let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
-            let Some(peer) = peer.allowed_ips.pop() else {
+            let Some(allowed_ip) = peer.allowed_ips.pop() else {
                 let peer_identity = &peer.public_key;
                 warn!("Peer {peer_identity} has empty allowed ips. It will be removed",);
                 self.storage
@@ -370,8 +373,8 @@ impl GatewayTasksBuilder {
                     .await?;
                 continue;
             };
-            used_private_network_ips.push(peer.ip);
-            all_peers.push(wireguard_peer);
+            used_private_network_ips.push(allowed_ip.ip);
+            all_peers.push(peer);
         }
 
         Ok((all_peers, used_private_network_ips))
@@ -379,7 +382,9 @@ impl GatewayTasksBuilder {
 
     // only used under linux
     #[allow(dead_code)]
-    async fn get_wireguard_peers(&mut self) -> Result<Vec<WireguardPeer>, GatewayError> {
+    async fn get_wireguard_peers(
+        &mut self,
+    ) -> Result<Vec<defguard_wireguard_rs::host::Peer>, GatewayError> {
         if let Some(cached) = self.wireguard_peers.take() {
             return Ok(cached);
         }
@@ -432,8 +437,8 @@ impl GatewayTasksBuilder {
             opts.config.clone(),
             wireguard_data.inner.clone(),
             used_private_network_ips,
+            ecash_manager,
         )
-        .with_ecash_verifier(ecash_manager)
         .with_custom_gateway_transceiver(transceiver)
         .with_shutdown(self.shutdown.fork("authenticator_sp"))
         .with_wait_for_gateway(true)

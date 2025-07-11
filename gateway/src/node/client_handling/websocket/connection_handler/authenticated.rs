@@ -24,6 +24,8 @@ use nym_gateway_requests::{
     SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
+use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
@@ -190,7 +192,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         let handler = AuthenticatedHandler {
             bandwidth_storage_manager: BandwidthStorageManager::new(
-                fresh.shared_state.storage.clone(),
+                Box::new(fresh.shared_state.storage.clone()),
                 ClientBandwidth::new(bandwidth.into()),
                 client.id,
                 fresh.shared_state.cfg.bandwidth,

@@ -3,17 +3,17 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("traffic byte data needs to be increasing")]
-    InconsistentConsumedBytes,
-
     #[error("{0}")]
     Defguard(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
     #[error("internal {0}")]
     Internal(String),
 
-    #[error("storage should have the requested bandwidht entry")]
+    #[error("storage should have the requested bandwidth entry")]
     MissingClientBandwidthEntry,
+
+    #[error("kernel should have the requested client entry: {0}")]
+    MissingClientKernelEntry(String),
 
     #[error("{0}")]
     GatewayStorage(#[from] nym_gateway_storage::error::GatewayStorageError),

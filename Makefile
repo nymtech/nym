@@ -137,6 +137,8 @@ clippy: sdk-wasm-lint
 # Build CosmWasm contracts (deterministic docker build)
 # -----------------------------------------------------------------------------
 
+
+WASM_CONTRACT_DIR := contracts/target/wasm32-unknown-unknown/release
 # Find every direct contract folder that contains a Cargo.toml
 CONTRACT_DIRS := $(shell find contracts -type f -name Cargo.toml \( ! -path "contracts/Cargo.toml" \) | grep -v integration-tests | xargs -n1 dirname | sort -u)
 
@@ -177,15 +179,14 @@ optimize-contracts:
 	# Cleanup temporary artefacts directory
 	@rm -rf artifacts 2>/dev/null || true
 
-# Keep wasm-opt and cosmwasm-check helpers available (they expect artefacts in $(CONTRACTS_OUT_DIR))
 wasm-opt-contracts:
-	@for WASM in $(CONTRACTS_OUT_DIR)/*.wasm; do \
+	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \
 	  echo "Running wasm-opt on $$WASM"; \
 	  wasm-opt --signext-lowering -Os $$WASM -o $$WASM ; \
 	done
 
 cosmwasm-check-contracts:
-	@for WASM in $(CONTRACTS_OUT_DIR)/*.wasm; do \
+	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \
 	  echo "Checking $$WASM"; \
 	  cosmwasm-check $$WASM ; \
 	done

@@ -63,11 +63,31 @@ export const NoiseCard = () => {
   const todaysData = data[data.length - 2];
   const yesterdaysData = data[data.length - 3];
 
+  // Add null checks to prevent TypeError
+  if (!todaysData || !yesterdaysData) {
+    return (
+      <ExplorerCard label="Mixnet traffic">
+        <Typography
+          variant="h5"
+          sx={{
+            color: isDarkMode ? "base.white" : "pine.950",
+            letterSpacing: 0.7,
+          }}
+        >
+          Insufficient data available
+        </Typography>
+        <Skeleton variant="text" height={238} />
+      </ExplorerCard>
+    );
+  }
+
   const noiseLast24H =
-    todaysData.total_packets_sent + todaysData.total_packets_received;
+    (todaysData?.total_packets_sent || 0) +
+    (todaysData?.total_packets_received || 0);
 
   const noisePrevious24H =
-    yesterdaysData.total_packets_sent + yesterdaysData.total_packets_received;
+    (yesterdaysData?.total_packets_sent || 0) +
+    (yesterdaysData?.total_packets_received || 0);
 
   const formatNoiseVolume = (packets: number): string => {
     if (packets < 0) {
@@ -109,8 +129,9 @@ export const NoiseCard = () => {
     .slice(0, -1)
     .map((item: IPacketsAndStakingData) => {
       return {
-        date_utc: item.date_utc,
-        numericData: item.total_packets_sent + item.total_packets_received,
+        date_utc: item?.date_utc,
+        numericData:
+          (item?.total_packets_sent || 0) + (item?.total_packets_received || 0),
       };
     });
   // .filter((item) => item.numericData >= 2_500_000_000);

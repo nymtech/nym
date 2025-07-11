@@ -52,9 +52,11 @@ jobs:
 
       - name: Remove existing tag if exists
         run: |
-          if git rev-parse $GIT_TAG >/dev/null 2>&1; then
-            git push --delete origin $GIT_TAG
-            git tag -d $GIT_TAG
+          if git rev-parse "$GIT_TAG" >/dev/null 2>&1; then
+            echo "Tag $GIT_TAG already exists, deleting"
+            git push --delete origin "$GIT_TAG"
+            git tag -d "$GIT_TAG"
+            echo "Tag $GIT_TAG already exists, deleted"
           fi
 
       - name: Create tag

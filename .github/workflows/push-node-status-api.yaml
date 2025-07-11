@@ -60,7 +60,7 @@ jobs:
 
       - name: Create tag
         run: |
-          git tag -a $${{ GIT_TAG }} -m "Version ${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}"
+          git tag -a $${{ GIT_TAG }} -m "Version ${{ steps.get_version.outputs.result }}"
           git push origin $${{ GIT_TAG }}
 
       - name: BuildAndPushImageOnHarbor

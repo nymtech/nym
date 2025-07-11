@@ -73,6 +73,13 @@ pub(crate) struct Cli {
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
 
+    #[clap(
+        long,
+        default_value_t = 10,
+        env = "NYM_NODE_STATUS_API_PACKET_STATS_MAX_CONCURRENT_TASKS"
+    )]
+    pub(crate) packet_stats_max_concurrent_tasks: usize,
+
     /// https://github.com/ipinfo/rust
     #[clap(long, env = "IPINFO_API_TOKEN")]
     pub(crate) ipinfo_api_token: String,

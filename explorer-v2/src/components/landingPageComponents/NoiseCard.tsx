@@ -58,11 +58,8 @@ export const NoiseCard = () => {
     );
   }
 
-  const todaysData = data[data.length - 2];
-  const yesterdaysData = data[data.length - 3];
-
-  // Add null checks to prevent TypeError
-  if (!todaysData || !yesterdaysData) {
+  // Check if we have enough data to calculate noise values
+  if (data.length < 3) {
     return (
       <ExplorerCard label="Mixnet traffic">
         <Typography
@@ -78,6 +75,9 @@ export const NoiseCard = () => {
       </ExplorerCard>
     );
   }
+
+  const todaysData = data[data.length - 2];
+  const yesterdaysData = data[data.length - 3];
 
   const noiseLast24H =
     (todaysData?.total_packets_sent || 0) +

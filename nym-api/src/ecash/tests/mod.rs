@@ -32,9 +32,10 @@ use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::ecash::models::{
     IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
-    IssuedTicketbooksForResponse, SignableMessageBody,
+    IssuedTicketbooksForResponse,
 };
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
+use nym_api_requests::signable::SignableMessageBody;
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
 };
@@ -1277,6 +1278,7 @@ impl TestFixture {
         AppState {
             nyxd_client,
             chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
+            ecash_signers_cache: Default::default(),
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
             mixnet_contract_cache: MixnetContractCache::new(),

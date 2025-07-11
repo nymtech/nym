@@ -11,8 +11,9 @@ use nym_api_requests::ecash::models::{
     IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
     IssuedTicketbooksCountResponse, IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse,
     IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponse,
-    IssuedTicketbooksOnCountResponse, SignableMessageBody,
+    IssuedTicketbooksOnCountResponse,
 };
+use nym_api_requests::signable::SignableMessageBody;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -2542,18 +2542,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "getset"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3586f256131df87204eb733da72e3d3eb4f343c639f4b7be279ac7c48baeafe"
-dependencies = [
- "proc-macro-error2",
- "proc-macro2",
- "quote",
- "syn 2.0.100",
-]
-
-[[package]]
 name = "ghash"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4020,14 +4008,15 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "ecdsa",
- "getset",
  "hex",
  "humantime-serde",
+ "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-ecash-signer-check-types",
  "nym-ecash-time",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
@@ -4168,6 +4157,21 @@ dependencies = [
  "cw-utils",
  "nym-multisig-contract-common",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-ecash-signer-check-types"
+version = "0.1.0"
+dependencies = [
+ "nym-coconut-dkg-common",
+ "nym-crypto",
+ "semver",
+ "serde",
+ "thiserror 2.0.12",
+ "time",
+ "tracing",
+ "url",
+ "utoipa",
 ]
 
 [[package]]
@@ -5411,28 +5415,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "version_check",
-]
-
-[[package]]
-name = "proc-macro-error-attr2"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5"
-dependencies = [
- "proc-macro2",
- "quote",
-]
-
-[[package]]
-name = "proc-macro-error2"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802"
-dependencies = [
- "proc-macro-error-attr2",
- "proc-macro2",
- "quote",
- "syn 2.0.100",
 ]
 
 [[package]]

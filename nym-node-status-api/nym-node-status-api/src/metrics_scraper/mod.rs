@@ -247,7 +247,7 @@ fn prepare_session_data(
         .map(|s| s.duration_ms)
         .collect::<Vec<_>>();
 
-    let unkown_durations = stat
+    let unknown_durations = stat
         .sessions
         .iter()
         .filter(|s| SessionType::from_string(&s.typ) == SessionType::Unknown)
@@ -264,8 +264,8 @@ fn prepare_session_data(
     } else {
         None
     };
-    let unknown_sessions = if !unkown_durations.is_empty() {
-        Some(serde_json::to_string(&unkown_durations).unwrap())
+    let unknown_sessions = if !unknown_durations.is_empty() {
+        Some(serde_json::to_string(&unknown_durations).unwrap())
     } else {
         None
     };

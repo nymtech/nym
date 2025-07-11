@@ -5373,7 +5373,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-proxy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6606,6 +6606,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-offline-signers-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [
@@ -7300,6 +7312,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-offline-signers-contract-common",
  "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-vesting-contract-common",

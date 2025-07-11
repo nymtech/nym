@@ -70,6 +70,7 @@ impl<'a> From<&'a LoadedNetwork> for nym_config::defaults::NymNetworkDetails {
             group_contract_address: Some(value.contracts.cw4_group.address.to_string()),
             multisig_contract_address: Some(value.contracts.cw3_multisig.address.to_string()),
             coconut_dkg_contract_address: Some(value.contracts.dkg.address.to_string()),
+            offline_signers_contract_address: None,
         };
         // ASSUMPTION: same chain details like prefix, denoms, etc. as mainnet
         let mainnet = NymNetworkDetails::new_mainnet();

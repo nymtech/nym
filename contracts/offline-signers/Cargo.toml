@@ -1,0 +1,44 @@
+[package]
+name = "nym-offline-signers-contract"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cw2 = { workspace = true }
+cw4 = { workspace = true }
+cw-storage-plus = { workspace = true }
+cosmwasm-schema = { workspace = true, optional = true }
+cw-controllers = { workspace = true }
+
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-offline-signers-contract-common = { path = "../../common/cosmwasm-smart-contracts/offline-signers" }
+nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+
+# TEMPORARY UNTIL BRANCH IS REBASED
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+itertools = { workspace = true }
+anyhow = { workspace = true }
+nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-coconut-dkg = { path = "../coconut-dkg", features = ["testable-dkg-contract"] }
+
+
+[features]
+schema-gen = ["nym-offline-signers-contract-common/schema", "cosmwasm-schema"]
+
+[lints]
+workspace = true

@@ -44,6 +44,7 @@ pub(crate) struct NymContracts {
     pub(crate) cw4_group: Contract,
     pub(crate) dkg: Contract,
     pub(crate) performance: Contract,
+    pub(crate) offline_signers: Contract,
 }
 
 impl NymContracts {
@@ -131,6 +132,7 @@ impl Default for NymContracts {
             cw3_multisig: Contract::new("cw3_multisig"),
             dkg: Contract::new("dkg"),
             performance: Contract::new("performance"),
+            offline_signers: Contract::new("offline_signers"),
         }
     }
 }

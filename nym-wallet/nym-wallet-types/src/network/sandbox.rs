@@ -26,6 +26,7 @@ pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 
 // \/ TODO: this has to be updated once the contract is deployed
 pub(crate) const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+pub(crate) const OFFLINE_SIGNERS_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
 // -- Constructor functions --
@@ -55,6 +56,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
+            offline_signers_contract_address: parse_optional_str(OFFLINE_SIGNERS_CONTRACT_ADDRESS),
         },
         nym_vpn_api_url: None,
         nym_vpn_api_urls: None,

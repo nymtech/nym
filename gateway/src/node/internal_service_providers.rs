@@ -128,6 +128,8 @@ where
             }
         });
 
+        // TODO: if something is blocking during SP startup, the below will wait forever
+        // we need to introduce additional timeouts here.
         let on_start_data = self
             .on_start_rx
             .await

@@ -1282,6 +1282,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-offline-signers-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-offline-signers-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-offline-signers-common",
+ "schemars",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "0.3.0"
 dependencies = [

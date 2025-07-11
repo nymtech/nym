@@ -6849,6 +6849,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-offline-signers-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [

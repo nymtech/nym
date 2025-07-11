@@ -66,7 +66,7 @@ pub async fn obtain_expiration_date_signatures(
             Err(err) => {
                 warn!(
                     "failed to obtain expiration date signature from {}: {err}",
-                    ecash_api_client.api_client.api_url()
+                    ecash_api_client.api_client.current_url()
                 );
             }
         }
@@ -110,7 +110,7 @@ pub async fn obtain_coin_indices_signatures(
             Err(err) => {
                 warn!(
                     "failed to obtain expiration date signature from {}: {err}",
-                    ecash_api_client.api_client.api_url()
+                    ecash_api_client.api_client.current_url()
                 );
             }
         }
@@ -147,7 +147,7 @@ pub async fn obtain_aggregate_wallet(
     for ecash_api_client in ecash_api_clients.iter() {
         debug!(
             "attempting to obtain partial credential from {}",
-            ecash_api_client.api_client.api_url()
+            ecash_api_client.api_client.current_url()
         );
 
         match voucher

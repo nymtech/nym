@@ -25,10 +25,10 @@ impl Display for EcashApiClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[id: {}] {} @ {}",
+            "[id: {}] {} @ {:?}",
             self.node_id,
             self.cosmos_address,
-            self.api_client.api_url()
+            self.api_client.api_urls()
         )
     }
 }

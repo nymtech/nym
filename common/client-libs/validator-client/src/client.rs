@@ -420,8 +420,12 @@ impl NymApiClient {
         }
     }
 
-    pub fn api_url(&self) -> &url::Url {
-        self.nym_api.current_url().as_ref()
+    pub fn api_urls(&self) -> &[nym_http_api_client::Url] {
+        self.nym_api.base_urls()
+    }
+
+    pub fn current_url(&self) -> &nym_http_api_client::Url {
+        self.nym_api.current_url()
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {

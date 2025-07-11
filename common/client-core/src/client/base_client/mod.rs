@@ -45,6 +45,7 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
+use nym_http_api_client::Url;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -63,7 +64,6 @@ use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
-use url::Url;
 
 #[cfg(all(
     not(target_arch = "wasm32"),
@@ -792,7 +792,11 @@ where
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
             self.config.debug.topology,
-            self.config.get_nym_api_endpoints(),
+            self.config
+                .get_nym_api_endpoints()
+                .into_iter()
+                .map(Into::into)
+                .collect(), // todo: this may lose details
             self.user_agent.clone(),
         );
 

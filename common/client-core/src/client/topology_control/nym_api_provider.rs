@@ -3,11 +3,11 @@
 
 use async_trait::async_trait;
 use log::{debug, error};
+use nym_http_api_client::Url;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopology;
 use nym_validator_client::{NymApiClient, UserAgent};
 use std::cmp::min;
-use url::Url;
 
 #[derive(Debug)]
 pub struct Config {
@@ -47,8 +47,7 @@ impl NymApiTopologyProvider {
         nym_api_urls: Vec<Url>,
         user_agent: Option<UserAgent>,
     ) -> Self {
-        let urls = nym_api_urls.iter().map(Into::into).collect();
-        let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)
+        let client = nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls)
             .with_user_agent(user_agent)
             .with_retries(3)
             .build::<&str>()

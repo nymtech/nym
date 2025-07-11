@@ -102,7 +102,7 @@ pub async fn gateways_for_init(
         .map_err(|e| ClientCoreError::ValidatorClientError(e.into()))?;
     let client = nym_validator_client::client::NymApiClient::new_with_client(http_client);
 
-    log::debug!("Fetching list of gateways from: {:?}", client.api_url());
+    log::debug!("Fetching list of gateways from: {:?}", client.current_url());
 
     let gateways = client.get_all_basic_entry_assigned_nodes().await?;
     info!("nym api reports {} gateways", gateways.len());

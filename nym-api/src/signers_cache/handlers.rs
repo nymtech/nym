@@ -44,8 +44,16 @@ pub(crate) async fn signers_status(
     Ok(output.to_response(
         SignersStatusResponseBody {
             as_at,
-            overview: SignersStatusOverview::new(&cached.signer_results),
-            results: cached.signer_results.iter().map(Into::into).collect(),
+            overview: SignersStatusOverview::new(
+                &cached.signers_results.results,
+                cached.signers_results.threshold,
+            ),
+            results: cached
+                .signers_results
+                .results
+                .iter()
+                .map(Into::into)
+                .collect(),
         }
         .sign(state.private_signing_key()),
     ))
@@ -76,8 +84,11 @@ pub(crate) async fn signers_status_detailed(
     Ok(output.to_response(
         DetailedSignersStatusResponseBody {
             as_at,
-            overview: SignersStatusOverview::new(&cached.signer_results),
-            details: cached.signer_results.clone(),
+            overview: SignersStatusOverview::new(
+                &cached.signers_results.results,
+                cached.signers_results.threshold,
+            ),
+            details: cached.signers_results.results.clone(),
         }
         .sign(state.private_signing_key()),
     ))

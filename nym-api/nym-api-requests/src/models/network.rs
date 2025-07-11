@@ -84,6 +84,9 @@ pub struct SignersStatusOverview {
     #[schema(value_type = Option<u64>)]
     pub epoch_id: Option<EpochId>,
 
+    pub signing_threshold: Option<u64>,
+    pub threshold_available: Option<bool>,
+
     pub total_signers: usize,
     pub unreachable_signers: usize,
     pub malformed_signers: usize,
@@ -106,7 +109,7 @@ pub struct SignersStatusOverview {
 }
 
 impl SignersStatusOverview {
-    pub fn new(results: &[TypedSignerResult]) -> Self {
+    pub fn new(results: &[TypedSignerResult], signing_threshold: Option<u64>) -> Self {
         let epoch_id = results.first().map(|r| r.dkg_epoch_id);
 
         let mut unreachable_signers = 0;
@@ -157,6 +160,11 @@ impl SignersStatusOverview {
 
         SignersStatusOverview {
             epoch_id,
+            signing_threshold,
+            threshold_available: signing_threshold.map(|threshold| {
+                (working_local_chain as u64) >= threshold
+                    && (working_credential_issuance as u64) >= threshold
+            }),
             total_signers: results.len(),
             unreachable_signers,
             malformed_signers,

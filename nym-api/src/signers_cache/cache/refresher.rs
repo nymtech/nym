@@ -27,7 +27,7 @@ impl SignersCacheDataProvider {
     }
 
     async fn refresh(&self) -> Result<SignersCacheData, SignerCheckError> {
-        let signer_results = check_signers_with_client(&self.nyxd_client).await?;
-        Ok(SignersCacheData { signer_results })
+        let signers_results = check_signers_with_client(&self.nyxd_client).await?;
+        Ok(SignersCacheData { signers_results })
     }
 }

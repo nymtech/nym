@@ -21,6 +21,7 @@ export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
 export NODE_STATUS_AGENT_SERVER_PORT="8000"
 export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
 export NODE_STATUS_AGENT_AUTH_KEY="BjyC9SsHAZUzPRkQR4sPTvVrp4GgaquTh5YfSJksvvWT"
+export NODE_STATUS_AGENT_PROBE_MNEMONIC="$MNEMONIC"
 export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1"
 
 workers=${1:-1}

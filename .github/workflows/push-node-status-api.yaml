@@ -1,7 +1,13 @@
 name: Build and upload Node Status API container to harbor.nymte.ch
 on:
   workflow_dispatch:
-
+    inputs:
+      release_image:
+        description: 'Tag image as a release'
+        required: true
+        default: false
+        type: boolean
+        
 env:
   WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-api"
   CONTAINER_NAME: "node-status-api"
@@ -31,25 +37,34 @@ jobs:
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
-      - name: Check if tag exists
-        run: |
-          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
-            echo "Tag ${{ steps.get_version.outputs.result }} already exists"
-          fi
+      - name: Set GIT_TAG variable
+        run: echo "GIT_TAG=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}" >> $GITHUB_ENV
+
+      - name: Set RELEASE_TAG variable
+        if: github.event.inputs.release_image == 'true'
+        run: echo "RELEASE_TAG=golden-" >> $GITHUB_ENV
+
+      - name: Set IMAGE_NAME_AND_TAGS variable
+        run: echo "IMAGE_NAME_AND_TAGS=${{ env.CONTAINER_NAME }}:${{ env.RELEASE_TAG }}${{ steps.get_version.outputs.result }}" >> $GITHUB_ENV
+
+      - name: New env vars
+        run: echo "RELEASE_TAG='$RELEASE_TAG' GIT_TAG='$GIT_TAG' IMAGE_NAME_AND_TAGS='$IMAGE_NAME_AND_TAGS'"        
+
 
       - name: Remove existing tag if exists
         run: |
-          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
-            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
-            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+          if git rev-parse $${{ env.GIT_TAG }} >/dev/null 2>&1; then
+            git push --delete origin $${{ env.GIT_TAG }}
+            git tag -d $${{ env.GIT_TAG }}
           fi
 
       - name: Create tag
         run: |
-          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} -m "Version ${{ steps.get_version.outputs.result }}"
-          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+          git tag -a $${{ env.GIT_TAG }} -m "Version ${{ steps.get_version.outputs.result }}"
+          git push origin $${{ env.GIT_TAG }}
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.IMAGE_NAME_AND_TAGS }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags
+

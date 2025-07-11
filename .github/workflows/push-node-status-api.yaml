@@ -53,10 +53,12 @@ jobs:
       - name: Remove existing tag if exists
         run: |
           if git rev-parse "$GIT_TAG" >/dev/null 2>&1; then
-            echo "Tag $GIT_TAG already exists, deleting"
+            echo "Tag '$GIT_TAG' already exists, deleting"
             git push --delete origin "$GIT_TAG"
             git tag -d "$GIT_TAG"
-            echo "Tag $GIT_TAG already exists, deleted"
+            echo "Tag '$GIT_TAG' deleted"
+          else
+            echo "Tag '$GIT_TAG' does not exist. Nothing to do."
           fi
 
       - name: Create tag

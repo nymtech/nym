@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.45.4
+        uses: mikefarah/yq@v4.46.1
         id: get_version
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml

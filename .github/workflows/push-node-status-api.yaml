@@ -53,18 +53,18 @@ jobs:
 
       - name: Remove existing tag if exists
         run: |
-          if git rev-parse $${{ GIT_TAG }} >/dev/null 2>&1; then
-            git push --delete origin $${{ GIT_TAG }}
-            git tag -d $${{ GIT_TAG }}
+          if git rev-parse $${{ env.GIT_TAG }} >/dev/null 2>&1; then
+            git push --delete origin $${{ env.GIT_TAG }}
+            git tag -d $${{ env.GIT_TAG }}
           fi
 
       - name: Create tag
         run: |
-          git tag -a $${{ GIT_TAG }} -m "Version ${{ steps.get_version.outputs.result }}"
-          git push origin $${{ GIT_TAG }}
+          git tag -a $${{ env.GIT_TAG }} -m "Version ${{ steps.get_version.outputs.result }}"
+          git push origin $${{ env.GIT_TAG }}
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ IMAGE_NAME_AND_TAGS }} -t harbor.nymte.ch/nym/${{ IMAGE_NAME_AND_TAGS }}:latest
+          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.IMAGE_NAME_AND_TAGS }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags
 

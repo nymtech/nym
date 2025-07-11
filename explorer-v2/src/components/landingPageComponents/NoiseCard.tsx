@@ -41,7 +41,7 @@ export const NoiseCard = () => {
     );
   }
 
-  if (isError || !data) {
+  if (isError || !data || !Array.isArray(data)) {
     return (
       <ExplorerCard label="Mixnet traffic">
         <Typography
@@ -58,20 +58,14 @@ export const NoiseCard = () => {
     );
   }
 
-  // Check if we have enough data to calculate noise values
+  // If we don't have enough data, show loading
   if (data.length < 3) {
     return (
       <ExplorerCard label="Mixnet traffic">
-        <Typography
-          variant="h5"
-          sx={{
-            color: isDarkMode ? "base.white" : "pine.950",
-            letterSpacing: 0.7,
-          }}
-        >
-          Insufficient data available
-        </Typography>
-        <Skeleton variant="text" height={238} />
+        <Stack gap={1}>
+          <Skeleton variant="text" />
+          <Skeleton variant="text" height={238} />
+        </Stack>
       </ExplorerCard>
     );
   }

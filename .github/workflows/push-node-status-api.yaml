@@ -50,19 +50,19 @@ jobs:
       - name: New env vars
         run: echo "RELEASE_TAG='$RELEASE_TAG' GIT_TAG='$GIT_TAG' IMAGE_NAME_AND_TAGS='$IMAGE_NAME_AND_TAGS'"        
 
-      - name: Remove existing tag if exists, then create
-        run: |
-          if git rev-parse "$GIT_TAG" >/dev/null 2>&1; then
-            echo "Tag '$GIT_TAG' already exists, deleting"
-            git push --delete origin "$GIT_TAG"
-            git tag -d "$GIT_TAG"
-            echo "Tag '$GIT_TAG' deleted"
-          else
-            echo "Tag '$GIT_TAG' does not exist, creating it"
-            git tag -a $GIT_TAG -m "Version ${{ steps.get_version.outputs.result }}"
-            git push origin $GIT_TAG
-            echo "Tag '$GIT_TAG' created"
-          fi
+      # - name: Remove existing tag if exists, then create
+      #   run: |
+      #     if git rev-parse "$GIT_TAG" >/dev/null 2>&1; then
+      #       echo "Tag '$GIT_TAG' already exists, deleting"
+      #       git push --delete origin "$GIT_TAG"
+      #       git tag -d "$GIT_TAG"
+      #       echo "Tag '$GIT_TAG' deleted"
+      #     else
+      #       echo "Tag '$GIT_TAG' does not exist, creating it"
+      #       git tag -a $GIT_TAG -m "Version ${{ steps.get_version.outputs.result }}"
+      #       git push origin $GIT_TAG
+      #       echo "Tag '$GIT_TAG' created"
+      #     fi
 
       - name: BuildAndPushImageOnHarbor
         run: |

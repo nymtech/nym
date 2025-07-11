@@ -28,11 +28,16 @@ pub type TypedSignerResult = SignerResult<
 pub type LocalChainStatus = Status<ChainStatusResponse, ChainBlocksStatusResponse>;
 pub type SigningStatus = Status<SignerInformationResponse, EcashSignerStatusResponse>;
 
+pub struct SignersTestResult {
+    pub threshold: Option<u64>,
+    pub results: Vec<TypedSignerResult>,
+}
+
 pub async fn check_signers(
     rpc_endpoint: Url,
     // details such as denoms, prefixes, etc.
     network_details: NymNetworkDetails,
-) -> Result<Vec<TypedSignerResult>, SignerCheckError> {
+) -> Result<SignersTestResult, SignerCheckError> {
     // 1. create nyx client instance
     let client = QueryHttpRpcNyxdClient::connect_with_network_details(
         rpc_endpoint.as_str(),
@@ -43,9 +48,7 @@ pub async fn check_signers(
     check_signers_with_client(&client).await
 }
 
-pub async fn check_signers_with_client<C>(
-    client: &C,
-) -> Result<Vec<TypedSignerResult>, SignerCheckError>
+pub async fn check_signers_with_client<C>(client: &C) -> Result<SignersTestResult, SignerCheckError>
 where
     C: DkgQueryClient + Sync,
 {
@@ -55,13 +58,19 @@ where
         .await
         .map_err(SignerCheckError::dkg_contract_query_failure)?;
 
-    // 3. retrieve information on current DKG dealers (i.e. eligible signers)
+    // 3. retrieve the dkg threshold as reference point
+    let threshold = client
+        .get_epoch_threshold(dkg_epoch.epoch_id)
+        .await
+        .map_err(SignerCheckError::dkg_contract_query_failure)?;
+
+    // 4. retrieve information on current DKG dealers (i.e. eligible signers)
     let dealers = client
         .get_all_current_dealers()
         .await
         .map_err(SignerCheckError::dkg_contract_query_failure)?;
 
-    // 4. retrieve their published keys (if available)
+    // 5. retrieve their published keys (if available)
     let shares: HashMap<_, _> = client
         .get_all_verification_key_shares(dkg_epoch.epoch_id)
         .await
@@ -70,7 +79,7 @@ where
         .map(|share| (share.node_index, share))
         .collect();
 
-    // 5. for each dealer attempt to perform the checks
+    // 6. for each dealer attempt to perform the checks
     let results = dealers
         .into_iter()
         .map(|d| {
@@ -81,5 +90,5 @@ where
         .collect::<Vec<_>>()
         .await;
 
-    Ok(results)
+    Ok(SignersTestResult { threshold, results })
 }

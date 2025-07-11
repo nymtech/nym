@@ -196,22 +196,22 @@ pub(crate) async fn check_client(
 ) -> TypedSignerResult {
     let dealer_information = RawDealerInformation::new(&dealer_details, contract_share);
 
-    // 6. attempt to construct client instances out of them
+    // 7. attempt to construct client instances out of them
     let Ok(parsed_information) = dealer_information.parse() else {
         return SignerStatus::ProvidedInvalidDetails.with_details(dealer_information, dkg_epoch);
     };
 
     let mut client = ClientUnderTest::new(&parsed_information.announce_address);
 
-    // 7. check basic connection status - can you retrieve build information?
+    // 8. check basic connection status - can you retrieve build information?
     if !client.try_retrieve_build_information().await {
         return SignerStatus::Unreachable.with_details(dealer_information, dkg_epoch);
     }
 
-    // 8. check perceived chain status
+    // 9. check perceived chain status
     let local_chain_status = client.check_local_chain().await;
 
-    // 9. check signer status
+    // 10. check signer status
     let signing_status = client.check_signing_status().await;
 
     SignerStatus::Tested {

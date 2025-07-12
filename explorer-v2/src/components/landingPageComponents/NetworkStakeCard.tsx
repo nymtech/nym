@@ -33,21 +33,14 @@ export const NetworkStakeCard = () => {
     );
   }
 
-  if (isStakingError || !packetsAndStaking) {
-    return (
-      <ExplorerCard label="Current network stake">
-        <Typography
-          variant="h5"
-          sx={{
-            color: isDarkMode ? "base.white" : "pine.950",
-            letterSpacing: 0.7,
-          }}
-        >
-          Failed to load data
-        </Typography>
-        <Skeleton variant="text" height={238} />
-      </ExplorerCard>
-    );
+  // Don't display the card if there's an error or insufficient data
+  if (
+    isStakingError ||
+    !packetsAndStaking ||
+    !Array.isArray(packetsAndStaking) ||
+    packetsAndStaking.length < 10
+  ) {
+    return null;
   }
 
   const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =

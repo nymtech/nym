@@ -4,7 +4,9 @@ import { ReactNode } from "react";
 
 interface ConditionalCardWrapperProps {
   children: ReactNode;
-  size?: any;
+  size?:
+    | number
+    | { xs?: number; sm?: number; md?: number; lg?: number; xl?: number };
   visible?: boolean;
 }
 

@@ -43,39 +43,9 @@ export const NoiseCard = () => {
     );
   }
 
-  if (isError || !data) {
-    return (
-      <ExplorerCard label="Mixnet traffic">
-        <Typography
-          variant="h5"
-          sx={{
-            color: isDarkMode ? "base.white" : "pine.950",
-            letterSpacing: 0.7,
-          }}
-        >
-          Failed to load data
-        </Typography>
-        <Skeleton variant="text" height={238} />
-      </ExplorerCard>
-    );
-  }
-
-  // Check if we have enough data to calculate noise values
-  if (data.length < 3) {
-    return (
-      <ExplorerCard label="Mixnet traffic">
-        <Typography
-          variant="h5"
-          sx={{
-            color: isDarkMode ? "base.white" : "pine.950",
-            letterSpacing: 0.7,
-          }}
-        >
-          Insufficient data available
-        </Typography>
-        <Skeleton variant="text" height={238} />
-      </ExplorerCard>
-    );
+  // Don't display the card if there's an error or insufficient data
+  if (isError || !data || !Array.isArray(data) || data.length < 10) {
+    return null;
   }
 
   const todaysData = data[data.length - 2];

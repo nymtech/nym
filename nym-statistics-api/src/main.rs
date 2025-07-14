@@ -48,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Started HTTP server on port {}", args.http_port);
 
     shutdown_manager.close();
-    shutdown_manager.wait_for_shutdown_signal().await;
+    shutdown_manager.run_until_shutdown().await;
 
     Ok(())
 }

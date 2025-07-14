@@ -10,12 +10,11 @@ mod tests {
     }
 
     use nym_outfox::packet::OutfoxPacket;
-    use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
-    use sphinx_packet::crypto::{PrivateKey, PublicKey};
-    use sphinx_packet::route::Destination;
-    use sphinx_packet::route::DestinationAddressBytes;
-    use sphinx_packet::route::Node;
-    use sphinx_packet::route::NodeAddressBytes;
+
+    use nym_outfox::route::{
+        Destination, DestinationAddressBytes, Node, NodeAddressBytes, NODE_ADDRESS_LENGTH,
+        {PrivateKey, PublicKey},
+    };
 
     use nym_outfox::format::*;
     use nym_outfox::lion::*;

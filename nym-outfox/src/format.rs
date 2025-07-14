@@ -64,6 +64,7 @@ use crate::constants::ROUTING_INFORMATION_LENGTH_BY_STAGE;
 use crate::constants::TAGBYTES;
 use crate::error::OutfoxError;
 use crate::lion::*;
+use crate::route::PrivateKey;
 use chacha20poly1305::AeadInPlace;
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::KeyInit;
@@ -212,7 +213,7 @@ impl MixStageParameters {
     pub fn encode_mix_layer(
         &self,
         buffer: &mut [u8],
-        user_secret_key: &x25519_dalek::StaticSecret,
+        user_secret_key: &PrivateKey,
         mix_public_key: x25519_dalek::PublicKey,
         destination: &[u8; 32],
     ) -> Result<x25519_dalek::SharedSecret, OutfoxError> {
@@ -261,7 +262,7 @@ impl MixStageParameters {
     pub fn decode_mix_layer(
         &self,
         buffer: &mut [u8],
-        mix_secret_key: &x25519_dalek::StaticSecret,
+        mix_secret_key: &PrivateKey,
     ) -> Result<Vec<u8>, OutfoxError> {
         // Check the length of the incoming buffer is correct.
         if buffer.len() != self.incoming_packet_length() {

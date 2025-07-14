@@ -2,12 +2,9 @@ use crate::{
     constants::{DEFAULT_HOPS, MAGIC_SLICE, MIN_PACKET_SIZE, MIX_PARAMS_LEN},
     error::OutfoxError,
     format::{MixCreationParameters, MixStageParameters},
+    route::{Destination, Node, PrivateKey, DEFAULT_PAYLOAD_SIZE},
 };
-use sphinx_packet::{
-    crypto::PrivateKey,
-    packet::builder::DEFAULT_PAYLOAD_SIZE,
-    route::{Destination, Node},
-};
+
 use std::{array::TryFromSliceError, collections::VecDeque, ops::Range};
 
 #[derive(Debug)]

@@ -28,4 +28,7 @@ pub enum OutfoxError {
     InvalidHeaderLength(usize),
     #[error("Invalid magic bytes, expected: {:?}, got: {:?}", MAGIC_SLICE, 0)]
     InvalidMagicBytes(Vec<u8>),
+
+    #[error("routing information processing failure {0}")]
+    InvalidRouting(String),
 }

@@ -1,7 +1,9 @@
+use super::mixnet_stream_wrapper::{MixSocket, MixStream};
+use crate::ip_packet_client::{
+    helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
+};
 use crate::UserAgent;
 use crate::{mixnet::Recipient, Error};
-
-use super::mixnet_stream_wrapper::{MixSocket, MixStream};
 
 use bytes::Bytes;
 use bytes::BytesMut;
@@ -16,21 +18,16 @@ use nym_ip_packet_requests::{
     IpPair,
 };
 use nym_sphinx::receiver::ReconstructedMessageCodec;
-use std::sync::Once;
-use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio_util::codec::{Decoder, FramedRead};
-use tracing::{debug, error, info};
 
-use crate::ip_packet_client::{
-    helpers::check_ipr_message_version,
-    listener::{IprListener, MixnetMessageOutcome},
-};
+use std::time::Duration;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use tokio_util::codec::{Decoder /*, FramedRead */}; // TODO will need FramedRead later when u switch from bytebuffers
+use tracing::{debug, error, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, PartialEq)]
-enum ConnectionState {
+pub enum ConnectionState {
     Disconnected,
     Connecting,
     Connected,
@@ -87,7 +84,7 @@ impl IpMixSocket {
         Ok(GatewayClient::new(config, user_agent).unwrap())
     }
 
-    async fn get_best_ipr_address(&self) -> Result<IpPacketRouterAddress, Error> {
+    async fn get_ipr_addr(&self) -> Result<IpPacketRouterAddress, Error> {
         let exit_gateways = self
             .gateway_client
             .lookup_gateways(GatewayType::MixnetExit)
@@ -119,7 +116,7 @@ impl IpMixSocket {
     }
 
     pub async fn connect(&self) -> Result<IpMixStream, Error> {
-        let ipr_address = self.get_best_ipr_address().await?;
+        let ipr_address = self.get_ipr_addr().await?;
         let stream = MixStream::new(None, Recipient::from(ipr_address.clone())).await;
         Ok(IpMixStream::new(stream, ipr_address))
     }
@@ -267,8 +264,8 @@ impl IpMixStream {
         self.send_ipr_request(request).await
     }
 
-    pub async fn process_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        // TODO switch to framedreading?
+    pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
+        // TODO switch to framed reading?
         let mut buffer = vec![0u8; 65536];
 
         match tokio::time::timeout(Duration::from_secs(10), self.stream.read(&mut buffer)).await {
@@ -285,7 +282,7 @@ impl IpMixStream {
                         .await
                     {
                         Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
-                            debug!("Extracted {} IP packets", packets.len());
+                            info!("Extracted {} IP packets", packets.len());
                             Ok(packets)
                         }
                         Ok(Some(MixnetMessageOutcome::Disconnect)) => {
@@ -318,6 +315,13 @@ impl IpMixStream {
 
     pub fn is_connected(&self) -> bool {
         self.connection_state == ConnectionState::Connected
+    }
+
+    /// Disconnect inner stream client from the Mixnet - note that disconnected clients cannot currently be reconnected.
+    pub async fn disconnect_stream(self) {
+        debug!("Disconnecting");
+        self.stream.disconnect().await;
+        debug!("Disconnected");
     }
 }
 
@@ -358,7 +362,12 @@ impl AsyncWrite for IpMixStream {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ip_packet_client::helpers::{
+        icmp_identifier, is_icmp_echo_reply, is_icmp_v6_echo_reply, send_ping_v4, send_ping_v6,
+    };
+    // use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6}; // TODO should probably test these as well - reminder to sefl
     use std::net::{Ipv4Addr, Ipv6Addr};
+    use std::sync::Once;
 
     static INIT: Once = Once::new();
 
@@ -370,7 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
+        // init_logging();
 
         let socket = IpMixSocket::new().await?;
 
@@ -389,23 +398,121 @@ mod tests {
             "Should have allocated IPs"
         );
 
+        stream.disconnect_stream().await;
+
         Ok(())
     }
 
     #[tokio::test]
-    async fn send_ping() -> Result<(), Box<dyn std::error::Error>> {
-        // TODO pull in https://github.com/nymtech/nym-vpn-client/blob/develop/nym-vpn-core/crates/nym-connection-monitor/src/packet_helpers.rs#L7-L42
-        // TODO pull in https://github.com/nymtech/nym-vpn-client/blob/develop/nym-vpn-core/crates/nym-gateway-probe/src/icmp.rs#L25
+    async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
         let socket = IpMixSocket::new().await?;
-
         let mut stream = socket.connect().await?;
         let ip_pair = stream.connect_tunnel().await?;
 
-        // send ping
-        //
+        info!(
+            "Connected with IPs - IPv4: {}, IPv6: {}",
+            ip_pair.ipv4, ip_pair.ipv6
+        );
 
+        let external_v4_targets = vec![
+            ("Google DNS", Ipv4Addr::new(8, 8, 8, 8)),
+            ("Cloudflare DNS", Ipv4Addr::new(1, 1, 1, 1)),
+            ("Quad9 DNS", Ipv4Addr::new(9, 9, 9, 9)),
+        ];
+
+        let external_v6_targets = vec![
+            ("Google DNS", "2001:4860:4860::8888".parse::<Ipv6Addr>()?),
+            (
+                "Cloudflare DNS",
+                "2606:4700:4700::1111".parse::<Ipv6Addr>()?,
+            ),
+            ("Quad9 DNS", "2620:fe::fe".parse::<Ipv6Addr>()?),
+        ];
+
+        let identifier = icmp_identifier();
+        let mut successful_v4_pings = 0;
+        let mut total_v4_pings = 0;
+        let mut successful_v6_pings = 0;
+        let mut total_v6_pings = 0;
+
+        for (name, target) in &external_v4_targets {
+            info!("Testing IPv4 connectivity to {} ({})", name, target);
+
+            for seq in 0..3 {
+                send_ping_v4(&mut stream, &ip_pair, seq, identifier, *target).await?;
+                total_v4_pings += 1;
+            }
+        }
+
+        for (name, target) in &external_v6_targets {
+            info!("Testing IPv6 connectivity to {} ({})", name, target);
+
+            for seq in 0..3 {
+                send_ping_v6(&mut stream, &ip_pair, seq, *target).await?;
+                total_v6_pings += 1;
+            }
+        }
+
+        let collect_timeout = tokio::time::sleep(Duration::from_secs(10));
+        tokio::pin!(collect_timeout);
+
+        loop {
+            tokio::select! {
+                _ = &mut collect_timeout => {
+                    info!("Finished collecting replies");
+                    break;
+                }
+                result = stream.handle_incoming() => {
+                    if let Ok(packets) = result {
+                        for packet in packets {
+                            if let Some((reply_id, source, dest)) = is_icmp_echo_reply(&packet) {
+                                if reply_id == identifier && dest == ip_pair.ipv4 {
+                                    successful_v4_pings += 1;
+                                    debug!("IPv4 reply from {}", source);
+                                }
+                            }
+
+                            if let Some((reply_id, source, dest)) = is_icmp_v6_echo_reply(&packet) {
+                                if reply_id == identifier && dest == ip_pair.ipv6 {
+                                    successful_v6_pings += 1;
+                                    debug!("IPv6 reply from {}", source);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let v4_success_rate = (successful_v4_pings as f64 / total_v4_pings as f64) * 100.0;
+        let v6_success_rate = (successful_v6_pings as f64 / total_v6_pings as f64) * 100.0;
+
+        info!(
+            "IPv4 external connectivity: {}/{} pings successful ({:.1}%)",
+            successful_v4_pings, total_v4_pings, v4_success_rate
+        );
+        info!(
+            "IPv6 external connectivity: {}/{} pings successful ({:.1}%)",
+            successful_v6_pings, total_v6_pings, v6_success_rate
+        );
+
+        assert!(successful_v4_pings > 0, "No IPv4 pings successful");
+        assert!(
+            v4_success_rate >= 75.0,
+            "IPv4 success rate < 75% (got {:.1}%)",
+            v4_success_rate
+        );
+
+        assert!(successful_v6_pings > 0, "No IPv6 pings successful");
+        assert!(
+            v6_success_rate >= 75.0,
+            "IPv6 success rate < 75% (got {:.1}%)",
+            v6_success_rate
+        );
+
+        stream.disconnect_stream().await;
         Ok(())
     }
 }

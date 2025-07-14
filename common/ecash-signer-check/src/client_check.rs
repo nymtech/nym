@@ -19,16 +19,16 @@ pub(crate) mod chain_status {
     // Dorina
     pub(crate) const MINIMUM_VERSION_LEGACY: semver::Version = semver::Version::new(1, 1, 51);
 
-    // Emmental
-    pub(crate) const MINIMUM_VERSION: semver::Version = semver::Version::new(1, 1, 62);
+    // Feta
+    pub(crate) const MINIMUM_VERSION: semver::Version = semver::Version::new(1, 1, 63);
 }
 
 pub(crate) mod signing_status {
     // Magura (possibly earlier)
     pub(crate) const MINIMUM_LEGACY_VERSION: semver::Version = semver::Version::new(1, 1, 46);
 
-    // Emmental
-    pub(crate) const MINIMUM_VERSION: semver::Version = semver::Version::new(1, 1, 62);
+    // Feta
+    pub(crate) const MINIMUM_VERSION: semver::Version = semver::Version::new(1, 1, 63);
 }
 
 struct ClientUnderTest {

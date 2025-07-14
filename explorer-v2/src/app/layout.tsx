@@ -1,4 +1,5 @@
 import { Header } from "@/components/header";
+import { Banner } from "@/components/banner/Banner";
 import { Wrapper } from "@/components/wrapper";
 import Providers from "@/providers";
 import type { Metadata } from "next";
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <Header />
+          <Banner />
           <Wrapper>{children}</Wrapper>
           <Footer />
         </Providers>

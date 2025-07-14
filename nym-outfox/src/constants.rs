@@ -13,9 +13,11 @@ pub const ROUTING_INFORMATION_LENGTH_BY_STAGE: [u8; DEFAULT_HOPS] =
 pub const MIN_PACKET_SIZE: usize = 48;
 pub const MAGIC_SLICE: &[u8] = &[111, 102, 120];
 
-// pub const OUTFOX_PACKET_OVERHEAD: usize = MIX_PARAMS_LEN
-//     + (groupelementbytes() + tagbytes() + DEFAULT_ROUTING_INFO_SIZE as usize) * DEFAULT_HOPS
-//     + MAGIC_SLICE.len();
+pub const fn outfox_packet_overhead(kem: Algorithm) -> usize {
+    MIX_PARAMS_LEN
+        + (groupelementbytes(kem) + tagbytes() + DEFAULT_ROUTING_INFO_SIZE as usize) * DEFAULT_HOPS
+        + MAGIC_SLICE.len()
+}
 
 pub const fn groupelementbytes(kem: Algorithm) -> usize {
     match kem {

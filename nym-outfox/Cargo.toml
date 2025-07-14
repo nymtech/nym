@@ -1,13 +1,12 @@
 [package]
 name = "nym-outfox"
-version = "0.1.0"
+version = "0.2.0"
 description = "Outfox package format"
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 rayon = { workspace = true }
@@ -27,3 +26,7 @@ libcrux-kem = "0.0.3"
 criterion = { workspace = true }
 fastrand = { workspace = true }
 
+
+[[bench]]
+name = "bench"
+harness = false

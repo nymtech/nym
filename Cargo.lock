@@ -124,9 +124,15 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "ammonia"
+<<<<<<< HEAD
 version = "4.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17e913097e1a2124b46746c980134e8c954bc17a6a59bb3fde96f088d126dde6"
+=======
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6b346764dd0814805de8abf899fe03065bcee69bb1a4771c785817e39f3978f"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "cssparser",
  "html5ever",
@@ -1178,9 +1184,15 @@ dependencies = [
 
 [[package]]
 name = "clap"
+<<<<<<< HEAD
 version = "4.5.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4512b90fa68d3a9932cea5184017c5d200f5921df706d45e853537dea51508f"
+=======
+version = "4.5.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be92d32e80243a54711e5d7ce823c35c41c9d929dc4ab58e1276f625841aadf9"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1188,9 +1200,15 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
+<<<<<<< HEAD
 version = "4.5.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0025e98baa12e766c67ba13ff4695a887a1eba19569aad00a472546795bd6730"
+=======
+version = "4.5.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "707eab41e9622f9139419d573eca0900137718000c517d47da73045f54331c3d"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "anstream",
  "anstyle",
@@ -1200,9 +1218,15 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
+<<<<<<< HEAD
 version = "4.5.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2348487adcd4631696ced64ccdb40d38ac4d31cae7f2eec8817fcea1b9d1c43c"
+=======
+version = "4.5.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5abde44486daf70c5be8b8f8f1b66c49f86236edf6fa2abadb4d961c4c6229a"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "clap",
 ]
@@ -1219,9 +1243,15 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
+<<<<<<< HEAD
 version = "4.5.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a0b5487afeab2deb2ff4e03a807ad1a03ac532ff5a2cee5d86884440c7f7671"
+=======
+version = "4.5.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef4f52386a59ca4c860f7393bcf8abd8dfd91ecccc0f774635ff68e92eeef491"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -3244,8 +3274,13 @@ dependencies = [
  "once_cell",
  "rand 0.9.2",
  "ring",
+<<<<<<< HEAD
  "rustls 0.23.32",
  "thiserror 2.0.17",
+=======
+ "rustls 0.23.29",
+ "thiserror 2.0.12",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "tinyvec",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -3269,7 +3304,11 @@ dependencies = [
  "parking_lot",
  "rand 0.9.2",
  "resolv-conf",
+<<<<<<< HEAD
  "rustls 0.23.32",
+=======
+ "rustls 0.23.29",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "smallvec",
  "thiserror 2.0.17",
  "tokio",
@@ -3528,7 +3567,11 @@ dependencies = [
  "http 1.3.1",
  "hyper 1.7.0",
  "hyper-util",
+<<<<<<< HEAD
  "rustls 0.23.32",
+=======
+ "rustls 0.23.29",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -3551,9 +3594,15 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
+<<<<<<< HEAD
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c6995591a8f1380fcb4ba966a252a4b29188d51d2b89e3a252f5305be65aea8"
+=======
+version = "0.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66d5bd4c6f02bf0542fad85d626775bab9258cf795a4256dcaf3161114d1df"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -4709,6 +4758,12 @@ name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
+
+[[package]]
+name = "no-std-net"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "nom"
@@ -6881,6 +6936,7 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
+ "nym-config 0.1.0",
  "nym-credential-storage",
  "nym-credential-utils",
  "nym-credentials",
@@ -6902,6 +6958,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "parking_lot",
+ "pnet_packet",
  "rand 0.8.5",
  "reqwest 0.12.24",
  "serde",
@@ -8384,6 +8441,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "pnet_base"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffc190d4067df16af3aba49b3b74c469e611cad6314676eaf1157f31aa0fb2f7"
+dependencies = [
+ "no-std-net",
+]
+
+[[package]]
+name = "pnet_macros"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13325ac86ee1a80a480b0bc8e3d30c25d133616112bb16e86f712dcf8a71c863"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "pnet_macros_support"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eed67a952585d509dd0003049b1fc56b982ac665c8299b124b90ea2bdb3134ab"
+dependencies = [
+ "pnet_base",
+]
+
+[[package]]
+name = "pnet_packet"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c96ebadfab635fcc23036ba30a7d33a80c39e8461b8bd7dc7bb186acb96560f"
+dependencies = [
+ "glob",
+ "pnet_base",
+ "pnet_macros",
+ "pnet_macros_support",
+]
+
+[[package]]
 name = "polling"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8633,9 +8732,15 @@ dependencies = [
 
 [[package]]
 name = "psl"
+<<<<<<< HEAD
 version = "2.1.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c569a9577fe28cc82ac9969ec31778511f1912b3468fe236c24393bebf8a571"
+=======
+version = "2.1.124"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "281f96193296bf4916d7a112df4cc578aaf7a4d71f1570667779bb07364ed837"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "psl-types",
 ]
@@ -8674,9 +8779,15 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash",
+<<<<<<< HEAD
  "rustls 0.23.32",
  "socket2 0.6.1",
  "thiserror 2.0.17",
+=======
+ "rustls 0.23.29",
+ "socket2",
+ "thiserror 2.0.12",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "tokio",
  "tracing",
  "web-time",
@@ -8694,7 +8805,11 @@ dependencies = [
  "rand 0.9.2",
  "ring",
  "rustc-hash",
+<<<<<<< HEAD
  "rustls 0.23.32",
+=======
+ "rustls 0.23.29",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.17",
@@ -8959,7 +9074,11 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
+<<<<<<< HEAD
  "rustls 0.23.32",
+=======
+ "rustls 0.23.29",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -9212,15 +9331,25 @@ dependencies = [
 
 [[package]]
 name = "rustls"
+<<<<<<< HEAD
 version = "0.23.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd3c25631629d034ce7cd9940adc9d45762d46de2b0f57193c4443b92c6d4d40"
+=======
+version = "0.23.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2491382039b29b9b11ff08b76ff6c97cf287671dbb74f0be44bda389fffe9bd1"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "log",
  "once_cell",
  "ring",
  "rustls-pki-types",
+<<<<<<< HEAD
  "rustls-webpki 0.103.7",
+=======
+ "rustls-webpki 0.103.4",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -9301,9 +9430,15 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
+<<<<<<< HEAD
 version = "0.103.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e10b3f4191e8a80e6b43eebabfac91e5dcecebb27a71f04e820c47ec41d314bf"
+=======
+version = "0.103.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a17884ae0c1b773f1ccd2bd4a8c72f16da897310a98b0e84bf349ad5ead92fc"
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -10914,7 +11049,11 @@ version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
 dependencies = [
+<<<<<<< HEAD
  "rustls 0.23.32",
+=======
+ "rustls 0.23.29",
+>>>>>>> f5ab0c505 (* got ipr pings working with stream_wrapper_ipr)
  "tokio",
 ]
 

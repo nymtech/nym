@@ -3,8 +3,11 @@ import { fetchEpochRewards, fetchNoise, fetchNymPrice } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
 import { TokenomicsCard } from "./TokenomicsCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const TokenomicsCardWrapper = () => {
+  const { environment } = useEnvironment();
+
   const {
     data: nymPrice,
     isLoading: isPriceLoading,
@@ -24,7 +27,7 @@ export const TokenomicsCardWrapper = () => {
     isError: isEpochError,
   } = useQuery({
     queryKey: ["epochRewards"],
-    queryFn: fetchEpochRewards,
+    queryFn: () => fetchEpochRewards(environment),
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -37,7 +40,7 @@ export const TokenomicsCardWrapper = () => {
     isError: isStakingError,
   } = useQuery({
     queryKey: ["noise"],
-    queryFn: fetchNoise,
+    queryFn: () => fetchNoise(environment),
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

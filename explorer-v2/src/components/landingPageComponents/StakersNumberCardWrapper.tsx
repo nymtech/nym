@@ -3,11 +3,14 @@ import { fetchNSApiNodes } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
 import { StakersNumberCard } from "./StakersNumberCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const StakersNumberCardWrapper = () => {
+  const { environment } = useEnvironment();
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["nsApiNodes"],
-    queryFn: fetchNSApiNodes,
+    queryFn: () => fetchNSApiNodes(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

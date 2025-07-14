@@ -3,11 +3,14 @@ import { fetchNoise } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
 import { NoiseCard } from "./NoiseCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { useEnvironment } from "@/providers/EnvironmentProvider";
 
 export const NoiseCardWrapper = () => {
+  const { environment } = useEnvironment();
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["noise"],
-    queryFn: fetchNoise,
+    queryFn: () => fetchNoise(environment),
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

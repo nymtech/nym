@@ -6,21 +6,20 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 
-// pub use ::UserAgent
 use nym_http_api_client::UserAgent;
-use nym_validator_client::{NymApiClient, models::NymNodeDescription, nym_nodes::SkimmedNode};
+use nym_validator_client::{models::NymNodeDescription, nym_nodes::SkimmedNode, NymApiClient};
 use nym_vpn_api_client::types::{GatewayMinPerformance, Percent, ScoreThresholds};
 use rand::{prelude::SliceRandom, thread_rng};
 use tracing::{debug, error, warn};
 use url::Url;
 
 use crate::{
-    Error, NymNode,
     entries::{
         country::Country,
         gateway::{Gateway, GatewayList, GatewayType, NymNodeList},
     },
     error::Result,
+    Error, NymNode,
 };
 
 #[derive(Clone, Debug)]

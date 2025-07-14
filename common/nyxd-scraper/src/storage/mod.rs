@@ -324,7 +324,13 @@ async fn persist_commits(
             } => (validator_address, timestamp, signature),
         };
 
-        let validator = crate::helpers::validator_info(*validator_id, validators)?;
+        let validator = match crate::helpers::validator_info(*validator_id, validators) {
+            Ok(validator_info) => validator_info,
+            Err(err) => {
+                error!("{err}");
+                continue;
+            }
+        };
         let validator_address = crate::helpers::validator_consensus_address(*validator_id)?;
 
         if signature.is_none() {

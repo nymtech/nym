@@ -1,26 +1,32 @@
+use libcrux_kem::{Algorithm, PrivateKey};
+use rand::CryptoRng;
+
 use crate::{
     constants::{DEFAULT_HOPS, MAGIC_SLICE, MIN_PACKET_SIZE, MIX_PARAMS_LEN},
     error::OutfoxError,
     format::{MixCreationParameters, MixStageParameters},
-    route::{Destination, Node, PrivateKey, DEFAULT_PAYLOAD_SIZE},
+    route::{Destination, Node, DEFAULT_PAYLOAD_SIZE},
 };
 
 use std::{array::TryFromSliceError, collections::VecDeque, ops::Range};
 
 #[derive(Debug)]
 pub struct OutfoxPacket {
+    kem: Algorithm,
     mix_params: MixCreationParameters,
     payload: Vec<u8>,
 }
 
 pub struct OutfoxProcessedPacket {
+    kem: Algorithm,
     packet: OutfoxPacket,
     next_address: [u8; 32],
 }
 
 impl OutfoxProcessedPacket {
-    pub fn new(packet: OutfoxPacket, next_address: [u8; 32]) -> Self {
+    pub fn new(kem: Algorithm, packet: OutfoxPacket, next_address: [u8; 32]) -> Self {
         OutfoxProcessedPacket {
+            kem,
             packet,
             next_address,
         }
@@ -35,13 +41,14 @@ impl OutfoxProcessedPacket {
     }
 }
 
-impl TryFrom<&[u8]> for OutfoxPacket {
+impl TryFrom<(Algorithm, &[u8])> for OutfoxPacket {
     type Error = OutfoxError;
 
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        let (header, payload) = v.split_at(MIX_PARAMS_LEN);
+    fn try_from(v: (Algorithm, &[u8])) -> Result<Self, Self::Error> {
+        let (header, payload) = v.1.split_at(MIX_PARAMS_LEN);
         Ok(OutfoxPacket {
-            mix_params: MixCreationParameters::try_from(header)?,
+            kem: v.0,
+            mix_params: MixCreationParameters::try_from((v.0, header))?,
             payload: payload.to_vec(),
         })
     }
@@ -78,20 +85,24 @@ impl OutfoxPacket {
         Ok(bytes)
     }
 
-    pub fn build<M: AsRef<[u8]>>(
+    pub fn build<R, M: AsRef<[u8]>>(
+        rng: &mut R,
+        kem: Algorithm,
         payload: M,
         route: &[Node; 4],
         destination: &Destination,
         packet_size: Option<usize>,
-    ) -> Result<OutfoxPacket, OutfoxError> {
-        let secret_key = x25519_dalek::StaticSecret::random();
+    ) -> Result<OutfoxPacket, OutfoxError>
+    where
+        R: CryptoRng,
+    {
         let packet_size = packet_size.unwrap_or(DEFAULT_PAYLOAD_SIZE);
         let packet_size = if packet_size < MIN_PACKET_SIZE {
             MIN_PACKET_SIZE
         } else {
             packet_size
         } + MAGIC_SLICE.len();
-        let mix_params = MixCreationParameters::new(packet_size as u16);
+        let mix_params = MixCreationParameters::new(kem, packet_size as u16);
 
         let padding = mix_params.total_packet_length() - payload.as_ref().len() - MAGIC_SLICE.len();
         let mut buffer = vec![0; padding];
@@ -101,9 +112,9 @@ impl OutfoxPacket {
         // Last node in the route is a gateway, it will decrypt last, and get the final destination address
         let (range, stage_params) = mix_params.get_stage_params(0);
         stage_params.encode_mix_layer(
+            rng,
             &mut buffer[range],
-            &secret_key,
-            route.last().unwrap().pub_key,
+            &route.last().unwrap().pub_key,
             destination.address.as_bytes_ref(),
         )?;
 
@@ -123,16 +134,17 @@ impl OutfoxPacket {
             // We know that we'll always get 4 nodes, so we can unwrap here
             let processing_node = nodes.last().unwrap();
             let destination_node = nodes.first().unwrap();
-            let secret_key = x25519_dalek::StaticSecret::random();
+
             stage_params.encode_mix_layer(
+                rng,
                 &mut buffer[range],
-                &secret_key,
-                processing_node.pub_key,
+                &processing_node.pub_key,
                 destination_node.address.as_bytes(),
             )?;
         }
 
         Ok(OutfoxPacket {
+            kem,
             mix_params,
             payload: buffer,
         })
@@ -161,7 +173,7 @@ impl OutfoxPacket {
     pub fn decode_mix_layer(
         &mut self,
         layer: usize,
-        mix_secret_key: &x25519_dalek::StaticSecret,
+        mix_secret_key: &PrivateKey,
     ) -> Result<Vec<u8>, OutfoxError> {
         let (range, params) = self.stage_params(layer);
         let routing_data =

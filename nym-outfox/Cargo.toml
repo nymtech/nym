@@ -14,15 +14,14 @@ rayon = { workspace = true }
 blake3 = { workspace = true }
 zeroize = { workspace = true }
 chacha20 = { workspace = true, features = ["std"] }
-x25519-dalek = { version = "2.0.1", features = ["static_secrets", "getrandom", "zeroize"] }
 chacha20poly1305 = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 thiserror = { workspace = true }
-rand = { workspace = true }
 log = { workspace = true }
 
+rand = "0.9.1"
 bs58 = "0.5.1"
-# libcrux-kem = "0.0.3"
+libcrux-kem = "0.0.3"
 
 [dev-dependencies]
 criterion = { workspace = true }

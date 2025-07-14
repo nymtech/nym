@@ -2,6 +2,8 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use libcrux_kem::{Algorithm, PublicKey};
+
 use crate::error::OutfoxError;
 
 pub const SECURITY_PARAMETER: usize = 16; // k in the Sphinx paper. Measured in bytes; 128 bits.
@@ -9,9 +11,6 @@ pub const DESTINATION_ADDRESS_LENGTH: usize = 2 * SECURITY_PARAMETER;
 pub const IDENTIFIER_LENGTH: usize = SECURITY_PARAMETER;
 pub const NODE_ADDRESS_LENGTH: usize = 2 * SECURITY_PARAMETER;
 pub const DEFAULT_PAYLOAD_SIZE: usize = 1024;
-
-pub type PrivateKey = x25519_dalek::StaticSecret;
-pub type PublicKey = x25519_dalek::PublicKey;
 
 // in paper I
 pub type SURBIdentifier = [u8; IDENTIFIER_LENGTH];
@@ -99,15 +98,38 @@ impl Display for NodeAddressBytes {
     }
 }
 
-#[derive(Clone, Debug)]
 pub struct Node {
+    pub kem: Algorithm,
     pub address: NodeAddressBytes,
     pub pub_key: PublicKey,
 }
 
+impl Clone for Node {
+    fn clone(&self) -> Self {
+        Self {
+            kem: self.kem,
+            address: self.address.clone(),
+            pub_key: PublicKey::decode(self.kem, &self.pub_key.encode()).unwrap(),
+        }
+    }
+}
+impl std::fmt::Debug for Node {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Node")
+            .field("kem", &self.kem)
+            .field("address", &self.address)
+            .field("pub_key", &self.pub_key.encode())
+            .finish()
+    }
+}
+
 impl Node {
-    pub fn new(address: NodeAddressBytes, pub_key: PublicKey) -> Self {
-        Self { address, pub_key }
+    pub fn new(kem: Algorithm, address: NodeAddressBytes, pub_key: PublicKey) -> Self {
+        Self {
+            kem,
+            address,
+            pub_key,
+        }
     }
 }
 

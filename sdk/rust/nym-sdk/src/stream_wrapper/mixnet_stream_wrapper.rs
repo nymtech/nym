@@ -2,30 +2,20 @@ use crate::mixnet::InputMessage;
 use crate::mixnet::{MixnetClient, MixnetClientSender, Recipient};
 use crate::Error;
 use bytes::BytesMut;
-use futures::SinkExt;
 use nym_client_core::client::inbound_messages::InputMessageCodec;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::receiver::{ReconstructedMessage, ReconstructedMessageCodec};
+use nym_sphinx::receiver::ReconstructedMessage;
 use std::io;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::sync::oneshot;
-use tokio_util::codec::{Decoder, Encoder};
-use tracing::field::debug;
-use tracing::{debug, info, warn};
-
-/**
- * TODO
- * - Convenience methods? Depends on what we want to put in here and what might be used / impl-ed in consuming libraries
- * - https://github.com/nymtech/nym-vpn-client/tree/develop/nym-vpn-core/crates/nym-ip-packet-client/src - hook into IPR
- * - builder pattern via MixSocket + tests
- */
+use tokio_util::codec::Encoder;
+use tracing::{debug, info};
 
 /// MixSocket is following the structure of something like Tokio::net::TcpSocket with regards to setup and interface, breakdown from TcpSocket to TcpStream, etc.
 /// However, we can't map this one to one onto the TcpSocket as there isn't really a concept of binding to a port with the MixnetClient; it connects to its Gateway and then just accepts incoming messages from the Gw via the Websocket connection. However, we can stick with the idea of creating a Socket in an unconnected state, either using it to make a new Stream (connecting it to its EntryGw) or connecting it *to* something (once the IPR functionality is enabled, this will mean the creation of a Stream + kicking off the creation of a tunnel to an ExitGw + IPR).
-/// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it. Once LP is implemented, this will also allow us to follow something like what is implemented for the Tokio::net::UdpFramed abstraction, where we can create multiple MixStream instances from a single MixSocket, all connected to different Recipients.
+/// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it. Once LP is implemented, this will also allow us to follow something like what is implemented for the Tokio::net::UdpFramed abstraction, where we can create multiple MixStream instances from a single MixSocket, all connected to different Recipients (aka a one-to-many setup with a single MixnetClient).
 pub struct MixSocket {
     pub inner: MixnetClient,
 }
@@ -321,7 +311,10 @@ impl AsyncWrite for MixStreamWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_sphinx::receiver::ReconstructedMessageCodec;
     use std::sync::Once;
+    use tokio::io::AsyncReadExt;
+    use tokio_util::codec::Decoder;
 
     // Quick test fn for easy testing of sending to self before writing Socket impl (see above todo)
     impl MixSocket {

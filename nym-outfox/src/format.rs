@@ -256,6 +256,9 @@ impl MixStageParameters {
         buffer[self.routing_data_range()].copy_from_slice(routing_data);
 
         // Perform the AEAD
+
+        // HAZARD: ENCRYPTION WITH EMPTY NONCES AND NO AD!!
+
         let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key)?;
         let nonce = [0u8; 12];
 
@@ -294,6 +297,8 @@ impl MixStageParameters {
 
         // Compute the AEAD and check the Tag, if wrong return Err
         let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key)?;
+
+        // HAZARD: ENCRYPTION WITH EMPTY NONCES AND NO AD!!
         let nonce = [0; 12];
 
         let tag_bytes = buffer[self.tag_range()].to_vec();

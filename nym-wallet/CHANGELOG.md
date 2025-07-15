@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.2.19] (2025-07-15)
+
+- Amended the buy section ([#5841])
+- Remove bity dir ([#5844])
+
+[#5841]: https://github.com/nymtech/nym/pull/5841
+[#5844]: https://github.com/nymtech/nym/pull/5844
+
 ## [2025.7-tex] (2025-04-14)
 
 - Fix the mac build of the wallet ([#5684])

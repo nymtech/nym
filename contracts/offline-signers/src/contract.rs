@@ -3,7 +3,7 @@
 
 use crate::queries::query_admin;
 use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
-use crate::transactions::try_update_contract_admin;
+use crate::transactions::{try_propose_or_vote, try_update_contract_admin};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -38,9 +38,9 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, NymOfflineSignersContractError> {
-    let _ = env;
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
+        ExecuteMsg::ProposeOrVote { signer } => try_propose_or_vote(deps, env, info, signer),
     }
 }
 
@@ -75,17 +75,18 @@ mod tests {
 
         #[test]
         fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
-            // we need to mock dependencies in a state where mixnet contract has already been instantiated
-            // (we query it at init)
             let mut deps = mock_dependencies();
             let env = mock_env();
             let some_sender = deps.api.addr_make("some_sender");
+            let dummy_dkg_contract = deps.api.addr_make("dkg_contract");
 
             instantiate(
                 deps.as_mut(),
                 env,
                 message_info(&some_sender, &[]),
-                InstantiateMsg {},
+                InstantiateMsg {
+                    dkg_contract_address: dummy_dkg_contract.to_string(),
+                },
             )?;
 
             NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE

@@ -16,15 +16,16 @@ required-features = ["schema-gen"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-schemars = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw2 = { workspace = true }
+cw4 = { workspace = true }
 cw-storage-plus = { workspace = true }
 cosmwasm-schema = { workspace = true, optional = true }
 cw-controllers = { workspace = true }
 
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-offline-signers-common = { path = "../../common/cosmwasm-smart-contracts/offline-signers" }
+nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 
 [dev-dependencies]
 anyhow = { workspace = true }

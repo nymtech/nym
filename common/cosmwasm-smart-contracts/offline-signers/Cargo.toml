@@ -18,6 +18,7 @@ schemars = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }
+cw-storage-plus = { workspace = true }
 
 
 [features]

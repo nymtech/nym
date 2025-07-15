@@ -6855,6 +6855,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "cw-storage-plus",
  "schemars",
  "serde",
  "thiserror 2.0.12",

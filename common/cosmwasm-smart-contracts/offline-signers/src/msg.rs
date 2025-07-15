@@ -4,12 +4,18 @@
 use cosmwasm_schema::cw_serde;
 
 #[cw_serde]
-pub struct InstantiateMsg {}
+pub struct InstantiateMsg {
+    /// Address of the DKG contract that's used as the base of the signer information
+    pub dkg_contract_address: String,
+}
 
 #[cw_serde]
 pub enum ExecuteMsg {
     /// Change the admin
     UpdateAdmin { admin: String },
+
+    /// Propose or cast vote on particular DKG signer being offline
+    ProposeOrVote { signer: String },
 }
 
 #[cw_serde]

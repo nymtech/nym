@@ -30,6 +30,10 @@ nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut
 [dev-dependencies]
 anyhow = { workspace = true }
 nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-coconut-dkg = { path = "../coconut-dkg", features = ["testable-dkg-contract"] }
+cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig", features = ["testable-cw3-contract"] }
+cw4-group = { path = "../multisig/cw4-group", features = ["testable-cw4-contract"] }
+
 
 [features]
 schema-gen = ["nym-offline-signers-common/schema", "cosmwasm-schema"]

@@ -14,3 +14,6 @@ pub mod error;
 mod state;
 mod support;
 mod verification_key_shares;
+
+#[cfg(feature = "testable-dkg-contract")]
+pub mod testable_dkg_contract;

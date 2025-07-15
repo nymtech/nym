@@ -106,7 +106,7 @@ jobs:
           echo "Starting build process..."
           echo "Signing enabled: ${{ inputs.sign }}"
           yarn build
-          
+  
       - name: Check bundle directory
         shell: bash
         run: |
@@ -132,7 +132,7 @@ jobs:
           
           # Check for MSI files in any location
           find . -name "*.msi" -type f
-          
+  
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -153,7 +153,7 @@ jobs:
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi.zip*
             nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
             nym-wallet/src-tauri/target/release/bundle/msi/*.msi
-          
+  
       - name: Find MSI path for deployment
         id: find-msi
         shell: bash
@@ -166,7 +166,7 @@ jobs:
             echo "WARNING: No MSI file found for deployment!"
             echo "msi_path=${{ env.BUNDLE_PATH }}/msi/nym-wallet*.msi" >> $GITHUB_OUTPUT
           fi
-          
+  
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/release-calculate-hash.yml

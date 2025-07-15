@@ -76,30 +76,36 @@ fn test_packet(c: &mut Criterion) {
         libcrux_kem::Algorithm::XWingKemDraft06,
         libcrux_kem::Algorithm::MlKem768,
     ] {
-        let (node1_pk, node1_pub) = key_gen(kem, &mut rng).unwrap();
+        let (entry_sk, entry_pk) = key_gen(kem, &mut rng).unwrap();
+        let entry_node = Node::new(
+            kem,
+            NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
+            entry_pk,
+        );
+        let (node1_sk, node1_pk) = key_gen(kem, &mut rng).unwrap();
         let node1 = Node::new(
             kem,
             NodeAddressBytes::from_bytes([0u8; NODE_ADDRESS_LENGTH]),
-            node1_pub,
+            node1_pk,
         );
-        let (node2_pk, node2_pub) = key_gen(kem, &mut rng).unwrap();
+        let (node2_sk, node2_pk) = key_gen(kem, &mut rng).unwrap();
         let node2 = Node::new(
             kem,
             NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
-            node2_pub,
+            node2_pk,
         );
-        let (node3_pk, node3_pub) = key_gen(kem, &mut rng).unwrap();
+        let (node3_sk, node3_pk) = key_gen(kem, &mut rng).unwrap();
         let node3 = Node::new(
             kem,
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
-            node3_pub,
+            node3_pk,
         );
 
-        let (gateway_pk, gateway_pub) = key_gen(kem, &mut rng).unwrap();
-        let gateway = Node::new(
+        let (exit_sk, exit_pk) = key_gen(kem, &mut rng).unwrap();
+        let exit = Node::new(
             kem,
             NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
-            gateway_pub,
+            exit_pk,
         );
 
         c.bench_function(&format!("{} | Key Generation", kem_str(kem)), |b| {
@@ -111,9 +117,15 @@ fn test_packet(c: &mut Criterion) {
             [0u8; 16],
         );
 
-        let route = [node1, node2.clone(), node3.clone(), gateway.clone()];
+        let route = [
+            entry_node,
+            node1.clone(),
+            node2.clone(),
+            node3.clone(),
+            exit.clone(),
+        ];
 
-        for payload_size in [512, 1024, 2048, 4096] {
+        for payload_size in [512, 1000, 1024, 2048, 4096] {
             c.bench_function(
                 &format!(
                     "{} | Packet Construction | Payload: {} bytes",
@@ -154,19 +166,38 @@ fn test_packet(c: &mut Criterion) {
 
             c.bench_function(
                 &format!(
-                    "{} | Packet Decoding (Layer 1) | Payload: {} bytes",
+                    "{} | Packet Decoding (Entry) | Payload: {} bytes",
                     kem_str(kem),
                     payload_size
                 ),
                 |b| {
                     b.iter_batched(
                         || OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap(),
-                        |mut packet| packet.decode_next_layer(&node1_pk).unwrap(),
+                        |mut packet| packet.decode_next_layer(&entry_sk).unwrap(),
                         criterion::BatchSize::PerIteration,
                     )
                 },
             );
 
+            c.bench_function(
+                &format!(
+                    "{} | Packet Decoding (Layer 1) | Payload: {} bytes",
+                    kem_str(kem),
+                    payload_size
+                ),
+                |b| {
+                    b.iter_batched(
+                        || {
+                            let mut packet =
+                                OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap();
+                            packet.decode_next_layer(&entry_sk).unwrap();
+                            packet
+                        },
+                        |mut packet| packet.decode_next_layer(&node1_sk).unwrap(),
+                        criterion::BatchSize::PerIteration,
+                    )
+                },
+            );
             c.bench_function(
                 &format!(
                     "{} | Packet Decoding (Layer 2) | Payload: {} bytes",
@@ -178,10 +209,11 @@ fn test_packet(c: &mut Criterion) {
                         || {
                             let mut packet =
                                 OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap();
-                            packet.decode_next_layer(&node1_pk).unwrap();
+                            packet.decode_next_layer(&entry_sk).unwrap();
+                            packet.decode_next_layer(&node1_sk).unwrap();
                             packet
                         },
-                        |mut packet| packet.decode_next_layer(&node2_pk).unwrap(),
+                        |mut packet| packet.decode_next_layer(&node2_sk).unwrap(),
                         criterion::BatchSize::PerIteration,
                     )
                 },
@@ -197,18 +229,19 @@ fn test_packet(c: &mut Criterion) {
                         || {
                             let mut packet =
                                 OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap();
-                            packet.decode_next_layer(&node1_pk).unwrap();
-                            packet.decode_next_layer(&node2_pk).unwrap();
+                            packet.decode_next_layer(&entry_sk).unwrap();
+                            packet.decode_next_layer(&node1_sk).unwrap();
+                            packet.decode_next_layer(&node2_sk).unwrap();
                             packet
                         },
-                        |mut packet| packet.decode_next_layer(&node3_pk).unwrap(),
+                        |mut packet| packet.decode_next_layer(&node3_sk).unwrap(),
                         criterion::BatchSize::PerIteration,
                     )
                 },
             );
             c.bench_function(
                 &format!(
-                    "{} | Packet Decoding + Plaintext Recovery (Gateway) | Payload: {} bytes",
+                    "{} | Packet Decoding + Plaintext Recovery (exit) | Payload: {} bytes",
                     kem_str(kem),
                     payload_size
                 ),
@@ -217,13 +250,14 @@ fn test_packet(c: &mut Criterion) {
                         || {
                             let mut packet =
                                 OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap();
-                            packet.decode_next_layer(&node1_pk).unwrap();
-                            packet.decode_next_layer(&node2_pk).unwrap();
-                            packet.decode_next_layer(&node3_pk).unwrap();
+                            packet.decode_next_layer(&entry_sk).unwrap();
+                            packet.decode_next_layer(&node1_sk).unwrap();
+                            packet.decode_next_layer(&node2_sk).unwrap();
+                            packet.decode_next_layer(&node3_sk).unwrap();
                             packet
                         },
                         |mut packet| {
-                            packet.decode_next_layer(&gateway_pk).unwrap();
+                            packet.decode_next_layer(&exit_sk).unwrap();
                             packet.recover_plaintext()
                         },
                         criterion::BatchSize::PerIteration,
@@ -231,13 +265,15 @@ fn test_packet(c: &mut Criterion) {
                 },
             );
 
-            let next_address = packet.decode_next_layer(&node1_pk).unwrap();
+            let next_address = packet.decode_next_layer(&entry_sk).unwrap();
+            assert_eq!(&next_address, node1.address.as_bytes());
+            let next_address = packet.decode_next_layer(&node1_sk).unwrap();
             assert_eq!(&next_address, node2.address.as_bytes());
-            let next_address = packet.decode_next_layer(&node2_pk).unwrap();
+            let next_address = packet.decode_next_layer(&node2_sk).unwrap();
             assert_eq!(&next_address, node3.address.as_bytes());
-            let next_address = packet.decode_next_layer(&node3_pk).unwrap();
-            assert_eq!(&next_address, gateway.address.as_bytes());
-            let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
+            let next_address = packet.decode_next_layer(&node3_sk).unwrap();
+            assert_eq!(&next_address, exit.address.as_bytes());
+            let destination_address = packet.decode_next_layer(&exit_sk).unwrap();
             assert_eq!(destination_address, destination.address.as_bytes());
 
             assert_eq!(payload, packet.recover_plaintext().unwrap());

@@ -107,7 +107,7 @@ impl TryFrom<(Algorithm, &[u8])> for MixCreationParameters {
 
 impl MixCreationParameters {
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(5);
+        let mut bytes = Vec::with_capacity(DEFAULT_HOPS + 1);
         bytes.extend_from_slice(self.routing_information_length_by_stage.as_slice());
         bytes.extend_from_slice(&self.payload_length_bytes.to_le_bytes());
         bytes
@@ -333,13 +333,13 @@ mod test {
             libcrux_kem::Algorithm::MlKem768,
         ] {
             let mix_params = MixCreationParameters::new(kem, 1024);
-            assert_eq!(mix_params.to_bytes(), vec![32, 32, 32, 32, 0, 4]);
+            assert_eq!(mix_params.to_bytes(), vec![32, 32, 32, 32, 32, 0, 4]);
         }
     }
 
     #[test]
     fn test_from_bytes() {
-        let params_bytes = vec![32, 32, 32, 32, 0, 4];
+        let params_bytes = vec![32, 32, 32, 32, 32, 0, 4];
         for kem in [
             libcrux_kem::Algorithm::X25519,
             libcrux_kem::Algorithm::XWingKemDraft06,

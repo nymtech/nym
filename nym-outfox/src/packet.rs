@@ -89,7 +89,7 @@ impl OutfoxPacket {
         rng: &mut R,
         kem: Algorithm,
         payload: M,
-        route: &[Node; 4],
+        route: &[Node; DEFAULT_HOPS],
         destination: &Destination,
         packet_size: Option<usize>,
     ) -> Result<OutfoxPacket, OutfoxError>
@@ -121,17 +121,17 @@ impl OutfoxPacket {
         let route = route.iter().rev().collect::<Vec<&Node>>();
 
         // We've reversed the route, and we iterate pairs of node, first node in the pair is the destination, and the second(last) is the processing node
-        // Route: [N1, N2, N3, G]
-        // Reverse: [G, N3, N2, N1]
-        // Pairs: [(G, N3), (N3, N2), (N2, N1)]
+        // Route: [Entry, N1, N2, N3, Exit]
+        // Reverse: [Exit, N3, N2, N1, Entry]
+        // Pairs: [(Exit, N3), (N3, N2), (N2, N1), (N1, Entry)]
         // We iterate over pairs, and encode the mix layer for each pair
-        // For the first pair, we encode the mix layer for N3, and the destination is G
+        // For the first pair, we encode the mix layer for N3, and the destination is Exit
         // For the second pair, we encode the mix layer for N2, and the destination is N3
         // For the third pair, we encode the mix layer for N1, and the destination is N2
         // Entry gateway will simply forward the packet to N1 and processing will continue from there
         for (idx, nodes) in route.windows(2).enumerate() {
             let (range, stage_params) = mix_params.get_stage_params(idx + 1);
-            // We know that we'll always get 4 nodes, so we can unwrap here
+            // We know that we'll always get DEFAULT_HOPS nodes, so we can unwrap here
             let processing_node = nodes.last().unwrap();
             let destination_node = nodes.first().unwrap();
 

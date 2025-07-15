@@ -94,6 +94,12 @@ mod tests {
             libcrux_kem::Algorithm::XWingKemDraft06,
             libcrux_kem::Algorithm::MlKem768,
         ] {
+            let (entry_pk, entry_pub) = key_gen(kem, &mut rng).unwrap();
+            let entry = Node::new(
+                kem,
+                NodeAddressBytes::from_bytes([8u8; NODE_ADDRESS_LENGTH]),
+                entry_pub,
+            );
             let (node1_pk, node1_pub) = key_gen(kem, &mut rng).unwrap();
             let node1 = Node::new(
                 kem,
@@ -113,11 +119,11 @@ mod tests {
                 node3_pub,
             );
 
-            let (gateway_pk, gateway_pub) = key_gen(kem, &mut rng).unwrap();
-            let gateway = Node::new(
+            let (exit_pk, exit_pub) = key_gen(kem, &mut rng).unwrap();
+            let exit = Node::new(
                 kem,
                 NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
-                gateway_pub,
+                exit_pub,
             );
 
             let destination = Destination::new(
@@ -125,7 +131,13 @@ mod tests {
                 [0u8; 16],
             );
 
-            let route = [node1, node2.clone(), node3.clone(), gateway.clone()];
+            let route = [
+                entry,
+                node1.clone(),
+                node2.clone(),
+                node3.clone(),
+                exit.clone(),
+            ];
 
             let payload = vec![0, 0, 1, 1, 1, 0, 0];
 
@@ -147,13 +159,15 @@ mod tests {
 
             let mut packet = OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap();
 
+            let next_address = packet.decode_next_layer(&entry_pk).unwrap();
+            assert_eq!(&next_address, node1.address.as_bytes());
             let next_address = packet.decode_next_layer(&node1_pk).unwrap();
             assert_eq!(&next_address, node2.address.as_bytes());
             let next_address = packet.decode_next_layer(&node2_pk).unwrap();
             assert_eq!(&next_address, node3.address.as_bytes());
             let next_address = packet.decode_next_layer(&node3_pk).unwrap();
-            assert_eq!(&next_address, gateway.address.as_bytes());
-            let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
+            assert_eq!(&next_address, exit.address.as_bytes());
+            let destination_address = packet.decode_next_layer(&exit_pk).unwrap();
             assert_eq!(destination_address, destination.address.as_bytes());
 
             assert_eq!(payload, packet.recover_plaintext().unwrap());
@@ -168,6 +182,12 @@ mod tests {
             libcrux_kem::Algorithm::XWingKemDraft06,
             libcrux_kem::Algorithm::MlKem768,
         ] {
+            let (entry_pk, entry_pub) = key_gen(kem, &mut rng).unwrap();
+            let entry = Node::new(
+                kem,
+                NodeAddressBytes::from_bytes([8u8; NODE_ADDRESS_LENGTH]),
+                entry_pub,
+            );
             let (node1_pk, node1_pub) = key_gen(kem, &mut rng).unwrap();
             let node1 = Node::new(
                 kem,
@@ -187,11 +207,11 @@ mod tests {
                 node3_pub,
             );
 
-            let (gateway_pk, gateway_pub) = key_gen(kem, &mut rng).unwrap();
-            let gateway = Node::new(
+            let (exit_pk, exit_pub) = key_gen(kem, &mut rng).unwrap();
+            let exit = Node::new(
                 kem,
                 NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
-                gateway_pub,
+                exit_pub,
             );
 
             let destination = Destination::new(
@@ -199,7 +219,13 @@ mod tests {
                 [0u8; 16],
             );
 
-            let route = [node1, node2.clone(), node3.clone(), gateway.clone()];
+            let route = [
+                entry,
+                node1.clone(),
+                node2.clone(),
+                node3.clone(),
+                exit.clone(),
+            ];
 
             let payload = randombytes(2048);
 
@@ -221,13 +247,15 @@ mod tests {
 
             let mut packet = OutfoxPacket::try_from((kem, packet_bytes.as_slice())).unwrap();
 
+            let next_address = packet.decode_next_layer(&entry_pk).unwrap();
+            assert_eq!(&next_address, node1.address.as_bytes());
             let next_address = packet.decode_next_layer(&node1_pk).unwrap();
             assert_eq!(&next_address, node2.address.as_bytes());
             let next_address = packet.decode_next_layer(&node2_pk).unwrap();
             assert_eq!(&next_address, node3.address.as_bytes());
             let next_address = packet.decode_next_layer(&node3_pk).unwrap();
-            assert_eq!(&next_address, gateway.address.as_bytes());
-            let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
+            assert_eq!(&next_address, exit.address.as_bytes());
+            let destination_address = packet.decode_next_layer(&exit_pk).unwrap();
             assert_eq!(destination_address, destination.address.as_bytes());
 
             assert_eq!(payload, packet.recover_plaintext().unwrap());

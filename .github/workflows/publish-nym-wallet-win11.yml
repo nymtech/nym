@@ -49,6 +49,8 @@ jobs:
         run: |
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
+          chmod +x CodeSignTool.sh
+          
       - name: Get EV certificate credential id
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
@@ -56,6 +58,7 @@ jobs:
         shell: bash
         run: |
           echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
+          
       - name: Add custom sign command to tauri.conf.json
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
@@ -64,21 +67,21 @@ jobs:
           yq eval --inplace '.bundle.windows +=
           {
             "signCommand": {
-              "cmd": "C:\Program Files\Git\bin\bash.EXE",
+              "cmd": "C:\\Program Files\\Git\\bin\\bash.exe",
               "args": [
-                "/c/actions-runner/_work/nym/nym/nym-wallet/src-tauri/CodeSignTool.sh",
+                "C:\\actions-runner\\_work\\nym\\nym\\nym-wallet\\src-tauri\\CodeSignTool.sh",
                 "sign",
-                "-username ${{ secrets.SSL_COM_USERNAME }}",
-                "-password ${{ secrets.SSL_COM_PASSWORD }}",
-                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
-                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
-                "-program_name NymWallet",
-                "-input_file_path",
-                "%1",
+                "-username=${{ secrets.SSL_COM_USERNAME }}",
+                "-password=${{ secrets.SSL_COM_PASSWORD }}",
+                "-credential_id=${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
+                "-totp_secret=${{ secrets.SSL_COM_TOTP_SECRET }}",
+                "-program_name=NymWallet",
+                "-input_file_path=%1",
                 "-override"
               ]
             }
           }' tauri.conf.json
+          
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
@@ -93,14 +96,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
-          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
-          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
-          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
+          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME || '' }}
+          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD || '' }}
+          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID || '' }}
+          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET || '' }}
+          CODE_SIGN_TOOL_PATH: ${{ inputs.sign && 'C:\\actions-runner\\_work\\nym\\nym\\nym-wallet\\src-tauri\\' || '' }}
         run: |
           echo "Starting build process..."
+          echo "Signing enabled: ${{ inputs.sign }}"
           yarn build
-
+          
       - name: Check bundle directory
         shell: bash
         run: |
@@ -126,7 +131,7 @@ jobs:
           
           # Check for MSI files in any location
           find . -name "*.msi" -type f
-
+          
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -160,7 +165,7 @@ jobs:
             echo "WARNING: No MSI file found for deployment!"
             echo "msi_path=${{ env.BUNDLE_PATH }}/msi/nym-wallet*.msi" >> $GITHUB_OUTPUT
           fi
-
+          
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/release-calculate-hash.yml

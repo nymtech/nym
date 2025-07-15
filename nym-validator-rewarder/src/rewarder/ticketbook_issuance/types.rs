@@ -80,7 +80,7 @@ impl Display for CredentialIssuer {
             "[id: {}] {} @ {}",
             self.node_id,
             self.operator_account,
-            self.api_client.api_url()
+            self.api_client.current_url()
         )
     }
 }

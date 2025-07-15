@@ -722,7 +722,7 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         let whitelisted = self.whitelist.contains(&issuer.operator_account);
 
         OperatorIssuing {
-            api_runner: issuer.api_client.api_url().to_string(),
+            api_runner: issuer.api_client.current_url().to_string(),
             whitelisted,
             pre_banned: true,
             runner_account: issuer.operator_account.clone(),
@@ -745,7 +745,7 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         };
 
         OperatorIssuing {
-            api_runner: issuer.details.api_client.api_url().to_string(),
+            api_runner: issuer.details.api_client.current_url().to_string(),
             whitelisted,
             issued_ratio,
             issued_ticketbooks: issuer.claimed_issued() as u32,

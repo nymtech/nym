@@ -64,7 +64,7 @@ fn get_issuer(
             return Ok(issuer);
         }
 
-        if issuer.api_client.api_url().to_string().contains(&target) {
+        if issuer.api_client.current_url().to_string().contains(&target) {
             return Ok(issuer);
         }
 

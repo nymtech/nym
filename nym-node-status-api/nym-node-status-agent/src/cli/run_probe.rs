@@ -65,14 +65,26 @@ pub(crate) async fn run_probe(
                             auth_key,
                         );
 
-                        let result = client
-                            .submit_results_with_context(
-                                testrun.testrun_id,
-                                log,
-                                testrun.assigned_at_utc,
-                                testrun.gateway_identity_key,
-                            )
-                            .await;
+                        let result = if idx == 0 {
+                            // Primary server: submit regular results without context
+                            client
+                                .submit_results(
+                                    testrun.testrun_id as i64,
+                                    log,
+                                    testrun.assigned_at_utc,
+                                )
+                                .await
+                        } else {
+                            // Other servers: submit results with context
+                            client
+                                .submit_results_with_context(
+                                    testrun.testrun_id,
+                                    log,
+                                    testrun.assigned_at_utc,
+                                    testrun.gateway_identity_key,
+                                )
+                                .await
+                        };
 
                         (idx, server.address.clone(), server.port, result)
                     }
@@ -84,16 +96,20 @@ pub(crate) async fn run_probe(
             for result in results {
                 match result.3 {
                     Ok(()) => {
+                        let method = if result.0 == 0 { "regular" } else { "with context" };
                         tracing::info!(
-                            "✅ Successfully submitted to server[{}] {}:{}",
+                            "✅ Successfully submitted {} to server[{}] {}:{}",
+                            method,
                             result.0,
                             result.1,
                             result.2
                         );
                     }
                     Err(e) => {
+                        let method = if result.0 == 0 { "regular" } else { "with context" };
                         tracing::warn!(
-                            "❌ Failed to submit to server[{}] {}:{} - {}",
+                            "❌ Failed to submit {} to server[{}] {}:{} - {}",
+                            method,
                             result.0,
                             result.1,
                             result.2,

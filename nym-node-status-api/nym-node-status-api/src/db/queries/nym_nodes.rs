@@ -147,8 +147,11 @@ pub(crate) async fn update_nym_nodes(
     }
 
     tx.commit().await?;
-    
-    tracing::debug!("Successfully inserted/updated {} nym_nodes records", inserted);
+
+    tracing::debug!(
+        "Successfully inserted/updated {} nym_nodes records",
+        inserted
+    );
     Ok(inserted)
 }
 

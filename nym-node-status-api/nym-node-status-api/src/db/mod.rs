@@ -68,9 +68,17 @@ impl Storage {
 
     #[cfg(feature = "pg")]
     pub async fn init(connection_url: String, _busy_timeout: Duration) -> Result<Self> {
-        let connect_options =
+        use std::env;
+        let mut connect_options =
             PgConnectOptions::from_str(&connection_url)?.disable_statement_logging();
 
+        let ssl_cert_path = env::var("PG_CERT").ok();
+
+        if let Some(ssl_cert) = ssl_cert_path {
+            connect_options = connect_options
+                .ssl_mode(sqlx::postgres::PgSslMode::Require)
+                .ssl_root_cert(ssl_cert);
+        }
         let pool = sqlx::PgPool::connect_with(connect_options)
             .await
             .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;

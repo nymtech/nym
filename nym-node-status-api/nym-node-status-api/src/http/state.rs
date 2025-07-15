@@ -191,7 +191,9 @@ impl HttpCache {
                     }
                     Err(err) => {
                         tracing::error!("CRITICAL: Failed to fetch gateways from database: {err}");
-                        panic!("Cannot read gateways table - this should never happen! Error: {err}");
+                        panic!(
+                            "Cannot read gateways table - this should never happen! Error: {err}"
+                        );
                     }
                 };
 

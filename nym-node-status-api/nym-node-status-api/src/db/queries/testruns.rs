@@ -165,7 +165,13 @@ pub(crate) async fn update_gateway_last_probe_log(
         .execute(conn.as_mut())
         .await
         .map(drop)
-        .map_err(|e| anyhow::anyhow!("Failed to update probe log for gateway {}: {}", gateway_pk, e))
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to update probe log for gateway {}: {}",
+                gateway_pk,
+                e
+            )
+        })
 }
 
 pub(crate) async fn update_gateway_last_probe_result(
@@ -179,7 +185,13 @@ pub(crate) async fn update_gateway_last_probe_result(
         .execute(conn.as_mut())
         .await
         .map(drop)
-        .map_err(|e| anyhow::anyhow!("Failed to update probe result for gateway {}: {}", gateway_pk, e))
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to update probe result for gateway {}: {}",
+                gateway_pk,
+                e
+            )
+        })
 }
 
 pub(crate) async fn update_gateway_score(

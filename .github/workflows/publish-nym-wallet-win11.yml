@@ -67,16 +67,17 @@ jobs:
           yq eval --inplace '.bundle.windows +=
           {
             "signCommand": {
-              "cmd": "C:\\Program Files\\Git\\bin\\bash.exe",
+              "cmd": "C:\Program Files\Git\bin\bash.EXE",
               "args": [
-                "C:\\actions-runner\\_work\\nym\\nym\\nym-wallet\\src-tauri\\CodeSignTool.sh",
+                "/c/actions-runner/_work/nym/nym/nym-wallet/src-tauri/CodeSignTool.sh",
                 "sign",
-                "-username=${{ secrets.SSL_COM_USERNAME }}",
-                "-password=${{ secrets.SSL_COM_PASSWORD }}",
-                "-credential_id=${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
-                "-totp_secret=${{ secrets.SSL_COM_TOTP_SECRET }}",
-                "-program_name=NymWallet",
-                "-input_file_path=%1",
+                "-username ${{ secrets.SSL_COM_USERNAME }}",
+                "-password ${{ secrets.SSL_COM_PASSWORD }}",
+                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
+                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
+                "-program_name NymWallet",
+                "-input_file_path",
+                "%1",
                 "-override"
               ]
             }

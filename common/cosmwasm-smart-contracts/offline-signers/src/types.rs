@@ -16,7 +16,6 @@ pub struct Proposal {
 
     // not strictly necessary but the address of the first sender who has managed to get the message through
     pub proposer: Addr,
-    // info on if it was passed, etc,
 }
 
 impl Proposal {
@@ -74,4 +73,94 @@ pub struct Config {
     // minimum time between two consecutive status changes
     // (to prevent signer from going online-offline multiple times a minute)
     pub status_change_cooldown_secs: u64,
+}
+
+#[cw_serde]
+pub struct ProposalWithResolution {
+    pub proposal: Proposal,
+    pub passed: bool,
+    pub voting_finished: bool,
+}
+
+#[cw_serde]
+pub struct ActiveProposalResponse {
+    pub proposal: Option<ProposalWithResolution>,
+}
+
+#[cw_serde]
+pub struct ActiveProposalsPagedResponse {
+    pub start_next_after: Option<String>,
+    pub active_proposals: Vec<ProposalWithResolution>,
+}
+
+#[cw_serde]
+pub struct LastStatusResetDetails {
+    pub information: StatusResetInformation,
+    pub signer: Addr,
+}
+
+#[cw_serde]
+pub struct LastStatusResetPagedResponse {
+    pub start_next_after: Option<String>,
+    pub status_resets: Vec<LastStatusResetDetails>,
+}
+
+#[cw_serde]
+pub struct LastStatusResetResponse {
+    pub information: Option<StatusResetInformation>,
+}
+
+#[cw_serde]
+pub struct OfflineSignerResponse {
+    pub information: Option<OfflineSignerInformation>,
+}
+
+#[cw_serde]
+pub struct OfflineSignerDetails {
+    pub information: OfflineSignerInformation,
+    pub signer: Addr,
+}
+
+#[cw_serde]
+pub struct OfflineSignersPagedResponse {
+    pub start_next_after: Option<String>,
+    pub offline_signers: Vec<OfflineSignerDetails>,
+}
+
+#[cw_serde]
+pub struct ProposalResponse {
+    pub proposal: Option<ProposalWithResolution>,
+}
+
+#[cw_serde]
+pub struct ProposalsPagedResponse {
+    pub start_next_after: Option<ProposalId>,
+    pub proposals: Vec<Proposal>,
+}
+
+#[cw_serde]
+pub struct VoteResponse {
+    pub vote: Option<VoteInformation>,
+}
+
+#[cw_serde]
+pub struct VoteDetails {
+    pub voter: Addr,
+    pub information: VoteInformation,
+}
+
+#[cw_serde]
+pub struct VotesPagedResponse {
+    pub start_next_after: Option<String>,
+    pub votes: Vec<VoteDetails>,
+}
+
+#[cw_serde]
+pub struct SigningStatusResponse {
+    pub dkg_epoch_id: u64,
+    pub signing_threshold: u64,
+    pub total_group_members: u32,
+    pub current_registered_dealers: u32,
+    pub offline_signers: u32,
+    pub threshold_available: bool,
 }

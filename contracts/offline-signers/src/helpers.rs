@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Addr, QuerierWrapper, StdError, StdResult};
-use nym_coconut_dkg_common::types::Cw4Contract;
+use cw_storage_plus::Map;
+use nym_coconut_dkg_common::dealer::{DealerRegistrationDetails, PagedDealerResponse};
+use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_dkg_common::{
+    msg::QueryMsg as DkgQueryMsg,
+    types::{Cw4Contract, Epoch},
+};
 use nym_contracts_common::contract_querier::ContractQuerier;
 use nym_offline_signers_common::NymOfflineSignersContractError;
 
@@ -21,13 +27,76 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
             ))
     }
 
-    // queries CURRENT threshold value; if DKG is in progress, that's either value of the previous epoch
-    // or the upcoming one if dealings had already been exchanged
-    fn query_dkg_threshold(&self, dkg_contract: impl Into<String>) -> StdResult<u64> {
-        self.query_contract_storage_value(dkg_contract, b"threshold")?
+    fn query_dkg_epoch(&self, dkg_contract: impl Into<String>) -> StdResult<Epoch> {
+        self.query_contract_storage_value(dkg_contract, b"current_epoch")?
             .ok_or(StdError::not_found(
-                "unable to retrieve threshold information from the DKG contract storage",
+                "unable to retrieve epoch information from the DKG contract storage",
             ))
+    }
+
+    fn query_dkg_dealers(
+        &self,
+        dkg_contract: impl Into<String>,
+        epoch_id: EpochId,
+    ) -> StdResult<Vec<Addr>> {
+        let dkg_contract = dkg_contract.into();
+
+        let todo = "this  will exist once relevant PR has been merged";
+        mod placeholder {
+            use cosmwasm_std::Addr;
+            use nym_coconut_dkg_common::types::EpochId;
+            use serde::{Deserialize, Serialize};
+
+            #[derive(Serialize)]
+            pub(crate) enum DkgQueryMsg {
+                GetEpochDealersAddresses {
+                    epoch_id: EpochId,
+                    limit: Option<u32>,
+                    start_after: Option<String>,
+                },
+            }
+
+            #[derive(Deserialize)]
+            pub(crate) struct PagedDealerAddressesResponse {
+                pub(crate) dealers: Vec<Addr>,
+
+                pub(crate) start_next_after: Option<Addr>,
+            }
+        }
+
+        let mut dealers_addreses = Vec::new();
+        // current max limit
+        let limit = 50;
+        let mut start_after = None;
+        loop {
+            let mut response: placeholder::PagedDealerAddressesResponse = self.query_contract(
+                &dkg_contract,
+                &placeholder::DkgQueryMsg::GetEpochDealersAddresses {
+                    epoch_id,
+                    limit: Some(limit),
+                    start_after,
+                },
+            )?;
+
+            start_after = response.start_next_after.as_ref().map(|d| d.to_string());
+            if response.dealers.len() < limit as usize || response.start_next_after.is_none() {
+                dealers_addreses.append(&mut response.dealers);
+                // we have already exhausted the data
+                break;
+            } else {
+                dealers_addreses.append(&mut response.dealers);
+            }
+        }
+
+        Ok(dealers_addreses)
+    }
+
+    fn query_dkg_threshold(
+        &self,
+        dkg_contract: impl Into<String>,
+        epoch_id: EpochId,
+    ) -> StdResult<u64> {
+        self.query_contract(dkg_contract, &DkgQueryMsg::GetEpochThreshold { epoch_id })
     }
 }
 
@@ -48,7 +117,7 @@ pub(crate) fn group_members(
         let members = contract.list_members(querier_wrapper, start_after, Some(limit))?;
         match members.last() {
             Some(last) => {
-                members_count = members.len() as u32;
+                members_count += members.len() as u32;
                 start_after = Some(last.addr.clone());
 
                 // everything has been returned within a single query

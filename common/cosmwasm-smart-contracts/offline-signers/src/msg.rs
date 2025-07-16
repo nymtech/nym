@@ -1,7 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ProposalId;
 use cosmwasm_schema::cw_serde;
+
+#[cfg(feature = "schema")]
+use crate::types::{
+    ActiveProposalResponse, ActiveProposalsPagedResponse, Config, LastStatusResetPagedResponse,
+    LastStatusResetResponse, OfflineSignerResponse, OfflineSignersPagedResponse, ProposalResponse,
+    ProposalsPagedResponse, SigningStatusResponse, VoteResponse, VotesPagedResponse,
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -26,6 +34,70 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(cw_controllers::AdminResponse))]
     Admin {},
+
+    /// Returns current config values of the contract
+    #[cfg_attr(feature = "schema", returns(Config))]
+    GetConfig {},
+
+    /// Returns information of the current active proposal against specific signer
+    #[cfg_attr(feature = "schema", returns(ActiveProposalResponse))]
+    GetActiveProposal { signer: String },
+
+    /// Returns information about proposal with the specified id
+    #[cfg_attr(feature = "schema", returns(ProposalResponse))]
+    GetProposal { proposal_id: ProposalId },
+
+    /// Returns information on the vote from the provided voter for the specified proposal
+    #[cfg_attr(feature = "schema", returns(VoteResponse))]
+    GetVoteInformation { voter: String, proposal: ProposalId },
+
+    /// Returns offline signer information for the provided signer
+    #[cfg_attr(feature = "schema", returns(OfflineSignerResponse))]
+    GetOfflineSignerInformation { signer: String },
+
+    /// Returns information on the last status reset of the provided signer
+    #[cfg_attr(feature = "schema", returns(LastStatusResetResponse))]
+    GetLastStatusReset { signer: String },
+
+    /// Returns all (paged) active proposals
+    #[cfg_attr(feature = "schema", returns(ActiveProposalsPagedResponse))]
+    GetActiveProposalsPaged {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    /// Returns all (paged) proposals
+    #[cfg_attr(feature = "schema", returns(ProposalsPagedResponse))]
+    GetProposalsPaged {
+        start_after: Option<ProposalId>,
+        limit: Option<u32>,
+    },
+
+    /// Returns all (paged) votes for the specified proposal
+    #[cfg_attr(feature = "schema", returns(VotesPagedResponse))]
+    GetVotesPaged {
+        proposal: ProposalId,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    /// Returns all (paged) offline signers
+    #[cfg_attr(feature = "schema", returns(OfflineSignersPagedResponse))]
+    GetOfflineSignersPaged {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    /// Returns all (paged) status resets
+    #[cfg_attr(feature = "schema", returns(LastStatusResetPagedResponse))]
+    GetLastStatusResetPaged {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    /// Returns the current signing status, i.e. whether credential issuance is still possible
+    #[cfg_attr(feature = "schema", returns(SigningStatusResponse))]
+    SigningStatus {},
 }
 
 #[cw_serde]

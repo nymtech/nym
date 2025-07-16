@@ -1,7 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::queries::query_admin;
+use crate::queries::{
+    query_active_proposal, query_active_proposals_paged, query_admin, query_config,
+    query_last_status_reset, query_last_status_reset_paged, query_offline_signer_information,
+    query_offline_signers_paged, query_proposal, query_proposals_paged, query_signing_status,
+    query_vote_information, query_votes_paged,
+};
 use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
 use crate::transactions::{
     try_propose_or_vote, try_reset_offline_status, try_update_contract_admin,
@@ -48,9 +53,52 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NymOfflineSignersContractError> {
+pub fn query(
+    deps: Deps,
+    env: Env,
+    msg: QueryMsg,
+) -> Result<Binary, NymOfflineSignersContractError> {
     match msg {
         QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
+        QueryMsg::GetConfig {} => Ok(to_json_binary(&query_config(deps)?)?),
+        QueryMsg::GetActiveProposal { signer } => {
+            Ok(to_json_binary(&query_active_proposal(deps, env, signer)?)?)
+        }
+        QueryMsg::GetProposal { proposal_id } => {
+            Ok(to_json_binary(&query_proposal(deps, env, proposal_id)?)?)
+        }
+        QueryMsg::GetVoteInformation { voter, proposal } => Ok(to_json_binary(
+            &query_vote_information(deps, voter, proposal)?,
+        )?),
+        QueryMsg::GetOfflineSignerInformation { signer } => Ok(to_json_binary(
+            &query_offline_signer_information(deps, signer)?,
+        )?),
+        QueryMsg::GetLastStatusReset { signer } => {
+            Ok(to_json_binary(&query_last_status_reset(deps, signer)?)?)
+        }
+        QueryMsg::GetActiveProposalsPaged { start_after, limit } => Ok(to_json_binary(
+            &query_active_proposals_paged(deps, env, start_after, limit)?,
+        )?),
+        QueryMsg::GetProposalsPaged { start_after, limit } => Ok(to_json_binary(
+            &query_proposals_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::GetVotesPaged {
+            proposal,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_votes_paged(
+            deps,
+            proposal,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetOfflineSignersPaged { start_after, limit } => Ok(to_json_binary(
+            &query_offline_signers_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::GetLastStatusResetPaged { start_after, limit } => Ok(to_json_binary(
+            &query_last_status_reset_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::SigningStatus {} => Ok(to_json_binary(&query_signing_status(deps)?)?),
     }
 }
 

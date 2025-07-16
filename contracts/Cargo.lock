@@ -1315,6 +1315,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-offline-signers-common",
+ "serde",
 ]
 
 [[package]]

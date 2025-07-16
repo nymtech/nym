@@ -10,7 +10,7 @@ use nym_offline_signers_common::constants::storage_keys;
 use nym_offline_signers_common::constants::storage_keys::PROPOSAL_COUNT;
 use nym_offline_signers_common::{
     Config, NymOfflineSignersContractError, OfflineSignerInformation, Proposal, ProposalId,
-    StatusResetInformation, VoteInformation,
+    ProposalWithResolution, StatusResetInformation, VoteInformation,
 };
 
 pub const NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE: NymOfflineSignersStorage =
@@ -44,6 +44,7 @@ pub struct NymOfflineSignersStorage {
     // (for full history you'd have to scrape the chain data; the system doesn't need it so it doesn't hold it)
     pub(crate) last_status_reset: Map<&'static Addr, StatusResetInformation>,
 
+    // keep track of the current proposal id counter
     pub(crate) proposal_count: Item<u64>,
 }
 
@@ -74,7 +75,7 @@ impl NymOfflineSignersStorage {
         Ok(id)
     }
 
-    fn new_active_proposal(
+    fn insert_new_active_proposal(
         &self,
         storage: &mut dyn Storage,
         env: &Env,
@@ -125,7 +126,7 @@ impl NymOfflineSignersStorage {
         Ok(())
     }
 
-    fn try_load_active_proposal(
+    pub(crate) fn try_load_active_proposal(
         &self,
         storage: &dyn Storage,
         signer: &Addr,
@@ -169,6 +170,16 @@ impl NymOfflineSignersStorage {
         Ok(signer_info.recently_marked_offline(&env.block, config.status_change_cooldown_secs))
     }
 
+    pub(crate) fn proposal_expired(
+        &self,
+        storage: &dyn Storage,
+        env: &Env,
+        proposal: &Proposal,
+    ) -> Result<bool, NymOfflineSignersContractError> {
+        let config = self.config.load(storage)?;
+        Ok(proposal.expired(&env.block, config.maximum_proposal_lifetime_secs))
+    }
+
     fn try_vote(
         &self,
         storage: &mut dyn Storage,
@@ -179,18 +190,16 @@ impl NymOfflineSignersStorage {
         // 1. retrieve existing proposal or make a new one
         let active_proposal_id = match self.try_load_active_proposal(storage, signer)? {
             Some(existing) => {
-                let config = self.config.load(storage)?;
-
                 // 1.1. check if proposal has already expired
-                if existing.expired(&env.block, config.maximum_proposal_lifetime_secs) {
+                if self.proposal_expired(storage, env, &existing)? {
                     // 1.2.1. remake the proposal
-                    self.new_active_proposal(storage, env, proposer, signer)?
+                    self.insert_new_active_proposal(storage, env, proposer, signer)?
                 } else {
                     // 1.2.2. use the existing proposal
                     existing.id
                 }
             }
-            None => self.new_active_proposal(storage, env, proposer, signer)?,
+            None => self.insert_new_active_proposal(storage, env, proposer, signer)?,
         };
 
         let vote = (active_proposal_id, proposer);
@@ -219,34 +228,82 @@ impl NymOfflineSignersStorage {
             .count() as u32
     }
 
+    pub(crate) fn add_proposal_resolution(
+        &self,
+        deps: Deps,
+        env: &Env,
+        proposal: Proposal,
+    ) -> Result<ProposalWithResolution, NymOfflineSignersContractError> {
+        Ok(ProposalWithResolution {
+            passed: NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE.proposal_passed(
+                deps,
+                proposal.id,
+                None,
+            )?,
+            voting_finished: NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE.proposal_expired(
+                deps.storage,
+                env,
+                &proposal,
+            )?,
+            proposal,
+        })
+    }
+
+    pub(crate) fn proposal_passed(
+        &self,
+        deps: Deps,
+        proposal_id: ProposalId,
+        group_contract: Option<Cw4Contract>,
+    ) -> Result<bool, NymOfflineSignersContractError> {
+        let group_contract = match group_contract {
+            Some(group_contract) => group_contract,
+            None => {
+                let dkg_contract_address = self.dkg_contract.load(deps.storage)?;
+                Cw4Contract::new(
+                    deps.querier
+                        .query_dkg_cw4_contract_address(dkg_contract_address)?,
+                )
+            }
+        };
+        // obtain the total number of group members (i.e. eligible voters)
+        let eligible_voters = group_members(&deps.querier, &group_contract)?;
+
+        let config = self.config.load(deps.storage)?;
+        let required_quorum = config.required_quorum;
+
+        // get the vote count and determine the ratio
+        let votes = self.total_votes(deps.storage, proposal_id);
+        let vote_ratio = Decimal::from_ratio(votes, eligible_voters);
+
+        // check if we passed quorum
+        if vote_ratio >= required_quorum {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
     fn finalize_vote(
         &self,
-        storage: &mut dyn Storage,
+        deps: DepsMut,
         env: &Env,
         proposal_id: ProposalId,
         marked_signer: &Addr,
-        eligible_voters: u32,
+        group_contract: Cw4Contract,
     ) -> Result<bool, NymOfflineSignersContractError> {
         // check if the signer hasn't already been marked as offline and this is just an additional vote
         if self
             .offline_signers
-            .may_load(storage, marked_signer)?
+            .may_load(deps.storage, marked_signer)?
             .is_some()
         {
             return Ok(true);
         }
 
-        let config = self.config.load(storage)?;
-
-        let required_quorum = config.required_quorum;
-
-        let votes = self.total_votes(storage, proposal_id);
-        let vote_ratio = Decimal::from_ratio(votes, eligible_voters);
-
         // check if we passed quorum
-        if vote_ratio >= required_quorum {
+        if self.proposal_passed(deps.as_ref(), proposal_id, Some(group_contract))? {
             self.offline_signers.save(
-                storage,
+                deps.storage,
                 marked_signer,
                 &OfflineSignerInformation {
                     marked_offline_at: env.block.clone(),
@@ -267,10 +324,10 @@ impl NymOfflineSignersStorage {
         proposer: Addr,
         signer: Addr,
     ) -> Result<bool, NymOfflineSignersContractError> {
-        let dkg_group_address = self.dkg_contract.load(deps.storage)?;
+        let dkg_contract_address = self.dkg_contract.load(deps.storage)?;
         let group_contract = Cw4Contract::new(
             deps.querier
-                .query_dkg_cw4_contract_address(dkg_group_address)?,
+                .query_dkg_cw4_contract_address(dkg_contract_address)?,
         );
 
         // 1. check if the proposer is a valid DKG CW4 group member
@@ -304,11 +361,9 @@ impl NymOfflineSignersStorage {
         // 4. try to apply the vote
         let proposal_id = self.try_vote(deps.storage, &env, &proposer, &signer)?;
 
-        let total_members = group_members(&deps.querier, &group_contract)?;
-
         // 5. check if quorum is reached
         let reached_quorum =
-            self.finalize_vote(deps.storage, &env, proposal_id, &signer, total_members)?;
+            self.finalize_vote(deps, &env, proposal_id, &signer, group_contract)?;
 
         Ok(reached_quorum)
     }
@@ -350,7 +405,20 @@ impl NymOfflineSignersStorage {
 }
 
 pub mod retrieval_limits {
-    //
+    pub const ACTIVE_PROPOSALS_DEFAULT_LIMIT: u32 = 25;
+    pub const ACTIVE_PROPOSALS_MAX_LIMIT: u32 = 50;
+
+    pub const PROPOSALS_DEFAULT_LIMIT: u32 = 50;
+    pub const PROPOSALS_MAX_LIMIT: u32 = 100;
+
+    pub const VOTES_DEFAULT_LIMIT: u32 = 50;
+    pub const VOTES_MAX_LIMIT: u32 = 100;
+
+    pub const OFFLINE_SIGNERS_DEFAULT_LIMIT: u32 = 50;
+    pub const OFFLINE_SIGNERS_MAX_LIMIT: u32 = 100;
+
+    pub const LAST_STATUS_RESET_DEFAULT_LIMIT: u32 = 50;
+    pub const LAST_STATUS_RESET_MAX_LIMIT: u32 = 100;
 }
 
 #[cfg(test)]

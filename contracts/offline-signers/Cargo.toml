@@ -27,6 +27,9 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 nym-offline-signers-common = { path = "../../common/cosmwasm-smart-contracts/offline-signers" }
 nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 
+# TEMPORARY UNTIL BRANCH IS REBASED
+serde = { workspace = true, features = ["derive"] }
+
 [dev-dependencies]
 anyhow = { workspace = true }
 nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }

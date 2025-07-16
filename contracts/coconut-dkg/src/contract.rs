@@ -3,6 +3,7 @@
 
 use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_dealers_indices_paged,
+    query_epoch_dealers_addresses_paged, query_epoch_dealers_paged,
     query_registered_dealer_details,
 };
 use crate::dealers::transactions::try_add_dealer;
@@ -151,6 +152,26 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_json_binary(&query_dealer_details(deps, dealer_address)?)?
         }
+        QueryMsg::GetEpochDealersAddresses {
+            epoch_id,
+            limit,
+            start_after,
+        } => to_json_binary(&query_epoch_dealers_addresses_paged(
+            deps,
+            epoch_id,
+            start_after,
+            limit,
+        )?)?,
+        QueryMsg::GetEpochDealers {
+            epoch_id,
+            limit,
+            start_after,
+        } => to_json_binary(&query_epoch_dealers_paged(
+            deps,
+            epoch_id,
+            start_after,
+            limit,
+        )?)?,
         QueryMsg::GetCurrentDealers { limit, start_after } => {
             to_json_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
         }

@@ -9,8 +9,8 @@ use crate::epoch_state::storage::CURRENT_EPOCH;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use nym_coconut_dkg_common::dealer::{
-    DealerDetailsResponse, DealerType, PagedDealerIndexResponse, PagedDealerResponse,
-    RegisteredDealerDetails,
+    DealerDetailsResponse, DealerType, PagedDealerAddressesResponse, PagedDealerIndexResponse,
+    PagedDealerResponse, RegisteredDealerDetails,
 };
 use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
 
@@ -82,8 +82,37 @@ pub fn query_dealers_indices_paged(
     Ok(PagedDealerIndexResponse::new(dealers, start_next_after))
 }
 
-pub fn query_current_dealers_paged(
+pub fn query_epoch_dealers_addresses_paged(
     deps: Deps<'_>,
+    epoch_id: EpochId,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedDealerAddressesResponse> {
+    let limit = limit
+        .unwrap_or(storage::DEALERS_ADDRESSES_PAGE_DEFAULT_LIMIT)
+        .min(storage::DEALERS_ADDRESSES_PAGE_MAX_LIMIT) as usize;
+    let addr = start_after
+        .map(|addr| deps.api.addr_validate(&addr))
+        .transpose()?;
+
+    let start = addr.as_ref().map(Bound::exclusive);
+
+    let dealers = EPOCH_DEALERS_MAP
+        .prefix(epoch_id)
+        .keys(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+    let start_next_after = dealers.last().cloned();
+
+    Ok(PagedDealerAddressesResponse {
+        dealers,
+        start_next_after,
+    })
+}
+
+pub fn query_epoch_dealers_paged(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedDealerResponse> {
@@ -96,10 +125,8 @@ pub fn query_current_dealers_paged(
 
     let start = addr.as_ref().map(Bound::exclusive);
 
-    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
-
     let dealers = EPOCH_DEALERS_MAP
-        .prefix(current_epoch_id)
+        .prefix(epoch_id)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| {
@@ -107,7 +134,7 @@ pub fn query_current_dealers_paged(
                 // SAFETY: if we have DealerRegistrationDetails saved, it means we MUST also have its node index
                 // otherwise some serious invariants have been broken in the contract, and we're in trouble
                 #[allow(clippy::expect_used)]
-                let assigned_index = get_dealer_index(deps.storage, &address, current_epoch_id)
+                let assigned_index = get_dealer_index(deps.storage, &address, epoch_id)
                     .expect("could not retrieve dealer index for a registered dealer");
 
                 DealerDetails {
@@ -123,6 +150,15 @@ pub fn query_current_dealers_paged(
     let start_next_after = dealers.last().map(|dealer| dealer.address.clone());
 
     Ok(PagedDealerResponse::new(dealers, limit, start_next_after))
+}
+
+pub fn query_current_dealers_paged(
+    deps: Deps<'_>,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedDealerResponse> {
+    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    query_epoch_dealers_paged(deps, current_epoch_id, start_after, limit)
 }
 
 #[cfg(test)]

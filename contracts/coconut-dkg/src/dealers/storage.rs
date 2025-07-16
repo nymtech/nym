@@ -13,6 +13,9 @@ pub(crate) const DEALER_INDICES_PAGE_DEFAULT_LIMIT: u32 = 40;
 pub(crate) const DEALERS_PAGE_MAX_LIMIT: u32 = 25;
 pub(crate) const DEALERS_PAGE_DEFAULT_LIMIT: u32 = 10;
 
+pub(crate) const DEALERS_ADDRESSES_PAGE_MAX_LIMIT: u32 = 50;
+pub(crate) const DEALERS_ADDRESSES_PAGE_DEFAULT_LIMIT: u32 = 25;
+
 pub(crate) const NODE_INDEX_COUNTER: Item<NodeIndex> = Item::new("node_index_counter");
 
 pub(crate) const DEALERS_INDICES: Map<Dealer, NodeIndex> = Map::new("dealer_index");

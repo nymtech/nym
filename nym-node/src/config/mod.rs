@@ -433,6 +433,14 @@ impl Config {
             ));
         }
 
+        // nor it's allowed to run mixnode mode alongside exit mode
+        // (use two separate checks for better error messages)
+        if self.modes.mixnode && self.modes.exit {
+            return Err(NymNodeError::config_validation_failure(
+                "illegal modes configuration - node cannot run as a mixnode and an entry exit",
+            ));
+        }
+
         Ok(())
     }
 }

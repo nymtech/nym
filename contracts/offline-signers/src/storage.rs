@@ -97,10 +97,7 @@ impl NymOfflineSignersStorage {
         Ok(id)
     }
 
-    fn is_admin(&self, deps: Deps, addr: &Addr) -> Result<bool, NymOfflineSignersContractError> {
-        self.contract_admin.is_admin(deps, addr).map_err(Into::into)
-    }
-
+    #[cfg(test)]
     fn ensure_is_admin(
         &self,
         deps: Deps,

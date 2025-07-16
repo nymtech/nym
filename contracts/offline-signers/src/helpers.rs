@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Addr, QuerierWrapper, StdError, StdResult};
-use cw_storage_plus::Map;
-use nym_coconut_dkg_common::dealer::{DealerRegistrationDetails, PagedDealerResponse};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::{
     msg::QueryMsg as DkgQueryMsg,
@@ -41,7 +39,9 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
     ) -> StdResult<Vec<Addr>> {
         let dkg_contract = dkg_contract.into();
 
-        let todo = "this  will exist once relevant PR has been merged";
+        #[deprecated(
+            note = "this will exist properly in DKG crate once relevant PR has been merged"
+        )]
         mod placeholder {
             use cosmwasm_std::Addr;
             use nym_coconut_dkg_common::types::EpochId;

@@ -11,8 +11,8 @@ use nym_offline_signers_common::{
     ActiveProposalResponse, ActiveProposalsPagedResponse, Config, LastStatusResetDetails,
     LastStatusResetPagedResponse, LastStatusResetResponse, NymOfflineSignersContractError,
     OfflineSignerDetails, OfflineSignerResponse, OfflineSignersPagedResponse, ProposalId,
-    ProposalResponse, ProposalWithResolution, ProposalsPagedResponse, SigningStatusResponse,
-    VoteDetails, VoteResponse, VotesPagedResponse,
+    ProposalResponse, ProposalsPagedResponse, SigningStatusResponse, VoteDetails, VoteResponse,
+    VotesPagedResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymOfflineSignersContractError> {

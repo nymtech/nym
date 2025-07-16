@@ -3,7 +3,9 @@
 
 use crate::queries::query_admin;
 use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
-use crate::transactions::{try_propose_or_vote, try_update_contract_admin};
+use crate::transactions::{
+    try_propose_or_vote, try_reset_offline_status, try_update_contract_admin,
+};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -41,6 +43,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
         ExecuteMsg::ProposeOrVote { signer } => try_propose_or_vote(deps, env, info, signer),
+        ExecuteMsg::ResetOfflineStatus {} => try_reset_offline_status(deps, env, info),
     }
 }
 

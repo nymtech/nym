@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
 use nym_offline_signers_common::NymOfflineSignersContractError;
 
 pub fn try_update_contract_admin(
@@ -27,11 +27,23 @@ pub fn try_propose_or_vote(
 ) -> Result<Response, NymOfflineSignersContractError> {
     let signer = deps.api.addr_validate(&signer)?;
 
-    let reached_qourum =
+    let reached_quorum =
         NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE.propose_or_vote(deps, env, info.sender, signer)?;
 
-    // TODO: emit events
-    Ok(Response::new())
+    Ok(Response::new().add_event(
+        Event::new("offline_signer_vote")
+            .add_attribute("quorum_reached", reached_quorum.to_string()),
+    ))
+}
+
+pub fn try_reset_offline_status(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, NymOfflineSignersContractError> {
+    NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE.reset_offline_status(deps, env, info.sender)?;
+
+    Ok(Response::default())
 }
 
 #[cfg(test)]

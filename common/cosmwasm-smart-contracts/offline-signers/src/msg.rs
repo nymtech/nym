@@ -16,6 +16,9 @@ pub enum ExecuteMsg {
 
     /// Propose or cast vote on particular DKG signer being offline
     ProposeOrVote { signer: String },
+
+    /// Attempt to reset own offline status
+    ResetOfflineStatus {},
 }
 
 #[cw_serde]

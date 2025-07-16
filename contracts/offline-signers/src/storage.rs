@@ -10,14 +10,17 @@ use nym_offline_signers_common::constants::storage_keys;
 use nym_offline_signers_common::constants::storage_keys::PROPOSAL_COUNT;
 use nym_offline_signers_common::{
     Config, NymOfflineSignersContractError, OfflineSignerInformation, Proposal, ProposalId,
-    VoteInformation,
+    StatusResetInformation, VoteInformation,
 };
 
 pub const NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE: NymOfflineSignersStorage =
     NymOfflineSignersStorage::new();
 
 pub struct NymOfflineSignersStorage {
+    // address of the contract admin
     pub(crate) contract_admin: Admin,
+
+    // address of the associated DKG contract
     pub(crate) dkg_contract: Item<Addr>,
 
     // configurable (by the admin) values of this contract
@@ -31,11 +34,15 @@ pub struct NymOfflineSignersStorage {
     // so leaving them is fine
     pub(crate) proposals: Map<ProposalId, Proposal>,
 
-    // votes information
+    // votes information (proposal, voter) => vote
     pub(crate) votes: Map<(ProposalId, &'static Addr), VoteInformation>,
 
     // map of all signers marked as offline
     pub(crate) offline_signers: SnapshotMap<&'static Addr, OfflineSignerInformation>,
+
+    // holds information on when signers last reset their status after going back online
+    // (for full history you'd have to scrape the chain data; the system doesn't need it so it doesn't hold it)
+    pub(crate) last_status_reset: Map<&'static Addr, StatusResetInformation>,
 
     pub(crate) proposal_count: Item<u64>,
 }
@@ -56,6 +63,7 @@ impl NymOfflineSignersStorage {
                 storage_keys::OFFLINE_SIGNERS_CHANGELOG,
                 Strategy::EveryBlock,
             ),
+            last_status_reset: Map::new(storage_keys::LAST_STATUS_RESET),
             proposal_count: Item::new(PROPOSAL_COUNT),
         }
     }
@@ -117,13 +125,6 @@ impl NymOfflineSignersStorage {
         Ok(())
     }
 
-    fn recently_marked_online(
-        &self,
-        signer: &Addr,
-    ) -> Result<bool, NymOfflineSignersContractError> {
-        todo!()
-    }
-
     fn try_load_active_proposal(
         &self,
         storage: &dyn Storage,
@@ -135,6 +136,37 @@ impl NymOfflineSignersStorage {
         self.proposals
             .may_load(storage, active_proposal_id)
             .map_err(Into::into)
+    }
+
+    fn recently_marked_online(
+        &self,
+        storage: &dyn Storage,
+        env: &Env,
+        signer: &Addr,
+    ) -> Result<bool, NymOfflineSignersContractError> {
+        let Some(last_status_reset) = self.last_status_reset.may_load(storage, signer)? else {
+            return Ok(false);
+        };
+
+        let config = self.config.load(storage)?;
+        Ok(
+            last_status_reset
+                .recently_marked_online(&env.block, config.status_change_cooldown_secs),
+        )
+    }
+
+    fn recently_marked_offline(
+        &self,
+        storage: &dyn Storage,
+        env: &Env,
+        signer: &Addr,
+    ) -> Result<bool, NymOfflineSignersContractError> {
+        let Some(signer_info) = self.offline_signers.may_load(storage, signer)? else {
+            return Ok(false);
+        };
+
+        let config = self.config.load(storage)?;
+        Ok(signer_info.recently_marked_offline(&env.block, config.status_change_cooldown_secs))
     }
 
     fn try_vote(
@@ -166,7 +198,11 @@ impl NymOfflineSignersStorage {
         // 2. check if this vote already exists
         // (technically we could ignore this, but it shouldn't occur anyway)
         if self.votes.may_load(storage, vote)?.is_some() {
-            todo!("duplicate vote")
+            return Err(NymOfflineSignersContractError::AlreadyVoted {
+                voter: proposer.clone(),
+                proposal: active_proposal_id,
+                target: signer.clone(),
+            });
         }
 
         // 3. save the vote
@@ -191,6 +227,15 @@ impl NymOfflineSignersStorage {
         marked_signer: &Addr,
         eligible_voters: u32,
     ) -> Result<bool, NymOfflineSignersContractError> {
+        // check if the signer hasn't already been marked as offline and this is just an additional vote
+        if self
+            .offline_signers
+            .may_load(storage, marked_signer)?
+            .is_some()
+        {
+            return Ok(true);
+        }
+
         let config = self.config.load(storage)?;
 
         let required_quorum = config.required_quorum;
@@ -217,7 +262,7 @@ impl NymOfflineSignersStorage {
 
     pub fn propose_or_vote(
         &self,
-        mut deps: DepsMut,
+        deps: DepsMut,
         env: Env,
         proposer: Addr,
         signer: Addr,
@@ -233,7 +278,9 @@ impl NymOfflineSignersStorage {
             .is_voting_member(&deps.querier, &proposer, None)?
             .is_none()
         {
-            todo!("proposer not authorised")
+            return Err(NymOfflineSignersContractError::NotGroupMember {
+                address: proposer.clone(),
+            });
         }
 
         // 2. check if the proposed signer is a valid DKG CW4 group member
@@ -241,34 +288,64 @@ impl NymOfflineSignersStorage {
             .is_voting_member(&deps.querier, &signer, None)?
             .is_none()
         {
-            todo!("proposed signer is not authorised")
+            return Err(NymOfflineSignersContractError::NotGroupMember {
+                address: signer.clone(),
+            });
         }
 
-        // 3. check if the proposed signer is already marked as offline
-        if self
-            .offline_signers
-            .may_load(deps.storage, &signer)?
-            .is_some()
-        {
-            todo!("already marked as offline")
+        // 3. check if the signer hasn't recently been marked as online
+        // (to prevent constant switching between online and offline)
+        if self.recently_marked_online(deps.storage, &env, &signer)? {
+            return Err(NymOfflineSignersContractError::RecentlyCameOnline {
+                address: signer.clone(),
+            });
         }
 
-        // 4. check if the proposed signer has recently been marked as online
-        // (this is to prevent attacks by smaller threshold on properly working instances)
-        if self.recently_marked_online(&signer)? {
-            todo!("too soon for another proposal")
-        }
-
-        // 5. try apply the vote
+        // 4. try to apply the vote
         let proposal_id = self.try_vote(deps.storage, &env, &proposer, &signer)?;
 
         let total_members = group_members(&deps.querier, &group_contract)?;
 
-        // 6. check if quorum is reached
-        let reached_qourum =
+        // 5. check if quorum is reached
+        let reached_quorum =
             self.finalize_vote(deps.storage, &env, proposal_id, &signer, total_members)?;
 
-        Ok(reached_qourum)
+        Ok(reached_quorum)
+    }
+
+    pub fn reset_offline_status(
+        &self,
+        deps: DepsMut,
+        env: Env,
+        sender: Addr,
+    ) -> Result<(), NymOfflineSignersContractError> {
+        // 1. check if this sender hasn't been marked offline recently
+        // (to prevent constant switching between online and offline)
+        if self.recently_marked_offline(deps.storage, &env, &sender)? {
+            return Err(NymOfflineSignersContractError::RecentlyCameOffline { address: sender });
+        }
+
+        // 2. an offline signer (or a singer in the process of being marked as offline) must have an active
+        // proposal going against them, if it doesn't exist, return an error
+        if !self.active_proposals.has(deps.storage, &sender) {
+            return Err(NymOfflineSignersContractError::NotOffline { address: sender });
+        }
+
+        // 3. reset proposal and offline status
+        self.active_proposals.remove(deps.storage, &sender);
+        self.offline_signers
+            .remove(deps.storage, &sender, env.block.height)?;
+
+        // 4. update online metadata
+        self.last_status_reset.save(
+            deps.storage,
+            &sender,
+            &StatusResetInformation {
+                status_reset_at: env.block.clone(),
+            },
+        )?;
+
+        Ok(())
     }
 }
 

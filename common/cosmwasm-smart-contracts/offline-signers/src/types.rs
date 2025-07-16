@@ -44,6 +44,23 @@ pub struct OfflineSignerInformation {
     pub associated_proposal: ProposalId,
 }
 
+impl OfflineSignerInformation {
+    pub fn recently_marked_offline(&self, current_block: &BlockInfo, threshold_secs: u64) -> bool {
+        self.marked_offline_at.time.plus_seconds(threshold_secs) >= current_block.time
+    }
+}
+
+#[cw_serde]
+pub struct StatusResetInformation {
+    pub status_reset_at: BlockInfo,
+}
+
+impl StatusResetInformation {
+    pub fn recently_marked_online(&self, current_block: &BlockInfo, threshold_secs: u64) -> bool {
+        self.status_reset_at.time.plus_seconds(threshold_secs) >= current_block.time
+    }
+}
+
 #[cw_serde]
 #[derive(Copy)]
 pub struct Config {
@@ -53,4 +70,8 @@ pub struct Config {
     // maximum duration (in seconds) a proposal can exist for
     // before its votes are reset if not passed
     pub maximum_proposal_lifetime_secs: u64,
+
+    // minimum time between two consecutive status changes
+    // (to prevent signer from going online-offline multiple times a minute)
+    pub status_change_cooldown_secs: u64,
 }

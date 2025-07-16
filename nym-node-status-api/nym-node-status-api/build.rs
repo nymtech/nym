@@ -33,21 +33,13 @@ async fn init_db() -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(feature = "pg", not(feature = "sqlite")))]
-async fn init_db() -> Result<()> {
-    // PostgreSQL doesn't need build-time initialization
-    // Just ensure DATABASE_URL is available for runtime
-    if let Ok(database_url) = std::env::var("DATABASE_URL") {
-        println!("cargo::rustc-env=DATABASE_URL={database_url}");
-    }
-    Ok(())
-}
-
 /// If you need to re-run migrations or reset the db, just run
 /// cargo clean -p nym-node-status-api
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    init_db().await
+    #[cfg(feature = "sqlite")]
+    init_db().await?;
+    Ok(())
 }
 
 #[cfg(feature = "sqlite")]

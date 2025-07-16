@@ -8,7 +8,7 @@ pub(crate) mod query_wrapper;
 // Re-export the query wrapper functions for easier access
 pub(crate) use query_wrapper::query;
 #[allow(unused_imports)]
-pub(crate) use query_wrapper::{query_as, query_scalar};
+pub(crate) use query_wrapper::query_as;
 
 #[cfg(feature = "sqlite")]
 use sqlx::{

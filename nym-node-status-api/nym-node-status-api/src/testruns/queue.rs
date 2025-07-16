@@ -85,19 +85,17 @@ pub(crate) async fn try_queue_testrun(
     let log = format!("Test for {identity_key} requested at {timestamp_pretty} UTC\n\n");
 
     #[cfg(feature = "sqlite")]
-    let id = {
-        sqlx::query!(
-            "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",
-            gateway_id,
-            status,
-            ip_address,
-            timestamp,
-            log,
-        )
-        .execute(conn.as_mut())
-        .await?
-        .last_insert_rowid()
-    };
+    let id = sqlx::query!(
+        "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",
+        gateway_id,
+        status,
+        ip_address,
+        timestamp,
+        log,
+    )
+    .execute(conn.as_mut())
+    .await?
+    .last_insert_rowid();
 
     #[cfg(feature = "pg")]
     let id = {
@@ -111,7 +109,7 @@ pub(crate) async fn try_queue_testrun(
         )
         .fetch_one(conn.as_mut())
         .await?;
-        record.id
+        record.id as i64
     };
 
     Ok(TestRun {

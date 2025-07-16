@@ -81,33 +81,6 @@ where
     sqlx::query_as(Box::leak(converted.into_boxed_str()))
 }
 
-/// Creates a query_scalar that automatically handles placeholder conversion
-#[cfg(feature = "sqlite")]
-pub fn query_scalar<O>(
-    sql: &str,
-) -> sqlx::query::QueryScalar<'_, sqlx::Sqlite, O, <sqlx::Sqlite as Database>::Arguments<'_>>
-where
-    (O,): for<'r> sqlx::FromRow<'r, <sqlx::Sqlite as Database>::Row>,
-{
-    sqlx::query_scalar(sql)
-}
-
-#[cfg(feature = "pg")]
-pub fn query_scalar<O>(
-    sql: &str,
-) -> sqlx::query::QueryScalar<
-    'static,
-    sqlx::Postgres,
-    O,
-    <sqlx::Postgres as Database>::Arguments<'static>,
->
-where
-    (O,): for<'r> sqlx::FromRow<'r, <sqlx::Postgres as Database>::Row>,
-{
-    let converted = convert_placeholders(sql);
-    sqlx::query_scalar(Box::leak(converted.into_boxed_str()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

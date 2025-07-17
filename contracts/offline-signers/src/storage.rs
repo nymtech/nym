@@ -6,9 +6,9 @@ use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, Order, StdResult, Storage}
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map, SnapshotItem, Strategy};
-use nym_offline_signers_common::constants::storage_keys;
-use nym_offline_signers_common::constants::storage_keys::PROPOSAL_COUNT;
-use nym_offline_signers_common::{
+use nym_offline_signers_contract_common::constants::storage_keys;
+use nym_offline_signers_contract_common::constants::storage_keys::PROPOSAL_COUNT;
+use nym_offline_signers_contract_common::{
     Config, NymOfflineSignersContractError, OfflineSignerInformation, Proposal, ProposalId,
     ProposalWithResolution, StatusResetInformation, VoteInformation,
 };

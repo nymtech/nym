@@ -3,7 +3,7 @@
 
 use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
 use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
-use nym_offline_signers_common::NymOfflineSignersContractError;
+use nym_offline_signers_contract_common::NymOfflineSignersContractError;
 
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
@@ -56,7 +56,7 @@ mod tests {
         use crate::testing::init_contract_tester;
         use cw_controllers::AdminError;
         use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
-        use nym_offline_signers_common::ExecuteMsg;
+        use nym_offline_signers_contract_common::ExecuteMsg;
 
         #[test]
         fn can_only_be_performed_by_current_admin() -> anyhow::Result<()> {

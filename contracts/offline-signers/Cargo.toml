@@ -24,7 +24,7 @@ cosmwasm-schema = { workspace = true, optional = true }
 cw-controllers = { workspace = true }
 
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-offline-signers-common = { path = "../../common/cosmwasm-smart-contracts/offline-signers" }
+nym-offline-signers-contract-common = { path = "../../common/cosmwasm-smart-contracts/offline-signers" }
 nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 
 # TEMPORARY UNTIL BRANCH IS REBASED
@@ -39,7 +39,7 @@ cw4-group = { path = "../multisig/cw4-group", features = ["testable-cw4-contract
 
 
 [features]
-schema-gen = ["nym-offline-signers-common/schema", "cosmwasm-schema"]
+schema-gen = ["nym-offline-signers-contract-common/schema", "cosmwasm-schema"]
 
 [lints]
 workspace = true

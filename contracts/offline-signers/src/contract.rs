@@ -16,7 +16,7 @@ use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
 use nym_contracts_common::set_build_information;
-use nym_offline_signers_common::{
+use nym_offline_signers_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NymOfflineSignersContractError, QueryMsg,
 };
 

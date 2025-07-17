@@ -1285,19 +1285,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-offline-signers-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-storage-plus",
- "schemars",
- "serde",
- "thiserror 2.0.12",
-]
-
-[[package]]
 name = "nym-offline-signers-contract"
 version = "0.1.0"
 dependencies = [
@@ -1314,8 +1301,21 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-contracts-common",
  "nym-contracts-common-testing",
- "nym-offline-signers-common",
+ "nym-offline-signers-contract-common",
  "serde",
+]
+
+[[package]]
+name = "nym-offline-signers-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

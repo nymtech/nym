@@ -10,7 +10,7 @@ use nym_coconut_dkg_common::{
     types::{Cw4Contract, Epoch},
 };
 use nym_contracts_common::contract_querier::ContractQuerier;
-use nym_offline_signers_common::{NymOfflineSignersContractError, SigningStatusResponse};
+use nym_offline_signers_contract_common::{NymOfflineSignersContractError, SigningStatusResponse};
 
 pub(crate) trait DkgContractQuerier: ContractQuerier {
     fn query_dkg_cw4_contract_address(&self, dkg_contract: impl Into<String>) -> StdResult<Addr> {

@@ -6,7 +6,7 @@ use crate::storage::{retrieval_limits, NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE};
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
-use nym_offline_signers_common::{
+use nym_offline_signers_contract_common::{
     ActiveProposalResponse, ActiveProposalsPagedResponse, Config, LastStatusResetDetails,
     LastStatusResetPagedResponse, LastStatusResetResponse, NymOfflineSignersContractError,
     OfflineSignerDetails, OfflineSignerResponse, OfflineSignersAddressesResponse,
@@ -332,7 +332,7 @@ mod tests {
         use super::*;
         use crate::testing::init_contract_tester;
         use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, RandExt};
-        use nym_offline_signers_common::ExecuteMsg;
+        use nym_offline_signers_contract_common::ExecuteMsg;
 
         #[test]
         fn returns_current_admin() -> anyhow::Result<()> {

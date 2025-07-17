@@ -11,8 +11,8 @@ use nym_contracts_common_testing::{
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
     PermissionedFn, QueryFn, RandExt, TestableNymContract, TEST_DENOM,
 };
-use nym_offline_signers_common::constants::storage_keys;
-use nym_offline_signers_common::{
+use nym_offline_signers_contract_common::constants::storage_keys;
+use nym_offline_signers_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NymOfflineSignersContractError, QueryMsg,
 };
 

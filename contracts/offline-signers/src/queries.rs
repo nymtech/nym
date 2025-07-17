@@ -1,17 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::{group_members, DkgContractQuerier};
+use crate::helpers::basic_signing_status;
 use crate::storage::{retrieval_limits, NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE};
 use cosmwasm_std::{Deps, Env, Order, StdResult};
-use cw4::Cw4Contract;
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_offline_signers_common::{
     ActiveProposalResponse, ActiveProposalsPagedResponse, Config, LastStatusResetDetails,
     LastStatusResetPagedResponse, LastStatusResetResponse, NymOfflineSignersContractError,
-    OfflineSignerDetails, OfflineSignerResponse, OfflineSignersPagedResponse, ProposalId,
-    ProposalResponse, ProposalsPagedResponse, SigningStatusResponse, VoteDetails, VoteResponse,
+    OfflineSignerDetails, OfflineSignerResponse, OfflineSignersAddressesResponse,
+    OfflineSignersPagedResponse, ProposalId, ProposalResponse, ProposalsPagedResponse,
+    SigningStatusAtHeightResponse, SigningStatusResponse, VoteDetails, VoteResponse,
     VotesPagedResponse,
 };
 
@@ -89,9 +89,29 @@ pub fn query_offline_signer_information(
 
     let information = NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
         .offline_signers
+        .information
         .may_load(deps.storage, &signer)?;
 
     Ok(OfflineSignerResponse { information })
+}
+
+pub fn query_offline_signers_addresses_at_height(
+    deps: Deps,
+    height: Option<u64>,
+) -> Result<OfflineSignersAddressesResponse, NymOfflineSignersContractError> {
+    let addresses = match height {
+        Some(height) => NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
+            .offline_signers
+            .addresses
+            .may_load_at_height(deps.storage, height)?
+            .unwrap_or_default(),
+        None => NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
+            .offline_signers
+            .addresses
+            .load(deps.storage)?,
+    };
+
+    Ok(OfflineSignersAddressesResponse { addresses })
 }
 
 pub fn query_last_status_reset(
@@ -224,6 +244,7 @@ pub fn query_offline_signers_paged(
 
     let offline_signers = NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
         .offline_signers
+        .information
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| {
@@ -283,64 +304,23 @@ pub fn query_last_status_reset_paged(
 pub fn query_current_signing_status(
     deps: Deps,
 ) -> Result<SigningStatusResponse, NymOfflineSignersContractError> {
-    let dkg_contract_address = NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
-        .dkg_contract
-        .load(deps.storage)?;
-
-    let dkg_epoch = deps.querier.query_current_dkg_epoch(&dkg_contract_address)?;
-
-    // if DKG exchange is currently in progress, retrieve dealers and threshold from the PREVIOUS epoch
-    // as that'd be the set used for issuing credentials
-    let epoch_id = if dkg_epoch.state.is_final() {
-        dkg_epoch.epoch_id
-    } else {
-        dkg_epoch.epoch_id.saturating_sub(1)
-    };
-
-    let dkg_threshold = deps
-        .querier
-        .query_dkg_threshold(&dkg_contract_address, epoch_id)?;
-
-    let group_contract = Cw4Contract::new(
-        deps.querier
-            .query_dkg_cw4_contract_address(&dkg_contract_address)?,
-    );
-    let total_group_members = group_members(&deps.querier, &group_contract)?;
-
-    let dkg_dealers = deps
-        .querier
-        .query_dkg_dealers(&dkg_contract_address, epoch_id)?;
-
-    // we need to filter out signers marked as offline that are not part of the corresponding dkg epoch
-    let offline_signers = NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
-        .offline_signers
-        .keys(deps.storage, None, None, Order::Ascending)
-        // given the list won't contain more than a dozen or so entries, linear lookup is faster
-        // than trying to save it in a set
-        .map(|offline_signer| offline_signer.map(|s| dkg_dealers.contains(&s)))
-        .collect::<StdResult<Vec<_>>>()?
-        .into_iter()
-        .filter(|is_dealer| *is_dealer)
-        .count() as u32;
-
-    let available_signers = (dkg_dealers.len() as u32).saturating_sub(offline_signers);
-
-    Ok(SigningStatusResponse {
-        dkg_epoch_id: epoch_id,
-        signing_threshold: dkg_threshold,
-        total_group_members,
-        current_registered_dealers: dkg_dealers.len() as u32,
-        offline_signers,
-        threshold_available: available_signers as u64 >= dkg_threshold,
-    })
+    basic_signing_status(deps, None)
 }
 
 pub fn query_signing_status_at_height(
     deps: Deps,
     block_height: u64,
-) -> Result<SigningStatusResponse, NymOfflineSignersContractError> {
-    deps.querier.query_current_dkg_epoch()
-    todo!()
+) -> Result<SigningStatusAtHeightResponse, NymOfflineSignersContractError> {
+    let basic = basic_signing_status(deps, Some(block_height))?;
+
+    Ok(SigningStatusAtHeightResponse {
+        block_height,
+        dkg_epoch_id: basic.dkg_epoch_id,
+        signing_threshold: basic.signing_threshold,
+        current_registered_dealers: basic.current_registered_dealers,
+        offline_signers: basic.offline_signers,
+        threshold_available: basic.threshold_available,
+    })
 }
 
 #[cfg(test)]

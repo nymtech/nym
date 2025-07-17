@@ -5,7 +5,7 @@ use crate::helpers::{group_members, DkgContractQuerier};
 use cosmwasm_std::{Addr, Decimal, Deps, DepsMut, Env, Order, StdResult, Storage};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
-use cw_storage_plus::{Item, Map, SnapshotMap, Strategy};
+use cw_storage_plus::{Item, Map, SnapshotItem, Strategy};
 use nym_offline_signers_common::constants::storage_keys;
 use nym_offline_signers_common::constants::storage_keys::PROPOSAL_COUNT;
 use nym_offline_signers_common::{
@@ -37,8 +37,8 @@ pub struct NymOfflineSignersStorage {
     // votes information (proposal, voter) => vote
     pub(crate) votes: Map<(ProposalId, &'static Addr), VoteInformation>,
 
-    // map of all signers marked as offline
-    pub(crate) offline_signers: SnapshotMap<&'static Addr, OfflineSignerInformation>,
+    // details on signers marked as offline
+    pub(crate) offline_signers: OfflineSignersStorage,
 
     // holds information on when signers last reset their status after going back online
     // (for full history you'd have to scrape the chain data; the system doesn't need it so it doesn't hold it)
@@ -58,12 +58,7 @@ impl NymOfflineSignersStorage {
             active_proposals: Map::new(storage_keys::ACTIVE_PROPOSALS),
             proposals: Map::new(storage_keys::PROPOSALS),
             votes: Map::new(storage_keys::VOTES),
-            offline_signers: SnapshotMap::new(
-                storage_keys::OFFLINE_SIGNERS_PRIMARY,
-                storage_keys::OFFLINE_SIGNERS_CHECKPOINTS,
-                storage_keys::OFFLINE_SIGNERS_CHANGELOG,
-                Strategy::EveryBlock,
-            ),
+            offline_signers: OfflineSignersStorage::new(),
             last_status_reset: Map::new(storage_keys::LAST_STATUS_RESET),
             proposal_count: Item::new(PROPOSAL_COUNT),
         }
@@ -159,7 +154,10 @@ impl NymOfflineSignersStorage {
         env: &Env,
         signer: &Addr,
     ) -> Result<bool, NymOfflineSignersContractError> {
-        let Some(signer_info) = self.offline_signers.may_load(storage, signer)? else {
+        let Some(signer_info) = self
+            .offline_signers
+            .load_signer_information(storage, signer)?
+        else {
             return Ok(false);
         };
 
@@ -291,22 +289,21 @@ impl NymOfflineSignersStorage {
         // check if the signer hasn't already been marked as offline and this is just an additional vote
         if self
             .offline_signers
-            .may_load(deps.storage, marked_signer)?
-            .is_some()
+            .has_signer_information(deps.storage, marked_signer)
         {
             return Ok(true);
         }
 
         // check if we passed quorum
         if self.proposal_passed(deps.as_ref(), proposal_id, Some(group_contract))? {
-            self.offline_signers.save(
+            self.offline_signers.insert_offline_signer_information(
                 deps.storage,
+                &env,
                 marked_signer,
                 &OfflineSignerInformation {
                     marked_offline_at: env.block.clone(),
                     associated_proposal: proposal_id,
                 },
-                env.block.height,
             )?;
             return Ok(true);
         }
@@ -386,7 +383,7 @@ impl NymOfflineSignersStorage {
         // 3. reset proposal and offline status
         self.active_proposals.remove(deps.storage, &sender);
         self.offline_signers
-            .remove(deps.storage, &sender, env.block.height)?;
+            .remove_offline_signer_information(deps.storage, &env, &sender)?;
 
         // 4. update online metadata
         self.last_status_reset.save(
@@ -397,6 +394,82 @@ impl NymOfflineSignersStorage {
             },
         )?;
 
+        Ok(())
+    }
+}
+
+pub struct OfflineSignersStorage {
+    // map of all signers marked as offline
+    pub(crate) information: Map<&'static Addr, OfflineSignerInformation>,
+
+    // list of addresses of signers currently marked as offline
+    // we need a separate entry to be able to retrieve list of signers marked at particular height.
+    // given that we won't ever have more than ~20 entries, loading and resaving the whole vec is not a problem
+    pub(crate) addresses: SnapshotItem<Vec<Addr>>,
+}
+
+impl OfflineSignersStorage {
+    #[allow(clippy::new_without_default)]
+    pub(crate) const fn new() -> Self {
+        OfflineSignersStorage {
+            information: Map::new(storage_keys::OFFLINE_SIGNERS_INFORMATION),
+            addresses: SnapshotItem::new(
+                storage_keys::OFFLINE_SIGNERS,
+                storage_keys::OFFLINE_SIGNERS_CHECKPOINTS,
+                storage_keys::OFFLINE_SIGNERS_CHANGELOG,
+                Strategy::EveryBlock,
+            ),
+        }
+    }
+
+    fn load_signer_information(
+        &self,
+        storage: &dyn Storage,
+        signer: &Addr,
+    ) -> Result<Option<OfflineSignerInformation>, NymOfflineSignersContractError> {
+        self.information
+            .may_load(storage, signer)
+            .map_err(Into::into)
+    }
+
+    fn has_signer_information(&self, storage: &dyn Storage, signer: &Addr) -> bool {
+        self.information.has(storage, signer)
+    }
+
+    fn insert_offline_signer_information(
+        &self,
+        storage: &mut dyn Storage,
+        env: &Env,
+        signer: &Addr,
+        info: &OfflineSignerInformation,
+    ) -> Result<(), NymOfflineSignersContractError> {
+        // insert details into the map
+        self.information.save(storage, signer, info)?;
+
+        // update the snapshot
+        let mut all_signers = self.addresses.load(storage)?;
+        all_signers.push(signer.clone());
+        self.addresses
+            .save(storage, &all_signers, env.block.height)?;
+        Ok(())
+    }
+
+    fn remove_offline_signer_information(
+        &self,
+        storage: &mut dyn Storage,
+        env: &Env,
+        signer: &Addr,
+    ) -> Result<(), NymOfflineSignersContractError> {
+        // remove details from the map
+        self.information.remove(storage, &signer);
+
+        // update the snapshot
+        let mut all_signers = self.addresses.load(storage)?;
+        if let Some(pos) = all_signers.iter().position(|x| x == signer) {
+            all_signers.remove(pos);
+        }
+        self.addresses
+            .save(storage, &all_signers, env.block.height)?;
         Ok(())
     }
 }

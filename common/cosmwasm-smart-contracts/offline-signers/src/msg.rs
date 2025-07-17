@@ -7,9 +7,9 @@ use cosmwasm_schema::cw_serde;
 #[cfg(feature = "schema")]
 use crate::types::{
     ActiveProposalResponse, ActiveProposalsPagedResponse, Config, LastStatusResetPagedResponse,
-    LastStatusResetResponse, OfflineSignerResponse, OfflineSignersPagedResponse, ProposalResponse,
-    ProposalsPagedResponse, SigningStatusAtHeightResponse, SigningStatusResponse, VoteResponse,
-    VotesPagedResponse,
+    LastStatusResetResponse, OfflineSignerResponse, OfflineSignersAddressesResponse,
+    OfflineSignersPagedResponse, ProposalResponse, ProposalsPagedResponse,
+    SigningStatusAtHeightResponse, SigningStatusResponse, VoteResponse, VotesPagedResponse,
 };
 
 #[cw_serde]
@@ -55,6 +55,11 @@ pub enum QueryMsg {
     /// Returns offline signer information for the provided signer
     #[cfg_attr(feature = "schema", returns(OfflineSignerResponse))]
     GetOfflineSignerInformation { signer: String },
+
+    /// Returns list of addresses of all signers marked as offline at provided height.
+    /// If no height is given, the current value is returned instead
+    #[cfg_attr(feature = "schema", returns(OfflineSignersAddressesResponse))]
+    GetOfflineSignersAddressesAtHeight { height: Option<u64> },
 
     /// Returns information on the last status reset of the provided signer
     #[cfg_attr(feature = "schema", returns(LastStatusResetResponse))]

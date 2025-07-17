@@ -116,6 +116,11 @@ pub struct OfflineSignerResponse {
 }
 
 #[cw_serde]
+pub struct OfflineSignersAddressesResponse {
+    pub addresses: Vec<Addr>,
+}
+
+#[cw_serde]
 pub struct OfflineSignerDetails {
     pub information: OfflineSignerInformation,
     pub signer: Addr,
@@ -170,7 +175,6 @@ pub struct SigningStatusAtHeightResponse {
     pub block_height: u64,
     pub dkg_epoch_id: u64,
     pub signing_threshold: u64,
-    pub total_group_members: u32,
     pub current_registered_dealers: u32,
     pub offline_signers: u32,
     pub threshold_available: bool,

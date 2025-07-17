@@ -8,7 +8,8 @@ pub mod storage_keys {
     pub const ACTIVE_PROPOSALS: &str = "active_proposals";
     pub const PROPOSALS: &str = "proposals";
     pub const VOTES: &str = "votes";
-    pub const OFFLINE_SIGNERS_PRIMARY: &str = "offline_signers";
+    pub const OFFLINE_SIGNERS_INFORMATION: &str = "offline_signers_information";
+    pub const OFFLINE_SIGNERS: &str = "offline_signers";
     pub const OFFLINE_SIGNERS_CHECKPOINTS: &str = "offline_signers__check";
     pub const OFFLINE_SIGNERS_CHANGELOG: &str = "offline_signers__change";
     pub const LAST_STATUS_RESET: &str = "last_status_reset";

@@ -1,7 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, QuerierWrapper, StdError, StdResult};
+use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
+use cosmwasm_std::{Addr, Deps, QuerierWrapper, StdError, StdResult};
 use nym_coconut_dkg_common::dealer::PagedDealerAddressesResponse;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::{
@@ -9,7 +10,7 @@ use nym_coconut_dkg_common::{
     types::{Cw4Contract, Epoch},
 };
 use nym_contracts_common::contract_querier::ContractQuerier;
-use nym_offline_signers_common::NymOfflineSignersContractError;
+use nym_offline_signers_common::{NymOfflineSignersContractError, SigningStatusResponse};
 
 pub(crate) trait DkgContractQuerier: ContractQuerier {
     fn query_dkg_cw4_contract_address(&self, dkg_contract: impl Into<String>) -> StdResult<Addr> {
@@ -133,4 +134,70 @@ pub(crate) fn group_members(
     }
 
     Ok(members_count)
+}
+
+pub(crate) fn basic_signing_status(
+    deps: Deps,
+    block_height: Option<u64>,
+) -> Result<SigningStatusResponse, NymOfflineSignersContractError> {
+    let dkg_contract_address = NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
+        .dkg_contract
+        .load(deps.storage)?;
+
+    let dkg_epoch = match block_height {
+        Some(block_height) => deps
+            .querier
+            .query_dkg_epoch_at_height(&dkg_contract_address, block_height)?,
+        None => deps
+            .querier
+            .query_current_dkg_epoch(&dkg_contract_address)?,
+    };
+
+    // if DKG exchange is currently in progress, retrieve dealers and threshold from the PREVIOUS epoch
+    // as that'd be the set used for issuing credentials
+    let epoch_id = if dkg_epoch.state.is_final() {
+        dkg_epoch.epoch_id
+    } else {
+        dkg_epoch.epoch_id.saturating_sub(1)
+    };
+
+    let dkg_threshold = deps
+        .querier
+        .query_dkg_threshold(&dkg_contract_address, epoch_id)?;
+
+    let group_contract = Cw4Contract::new(
+        deps.querier
+            .query_dkg_cw4_contract_address(&dkg_contract_address)?,
+    );
+    let total_group_members = group_members(&deps.querier, &group_contract)?;
+
+    let dkg_dealers = deps
+        .querier
+        .query_dkg_dealers(&dkg_contract_address, epoch_id)?;
+
+    let offline_signers = match block_height {
+        Some(block_height) => NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
+            .offline_signers
+            .addresses
+            .may_load_at_height(deps.storage, block_height)?
+            .unwrap_or_default(),
+        None => NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
+            .offline_signers
+            .addresses
+            .load(deps.storage)?,
+    }
+    .into_iter()
+    .filter(|offline_signer| dkg_dealers.contains(&offline_signer))
+    .count() as u32;
+
+    let available_signers = (dkg_dealers.len() as u32).saturating_sub(offline_signers);
+
+    Ok(SigningStatusResponse {
+        dkg_epoch_id: epoch_id,
+        signing_threshold: dkg_threshold,
+        total_group_members,
+        current_registered_dealers: dkg_dealers.len() as u32,
+        offline_signers,
+        threshold_available: available_signers as u64 >= dkg_threshold,
+    })
 }

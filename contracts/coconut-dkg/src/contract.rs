@@ -16,11 +16,12 @@ use crate::epoch_state::queries::{
     query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
     query_epoch_threshold,
 };
-use crate::epoch_state::storage::{load_current_epoch, save_epoch, EPOCH_THRESHOLDS, THRESHOLD};
+use crate::epoch_state::storage::save_epoch;
 use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
 use crate::error::ContractError;
+use crate::queued_migrations::introduce_historical_epochs;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
@@ -70,6 +71,7 @@ pub fn instantiate(
 
     save_epoch(
         deps.storage,
+        env.block.height,
         &Epoch::new(
             EpochState::WaitingInitialisation,
             0,
@@ -101,6 +103,7 @@ pub fn execute(
             resharing,
         } => try_add_dealer(
             deps,
+            env,
             info,
             bte_key_with_proof,
             identity_key,
@@ -119,7 +122,7 @@ pub fn execute(
             try_commit_verification_key_share(deps, env, info, share, resharing)
         }
         ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
-            try_verify_verification_key_share(deps, info, owner, resharing)
+            try_verify_verification_key_share(deps, env, info, owner, resharing)
         }
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
@@ -242,16 +245,11 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // MAINNET MIGRATION ASSERTION
-    let epoch = load_current_epoch(deps.storage)?;
-    assert_eq!(0, epoch.epoch_id);
-
-    let threshold = THRESHOLD.load(deps.storage)?;
-    EPOCH_THRESHOLDS.save(deps.storage, 0, &threshold)?;
+    introduce_historical_epochs(deps, env)?;
 
     Ok(Response::new())
 }

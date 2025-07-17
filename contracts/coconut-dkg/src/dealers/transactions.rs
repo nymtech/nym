@@ -4,12 +4,12 @@
 use crate::dealers::storage::{
     get_or_assign_index, is_dealer, save_dealer_details_if_not_a_dealer,
 };
-use crate::epoch_state::storage::{load_current_epoch, update_epoch};
+use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
 use crate::Dealer;
-use cosmwasm_std::{Deps, DepsMut, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Deps, DepsMut, Env, MessageInfo, Response};
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
 use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 
@@ -28,6 +28,7 @@ fn ensure_group_member(deps: Deps, dealer: Dealer) -> Result<(), ContractError> 
 // for a recurring dealer just let it refresh the keys without having to do all the storage operations
 pub fn try_add_dealer(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
     identity_key: String,
@@ -68,16 +69,16 @@ pub fn try_add_dealer(
         );
 
     // increment the number of registered dealers
-    update_epoch(deps.storage, |epoch| -> StdResult<_> {
-        let mut updated_epoch = epoch;
+    {
+        let current_epoch = load_current_epoch(deps.storage)?;
+        let mut updated_epoch = current_epoch;
         updated_epoch.state_progress.registered_dealers += 1;
 
         if is_resharing_dealer {
             updated_epoch.state_progress.registered_resharing_dealers += 1;
         }
-
-        Ok(updated_epoch)
-    })?;
+        save_epoch(deps.storage, env.block.height, &updated_epoch)?;
+    }
 
     Ok(Response::new().add_attribute("node_index", node_index.to_string()))
 }
@@ -115,10 +116,11 @@ pub(crate) mod tests {
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
 
         add_fixture_dealer(deps.as_mut());
-        try_advance_epoch_state(deps.as_mut(), env).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let ret = try_add_dealer(
             deps.as_mut(),
+            env,
             info,
             bte_key_with_proof,
             identity,

@@ -213,6 +213,7 @@ pub(crate) mod test {
         for fixed_state in EpochState::first().all_until(EpochState::InProgress) {
             save_epoch(
                 deps.as_mut().storage,
+                env.block.height,
                 &Epoch::new(fixed_state, 0, TimeConfiguration::default(), env.block.time),
             )
             .unwrap();

@@ -37,7 +37,7 @@ pub(crate) fn try_initiate_dkg(
     // the first exchange won't involve resharing
     let initial_state = EpochState::PublicKeySubmission { resharing: false };
     let initial_epoch = Epoch::new(initial_state, 0, epoch.time_configuration, env.block.time);
-    save_epoch(deps.storage, &initial_epoch)?;
+    save_epoch(deps.storage, env.block.height, &initial_epoch)?;
 
     Ok(Response::default())
 }
@@ -57,7 +57,7 @@ pub(crate) fn try_trigger_reset(
     }
 
     let next_epoch = current_epoch.next_reset(env.block.time);
-    save_epoch(deps.storage, &next_epoch)?;
+    save_epoch(deps.storage, env.block.height, &next_epoch)?;
 
     reset_dkg_state(deps.storage)?;
 
@@ -79,7 +79,7 @@ pub(crate) fn try_trigger_resharing(
     }
 
     let next_epoch = current_epoch.next_resharing(env.block.time);
-    save_epoch(deps.storage, &next_epoch)?;
+    save_epoch(deps.storage, env.block.height, &next_epoch)?;
 
     reset_dkg_state(deps.storage)?;
 

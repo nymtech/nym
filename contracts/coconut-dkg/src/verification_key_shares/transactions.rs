@@ -60,13 +60,14 @@ pub fn try_commit_verification_key_share(
     )?;
 
     epoch.state_progress.submitted_key_shares += 1;
-    save_epoch(deps.storage, &epoch)?;
+    save_epoch(deps.storage, env.block.height, &epoch)?;
 
     Ok(Response::new().add_message(msg))
 }
 
 pub fn try_verify_verification_key_share(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     owner: String,
     resharing: bool,
@@ -93,7 +94,7 @@ pub fn try_verify_verification_key_share(
     })?;
 
     epoch.state_progress.verified_keys += 1;
-    save_epoch(deps.storage, &epoch)?;
+    save_epoch(deps.storage, env.block.height, &epoch)?;
 
     Ok(Response::default())
 }
@@ -259,9 +260,14 @@ mod tests {
         let owner = deps.api.addr_make("owner").to_string();
         let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
 
-        let ret =
-            try_verify_verification_key_share(deps.as_mut(), info.clone(), owner.clone(), false)
-                .unwrap_err();
+        let ret = try_verify_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            owner.clone(),
+            false,
+        )
+        .unwrap_err();
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
@@ -291,15 +297,26 @@ mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
-        try_advance_epoch_state(deps.as_mut(), env).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
-        let ret = try_verify_verification_key_share(deps.as_mut(), info, owner.clone(), false)
-            .unwrap_err();
+        let ret = try_verify_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            info,
+            owner.clone(),
+            false,
+        )
+        .unwrap_err();
         assert_eq!(ret, ContractError::Admin(AdminError::NotAdmin {}));
 
-        let ret =
-            try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.clone(), false)
-                .unwrap_err();
+        let ret = try_verify_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            multisig_info,
+            owner.clone(),
+            false,
+        )
+        .unwrap_err();
         assert_eq!(
             ret,
             ContractError::NoCommitForOwner {
@@ -356,9 +373,15 @@ mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
-        try_advance_epoch_state(deps.as_mut(), env).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
-        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.to_string(), false)
-            .unwrap();
+        try_verify_verification_key_share(
+            deps.as_mut(),
+            env,
+            multisig_info,
+            owner.to_string(),
+            false,
+        )
+        .unwrap();
     }
 }

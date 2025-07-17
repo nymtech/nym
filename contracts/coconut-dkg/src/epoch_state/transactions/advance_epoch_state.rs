@@ -82,7 +82,7 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
     };
 
     // update the epoch state
-    save_epoch(deps.storage, &next_epoch)?;
+    save_epoch(deps.storage, env.block.height, &next_epoch)?;
 
     Ok(Response::new())
 }
@@ -106,8 +106,8 @@ mod tests {
             Epoch::new(state, 0, Default::default(), env.block.time)
         }
 
-        fn set_epoch(storage: &mut dyn Storage, epoch: Epoch) {
-            save_epoch(storage, &epoch).unwrap();
+        fn set_epoch(storage: &mut dyn Storage, env: &Env, epoch: Epoch) {
+            save_epoch(storage, env.block.height, &epoch).unwrap();
         }
 
         let mut deps = init_contract();
@@ -115,18 +115,18 @@ mod tests {
 
         // it's never possible to short-circuit `WaitingInitialisation`
         let epoch = epoch_in_state(EpochState::WaitingInitialisation, &env);
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
         // neither PublicKeySubmission (in either resharing or non-resharing)
         let epoch = epoch_in_state(EpochState::PublicKeySubmission { resharing: false }, &env);
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
         let epoch = epoch_in_state(EpochState::PublicKeySubmission { resharing: true }, &env);
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -139,7 +139,7 @@ mod tests {
         // no dealings
         let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: false }, &env);
         epoch.state_progress.registered_dealers = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -147,7 +147,7 @@ mod tests {
         let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: false }, &env);
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.submitted_dealings = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -155,7 +155,7 @@ mod tests {
         let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: false }, &env);
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.submitted_dealings = key_size * 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_ok());
         check_epoch_state(
@@ -168,7 +168,7 @@ mod tests {
         let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: true }, &env);
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.registered_resharing_dealers = 4;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -177,7 +177,7 @@ mod tests {
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.registered_resharing_dealers = 4;
         epoch.state_progress.submitted_dealings = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -186,7 +186,7 @@ mod tests {
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.registered_resharing_dealers = 4;
         epoch.state_progress.submitted_dealings = key_size * 4;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_ok());
         check_epoch_state(
@@ -201,7 +201,7 @@ mod tests {
             &env,
         );
         epoch.state_progress.registered_dealers = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -210,7 +210,7 @@ mod tests {
             &env,
         );
         epoch.state_progress.registered_dealers = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -220,7 +220,7 @@ mod tests {
         );
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.submitted_key_shares = 4;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -230,7 +230,7 @@ mod tests {
         );
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.submitted_key_shares = 4;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -240,7 +240,7 @@ mod tests {
         );
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.submitted_key_shares = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_ok());
         check_epoch_state(
@@ -255,7 +255,7 @@ mod tests {
         );
         epoch.state_progress.registered_dealers = 5;
         epoch.state_progress.submitted_key_shares = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_ok());
         check_epoch_state(
@@ -269,7 +269,7 @@ mod tests {
             EpochState::VerificationKeyValidation { resharing: false },
             &env,
         );
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -277,7 +277,7 @@ mod tests {
             EpochState::VerificationKeyValidation { resharing: true },
             &env,
         );
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -287,7 +287,7 @@ mod tests {
             &env,
         );
         epoch.state_progress.submitted_key_shares = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -296,7 +296,7 @@ mod tests {
             &env,
         );
         epoch.state_progress.submitted_key_shares = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -306,7 +306,7 @@ mod tests {
         );
         epoch.state_progress.submitted_key_shares = 5;
         epoch.state_progress.verified_keys = 4;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -316,7 +316,7 @@ mod tests {
         );
         epoch.state_progress.submitted_key_shares = 5;
         epoch.state_progress.verified_keys = 4;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
@@ -326,7 +326,7 @@ mod tests {
         );
         epoch.state_progress.submitted_key_shares = 5;
         epoch.state_progress.verified_keys = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_ok());
         check_epoch_state(deps.as_ref().storage, EpochState::InProgress).unwrap();
@@ -337,14 +337,14 @@ mod tests {
         );
         epoch.state_progress.submitted_key_shares = 5;
         epoch.state_progress.verified_keys = 5;
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_ok());
         check_epoch_state(deps.as_ref().storage, EpochState::InProgress).unwrap();
 
         // it's never possible to short-circuit `InProgress`
         let epoch = epoch_in_state(EpochState::InProgress, &env);
-        set_epoch(deps.as_mut().storage, epoch);
+        set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
     }
@@ -391,10 +391,14 @@ mod tests {
         env.block.time = env.block.time.plus_seconds(1);
 
         // add some dealers to prevent short-circuiting
-        update_epoch(deps.as_mut().storage, |mut e| -> StdResult<_> {
-            e.state_progress.registered_dealers = 42;
-            Ok(e)
-        })
+        update_epoch(
+            deps.as_mut().storage,
+            env.block.height,
+            |mut e| -> StdResult<_> {
+                e.state_progress.registered_dealers = 42;
+                Ok(e)
+            },
+        )
         .unwrap();
 
         env.block.time = env
@@ -478,10 +482,14 @@ mod tests {
         );
 
         // add some key shares to prevent short-circuiting
-        update_epoch(deps.as_mut().storage, |mut e| -> StdResult<_> {
-            e.state_progress.submitted_key_shares = 42;
-            Ok(e)
-        })
+        update_epoch(
+            deps.as_mut().storage,
+            env.block.height,
+            |mut e| -> StdResult<_> {
+                e.state_progress.submitted_key_shares = 42;
+                Ok(e)
+            },
+        )
         .unwrap();
 
         env.block.time = env.block.time.plus_seconds(3);
@@ -511,10 +519,14 @@ mod tests {
         );
 
         // add some finalized keys to prevent reset
-        update_epoch(deps.as_mut().storage, |mut e| -> StdResult<_> {
-            e.state_progress.verified_keys = 42;
-            Ok(e)
-        })
+        update_epoch(
+            deps.as_mut().storage,
+            env.block.height,
+            |mut e| -> StdResult<_> {
+                e.state_progress.verified_keys = 42;
+                Ok(e)
+            },
+        )
         .unwrap();
 
         env.block.time = env.block.time.plus_seconds(1);
@@ -568,7 +580,7 @@ mod tests {
 
         // fewer than the threshold
         epoch.state_progress.verified_keys = 41;
-        save_epoch(deps.as_mut().storage, &epoch).unwrap();
+        save_epoch(deps.as_mut().storage, env.block.height, &epoch).unwrap();
         env.block.time = env.block.time.plus_seconds(5000000);
 
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
@@ -596,10 +608,14 @@ mod tests {
 
         assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 
-        update_epoch(deps.as_mut().storage, |mut e| -> StdResult<_> {
-            e.state_progress.registered_dealers = 100;
-            Ok(e)
-        })
+        update_epoch(
+            deps.as_mut().storage,
+            env.block.height,
+            |mut e| -> StdResult<_> {
+                e.state_progress.registered_dealers = 100;
+                Ok(e)
+            },
+        )
         .unwrap();
 
         env.block.time = env

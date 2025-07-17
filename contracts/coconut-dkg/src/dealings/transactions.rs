@@ -197,7 +197,7 @@ pub fn try_commit_dealings_chunk(
     // there won't be a lot of them
     if metadata.is_complete() {
         epoch.state_progress.submitted_dealings += 1;
-        save_epoch(deps.storage, &epoch)?;
+        save_epoch(deps.storage, env.block.height, &epoch)?;
     }
 
     Ok(Response::new())
@@ -310,7 +310,7 @@ pub(crate) mod tests {
         );
 
         // same index, but next epoch
-        update_epoch(deps.as_mut().storage, |mut epoch| {
+        update_epoch(deps.as_mut().storage, env.block.height, |mut epoch| {
             epoch.epoch_id += 1;
             Ok(epoch)
         })

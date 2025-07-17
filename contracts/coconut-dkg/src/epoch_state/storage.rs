@@ -21,20 +21,31 @@ pub const THRESHOLD: Item<u64> = Item::new("threshold");
 pub const EPOCH_THRESHOLDS: Map<EpochId, u64> = Map::new("epoch_thresholds");
 
 #[allow(deprecated)]
-pub fn save_epoch(storage: &mut dyn Storage, epoch: &Epoch) -> StdResult<()> {
-    CURRENT_EPOCH.save(storage, epoch)
+pub fn save_epoch(storage: &mut dyn Storage, height: u64, epoch: &Epoch) -> StdResult<()> {
+    CURRENT_EPOCH.save(storage, epoch)?;
+    HISTORICAL_EPOCH.save(storage, epoch, height)
 }
 
+#[cfg(test)]
 #[allow(deprecated)]
-pub fn update_epoch<A>(storage: &mut dyn Storage, action: A) -> StdResult<()>
+pub(crate) fn update_epoch<A>(storage: &mut dyn Storage, height: u64, action: A) -> StdResult<()>
 where
-    A: FnOnce(Epoch) -> Result<Epoch, cosmwasm_std::StdError>,
+    A: Fn(Epoch) -> Result<Epoch, cosmwasm_std::StdError>,
 {
-    CURRENT_EPOCH.update(storage, action)?;
+    let current = load_current_epoch(storage)?;
+    let updated = action(current)?;
+    save_epoch(storage, height, &updated)?;
+
     Ok(())
 }
 
 #[allow(deprecated)]
 pub fn load_current_epoch(storage: &dyn Storage) -> StdResult<Epoch> {
+    #[cfg(debug_assertions)]
+    {
+        let current = CURRENT_EPOCH.load(storage);
+        let historical = HISTORICAL_EPOCH.load(storage);
+        debug_assert_eq!(current, historical);
+    }
     CURRENT_EPOCH.load(storage)
 }

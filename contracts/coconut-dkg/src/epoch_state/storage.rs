@@ -40,7 +40,7 @@ pub fn load_current_epoch(storage: &dyn Storage) -> StdResult<Epoch> {
         let historical = HISTORICAL_EPOCH.load(storage);
         debug_assert_eq!(current, historical);
     }
-    CURRENT_EPOCH.load(storage)
+    HISTORICAL_EPOCH.load(storage)
 }
 
 #[cfg(test)]

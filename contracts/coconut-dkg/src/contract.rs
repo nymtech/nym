@@ -14,7 +14,7 @@ use crate::dealings::queries::{
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
     query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
-    query_epoch_threshold,
+    query_epoch_at_height, query_epoch_threshold,
 };
 use crate::epoch_state::storage::save_epoch;
 use crate::epoch_state::transactions::{
@@ -135,6 +135,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     let response = match msg {
         QueryMsg::GetState {} => to_json_binary(&query_state(deps.storage)?)?,
         QueryMsg::GetCurrentEpochState {} => to_json_binary(&query_current_epoch(deps.storage)?)?,
+        QueryMsg::GetEpochStateAtHeight { height } => {
+            to_json_binary(&query_epoch_at_height(deps.storage, height)?)?
+        }
         QueryMsg::CanAdvanceState {} => {
             to_json_binary(&query_can_advance_state(deps.storage, env)?)?
         }

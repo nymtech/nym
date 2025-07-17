@@ -84,6 +84,9 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(Epoch))]
     GetCurrentEpochState {},
 
+    #[cfg_attr(feature = "schema", returns(Option<Epoch>))]
+    GetEpochStateAtHeight { height: u64 },
+
     #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
 

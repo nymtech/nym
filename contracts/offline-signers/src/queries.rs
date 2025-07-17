@@ -280,14 +280,14 @@ pub fn query_last_status_reset_paged(
     })
 }
 
-pub fn query_signing_status(
+pub fn query_current_signing_status(
     deps: Deps,
 ) -> Result<SigningStatusResponse, NymOfflineSignersContractError> {
     let dkg_contract_address = NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE
         .dkg_contract
         .load(deps.storage)?;
 
-    let dkg_epoch = deps.querier.query_dkg_epoch(&dkg_contract_address)?;
+    let dkg_epoch = deps.querier.query_current_dkg_epoch(&dkg_contract_address)?;
 
     // if DKG exchange is currently in progress, retrieve dealers and threshold from the PREVIOUS epoch
     // as that'd be the set used for issuing credentials
@@ -333,6 +333,14 @@ pub fn query_signing_status(
         offline_signers,
         threshold_available: available_signers as u64 >= dkg_threshold,
     })
+}
+
+pub fn query_signing_status_at_height(
+    deps: Deps,
+    block_height: u64,
+) -> Result<SigningStatusResponse, NymOfflineSignersContractError> {
+    deps.querier.query_current_dkg_epoch()
+    todo!()
 }
 
 #[cfg(test)]

@@ -3,9 +3,10 @@
 
 use crate::queries::{
     query_active_proposal, query_active_proposals_paged, query_admin, query_config,
-    query_last_status_reset, query_last_status_reset_paged, query_offline_signer_information,
-    query_offline_signers_paged, query_proposal, query_proposals_paged, query_signing_status,
-    query_vote_information, query_votes_paged,
+    query_current_signing_status, query_last_status_reset, query_last_status_reset_paged,
+    query_offline_signer_information, query_offline_signers_paged, query_proposal,
+    query_proposals_paged, query_signing_status_at_height, query_vote_information,
+    query_votes_paged,
 };
 use crate::storage::NYM_OFFLINE_SIGNERS_CONTRACT_STORAGE;
 use crate::transactions::{
@@ -98,7 +99,12 @@ pub fn query(
         QueryMsg::GetLastStatusResetPaged { start_after, limit } => Ok(to_json_binary(
             &query_last_status_reset_paged(deps, start_after, limit)?,
         )?),
-        QueryMsg::SigningStatus {} => Ok(to_json_binary(&query_signing_status(deps)?)?),
+        QueryMsg::CurrentSigningStatus {} => {
+            Ok(to_json_binary(&query_current_signing_status(deps)?)?)
+        }
+        QueryMsg::SigningStatusAtHeight { block_height } => Ok(to_json_binary(
+            &query_signing_status_at_height(deps, block_height)?,
+        )?),
     }
 }
 

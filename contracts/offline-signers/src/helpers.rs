@@ -26,11 +26,36 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
             ))
     }
 
-    fn query_dkg_epoch(&self, dkg_contract: impl Into<String>) -> StdResult<Epoch> {
+    fn query_current_dkg_epoch(&self, dkg_contract: impl Into<String>) -> StdResult<Epoch> {
         self.query_contract_storage_value(dkg_contract, b"current_epoch")?
             .ok_or(StdError::not_found(
                 "unable to retrieve epoch information from the DKG contract storage",
             ))
+    }
+
+    fn query_dkg_epoch_at_height(
+        &self,
+        dkg_contract: impl Into<String>,
+        height: u64,
+    ) -> StdResult<Epoch> {
+        // waiting for PR to get merged
+        mod placeholder {
+            use serde::Serialize;
+
+            #[derive(Serialize)]
+            pub(crate) enum DkgQueryMsg {
+                GetEpochStateAtHeight { height: u64 },
+            }
+        }
+
+        let res: Option<Epoch> = self.query_contract(
+            dkg_contract,
+            &placeholder::DkgQueryMsg::GetEpochStateAtHeight { height },
+        )?;
+
+        res.ok_or(StdError::not_found(&format!(
+            "epoch hasn't been initialised/migrated to new format at height {height} yet"
+        )))
     }
 
     fn query_dkg_dealers(

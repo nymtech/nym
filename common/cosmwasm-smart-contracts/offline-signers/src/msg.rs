@@ -8,7 +8,8 @@ use cosmwasm_schema::cw_serde;
 use crate::types::{
     ActiveProposalResponse, ActiveProposalsPagedResponse, Config, LastStatusResetPagedResponse,
     LastStatusResetResponse, OfflineSignerResponse, OfflineSignersPagedResponse, ProposalResponse,
-    ProposalsPagedResponse, SigningStatusResponse, VoteResponse, VotesPagedResponse,
+    ProposalsPagedResponse, SigningStatusAtHeightResponse, SigningStatusResponse, VoteResponse,
+    VotesPagedResponse,
 };
 
 #[cw_serde]
@@ -97,7 +98,11 @@ pub enum QueryMsg {
 
     /// Returns the current signing status, i.e. whether credential issuance is still possible
     #[cfg_attr(feature = "schema", returns(SigningStatusResponse))]
-    SigningStatus {},
+    CurrentSigningStatus {},
+
+    /// Returns the signing status at provided block height, i.e. whether credential issuance was possible at that point
+    #[cfg_attr(feature = "schema", returns(SigningStatusAtHeightResponse))]
+    SigningStatusAtHeight { block_height: u64 },
 }
 
 #[cw_serde]

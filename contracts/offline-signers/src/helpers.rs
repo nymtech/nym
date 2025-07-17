@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Addr, QuerierWrapper, StdError, StdResult};
+use nym_coconut_dkg_common::dealer::PagedDealerAddressesResponse;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::{
     msg::QueryMsg as DkgQueryMsg,
@@ -39,39 +40,14 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
     ) -> StdResult<Vec<Addr>> {
         let dkg_contract = dkg_contract.into();
 
-        #[deprecated(
-            note = "this will exist properly in DKG crate once relevant PR has been merged"
-        )]
-        mod placeholder {
-            use cosmwasm_std::Addr;
-            use nym_coconut_dkg_common::types::EpochId;
-            use serde::{Deserialize, Serialize};
-
-            #[derive(Serialize)]
-            pub(crate) enum DkgQueryMsg {
-                GetEpochDealersAddresses {
-                    epoch_id: EpochId,
-                    limit: Option<u32>,
-                    start_after: Option<String>,
-                },
-            }
-
-            #[derive(Deserialize)]
-            pub(crate) struct PagedDealerAddressesResponse {
-                pub(crate) dealers: Vec<Addr>,
-
-                pub(crate) start_next_after: Option<Addr>,
-            }
-        }
-
-        let mut dealers_addreses = Vec::new();
+        let mut dealers_addresses = Vec::new();
         // current max limit
         let limit = 50;
         let mut start_after = None;
         loop {
-            let mut response: placeholder::PagedDealerAddressesResponse = self.query_contract(
+            let mut response: PagedDealerAddressesResponse = self.query_contract(
                 &dkg_contract,
-                &placeholder::DkgQueryMsg::GetEpochDealersAddresses {
+                &DkgQueryMsg::GetEpochDealersAddresses {
                     epoch_id,
                     limit: Some(limit),
                     start_after,
@@ -80,15 +56,15 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
 
             start_after = response.start_next_after.as_ref().map(|d| d.to_string());
             if response.dealers.len() < limit as usize || response.start_next_after.is_none() {
-                dealers_addreses.append(&mut response.dealers);
+                dealers_addresses.append(&mut response.dealers);
                 // we have already exhausted the data
                 break;
             } else {
-                dealers_addreses.append(&mut response.dealers);
+                dealers_addresses.append(&mut response.dealers);
             }
         }
 
-        Ok(dealers_addreses)
+        Ok(dealers_addresses)
     }
 
     fn query_dkg_threshold(

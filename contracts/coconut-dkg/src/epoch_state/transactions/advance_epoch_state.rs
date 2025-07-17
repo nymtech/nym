@@ -90,15 +90,24 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch_state::storage::{load_current_epoch, update_epoch};
+    use crate::epoch_state::storage::load_current_epoch;
     use crate::epoch_state::transactions::try_initiate_dkg;
     use crate::epoch_state::utils::check_epoch_state;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::state::storage::STATE;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{message_info, mock_env};
-    use cosmwasm_std::{Addr, StdResult, Storage};
+    use cosmwasm_std::{Addr, Storage};
     use nym_coconut_dkg_common::types::TimeConfiguration;
+
+    fn update_epoch<A>(storage: &mut dyn Storage, env: &Env, action: A)
+    where
+        A: Fn(Epoch) -> Epoch,
+    {
+        let current = load_current_epoch(storage).unwrap();
+        let updated = action(current);
+        save_epoch(storage, env.block.height, &updated).unwrap();
+    }
 
     #[test]
     fn short_circuit_advance_state() {
@@ -391,16 +400,10 @@ mod tests {
         env.block.time = env.block.time.plus_seconds(1);
 
         // add some dealers to prevent short-circuiting
-        update_epoch(
-            deps.as_mut().storage,
-            env.block.height,
-            |mut e| -> StdResult<_> {
-                e.state_progress.registered_dealers = 42;
-                Ok(e)
-            },
-        )
-        .unwrap();
-
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 42;
+            e
+        });
         env.block.time = env
             .block
             .time
@@ -482,16 +485,10 @@ mod tests {
         );
 
         // add some key shares to prevent short-circuiting
-        update_epoch(
-            deps.as_mut().storage,
-            env.block.height,
-            |mut e| -> StdResult<_> {
-                e.state_progress.submitted_key_shares = 42;
-                Ok(e)
-            },
-        )
-        .unwrap();
-
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.submitted_key_shares = 42;
+            e
+        });
         env.block.time = env.block.time.plus_seconds(3);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = load_current_epoch(deps.as_mut().storage).unwrap();
@@ -519,15 +516,10 @@ mod tests {
         );
 
         // add some finalized keys to prevent reset
-        update_epoch(
-            deps.as_mut().storage,
-            env.block.height,
-            |mut e| -> StdResult<_> {
-                e.state_progress.verified_keys = 42;
-                Ok(e)
-            },
-        )
-        .unwrap();
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.verified_keys = 42;
+            e
+        });
 
         env.block.time = env.block.time.plus_seconds(1);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
@@ -608,15 +600,10 @@ mod tests {
 
         assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 
-        update_epoch(
-            deps.as_mut().storage,
-            env.block.height,
-            |mut e| -> StdResult<_> {
-                e.state_progress.registered_dealers = 100;
-                Ok(e)
-            },
-        )
-        .unwrap();
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 100;
+            e
+        });
 
         env.block.time = env
             .block

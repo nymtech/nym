@@ -206,7 +206,6 @@ pub fn try_commit_dealings_chunk(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::epoch_state::storage::update_epoch;
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::{dealing_metadata_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers;
@@ -310,11 +309,10 @@ pub(crate) mod tests {
         );
 
         // same index, but next epoch
-        update_epoch(deps.as_mut().storage, env.block.height, |mut epoch| {
-            epoch.epoch_id += 1;
-            Ok(epoch)
-        })
-        .unwrap();
+        let mut epoch = load_current_epoch(&deps.storage).unwrap();
+        epoch.epoch_id += 1;
+        save_epoch(deps.as_mut().storage, epoch.epoch_id, &epoch).unwrap();
+
         re_register_dealer(deps.as_mut(), &info.sender);
 
         try_submit_dealings_metadata(

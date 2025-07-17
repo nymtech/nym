@@ -9,8 +9,8 @@ use crate::epoch_state::storage::CURRENT_EPOCH;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use nym_coconut_dkg_common::dealer::{
-    DealerDetailsResponse, DealerType, PagedDealerIndexResponse, PagedDealerResponse,
-    RegisteredDealerDetails,
+    DealerDetailsResponse, DealerType, PagedDealerAddressesResponse, PagedDealerIndexResponse,
+    PagedDealerResponse, RegisteredDealerDetails,
 };
 use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
 
@@ -82,8 +82,37 @@ pub fn query_dealers_indices_paged(
     Ok(PagedDealerIndexResponse::new(dealers, start_next_after))
 }
 
-pub fn query_current_dealers_paged(
+pub fn query_epoch_dealers_addresses_paged(
     deps: Deps<'_>,
+    epoch_id: EpochId,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedDealerAddressesResponse> {
+    let limit = limit
+        .unwrap_or(storage::DEALERS_ADDRESSES_PAGE_DEFAULT_LIMIT)
+        .min(storage::DEALERS_ADDRESSES_PAGE_MAX_LIMIT) as usize;
+    let addr = start_after
+        .map(|addr| deps.api.addr_validate(&addr))
+        .transpose()?;
+
+    let start = addr.as_ref().map(Bound::exclusive);
+
+    let dealers = EPOCH_DEALERS_MAP
+        .prefix(epoch_id)
+        .keys(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+    let start_next_after = dealers.last().cloned();
+
+    Ok(PagedDealerAddressesResponse {
+        dealers,
+        start_next_after,
+    })
+}
+
+pub fn query_epoch_dealers_paged(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedDealerResponse> {
@@ -96,10 +125,8 @@ pub fn query_current_dealers_paged(
 
     let start = addr.as_ref().map(Bound::exclusive);
 
-    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
-
     let dealers = EPOCH_DEALERS_MAP
-        .prefix(current_epoch_id)
+        .prefix(epoch_id)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| {
@@ -107,7 +134,7 @@ pub fn query_current_dealers_paged(
                 // SAFETY: if we have DealerRegistrationDetails saved, it means we MUST also have its node index
                 // otherwise some serious invariants have been broken in the contract, and we're in trouble
                 #[allow(clippy::expect_used)]
-                let assigned_index = get_dealer_index(deps.storage, &address, current_epoch_id)
+                let assigned_index = get_dealer_index(deps.storage, &address, epoch_id)
                     .expect("could not retrieve dealer index for a registered dealer");
 
                 DealerDetails {
@@ -123,6 +150,15 @@ pub fn query_current_dealers_paged(
     let start_next_after = dealers.last().map(|dealer| dealer.address.clone());
 
     Ok(PagedDealerResponse::new(dealers, limit, start_next_after))
+}
+
+pub fn query_current_dealers_paged(
+    deps: Deps<'_>,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedDealerResponse> {
+    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    query_epoch_dealers_paged(deps, current_epoch_id, start_after, limit)
 }
 
 #[cfg(test)]
@@ -158,112 +194,330 @@ pub(crate) mod tests {
         }
     }
 
-    #[test]
-    fn dealers_empty_on_init() {
-        let deps = init_contract();
+    #[cfg(test)]
+    mod current_epoch_dealers {
+        use super::*;
 
-        let page1 = query_current_dealers_paged(deps.as_ref(), None, None).unwrap();
-        assert_eq!(0, page1.dealers.len() as u32);
+        #[test]
+        fn dealers_empty_on_init() {
+            let deps = init_contract();
+
+            let page1 = query_current_dealers_paged(deps.as_ref(), None, None).unwrap();
+            assert_eq!(0, page1.dealers.len() as u32);
+        }
+
+        #[test]
+        fn dealers_paged_retrieval_obeys_limits() {
+            let mut deps = init_contract();
+            let limit = 2;
+
+            fill_dealers(&mut deps, 0, 1000);
+
+            let page1 =
+                query_current_dealers_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+            assert_eq!(limit, page1.dealers.len() as u32);
+
+            remove_dealers(&mut deps, 0, 1000);
+        }
+
+        #[test]
+        fn dealers_paged_retrieval_has_default_limit() {
+            let mut deps = init_contract();
+
+            fill_dealers(&mut deps, 0, 1000);
+
+            // query without explicitly setting a limit
+            let page1 = query_current_dealers_paged(deps.as_ref(), None, None).unwrap();
+
+            assert_eq!(DEALERS_PAGE_DEFAULT_LIMIT, page1.dealers.len() as u32);
+
+            remove_dealers(&mut deps, 0, 1000);
+        }
+
+        #[test]
+        fn dealers_paged_retrieval_has_max_limit() {
+            let mut deps = init_contract();
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 1000 * DEALERS_PAGE_MAX_LIMIT;
+
+            fill_dealers(&mut deps, 0, 1000);
+
+            let page1 = query_current_dealers_paged(deps.as_ref(), None, Option::from(crazy_limit))
+                .unwrap();
+
+            // we default to a decent sized upper bound instead
+            let expected_limit = DEALERS_PAGE_MAX_LIMIT;
+            assert_eq!(expected_limit, page1.dealers.len() as u32);
+
+            remove_dealers(&mut deps, 0, 1000);
+        }
+
+        #[test]
+        fn dealers_pagination_works() {
+            let mut deps = init_contract();
+
+            let per_page = 2;
+
+            fill_dealers(&mut deps, 0, 1);
+            let page1 =
+                query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.dealers.len());
+            remove_dealers(&mut deps, 0, 1);
+
+            fill_dealers(&mut deps, 0, 2);
+            // page1 should have 2 results on it
+            let page1 =
+                query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            assert_eq!(2, page1.dealers.len());
+            remove_dealers(&mut deps, 0, 2);
+
+            fill_dealers(&mut deps, 0, 3);
+            // page1 still has 2 results
+            let page1 =
+                query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            assert_eq!(2, page1.dealers.len());
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_current_dealers_paged(
+                deps.as_ref(),
+                Option::from(start_after.to_string()),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.dealers.len());
+            remove_dealers(&mut deps, 0, 3);
+
+            fill_dealers(&mut deps, 0, 4);
+            let page1 =
+                query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_current_dealers_paged(
+                deps.as_ref(),
+                Option::from(start_after.to_string()),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.dealers.len());
+            remove_dealers(&mut deps, 0, 4);
+        }
+    }
+
+    #[cfg(test)]
+    mod epoch_dealers {
+        use super::*;
+
+        #[test]
+        fn dealers_empty_on_init() {
+            let deps = init_contract();
+
+            // check few epochs
+            for epoch_id in 0..10 {
+                let page1 = query_epoch_dealers_paged(deps.as_ref(), epoch_id, None, None).unwrap();
+                assert_eq!(0, page1.dealers.len() as u32);
+            }
+        }
+
+        #[test]
+        fn theres_no_ovewriting_between_epochs() {
+            let mut deps = init_contract();
+
+            fill_dealers(&mut deps, 1, 1000);
+
+            let page1 = query_epoch_dealers_paged(deps.as_ref(), 1, None, None).unwrap();
+            assert!(!page1.dealers.is_empty());
+
+            // nothing for other epochs
+            let another_epoch = query_epoch_dealers_paged(deps.as_ref(), 2, None, None).unwrap();
+            assert!(another_epoch.dealers.is_empty());
+
+            let another_epoch = query_epoch_dealers_paged(deps.as_ref(), 42, None, None).unwrap();
+            assert!(another_epoch.dealers.is_empty());
+        }
+
+        #[test]
+        fn dealers_paged_retrieval_obeys_limits() {
+            let mut deps = init_contract();
+            let limit = 2;
+
+            fill_dealers(&mut deps, 0, 1000);
+
+            let page1 =
+                query_epoch_dealers_paged(deps.as_ref(), 0, None, Option::from(limit)).unwrap();
+            assert_eq!(limit, page1.dealers.len() as u32);
+        }
+
+        #[test]
+        fn dealers_paged_retrieval_has_default_limit() {
+            let mut deps = init_contract();
+
+            fill_dealers(&mut deps, 0, 1000);
+
+            // query without explicitly setting a limit
+            let page1 = query_epoch_dealers_paged(deps.as_ref(), 0, None, None).unwrap();
+
+            assert_eq!(DEALERS_PAGE_DEFAULT_LIMIT, page1.dealers.len() as u32);
+        }
+
+        #[test]
+        fn dealers_paged_retrieval_has_max_limit() {
+            let mut deps = init_contract();
+
+            // query with a crazily high limit in an attempt to use too many resources
+            let crazy_limit = 1000 * DEALERS_PAGE_MAX_LIMIT;
+
+            fill_dealers(&mut deps, 0, 1000);
+
+            let page1 =
+                query_epoch_dealers_paged(deps.as_ref(), 0, None, Option::from(crazy_limit))
+                    .unwrap();
+
+            // we default to a decent sized upper bound instead
+            let expected_limit = DEALERS_PAGE_MAX_LIMIT;
+            assert_eq!(expected_limit, page1.dealers.len() as u32);
+        }
+
+        #[test]
+        fn dealers_pagination_works() {
+            let mut deps = init_contract();
+
+            let per_page = 2;
+
+            fill_dealers(&mut deps, 0, 1);
+            let page1 =
+                query_epoch_dealers_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.dealers.len());
+            remove_dealers(&mut deps, 0, 1);
+
+            fill_dealers(&mut deps, 0, 2);
+            // page1 should have 2 results on it
+            let page1 =
+                query_epoch_dealers_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
+            assert_eq!(2, page1.dealers.len());
+            remove_dealers(&mut deps, 0, 2);
+
+            fill_dealers(&mut deps, 0, 3);
+            // page1 still has 2 results
+            let page1 =
+                query_epoch_dealers_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
+            assert_eq!(2, page1.dealers.len());
+
+            // retrieving the next page should start after the last key on this page
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_epoch_dealers_paged(
+                deps.as_ref(),
+                0,
+                Option::from(start_after.to_string()),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.dealers.len());
+            remove_dealers(&mut deps, 0, 3);
+
+            fill_dealers(&mut deps, 0, 4);
+            let page1 =
+                query_epoch_dealers_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
+            let start_after = page1.start_next_after.unwrap();
+            let page2 = query_epoch_dealers_paged(
+                deps.as_ref(),
+                0,
+                Option::from(start_after.to_string()),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.dealers.len());
+        }
     }
 
     #[test]
-    fn dealers_paged_retrieval_obeys_limits() {
-        let mut deps = init_contract();
-        let limit = 2;
-
-        fill_dealers(&mut deps, 0, 1000);
-
-        let page1 = query_current_dealers_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
-        assert_eq!(limit, page1.dealers.len() as u32);
-
-        remove_dealers(&mut deps, 0, 1000);
-    }
-
-    #[test]
-    fn dealers_paged_retrieval_has_default_limit() {
+    fn epoch_dealers_addresses() {
         let mut deps = init_contract();
 
-        fill_dealers(&mut deps, 0, 1000);
+        let mut fixtures = Vec::new();
+        for i in 0..100 {
+            let mut dealer_details = dealer_details_fixture(&deps.api, i);
+            dealer_details.address = deps.api.addr_make(&format!("dummy-dealer-{i}"));
+            fixtures.push(dealer_details);
+        }
 
-        // query without explicitly setting a limit
-        let page1 = query_current_dealers_paged(deps.as_ref(), None, None).unwrap();
+        // initially empty for all epochs
+        for epoch_id in 0..10 {
+            let page1 =
+                query_epoch_dealers_addresses_paged(deps.as_ref(), epoch_id, None, None).unwrap();
+            assert_eq!(0, page1.dealers.len() as u32);
+        }
 
-        assert_eq!(DEALERS_PAGE_DEFAULT_LIMIT, page1.dealers.len() as u32);
+        // epoch0: dealers 0,1,2,3
+        // epoch1: dealers 4,5,6
+        // epoch2: dealers: 1,4,6 (some overlap)
+        // epoch3: dealer 7
+        // epoch4: dealers 0..100 (to check limits)
+        insert_dealer(deps.as_mut(), 0, &fixtures[0]);
+        insert_dealer(deps.as_mut(), 0, &fixtures[1]);
+        insert_dealer(deps.as_mut(), 0, &fixtures[2]);
+        insert_dealer(deps.as_mut(), 0, &fixtures[3]);
 
-        remove_dealers(&mut deps, 0, 1000);
-    }
+        insert_dealer(deps.as_mut(), 1, &fixtures[4]);
+        insert_dealer(deps.as_mut(), 1, &fixtures[5]);
+        insert_dealer(deps.as_mut(), 1, &fixtures[6]);
 
-    #[test]
-    fn dealers_paged_retrieval_has_max_limit() {
-        let mut deps = init_contract();
+        insert_dealer(deps.as_mut(), 2, &fixtures[1]);
+        insert_dealer(deps.as_mut(), 2, &fixtures[4]);
+        insert_dealer(deps.as_mut(), 2, &fixtures[6]);
 
-        // query with a crazily high limit in an attempt to use too many resources
-        let crazy_limit = 1000 * DEALERS_PAGE_MAX_LIMIT;
+        insert_dealer(deps.as_mut(), 3, &fixtures[7]);
 
-        fill_dealers(&mut deps, 0, 1000);
+        for fixture in &fixtures {
+            insert_dealer(deps.as_mut(), 4, fixture);
+        }
 
-        let page1 =
-            query_current_dealers_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
+        let res = query_epoch_dealers_addresses_paged(deps.as_ref(), 0, None, None).unwrap();
+        assert_eq!(4, res.dealers.len() as u32);
+        for fixture in &fixtures[0..=3] {
+            assert!(res.dealers.contains(&fixture.address))
+        }
 
-        // we default to a decent sized upper bound instead
-        let expected_limit = DEALERS_PAGE_MAX_LIMIT;
-        assert_eq!(expected_limit, page1.dealers.len() as u32);
+        let res = query_epoch_dealers_addresses_paged(deps.as_ref(), 1, None, None).unwrap();
+        assert_eq!(3, res.dealers.len() as u32);
+        for fixture in &fixtures[4..=6] {
+            assert!(res.dealers.contains(&fixture.address))
+        }
 
-        remove_dealers(&mut deps, 0, 1000);
-    }
+        let res = query_epoch_dealers_addresses_paged(deps.as_ref(), 2, None, None).unwrap();
+        assert_eq!(3, res.dealers.len() as u32);
+        for fixture in &[
+            fixtures[1].clone(),
+            fixtures[4].clone(),
+            fixtures[6].clone(),
+        ] {
+            assert!(res.dealers.contains(&fixture.address))
+        }
 
-    #[test]
-    fn dealers_pagination_works() {
-        let mut deps = init_contract();
+        let res = query_epoch_dealers_addresses_paged(deps.as_ref(), 3, None, None).unwrap();
+        assert_eq!(vec![fixtures[7].address.clone()], res.dealers);
 
-        let per_page = 2;
+        let res = query_epoch_dealers_addresses_paged(deps.as_ref(), 4, None, None).unwrap();
+        assert_eq!(
+            storage::DEALERS_ADDRESSES_PAGE_DEFAULT_LIMIT,
+            res.dealers.len() as u32
+        );
 
-        fill_dealers(&mut deps, 0, 1);
-        let page1 =
-            query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
-
-        // page should have 1 result on it
-        assert_eq!(1, page1.dealers.len());
-        remove_dealers(&mut deps, 0, 1);
-
-        fill_dealers(&mut deps, 0, 2);
-        // page1 should have 2 results on it
-        let page1 =
-            query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
-        assert_eq!(2, page1.dealers.len());
-        remove_dealers(&mut deps, 0, 2);
-
-        fill_dealers(&mut deps, 0, 3);
-        // page1 still has 2 results
-        let page1 =
-            query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
-        assert_eq!(2, page1.dealers.len());
-
-        // retrieving the next page should start after the last key on this page
-        let start_after = page1.start_next_after.unwrap();
-        let page2 = query_current_dealers_paged(
-            deps.as_ref(),
-            Option::from(start_after.to_string()),
-            Option::from(per_page),
-        )
-        .unwrap();
-
-        assert_eq!(1, page2.dealers.len());
-        remove_dealers(&mut deps, 0, 3);
-
-        fill_dealers(&mut deps, 0, 4);
-        let page1 =
-            query_current_dealers_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
-        let start_after = page1.start_next_after.unwrap();
-        let page2 = query_current_dealers_paged(
-            deps.as_ref(),
-            Option::from(start_after.to_string()),
-            Option::from(per_page),
-        )
-        .unwrap();
-
-        // now we have 2 pages, with 2 results on the second page
-        assert_eq!(2, page2.dealers.len());
-        remove_dealers(&mut deps, 0, 4);
+        let res =
+            query_epoch_dealers_addresses_paged(deps.as_ref(), 4, None, Some(1000000)).unwrap();
+        assert_eq!(
+            storage::DEALERS_ADDRESSES_PAGE_MAX_LIMIT,
+            res.dealers.len() as u32
+        );
     }
 }

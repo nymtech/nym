@@ -4,7 +4,7 @@
 use crate::dealers::storage::{
     get_or_assign_index, is_dealer, save_dealer_details_if_not_a_dealer,
 };
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::{load_current_epoch, update_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
@@ -34,7 +34,7 @@ pub fn try_add_dealer(
     announce_address: String,
     resharing: bool,
 ) -> Result<Response, ContractError> {
-    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch = load_current_epoch(deps.storage)?;
     check_epoch_state(deps.storage, EpochState::PublicKeySubmission { resharing })?;
 
     // make sure this potential dealer actually belong to the group
@@ -68,7 +68,7 @@ pub fn try_add_dealer(
         );
 
     // increment the number of registered dealers
-    CURRENT_EPOCH.update(deps.storage, |epoch| -> StdResult<_> {
+    update_epoch(deps.storage, |epoch| -> StdResult<_> {
         let mut updated_epoch = epoch;
         updated_epoch.state_progress.registered_dealers += 1;
 

@@ -3,7 +3,7 @@
 
 use crate::constants::BLOCK_TIME_FOR_VERIFICATION_SECS;
 use crate::dealers::storage::get_dealer_details;
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::{MULTISIG, STATE};
@@ -25,7 +25,7 @@ pub fn try_commit_verification_key_share(
         deps.storage,
         EpochState::VerificationKeySubmission { resharing },
     )?;
-    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let mut epoch = load_current_epoch(deps.storage)?;
     let epoch_id = epoch.epoch_id;
 
     let details = get_dealer_details(deps.storage, &info.sender, epoch_id)?;
@@ -43,7 +43,7 @@ pub fn try_commit_verification_key_share(
         node_index: details.assigned_index,
         announce_address: details.announce_address,
         owner: info.sender.clone(),
-        epoch_id: CURRENT_EPOCH.load(deps.storage)?.epoch_id,
+        epoch_id: load_current_epoch(deps.storage)?.epoch_id,
         verified: false,
     };
     vk_shares().save(deps.storage, (&info.sender, epoch_id), &data)?;
@@ -60,7 +60,7 @@ pub fn try_commit_verification_key_share(
     )?;
 
     epoch.state_progress.submitted_key_shares += 1;
-    CURRENT_EPOCH.save(deps.storage, &epoch)?;
+    save_epoch(deps.storage, &epoch)?;
 
     Ok(Response::new().add_message(msg))
 }
@@ -77,7 +77,7 @@ pub fn try_verify_verification_key_share(
         deps.storage,
         EpochState::VerificationKeyFinalization { resharing },
     )?;
-    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let mut epoch = load_current_epoch(deps.storage)?;
     let epoch_id = epoch.epoch_id;
 
     MULTISIG.assert_admin(deps.as_ref(), &info.sender)?;
@@ -93,7 +93,7 @@ pub fn try_verify_verification_key_share(
     })?;
 
     epoch.state_progress.verified_keys += 1;
-    CURRENT_EPOCH.save(deps.storage, &epoch)?;
+    save_epoch(deps.storage, &epoch)?;
 
     Ok(Response::default())
 }

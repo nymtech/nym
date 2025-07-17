@@ -202,7 +202,7 @@ pub async fn update_daily_stats_uncommitted(
     current_stats: &NodeStats,
 ) -> Result<()> {
     use crate::db::queries::{get_raw_node_stats, insert_daily_node_stats_uncommitted};
-    
+
     let date_utc = format!(
         "{:04}-{:02}-{:02}",
         timestamp.year(),
@@ -246,7 +246,7 @@ pub async fn update_daily_stats_uncommitted(
     current_stats: &NodeStats,
 ) -> Result<()> {
     use crate::db::queries::{get_raw_node_stats, insert_daily_node_stats_uncommitted};
-    
+
     let date_utc = format!(
         "{:04}-{:02}-{:02}",
         timestamp.year(),

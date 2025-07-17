@@ -50,10 +50,7 @@ impl PacketScraper {
     }
 
     #[instrument(level = "info", name = "packet_scraper", skip_all)]
-    async fn run_packet_scraper(
-        pool: &DbPool,
-        max_concurrent_tasks: usize,
-    ) -> anyhow::Result<()> {
+    async fn run_packet_scraper(pool: &DbPool, max_concurrent_tasks: usize) -> anyhow::Result<()> {
         let queue = queries::get_nodes_for_scraping(pool).await?;
         tracing::info!("Adding {} nodes to the queue", queue.len(),);
 

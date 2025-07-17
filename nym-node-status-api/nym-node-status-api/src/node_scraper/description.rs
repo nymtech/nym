@@ -1,6 +1,6 @@
 use super::helpers::scrape_and_store_description;
-use anyhow::Result;
 use crate::db::DbPool;
+use anyhow::Result;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

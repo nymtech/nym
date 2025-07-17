@@ -96,7 +96,11 @@ pub(crate) async fn run_probe(
             for result in results {
                 match result.3 {
                     Ok(()) => {
-                        let method = if result.0 == 0 { "regular" } else { "with context" };
+                        let method = if result.0 == 0 {
+                            "regular"
+                        } else {
+                            "with context"
+                        };
                         tracing::info!(
                             "✅ Successfully submitted {} to server[{}] {}:{}",
                             method,
@@ -106,7 +110,11 @@ pub(crate) async fn run_probe(
                         );
                     }
                     Err(e) => {
-                        let method = if result.0 == 0 { "regular" } else { "with context" };
+                        let method = if result.0 == 0 {
+                            "regular"
+                        } else {
+                            "with context"
+                        };
                         tracing::warn!(
                             "❌ Failed to submit {} to server[{}] {}:{} - {}",
                             method,

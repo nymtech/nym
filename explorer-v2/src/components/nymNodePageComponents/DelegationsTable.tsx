@@ -36,6 +36,7 @@ type Props = {
 const DelegationsTable = ({ id }: Props) => {
   const router = useRouter();
   const theme = useTheme();
+  const isDarkMode = theme.palette.mode === "dark";
 
   const { data: delegations = [], isError } = useQuery({
     queryKey: ["nodeDelegations", id],
@@ -45,7 +46,6 @@ const DelegationsTable = ({ id }: Props) => {
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
-
 
   const columns: MRT_ColumnDef<NodeRewardDetails>[] = useMemo(
     () => [
@@ -126,10 +126,7 @@ const DelegationsTable = ({ id }: Props) => {
     },
     muiTableHeadRowProps: {
       sx: {
-        bgcolor:
-          theme.palette.mode === "dark"
-            ? "rgba(255, 255, 255, 0.05)"
-            : "background.paper",
+        bgcolor: isDarkMode ? "background.default" : "background.paper",
       },
     },
 
@@ -144,25 +141,23 @@ const DelegationsTable = ({ id }: Props) => {
       },
       hover: true,
       sx: {
-        ":nth-child(odd)": {
-          bgcolor:
-            theme.palette.mode === "dark"
-              ? "rgba(255, 255, 255, 0.05) !important"
-              : "#F3F7FB !important",
-        },
         ":nth-child(even)": {
           bgcolor:
             theme.palette.mode === "dark"
-              ? "transparent !important"
+              ? "#06252B !important"
               : "white !important",
         },
-        cursor: "pointer",
-        "&:hover": {
+        ":nth-child(odd)": {
           bgcolor:
             theme.palette.mode === "dark"
-              ? "rgba(255, 255, 255, 0.1) !important"
-              : "rgba(0, 0, 0, 0.04) !important",
+              ? "#0A333B !important"
+              : "#F3F7FB !important",
         },
+        "&:hover": {
+          backgroundColor: `${theme.palette.mode === "dark" ? "#004449" : "#E5E7EB"} !important`,
+          transition: "background-color 0.2s ease",
+        },
+        cursor: "pointer",
       },
     }),
   });

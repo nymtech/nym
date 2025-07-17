@@ -49,9 +49,9 @@ const ExplorerHeroCard = ({
 
   const dynamicCardStyles = {
     ...cardStyles,
-    bgcolor: isDarkMode ? "pine.300" : "background.paper",
+    bgcolor: isDarkMode ? "#EFFFF0" : "background.paper",
     "&:hover": {
-      bgcolor: isDarkMode ? "pine.600" : "accent.main",
+      bgcolor: isDarkMode ? "#C2FFC7" : "#E5E7EB",
     },
     ...sx,
   };

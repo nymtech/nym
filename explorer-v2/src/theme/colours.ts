@@ -5,7 +5,9 @@ export const colours = {
     error: "#E01400",
   },
   green: {
-    500: "#14e76f",
+    300: "#EFFFF0",
+    400: "#C2FFC7",
+    500: "#07FF94",
   },
   haze: {
     25: "#F3F7FB",
@@ -17,9 +19,9 @@ export const colours = {
     200: "#CAD6D7",
     300: "#A6B9BA",
     600: "#4C666A",
-    800: "#3E4A4C",
-    900: "#374042",
-    950: "#242B2D",
+    800: "#004449",
+    900: "#0A333B",
+    950: "#06252B",
   },
   base: {
     white: "#FFFFFF",

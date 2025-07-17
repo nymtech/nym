@@ -437,9 +437,10 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         bgcolor: isDarkMode ? "#0F1720" : "background.paper",
       },
     },
+
     muiTableHeadRowProps: {
       sx: {
-        bgcolor: isDarkMode ? "#374042" : "background.paper",
+        bgcolor: isDarkMode ? "background.default" : "background.paper",
       },
     },
     muiTableHeadCellProps: {
@@ -514,15 +515,20 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
       hover: true,
       sx: {
-        backgroundColor: isDarkMode
-          ? row.index % 2 === 0
-            ? "#3E4A4C !important"
-            : "#374042 !important"
-          : row.index % 2 === 0
-            ? "#F3F7FB"
-            : "white",
+        ":nth-child(even)": {
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "#06252B !important"
+              : "white !important",
+        },
+        ":nth-child(odd)": {
+          bgcolor:
+            theme.palette.mode === "dark"
+              ? "#0A333B !important"
+              : "#F3F7FB !important",
+        },
         "&:hover": {
-          backgroundColor: `${isDarkMode ? "#2A3436" : "#E5E7EB"} !important`,
+          backgroundColor: `${theme.palette.mode === "dark" ? "#004449" : "#E5E7EB"} !important`,
           transition: "background-color 0.2s ease",
         },
         cursor: "pointer",

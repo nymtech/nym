@@ -46,7 +46,12 @@ pub fn load_current_epoch(storage: &dyn Storage) -> StdResult<Epoch> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::mock_dependencies;
+    use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
+    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
+    use cosmwasm_std::{Addr, Env};
+    use nym_coconut_dkg_common::types::EpochState;
+    use std::ops::{Deref, DerefMut};
 
     #[test]
     fn check_cw_plus_snapshot_behaviour_hasnt_changed() {
@@ -124,5 +129,172 @@ mod tests {
             DUMMY_SNAPSHOT.may_load_at_height(&deps.storage, 9).unwrap(),
             None
         );
+    }
+
+    #[test]
+    fn full_dkg_correctly_updates_historical_epoch() -> anyhow::Result<()> {
+        struct EnvWrapper {
+            env: Env,
+        }
+
+        impl EnvWrapper {
+            fn next_block(&mut self) {
+                self.env.block.height += 1;
+                self.env.block.time = self.env.block.time.plus_seconds(5);
+            }
+
+            fn height(&self) -> u64 {
+                self.block.height
+            }
+        }
+
+        impl Deref for EnvWrapper {
+            type Target = Env;
+            fn deref(&self) -> &Self::Target {
+                &self.env
+            }
+        }
+
+        impl DerefMut for EnvWrapper {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.env
+            }
+        }
+
+        let mut empty_deps = mock_dependencies();
+
+        // before contract is initialised, there's nothing saved
+        assert!(HISTORICAL_EPOCH
+            .may_load(empty_deps.as_mut().storage)?
+            .is_none());
+
+        let mut deps = init_contract();
+        let mut env = EnvWrapper { env: mock_env() };
+
+        let init_height = env.height();
+        // after init it has initial state
+        assert_eq!(HISTORICAL_EPOCH.load(deps.as_mut().storage)?.epoch_id, 0);
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::WaitingInitialisation
+        );
+
+        env.next_block();
+        let pub_key_submission_height = env.height();
+        try_initiate_dkg(
+            deps.as_mut(),
+            (*env).clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )?;
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::PublicKeySubmission { resharing: false }
+        );
+
+        env.block.time = env.block.time.plus_seconds(100000);
+        env.next_block();
+        let dealing_exchange_height = env.height();
+        try_advance_epoch_state(deps.as_mut(), (*env).clone())?;
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::DealingExchange { resharing: false }
+        );
+
+        env.block.time = env.block.time.plus_seconds(100000);
+        env.next_block();
+        let verification_key_submission_height = env.height();
+        try_advance_epoch_state(deps.as_mut(), (*env).clone())?;
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::VerificationKeySubmission { resharing: false }
+        );
+
+        env.block.time = env.block.time.plus_seconds(100000);
+        env.next_block();
+        let verification_key_validation_height = env.height();
+        try_advance_epoch_state(deps.as_mut(), (*env).clone())?;
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::VerificationKeyValidation { resharing: false }
+        );
+
+        env.block.time = env.block.time.plus_seconds(100000);
+        env.next_block();
+        let verification_key_finalization_height = env.height();
+        try_advance_epoch_state(deps.as_mut(), (*env).clone())?;
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::VerificationKeyFinalization { resharing: false }
+        );
+
+        env.block.time = env.block.time.plus_seconds(100000);
+        env.next_block();
+        let in_progress_height = env.height();
+        try_advance_epoch_state(deps.as_mut(), (*env).clone())?;
+        assert_eq!(
+            HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
+            EpochState::InProgress {}
+        );
+
+        // check old data
+        assert!(HISTORICAL_EPOCH
+            .may_load_at_height(deps.as_mut().storage, init_height - 1)?
+            .is_none());
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, init_height)?
+                .unwrap()
+                .state,
+            EpochState::WaitingInitialisation
+        );
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, pub_key_submission_height)?
+                .unwrap()
+                .state,
+            EpochState::PublicKeySubmission { resharing: false }
+        );
+
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, dealing_exchange_height)?
+                .unwrap()
+                .state,
+            EpochState::DealingExchange { resharing: false }
+        );
+
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, verification_key_submission_height)?
+                .unwrap()
+                .state,
+            EpochState::VerificationKeySubmission { resharing: false }
+        );
+
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, verification_key_validation_height)?
+                .unwrap()
+                .state,
+            EpochState::VerificationKeyValidation { resharing: false }
+        );
+
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, verification_key_finalization_height)?
+                .unwrap()
+                .state,
+            EpochState::VerificationKeyFinalization { resharing: false }
+        );
+
+        assert_eq!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, in_progress_height)?
+                .unwrap()
+                .state,
+            EpochState::InProgress
+        );
+
+        Ok(())
     }
 }

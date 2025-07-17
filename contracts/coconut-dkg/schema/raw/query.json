@@ -31,6 +31,29 @@
     {
       "type": "object",
       "required": [
+        "get_epoch_state_at_height"
+      ],
+      "properties": {
+        "get_epoch_state_at_height": {
+          "type": "object",
+          "required": [
+            "height"
+          ],
+          "properties": {
+            "height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_current_epoch_threshold"
       ],
       "properties": {

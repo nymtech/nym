@@ -15,9 +15,9 @@ use nym_validator_client::ecash::models::{
     CommitedDeposit, DepositId, IssuedTicketbooksChallengeCommitmentRequestBody,
     IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequestBody,
     IssuedTicketbooksDataResponse, IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponse,
-    SignableMessageBody, SignedMessage,
 };
 use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::signable::{SignableMessageBody, SignedMessage};
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;

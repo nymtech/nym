@@ -3,7 +3,7 @@
 
 use crate::contract::instantiate;
 use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::load_current_epoch;
 use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
@@ -27,7 +27,7 @@ pub const MULTISIG_CONTRACT: &str = addr!("multisig contract address");
 pub(crate) static GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(Vec::new());
 
 pub fn re_register_dealer(deps: DepsMut, dealer: &Addr) {
-    let epoch_id = CURRENT_EPOCH.load(deps.storage).unwrap().epoch_id;
+    let epoch_id = load_current_epoch(deps.storage).unwrap().epoch_id;
     let previous = epoch_id - 1;
     let details = EPOCH_DEALERS_MAP
         .load(deps.storage, (previous, dealer))
@@ -38,7 +38,7 @@ pub fn re_register_dealer(deps: DepsMut, dealer: &Addr) {
 }
 
 pub fn add_current_dealer(deps: DepsMut<'_>, details: &DealerDetails) {
-    let epoch_id = CURRENT_EPOCH.load(deps.storage).unwrap().epoch_id;
+    let epoch_id = load_current_epoch(deps.storage).unwrap().epoch_id;
     insert_dealer(deps, epoch_id, details)
 }
 

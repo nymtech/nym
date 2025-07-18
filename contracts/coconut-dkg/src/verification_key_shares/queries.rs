@@ -99,7 +99,7 @@ pub(crate) mod tests {
         let mut deps = init_contract();
         let limit = 2;
         for n in 0..1000 {
-            let owner = format!("owner{}", n);
+            let owner = format!("owner{n}");
             let vk_share = vk_share_fixture(&owner, 0);
             let sender = Addr::unchecked(owner);
             vk_shares()
@@ -115,7 +115,7 @@ pub(crate) mod tests {
     fn vk_shares_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
         for n in 0..1000 {
-            let owner = format!("owner{}", n);
+            let owner = format!("owner{n}");
             let vk_share = vk_share_fixture(&owner, 0);
             let sender = Addr::unchecked(owner);
             vk_shares()
@@ -136,7 +136,7 @@ pub(crate) mod tests {
     fn vk_shares_paged_retrieval_has_max_limit() {
         let mut deps = init_contract();
         for n in 0..1000 {
-            let owner = format!("owner{}", n);
+            let owner = format!("owner{n}");
             let vk_share = vk_share_fixture(&owner, 0);
             let sender = Addr::unchecked(owner);
             vk_shares()

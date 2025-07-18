@@ -14,13 +14,14 @@ use crate::dealings::queries::{
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
     query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
-    query_epoch_threshold,
+    query_epoch_at_height, query_epoch_threshold,
 };
-use crate::epoch_state::storage::{CURRENT_EPOCH, EPOCH_THRESHOLDS, THRESHOLD};
+use crate::epoch_state::storage::save_epoch;
 use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
 use crate::error::ContractError;
+use crate::queued_migrations::introduce_historical_epochs;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
@@ -68,8 +69,9 @@ pub fn instantiate(
     };
     STATE.save(deps.storage, &state)?;
 
-    CURRENT_EPOCH.save(
+    save_epoch(
         deps.storage,
+        env.block.height,
         &Epoch::new(
             EpochState::WaitingInitialisation,
             0,
@@ -101,6 +103,7 @@ pub fn execute(
             resharing,
         } => try_add_dealer(
             deps,
+            env,
             info,
             bte_key_with_proof,
             identity_key,
@@ -119,7 +122,7 @@ pub fn execute(
             try_commit_verification_key_share(deps, env, info, share, resharing)
         }
         ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
-            try_verify_verification_key_share(deps, info, owner, resharing)
+            try_verify_verification_key_share(deps, env, info, owner, resharing)
         }
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
@@ -132,6 +135,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     let response = match msg {
         QueryMsg::GetState {} => to_json_binary(&query_state(deps.storage)?)?,
         QueryMsg::GetCurrentEpochState {} => to_json_binary(&query_current_epoch(deps.storage)?)?,
+        QueryMsg::GetEpochStateAtHeight { height } => {
+            to_json_binary(&query_epoch_at_height(deps.storage, height)?)?
+        }
         QueryMsg::CanAdvanceState {} => {
             to_json_binary(&query_can_advance_state(deps.storage, env)?)?
         }
@@ -242,16 +248,11 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // MAINNET MIGRATION ASSERTION
-    let epoch = CURRENT_EPOCH.load(deps.storage)?;
-    assert_eq!(0, epoch.epoch_id);
-
-    let threshold = THRESHOLD.load(deps.storage)?;
-    EPOCH_THRESHOLDS.save(deps.storage, 0, &threshold)?;
+    introduce_historical_epochs(deps, env)?;
 
     Ok(Response::new())
 }
@@ -355,7 +356,7 @@ mod tests {
         let api = MockApi::default();
         const MEMBER_SIZE: usize = 100;
         let members: [Addr; MEMBER_SIZE] =
-            std::array::from_fn(|idx| api.addr_make(&format!("member{}", idx)));
+            std::array::from_fn(|idx| api.addr_make(&format!("member{idx}")));
 
         let mut app = AppBuilder::new().build(|router, _, storage| {
             router

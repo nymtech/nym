@@ -5,7 +5,7 @@ use crate::dealers::storage::{
     self, get_dealer_details, get_dealer_index, get_registration_details, DEALERS_INDICES,
     EPOCH_DEALERS_MAP,
 };
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::load_current_epoch;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use nym_coconut_dkg_common::dealer::{
@@ -23,7 +23,7 @@ pub fn query_registered_dealer_details(
 
     let epoch_id = match epoch_id {
         Some(epoch_id) => epoch_id,
-        None => CURRENT_EPOCH.load(deps.storage)?.epoch_id,
+        None => load_current_epoch(deps.storage)?.epoch_id,
     };
 
     Ok(RegisteredDealerDetails {
@@ -36,7 +36,7 @@ pub fn query_dealer_details(
     dealer_address: String,
 ) -> StdResult<DealerDetailsResponse> {
     let addr = deps.api.addr_validate(&dealer_address)?;
-    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    let current_epoch_id = load_current_epoch(deps.storage)?.epoch_id;
 
     // if the address has registration data for the current epoch, it means it's an active dealer
     if let Ok(dealer_details) = get_dealer_details(deps.storage, &addr, current_epoch_id) {
@@ -157,7 +157,7 @@ pub fn query_current_dealers_paged(
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedDealerResponse> {
-    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    let current_epoch_id = load_current_epoch(deps.storage)?.epoch_id;
     query_epoch_dealers_paged(deps, current_epoch_id, start_after, limit)
 }
 

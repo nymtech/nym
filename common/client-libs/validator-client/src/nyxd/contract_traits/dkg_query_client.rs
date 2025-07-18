@@ -41,6 +41,11 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
+    async fn get_epoch_at_height(&self, height: u64) -> Result<Option<Epoch>, NyxdError> {
+        let request = DkgQueryMsg::GetEpochStateAtHeight { height };
+        self.query_dkg_contract(request).await
+    }
+
     async fn can_advance_state(&self) -> Result<StateAdvanceResponse, NyxdError> {
         let request = DkgQueryMsg::CanAdvanceState {};
         self.query_dkg_contract(request).await
@@ -299,6 +304,9 @@ mod tests {
         match msg {
             DkgQueryMsg::GetState {} => client.get_state().ignore(),
             DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),
+            DkgQueryMsg::GetEpochStateAtHeight { height } => {
+                client.get_epoch_at_height(height).ignore()
+            }
             DkgQueryMsg::CanAdvanceState {} => client.can_advance_state().ignore(),
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()

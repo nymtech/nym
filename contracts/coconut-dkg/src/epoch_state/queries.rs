@@ -1,17 +1,19 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{CURRENT_EPOCH, EPOCH_THRESHOLDS, THRESHOLD};
+use crate::epoch_state::storage::{
+    load_current_epoch, EPOCH_THRESHOLDS, HISTORICAL_EPOCH, THRESHOLD,
+};
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
-use cosmwasm_std::{Env, Storage};
+use cosmwasm_std::{Env, StdResult, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState, StateAdvanceResponse};
 
 pub(crate) fn query_can_advance_state(
     storage: &dyn Storage,
     env: Env,
 ) -> Result<StateAdvanceResponse, ContractError> {
-    let epoch = CURRENT_EPOCH.load(storage)?;
+    let epoch = load_current_epoch(storage)?;
 
     if epoch.state == EpochState::WaitingInitialisation {
         return Ok(StateAdvanceResponse::default());
@@ -34,9 +36,14 @@ pub(crate) fn query_can_advance_state(
 }
 
 pub(crate) fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
-    CURRENT_EPOCH
-        .load(storage)
-        .map_err(|_| ContractError::EpochNotInitialised)
+    load_current_epoch(storage).map_err(|_| ContractError::EpochNotInitialised)
+}
+
+pub(crate) fn query_epoch_at_height(
+    storage: &dyn Storage,
+    height: u64,
+) -> StdResult<Option<Epoch>> {
+    HISTORICAL_EPOCH.may_load_at_height(storage, height)
 }
 
 pub(crate) fn query_current_epoch_threshold(

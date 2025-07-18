@@ -5,7 +5,7 @@ use crate::dealers::storage::ensure_dealer;
 use crate::dealings::storage::{
     metadata_exists, must_read_metadata, store_metadata, StoredDealing,
 };
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
@@ -42,7 +42,7 @@ pub fn try_submit_dealings_metadata(
     chunks: Vec<DealingChunkInfo>,
     resharing: bool,
 ) -> Result<Response, ContractError> {
-    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch = load_current_epoch(deps.storage)?;
     let state = STATE.load(deps.storage)?;
 
     ensure_permission(deps.storage, &info.sender, epoch.epoch_id, resharing)?;
@@ -137,7 +137,7 @@ pub fn try_commit_dealings_chunk(
     // note: checking permissions is implicit as if the metadata exists,
     // the sender must have been allowed to submit it
 
-    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let mut epoch = load_current_epoch(deps.storage)?;
 
     // read meta
     let mut metadata = must_read_metadata(
@@ -197,7 +197,7 @@ pub fn try_commit_dealings_chunk(
     // there won't be a lot of them
     if metadata.is_complete() {
         epoch.state_progress.submitted_dealings += 1;
-        CURRENT_EPOCH.save(deps.storage, &epoch)?;
+        save_epoch(deps.storage, env.block.height, &epoch)?;
     }
 
     Ok(Response::new())
@@ -309,12 +309,10 @@ pub(crate) mod tests {
         );
 
         // same index, but next epoch
-        CURRENT_EPOCH
-            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
-                epoch.epoch_id += 1;
-                Ok(epoch)
-            })
-            .unwrap();
+        let mut epoch = load_current_epoch(&deps.storage).unwrap();
+        epoch.epoch_id += 1;
+        save_epoch(deps.as_mut().storage, epoch.epoch_id, &epoch).unwrap();
+
         re_register_dealer(deps.as_mut(), &info.sender);
 
         try_submit_dealings_metadata(

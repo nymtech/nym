@@ -3,6 +3,8 @@
 
 use std::str::FromStr;
 
+use nym_credentials_interface::TicketType;
+
 use crate::models::Client;
 
 #[derive(Debug, PartialEq, sqlx::Type)]
@@ -13,6 +15,17 @@ pub enum ClientType {
     ExitMixnet,
     EntryWireguard,
     ExitWireguard,
+}
+
+impl From<TicketType> for ClientType {
+    fn from(value: TicketType) -> Self {
+        match value {
+            TicketType::V1MixnetEntry => ClientType::EntryMixnet,
+            TicketType::V1MixnetExit => ClientType::ExitMixnet,
+            TicketType::V1WireguardEntry => ClientType::EntryWireguard,
+            TicketType::V1WireguardExit => ClientType::ExitWireguard,
+        }
+    }
 }
 
 impl FromStr for ClientType {

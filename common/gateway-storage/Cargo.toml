@@ -9,8 +9,10 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait = { workspace = true }
 bincode = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
+dyn-clone = { workspace = true }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
@@ -21,6 +23,7 @@ sqlx = { workspace = true, features = [
 ] }
 time = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"], optional = true }
 tracing = { workspace = true }
 
 nym-credentials-interface = { path = "../credentials-interface" }
@@ -35,3 +38,7 @@ sqlx = { workspace = true, features = [
     "macros",
     "migrate",
 ] }
+
+[features]
+default = []
+mock = ["tokio"]

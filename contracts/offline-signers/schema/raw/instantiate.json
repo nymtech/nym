@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "dkg_contract_address"
+  ],
+  "properties": {
+    "dkg_contract_address": {
+      "description": "Address of the DKG contract that's used as the base of the signer information",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,373 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns current config values of the contract",
+      "type": "object",
+      "required": [
+        "get_config"
+      ],
+      "properties": {
+        "get_config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information of the current active proposal against specific signer",
+      "type": "object",
+      "required": [
+        "get_active_proposal"
+      ],
+      "properties": {
+        "get_active_proposal": {
+          "type": "object",
+          "required": [
+            "signer"
+          ],
+          "properties": {
+            "signer": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information about proposal with the specified id",
+      "type": "object",
+      "required": [
+        "get_proposal"
+      ],
+      "properties": {
+        "get_proposal": {
+          "type": "object",
+          "required": [
+            "proposal_id"
+          ],
+          "properties": {
+            "proposal_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information on the vote from the provided voter for the specified proposal",
+      "type": "object",
+      "required": [
+        "get_vote_information"
+      ],
+      "properties": {
+        "get_vote_information": {
+          "type": "object",
+          "required": [
+            "proposal",
+            "voter"
+          ],
+          "properties": {
+            "proposal": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "voter": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns offline signer information for the provided signer",
+      "type": "object",
+      "required": [
+        "get_offline_signer_information"
+      ],
+      "properties": {
+        "get_offline_signer_information": {
+          "type": "object",
+          "required": [
+            "signer"
+          ],
+          "properties": {
+            "signer": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns list of addresses of all signers marked as offline at provided height. If no height is given, the current value is returned instead",
+      "type": "object",
+      "required": [
+        "get_offline_signers_addresses_at_height"
+      ],
+      "properties": {
+        "get_offline_signers_addresses_at_height": {
+          "type": "object",
+          "properties": {
+            "height": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information on the last status reset of the provided signer",
+      "type": "object",
+      "required": [
+        "get_last_status_reset"
+      ],
+      "properties": {
+        "get_last_status_reset": {
+          "type": "object",
+          "required": [
+            "signer"
+          ],
+          "properties": {
+            "signer": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns all (paged) active proposals",
+      "type": "object",
+      "required": [
+        "get_active_proposals_paged"
+      ],
+      "properties": {
+        "get_active_proposals_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns all (paged) proposals",
+      "type": "object",
+      "required": [
+        "get_proposals_paged"
+      ],
+      "properties": {
+        "get_proposals_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns all (paged) votes for the specified proposal",
+      "type": "object",
+      "required": [
+        "get_votes_paged"
+      ],
+      "properties": {
+        "get_votes_paged": {
+          "type": "object",
+          "required": [
+            "proposal"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "proposal": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns all (paged) offline signers",
+      "type": "object",
+      "required": [
+        "get_offline_signers_paged"
+      ],
+      "properties": {
+        "get_offline_signers_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns all (paged) status resets",
+      "type": "object",
+      "required": [
+        "get_last_status_reset_paged"
+      ],
+      "properties": {
+        "get_last_status_reset_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns the current signing status, i.e. whether credential issuance is still possible",
+      "type": "object",
+      "required": [
+        "current_signing_status"
+      ],
+      "properties": {
+        "current_signing_status": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns the signing status at provided block height, i.e. whether credential issuance was possible at that point",
+      "type": "object",
+      "required": [
+        "signing_status_at_height"
+      ],
+      "properties": {
+        "signing_status_at_height": {
+          "type": "object",
+          "required": [
+            "block_height"
+          ],
+          "properties": {
+            "block_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

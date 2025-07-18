@@ -23,3 +23,6 @@ pub use crate::error::ContractError;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "testable-cw4-contract")]
+pub mod testable_cw4_contract;

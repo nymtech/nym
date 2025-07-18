@@ -298,7 +298,7 @@ impl NymOfflineSignersStorage {
         if self.proposal_passed(deps.as_ref(), proposal_id, Some(group_contract))? {
             self.offline_signers.insert_offline_signer_information(
                 deps.storage,
-                &env,
+                env,
                 marked_signer,
                 &OfflineSignerInformation {
                     marked_offline_at: env.block.clone(),
@@ -461,7 +461,7 @@ impl OfflineSignersStorage {
         signer: &Addr,
     ) -> Result<(), NymOfflineSignersContractError> {
         // remove details from the map
-        self.information.remove(storage, &signer);
+        self.information.remove(storage, signer);
 
         // update the snapshot
         let mut all_signers = self.addresses.load(storage)?;

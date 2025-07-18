@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::{execute, instantiate, migrate, query};
-use cw3_flex_multisig::testable_cw3_contract::{Duration, MultisigContract, Threshold};
-use cw4::Member;
-use cw4_group::testable_cw4_contract::GroupContract;
 use nym_coconut_dkg::testable_dkg_contract::DkgContract;
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
-    CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
-    PermissionedFn, QueryFn, RandExt, TestableNymContract, TEST_DENOM,
+    CommonStorageKeys, ContractFn, ContractOpts, ContractTester, DenomExt, PermissionedFn, QueryFn,
+    RandExt, TestableNymContract,
 };
 use nym_offline_signers_contract_common::constants::storage_keys;
 use nym_offline_signers_contract_common::{
@@ -44,11 +41,6 @@ impl TestableNymContract for OfflineSignersContract {
         migrate
     }
 
-    fn base_init_msg() -> Self::InitMsg {
-        todo!()
-        // InstantiateMsg {}
-    }
-
     fn init() -> ContractTester<Self>
     where
         Self: Sized,
@@ -65,64 +57,14 @@ pub fn init_contract_tester() -> ContractTester<OfflineSignersContract> {
 pub fn init_contract_tester_with_group_members(
     members: usize,
 ) -> ContractTester<OfflineSignersContract> {
-    let mut builder = ContractTesterBuilder::new();
-    let api = builder.api();
-
-    // 1. init the CW4 group contract
-    let group_init_msg = cw4_group::testable_cw4_contract::InstantiateMsg {
-        admin: Some(api.addr_make("group-admin").to_string()),
-        members: (0..members)
-            .map(|i| Member {
-                addr: api.addr_make(&format!("group-member-{i}")).to_string(),
-                weight: 1,
-            })
-            .collect(),
-    };
-    builder.instantiate_contract::<GroupContract>(Some(group_init_msg));
-
-    // we just instantiated it
-    let group_contract_address = builder.unchecked_contract_address::<GroupContract>();
-
-    // 2. init the CW3 multisig contract WITH DUMMY VALUES
-    let multisig_init_msg = cw3_flex_multisig::testable_cw3_contract::InstantiateMsg {
-        group_addr: group_contract_address.to_string(),
-        // \/ PLACEHOLDERS
-        coconut_bandwidth_contract_address: group_contract_address.to_string(),
-        coconut_dkg_contract_address: group_contract_address.to_string(),
-        // /\ PLACEHOLDERS
-        threshold: Threshold::AbsolutePercentage {
-            percentage: "0.67".parse().unwrap(),
-        },
-        max_voting_period: Duration::Time(3600),
-        executor: None,
-        proposal_deposit: None,
-    };
-    builder.instantiate_contract::<MultisigContract>(Some(multisig_init_msg));
-
-    // we just instantiated it
-    let multisig_contract_address = builder.unchecked_contract_address::<MultisigContract>();
-
-    // 3. init the DKG contract
-    let dkg_init_msg = nym_coconut_dkg::testable_dkg_contract::InstantiateMsg {
-        group_addr: group_contract_address.to_string(),
-        multisig_addr: multisig_contract_address.to_string(),
-        time_configuration: None,
-        mix_denom: TEST_DENOM.to_string(),
-        key_size: 5,
-    };
-    builder.instantiate_contract::<DkgContract>(Some(dkg_init_msg));
+    // prepare the dkg contract and using that initial setup, add the offline signers contract
+    let builder =
+        nym_coconut_dkg::testable_dkg_contract::prepare_contract_tester_builder_with_group_members(
+            members,
+        );
 
     // we just instantiated it
     let dkg_contract_address = builder.unchecked_contract_address::<DkgContract>();
-
-    // 4. migrate the multisig contract to hold correct addresses
-    let multisig_migrate_msg = cw3_flex_multisig::testable_cw3_contract::MigrateMsg {
-        // \/ STILL A PLACEHOLDER (this contract does not care about interactions with the ecash contract)
-        coconut_bandwidth_address: dkg_contract_address.to_string(),
-        // /\ STILL A PLACEHOLDER
-        coconut_dkg_address: dkg_contract_address.to_string(),
-    };
-    builder.migrate_contract::<MultisigContract>(&multisig_migrate_msg);
 
     // 5. finally init the offline signers contract
     builder

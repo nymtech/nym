@@ -47,27 +47,11 @@ pub trait TestableNymContract {
     fn query() -> QueryFn<Self::QueryMsg, Self::ContractError>;
     fn migrate() -> PermissionedFn<Self::MigrateMsg, Self::ContractError>;
 
-    fn base_init_msg() -> Self::InitMsg;
-
-    // // for now we don't care about custom queriers
-    // fn contract_wrapper() -> ContractWrapper<
-    //     Self::ExecuteMsg,
-    //     Self::InitMsg,
-    //     Self::QueryMsg,
-    //     Self::ContractError,
-    //     anyhow::Error,
-    //     anyhow::Error,
-    //     Empty,
-    //     Empty,
-    //     Empty,
-    //     Self::ContractError,
-    //     Self::ContractError,
-    //     Self::MigrateMsg,
-    //     Self::ContractError,
-    // > {
-    //     ContractWrapper::new(Self::execute(), Self::instantiate(), Self::query())
-    //         .with_migrate(Self::migrate())
-    // }
+    // not all instances will require default init message, some will always have to provide customised values
+    #[allow(clippy::unimplemented)]
+    fn base_init_msg() -> Self::InitMsg {
+        unimplemented!("attempted to instantiate contract without defining instantiate message")
+    }
 
     fn dyn_contract() -> Box<dyn Contract<Empty>> {
         Box::new(

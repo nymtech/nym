@@ -54,7 +54,7 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
             &placeholder::DkgQueryMsg::GetEpochStateAtHeight { height },
         )?;
 
-        res.ok_or(StdError::not_found(&format!(
+        res.ok_or(StdError::not_found(format!(
             "epoch hasn't been initialised/migrated to new format at height {height} yet"
         )))
     }
@@ -187,7 +187,7 @@ pub(crate) fn basic_signing_status(
             .load(deps.storage)?,
     }
     .into_iter()
-    .filter(|offline_signer| dkg_dealers.contains(&offline_signer))
+    .filter(|offline_signer| dkg_dealers.contains(offline_signer))
     .count() as u32;
 
     let available_signers = (dkg_dealers.len() as u32).saturating_sub(offline_signers);

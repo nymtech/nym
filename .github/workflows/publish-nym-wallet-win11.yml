@@ -49,6 +49,8 @@ jobs:
         run: |
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
+          chmod +x CodeSignTool.sh
+          
       - name: Get EV certificate credential id
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
@@ -56,6 +58,7 @@ jobs:
         shell: bash
         run: |
           echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
+          
       - name: Add custom sign command to tauri.conf.json
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
@@ -79,6 +82,7 @@ jobs:
               ]
             }
           }' tauri.conf.json
+          
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
@@ -93,12 +97,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
-          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
-          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
-          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
+          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME || '' }}
+          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD || '' }}
+          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID || '' }}
+          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET || '' }}
+          CODE_SIGN_TOOL_PATH: ${{ inputs.sign && 'C:\\actions-runner\\_work\\nym\\nym\\nym-wallet\\src-tauri\\' || '' }}
         run: |
           echo "Starting build process..."
+          echo "Signing enabled: ${{ inputs.sign }}"
           yarn build
 
       - name: Check bundle directory
@@ -147,7 +153,7 @@ jobs:
             nym-wallet/${{ env.BUNDLE_PATH }}/msi/*.msi.zip*
             nym-wallet/${{ env.BUNDLE_PATH }}/*/nym-wallet*.msi
             nym-wallet/src-tauri/target/release/bundle/msi/*.msi
-          
+  
       - name: Find MSI path for deployment
         id: find-msi
         shell: bash

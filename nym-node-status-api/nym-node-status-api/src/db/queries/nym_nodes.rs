@@ -238,7 +238,7 @@ pub(crate) async fn get_bonded_node_description(
         FROM
             nym_node_descriptions nd
         INNER JOIN
-            nym_nodes
+            nym_nodes nn on nd.node_id = nn.node_id
         WHERE
             bond_info IS NOT NULL
         "#,

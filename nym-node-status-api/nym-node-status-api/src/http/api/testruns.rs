@@ -1,5 +1,6 @@
-use crate::db::models::TestRunStatus;
+use crate::db::models::{TestRunDto, TestRunStatus};
 use crate::db::queries;
+use crate::db::DbConnection;
 use crate::utils::{now_utc, unix_timestamp_to_utc_rfc3339};
 use crate::{
     db,
@@ -17,7 +18,7 @@ use axum::{
 };
 use nym_node_status_client::{
     auth::VerifiableRequest,
-    models::{get_testrun, submit_results},
+    models::{get_testrun, submit_results, submit_results_v2},
 };
 use reqwest::StatusCode;
 use tracing::warn;
@@ -29,6 +30,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(request_testrun))
         .route("/:testrun_id", axum::routing::post(submit_testrun))
+        .route("/:testrun_id/v2", axum::routing::post(submit_testrun_v2))
         .layer(DefaultBodyLimit::max(1024 * 1024 * 5))
 }
 
@@ -81,7 +83,7 @@ async fn request_testrun(
 
 #[tracing::instrument(level = "debug", skip_all)]
 async fn submit_testrun(
-    Path(submitted_testrun_id): Path<i64>,
+    Path(submitted_testrun_id): Path<i32>,
     State(state): State<AppState>,
     Json(submitted_result): Json<submit_results::SubmitResults>,
 ) -> HttpResult<StatusCode> {
@@ -91,7 +93,10 @@ async fn submit_testrun(
     let mut conn = db
         .acquire()
         .await
-        .map_err(HttpError::internal_with_logging)?;
+        .map_err(|e| {
+            tracing::error!(testrun_id = %submitted_testrun_id, error = %e, "Failed to acquire database connection for testrun submission");
+            HttpError::internal_with_logging(e)
+        })?;
 
     let assigned_testrun =
         queries::testruns::get_in_progress_testrun_by_id(&mut conn, submitted_testrun_id)
@@ -102,7 +107,10 @@ async fn submit_testrun(
                     submitted_testrun_id,
                     err
                 );
-                HttpError::invalid_input("Invalid testrun submitted")
+                HttpError::invalid_input(format!(
+                    "Testrun {submitted_testrun_id} not found in progress state (may be already completed or expired)"
+
+                ))
             })?;
     if Some(submitted_result.payload.assigned_at_utc) != assigned_testrun.last_assigned_utc {
         tracing::warn!(
@@ -110,7 +118,12 @@ async fn submit_testrun(
             submitted_result.payload.assigned_at_utc,
             assigned_testrun.last_assigned_utc
         );
-        return Err(HttpError::invalid_input("Invalid testrun submitted"));
+        return Err(HttpError::invalid_input(format!(
+            "Testrun {} timestamp mismatch: expected {:?}, got {}",
+            submitted_testrun_id,
+            assigned_testrun.last_assigned_utc,
+            submitted_result.payload.assigned_at_utc
+        )));
     }
 
     let gw_identity = db::queries::select_gateway_identity(&mut conn, assigned_testrun.gateway_id)
@@ -138,7 +151,7 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_log(
         &mut conn,
         assigned_testrun.gateway_id,
-        &submitted_result.payload.probe_result,
+        submitted_result.payload.probe_result.clone(),
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
@@ -146,7 +159,7 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_result(
         &mut conn,
         assigned_testrun.gateway_id,
-        &result,
+        result,
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
@@ -170,6 +183,72 @@ async fn submit_testrun(
     Ok(StatusCode::CREATED)
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
+async fn submit_testrun_v2(
+    Path(submitted_testrun_id): Path<i32>,
+    State(state): State<AppState>,
+    Json(submission): Json<submit_results_v2::SubmitResultsV2>,
+) -> HttpResult<StatusCode> {
+    authenticate(&submission, &state)?;
+    is_fresh(&submission.payload.assigned_at_utc)?;
+
+    let db = state.db_pool();
+    let mut conn = db
+        .acquire()
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    // Try to find existing testrun
+    match queries::testruns::get_testrun_by_id(&mut conn, submitted_testrun_id).await {
+        Ok(testrun) => {
+            // Validate it matches the submission
+            let gw_identity = queries::select_gateway_identity(&mut conn, testrun.gateway_id)
+                .await
+                .map_err(HttpError::internal_with_logging)?;
+
+            if gw_identity != submission.payload.gateway_identity_key {
+                tracing::warn!(
+                    "Gateway mismatch for testrun {}: expected {}, got {}",
+                    submitted_testrun_id,
+                    gw_identity,
+                    submission.payload.gateway_identity_key
+                );
+                return Err(HttpError::invalid_input("Gateway identity mismatch"));
+            }
+
+            // Process normally using existing testrun
+            process_testrun_submission(testrun, submission.payload, &mut conn).await
+        }
+        Err(_) => {
+            // External testrun - create records
+            tracing::info!(
+                "Creating external testrun {} for gateway {}",
+                submitted_testrun_id,
+                submission.payload.gateway_identity_key
+            );
+
+            // Get or create gateway
+            let gateway_id =
+                queries::get_or_create_gateway(&mut conn, &submission.payload.gateway_identity_key)
+                    .await
+                    .map_err(HttpError::internal_with_logging)?;
+
+            // Create testrun
+            queries::testruns::insert_external_testrun(
+                &mut conn,
+                submitted_testrun_id,
+                gateway_id,
+                submission.payload.assigned_at_utc,
+            )
+            .await
+            .map_err(HttpError::internal_with_logging)?;
+
+            // Process submission
+            process_testrun_submission_by_gateway(gateway_id, submission.payload, &mut conn).await
+        }
+    }
+}
+
 // TODO dz this should be middleware
 #[tracing::instrument(level = "debug", skip_all)]
 fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResult<()> {
@@ -186,7 +265,7 @@ fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResul
     Ok(())
 }
 
-static FRESHNESS_CUTOFF: time::Duration = time::Duration::minutes(1);
+static FRESHNESS_CUTOFF: time::Duration = time::Duration::minutes(2);
 
 fn is_fresh(request_time: &i64) -> HttpResult<()> {
     // if a request took longer than N minutes to reach NS API, something is very wrong
@@ -197,18 +276,95 @@ fn is_fresh(request_time: &i64) -> HttpResult<()> {
 
     let cutoff_timestamp = now_utc() - FRESHNESS_CUTOFF;
     if request_time < cutoff_timestamp {
-        warn!("Request older than {}s, rejecting", cutoff_timestamp);
+        warn!(
+            "Request time {} is older than cutoff {} ({}s ago), rejecting",
+            request_time,
+            cutoff_timestamp,
+            FRESHNESS_CUTOFF.whole_seconds()
+        );
         return Err(HttpError::unauthorized());
     }
     Ok(())
 }
 
 fn get_result_from_log(log: &str) -> String {
-    let re = regex::Regex::new(r"\n\{\s").unwrap();
-    let result: Vec<_> = re.splitn(log, 2).collect();
+    static RE: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern"));
+
+    let result: Vec<_> = RE.splitn(log, 2).collect();
     if result.len() == 2 {
         let res = format!("{} {}", "{", result[1]).to_string();
         return res;
     }
     "".to_string()
+}
+
+async fn process_testrun_submission(
+    testrun: TestRunDto,
+    payload: submit_results_v2::Payload,
+    conn: &mut DbConnection,
+) -> HttpResult<StatusCode> {
+    // Validate timestamp matches
+    if Some(payload.assigned_at_utc) != testrun.last_assigned_utc {
+        tracing::warn!(
+            "Submitted testrun timestamp mismatch: {} != {:?}, rejecting",
+            payload.assigned_at_utc,
+            testrun.last_assigned_utc
+        );
+        return Err(HttpError::invalid_input(format!(
+            "Testrun timestamp mismatch: expected {:?}, got {}",
+            testrun.last_assigned_utc, payload.assigned_at_utc
+        )));
+    }
+
+    // Process the submission
+    process_testrun_submission_by_gateway(testrun.gateway_id, payload, conn).await
+}
+
+async fn process_testrun_submission_by_gateway(
+    gateway_id: i32,
+    payload: submit_results_v2::Payload,
+    conn: &mut DbConnection,
+) -> HttpResult<StatusCode> {
+    let gw_identity = &payload.gateway_identity_key;
+
+    tracing::debug!(
+        "Processing testrun submission for gateway {} ({} bytes)",
+        gw_identity,
+        payload.probe_result.len(),
+    );
+
+    // Update testrun status to complete
+    queries::testruns::update_testrun_status_by_gateway(conn, gateway_id, TestRunStatus::Complete)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    // Update gateway with results
+    queries::testruns::update_gateway_last_probe_log(
+        conn,
+        gateway_id,
+        payload.probe_result.clone(),
+    )
+    .await
+    .map_err(HttpError::internal_with_logging)?;
+
+    let result = get_result_from_log(&payload.probe_result);
+    queries::testruns::update_gateway_last_probe_result(conn, gateway_id, result)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    queries::testruns::update_gateway_score(conn, gateway_id)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    let assigned_at = unix_timestamp_to_utc_rfc3339(payload.assigned_at_utc);
+    let now = now_utc();
+    tracing::info!(
+        "✅ Testrun for gateway {} complete (assigned at {}, current time {})",
+        gw_identity,
+        assigned_at,
+        now
+    );
+
+    Ok(StatusCode::CREATED)
 }

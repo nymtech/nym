@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gateway_session_stats\n                (gateway_identity_key, node_id, day,\n                    unique_active_clients, session_started, users_hashes,\n                    vpn_sessions, mixnet_sessions, unknown_sessions)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n                ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8",
+        "Date",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4fca38abbb416d9457c34a8ba4faf481a837eda4f3e1bee1d430a4eb102a5b3d"
+}

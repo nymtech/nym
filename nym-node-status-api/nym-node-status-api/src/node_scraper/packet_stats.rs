@@ -1,5 +1,5 @@
 use super::helpers::scrape_packet_stats;
-use sqlx::SqlitePool;
+use crate::db::DbPool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,12 +17,12 @@ static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct PacketScraper {
-    pool: SqlitePool,
+    pool: DbPool,
     max_concurrent_tasks: usize,
 }
 
 impl PacketScraper {
-    pub fn new(pool: SqlitePool, max_concurrent_tasks: usize) -> Self {
+    pub fn new(pool: DbPool, max_concurrent_tasks: usize) -> Self {
         Self {
             pool,
             max_concurrent_tasks,
@@ -50,10 +50,7 @@ impl PacketScraper {
     }
 
     #[instrument(level = "info", name = "packet_scraper", skip_all)]
-    async fn run_packet_scraper(
-        pool: &SqlitePool,
-        max_concurrent_tasks: usize,
-    ) -> anyhow::Result<()> {
+    async fn run_packet_scraper(pool: &DbPool, max_concurrent_tasks: usize) -> anyhow::Result<()> {
         let queue = queries::get_nodes_for_scraping(pool).await?;
         tracing::info!("Adding {} nodes to the queue", queue.len(),);
 

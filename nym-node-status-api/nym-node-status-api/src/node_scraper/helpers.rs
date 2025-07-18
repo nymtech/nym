@@ -1,21 +1,19 @@
 use crate::{
     db::{
         models::{InsertStatsRecord, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
-        queries::{
-            get_raw_node_stats, insert_daily_node_stats_uncommitted,
-            insert_scraped_node_description,
-        },
+        queries::insert_scraped_node_description,
+        DbPool,
     },
     utils::{generate_node_name, now_utc},
 };
 use ammonia::Builder;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, Transaction};
+use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
     pub moniker: Option<String>,
     pub website: Option<String>,
@@ -28,10 +26,11 @@ const DESCRIPTION_URL: &str = "/description";
 const PACKET_STATS_URL: &str = "/stats";
 
 // We need this as some of the mixnodes respond with float values for the packet statistics (?????)
-pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i64> {
+pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i32> {
     response
         .get(key)
         .and_then(|value| value.as_i64().or_else(|| value.as_f64().map(|f| f as i64)))
+        .map(|v| v as i32)
 }
 
 pub fn parse_mixnet_stats(response: serde_json::Value) -> Option<NodeStats> {
@@ -64,7 +63,7 @@ pub fn parse_mixnet_stats(response: serde_json::Value) -> Option<NodeStats> {
     None
 }
 
-pub fn calculate_packet_difference(current: i64, previous: i64) -> i64 {
+pub fn calculate_packet_difference(current: i32, previous: i32) -> i32 {
     if current >= previous {
         current - previous
     } else {
@@ -115,7 +114,7 @@ pub fn sanitize_description(
     }
 }
 
-pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeInfo) -> Result<()> {
+pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
@@ -150,7 +149,7 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
     })?;
 
     let sanitized_description = sanitize_description(description, *node.node_id());
-    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
+    insert_scraped_node_description(pool, node.node_kind.clone(), sanitized_description).await?;
 
     Ok(())
 }
@@ -195,12 +194,59 @@ pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRe
     Ok(result)
 }
 
+#[cfg(feature = "sqlite")]
 pub async fn update_daily_stats_uncommitted(
     tx: &mut Transaction<'static, sqlx::Sqlite>,
     node_kind: &ScrapeNodeKind,
     timestamp: UtcDateTime,
     current_stats: &NodeStats,
 ) -> Result<()> {
+    use crate::db::queries::{get_raw_node_stats, insert_daily_node_stats_uncommitted};
+
+    let date_utc = format!(
+        "{:04}-{:02}-{:02}",
+        timestamp.year(),
+        timestamp.month() as u8,
+        timestamp.day()
+    );
+
+    // Get previous stats
+    let previous_stats = get_raw_node_stats(tx, node_kind).await?;
+
+    let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
+        (
+            calculate_packet_difference(current_stats.packets_received, prev.packets_received),
+            calculate_packet_difference(current_stats.packets_sent, prev.packets_sent),
+            calculate_packet_difference(current_stats.packets_dropped, prev.packets_dropped),
+        )
+    } else {
+        (0, 0, 0) // No previous stats available
+    };
+
+    insert_daily_node_stats_uncommitted(
+        tx,
+        node_kind,
+        &date_utc,
+        NodeStats {
+            packets_received: diff_received,
+            packets_sent: diff_sent,
+            packets_dropped: diff_dropped,
+        },
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[cfg(feature = "pg")]
+pub async fn update_daily_stats_uncommitted(
+    tx: &mut Transaction<'static, sqlx::Postgres>,
+    node_kind: &ScrapeNodeKind,
+    timestamp: UtcDateTime,
+    current_stats: &NodeStats,
+) -> Result<()> {
+    use crate::db::queries::{get_raw_node_stats, insert_daily_node_stats_uncommitted};
+
     let date_utc = format!(
         "{:04}-{:02}-{:02}",
         timestamp.year(),

@@ -3,32 +3,32 @@ use std::collections::HashSet;
 use crate::{
     db::{
         models::{GatewayDto, GatewayInsertRecord},
-        DbPool,
+        DbConnection, DbPool,
     },
     http::models::Gateway,
     node_scraper::helpers::NodeDescriptionResponse,
 };
 use futures_util::TryStreamExt;
-use sqlx::{pool::PoolConnection, Sqlite};
+use sqlx::Row;
 use tracing::error;
 
 pub(crate) async fn select_gateway_identity(
-    conn: &mut PoolConnection<Sqlite>,
-    gateway_pk: i64,
+    conn: &mut DbConnection,
+    gateway_pk: i32,
 ) -> anyhow::Result<String> {
-    let record = sqlx::query!(
+    let record = crate::db::query(
         r#"SELECT
             gateway_identity_key
         FROM
             gateways
         WHERE
             id = ?"#,
-        gateway_pk
     )
+    .bind(gateway_pk)
     .fetch_one(conn.as_mut())
     .await?;
 
-    Ok(record.gateway_identity_key)
+    Ok(record.try_get("gateway_identity_key")?)
 }
 
 pub(crate) async fn update_bonded_gateways(
@@ -37,7 +37,7 @@ pub(crate) async fn update_bonded_gateways(
 ) -> anyhow::Result<()> {
     let mut tx = pool.begin().await?;
 
-    sqlx::query!(
+    crate::db::query(
         r#"UPDATE
             gateways
         SET
@@ -48,7 +48,7 @@ pub(crate) async fn update_bonded_gateways(
     .await?;
 
     for record in gateways {
-        sqlx::query!(
+        crate::db::query(
             "INSERT INTO gateways
                 (gateway_identity_key, bonded,
                     self_described, explorer_pretty_bond,
@@ -60,13 +60,13 @@ pub(crate) async fn update_bonded_gateways(
                 explorer_pretty_bond=excluded.explorer_pretty_bond,
                 last_updated_utc=excluded.last_updated_utc,
                 performance = excluded.performance;",
-            record.identity_key,
-            record.bonded,
-            record.self_described,
-            record.explorer_pretty_bond,
-            record.last_updated_utc,
-            record.performance
         )
+        .bind(record.identity_key)
+        .bind(record.bonded)
+        .bind(record.self_described)
+        .bind(record.explorer_pretty_bond)
+        .bind(record.last_updated_utc)
+        .bind(record.performance as i32)
         .execute(&mut *tx)
         .await?;
     }
@@ -78,22 +78,21 @@ pub(crate) async fn update_bonded_gateways(
 
 pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gateway>> {
     let mut conn = pool.acquire().await?;
-    let items = sqlx::query_as!(
-        GatewayDto,
+    let items = crate::db::query_as::<GatewayDto>(
         r#"SELECT
-            gw.gateway_identity_key as "gateway_identity_key!",
-            gw.bonded as "bonded: bool",
-            gw.performance as "performance!",
-            gw.self_described as "self_described?",
-            gw.explorer_pretty_bond as "explorer_pretty_bond?",
-            gw.last_probe_result as "last_probe_result?",
-            gw.last_probe_log as "last_probe_log?",
-            gw.last_testrun_utc as "last_testrun_utc?",
-            gw.last_updated_utc as "last_updated_utc!",
-            COALESCE(gd.moniker, "NA") as "moniker!",
-            COALESCE(gd.website, "NA") as "website!",
-            COALESCE(gd.security_contact, "NA") as "security_contact!",
-            COALESCE(gd.details, "NA") as "details!"
+            gw.gateway_identity_key,
+            gw.bonded,
+            gw.performance,
+            gw.self_described,
+            gw.explorer_pretty_bond,
+            gw.last_probe_result,
+            gw.last_probe_log,
+            gw.last_testrun_utc,
+            gw.last_updated_utc,
+            COALESCE(gd.moniker, 'NA') as moniker,
+            COALESCE(gd.website, 'NA') as website,
+            COALESCE(gd.security_contact, 'NA') as security_contact,
+            COALESCE(gd.details, 'NA') as details
          FROM gateways gw
          LEFT JOIN gateway_description gd
          ON gw.gateway_identity_key = gd.gateway_identity_key
@@ -114,29 +113,29 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
 
 pub(crate) async fn get_bonded_gateway_id_keys(pool: &DbPool) -> anyhow::Result<HashSet<String>> {
     let mut conn = pool.acquire().await?;
-    let items = sqlx::query!(
+    let items = crate::db::query(
         r#"
             SELECT gateway_identity_key
             FROM gateways
             WHERE bonded = true
-        "#
+        "#,
     )
     .fetch_all(&mut *conn)
     .await?
     .into_iter()
-    .map(|record| record.gateway_identity_key)
+    .map(|record| record.try_get::<String, _>("gateway_identity_key").unwrap())
     .collect::<HashSet<_>>();
 
     Ok(items)
 }
 
 pub(crate) async fn insert_gateway_description(
-    conn: &mut PoolConnection<Sqlite>,
-    identity_key: &str,
-    description: &NodeDescriptionResponse,
+    conn: &mut DbConnection,
+    identity_key: String,
+    description: NodeDescriptionResponse,
     timestamp: i64,
 ) -> anyhow::Result<()> {
-    sqlx::query!(
+    crate::db::query(
         r#"
         INSERT INTO gateway_description (
             gateway_identity_key,
@@ -153,15 +152,54 @@ pub(crate) async fn insert_gateway_description(
             details = excluded.details,
             last_updated_utc = excluded.last_updated_utc
         "#,
-        identity_key,
-        description.moniker,
-        description.website,
-        description.security_contact,
-        description.details,
-        timestamp,
     )
+    .bind(identity_key)
+    .bind(description.moniker)
+    .bind(description.website)
+    .bind(description.security_contact)
+    .bind(description.details)
+    .bind(timestamp)
     .execute(conn.as_mut())
     .await
     .map(drop)
     .map_err(From::from)
+}
+
+pub(crate) async fn get_or_create_gateway(
+    conn: &mut DbConnection,
+    gateway_identity_key: &str,
+) -> anyhow::Result<i32> {
+    // Try to find existing gateway
+    let existing = crate::db::query("SELECT id FROM gateways WHERE gateway_identity_key = ?")
+        .bind(gateway_identity_key.to_string())
+        .fetch_optional(conn.as_mut())
+        .await?;
+
+    if let Some(row) = existing {
+        return Ok(row.try_get("id")?);
+    }
+
+    // Create new gateway
+    tracing::info!("Creating new gateway record for {}", gateway_identity_key);
+    let now = crate::utils::now_utc().unix_timestamp();
+
+    let result = crate::db::query(
+        r#"INSERT INTO gateways (
+            gateway_identity_key, 
+            bonded, 
+            performance, 
+            self_described, 
+            last_updated_utc
+        ) VALUES (?, ?, ?, ?, ?)
+        RETURNING id"#,
+    )
+    .bind(gateway_identity_key.to_string())
+    .bind(true) // Assume bonded since being tested
+    .bind(0) // Initial performance
+    .bind("null")
+    .bind(now)
+    .fetch_one(conn.as_mut())
+    .await?;
+
+    Ok(result.try_get("id")?)
 }

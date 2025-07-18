@@ -135,3 +135,61 @@ impl ServiceFilter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::http::models::Service;
+    use serde_json::json;
+
+    #[test]
+    fn test_service_filter() {
+        // Test with all fields
+        let service1 = Service {
+            gateway_identity_key: "1".to_string(),
+            last_updated_utc: "".to_string(),
+            routing_score: 1.0,
+            service_provider_client_id: Some("client_id".to_string()),
+            ip_address: Some("1.1.1.1".to_string()),
+            hostname: Some("nymtech.net".to_string()),
+            mixnet_websockets: Some(json!({ "wss_port": 1234 })),
+            last_successful_ping_utc: None,
+        };
+        let filter1 = ServiceFilter::new(&service1);
+        assert!(filter1.has_wss);
+        assert!(filter1.has_network_requester_sp);
+        assert!(filter1.has_hostname);
+
+        // Test with no fields
+        let service2 = Service {
+            gateway_identity_key: "2".to_string(),
+            last_updated_utc: "".to_string(),
+            routing_score: 0.0,
+            service_provider_client_id: None,
+            ip_address: None,
+            hostname: None,
+            mixnet_websockets: None,
+            last_successful_ping_utc: None,
+        };
+        let filter2 = ServiceFilter::new(&service2);
+        assert!(!filter2.has_wss);
+        assert!(!filter2.has_network_requester_sp);
+        assert!(!filter2.has_hostname);
+
+        // Test with some fields
+        let service3 = Service {
+            gateway_identity_key: "3".to_string(),
+            last_updated_utc: "".to_string(),
+            routing_score: 0.5,
+            service_provider_client_id: Some("".to_string()),
+            ip_address: None,
+            hostname: Some("nymtech.net".to_string()),
+            mixnet_websockets: Some(json!({})),
+            last_successful_ping_utc: None,
+        };
+        let filter3 = ServiceFilter::new(&service3);
+        assert!(!filter3.has_wss);
+        assert!(!filter3.has_network_requester_sp);
+        assert!(filter3.has_hostname);
+    }
+}

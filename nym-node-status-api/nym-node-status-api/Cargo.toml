@@ -96,4 +96,5 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+axum-test = "17.3.0"
 time = { workspace = true, features = ["macros"] }

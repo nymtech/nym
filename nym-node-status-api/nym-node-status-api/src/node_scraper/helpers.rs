@@ -95,7 +95,7 @@ pub fn sanitize_description(
     let sanitize_field = |opt: Option<String>| -> Option<String> {
         Some(
             opt.filter(|s| !s.trim().is_empty())
-                .map_or_else(|| UNKNOWN.to_string(), |s| sanitizer.clean(&s).to_string()),
+                .map_or_else(|| UNKNOWN.to_string(), |s| sanitizer.clean(s.trim()).to_string().trim().to_string()),
         )
     };
 
@@ -280,4 +280,80 @@ pub async fn update_daily_stats_uncommitted(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_get_packet_value() {
+        let json = json!({ "packets": 100, "dropped": 50.5 });
+        assert_eq!(get_packet_value(&json, "packets"), Some(100));
+        assert_eq!(get_packet_value(&json, "dropped"), Some(50));
+        assert_eq!(get_packet_value(&json, "non_existent"), None);
+    }
+
+    #[test]
+    fn test_parse_mixnet_stats() {
+        let old_format = json!({
+            "packets_explicitly_dropped_since_startup": 10,
+            "packets_sent_since_startup": 100,
+            "packets_received_since_startup": 200
+        });
+        let new_format = json!({
+            "dropped_since_startup": 20,
+            "sent_since_startup": 150,
+            "received_since_startup": 250
+        });
+        let invalid_format = json!({ "foo": "bar" });
+
+        let stats1 = parse_mixnet_stats(old_format).unwrap();
+        assert_eq!(stats1.packets_dropped, 10);
+        assert_eq!(stats1.packets_sent, 100);
+        assert_eq!(stats1.packets_received, 200);
+
+        let stats2 = parse_mixnet_stats(new_format).unwrap();
+        assert_eq!(stats2.packets_dropped, 20);
+        assert_eq!(stats2.packets_sent, 150);
+        assert_eq!(stats2.packets_received, 250);
+
+        assert!(parse_mixnet_stats(invalid_format).is_none());
+    }
+
+    #[test]
+    fn test_calculate_packet_difference() {
+        assert_eq!(calculate_packet_difference(100, 50), 50);
+        assert_eq!(calculate_packet_difference(50, 100), 50);
+        assert_eq!(calculate_packet_difference(100, 100), 0);
+    }
+
+    #[test]
+    fn test_sanitize_description() {
+        let desc = NodeDescriptionResponse {
+            moniker: Some("  <script>alert('xss')</script> Moniker  ".to_string()),
+            website: Some("https://example.com".to_string()),
+            security_contact: Some("".to_string()),
+            details: None,
+        };
+
+        let sanitized = sanitize_description(desc, 123);
+        assert_eq!(sanitized.moniker, Some("Moniker".to_string()));
+        assert_eq!(sanitized.website, Some("https://example.com".to_string()));
+        assert_eq!(sanitized.security_contact, Some("N/A".to_string()));
+        assert_eq!(sanitized.details, Some("N/A".to_string()));
+
+        let desc_empty = NodeDescriptionResponse {
+            moniker: None,
+            website: None,
+            security_contact: None,
+            details: None,
+        };
+        let sanitized_empty = sanitize_description(desc_empty, 123);
+        assert_ne!(sanitized_empty.moniker, Some("N/A".to_string())); // should generate a name
+        assert_eq!(sanitized_empty.website, Some("N/A".to_string()));
+        assert_eq!(sanitized_empty.security_contact, Some("N/A".to_string()));
+        assert_eq!(sanitized_empty.details, Some("N/A".to_string()));
+    }
 }

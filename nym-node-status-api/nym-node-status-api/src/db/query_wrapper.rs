@@ -5,14 +5,24 @@ use sqlx::Database;
 fn convert_placeholders(query: &str) -> String {
     let mut result = String::with_capacity(query.len() + 10);
     let mut placeholder_count = 0;
-    let chars = query.chars().peekable();
-    let mut in_string = false;
+    let mut chars = query.chars();
+    let mut in_string: Option<char> = None;
     let mut escape_next = false;
 
-    for ch in chars {
+    while let Some(ch) = chars.next() {
         if escape_next {
             result.push(ch);
             escape_next = false;
+            continue;
+        }
+
+        if let Some(quote_char) = in_string {
+            result.push(ch);
+            if ch == quote_char {
+                in_string = None;
+            } else if ch == '\\' {
+                escape_next = true;
+            }
             continue;
         }
 
@@ -21,13 +31,13 @@ fn convert_placeholders(query: &str) -> String {
                 result.push(ch);
                 escape_next = true;
             }
-            '\'' => {
+            '\'' | '"' => {
                 result.push(ch);
-                in_string = !in_string;
+                in_string = Some(ch);
             }
-            '?' if !in_string => {
+            '?' => {
                 placeholder_count += 1;
-                result.push_str(&format!("${placeholder_count}"));
+                result.push_str(&format!("${}", placeholder_count));
             }
             _ => {
                 result.push(ch);
@@ -88,30 +98,85 @@ mod tests {
     #[test]
     #[cfg(feature = "pg")]
     fn test_convert_placeholders() {
+        // Basic conversion
         assert_eq!(
-            convert_placeholders("SELECT * FROM table WHERE id = ?"),
-            "SELECT * FROM table WHERE id = $1"
+            convert_placeholders(r"SELECT * FROM table WHERE id = ?"),
+            r"SELECT * FROM table WHERE id = $1"
         );
 
+        // Multiple placeholders
         assert_eq!(
-            convert_placeholders("INSERT INTO table (a, b, c) VALUES (?, ?, ?)"),
-            "INSERT INTO table (a, b, c) VALUES ($1, $2, $3)"
+            convert_placeholders(r"INSERT INTO table (a, b, c) VALUES (?, ?, ?)"),
+            r"INSERT INTO table (a, b, c) VALUES ($1, $2, $3)"
         );
 
+        // Placeholder inside string literal should be ignored
         assert_eq!(
-            convert_placeholders("SELECT * FROM table WHERE name = 'test?' AND id = ?"),
-            "SELECT * FROM table WHERE name = 'test?' AND id = $1"
+            convert_placeholders(r"SELECT * FROM table WHERE name = 'test?' AND id = ?"),
+            r"SELECT * FROM table WHERE name = 'test?' AND id = $1"
         );
 
+        // Update statement
         assert_eq!(
-            convert_placeholders("UPDATE table SET a = ?, b = ? WHERE id = ?"),
-            "UPDATE table SET a = $1, b = $2 WHERE id = $3"
+            convert_placeholders(r"UPDATE table SET a = ?, b = ? WHERE id = ?"),
+            r"UPDATE table SET a = $1, b = $2 WHERE id = $3"
         );
 
         // Test with 10 placeholders (like in update_mixnodes)
         assert_eq!(
-            convert_placeholders("INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
-            "INSERT INTO t VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+            convert_placeholders(r"INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+            r"INSERT INTO t VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+        );
+
+        // No placeholders
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM table"),
+            r"SELECT * FROM table"
+        );
+
+        // Placeholder at the beginning
+        assert_eq!(convert_placeholders(r"? AND ?"), r"$1 AND $2");
+
+        // Placeholder at the end
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM table WHERE id = ?"),
+            r"SELECT * FROM table WHERE id = $1"
+        );
+
+        // Adjacent placeholders
+        assert_eq!(
+            convert_placeholders(r"VALUES(?,?   ,?)"),
+            r"VALUES($1,$2   ,$3)"
+        );
+
+        // Escaped single quote
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM foo WHERE bar = 'it\'s a test' AND baz = ?"),
+            r"SELECT * FROM foo WHERE bar = 'it\'s a test' AND baz = $1"
+        );
+
+        // Escaped question mark (should not be replaced)
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM foo WHERE bar = '\\?' AND baz = ?"),
+            r"SELECT * FROM foo WHERE bar = '\\?' AND baz = $1"
+        );
+
+        // Double quotes (not standard SQL for strings, but good to test)
+        assert_eq!(
+            convert_placeholders(r#"SELECT * FROM foo WHERE bar = "?" AND baz = ?"#),
+            r#"SELECT * FROM foo WHERE bar = "?" AND baz = $1"#
+        );
+
+        // Mismatched quotes
+        assert_eq!(
+            convert_placeholders(r#"SELECT * FROM foo WHERE bar = "'" AND baz = ?"#),
+            r#"SELECT * FROM foo WHERE bar = "'" AND baz = $1"#
+        );
+
+        // Unmatched quote
+        assert_eq!(
+            convert_placeholders(r"SELECT 'oops?"),
+            r"SELECT 'oops?"
         );
     }
 }

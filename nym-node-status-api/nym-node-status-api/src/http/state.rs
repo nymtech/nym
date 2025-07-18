@@ -7,7 +7,7 @@ use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nym_api::SkimmedNode;
 use semver::Version;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use time::UtcDateTime;
 use tokio::sync::RwLock;
@@ -694,7 +694,7 @@ impl BinaryInfo {
     }
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ToSchema, Deserialize)]
 pub(crate) struct HealthInfo {
-    uptime: i64,
+    pub(crate) uptime: i64,
 }

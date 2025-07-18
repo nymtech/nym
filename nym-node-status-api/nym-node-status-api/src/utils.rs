@@ -22,9 +22,9 @@ pub(crate) fn generate_node_name(node_id: i64) -> String {
 #[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod test {
-    use rand::Rng;
-
     use super::*;
+    use rand::Rng;
+    use std::str::FromStr;
 
     #[test]
     fn generate_node_name_should_be_deterministic() {
@@ -39,6 +39,56 @@ mod test {
 
         let node_name_same = generate_node_name(node_id);
         assert_eq!(node_name, node_name_same);
+    }
+
+    #[test]
+    fn test_decimal_to_i64() {
+        // Test with a simple decimal
+        let dec1 = Decimal::from_str("123.456").unwrap();
+        assert_eq!(decimal_to_i64(dec1), 123);
+
+        // Test with a decimal that has more than 6 decimal places
+        let dec2 = Decimal::from_str("123.456789").unwrap();
+        assert_eq!(decimal_to_i64(dec2), 123);
+
+        // Test with a decimal that rounds up
+        let dec3 = Decimal::from_str("123.9999999").unwrap();
+        assert_eq!(decimal_to_i64(dec3), 124);
+
+        // Test with a zero decimal
+        let dec4 = Decimal::zero();
+        assert_eq!(decimal_to_i64(dec4), 0);
+
+        // Test with a large decimal
+        let dec5 = Decimal::from_str("1234567890.123456").unwrap();
+        assert_eq!(decimal_to_i64(dec5), 1234567890);
+    }
+
+    #[test]
+    fn test_unix_timestamp_to_utc_rfc3339() {
+        // Test with a known timestamp
+        let ts1 = 1672531199; // 2022-12-31 23:59:59 UTC
+        assert_eq!(
+            unix_timestamp_to_utc_rfc3339(ts1),
+            "2022-12-31T23:59:59Z"
+        );
+
+        // Test with the Unix epoch
+        let ts2 = 0;
+        assert_eq!(unix_timestamp_to_utc_rfc3339(ts2), "1970-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_numerical_checked_cast() {
+        // Test successful cast
+        let val1: u32 = 123;
+        let res1: anyhow::Result<u64> = val1.cast_checked();
+        assert_eq!(res1.unwrap(), 123u64);
+
+        // Test failing cast
+        let val2: i64 = -1;
+        let res2: anyhow::Result<u32> = val2.cast_checked();
+        assert!(res2.is_err());
     }
 }
 

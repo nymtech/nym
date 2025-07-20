@@ -155,16 +155,77 @@ mod tests {
             r"SELECT * FROM foo WHERE bar = 'it\'s a test' AND baz = $1"
         );
 
-        // Escaped question mark (should not be replaced)
+        // Double quotes
         assert_eq!(
-            convert_placeholders(r"SELECT * FROM foo WHERE bar = '\\?' AND baz = ?"),
-            r"SELECT * FROM foo WHERE bar = '\\?' AND baz = $1"
+            convert_placeholders(r#"SELECT * FROM "table" WHERE "column" = ? AND name = "test?""#),
+            r#"SELECT * FROM "table" WHERE "column" = $1 AND name = "test?""#
         );
 
-        // Double quotes (not standard SQL for strings, but good to test)
+        // Mixed quotes
         assert_eq!(
-            convert_placeholders(r#"SELECT * FROM foo WHERE bar = "?" AND baz = ?"#),
-            r#"SELECT * FROM foo WHERE bar = "?" AND baz = $1"#
+            convert_placeholders(r#"SELECT * FROM table WHERE a = 'single?' AND b = "double?" AND c = ?"#),
+            r#"SELECT * FROM table WHERE a = 'single?' AND b = "double?" AND c = $1"#
+        );
+
+        // Escaped backslash before quote
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM table WHERE path = 'C:\\?' AND id = ?"),
+            r"SELECT * FROM table WHERE path = 'C:\\?' AND id = $1"
+        );
+
+        // Multiple escaped quotes
+        assert_eq!(
+            convert_placeholders(r#"INSERT INTO table (msg) VALUES ('it\'s "complex" test') WHERE id = ?"#),
+            r#"INSERT INTO table (msg) VALUES ('it\'s "complex" test') WHERE id = $1"#
+        );
+
+        // Very long query with many placeholders
+        let long_query = r"INSERT INTO very_long_table_name (col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        let expected = r"INSERT INTO very_long_table_name (col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)";
+        assert_eq!(convert_placeholders(long_query), expected);
+
+        // Query with comments (question marks in comments are also converted)
+        assert_eq!(
+            convert_placeholders(r"-- This is a comment with ?
+            SELECT * FROM table WHERE id = ? -- another comment ?"),
+            r"-- This is a comment with $1
+            SELECT * FROM table WHERE id = $2 -- another comment $3"
+        );
+
+        // Multiline strings
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM table 
+            WHERE description = 'This is a 
+            multiline string with ?' 
+            AND id = ?"),
+            r"SELECT * FROM table 
+            WHERE description = 'This is a 
+            multiline string with ?' 
+            AND id = $1"
+        );
+
+        // Complex nested quotes
+        assert_eq!(
+            convert_placeholders(r#"SELECT json_extract(data, '$.items[?(@.name=="test?")]') FROM table WHERE id = ?"#),
+            r#"SELECT json_extract(data, '$.items[?(@.name=="test?")]') FROM table WHERE id = $1"#
+        );
+
+        // Empty string
+        assert_eq!(convert_placeholders(""), "");
+
+        // Only placeholders
+        assert_eq!(convert_placeholders("???"), "$1$2$3");
+
+        // Unicode in strings
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM table WHERE name = '测试?' AND id = ?"),
+            r"SELECT * FROM table WHERE name = '测试?' AND id = $1"
+        );
+
+        // Test case with backslash at end of string
+        assert_eq!(
+            convert_placeholders(r"SELECT * FROM table WHERE path LIKE '%\\' AND id = ?"),
+            r"SELECT * FROM table WHERE path LIKE '%\\' AND id = $1"
         );
 
         // Mismatched quotes

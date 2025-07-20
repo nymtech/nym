@@ -5,6 +5,9 @@ pub(crate) mod models;
 pub(crate) mod queries;
 pub(crate) mod query_wrapper;
 
+#[cfg(test)]
+mod tests;
+
 // Re-export the query wrapper functions for easier access
 pub(crate) use query_wrapper::query;
 #[allow(unused_imports)]

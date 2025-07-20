@@ -3,6 +3,7 @@ use std::fmt::Display;
 
 pub(crate) type HttpResult<T> = Result<T, HttpError>;
 
+#[derive(Debug)]
 pub(crate) struct HttpError {
     message: String,
     status: axum::http::StatusCode,

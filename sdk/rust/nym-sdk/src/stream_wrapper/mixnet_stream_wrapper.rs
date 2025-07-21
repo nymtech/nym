@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::mixnet::InputMessage;
 use crate::mixnet::{MixnetClient, MixnetClientSender, Recipient};
 use crate::Error;
@@ -14,8 +17,14 @@ use tokio_util::codec::Encoder;
 use tracing::{debug, info};
 
 /// MixSocket is following the structure of something like Tokio::net::TcpSocket with regards to setup and interface, breakdown from TcpSocket to TcpStream, etc.
-/// However, we can't map this one to one onto the TcpSocket as there isn't really a concept of binding to a port with the MixnetClient; it connects to its Gateway and then just accepts incoming messages from the Gw via the Websocket connection. However, we can stick with the idea of creating a Socket in an unconnected state, either using it to make a new Stream (connecting it to its EntryGw) or connecting it *to* something (once the IPR functionality is enabled, this will mean the creation of a Stream + kicking off the creation of a tunnel to an ExitGw + IPR).
-/// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it. Once LP is implemented, this will also allow us to follow something like what is implemented for the Tokio::net::UdpFramed abstraction, where we can create multiple MixStream instances from a single MixSocket, all connected to different Recipients (aka a one-to-many setup with a single MixnetClient).
+/// However, we can't map this one to one onto the TcpSocket as there isn't really a concept of binding to a port with the MixnetClient; it connects to its
+/// Gateway and then just accepts incoming messages from the Gw via the Websocket connection. However, we can stick with the idea of creating a Socket in an unconnected state,
+/// either using it to make a new Stream (connecting it to its EntryGw) or connecting it *to* something (once the IPR functionality is enabled, this will mean the creation of
+/// a Stream + kicking off the creation of a tunnel to an ExitGw + IPR).
+///
+/// The cause for a MixSocket > going striaght to a MixStream is creating a Nym Client disconnected from the Mixnet first, then upgrading to a Stream when connecting it. Once LP
+/// is implemented, this will also allow us to follow something like what is implemented for the Tokio::net::UdpFramed abstraction, where we can create multiple MixStream instances
+/// from a single MixSocket, all connected to different Recipients (aka a one-to-many setup with a single MixnetClient).
 pub struct MixSocket {
     pub inner: MixnetClient,
 }
@@ -304,8 +313,6 @@ impl AsyncWrite for MixStreamWriter {
 /**
  * Tests TODO:
  * STREAM + STREAMREADER + STREAMWRITER
- * - make sure we can do TLS through this (aka get around the 'superinsecuredontuseinprod mode' flags)
- * SOCKET
  * - general tests: create new + various into() fns
  */
 #[cfg(test)]
@@ -331,6 +338,7 @@ mod tests {
             nym_bin_common::logging::setup_tracing_logger();
         });
     }
+
     #[tokio::test]
     async fn simple_surb_reply_stream() -> Result<(), Box<dyn std::error::Error>> {
         // init_logging();

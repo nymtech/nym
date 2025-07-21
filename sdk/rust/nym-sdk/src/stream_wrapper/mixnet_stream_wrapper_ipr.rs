@@ -37,10 +37,11 @@ pub enum ConnectionState {
 }
 
 /// Sort of following the socket/stream split of the stream_wrapper abstraction, where connect() returns a stream client that is connected to the IPR of the socket.
-/// TODO think on whether to bring this more in line with the stream_wrapper's mirroring of the TcpSocket's logic for spinning out multiple streaming clients communicating
-/// with different remote hosts from the same MixSocket (using the same GWs and IPR), but perhaps using different IPRs. Not sure if that's useful for the moment.
+///
+/// TODO change later:
+/// IpMixSocket doesn't require a MixnetClient, it is more like a disconnected config that can in future probably just be folded into the IpMixStream's setup function; this is a bit of an in-process modification when working on smolMix.
 pub struct IpMixSocket {
-    inner: MixSocket,
+    // inner: MixSocket,
     gateway_client: GatewayClient,
 }
 
@@ -49,7 +50,7 @@ impl IpMixSocket {
         let inner = MixSocket::new().await?;
         let gateway_client = Self::create_gateway_client()?;
         Ok(Self {
-            inner,
+            // inner,
             gateway_client,
         })
     }
@@ -129,10 +130,6 @@ impl IpMixSocket {
         let stream = MixStream::new(None, Recipient::from(ipr_address.clone())).await;
         Ok(IpMixStream::new(stream, ipr_address))
     }
-
-    pub fn nym_address(&self) -> &Recipient {
-        self.inner.nym_address()
-    }
 }
 
 pub struct IpMixStream {
@@ -152,6 +149,10 @@ impl IpMixStream {
             allocated_ips: None,
             connection_state: ConnectionState::Disconnected,
         }
+    }
+
+    pub fn nym_address(&self) -> &Recipient {
+        self.stream.client.nym_address()
     }
 
     async fn send_ipr_request(&mut self, request: IpPacketRequest) -> Result<(), Error> {
@@ -199,6 +200,7 @@ impl IpMixStream {
         let timeout = tokio::time::sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
 
+        // TODO framing
         let mut buffer = vec![0u8; 65536];
 
         loop {
@@ -274,7 +276,7 @@ impl IpMixStream {
     }
 
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        // TODO switch to framed reading?
+        // TODO framing
         let mut buffer = vec![0u8; 65536];
 
         match tokio::time::timeout(Duration::from_secs(10), self.stream.read(&mut buffer)).await {
@@ -433,7 +435,7 @@ mod tests {
 
     #[tokio::test]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let socket = IpMixSocket::new().await?;
         let mut stream = socket.connect().await?;

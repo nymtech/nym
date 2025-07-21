@@ -68,7 +68,7 @@ pub struct MixStream {
 }
 
 impl MixStream {
-    /// Create a MixStream instance and immediately connect (convenience method) or pass in a MixSocket (pre-configured DisconnectedMixnetClient).
+    /// Create a MixStream instance and immediately connect (convenience method) or pass in a MixSocket (pre-configured DisconnectedMixnetClient) and connect it.
     // TODO in future take config from MixSocket if exists in Option<> param, else spin up ephemeral client. Just doing ephemeral for initial sketch.
     pub async fn new(socket: Option<MixSocket>, peer: Recipient) -> Self {
         let client = match socket {

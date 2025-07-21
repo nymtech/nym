@@ -44,7 +44,7 @@ CREATE TABLE transaction
     success      BOOLEAN NOT NULL,
 
     /* Body */
-    messages     JSON    NOT NULL DEFAULT '[]'::JSON,
+    messages     JSONB    NOT NULL DEFAULT '[]'::JSONB,
     memo         TEXT,
     signatures   TEXT[]  NOT NULL,
 
@@ -63,31 +63,34 @@ CREATE TABLE transaction
 CREATE INDEX transaction_hash_index ON transaction (hash);
 CREATE INDEX transaction_height_index ON transaction (height);
 
-CREATE TABLE message_type
+CREATE TYPE COIN AS
 (
-    type   TEXT   NOT NULL UNIQUE,
-    module TEXT   NOT NULL,
-    label  TEXT   NOT NULL,
-    height BIGINT NOT NULL
+    denom  TEXT,
+    amount TEXT
 );
-CREATE INDEX message_type_module_index ON message_type (module);
-CREATE INDEX message_type_type_index ON message_type (type);
 
 CREATE TABLE message
 (
     transaction_hash            TEXT   NOT NULL,
     index                       BIGINT NOT NULL,
-    type                        TEXT   NOT NULL REFERENCES message_type (type),
-    value                       JSON   NOT NULL,
+    type                        TEXT   NOT NULL,
+    value                       JSONB  NOT NULL,
     involved_accounts_addresses TEXT[] NOT NULL,
-
     height                      BIGINT NOT NULL,
+
+    funds                       COIN[] DEFAULT '{}',
+
+    wasm_sender                 TEXT,
+    wasm_contract_address       TEXT,
+    wasm_message_type           TEXT,
+
     FOREIGN KEY (transaction_hash) REFERENCES transaction (hash),
     CONSTRAINT unique_message_per_tx UNIQUE (transaction_hash, index)
 );
 CREATE INDEX message_transaction_hash_index ON message (transaction_hash);
 CREATE INDEX message_type_index ON message (type);
 CREATE INDEX message_involved_accounts_index ON message USING GIN (involved_accounts_addresses);
+CREATE INDEX message_wasm_contract_message_type_index ON message (wasm_message_type);
 
 /**
  * This function is used to find all the utils that involve any of the given addresses and have
@@ -125,3 +128,4 @@ CREATE TABLE pruning
 (
     last_pruned_height BIGINT NOT NULL
 );
+

@@ -1,8 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use sqlx::FromRow;
+use serde::{Deserialize, Serialize};
 use sqlx::types::time::OffsetDateTime;
+use sqlx::FromRow;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
 pub struct Validator {
@@ -27,4 +28,11 @@ pub struct CommitSignature {
     pub voting_power: i64,
     pub proposer_priority: i64,
     pub timestamp: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "coin")]
+pub struct Coin {
+    pub amount: String,
+    pub denom: String,
 }

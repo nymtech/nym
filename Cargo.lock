@@ -1328,7 +1328,7 @@ dependencies = [
  "futures-core",
  "prost",
  "prost-types",
- "tonic",
+ "tonic 0.12.3",
  "tracing-core",
 ]
 
@@ -1352,7 +1352,7 @@ dependencies = [
  "thread_local",
  "tokio",
  "tokio-stream",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -1443,13 +1443,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmos-sdk-proto"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95ac39be7373404accccaede7cc1ec942ccef14f0ca18d209967a756bf1dbb1f"
+dependencies = [
+ "informalsystems-pbjson",
+ "prost",
+ "serde",
+ "tendermint-proto",
+ "tonic 0.13.1",
+]
+
+[[package]]
 name = "cosmrs"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1394c263335da09e8ba8c4b2c675d804e3e0deb44cce0866a5f838d3ddd43d02"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto",
+ "cosmos-sdk-proto 0.26.1",
+ "ecdsa",
+ "eyre",
+ "k256",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "signature",
+ "subtle-encoding",
+ "tendermint",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cosmrs"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34e74fa7a22930fe0579bef560f2d64b78415d4c47b9dd976c0635136809471d"
+dependencies = [
+ "bip32",
+ "cosmos-sdk-proto 0.27.0",
  "ecdsa",
  "eyre",
  "k256",
@@ -3605,6 +3638,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "ibc-proto"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a650b51e384e54264b53974feb38e95e37aac70f7f2f9c07eb8022fe15eb8e20"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "cosmos-sdk-proto 0.27.0",
+ "flex-error",
+ "ics23",
+ "informalsystems-pbjson",
+ "prost",
+ "serde",
+ "subtle-encoding",
+ "tendermint-proto",
+ "tonic 0.13.1",
+]
+
+[[package]]
+name = "ics23"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73b17f1a5bd7d12ad30a21445cfa5f52fd7651cb3243ba866f9916b1ec112f12"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "hex",
+ "informalsystems-pbjson",
+ "prost",
+ "serde",
+]
+
+[[package]]
 name = "icu_collections"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3831,6 +3897,16 @@ dependencies = [
  "unit-prefix",
  "vt100",
  "web-time",
+]
+
+[[package]]
+name = "informalsystems-pbjson"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9aa4a0980c8379295100d70854354e78df2ee1c6ca0f96ffe89afeb3140e3a3d"
+dependencies = [
+ "base64 0.21.7",
+ "serde",
 ]
 
 [[package]]
@@ -4911,7 +4987,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "ecdsa",
  "hex",
@@ -5085,7 +5161,7 @@ dependencies = [
  "clap",
  "colored",
  "comfy-table",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "csv",
  "cw-utils",
@@ -5251,7 +5327,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "cosmrs",
+ "cosmrs 0.22.0",
  "nym-crypto",
  "nym-gateway-requests",
  "serde",
@@ -5624,7 +5700,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bls12_381",
- "cosmrs",
+ "cosmrs 0.22.0",
  "log",
  "nym-api-requests",
  "nym-credentials-interface",
@@ -7352,7 +7428,7 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "eyre",
  "hmac",
@@ -7405,7 +7481,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored",
- "cosmrs",
+ "cosmrs 0.22.0",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -7473,7 +7549,7 @@ dependencies = [
  "nym-task",
  "nym-ticketbooks-merkle",
  "nym-validator-client",
- "nyxd-scraper",
+ "nyxd-scraper-sqlite",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -7553,7 +7629,7 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "cosmrs",
+ "cosmrs 0.21.1",
  "cosmwasm-std",
  "hex-literal",
  "nym-config",
@@ -7722,7 +7798,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-task",
  "nym-validator-client",
- "nyxd-scraper",
+ "nyxd-scraper-sqlite",
  "reqwest 0.12.22",
  "schemars 0.8.22",
  "serde",
@@ -7740,19 +7816,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "nyxd-scraper"
+name = "nyxd-scraper-psql"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
+ "base64 0.22.1",
+ "cosmrs 0.22.0",
+ "itertools 0.14.0",
+ "nyxd-scraper-shared",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "nyxd-scraper-shared"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
  "const_format",
- "cosmrs",
+ "cosmos-sdk-proto 0.27.0",
+ "cosmrs 0.22.0",
  "eyre",
  "futures",
  "humantime",
+ "ibc-proto",
+ "prost",
  "serde",
+ "serde_json",
  "sha2 0.10.9",
- "sqlx",
  "tendermint",
  "tendermint-rpc",
  "thiserror 2.0.12",
@@ -7762,6 +7858,18 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "nyxd-scraper-sqlite"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "nyxd-scraper-shared",
+ "sqlx",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -11027,6 +11135,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "tonic"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e581ba15a835f4d9ea06c55ab1bd4dce26fc53752c69a04aac00703bfb49ba9"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bytes",
+ "h2 0.4.11",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-timeout",
+ "hyper-util",
+ "percent-encoding",
+ "pin-project",
+ "prost",
+ "socket2 0.5.10",
+ "tokio",
+ "tokio-stream",
+ "tower 0.5.2",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "tower"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11054,9 +11190,12 @@ checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
 dependencies = [
  "futures-core",
  "futures-util",
+ "indexmap 2.10.0",
  "pin-project-lite",
+ "slab",
  "sync_wrapper 1.0.2",
  "tokio",
+ "tokio-util",
  "tower-layer",
  "tower-service",
  "tracing",

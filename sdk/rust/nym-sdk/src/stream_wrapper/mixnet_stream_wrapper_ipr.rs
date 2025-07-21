@@ -332,6 +332,15 @@ impl IpMixStream {
         self.stream.disconnect().await;
         debug!("Disconnected");
     }
+
+    /// Split for concurrent read/write (like TcpStream::Split) into IpMixnetStreamReader and IpMixnetStreamWriter.
+    pub fn split(self) -> (IpMixStreamReader, IpMixStreamWriter) {
+        // debug!("Splitting IpMixStream");
+        // let (sender, receiver) = self.stream.split();
+        // debug!("Split IpMixStream into Reader and Writer");
+
+        todo!()
+    }
 }
 
 impl AsyncRead for IpMixStream {
@@ -368,6 +377,16 @@ impl AsyncWrite for IpMixStream {
     }
 }
 
+// TODO - have to double up some functions as with the stream_wrapper
+pub struct IpMixStreamReader {}
+impl IpMixStreamReader {}
+pub struct IpMixStreamWriter {}
+impl IpMixStream {}
+
+/**
+ * TODO:
+ * - test split r/w
+ */
 #[cfg(test)]
 mod tests {
     use super::*;

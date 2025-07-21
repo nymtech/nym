@@ -159,7 +159,7 @@ impl MixStream {
         Ok(())
     }
 
-    /// Sidesteps the AsyncRead/codec in place of using the Mixnet Client's message-based functionality for getting messages: using to debug connection with the IPR Stream Wrapper.
+    /// Sidesteps the AsyncRead/codec in place of using the Mixnet Client's message-based functionality for getting messages: useful for debugging.
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
         self.client.wait_for_messages().await
     }

@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use super::mixnet_stream_wrapper::{MixSocket, MixStream};
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
@@ -405,7 +408,7 @@ mod tests {
 
     #[tokio::test]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
+        // init_logging();
 
         let socket = IpMixSocket::new().await?;
         let mut stream = socket.connect().await?;

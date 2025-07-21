@@ -6,5 +6,5 @@
 CREATE TABLE METADATA
 (
     id                    INTEGER PRIMARY KEY CHECK (id = 0),
-    last_processed_height INTEGER NOT NULL
+    last_processed_height BIGINT NOT NULL
 );

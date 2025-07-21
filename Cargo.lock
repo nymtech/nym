@@ -5939,6 +5939,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-data-observatory"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "chrono",
+ "clap",
+ "nym-bin-common 0.6.0",
+ "nym-config 0.1.0",
+ "nym-network-defaults 0.1.0",
+ "nym-task 0.1.0",
+ "nym-validator-client 0.1.0",
+ "nyxd-scraper-psql",
+ "nyxd-scraper-shared",
+ "reqwest 0.12.22",
+ "schemars 0.8.22",
+ "serde",
+ "sqlx",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
+]
+
+[[package]]
 name = "nym-dkg"
 version = "0.1.0"
 dependencies = [

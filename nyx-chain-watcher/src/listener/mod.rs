@@ -7,8 +7,8 @@ use crate::db::queries;
 use crate::http::state::{
     PaymentListenerFailureDetails, PaymentListenerState, ProcessedPayment, WatcherFailureDetails,
 };
+use crate::listener::watcher::PaymentWatcher;
 use crate::models::WebhookPayload;
-use crate::payment_listener::watcher::PaymentWatcher;
 use anyhow::Context;
 use sqlx::SqlitePool;
 use tokio::time::{self, Duration};

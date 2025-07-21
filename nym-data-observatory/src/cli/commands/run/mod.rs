@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::NyxChainWatcherError;
+use crate::error::NymDataObservatoryError;
 use anyhow::Context;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -14,8 +14,7 @@ mod config;
 
 use crate::chain_scraper::run_chain_scraper;
 use crate::db::DbPool;
-use crate::http::state::{BankScraperModuleState, PaymentListenerState, PriceScraperState};
-use crate::listener::PaymentListener;
+use crate::http::state::PriceScraperState;
 use crate::price_scraper::PriceScraper;
 use crate::{db, http};
 pub(crate) use args::Args;
@@ -29,11 +28,11 @@ async fn try_insert_watcher_execution_information(
 ) {
     let _ = sqlx::query!(
         r#"
-        INSERT INTO watcher_execution(start, end, error_message)
-        VALUES (?, ?, ?)
+        INSERT INTO watcher_execution(start_ts, end_ts, error_message)
+        VALUES ($1, $2, $3)
     "#,
-        start,
-        end,
+        start.into(),
+        end.into(),
         error_message
     )
     .execute(&db_pool)
@@ -107,81 +106,46 @@ async fn wait_for_shutdown(
     }
 }
 
-pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWatcherError> {
+pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NymDataObservatoryError> {
     let start = OffsetDateTime::now_utc();
 
     info!("passed arguments: {args:#?}");
 
     let config = config::get_run_config(args)?;
 
-    let db_path = config.database_path();
+    let db_connection_string = config.chain_scraper_connection_string();
 
     info!("Config is {config:#?}");
     info!(
-        "Database path is {:?}",
-        std::path::Path::new(&db_path)
-            .canonicalize()
-            .unwrap_or_default()
-    );
-    info!(
         "Chain History Database path is {:?}",
-        std::path::Path::new(&config.chain_scraper_database_path()).canonicalize()
+        std::path::Path::new(&config.chain_scraper_connection_string()).canonicalize()
     );
 
-    // Ensure parent directory exists
-    if let Some(parent) = std::path::Path::new(&db_path).parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let connection_url = format!("sqlite://{db_path}?mode=rwc");
-    let storage = db::Storage::init(connection_url).await?;
+    let storage = db::Storage::init(db_connection_string).await?;
     let watcher_pool = storage.pool_owned();
 
     let mut tasks = JoinSet::new();
     let cancellation_token = CancellationToken::new();
 
-    let price_scraper_pool = storage.pool_owned();
     let scraper_pool = storage.pool_owned();
     let shutdown_pool = storage.pool_owned();
 
     // construct shared state
-    let payment_listener_shared_state = PaymentListenerState::new();
     let price_scraper_shared_state = PriceScraperState::new();
-    let bank_scraper_module_shared_state = BankScraperModuleState::new();
 
     // spawn all the tasks
 
     // 1. chain scraper (note: this doesn't really spawn the full scraper on this task, but we don't want to be blocking waiting for its startup)
     let scraper_token_handle: JoinHandle<anyhow::Result<CancellationToken>> = tokio::spawn({
         let config = config.clone();
-        let shared_state = bank_scraper_module_shared_state.clone();
         async move {
             // this only blocks until startup sync is done; it then runs on its own set of tasks
-            let scraper = run_chain_scraper(&config, scraper_pool, shared_state).await?;
+            let scraper = run_chain_scraper(&config, scraper_pool).await?;
             Ok(scraper.cancel_token())
         }
     });
 
-    // 2. payment listener
-    let token = cancellation_token.clone();
-    let payment_watcher_config = config.payment_watcher_config.clone();
-    let payment_listener = PaymentListener::new(
-        price_scraper_pool,
-        payment_watcher_config,
-        payment_listener_shared_state.clone(),
-    )?;
-    {
-        tasks.spawn(async move {
-            token
-                .run_until_cancelled(async move {
-                    payment_listener.run().await;
-                    Ok(())
-                })
-                .await
-        });
-    }
-
-    // 3. price scraper (note, this task never terminates on its own)
+    // 2. price scraper (note, this task never terminates on its own)
     let price_scraper = PriceScraper::new(price_scraper_shared_state.clone(), watcher_pool);
     {
         let token = cancellation_token.clone();
@@ -195,14 +159,12 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
         });
     }
 
-    // 4. http api
+    // 3. http api
     let http_server = http::server::build_http_api(
         storage.pool_owned(),
         &config,
         http_port,
-        payment_listener_shared_state,
         price_scraper_shared_state,
-        bank_scraper_module_shared_state,
     )
     .await?;
     {

@@ -1,10 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::models::Coin;
 use crate::storage::models::{CommitSignature, Validator};
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use sqlx::types::time::PrimitiveDateTime;
-use sqlx::types::{Json, JsonValue};
+use sqlx::types::JsonValue;
 use sqlx::{Executor, Postgres};
 use tokio::time::Instant;
 use tracing::{instrument, trace};
@@ -200,7 +201,8 @@ impl StorageManager {
         log_db_operation_time("get_last_processed_height", start);
 
         if let Some(row) = maybe_record {
-            Ok(row.last_processed_height as i64)
+            #[allow(clippy::useless_conversion)]
+            Ok(row.last_processed_height.into())
         } else {
             Ok(-1)
         }
@@ -392,6 +394,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip(executor))]
 pub(crate) async fn insert_message<'a, E>(
     transaction_hash: String,
@@ -400,6 +403,10 @@ pub(crate) async fn insert_message<'a, E>(
     value: JsonValue,
     involved_account_addresses: Vec<String>,
     height: i64,
+    wasm_sender: Option<String>,
+    wasm_contract_address: Option<String>,
+    wasm_message_type: Option<String>,
+    funds: Option<Vec<Coin>>,
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
@@ -408,25 +415,55 @@ where
     trace!("insert_message");
     let start = Instant::now();
 
-    sqlx::query!(
-        r#"
-            INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (transaction_hash, index) DO UPDATE
-                SET height = excluded.height,
-                    type = excluded.type,
-                    value = excluded.value,
-                    involved_accounts_addresses = excluded.involved_accounts_addresses
-        "#,
-        transaction_hash,
-        index,
-        typ,
-        value,
-        &involved_account_addresses,
-        height
-    )
-    .execute(executor)
-    .await?;
+    // sqlx doesn't understand option types
+    if let Some(coins) = funds {
+        sqlx::query!(
+            r#"
+                INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height, wasm_sender, wasm_contract_address, wasm_message_type, funds)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (transaction_hash, index) DO UPDATE
+                    SET height = excluded.height,
+                        type = excluded.type,
+                        value = excluded.value,
+                        involved_accounts_addresses = excluded.involved_accounts_addresses
+            "#,
+            transaction_hash,
+            index,
+            typ,
+            value,
+            &involved_account_addresses,
+            height,
+            wasm_sender,
+            wasm_contract_address,
+            wasm_message_type,
+            &coins as _,
+        )
+            .execute(executor)
+            .await?;
+    } else {
+        sqlx::query!(
+            r#"
+                INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height, wasm_sender, wasm_contract_address, wasm_message_type)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (transaction_hash, index) DO UPDATE
+                    SET height = excluded.height,
+                        type = excluded.type,
+                        value = excluded.value,
+                        involved_accounts_addresses = excluded.involved_accounts_addresses
+            "#,
+            transaction_hash,
+            index,
+            typ,
+            value,
+            &involved_account_addresses,
+            height,
+            wasm_sender,
+            wasm_contract_address,
+            wasm_message_type,
+        )
+            .execute(executor)
+            .await?;
+    }
     log_db_operation_time("insert_message", start);
 
     Ok(())
@@ -434,7 +471,7 @@ where
 
 #[instrument(skip(executor))]
 pub(crate) async fn update_last_processed<'a, E>(
-    height: i32,
+    height: i64,
     executor: E,
 ) -> Result<(), sqlx::Error>
 where

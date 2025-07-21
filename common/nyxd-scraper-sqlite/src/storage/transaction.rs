@@ -4,6 +4,7 @@
 use crate::error::SqliteScraperError;
 use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
+    update_last_processed,
 };
 use async_trait::async_trait;
 use nyxd_scraper_shared::helpers::{
@@ -167,6 +168,12 @@ impl SqliteStorageTransaction {
             }
         }
 
+        Ok(())
+    }
+
+    async fn update_last_processed(&mut self, height: i64) -> Result<(), SqliteScraperError> {
+        debug!("update_last_processed");
+        update_last_processed(height, self.0.as_mut()).await?;
         Ok(())
     }
 }

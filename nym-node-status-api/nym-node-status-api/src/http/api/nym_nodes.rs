@@ -90,26 +90,26 @@ async fn node_delegations(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_routes_construction() {
         let router = routes();
         // Verify the router builds without panic
         let _routes = router;
     }
-    
+
     #[test]
     fn test_node_id_param_deserialization() {
         // Test valid node ID
         let json = r#"{"node_id": 42}"#;
         let param: NodeIdParam = serde_json::from_str(json).unwrap();
         assert_eq!(param.node_id, 42);
-        
+
         // Test zero node ID
         let json_zero = r#"{"node_id": 0}"#;
         let param_zero: NodeIdParam = serde_json::from_str(json_zero).unwrap();
         assert_eq!(param_zero.node_id, 0);
-        
+
         // Test max node ID
         let json_max = format!(r#"{{"node_id": {}}}"#, u32::MAX);
         let param_max: NodeIdParam = serde_json::from_str(&json_max).unwrap();

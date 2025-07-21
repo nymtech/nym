@@ -247,7 +247,7 @@ mod test {
             assert_eq!(expected, to_percent(starting));
         }
     }
-    
+
     #[test]
     fn to_percent_edge_cases() {
         // Test edge cases
@@ -255,11 +255,11 @@ mod test {
         assert_eq!("1.00", to_percent(100));
         assert_eq!("2.55", to_percent(255)); // Over 100%
     }
-    
+
     #[test]
     fn node_delegation_from_conversion() {
         use cosmwasm_std::Uint128;
-        
+
         let delegation = nym_mixnet_contract_common::Delegation {
             node_id: 42,
             amount: Coin {
@@ -271,9 +271,9 @@ mod test {
             owner: Addr::unchecked("owner1"),
             proxy: Some(Addr::unchecked("proxy1")),
         };
-        
+
         let node_delegation: NodeDelegation = delegation.clone().into();
-        
+
         assert_eq!(node_delegation.amount.denom, "unym");
         assert_eq!(node_delegation.amount.amount, Uint128::new(1000000));
         assert_eq!(node_delegation.cumulative_reward_ratio, "1.23456789");
@@ -281,11 +281,11 @@ mod test {
         assert_eq!(node_delegation.owner, Addr::unchecked("owner1"));
         assert_eq!(node_delegation.proxy, Some(Addr::unchecked("proxy1")));
     }
-    
+
     #[test]
     fn node_delegation_from_conversion_no_proxy() {
         use cosmwasm_std::Uint128;
-        
+
         let delegation = nym_mixnet_contract_common::Delegation {
             node_id: 0,
             amount: Coin {
@@ -297,9 +297,9 @@ mod test {
             owner: Addr::unchecked("owner2"),
             proxy: None,
         };
-        
+
         let node_delegation: NodeDelegation = delegation.into();
-        
+
         assert_eq!(node_delegation.amount.denom, "uatom");
         assert_eq!(node_delegation.amount.amount, Uint128::new(0));
         assert_eq!(node_delegation.cumulative_reward_ratio, "0");
@@ -307,11 +307,11 @@ mod test {
         assert_eq!(node_delegation.owner, Addr::unchecked("owner2"));
         assert_eq!(node_delegation.proxy, None);
     }
-    
+
     #[test]
     fn node_delegation_from_conversion_max_values() {
         use cosmwasm_std::Uint128;
-        
+
         let delegation = nym_mixnet_contract_common::Delegation {
             node_id: u32::MAX,
             amount: Coin {
@@ -323,14 +323,17 @@ mod test {
             owner: Addr::unchecked("owner3"),
             proxy: Some(Addr::unchecked("proxy3")),
         };
-        
+
         let node_delegation: NodeDelegation = delegation.into();
-        
+
         assert_eq!(node_delegation.amount.amount, Uint128::MAX);
-        assert_eq!(node_delegation.cumulative_reward_ratio, "999999999.999999999");
+        assert_eq!(
+            node_delegation.cumulative_reward_ratio,
+            "999999999.999999999"
+        );
         assert_eq!(node_delegation.block_height, u64::MAX);
     }
-    
+
     #[test]
     fn location_struct_creation() {
         let location = Location {
@@ -338,12 +341,12 @@ mod test {
             latitude: 40.7128,
             longitude: -74.0060,
         };
-        
+
         assert_eq!(location.two_letter_iso_country_code, "US");
         assert_eq!(location.latitude, 40.7128);
         assert_eq!(location.longitude, -74.0060);
     }
-    
+
     #[test]
     fn location_extreme_coordinates() {
         // Test extreme coordinates
@@ -352,24 +355,24 @@ mod test {
             latitude: 90.0,
             longitude: 0.0,
         };
-        
+
         let south_pole = Location {
             two_letter_iso_country_code: "AQ".to_string(),
             latitude: -90.0,
             longitude: 0.0,
         };
-        
+
         let date_line = Location {
             two_letter_iso_country_code: "FJ".to_string(),
             latitude: -17.0,
             longitude: 180.0,
         };
-        
+
         assert_eq!(north_pole.latitude, 90.0);
         assert_eq!(south_pole.latitude, -90.0);
         assert_eq!(date_line.longitude, 180.0);
     }
-    
+
     #[test]
     fn build_information_creation() {
         let build_info = BuildInformation {
@@ -377,12 +380,12 @@ mod test {
             commit_branch: "main".to_string(),
             commit_sha: "abcdef123456".to_string(),
         };
-        
+
         assert_eq!(build_info.build_version, "1.2.3");
         assert_eq!(build_info.commit_branch, "main");
         assert_eq!(build_info.commit_sha, "abcdef123456");
     }
-    
+
     #[test]
     fn daily_stats_creation() {
         let stats = DailyStats {
@@ -392,14 +395,14 @@ mod test {
             total_packets_dropped: 1_000,
             total_stake: 5_000_000,
         };
-        
+
         assert_eq!(stats.date_utc, "2024-01-20");
         assert_eq!(stats.total_packets_received, 1_000_000);
         assert_eq!(stats.total_packets_sent, 999_000);
         assert_eq!(stats.total_packets_dropped, 1_000);
         assert_eq!(stats.total_stake, 5_000_000);
     }
-    
+
     #[test]
     fn daily_stats_negative_values() {
         // Test with edge case values
@@ -410,14 +413,14 @@ mod test {
             total_packets_dropped: -1, // Should this be allowed?
             total_stake: i64::MIN,
         };
-        
+
         assert_eq!(stats.date_utc, "");
         assert_eq!(stats.total_packets_received, i64::MAX);
         assert_eq!(stats.total_packets_sent, 0);
         assert_eq!(stats.total_packets_dropped, -1);
         assert_eq!(stats.total_stake, i64::MIN);
     }
-    
+
     #[test]
     fn gateway_skinny_creation() {
         let gateway = GatewaySkinny {
@@ -431,14 +434,14 @@ mod test {
             config_score: 100,
             performance: 98,
         };
-        
+
         assert_eq!(gateway.gateway_identity_key, "gateway123");
         assert!(gateway.self_described.is_some());
         assert!(gateway.explorer_pretty_bond.is_none());
         assert_eq!(gateway.performance, 98);
         assert_eq!(gateway.routing_score, 0.95);
     }
-    
+
     #[test]
     fn service_creation_with_all_fields() {
         let service = Service {
@@ -451,13 +454,13 @@ mod test {
             mixnet_websockets: Some(serde_json::json!({"port": 8080})),
             last_successful_ping_utc: Some("2024-01-20T09:55:00Z".to_string()),
         };
-        
+
         assert_eq!(service.gateway_identity_key, "gw123");
         assert_eq!(service.routing_score, 0.85);
         assert_eq!(service.ip_address, Some("192.168.1.1".to_string()));
         assert_eq!(service.hostname, Some("gateway.example.com".to_string()));
     }
-    
+
     #[test]
     fn service_creation_minimal() {
         let service = Service {
@@ -470,7 +473,7 @@ mod test {
             mixnet_websockets: None,
             last_successful_ping_utc: None,
         };
-        
+
         assert_eq!(service.gateway_identity_key, "gw456");
         assert_eq!(service.routing_score, 0.0);
         assert!(service.service_provider_client_id.is_none());

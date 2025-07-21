@@ -64,8 +64,11 @@ async fn get_mixnodes(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<Mixnode>> {
-    find_mixnode_by_id(&mix_id, state.cache().get_mixnodes_list(state.db_pool()).await)
-        .map(Json)
+    find_mixnode_by_id(
+        &mix_id,
+        state.cache().get_mixnodes_list(state.db_pool()).await,
+    )
+    .map(Json)
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -102,12 +105,10 @@ async fn get_stats(
 // Extract business logic for testing
 fn find_mixnode_by_id(mix_id: &str, mixnodes: Vec<Mixnode>) -> HttpResult<Mixnode> {
     match mix_id.parse::<u32>() {
-        Ok(parsed_mix_id) => {
-            mixnodes
-                .into_iter()
-                .find(|item| item.mix_id == parsed_mix_id)
-                .ok_or_else(|| HttpError::invalid_input(mix_id))
-        }
+        Ok(parsed_mix_id) => mixnodes
+            .into_iter()
+            .find(|item| item.mix_id == parsed_mix_id)
+            .ok_or_else(|| HttpError::invalid_input(mix_id)),
         Err(_e) => Err(HttpError::invalid_input(mix_id)),
     }
 }
@@ -124,7 +125,7 @@ mod tests {
     use super::*;
     use crate::http::models::{DailyStats, Mixnode};
     use nym_node_requests::api::v1::node::models::NodeDescription;
-    
+
     fn create_test_mixnode(mix_id: u32, is_dp_delegatee: bool) -> Mixnode {
         Mixnode {
             mix_id,
@@ -142,7 +143,7 @@ mod tests {
             last_updated_utc: "2024-01-20T10:00:00Z".to_string(),
         }
     }
-    
+
     #[test]
     fn test_routes_construction() {
         let router = routes();
@@ -150,7 +151,7 @@ mod tests {
         // Actual route testing would require integration tests
         let _routes = router;
     }
-    
+
     #[test]
     fn test_find_mixnode_by_id_success() {
         let mixnodes = vec![
@@ -158,45 +159,42 @@ mod tests {
             create_test_mixnode(42, true),
             create_test_mixnode(100, false),
         ];
-        
+
         let result = find_mixnode_by_id("42", mixnodes).unwrap();
         assert_eq!(result.mix_id, 42);
         assert!(result.is_dp_delegatee);
     }
-    
+
     #[test]
     fn test_find_mixnode_by_id_not_found() {
-        let mixnodes = vec![
-            create_test_mixnode(1, false),
-            create_test_mixnode(2, false),
-        ];
-        
+        let mixnodes = vec![create_test_mixnode(1, false), create_test_mixnode(2, false)];
+
         let result = find_mixnode_by_id("99", mixnodes);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_find_mixnode_by_id_invalid_format() {
         let mixnodes = vec![create_test_mixnode(1, false)];
-        
+
         // Test various invalid formats
         assert!(find_mixnode_by_id("abc", mixnodes.clone()).is_err());
         assert!(find_mixnode_by_id("", mixnodes.clone()).is_err());
         assert!(find_mixnode_by_id("12.34", mixnodes.clone()).is_err());
         assert!(find_mixnode_by_id("-1", mixnodes).is_err());
     }
-    
+
     #[test]
     fn test_find_mixnode_by_id_edge_cases() {
         let mixnodes = vec![
             create_test_mixnode(0, false),
             create_test_mixnode(u32::MAX, false),
         ];
-        
+
         assert!(find_mixnode_by_id("0", mixnodes.clone()).is_ok());
         assert!(find_mixnode_by_id(&u32::MAX.to_string(), mixnodes).is_ok());
     }
-    
+
     #[test]
     fn test_validate_offset_valid() {
         assert_eq!(validate_offset(None).unwrap(), 0);
@@ -204,32 +202,32 @@ mod tests {
         assert_eq!(validate_offset(Some(10)).unwrap(), 10);
         assert_eq!(validate_offset(Some(1000)).unwrap(), 1000);
     }
-    
+
     #[test]
     fn test_validate_offset_invalid() {
         assert!(validate_offset(Some(-1)).is_err());
         assert!(validate_offset(Some(-100)).is_err());
         assert!(validate_offset(Some(i64::MIN)).is_err());
     }
-    
+
     #[test]
     fn test_mix_id_param_deserialization() {
         let json = r#"{"mix_id": "123"}"#;
         let param: MixIdParam = serde_json::from_str(json).unwrap();
         assert_eq!(param.mix_id, "123");
     }
-    
+
     #[test]
     fn test_mix_stats_query_params_deserialization() {
         let json = r#"{"offset": 50}"#;
         let params: MixStatsQueryParams = serde_json::from_str(json).unwrap();
         assert_eq!(params.offset, Some(50));
-        
+
         let json_empty = r#"{}"#;
         let params_empty: MixStatsQueryParams = serde_json::from_str(json_empty).unwrap();
         assert_eq!(params_empty.offset, None);
     }
-    
+
     #[test]
     fn test_daily_stats_creation() {
         let stats = DailyStats {
@@ -239,7 +237,7 @@ mod tests {
             total_packets_dropped: 1000,
             total_stake: 5000000,
         };
-        
+
         assert_eq!(stats.total_packets_received, 1000000);
         assert_eq!(stats.total_packets_sent, 999000);
         assert_eq!(stats.total_packets_dropped, 1000);

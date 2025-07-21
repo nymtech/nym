@@ -94,7 +94,12 @@ fn gateway_list_to_services(
             (s, f)
         })
         .filter(|(_, f)| {
-            apply_service_filters(f, show_only_wss, show_only_with_hostname, show_entry_gateways_only)
+            apply_service_filters(
+                f,
+                show_only_wss,
+                show_only_with_hostname,
+                show_entry_gateways_only,
+            )
         })
         .map(|(s, _)| s)
         .collect()
@@ -171,7 +176,7 @@ mod tests {
                 "address": "client123"
             });
         }
-        
+
         Gateway {
             gateway_identity_key: key.to_string(),
             bonded: true,
@@ -243,7 +248,7 @@ mod tests {
         assert!(!filter3.has_network_requester_sp);
         assert!(filter3.has_hostname);
     }
-    
+
     #[test]
     fn test_apply_service_filters() {
         let filter_all = ServiceFilter {
@@ -251,38 +256,38 @@ mod tests {
             has_network_requester_sp: true,
             has_hostname: true,
         };
-        
+
         let filter_none = ServiceFilter {
             has_wss: false,
             has_network_requester_sp: false,
             has_hostname: false,
         };
-        
+
         // Test default behavior (requires network_requester_sp)
         assert!(apply_service_filters(&filter_all, false, false, false));
         assert!(!apply_service_filters(&filter_none, false, false, false));
-        
+
         // Test entry gateway mode (accepts all)
         assert!(apply_service_filters(&filter_all, false, false, true));
         assert!(apply_service_filters(&filter_none, false, false, true));
-        
+
         // Test wss filter
         assert!(apply_service_filters(&filter_all, true, false, false));
         assert!(!apply_service_filters(&filter_none, true, false, false));
-        
+
         // Test hostname filter
         assert!(apply_service_filters(&filter_all, false, true, false));
         assert!(!apply_service_filters(&filter_none, false, true, false));
-        
+
         // Test combined filters
         assert!(apply_service_filters(&filter_all, true, true, false));
         assert!(!apply_service_filters(&filter_none, true, true, false));
-        
+
         // Test entry mode does NOT override other filters - it just sets initial keep=true
         // But wss and hostname filters can still exclude items
         assert!(!apply_service_filters(&filter_none, true, true, true));
     }
-    
+
     #[test]
     fn test_gateway_list_to_services() {
         let paths = ParseJsonPaths::new().unwrap();
@@ -292,7 +297,7 @@ mod tests {
             create_test_gateway("gw3", true, false),
             create_test_gateway("gw4", false, false),
         ];
-        
+
         // Test no filters - only gateways with network_requester pass
         let params = ServicesQueryParams {
             size: None,
@@ -305,7 +310,7 @@ mod tests {
         assert_eq!(services.len(), 2); // gw1 and gw2 have network_requester
         assert!(services.iter().any(|s| s.gateway_identity_key == "gw1"));
         assert!(services.iter().any(|s| s.gateway_identity_key == "gw2"));
-        
+
         // Test entry mode (accepts all)
         let params = ServicesQueryParams {
             size: None,
@@ -316,7 +321,7 @@ mod tests {
         };
         let services = gateway_list_to_services(&paths, gateways.clone(), params);
         assert_eq!(services.len(), 4);
-        
+
         // Test wss filter with entry mode
         let params = ServicesQueryParams {
             size: None,
@@ -327,7 +332,7 @@ mod tests {
         };
         let services = gateway_list_to_services(&paths, gateways.clone(), params);
         assert_eq!(services.len(), 2); // gw1 and gw3 have wss
-        
+
         // Test hostname filter with entry mode
         let params = ServicesQueryParams {
             size: None,
@@ -338,7 +343,7 @@ mod tests {
         };
         let services = gateway_list_to_services(&paths, gateways.clone(), params);
         assert_eq!(services.len(), 2); // gw1 and gw2 have hostname
-        
+
         // Test combined filters
         let params = ServicesQueryParams {
             size: None,
@@ -351,7 +356,7 @@ mod tests {
         assert_eq!(services.len(), 1); // Only gw1 has both
         assert_eq!(services[0].gateway_identity_key, "gw1");
     }
-    
+
     #[test]
     fn test_services_query_params_defaults() {
         let params = ServicesQueryParams {
@@ -361,12 +366,12 @@ mod tests {
             hostname: None,
             entry: None,
         };
-        
+
         assert_eq!(params.wss.unwrap_or(false), false);
         assert_eq!(params.hostname.unwrap_or(false), false);
         assert_eq!(params.entry.unwrap_or(false), false);
     }
-    
+
     #[test]
     fn test_service_filter_edge_cases() {
         // Test with null wss_port value
@@ -382,7 +387,7 @@ mod tests {
         };
         let filter = ServiceFilter::new(&service);
         assert!(!filter.has_wss); // null port should be treated as no wss
-        
+
         // Test with wss_port = 0
         let service2 = Service {
             gateway_identity_key: "test2".to_string(),

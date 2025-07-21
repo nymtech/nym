@@ -69,27 +69,27 @@ pub async fn dvpn_gateways(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_routes_construction() {
         let router = routes();
         // Verify the router builds without panic
         let _routes = router;
     }
-    
+
     #[test]
     fn test_min_node_version_query_deserialization() {
         // Test with version
         let json = r#"{"min_node_version": "1.2.3"}"#;
         let query: MinNodeVersionQuery = serde_json::from_str(json).unwrap();
         assert_eq!(query.min_node_version, Some("1.2.3".to_string()));
-        
+
         // Test without version
         let json_empty = r#"{}"#;
         let query_empty: MinNodeVersionQuery = serde_json::from_str(json_empty).unwrap();
         assert_eq!(query_empty.min_node_version, None);
     }
-    
+
     #[test]
     fn test_min_supported_version() {
         // Test that the lazy static initializes correctly

@@ -163,7 +163,9 @@ mod tests {
 
         // Mixed quotes
         assert_eq!(
-            convert_placeholders(r#"SELECT * FROM table WHERE a = 'single?' AND b = "double?" AND c = ?"#),
+            convert_placeholders(
+                r#"SELECT * FROM table WHERE a = 'single?' AND b = "double?" AND c = ?"#
+            ),
             r#"SELECT * FROM table WHERE a = 'single?' AND b = "double?" AND c = $1"#
         );
 
@@ -175,7 +177,9 @@ mod tests {
 
         // Multiple escaped quotes
         assert_eq!(
-            convert_placeholders(r#"INSERT INTO table (msg) VALUES ('it\'s "complex" test') WHERE id = ?"#),
+            convert_placeholders(
+                r#"INSERT INTO table (msg) VALUES ('it\'s "complex" test') WHERE id = ?"#
+            ),
             r#"INSERT INTO table (msg) VALUES ('it\'s "complex" test') WHERE id = $1"#
         );
 
@@ -186,18 +190,22 @@ mod tests {
 
         // Query with comments (question marks in comments are also converted)
         assert_eq!(
-            convert_placeholders(r"-- This is a comment with ?
-            SELECT * FROM table WHERE id = ? -- another comment ?"),
+            convert_placeholders(
+                r"-- This is a comment with ?
+            SELECT * FROM table WHERE id = ? -- another comment ?"
+            ),
             r"-- This is a comment with $1
             SELECT * FROM table WHERE id = $2 -- another comment $3"
         );
 
         // Multiline strings
         assert_eq!(
-            convert_placeholders(r"SELECT * FROM table 
+            convert_placeholders(
+                r"SELECT * FROM table 
             WHERE description = 'This is a 
             multiline string with ?' 
-            AND id = ?"),
+            AND id = ?"
+            ),
             r"SELECT * FROM table 
             WHERE description = 'This is a 
             multiline string with ?' 
@@ -206,7 +214,9 @@ mod tests {
 
         // Complex nested quotes
         assert_eq!(
-            convert_placeholders(r#"SELECT json_extract(data, '$.items[?(@.name=="test?")]') FROM table WHERE id = ?"#),
+            convert_placeholders(
+                r#"SELECT json_extract(data, '$.items[?(@.name=="test?")]') FROM table WHERE id = ?"#
+            ),
             r#"SELECT json_extract(data, '$.items[?(@.name=="test?")]') FROM table WHERE id = $1"#
         );
 
@@ -235,9 +245,6 @@ mod tests {
         );
 
         // Unmatched quote
-        assert_eq!(
-            convert_placeholders(r"SELECT 'oops?"),
-            r"SELECT 'oops?"
-        );
+        assert_eq!(convert_placeholders(r"SELECT 'oops?"), r"SELECT 'oops?");
     }
 }

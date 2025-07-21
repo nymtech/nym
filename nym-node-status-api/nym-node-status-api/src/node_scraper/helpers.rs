@@ -93,10 +93,10 @@ pub fn sanitize_description(
 
     const UNKNOWN: &str = "N/A";
     let sanitize_field = |opt: Option<String>| -> Option<String> {
-        Some(
-            opt.filter(|s| !s.trim().is_empty())
-                .map_or_else(|| UNKNOWN.to_string(), |s| sanitizer.clean(s.trim()).to_string().trim().to_string()),
-        )
+        Some(opt.filter(|s| !s.trim().is_empty()).map_or_else(
+            || UNKNOWN.to_string(),
+            |s| sanitizer.clean(s.trim()).to_string().trim().to_string(),
+        ))
     };
 
     let mut moniker = sanitize_field(description.moniker);

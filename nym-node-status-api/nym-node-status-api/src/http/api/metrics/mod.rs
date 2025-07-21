@@ -12,7 +12,7 @@ pub(crate) fn routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_routes_construction() {
         let router = routes();

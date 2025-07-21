@@ -48,7 +48,7 @@ async fn health(State(state): State<AppState>) -> HttpResult<Json<HealthInfo>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_routes_construction() {
         let router = routes();

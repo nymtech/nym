@@ -57,7 +57,6 @@ impl ParsedDetails {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

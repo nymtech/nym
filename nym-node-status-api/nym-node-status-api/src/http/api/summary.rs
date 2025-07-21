@@ -45,7 +45,7 @@ async fn summary_history(State(state): State<AppState>) -> HttpResult<Json<Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_routes_construction() {
         let router = routes();

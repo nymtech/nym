@@ -68,10 +68,7 @@ mod test {
     fn test_unix_timestamp_to_utc_rfc3339() {
         // Test with a known timestamp
         let ts1 = 1672531199; // 2022-12-31 23:59:59 UTC
-        assert_eq!(
-            unix_timestamp_to_utc_rfc3339(ts1),
-            "2022-12-31T23:59:59Z"
-        );
+        assert_eq!(unix_timestamp_to_utc_rfc3339(ts1), "2022-12-31T23:59:59Z");
 
         // Test with the Unix epoch
         let ts2 = 0;

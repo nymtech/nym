@@ -119,7 +119,7 @@ mod tests {
     use super::*;
     use crate::http::models::Gateway;
     use nym_node_requests::api::v1::node::models::NodeDescription;
-    
+
     fn create_test_gateway(identity_key: &str, bonded: bool, performance: u8) -> Gateway {
         Gateway {
             gateway_identity_key: identity_key.to_string(),
@@ -141,14 +141,14 @@ mod tests {
             config_score: 100,
         }
     }
-    
+
     #[test]
     fn test_filter_bonded_gateways_to_skinny_empty_list() {
         let gateways = vec![];
         let result = filter_bonded_gateways_to_skinny(gateways);
         assert_eq!(result.len(), 0);
     }
-    
+
     #[test]
     fn test_filter_bonded_gateways_to_skinny_all_bonded() {
         let gateways = vec![
@@ -156,14 +156,14 @@ mod tests {
             create_test_gateway("gw2", true, 95),
             create_test_gateway("gw3", true, 85),
         ];
-        
+
         let result = filter_bonded_gateways_to_skinny(gateways);
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].gateway_identity_key, "gw1");
         assert_eq!(result[1].gateway_identity_key, "gw2");
         assert_eq!(result[2].gateway_identity_key, "gw3");
     }
-    
+
     #[test]
     fn test_filter_bonded_gateways_to_skinny_mixed() {
         let gateways = vec![
@@ -172,32 +172,32 @@ mod tests {
             create_test_gateway("gw3", true, 85),
             create_test_gateway("gw4", false, 100),
         ];
-        
+
         let result = filter_bonded_gateways_to_skinny(gateways);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].gateway_identity_key, "gw1");
         assert_eq!(result[1].gateway_identity_key, "gw3");
     }
-    
+
     #[test]
     fn test_filter_bonded_gateways_to_skinny_none_bonded() {
         let gateways = vec![
             create_test_gateway("gw1", false, 90),
             create_test_gateway("gw2", false, 95),
         ];
-        
+
         let result = filter_bonded_gateways_to_skinny(gateways);
         assert_eq!(result.len(), 0);
     }
-    
+
     #[test]
     fn test_gateway_to_skinny_conversion() {
         let gateway = create_test_gateway("test_gw", true, 98);
         let gateways = vec![gateway.clone()];
-        
+
         let result = filter_bonded_gateways_to_skinny(gateways);
         assert_eq!(result.len(), 1);
-        
+
         let skinny = &result[0];
         assert_eq!(skinny.gateway_identity_key, gateway.gateway_identity_key);
         assert_eq!(skinny.performance, gateway.performance);
@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(skinny.routing_score, gateway.routing_score);
         assert_eq!(skinny.config_score, gateway.config_score);
     }
-    
+
     #[test]
     fn test_identity_key_param_deserialization() {
         let json = r#"{"identity_key": "test_key_123"}"#;

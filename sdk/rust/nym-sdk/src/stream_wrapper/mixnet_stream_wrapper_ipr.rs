@@ -36,6 +36,9 @@ pub enum ConnectionState {
     Connected,
 }
 
+/// Sort of following the socket/stream split of the stream_wrapper abstraction, where connect() returns a stream client that is connected to the IPR of the socket.
+/// TODO think on whether to bring this more in line with the stream_wrapper's mirroring of the TcpSocket's logic for spinning out multiple streaming clients communicating
+/// with different remote hosts from the same MixSocket (using the same GWs and IPR), but perhaps using different IPRs. Not sure if that's useful for the moment.
 pub struct IpMixSocket {
     inner: MixSocket,
     gateway_client: GatewayClient,
@@ -87,6 +90,7 @@ impl IpMixSocket {
         Ok(GatewayClient::new(config, user_agent).unwrap())
     }
 
+    /// Grabs an IPR address for routing, at the moment this isn't configurable.
     async fn get_ipr_addr(&self) -> Result<IpPacketRouterAddress, Error> {
         let exit_gateways = self
             .gateway_client
@@ -118,6 +122,8 @@ impl IpMixSocket {
         Ok(ipr_address)
     }
 
+    /// Creates a MixStream instance with the stored IPR address, allowing for read/write, use it to create a 'disconnected' IpMixStream instnace.
+    /// 'Connection' (aka the tunnel creation, which can then be used) is done afterwards via IpMixStream::connect_tunnel().
     pub async fn connect(&self) -> Result<IpMixStream, Error> {
         let ipr_address = self.get_ipr_addr().await?;
         let stream = MixStream::new(None, Recipient::from(ipr_address.clone())).await;

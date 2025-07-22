@@ -39,21 +39,8 @@ pub(crate) trait DkgContractQuerier: ContractQuerier {
         dkg_contract: impl Into<String>,
         height: u64,
     ) -> StdResult<Epoch> {
-        // waiting for PR to get merged
-        #[deprecated]
-        mod placeholder {
-            use serde::Serialize;
-
-            #[derive(Serialize)]
-            pub(crate) enum DkgQueryMsg {
-                GetEpochStateAtHeight { height: u64 },
-            }
-        }
-
-        let res: Option<Epoch> = self.query_contract(
-            dkg_contract,
-            &placeholder::DkgQueryMsg::GetEpochStateAtHeight { height },
-        )?;
+        let res: Option<Epoch> =
+            self.query_contract(dkg_contract, &DkgQueryMsg::GetEpochStateAtHeight { height })?;
 
         res.ok_or(StdError::not_found(format!(
             "epoch hasn't been initialised/migrated to new format at height {height} yet"

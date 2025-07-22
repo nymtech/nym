@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::mixnet_stream_wrapper::{MixSocket, MixStream};
+use super::mixnet_stream_wrapper::MixStream;
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
 };
@@ -36,102 +36,73 @@ pub enum ConnectionState {
     Connected,
 }
 
-/// Sort of following the socket/stream split of the stream_wrapper abstraction, where connect() returns a stream client that is connected to the IPR of the socket.
-///
-/// TODO change later:
-/// IpMixSocket doesn't require a MixnetClient, it is more like a disconnected config that can in future probably just be folded into the IpMixStream's setup function; this is a bit of an in-process modification when working on smolMix.
-pub struct IpMixSocket {
-    // inner: MixSocket,
-    gateway_client: GatewayClient,
+fn create_gateway_client() -> Result<GatewayClient, Error> {
+    let user_agent = UserAgent {
+        application: "nym-ipr-streamer".to_string(),
+        version: "0.0.1".to_string(),
+        platform: "rust".to_string(),
+        git_commit: "max/sdk-streamer".to_string(),
+    };
+
+    let mainnet_network_defaults = crate::NymNetworkDetails::default();
+    let api_url = mainnet_network_defaults
+        .endpoints
+        .first()
+        .unwrap()
+        .api_url()
+        .unwrap();
+
+    let nyxd_url = mainnet_network_defaults
+        .endpoints
+        .first()
+        .unwrap()
+        .nyxd_url();
+
+    let nym_vpn_api_url = mainnet_network_defaults.nym_vpn_api_url().unwrap();
+
+    let config = GatewayConfig {
+        nyxd_url,
+        api_url,
+        nym_vpn_api_url: Some(nym_vpn_api_url),
+        min_gateway_performance: None,
+        mix_score_thresholds: None,
+        wg_score_thresholds: None,
+    };
+
+    Ok(GatewayClient::new(config, user_agent).unwrap())
 }
 
-impl IpMixSocket {
-    pub async fn new() -> Result<Self, Error> {
-        let inner = MixSocket::new().await?;
-        let gateway_client = Self::create_gateway_client()?;
-        Ok(Self {
-            // inner,
-            gateway_client,
+async fn get_ipr_addr(client: GatewayClient) -> Result<IpPacketRouterAddress, Error> {
+    let exit_gateways = client
+        .lookup_gateways(GatewayType::MixnetExit)
+        .await
+        .unwrap();
+
+    info!("Found {} Exit Gateways", exit_gateways.len());
+
+    let selected_gateway = exit_gateways
+        .into_iter()
+        .filter(|gw| gw.has_ipr_address())
+        .max_by_key(|gw| {
+            gw.mixnet_performance
+                .map(|p| p.round_to_integer())
+                .unwrap_or(0)
         })
-    }
+        .unwrap();
 
-    fn create_gateway_client() -> Result<GatewayClient, Error> {
-        let user_agent = UserAgent {
-            application: "nym-ipr-streamer".to_string(),
-            version: "0.0.1".to_string(),
-            platform: "xxxxxxx".to_string(),
-            git_commit: "".to_string(),
-        };
+    let ipr_address = selected_gateway.ipr_address.unwrap();
 
-        let mainnet_network_defaults = crate::NymNetworkDetails::default();
-        let api_url = mainnet_network_defaults
-            .endpoints
-            .first()
-            .unwrap()
-            .api_url()
-            .unwrap();
+    info!(
+        "Using IPR: {} (Gateway: {}, Performance: {:?})",
+        ipr_address,
+        selected_gateway.identity(),
+        selected_gateway.mixnet_performance
+    );
 
-        let nyxd_url = mainnet_network_defaults
-            .endpoints
-            .first()
-            .unwrap()
-            .nyxd_url();
-
-        let nym_vpn_api_url = mainnet_network_defaults.nym_vpn_api_url().unwrap();
-
-        let config = GatewayConfig {
-            nyxd_url,
-            api_url,
-            nym_vpn_api_url: Some(nym_vpn_api_url),
-            min_gateway_performance: None,
-            mix_score_thresholds: None,
-            wg_score_thresholds: None,
-        };
-
-        Ok(GatewayClient::new(config, user_agent).unwrap())
-    }
-
-    /// Grabs an IPR address for routing, at the moment this isn't configurable.
-    async fn get_ipr_addr(&self) -> Result<IpPacketRouterAddress, Error> {
-        let exit_gateways = self
-            .gateway_client
-            .lookup_gateways(GatewayType::MixnetExit)
-            .await
-            .unwrap();
-
-        info!("Found {} Exit Gateways", exit_gateways.len());
-
-        let selected_gateway = exit_gateways
-            .into_iter()
-            .filter(|gw| gw.has_ipr_address())
-            .max_by_key(|gw| {
-                gw.mixnet_performance
-                    .map(|p| p.round_to_integer())
-                    .unwrap_or(0)
-            })
-            .unwrap();
-
-        let ipr_address = selected_gateway.ipr_address.unwrap();
-
-        info!(
-            "Using IPR: {} (Gateway: {}, Performance: {:?})",
-            ipr_address,
-            selected_gateway.identity(),
-            selected_gateway.mixnet_performance
-        );
-
-        Ok(ipr_address)
-    }
-
-    /// Creates a MixStream instance with the stored IPR address, allowing for read/write, use it to create a 'disconnected' IpMixStream instnace.
-    /// 'Connection' (aka the tunnel creation, which can then be used) is done afterwards via IpMixStream::connect_tunnel().
-    pub async fn connect(&self) -> Result<IpMixStream, Error> {
-        let ipr_address = self.get_ipr_addr().await?;
-        let stream = MixStream::new(None, Recipient::from(ipr_address.clone())).await;
-        Ok(IpMixStream::new(stream, ipr_address))
-    }
+    Ok(ipr_address)
 }
 
+/// Unlike the non-IPR MixStream, we do not start with a Socket and then 'connect' to a Stream; seemed too many layers of abstraction for little trade off.
 pub struct IpMixStream {
     stream: MixStream,
     ipr_address: IpPacketRouterAddress,
@@ -141,14 +112,19 @@ pub struct IpMixStream {
 }
 
 impl IpMixStream {
-    fn new(stream: MixStream, ipr_address: IpPacketRouterAddress) -> Self {
-        Self {
+    // TODO be able to pass in DisconnectedMixnetClient to use as MixStream inner client.
+    pub async fn new() -> Result<Self, Error> {
+        let gw_client = create_gateway_client()?;
+        let ipr_address = get_ipr_addr(gw_client).await?;
+        let stream = MixStream::new(None, Recipient::from(ipr_address)).await;
+
+        Ok(Self {
             stream,
             ipr_address,
             listener: IprListener::new(),
             allocated_ips: None,
             connection_state: ConnectionState::Disconnected,
-        }
+        })
     }
 
     pub fn nym_address(&self) -> &Recipient {
@@ -409,11 +385,9 @@ mod tests {
 
     #[tokio::test]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
-        let socket = IpMixSocket::new().await?;
-
-        let mut stream = socket.connect().await?;
+        let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
 
         let ipv4: Ipv4Addr = ip_pair.ipv4;
@@ -437,8 +411,7 @@ mod tests {
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
-        let socket = IpMixSocket::new().await?;
-        let mut stream = socket.connect().await?;
+        let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
 
         info!(

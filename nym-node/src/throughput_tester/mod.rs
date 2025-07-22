@@ -9,7 +9,6 @@ use crate::throughput_tester::global_stats::GlobalStatsUpdater;
 use crate::throughput_tester::stats::ClientStats;
 use futures::future::join_all;
 use human_repr::HumanDuration;
-use indicatif::{ProgressState, ProgressStyle};
 use nym_task::ShutdownToken;
 use rand::{thread_rng, Rng};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -124,18 +123,6 @@ pub(crate) fn test_mixing_throughput(
     }
 
     let header_span = info_span!("header");
-    header_span.pb_set_style(
-        &ProgressStyle::with_template(
-            "testing mixing throughput of this machine... {wide_msg} {elapsed}\n{wide_bar}",
-        )?
-        .with_key(
-            "elapsed",
-            |state: &ProgressState, writer: &mut dyn std::fmt::Write| {
-                let _ = writer.write_str(&format!("{}", state.elapsed().human_duration()));
-            },
-        )
-        .progress_chars("---"),
-    );
     header_span.pb_start();
 
     // Bit of a hack to show a full "-----" line underneath the header.

@@ -9,6 +9,7 @@ fn convert_placeholders(query: &str) -> String {
     let mut in_string: Option<char> = None;
     let mut escape_next = false;
 
+    #[allow(clippy::while_let_on_iterator)]
     while let Some(ch) = chars.next() {
         if escape_next {
             result.push(ch);
@@ -37,7 +38,7 @@ fn convert_placeholders(query: &str) -> String {
             }
             '?' => {
                 placeholder_count += 1;
-                result.push_str(&format!("${}", placeholder_count));
+                result.push_str(&format!("${placeholder_count}"));
             }
             _ => {
                 result.push(ch);
@@ -201,14 +202,14 @@ mod tests {
         // Multiline strings
         assert_eq!(
             convert_placeholders(
-                r"SELECT * FROM table 
-            WHERE description = 'This is a 
-            multiline string with ?' 
+                r"SELECT * FROM table
+            WHERE description = 'This is a
+            multiline string with ?'
             AND id = ?"
             ),
-            r"SELECT * FROM table 
-            WHERE description = 'This is a 
-            multiline string with ?' 
+            r"SELECT * FROM table
+            WHERE description = 'This is a
+            multiline string with ?'
             AND id = $1"
         );
 

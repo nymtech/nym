@@ -14,7 +14,7 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::sync::oneshot;
 use tokio_util::codec::Encoder;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// MixSocket is following the structure of something like Tokio::net::TcpSocket with regards to setup and interface, breakdown from TcpSocket to TcpStream, etc.
 /// However, we can't map this one to one onto the TcpSocket as there isn't really a concept of binding to a port with the MixnetClient; it connects to its
@@ -219,11 +219,14 @@ impl MixStreamReader {
         self.client.nym_address()
     }
 
-    /// Store SURBs in both own field + send to the other side of the split so they can be used for the connection.
+    /// Store SURBs in self + send to the other side of the split so they can be used for the connection.
     pub fn store_surbs(&mut self, surbs: AnonymousSenderTag) {
         self.peer_surbs = Some(surbs);
         if let Some(tx) = self.surb_tx.take() {
-            tx.send(surbs); // TODO err handling
+            match tx.send(surbs) {
+                Ok(()) => debug!("Sent SURBs to MixStreamWriter"),
+                Err(e) => warn!("Could not send SURBs to MixStreamWriter with err: {}", e),
+            }
         }
     }
 

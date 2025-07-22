@@ -6,6 +6,9 @@ use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+#[cfg(feature = "console")]
+use console_subscriber;
+
 pub(crate) fn granual_filtered_env() -> anyhow::Result<tracing_subscriber::filter::EnvFilter> {
     fn directive_checked(directive: impl Into<String>) -> anyhow::Result<Directive> {
         directive.into().parse().map_err(From::from)
@@ -22,9 +25,19 @@ pub(crate) fn granual_filtered_env() -> anyhow::Result<tracing_subscriber::filte
 }
 
 pub(crate) fn build_tracing_logger() -> anyhow::Result<impl SubscriberExt> {
-    Ok(tracing_subscriber::registry()
+    let registry = tracing_subscriber::registry()
         .with(default_tracing_fmt_layer(std::io::stderr))
-        .with(granual_filtered_env()?))
+        .with(granual_filtered_env()?);
+
+    #[cfg(feature = "console")]
+    {
+        Ok(registry.with(console_subscriber::spawn()))
+    }
+
+    #[cfg(not(feature = "console"))]
+    {
+        Ok(registry)
+    }
 }
 
 pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {

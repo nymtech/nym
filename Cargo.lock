@@ -6617,6 +6617,7 @@ dependencies = [
  "chacha",
  "clap",
  "colored",
+ "console-subscriber",
  "criterion",
  "csv",
  "cupid",

@@ -38,6 +38,7 @@ tracing-indicatif = { workspace = true }
 tracing-subscriber.workspace = true
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true, features = ["codec"] }
+console-subscriber = { workspace = true, optional = true }
 toml = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
@@ -122,6 +123,9 @@ harness = false
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
 cargo_metadata = { workspace = true }
+
+[features]
+console = ["console-subscriber"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

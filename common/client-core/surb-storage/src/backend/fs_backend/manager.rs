@@ -37,7 +37,7 @@ impl StorageManager {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .auto_vacuum(SqliteAutoVacuum::Incremental)
-            .filename(&database_path)
+            .filename(database_path)
             .create_if_missing(fresh)
             .disable_statement_logging();
 
@@ -49,8 +49,7 @@ impl StorageManager {
             }
         };
 
-        let connection_pool =
-            SqlitePoolGuard::new(database_path.as_ref().to_path_buf(), connection_pool);
+        let connection_pool = SqlitePoolGuard::new(connection_pool);
 
         if let Err(err) = sqlx::migrate!("./fs_surbs_migrations")
             .run(&*connection_pool)

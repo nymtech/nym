@@ -31,40 +31,16 @@ const SYSTEM_HANDLE_INFORMATION_CLASS: SYSTEM_INFORMATION_CLASS = SYSTEM_INFORMA
 /// The number is based on what I observe on a pretty standard Windows 11
 const SYSTEM_HANDLE_INFORMATION_INITIAL_SIZE: usize = 2_500_000;
 
+/// Max retry attempts for querying system handle information before giving up
+const MAX_RETRY_ATTEMPTS: u32 = 5;
+
 /// Check if there are no open handles to the given files.
 ///
 /// Uses undocumented NT API to obtain open handles on the system.
 /// See: https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/get-all-open-handles-and-kernel-object-address-from-userland
 pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
     let current_pid = unsafe { GetCurrentProcessId() };
-
-    // Allocate info struct on heap with some initial value
-    let mut reserved_memory = SYSTEM_HANDLE_INFORMATION_INITIAL_SIZE;
-    let mut handle_table_info = HeapGuard::<SystemHandleInformation>::new(reserved_memory)?;
-
-    // Request system handle information
-    let mut status: NTSTATUS = NTSTATUS::default();
-    let mut return_len = reserved_memory as u32;
-    for _ in 0..2 {
-        status = unsafe {
-            NtQuerySystemInformation(
-                SYSTEM_HANDLE_INFORMATION_CLASS,
-                handle_table_info.as_mut_ptr() as _,
-                return_len,
-                &mut return_len,
-            )
-        };
-
-        // Buffer is too small, resize memory and retry again.
-        if status == STATUS_INFO_LENGTH_MISMATCH {
-            tracing::trace!("Buffer is too small ({reserved_memory}), resizing to {return_len}");
-            reserved_memory = return_len as usize;
-            handle_table_info.reallocate(reserved_memory)?;
-        } else {
-            break;
-        }
-    }
-    status.ok()?;
+    let handle_table_info = query_system_handle_table()?;
 
     // Convert returned data into slice
     let num_handles = unsafe { (*handle_table_info.inner).number_of_handles };
@@ -104,6 +80,43 @@ pub async fn check_files_closed(file_paths: &[&Path]) -> io::Result<bool> {
     }
 
     Ok(true)
+}
+
+fn query_system_handle_table() -> io::Result<HeapGuard<SystemHandleInformation>> {
+    // Allocate info struct on heap with some initial value
+    let mut reserved_memory = SYSTEM_HANDLE_INFORMATION_INITIAL_SIZE;
+    let mut handle_table_info = HeapGuard::<SystemHandleInformation>::new(reserved_memory)?;
+
+    // Request system handle information
+    let mut status: NTSTATUS = NTSTATUS::default();
+    for _ in 0..MAX_RETRY_ATTEMPTS {
+        let mut return_len = reserved_memory as u32;
+        status = unsafe {
+            NtQuerySystemInformation(
+                SYSTEM_HANDLE_INFORMATION_CLASS,
+                handle_table_info.as_mut_ptr() as _,
+                return_len,
+                &mut return_len,
+            )
+        };
+
+        // Buffer is too small, resize memory and retry again.
+        if status == STATUS_INFO_LENGTH_MISMATCH {
+            // Allocate a bit more memory since the size of table can change between calls
+            let resize_to = (return_len as usize) * 3 / 2;
+
+            tracing::trace!(
+                "Buffer is too small ({reserved_memory}), returned length: {return_len}, resizing buffer to: {resize_to}"
+            );
+
+            reserved_memory = resize_to;
+            handle_table_info.reallocate(reserved_memory)?;
+        } else {
+            break;
+        }
+    }
+
+    Ok(status.ok().map(|_| handle_table_info)?)
 }
 
 #[repr(C)]

@@ -3,6 +3,7 @@ use crate::cli::{GwProbe, ServerConfig};
 pub(crate) async fn run_probe(
     servers: &[ServerConfig],
     probe_path: &str,
+    mnemonic: &str,
     probe_extra_args: &Vec<String>,
 ) -> anyhow::Result<()> {
     if servers.is_empty() {
@@ -43,6 +44,7 @@ pub(crate) async fn run_probe(
             // Run the probe
             let log = probe.run_and_get_log(
                 &Some(testrun.gateway_identity_key.clone()),
+                mnemonic,
                 probe_extra_args,
             );
 

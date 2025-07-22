@@ -41,6 +41,11 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
+    async fn get_epoch_at_height(&self, height: u64) -> Result<Option<Epoch>, NyxdError> {
+        let request = DkgQueryMsg::GetEpochStateAtHeight { height };
+        self.query_dkg_contract(request).await
+    }
+
     async fn can_advance_state(&self) -> Result<StateAdvanceResponse, NyxdError> {
         let request = DkgQueryMsg::CanAdvanceState {};
         self.query_dkg_contract(request).await
@@ -84,6 +89,34 @@ pub trait DkgQueryClient {
         limit: Option<u32>,
     ) -> Result<PagedDealerResponse, NyxdError> {
         let request = DkgQueryMsg::GetCurrentDealers { start_after, limit };
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_epoch_dealers_paged(
+        &self,
+        epoch_id: EpochId,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<PagedDealerResponse, NyxdError> {
+        let request = DkgQueryMsg::GetEpochDealers {
+            epoch_id,
+            start_after,
+            limit,
+        };
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_epoch_dealers_addresses_paged(
+        &self,
+        epoch_id: EpochId,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<PagedDealerResponse, NyxdError> {
+        let request = DkgQueryMsg::GetEpochDealersAddresses {
+            epoch_id,
+            start_after,
+            limit,
+        };
         self.query_dkg_contract(request).await
     }
 
@@ -208,6 +241,20 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
         collect_paged!(self, get_current_dealers_paged, dealers)
     }
 
+    async fn get_all_epoch_dealers(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Vec<DealerDetails>, NyxdError> {
+        collect_paged!(self, get_epoch_dealers_paged, dealers, epoch_id)
+    }
+
+    async fn get_all_epoch_dealers_addresses(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Vec<DealerDetails>, NyxdError> {
+        collect_paged!(self, get_epoch_dealers_addresses_paged, dealers, epoch_id)
+    }
+
     async fn get_all_dealer_indices(&self) -> Result<Vec<(Addr, NodeIndex)>, NyxdError> {
         collect_paged!(self, get_dealer_indices_paged, indices)
     }
@@ -257,6 +304,9 @@ mod tests {
         match msg {
             DkgQueryMsg::GetState {} => client.get_state().ignore(),
             DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),
+            DkgQueryMsg::GetEpochStateAtHeight { height } => {
+                client.get_epoch_at_height(height).ignore()
+            }
             DkgQueryMsg::CanAdvanceState {} => client.can_advance_state().ignore(),
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()
@@ -275,6 +325,20 @@ mod tests {
                 .ignore(),
             DkgQueryMsg::GetCurrentDealers { limit, start_after } => client
                 .get_current_dealers_paged(start_after, limit)
+                .ignore(),
+            QueryMsg::GetEpochDealers {
+                epoch_id,
+                limit,
+                start_after,
+            } => client
+                .get_epoch_dealers_paged(epoch_id, start_after, limit)
+                .ignore(),
+            QueryMsg::GetEpochDealersAddresses {
+                epoch_id,
+                limit,
+                start_after,
+            } => client
+                .get_epoch_dealers_addresses_paged(epoch_id, start_after, limit)
                 .ignore(),
             DkgQueryMsg::GetDealerIndices { limit, start_after } => {
                 client.get_dealer_indices_paged(start_after, limit).ignore()

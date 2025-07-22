@@ -59,6 +59,10 @@ pub(crate) enum Command {
         #[arg(long, env = "NODE_STATUS_AGENT_PROBE_PATH")]
         probe_path: String,
 
+        /// mnemonic for acquiring zk-nyms
+        #[arg(long, env = "NYM_NODE_MNEMONICS")]
+        mnemonic: String,
+
         #[arg(
             long,
             env = "NODE_STATUS_AGENT_PROBE_EXTRA_ARGS",
@@ -79,6 +83,7 @@ impl Args {
             Command::RunProbe {
                 server,
                 probe_path,
+                mnemonic,
                 probe_extra_args,
             } => {
                 // Parse server configs
@@ -93,7 +98,7 @@ impl Args {
                     }
                 }
 
-                run_probe::run_probe(&servers, probe_path, probe_extra_args)
+                run_probe::run_probe(&servers, probe_path, mnemonic, probe_extra_args)
                     .await
                     .inspect_err(|err| {
                         tracing::error!("{err}");

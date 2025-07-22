@@ -4,6 +4,54 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.13-emmental] (2025-07-22)
+
+- fix: don't allow mixnode running in exit mode ([#5898])
+- fix contract build process in Makefile ([#5892])
+- bugfix: ignore 'Send' responses when claiming bandwidth ([#5884])
+- Update push-node-status-agent.yaml ([#5882])
+- listen for shutdown signals during nym-node startup ([#5879])
+- feat: forbid running mixnode + entry on the same node ([#5878])
+- chore: 1.88 clippy ([#5877])
+- Batch SQL writes for packet stats ([#5874])
+- fix the broken link ([#5873])
+- Set busy_timeout in sqlx ([#5872])
+- feat: basic performance contract integration [within Nym API] ([#5871])
+- scraper bugfix: ignore precommits from missing validators ([#5867])
+- Return true remaining ([#5866])
+- Make Mix hops optional for Mixnet Client SURBs ([#5861])
+- Check gateway supported versions ([#5860])
+- Add build info endpoints ([#5857])
+- Clear out screaming logs ([#5856])
+- fix removal of qa env ([#5855])
+- Use display when printing paths ([#5853])
+- feat: initial performance contract ([#5833])
+- Security patches for the `dkg` crate ([#5828])
+- HTTP Discovery objects & network defaults ([#5814])
+
+[#5898]: https://github.com/nymtech/nym/pull/5898
+[#5892]: https://github.com/nymtech/nym/pull/5892
+[#5884]: https://github.com/nymtech/nym/pull/5884
+[#5882]: https://github.com/nymtech/nym/pull/5882
+[#5879]: https://github.com/nymtech/nym/pull/5879
+[#5878]: https://github.com/nymtech/nym/pull/5878
+[#5877]: https://github.com/nymtech/nym/pull/5877
+[#5874]: https://github.com/nymtech/nym/pull/5874
+[#5873]: https://github.com/nymtech/nym/pull/5873
+[#5872]: https://github.com/nymtech/nym/pull/5872
+[#5871]: https://github.com/nymtech/nym/pull/5871
+[#5867]: https://github.com/nymtech/nym/pull/5867
+[#5866]: https://github.com/nymtech/nym/pull/5866
+[#5861]: https://github.com/nymtech/nym/pull/5861
+[#5860]: https://github.com/nymtech/nym/pull/5860
+[#5857]: https://github.com/nymtech/nym/pull/5857
+[#5856]: https://github.com/nymtech/nym/pull/5856
+[#5855]: https://github.com/nymtech/nym/pull/5855
+[#5853]: https://github.com/nymtech/nym/pull/5853
+[#5833]: https://github.com/nymtech/nym/pull/5833
+[#5828]: https://github.com/nymtech/nym/pull/5828
+[#5814]: https://github.com/nymtech/nym/pull/5814
+
 ## [2025.12-dolcelatte] (2025-07-07)
 
 - bugfix: key-rotation + reply SURBs ([#5876])

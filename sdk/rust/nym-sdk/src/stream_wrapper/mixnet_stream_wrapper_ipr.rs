@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::mixnet_stream_wrapper::MixStream;
+use super::mixnet_stream_wrapper::{MixStream, MixStreamReader, MixStreamWriter};
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
 };
@@ -22,8 +22,12 @@ use nym_ip_packet_requests::{
 };
 use nym_sphinx::receiver::ReconstructedMessageCodec;
 
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
+use tokio::sync::oneshot;
 use tokio_util::codec::{Decoder /*, FramedRead */}; // TODO will need FramedRead later when u switch from bytebuffers
 use tracing::{debug, error, info};
 
@@ -313,11 +317,34 @@ impl IpMixStream {
 
     /// Split for concurrent read/write (like TcpStream::Split) into IpMixnetStreamReader and IpMixnetStreamWriter.
     pub fn split(self) -> (IpMixStreamReader, IpMixStreamWriter) {
-        // debug!("Splitting IpMixStream");
-        // let (sender, receiver) = self.stream.split();
-        // debug!("Split IpMixStream into Reader and Writer");
+        debug!("Splitting IpMixStream");
+        let local_addr = self.stream.client.nym_address().clone();
+        let (stream_reader, stream_writer) = self.stream.split();
+        debug!("Split IpMixStream into Reader and Writer");
 
-        todo!()
+        let (state_tx, state_rx) = oneshot::channel();
+        let (ips_tx, ips_rx) = oneshot::channel();
+
+        (
+            IpMixStreamReader {
+                stream_reader,
+                // ipr_address: self.ipr_address,
+                listener: self.listener,
+                allocated_ips: self.allocated_ips.clone(),
+                connection_state: self.connection_state.clone(),
+                state_tx: Some(state_tx),
+                ips_tx: Some(ips_tx),
+            },
+            IpMixStreamWriter {
+                stream_writer,
+                // ipr_address: self.ipr_address,
+                local_addr,
+                allocated_ips: self.allocated_ips,
+                connection_state: self.connection_state,
+                state_rx: Some(state_rx),
+                ips_rx: Some(ips_rx),
+            },
+        )
     }
 }
 
@@ -355,23 +382,177 @@ impl AsyncWrite for IpMixStream {
     }
 }
 
-// TODO - have to double up some functions as with the stream_wrapper
-pub struct IpMixStreamReader {}
-impl IpMixStreamReader {}
-pub struct IpMixStreamWriter {}
-impl IpMixStream {}
+pub struct IpMixStreamReader {
+    stream_reader: MixStreamReader,
+    // ipr_address: IpPacketRouterAddress,
+    listener: IprListener,
+    allocated_ips: Option<IpPair>,
+    connection_state: ConnectionState,
+    state_tx: Option<oneshot::Sender<ConnectionState>>,
+    ips_tx: Option<oneshot::Sender<Option<IpPair>>>,
+}
 
-/**
- * TODO:
- * - test split r/w
- */
+impl IpMixStreamReader {
+    pub fn nym_address(&self) -> &Recipient {
+        self.stream_reader.local_addr()
+    }
+
+    pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
+        // TODO framing
+        let mut buffer = vec![0u8; 65536];
+
+        match tokio::time::timeout(
+            Duration::from_secs(10),
+            self.stream_reader.read(&mut buffer),
+        )
+        .await
+        {
+            Ok(Ok(n)) if n > 0 => {
+                debug!("Read {} bytes", n);
+
+                let mut codec = ReconstructedMessageCodec {};
+                let mut buf = BytesMut::from(&buffer[..n]);
+
+                if let Ok(Some(reconstructed)) = codec.decode(&mut buf) {
+                    match self
+                        .listener
+                        .handle_reconstructed_message(reconstructed)
+                        .await
+                    {
+                        Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
+                            info!("Extracted {} IP packets", packets.len());
+                            Ok(packets)
+                        }
+                        Ok(Some(MixnetMessageOutcome::Disconnect)) => {
+                            info!("Received disconnect");
+                            self.connection_state = ConnectionState::Disconnected;
+                            self.allocated_ips = None;
+                            // Send state update to writer
+                            if let Some(tx) = self.state_tx.take() {
+                                let _ = tx.send(ConnectionState::Disconnected);
+                            }
+                            if let Some(tx) = self.ips_tx.take() {
+                                let _ = tx.send(None);
+                            }
+                            Ok(Vec::new())
+                        }
+                        Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
+                            debug!("Received mixnet self ping");
+                            Ok(Vec::new())
+                        }
+                        Ok(None) => Ok(Vec::new()),
+                        Err(e) => {
+                            debug!("Failed to handle message: {}", e);
+                            Ok(Vec::new())
+                        }
+                    }
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    pub fn allocated_ips(&self) -> Option<&IpPair> {
+        self.allocated_ips.as_ref()
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.connection_state == ConnectionState::Connected
+    }
+}
+
+impl AsyncRead for IpMixStreamReader {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.stream_reader).poll_read(cx, buf)
+    }
+}
+
+pub struct IpMixStreamWriter {
+    stream_writer: MixStreamWriter,
+    // ipr_address: IpPacketRouterAddress,
+    local_addr: Recipient,
+    allocated_ips: Option<IpPair>,
+    connection_state: ConnectionState,
+    state_rx: Option<oneshot::Receiver<ConnectionState>>,
+    ips_rx: Option<oneshot::Receiver<Option<IpPair>>>,
+}
+
+impl IpMixStreamWriter {
+    pub fn nym_address(&self) -> &Recipient {
+        &self.local_addr
+    }
+
+    async fn send_ipr_request(&mut self, request: IpPacketRequest) -> Result<(), Error> {
+        let request_bytes = request.to_bytes()?;
+        self.stream_writer.write_bytes(&request_bytes).await
+    }
+
+    pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
+        // Check for state updates from reader
+        if let Some(mut rx) = self.state_rx.take() {
+            if let Ok(new_state) = rx.try_recv() {
+                self.connection_state = new_state;
+            } else {
+                self.state_rx = Some(rx);
+            }
+        }
+
+        if let Some(mut rx) = self.ips_rx.take() {
+            if let Ok(new_ips) = rx.try_recv() {
+                self.allocated_ips = new_ips;
+            } else {
+                self.ips_rx = Some(rx);
+            }
+        }
+
+        if self.connection_state != ConnectionState::Connected {
+            return Err(Error::new_unsupported("Not connected".to_string()));
+        }
+
+        let request = IpPacketRequest::new_data_request(packet.to_vec().into());
+        self.send_ipr_request(request).await
+    }
+
+    pub fn allocated_ips(&self) -> Option<&IpPair> {
+        self.allocated_ips.as_ref()
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.connection_state == ConnectionState::Connected
+    }
+}
+
+impl AsyncWrite for IpMixStreamWriter {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.stream_writer).poll_write(cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.stream_writer).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.stream_writer).poll_shutdown(cx)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ip_packet_client::helpers::{
         icmp_identifier, is_icmp_echo_reply, is_icmp_v6_echo_reply, send_ping_v4, send_ping_v6,
     };
-    // use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6}; // TODO should probably test these as well - reminder to sefl
+    // use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6}; // TODO should probably test these as well ? reminder to sefl
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::sync::Once;
 
@@ -385,7 +566,7 @@ mod tests {
 
     #[tokio::test]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
+        // init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -409,7 +590,7 @@ mod tests {
 
     #[tokio::test]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
+        // init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -516,6 +697,91 @@ mod tests {
         );
 
         stream.disconnect_stream().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn split_dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
+        // init_logging();
+
+        let mut stream = IpMixStream::new().await?;
+        let ip_pair = stream.connect_tunnel().await?;
+
+        info!(
+            "Connected with IPs - IPv4: {}, IPv6: {}",
+            ip_pair.ipv4, ip_pair.ipv6
+        );
+
+        let (mut reader, mut writer) = stream.split();
+
+        let external_v4_targets = vec![("Google DNS", Ipv4Addr::new(8, 8, 8, 8))];
+
+        let identifier = icmp_identifier();
+        let mut successful_v4_pings = 0;
+        let mut total_v4_pings = 0;
+
+        for (name, target) in &external_v4_targets {
+            info!("Testing IPv4 connectivity to {} ({})", name, target);
+
+            for seq in 0..2 {
+                use crate::ip_packet_client::helpers::{
+                    create_icmpv4_echo_request, wrap_icmp_in_ipv4,
+                };
+                use nym_ip_packet_requests::codec::MultiIpPacketCodec;
+                use pnet_packet::Packet;
+
+                let icmp_echo_request = create_icmpv4_echo_request(seq, identifier)?;
+                let ipv4_packet = wrap_icmp_in_ipv4(icmp_echo_request, ip_pair.ipv4, *target)?;
+                let bundled_packet =
+                    MultiIpPacketCodec::bundle_one_packet(ipv4_packet.packet().to_vec().into());
+
+                writer.send_ip_packet(&bundled_packet).await?;
+                total_v4_pings += 1;
+            }
+        }
+
+        let collect_timeout = tokio::time::sleep(Duration::from_secs(10));
+        tokio::pin!(collect_timeout);
+
+        loop {
+            tokio::select! {
+                _ = &mut collect_timeout => {
+                    info!("Finished collecting responses");
+                    break;
+                }
+                result = reader.handle_incoming() => {
+                    if let Ok(packets) = result {
+                        for packet in packets {
+                            if let Some((reply_id, source, dest)) = is_icmp_echo_reply(&packet) {
+                                if reply_id == identifier && dest == ip_pair.ipv4 {
+                                    successful_v4_pings += 1;
+                                    debug!("IPv4 reply from {}", source);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let v4_success_rate = if total_v4_pings > 0 {
+            (successful_v4_pings as f64 / total_v4_pings as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        info!(
+            "Split test - IPv4 external connectivity: {}/{} pings successful ({:.1}%)",
+            successful_v4_pings, total_v4_pings, v4_success_rate
+        );
+
+        assert!(successful_v4_pings > 0, "No pings successful");
+        assert!(
+            v4_success_rate >= 75.0,
+            "IPv4 success rate < 75% (got {:.1}%)",
+            v4_success_rate
+        );
+
         Ok(())
     }
 }

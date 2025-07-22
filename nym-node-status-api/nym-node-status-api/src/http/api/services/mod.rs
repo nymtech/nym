@@ -367,9 +367,9 @@ mod tests {
             entry: None,
         };
 
-        assert_eq!(params.wss.unwrap_or(false), false);
-        assert_eq!(params.hostname.unwrap_or(false), false);
-        assert_eq!(params.entry.unwrap_or(false), false);
+        assert!(!params.wss.unwrap_or(false));
+        assert!(!params.hostname.unwrap_or(false));
+        assert!(!params.entry.unwrap_or(false));
     }
 
     #[test]

@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_paged_result_single_page() {
-        let items: Vec<TestItem> = (0..5).map(|i| format!("Item {}", i)).collect();
+        let items: Vec<TestItem> = (0..5).map(|i| format!("Item {i}")).collect();
 
         let pagination = Pagination::new(Some(10), Some(0));
         let result = PagedResult::paginate(pagination, items.clone());
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_paged_result_multiple_pages() {
-        let items: Vec<TestItem> = (0..25).map(|i| format!("Item {}", i)).collect();
+        let items: Vec<TestItem> = (0..25).map(|i| format!("Item {i}")).collect();
 
         // First page
         let pagination = Pagination::new(Some(10), Some(0));
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_paged_result_page_out_of_bounds() {
-        let items: Vec<TestItem> = (0..15).map(|i| format!("Item {}", i)).collect();
+        let items: Vec<TestItem> = (0..15).map(|i| format!("Item {i}")).collect();
 
         // Page way out of bounds
         let pagination = Pagination::new(Some(10), Some(10));
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_paged_result_exact_page_boundary() {
-        let items: Vec<TestItem> = (0..20).map(|i| format!("Item {}", i)).collect();
+        let items: Vec<TestItem> = (0..20).map(|i| format!("Item {i}")).collect();
 
         // Exactly 2 pages of 10 items each
         let pagination = Pagination::new(Some(10), Some(1));
@@ -201,7 +201,7 @@ mod tests {
 
     #[test]
     fn test_paged_result_single_item_per_page() {
-        let items: Vec<TestItem> = (0..5).map(|i| format!("Item {}", i)).collect();
+        let items: Vec<TestItem> = (0..5).map(|i| format!("Item {i}")).collect();
 
         let pagination = Pagination::new(Some(1), Some(3));
         let result = PagedResult::paginate(pagination, items);

@@ -131,9 +131,9 @@ mod tests {
         let _error_ref: &dyn std::error::Error = &error;
 
         // Display trait is implemented
-        let _display = format!("{}", error);
+        let _display = format!("{error}");
 
         // Debug trait is implemented
-        let _debug = format!("{:?}", error);
+        let _debug = format!("{error:?}");
     }
 }

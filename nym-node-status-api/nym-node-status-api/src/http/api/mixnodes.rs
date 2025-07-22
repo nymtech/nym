@@ -135,7 +135,7 @@ mod tests {
             full_details: Some(serde_json::json!({"test": "data"})),
             self_described: Some(serde_json::json!({"version": "1.0"})),
             description: NodeDescription {
-                moniker: format!("Mixnode {}", mix_id),
+                moniker: format!("Mixnode {mix_id}"),
                 website: "".to_string(),
                 security_contact: "".to_string(),
                 details: "".to_string(),

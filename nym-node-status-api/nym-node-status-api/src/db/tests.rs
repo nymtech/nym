@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod db_tests {
 
     #[test]
     fn test_gateway_dto_try_from() {
@@ -155,10 +155,10 @@ mod tests {
             nym_validator_client::nym_nodes::NodeRole::Mixnode { layer } => assert_eq!(layer, 1),
             _ => panic!("Unexpected node role"),
         }
-        assert_eq!(skimmed_node.supported_roles.entry, false);
-        assert_eq!(skimmed_node.supported_roles.mixnode, true);
-        assert_eq!(skimmed_node.supported_roles.exit_nr, false);
-        assert_eq!(skimmed_node.supported_roles.exit_ipr, false);
+        assert!(!skimmed_node.supported_roles.entry);
+        assert!(skimmed_node.supported_roles.mixnode);
+        assert!(!skimmed_node.supported_roles.exit_nr);
+        assert!(!skimmed_node.supported_roles.exit_ipr);
         assert!(skimmed_node.entry.is_none());
         assert_eq!(
             skimmed_node.performance,

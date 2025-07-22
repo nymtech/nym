@@ -1,15 +1,43 @@
 use crate::probe::GwProbe;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use std::sync::OnceLock;
+use nym_crypto::asymmetric::ed25519::PrivateKey;
+use std::{env, sync::OnceLock};
 
 pub(crate) mod generate_keypair;
 pub(crate) mod run_probe;
+
+#[derive(Debug)]
+pub(crate) struct ServerConfig {
+    pub(crate) address: String,
+    pub(crate) port: u16,
+    pub(crate) auth_key: PrivateKey,
+}
 
 // Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
+}
+
+fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
+    let parts: Vec<&str> = s.split('|').collect();
+    if parts.len() != 2 {
+        return Err("Server config must be in format 'address|port'".to_string());
+    }
+
+    let address = parts[0].to_string();
+    let port = parts[1]
+        .parse::<u16>()
+        .map_err(|_| "Invalid port number".to_string())?;
+    let auth_key =
+        PrivateKey::from_base58_string(env::var("NODE_STATUS_AGENT_AUTH_KEY").unwrap()).unwrap();
+
+    Ok(ServerConfig {
+        address,
+        port,
+        auth_key,
+    })
 }
 
 #[derive(Parser, Debug)]
@@ -22,15 +50,10 @@ pub(crate) struct Args {
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     RunProbe {
-        #[arg(short, long, env = "NODE_STATUS_AGENT_SERVER_ADDRESS")]
-        server_address: String,
-
-        #[arg(short = 'p', long, env = "NODE_STATUS_AGENT_SERVER_PORT")]
-        server_port: u16,
-
-        /// base58-encoded private key
-        #[arg(long, env = "NODE_STATUS_AGENT_AUTH_KEY")]
-        ns_api_auth_key: String,
+        /// Server configurations in format "address:port:auth_key"
+        /// Can be specified multiple times for multiple servers
+        #[arg(short, long, required = true)]
+        server: Vec<String>,
 
         /// path of binary to run
         #[arg(long, env = "NODE_STATUS_AGENT_PROBE_PATH")]
@@ -58,24 +81,29 @@ impl Args {
     pub(crate) async fn execute(&self) -> anyhow::Result<()> {
         match &self.command {
             Command::RunProbe {
-                server_address,
-                server_port,
-                ns_api_auth_key,
+                server,
                 probe_path,
                 mnemonic,
                 probe_extra_args,
-            } => run_probe::run_probe(
-                server_address,
-                server_port.to_owned(),
-                ns_api_auth_key,
-                probe_path,
-                mnemonic,
-                probe_extra_args,
-            )
-            .await
-            .inspect_err(|err| {
-                tracing::error!("{err}");
-            })?,
+            } => {
+                // Parse server configs
+                let mut servers = Vec::new();
+                for s in server {
+                    match parse_server_config(s) {
+                        Ok(config) => servers.push(config),
+                        Err(e) => {
+                            tracing::error!("Invalid server config '{}': {}", s, e);
+                            anyhow::bail!("Invalid server config '{}': {}", s, e);
+                        }
+                    }
+                }
+
+                run_probe::run_probe(&servers, probe_path, mnemonic, probe_extra_args)
+                    .await
+                    .inspect_err(|err| {
+                        tracing::error!("{err}");
+                    })?
+            }
             Command::GenerateKeypair { path } => {
                 let path = path
                     .to_owned()

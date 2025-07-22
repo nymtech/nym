@@ -1,40 +1,38 @@
 use crate::db::models::{TestRunDto, TestRunStatus};
+use crate::db::DbConnection;
 use crate::db::DbPool;
 use crate::http::models::TestrunAssignment;
 use crate::utils::now_utc;
-use sqlx::{pool::PoolConnection, Sqlite};
+use sqlx::Row;
 use time::Duration;
 
-pub(crate) async fn count_testruns_in_progress(
-    conn: &mut PoolConnection<Sqlite>,
-) -> anyhow::Result<i64> {
-    sqlx::query_scalar!(
-        r#"SELECT
-            COUNT(id) as "count: i64"
-         FROM testruns
-         WHERE
-            status = ?
-         "#,
-        TestRunStatus::InProgress as i64,
-    )
-    .fetch_one(conn.as_mut())
-    .await
-    .map_err(anyhow::Error::from)
+pub(crate) async fn count_testruns_in_progress(conn: &mut DbConnection) -> anyhow::Result<i64> {
+    #[cfg(feature = "sqlite")]
+    let sql = "SELECT COUNT(id) FROM testruns WHERE status = ?";
+
+    #[cfg(feature = "pg")]
+    let sql = "SELECT COUNT(id) FROM testruns WHERE status = $1";
+
+    let count: i64 = sqlx::query_scalar(sql)
+        .bind(TestRunStatus::InProgress as i32)
+        .fetch_one(conn.as_mut())
+        .await?;
+
+    Ok(count)
 }
 
 pub(crate) async fn get_in_progress_testrun_by_id(
-    conn: &mut PoolConnection<Sqlite>,
-    testrun_id: i64,
+    conn: &mut DbConnection,
+    testrun_id: i32,
 ) -> anyhow::Result<TestRunDto> {
-    sqlx::query_as!(
-        TestRunDto,
+    crate::db::query_as::<TestRunDto>(
         r#"SELECT
-            id as "id!",
-            gateway_id as "gateway_id!",
-            status as "status!",
-            created_utc as "created_utc!",
-            ip_address as "ip_address!",
-            log as "log!",
+            id,
+            gateway_id,
+            status,
+            created_utc,
+            ip_address,
+            log,
             last_assigned_utc
          FROM testruns
          WHERE
@@ -43,12 +41,12 @@ pub(crate) async fn get_in_progress_testrun_by_id(
             status = ?
          ORDER BY created_utc
          LIMIT 1"#,
-        testrun_id,
-        TestRunStatus::InProgress as i64,
     )
+    .bind(testrun_id)
+    .bind(TestRunStatus::InProgress as i32)
     .fetch_one(conn.as_mut())
     .await
-    .map_err(|e| anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}"))
+    .map_err(|e| anyhow::anyhow!("Failed to retrieve in-progress testrun {testrun_id}: {e}"))
 }
 
 pub(crate) async fn update_testruns_assigned_before(
@@ -59,7 +57,7 @@ pub(crate) async fn update_testruns_assigned_before(
     let previous_run = now_utc() - max_age;
     let cutoff_timestamp = previous_run.unix_timestamp();
 
-    let res = sqlx::query!(
+    let res = crate::db::query(
         r#"UPDATE
             testruns
         SET
@@ -69,10 +67,10 @@ pub(crate) async fn update_testruns_assigned_before(
         AND
             last_assigned_utc < ?
             "#,
-        TestRunStatus::Queued as i64,
-        TestRunStatus::InProgress as i64,
-        cutoff_timestamp
     )
+    .bind(TestRunStatus::Queued as i32)
+    .bind(TestRunStatus::InProgress as i32)
+    .bind(cutoff_timestamp)
     .execute(conn.as_mut())
     .await?;
 
@@ -89,36 +87,36 @@ pub(crate) async fn update_testruns_assigned_before(
 }
 
 pub(crate) async fn assign_oldest_testrun(
-    conn: &mut PoolConnection<Sqlite>,
+    conn: &mut DbConnection,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
-    let returning = sqlx::query!(
+    let returning = crate::db::query(
         r#"UPDATE testruns
             SET
                 status = ?,
                 last_assigned_utc = ?
-            WHERE rowid =
+            WHERE id =
         (
-            SELECT rowid
+            SELECT id
             FROM testruns
             WHERE status = ?
             ORDER BY created_utc asc
             LIMIT 1
         )
         RETURNING
-            id as "id!",
+            id,
             gateway_id
             "#,
-        TestRunStatus::InProgress as i64,
-        now,
-        TestRunStatus::Queued as i64,
     )
+    .bind(TestRunStatus::InProgress as i32)
+    .bind(now)
+    .bind(TestRunStatus::Queued as i32)
     .fetch_optional(conn.as_mut())
     .await?;
 
     if let Some(testrun) = returning {
-        let gw_identity = sqlx::query!(
+        let gw_identity = crate::db::query(
             r#"
                 SELECT
                     id,
@@ -126,14 +124,14 @@ pub(crate) async fn assign_oldest_testrun(
                 FROM gateways
                 WHERE id = ?
                 LIMIT 1"#,
-            testrun.gateway_id
         )
+        .bind(testrun.try_get::<i32, _>("gateway_id")?)
         .fetch_one(conn.as_mut())
         .await?;
 
         Ok(Some(TestrunAssignment {
-            testrun_id: testrun.id,
-            gateway_identity_key: gw_identity.gateway_identity_key,
+            testrun_id: testrun.try_get("id")?,
+            gateway_identity_key: gw_identity.try_get("gateway_identity_key")?,
             assigned_at_utc: now,
         }))
     } else {
@@ -142,67 +140,146 @@ pub(crate) async fn assign_oldest_testrun(
 }
 
 pub(crate) async fn update_testrun_status(
-    conn: &mut PoolConnection<Sqlite>,
-    testrun_id: i64,
+    conn: &mut DbConnection,
+    testrun_id: i32,
     status: TestRunStatus,
 ) -> anyhow::Result<()> {
-    let status = status as u32;
-    sqlx::query!(
-        "UPDATE testruns SET status = ? WHERE id = ?",
-        status,
-        testrun_id
-    )
-    .execute(conn.as_mut())
-    .await?;
+    let status = status as i32;
+    crate::db::query("UPDATE testruns SET status = ? WHERE id = ?")
+        .bind(status)
+        .bind(testrun_id)
+        .execute(conn.as_mut())
+        .await?;
 
     Ok(())
 }
 
 pub(crate) async fn update_gateway_last_probe_log(
-    conn: &mut PoolConnection<Sqlite>,
-    gateway_pk: i64,
-    log: &str,
+    conn: &mut DbConnection,
+    gateway_pk: i32,
+    log: String,
 ) -> anyhow::Result<()> {
-    sqlx::query!(
-        "UPDATE gateways SET last_probe_log = ? WHERE id = ?",
-        log,
-        gateway_pk
-    )
-    .execute(conn.as_mut())
-    .await
-    .map(drop)
-    .map_err(From::from)
+    crate::db::query("UPDATE gateways SET last_probe_log = ? WHERE id = ?")
+        .bind(log)
+        .bind(gateway_pk)
+        .execute(conn.as_mut())
+        .await
+        .map(drop)
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to update probe log for gateway {}: {}",
+                gateway_pk,
+                e
+            )
+        })
 }
 
 pub(crate) async fn update_gateway_last_probe_result(
-    conn: &mut PoolConnection<Sqlite>,
-    gateway_pk: i64,
-    result: &str,
+    conn: &mut DbConnection,
+    gateway_pk: i32,
+    result: String,
 ) -> anyhow::Result<()> {
-    sqlx::query!(
-        "UPDATE gateways SET last_probe_result = ? WHERE id = ?",
-        result,
-        gateway_pk
-    )
-    .execute(conn.as_mut())
-    .await
-    .map(drop)
-    .map_err(From::from)
+    crate::db::query("UPDATE gateways SET last_probe_result = ? WHERE id = ?")
+        .bind(result)
+        .bind(gateway_pk)
+        .execute(conn.as_mut())
+        .await
+        .map(drop)
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to update probe result for gateway {}: {}",
+                gateway_pk,
+                e
+            )
+        })
 }
 
 pub(crate) async fn update_gateway_score(
-    conn: &mut PoolConnection<Sqlite>,
-    gateway_pk: i64,
+    conn: &mut DbConnection,
+    gateway_pk: i32,
 ) -> anyhow::Result<()> {
     let now = now_utc().unix_timestamp();
-    sqlx::query!(
-        "UPDATE gateways SET last_testrun_utc = ?, last_updated_utc = ? WHERE id = ?",
-        now,
-        now,
-        gateway_pk
+    crate::db::query("UPDATE gateways SET last_testrun_utc = ?, last_updated_utc = ? WHERE id = ?")
+        .bind(now)
+        .bind(now)
+        .bind(gateway_pk)
+        .execute(conn.as_mut())
+        .await
+        .map(drop)
+        .map_err(From::from)
+}
+
+pub(crate) async fn get_testrun_by_id(
+    conn: &mut DbConnection,
+    testrun_id: i32,
+) -> anyhow::Result<TestRunDto> {
+    crate::db::query_as::<TestRunDto>(
+        r#"SELECT
+            id,
+            gateway_id,
+            status,
+            created_utc,
+            ip_address,
+            log,
+            last_assigned_utc
+         FROM testruns
+         WHERE id = ?"#,
     )
-    .execute(conn.as_mut())
+    .bind(testrun_id)
+    .fetch_one(conn.as_mut())
     .await
-    .map(drop)
-    .map_err(From::from)
+    .map_err(|e| anyhow::anyhow!("Testrun {} not found: {}", testrun_id, e))
+}
+
+pub(crate) async fn insert_external_testrun(
+    conn: &mut DbConnection,
+    testrun_id: i32,
+    gateway_id: i32,
+    assigned_at_utc: i64,
+) -> anyhow::Result<()> {
+    let now = crate::utils::now_utc().unix_timestamp();
+
+    crate::db::query(
+        r#"INSERT INTO testruns (
+            id, 
+            gateway_id, 
+            status, 
+            created_utc, 
+            last_assigned_utc, 
+            ip_address, 
+            log
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
+    )
+    .bind(testrun_id)
+    .bind(gateway_id)
+    .bind(TestRunStatus::InProgress as i32)
+    .bind(now)
+    .bind(assigned_at_utc)
+    .bind("external") // Marker for external origin
+    .bind("") // Empty initial log
+    .execute(conn.as_mut())
+    .await?;
+
+    tracing::debug!(
+        "Created external testrun {} for gateway {}",
+        testrun_id,
+        gateway_id
+    );
+    Ok(())
+}
+
+pub(crate) async fn update_testrun_status_by_gateway(
+    conn: &mut DbConnection,
+    gateway_id: i32,
+    status: TestRunStatus,
+) -> anyhow::Result<()> {
+    let status = status as i32;
+    crate::db::query("UPDATE testruns SET status = ? WHERE gateway_id = ? AND status = ?")
+        .bind(status)
+        .bind(gateway_id)
+        .bind(TestRunStatus::InProgress as i32)
+        .execute(conn.as_mut())
+        .await?;
+
+    Ok(())
 }

@@ -44,3 +44,15 @@ async fn build_information(
 async fn health(State(state): State<AppState>) -> HttpResult<Json<HealthInfo>> {
     Ok(Json(state.health()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_routes_construction() {
+        let router = routes();
+        // Verify the router builds without panic
+        let _routes = router;
+    }
+}

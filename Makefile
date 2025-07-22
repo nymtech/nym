@@ -12,7 +12,11 @@ help:
 	@echo "  clippy: run clippy for all workspaces"
 	@echo "  test: run clippy, unit tests, and formatting."
 	@echo "  test-all: like test, but also includes the expensive tests"
-	@echo "  deb: build debian packages
+	@echo "  deb: build debian packages"
+	@echo ""
+	@echo "Contract building targets:"
+	@echo "  contracts: build contracts for development (includes wasm-opt)"
+	@echo "  publish-contracts: build contracts using Docker optimizer (deterministic)"
 
 # -----------------------------------------------------------------------------
 # Meta targets
@@ -130,24 +134,68 @@ cargo-test: sdk-wasm-test
 clippy: sdk-wasm-lint
 
 # -----------------------------------------------------------------------------
-# Build contracts ready for deploy
+# Build CosmWasm contracts (deterministic docker build)
 # -----------------------------------------------------------------------------
 
-CONTRACTS=vesting_contract mixnet_contract nym_ecash cw3_flex_multisig cw4_group nym_coconut_dkg nym_pool_contract
-CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
-CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 
-contracts: build-release-contracts wasm-opt-contracts cosmwasm-check-contracts
+WASM_CONTRACT_DIR := contracts/target/wasm32-unknown-unknown/release
+# Find every direct contract folder that contains a Cargo.toml
+CONTRACT_DIRS := $(shell find contracts -type f -name Cargo.toml \( ! -path "contracts/Cargo.toml" \) | grep -v integration-tests | xargs -n1 dirname | sort -u)
+
+CONTRACTS_OUT_DIR = contracts/artifacts
+
+# Build all contracts via the official CosmWasm optimizer image (one invocation per contract)
+# See : https://github.com/CosmWasm/optimizer?tab=readme-ov-file#contracts-excluded-from-workspace
+# The optimizer ships separate multi-arch images. ARM builds are *not* bit-for-bit identical to the
+# canonical x86_64 build (see README notice in CosmWasm/optimizer).  For reproducible artefacts we
+# therefore always run the amd64 variant by default.
+#   Override with :
+#   $ COSMWASM_OPTIMIZER_IMAGE=cosmwasm/optimizer-arm64:0.17.0 make contracts-publish
+#
+COSMWASM_OPTIMIZER_IMAGE ?= cosmwasm/optimizer:0.17.0
+COSMWASM_OPTIMIZER_PLATFORM ?= linux/amd64
+
+# Ensure clean build environment and run the optimizer
+optimize-contracts:
+	@rm -rf artifacts 2>/dev/null || true
+	@echo "=== Ensuring clean build environment"
+	docker volume rm nym_contracts_cache 2>/dev/null || true
+	docker volume rm registry_cache 2>/dev/null || true
+	@for DIR in $(CONTRACT_DIRS); do \
+	  echo "=== Optimizing $${DIR}"; \
+	  docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
+	    -v $(CURDIR):/code \
+	    --mount type=volume,source=nym_contracts_cache,target=/target \
+	    --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+	    -e CARGO_BUILD_INCREMENTAL=false \
+	    -e RUSTFLAGS="-C target-cpu=generic -C debuginfo=0" \
+	    -e SOURCE_DATE_EPOCH=1 \
+	    $(COSMWASM_OPTIMIZER_IMAGE) $${DIR}; \
+	done
+	@mkdir -p $(CONTRACTS_OUT_DIR)
+	@cp artifacts/*.wasm $(CONTRACTS_OUT_DIR)/ 2>/dev/null || true
+
+	@cd $(CONTRACTS_OUT_DIR) && sha256sum *.wasm > checksums.txt
+	# Cleanup temporary artefacts directory
+	@rm -rf artifacts 2>/dev/null || true
 
 wasm-opt-contracts:
-	for contract in $(CONTRACTS_WASM); do \
-	  wasm-opt --signext-lowering -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
+	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \
+	  echo "Running wasm-opt on $$WASM"; \
+	  wasm-opt --signext-lowering -Os $$WASM -o $$WASM ; \
 	done
 
 cosmwasm-check-contracts:
-	for contract in $(CONTRACTS_WASM); do \
-	  cosmwasm-check $(CONTRACTS_OUT_DIR)/$$contract; \
+	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \
+	  echo "Checking $$WASM"; \
+	  cosmwasm-check $$WASM ; \
 	done
+
+# Default development build
+contracts: build-release-contracts wasm-opt-contracts cosmwasm-check-contracts
+
+# Publishing build used by CI – deterministic Docker optimiser
+publish-contracts: optimize-contracts cosmwasm-check-contracts
 
 # Consider adding 's' to make plural consistent (beware: used in github workflow)
 contract-schema:

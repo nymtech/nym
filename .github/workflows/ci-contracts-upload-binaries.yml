@@ -31,32 +31,26 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
+          toolchain: stable
           target: wasm32-unknown-unknown
           override: true
-
-      - name: Install wasm-opt
-        uses: ./.github/actions/install-wasm-opt
-        with:
-          version: '114'
 
       - name: Install cosmwasm-check
         run: cargo install cosmwasm-check
 
       - name: Build release contracts
-        run: make contracts
+        run: make publish-contracts
 
       - name: Prepare build output
         shell: bash
         env:
           OUTPUT_DIR: ci-contract-builds/${{ github.ref_name }}
         run: |
-          cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_ecash.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_pool_contract.wasm $OUTPUT_DIR
+          find contracts/artifacts -maxdepth 1 -type f -name '*.wasm' -exec cp {} $OUTPUT_DIR \;
+          # Also include the optimizer-generated checksums if present
+          if [ -f contracts/artifacts/checksums.txt ]; then
+            cp contracts/artifacts/checksums.txt $OUTPUT_DIR
+          fi
 
       - name: Deploy branch to CI www
         continue-on-error: true

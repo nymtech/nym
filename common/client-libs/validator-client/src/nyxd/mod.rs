@@ -276,6 +276,10 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
         self.config.contracts.vesting_contract_address.as_ref()
     }
 
+    fn performance_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.performance_contract_address.as_ref()
+    }
+
     fn ecash_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.ecash_contract_address.as_ref()
     }

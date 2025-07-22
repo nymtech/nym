@@ -113,7 +113,7 @@ pub async fn gateways_for_init<R: Rng>(
         .nodes;
     info!("nym api reports {} gateways", gateways.len());
 
-    tracing::trace!("Gateways: {:#?}", gateways);
+    tracing::trace!("Gateways: {gateways:#?}");
 
     // filter out gateways below minimum performance and ones that could operate as a mixnode
     // (we don't want instability)
@@ -124,7 +124,7 @@ pub async fn gateways_for_init<R: Rng>(
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<_>>();
     tracing::debug!("After checking validity: {}", valid_gateways.len());
-    tracing::trace!("Valid gateways: {:#?}", valid_gateways);
+    tracing::trace!("Valid gateways: {valid_gateways:#?}");
 
     tracing::info!(
         "and {} after validity and performance filtering",
@@ -289,7 +289,7 @@ pub(super) fn get_specified_gateway(
     gateways: &[RoutingNode],
     must_use_tls: bool,
 ) -> Result<RoutingNode, ClientCoreError> {
-    tracing::debug!("Requesting specified gateway: {}", gateway_identity);
+    tracing::debug!("Requesting specified gateway: {gateway_identity}");
     let user_gateway = ed25519::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 

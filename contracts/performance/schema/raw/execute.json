@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Change the admin",
+      "type": "object",
+      "required": [
+        "update_admin"
+      ],
+      "properties": {
+        "update_admin": {
+          "type": "object",
+          "required": [
+            "admin"
+          ],
+          "properties": {
+            "admin": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempt to submit performance data of a particular node for given epoch",
+      "type": "object",
+      "required": [
+        "submit"
+      ],
+      "properties": {
+        "submit": {
+          "type": "object",
+          "required": [
+            "data",
+            "epoch"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/NodePerformance"
+            },
+            "epoch": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempt to submit performance data of a batch of nodes for given epoch",
+      "type": "object",
+      "required": [
+        "batch_submit"
+      ],
+      "properties": {
+        "batch_submit": {
+          "type": "object",
+          "required": [
+            "data",
+            "epoch"
+          ],
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/NodePerformance"
+              }
+            },
+            "epoch": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempt to authorise new network monitor for submitting performance data",
+      "type": "object",
+      "required": [
+        "authorise_network_monitor"
+      ],
+      "properties": {
+        "authorise_network_monitor": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempt to retire an existing network monitor and forbid it from submitting any future performance data",
+      "type": "object",
+      "required": [
+        "retire_network_monitor"
+      ],
+      "properties": {
+        "retire_network_monitor": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "NodePerformance": {
+      "type": "object",
+      "required": [
+        "n",
+        "p"
+      ],
+      "properties": {
+        "n": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "p": {
+          "$ref": "#/definitions/Percent"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    }
+  }
+}

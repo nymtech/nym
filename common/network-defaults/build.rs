@@ -23,7 +23,6 @@ fn main() {
         "REWARDING_VALIDATOR_ADDRESS",
         "NYM_API",
         "NYXD_WS",
-        "EXPLORER_API",
         "NYM_VPN_API",
     ];
 

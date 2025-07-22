@@ -25,13 +25,9 @@ cosmwasm-schema = { workspace = true, optional = true }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-pool-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-pool-contract" }
 
-
 [dev-dependencies]
 anyhow = { workspace = true }
-serde = { workspace = true }
-rand_chacha = { workspace = true }
-rand = { workspace = true }
-cw-multi-test = { workspace = true }
+nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
 
 [features]
 schema-gen = ["nym-pool-contract-common/schema", "cosmwasm-schema"]

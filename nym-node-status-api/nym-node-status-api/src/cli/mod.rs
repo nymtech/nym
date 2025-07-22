@@ -16,10 +16,6 @@ pub(crate) struct Cli {
     #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,
 
-    /// Explorer api url.
-    #[clap(short, long, env = "EXPLORER_API")]
-    pub(crate) explorer_api: String,
-
     /// Nym api url.
     #[clap(short, long, env = "NYM_API")]
     pub(crate) nym_api: String,
@@ -49,6 +45,10 @@ pub(crate) struct Cli {
     #[clap(long, env = "DATABASE_URL")]
     pub(crate) database_url: String,
 
+    #[clap(long, default_value = "5", env = "SQLX_BUSY_TIMEOUT_S")]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) sqlx_busy_timeout_s: Duration,
+
     #[clap(
         long,
         default_value = "300",
@@ -72,6 +72,13 @@ pub(crate) struct Cli {
     #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
+
+    #[clap(
+        long,
+        default_value_t = 10,
+        env = "NYM_NODE_STATUS_API_PACKET_STATS_MAX_CONCURRENT_TASKS"
+    )]
+    pub(crate) packet_stats_max_concurrent_tasks: usize,
 
     /// https://github.com/ipinfo/rust
     #[clap(long, env = "IPINFO_API_TOKEN")]

@@ -6,7 +6,7 @@ use crate::{
         DbPool,
     },
     http::models::Gateway,
-    mixnet_scraper::helpers::NodeDescriptionResponse,
+    node_scraper::helpers::NodeDescriptionResponse,
 };
 use futures_util::TryStreamExt;
 use sqlx::{pool::PoolConnection, Sqlite};

@@ -19,7 +19,7 @@ pub(crate) use nym_nodes::{
     get_described_node_bond_info, get_node_self_description, update_nym_nodes,
 };
 pub(crate) use packet_stats::{
-    get_raw_node_stats, insert_daily_node_stats, insert_node_packet_stats,
+    batch_store_packet_stats, get_raw_node_stats, insert_daily_node_stats_uncommitted,
 };
 pub(crate) use scraper::{get_nodes_for_scraping, insert_scraped_node_description};
 pub(crate) use summary::{get_summary, get_summary_history};

@@ -9,7 +9,7 @@ mod cli;
 mod db;
 mod http;
 mod logging;
-mod mixnet_scraper;
+mod metrics_scraper;
 mod monitor;
 mod node_scraper;
 mod testruns;
@@ -31,11 +31,18 @@ async fn main() -> anyhow::Result<()> {
     let connection_url = args.database_url.clone();
     tracing::debug!("Using config:\n{:#?}", args);
 
-    let storage = db::Storage::init(connection_url).await?;
+    let storage = db::Storage::init(connection_url, args.sqlx_busy_timeout_s).await?;
     let db_pool = storage.pool_owned();
 
     // Start the node scraper
-    let scraper = mixnet_scraper::Scraper::new(storage.pool_owned());
+    let scraper = node_scraper::DescriptionScraper::new(storage.pool_owned());
+    tokio::spawn(async move {
+        scraper.start().await;
+    });
+    let scraper = node_scraper::PacketScraper::new(
+        storage.pool_owned(),
+        args.packet_stats_max_concurrent_tasks,
+    );
     tokio::spawn(async move {
         scraper.start().await;
     });
@@ -74,7 +81,8 @@ async fn main() -> anyhow::Result<()> {
 
     let db_pool_scraper = storage.pool_owned();
     tokio::spawn(async move {
-        node_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
+        metrics_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout)
+            .await;
         tracing::info!("Started metrics scraper task");
     });
 

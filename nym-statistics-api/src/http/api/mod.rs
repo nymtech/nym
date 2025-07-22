@@ -4,7 +4,7 @@ use nym_http_api_common::middleware::logging::log_request_info;
 use tokio::net::ToSocketAddrs;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::http::{server::HttpServer, state::AppState};
 
@@ -19,11 +19,12 @@ impl RouterBuilder {
         let router = Router::new()
             .merge(
                 SwaggerUi::new("/swagger")
+                    .config(Config::default().supported_submit_methods(["get"]))
                     .url("/api-docs/openapi.json", super::api_docs::ApiDoc::openapi()),
             )
             .route(
                 "/",
-                axum::routing::get(|| async { Redirect::permanent("/swagger") }),
+                axum::routing::get(|| async { Redirect::permanent("/swagger") }), // SW let's redirect to a blogpost explaining the stats collection process once it exists
             )
             .nest("/v1", Router::new().nest("/stats", stats::routes()));
 

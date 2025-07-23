@@ -3,6 +3,7 @@
 
 use crate::error::ScraperError;
 use crate::helpers;
+use std::collections::HashMap;
 use tendermint::{Block, Hash, abci, block, tx};
 use tendermint_rpc::endpoint::{block as block_endpoint, block_results, validators};
 use tendermint_rpc::event::{Event, EventData};
@@ -26,6 +27,8 @@ pub struct ParsedTransactionResponse {
     pub tx: cosmrs::tx::Tx,
 
     pub proof: Option<tx::Proof>,
+
+    pub parsed_messages: HashMap<usize, serde_json::Value>,
 }
 
 #[derive(Debug)]

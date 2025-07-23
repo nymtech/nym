@@ -9,14 +9,12 @@ use nym_validator_client::nyxd::{Any, Msg, MsgSend, Name};
 use nyxd_scraper_psql::{
     MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, ScraperError,
 };
-use nyxd_scraper_shared::{default_message_registry, MessageRegistry};
 use reqwest::{Client, Url};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use utoipa::gen::serde_json;
 
 pub struct WebhookModule {
     webhooks: Vec<Webhook>,
-    registry: MessageRegistry,
 }
 
 impl WebhookModule {
@@ -27,20 +25,7 @@ impl WebhookModule {
             .iter()
             .map(|watcher_cfg| Webhook::new(watcher_cfg.clone()))
             .collect::<anyhow::Result<Vec<_>>>()?;
-        Ok(Self {
-            webhooks,
-            registry: default_message_registry(),
-        })
-    }
-
-    fn decode_or_skip(&self, msg: &Any) -> Option<serde_json::Value> {
-        match self.registry.try_decode(msg) {
-            Ok(decoded) => Some(decoded),
-            Err(err) => {
-                warn!("webhook processing failed {err}");
-                None
-            }
-        }
+        Ok(Self { webhooks })
     }
 }
 
@@ -53,11 +38,11 @@ impl MsgModule for WebhookModule {
     async fn handle_msg(
         &mut self,
         index: usize,
-        msg: &Any,
+        _msg: &Any,
         tx: &ParsedTransactionResponse,
         _storage_tx: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError> {
-        let message = serde_json::to_value(self.decode_or_skip(msg)).ok();
+        let message = serde_json::to_value(tx.parsed_messages.get(&index)).ok();
 
         let payload = WebhookPayload {
             height: tx.height.value(),
@@ -65,6 +50,11 @@ impl MsgModule for WebhookModule {
             transaction_hash: tx.hash.to_string(),
             message,
         };
+
+        println!(
+            "->>>>>>>>>>>>>>>>>>>>>>>>> {}",
+            serde_json::to_string(&payload).unwrap()
+        );
 
         for webhook in self.webhooks.clone() {
             let payload = payload.clone();

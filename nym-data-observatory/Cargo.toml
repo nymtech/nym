@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-data-observatory"
-version = "0.1.0"
+version = "1.0.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -11,7 +11,6 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-readme.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }

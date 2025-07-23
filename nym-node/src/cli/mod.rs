@@ -55,12 +55,7 @@ impl Cli {
     pub(crate) fn execute(self) -> anyhow::Result<()> {
         // NOTE: `test_throughput` sets up its own logger as it has to include additional layers
         if !matches!(self.command, Commands::TestThroughput(..)) {
-            cfg_if::cfg_if! {if #[cfg(feature = "tokio-console")] {
-                // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
-                console_subscriber::init();
-            } else {
-                crate::logging::setup_tracing_logger()?;
-            }}
+            crate::logging::setup_tracing_logger()?;
         }
 
         match self.command {

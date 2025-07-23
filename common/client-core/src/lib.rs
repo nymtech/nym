@@ -26,6 +26,7 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[track_caller]
 pub(crate) fn spawn_future<F>(future: F)
 where
     F: Future + Send + 'static,

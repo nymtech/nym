@@ -265,6 +265,7 @@ impl ShutdownManager {
     }
 
     #[must_use]
+    #[track_caller]
     pub fn with_shutdown<F>(mut self, shutdown: F) -> Self
     where
         F: Future<Output = ()>,
@@ -281,6 +282,7 @@ impl ShutdownManager {
     }
 
     #[cfg(unix)]
+    #[track_caller]
     pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> std::io::Result<Self> {
         let mut sig = signal(signal_kind)?;
         Ok(self.with_shutdown(async move {
@@ -289,6 +291,7 @@ impl ShutdownManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[track_caller]
     pub fn with_interrupt_signal(self) -> Self {
         self.with_shutdown(async move {
             let _ = tokio::signal::ctrl_c().await;
@@ -296,11 +299,13 @@ impl ShutdownManager {
     }
 
     #[cfg(unix)]
+    #[track_caller]
     pub fn with_terminate_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::terminate())
     }
 
     #[cfg(unix)]
+    #[track_caller]
     pub fn with_quit_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::quit())
     }

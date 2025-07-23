@@ -6,15 +6,16 @@ use crate::block_processor::types::{
 };
 use crate::error::ScraperError;
 use crate::helpers::tx_hash;
+use crate::{default_message_registry, Any, MessageRegistry};
 use futures::StreamExt;
 use futures::future::join3;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tendermint::Hash;
 use tendermint_rpc::endpoint::{block, block_results, tx, validators};
 use tendermint_rpc::{Client, HttpClient, Paging};
 use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, warn};
 use url::Url;
 
 #[derive(Clone)]
@@ -22,6 +23,9 @@ pub struct RpcClient {
     // right now I don't care about anything nym specific, so a simple http client is sufficient,
     // once this is inadequate, we can switch to a NyxdClient
     inner: Arc<HttpClient>,
+
+    // kinda like very limited cosmos sdk codec
+    pub(crate) message_registry: MessageRegistry,
 }
 
 impl RpcClient {
@@ -35,7 +39,18 @@ impl RpcClient {
 
         Ok(RpcClient {
             inner: Arc::new(http_client),
+            message_registry: default_message_registry(),
         })
+    }
+
+    fn decode_or_skip(&self, msg: &Any) -> Option<serde_json::Value> {
+        match self.message_registry.try_decode(msg) {
+            Ok(decoded) => Some(decoded),
+            Err(err) => {
+                warn!("Failed to decode raw message: {err}");
+                None
+            }
+        }
     }
 
     #[instrument(skip(self, block), fields(height = block.height))]
@@ -56,19 +71,29 @@ impl RpcClient {
 
         let raw_transactions = raw_transactions?;
         let mut transactions = Vec::with_capacity(raw_transactions.len());
-        for tx in raw_transactions {
+        for raw_tx in raw_transactions {
+            let mut parsed_messages = HashMap::new();
+            let tx = cosmrs::Tx::from_bytes(&raw_tx.tx).map_err(|source| {
+                ScraperError::TxParseFailure {
+                    hash: raw_tx.hash,
+                    source,
+                }
+            })?;
+
+            for (index, msg) in tx.body.messages.iter().enumerate() {
+                if let Some(value) = self.decode_or_skip(msg) {
+                    parsed_messages.insert(index, value);
+                }
+            }
+
             transactions.push(ParsedTransactionResponse {
-                hash: tx.hash,
-                height: tx.height,
-                index: tx.index,
-                tx_result: tx.tx_result,
-                tx: cosmrs::Tx::from_bytes(&tx.tx).map_err(|source| {
-                    ScraperError::TxParseFailure {
-                        hash: tx.hash,
-                        source,
-                    }
-                })?,
-                proof: tx.proof,
+                hash: raw_tx.hash,
+                height: raw_tx.height,
+                index: raw_tx.index,
+                tx_result: raw_tx.tx_result,
+                tx,
+                proof: raw_tx.proof,
+                parsed_messages,
             })
         }
 

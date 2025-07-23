@@ -21,7 +21,7 @@ use nyxd_scraper_shared::storage::validators::Response;
 use nyxd_scraper_shared::storage::{
     validators, Block, Commit, CommitSig, NyxdScraperStorageError, NyxdScraperTransaction,
 };
-use nyxd_scraper_shared::{Any, MessageRegistry, ParsedTransactionResponse};
+use nyxd_scraper_shared::ParsedTransactionResponse;
 use serde_json::{json, Value};
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use sqlx::{Postgres, Transaction};
@@ -30,8 +30,6 @@ use tracing::{debug, trace, warn};
 
 pub struct PostgresStorageTransaction {
     pub(super) inner: Transaction<'static, Postgres>,
-
-    pub(super) registry: MessageRegistry,
 }
 
 impl Deref for PostgresStorageTransaction {
@@ -48,16 +46,6 @@ impl DerefMut for PostgresStorageTransaction {
 }
 
 impl PostgresStorageTransaction {
-    fn decode_or_skip(&self, msg: &Any) -> Option<serde_json::Value> {
-        match self.registry.try_decode(msg) {
-            Ok(decoded) => Some(decoded),
-            Err(err) => {
-                warn!("{err}");
-                None
-            }
-        }
-    }
-
     async fn persist_validators(
         &mut self,
         validators: &validators::Response,
@@ -169,11 +157,9 @@ impl PostgresStorageTransaction {
                 .collect();
 
             let messages = chain_tx
-                .tx
-                .body
-                .messages
-                .iter()
-                .filter_map(|msg| self.decode_or_skip(msg))
+                .parsed_messages
+                .values()
+                .map(|v| v.clone())
                 .collect::<Vec<_>>();
 
             let signer_infos = chain_tx
@@ -220,7 +206,8 @@ impl PostgresStorageTransaction {
                 let mut wasm_message_type: Option<String> = None;
                 let mut funds: Option<Vec<Coin>> = None;
 
-                let value = serde_json::to_value(self.decode_or_skip(msg))?;
+                let parsed_message = chain_tx.parsed_messages.get(&index);
+                let value = serde_json::to_value(parsed_message)?;
 
                 if msg.type_url == "/cosmwasm.wasm.v1.MsgExecuteContract" {
                     if let Ok(wasm_execute) = MsgExecuteContract::decode(msg.value.as_ref()) {
@@ -270,7 +257,7 @@ impl PostgresStorageTransaction {
 }
 
 fn get_first_field_name(value: &Value) -> Option<String> {
-    debug!("value:\n{value}");
+    trace!("value:\n{value}");
     match value.as_object() {
         Some(map) => map.keys().next().cloned(),
         None => None,

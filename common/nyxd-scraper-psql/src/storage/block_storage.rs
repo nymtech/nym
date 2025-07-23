@@ -11,17 +11,13 @@ use crate::storage::transaction::PostgresStorageTransaction;
 use async_trait::async_trait;
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use nyxd_scraper_shared::storage::{NyxdScraperStorage, NyxdScraperStorageError};
-use nyxd_scraper_shared::{default_message_registry, MessageRegistry};
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use tokio::time::Instant;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 #[derive(Clone)]
 pub struct PostgresScraperStorage {
     pub(crate) manager: StorageManager,
-
-    // kinda like very limited cosmos sdk codec
-    pub(crate) message_registry: MessageRegistry,
 }
 
 impl PostgresScraperStorage {
@@ -41,8 +37,8 @@ impl PostgresScraperStorage {
             .run(&connection_pool)
             .await
         {
-            error!("Failed to initialize SQLx database: {err}");
-            return Err(err.into());
+            warn!("Failed to initialize SQLx database: {err}");
+            // return Err(err.into());
         }
 
         info!("Database migration finished!");
@@ -50,10 +46,7 @@ impl PostgresScraperStorage {
         let manager = StorageManager { connection_pool };
         manager.set_initial_metadata().await?;
 
-        let storage = PostgresScraperStorage {
-            manager,
-            message_registry: default_message_registry(),
-        };
+        let storage = PostgresScraperStorage { manager };
 
         Ok(storage)
     }
@@ -94,10 +87,7 @@ impl PostgresScraperStorage {
             .connection_pool
             .begin()
             .await
-            .map(|inner| PostgresStorageTransaction {
-                inner,
-                registry: self.message_registry.clone(),
-            })
+            .map(|inner| PostgresStorageTransaction { inner })
             .map_err(|source| PostgresScraperError::StorageTxBeginFailure { source })
     }
 

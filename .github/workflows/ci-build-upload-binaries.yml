@@ -45,7 +45,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
         run: |
           echo "RUSTFLAGS=--cfg tokio_unstable" >> $GITHUB_ENV
-
+          echo "CARGO_FEATURES=--features console" >> $GITHUB_ENV
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:

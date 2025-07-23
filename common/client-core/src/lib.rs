@@ -18,7 +18,7 @@ pub use nym_topology::{
 };
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn spawn_future<F>(future: F)
+pub fn spawn_future<F>(future: F)
 where
     F: Future<Output = ()> + 'static,
 {
@@ -61,6 +61,11 @@ macro_rules! spawn_future {
         $crate::spawn_future($future)
     }};
     ($future:expr, $name:expr) => {{
-        $crate::spawn_named_future($future, $name)
+        cfg_if::cfg_if! {if #[cfg(not(target_arch = "wasm32"))] {
+            $crate::spawn_named_future($future, $name)
+        } else {
+            let _ = $name;
+            $crate::spawn_future($future)
+        }}
     }};
 }

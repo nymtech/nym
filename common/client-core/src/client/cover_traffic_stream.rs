@@ -235,6 +235,7 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
+    #[allow(clippy::panic)]
     pub fn start(mut self) {
         if self.cover_traffic.disable_loop_cover_traffic_stream {
             // we should have never got here in the first place - the task should have never been created to begin with

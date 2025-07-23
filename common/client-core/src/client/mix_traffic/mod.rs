@@ -98,6 +98,8 @@ impl MixTrafficController {
         debug_assert!(!mix_packets.is_empty());
 
         let result = if mix_packets.len() == 1 {
+            // SAFETY: we just checked we have one packet
+            #[allow(clippy::unwrap_used)]
             let mix_packet = mix_packets.pop().unwrap();
             self.gateway_transceiver.send_mix_packet(mix_packet).await
         } else {

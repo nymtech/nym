@@ -135,9 +135,11 @@ pub enum ClientInputStatus {
 }
 
 impl ClientInputStatus {
+    #[allow(clippy::panic)]
     pub fn register_producer(&mut self) -> ClientInput {
         match std::mem::replace(self, ClientInputStatus::Connected) {
             ClientInputStatus::AwaitingProducer { client_input } => client_input,
+            // critical failure implying misuse of software
             ClientInputStatus::Connected => panic!("producer was already registered before"),
         }
     }
@@ -149,9 +151,11 @@ pub enum ClientOutputStatus {
 }
 
 impl ClientOutputStatus {
+    #[allow(clippy::panic)]
     pub fn register_consumer(&mut self) -> ClientOutput {
         match std::mem::replace(self, ClientOutputStatus::Connected) {
             ClientOutputStatus::AwaitingConsumer { client_output } => client_output,
+            // critical failure implying misuse of software
             ClientOutputStatus::Connected => panic!("consumer was already registered before"),
         }
     }
@@ -735,7 +739,7 @@ where
             let mut rng = OsRng;
             let keys = if let Some(derivation_material) = derivation_material {
                 ClientKeys::from_master_key(&mut rng, &derivation_material)
-                    .map_err(|_| ClientCoreError::HkdfDerivationError {})?
+                    .map_err(|_| ClientCoreError::HkdfDerivationError)?
             } else {
                 ClientKeys::generate_new(&mut rng)
             };

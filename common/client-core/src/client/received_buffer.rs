@@ -198,6 +198,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         }
     }
 
+    #[allow(clippy::panic)]
     async fn disconnect_sender(&mut self) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_none() {
@@ -208,6 +209,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         guard.message_sender = None;
     }
 
+    #[allow(clippy::panic)]
     async fn connect_sender(&mut self, sender: ReconstructedMessagesSender) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_some() {

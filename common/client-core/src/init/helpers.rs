@@ -245,7 +245,7 @@ pub async fn choose_gateway_by_latency<R: Rng, G: ConnectableGateway + Clone>(
     let gateways_with_latency = gateways_with_latency.lock().await;
     let chosen = gateways_with_latency
         .choose_weighted(rng, |item| 1. / item.latency.as_secs_f32())
-        .expect("invalid selection weight!");
+        .map_err(|source| ClientCoreError::GatewaySelectionFailure { source })?;
 
     info!(
         "chose gateway {} with average latency of {:?}",

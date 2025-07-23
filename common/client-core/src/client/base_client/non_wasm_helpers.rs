@@ -114,41 +114,32 @@ pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
         })
 }
 
-pub fn create_bandwidth_controller<St: CredentialStorage>(
-    config: &Config,
-    storage: St,
-) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
-    let nyxd_url = config
-        .get_validator_endpoints()
-        .pop()
-        .expect("No nyxd validator endpoint provided");
-
-    create_bandwidth_controller_with_urls(nyxd_url, storage)
-}
-
 pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
     nyxd_url: Url,
     storage: St,
-) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
-    let client = default_query_dkg_client(nyxd_url);
+) -> Result<BandwidthController<QueryHttpRpcNyxdClient, St>, ClientCoreError> {
+    let client = default_query_dkg_client(nyxd_url)?;
 
-    BandwidthController::new(storage, client)
+    Ok(BandwidthController::new(storage, client))
 }
 
-pub fn default_query_dkg_client_from_config(config: &Config) -> QueryHttpRpcNyxdClient {
+pub fn default_query_dkg_client_from_config(
+    config: &Config,
+) -> Result<QueryHttpRpcNyxdClient, ClientCoreError> {
     let nyxd_url = config
         .get_validator_endpoints()
         .pop()
-        .expect("No nyxd validator endpoint provided");
+        .ok_or(ClientCoreError::RpcClientMissingUrl)?;
 
     default_query_dkg_client(nyxd_url)
 }
 
-pub fn default_query_dkg_client(nyxd_url: Url) -> QueryHttpRpcNyxdClient {
+pub fn default_query_dkg_client(nyxd_url: Url) -> Result<QueryHttpRpcNyxdClient, ClientCoreError> {
     let details = nym_network_defaults::NymNetworkDetails::new_from_env();
     let client_config = nyxd::Config::try_from_nym_network_details(&details)
-        .expect("failed to construct validator client config");
+        .map_err(|source| ClientCoreError::InvalidNetworkDetails { source })?;
     // overwrite env configuration with config URLs
+
     QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
-        .expect("Could not construct query client")
+        .map_err(|source| ClientCoreError::RpcClientCreationFailure { source })
 }

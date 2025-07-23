@@ -249,6 +249,8 @@ where
                     }
                 };
 
+                // SAFETY: our topology must be valid at this point
+                #[allow(clippy::expect_used)]
                 (
                     generate_loop_cover_packet(
                         &mut self.rng,
@@ -439,6 +441,8 @@ where
                     tracing::trace!("handling real_messages: size: {}", real_messages.len());
 
                     self.transmission_buffer.store(&conn_id, real_messages);
+                    // SAFETY: we just stored the message
+                    #[allow(clippy::expect_used)]
                     let real_next = self.pop_next_message().expect("Just stored one");
 
                     Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
@@ -487,6 +491,8 @@ where
 
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
+                // SAFETY: we just stored the message
+                #[allow(clippy::expect_used)]
                 let real_next = self.pop_next_message().expect("we just added one");
 
                 Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))

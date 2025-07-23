@@ -31,7 +31,7 @@ pub struct Authenticator {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
-    ecash_verifier: Option<Arc<EcashManager>>,
+    ecash_verifier: Arc<EcashManager>,
     used_private_network_ips: Vec<IpAddr>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
@@ -42,25 +42,19 @@ impl Authenticator {
         config: Config,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
+        ecash_verifier: Arc<EcashManager>,
     ) -> Self {
         Self {
             config,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            ecash_verifier: None,
+            ecash_verifier,
             wireguard_gateway_data,
             used_private_network_ips,
             shutdown: None,
             on_start: None,
         }
-    }
-
-    #[must_use]
-    #[allow(unused)]
-    pub fn with_ecash_verifier(mut self, ecash_verifier: Arc<EcashManager>) -> Self {
-        self.ecash_verifier = Some(ecash_verifier);
-        self
     }
 
     #[must_use]

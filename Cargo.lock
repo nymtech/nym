@@ -5100,6 +5100,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -5713,9 +5714,11 @@ dependencies = [
 name = "nym-credential-verification"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bs58",
  "cosmwasm-std",
  "cw-utils",
+ "dyn-clone",
  "futures",
  "nym-api-requests 0.1.0",
  "nym-credentials",
@@ -6099,8 +6102,10 @@ dependencies = [
 name = "nym-gateway-storage"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bincode",
  "defguard_wireguard_rs",
+ "dyn-clone",
  "nym-credentials-interface 0.1.0",
  "nym-gateway-requests",
  "nym-sphinx 0.1.0",
@@ -8026,11 +8031,13 @@ dependencies = [
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "bincode",
  "chrono",
  "dashmap",
  "defguard_wireguard_rs",
+ "dyn-clone",
  "futures",
  "ip_network",
  "log",

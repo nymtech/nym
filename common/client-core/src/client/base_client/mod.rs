@@ -707,11 +707,14 @@ where
             })?;
 
         let store_clone = mem_store.clone();
-        spawn_future(async move {
-            persistent_storage
-                .flush_on_shutdown(store_clone, shutdown)
-                .await
-        });
+        spawn_future!(
+            async move {
+                persistent_storage
+                    .flush_on_shutdown(store_clone, shutdown)
+                    .await
+            },
+            "PersistentReplyStorage::flush_on_shutdown"
+        );
 
         Ok(mem_store)
     }

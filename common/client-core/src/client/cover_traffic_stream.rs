@@ -251,27 +251,30 @@ impl LoopCoverTrafficStream<OsRng> {
 
         let mut shutdown = self.task_client.fork("select");
 
-        spawn_future(async move {
-            debug!("Started LoopCoverTrafficStream with graceful shutdown support");
+        spawn_future!(
+            async move {
+                debug!("Started LoopCoverTrafficStream with graceful shutdown support");
 
-            while !shutdown.is_shutdown() {
-                tokio::select! {
-                    biased;
-                    _ = shutdown.recv() => {
-                        tracing::trace!("LoopCoverTrafficStream: Received shutdown");
-                    }
-                    next = self.next() => {
-                        if next.is_some() {
-                            self.on_new_message().await;
-                        } else {
-                            tracing::trace!("LoopCoverTrafficStream: Stopping since channel closed");
-                            break;
+                while !shutdown.is_shutdown() {
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            tracing::trace!("LoopCoverTrafficStream: Received shutdown");
+                        }
+                        next = self.next() => {
+                            if next.is_some() {
+                                self.on_new_message().await;
+                            } else {
+                                tracing::trace!("LoopCoverTrafficStream: Stopping since channel closed");
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            shutdown.recv_timeout().await;
-            tracing::debug!("LoopCoverTrafficStream: Exiting");
-        })
+                shutdown.recv_timeout().await;
+                tracing::debug!("LoopCoverTrafficStream: Exiting");
+            },
+            "LoopCoverTrafficStream"
+        )
     }
 }

@@ -5268,6 +5268,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bs58",
+ "cfg-if",
  "clap",
  "comfy-table",
  "futures",

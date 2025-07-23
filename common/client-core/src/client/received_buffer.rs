@@ -599,14 +599,20 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 
-        spawn_future(async move {
-            match fragmented_message_receiver.run().await {
-                Ok(_) => {}
-                Err(e) => error!("{e}"),
-            }
-        });
-        spawn_future(async move {
-            request_receiver.run().await;
-        });
+        spawn_future!(
+            async move {
+                match fragmented_message_receiver.run().await {
+                    Ok(_) => {}
+                    Err(e) => error!("{e}"),
+                }
+            },
+            "ReceivedMessagesBufferController::FragmentedMessageReceiver"
+        );
+        spawn_future!(
+            async move {
+                request_receiver.run().await;
+            },
+            "ReceivedMessagesBufferController::RequestReceiver"
+        );
     }
 }

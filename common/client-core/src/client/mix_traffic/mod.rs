@@ -117,51 +117,54 @@ impl MixTrafficController {
     }
 
     pub fn start(mut self) {
-        spawn_future(async move {
-            debug!("Started MixTrafficController with graceful shutdown support");
+        spawn_future!(
+            async move {
+                debug!("Started MixTrafficController with graceful shutdown support");
 
-            while !self.task_client.is_shutdown() {
-                tokio::select! {
-                    mix_packets = self.mix_rx.recv() => match mix_packets {
-                        Some(mix_packets) => {
-                            if let Err(err) = self.on_messages(mix_packets).await {
-                                error!("Failed to send sphinx packet(s) to the gateway: {err}");
-                                if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                                    // Disconnect from the gateway. If we should try to re-connect
-                                    // is handled at a higher layer.
-                                    error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
-                                    // Do we need to handle the embedded mixnet client case
-                                    // separately?
-                                    self.task_client.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
-                                    break;
+                while !self.task_client.is_shutdown() {
+                    tokio::select! {
+                        mix_packets = self.mix_rx.recv() => match mix_packets {
+                            Some(mix_packets) => {
+                                if let Err(err) = self.on_messages(mix_packets).await {
+                                    error!("Failed to send sphinx packet(s) to the gateway: {err}");
+                                    if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
+                                        // Disconnect from the gateway. If we should try to re-connect
+                                        // is handled at a higher layer.
+                                        error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
+                                        // Do we need to handle the embedded mixnet client case
+                                        // separately?
+                                        self.task_client.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
+                                        break;
+                                    }
                                 }
+                            },
+                            None => {
+                                tracing::trace!("MixTrafficController: Stopping since channel closed");
+                                break;
                             }
                         },
-                        None => {
-                            tracing::trace!("MixTrafficController: Stopping since channel closed");
+                        client_request = self.client_rx.recv() => match client_request {
+                            Some(client_request) => {
+                                match self.gateway_transceiver.send_client_request(client_request).await {
+                                    Ok(_) => (),
+                                    Err(e) => error!("Failed to send client request: {e}"),
+                                };
+                            },
+                            None => {
+                                tracing::trace!("MixTrafficController, client request channel closed");
+                            }
+                        },
+                        _ = self.task_client.recv() => {
+                            tracing::trace!("MixTrafficController: Received shutdown");
                             break;
                         }
-                    },
-                    client_request = self.client_rx.recv() => match client_request {
-                        Some(client_request) => {
-                            match self.gateway_transceiver.send_client_request(client_request).await {
-                                Ok(_) => (),
-                                Err(e) => error!("Failed to send client request: {e}"),
-                            };
-                        },
-                        None => {
-                            tracing::trace!("MixTrafficController, client request channel closed");
-                        }
-                    },
-                    _ = self.task_client.recv() => {
-                        tracing::trace!("MixTrafficController: Received shutdown");
-                        break;
                     }
                 }
-            }
-            self.task_client.recv_timeout().await;
+                self.task_client.recv_timeout().await;
 
-            tracing::debug!("MixTrafficController: Exiting");
-        });
+                tracing::debug!("MixTrafficController: Exiting");
+            },
+            "MixTrafficController"
+        );
     }
 }

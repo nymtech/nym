@@ -434,6 +434,9 @@ opt-level = 'z'
 # lto = true
 opt-level = 'z'
 
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
+
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
@@ -443,3 +446,4 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
+

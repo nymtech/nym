@@ -165,9 +165,12 @@ impl StatisticsControl {
     }
 
     pub(crate) fn start(mut self) {
-        spawn_future(async move {
-            self.run().await;
-        })
+        spawn_future!(
+            async move {
+                self.run().await;
+            },
+            "StatisticsControl"
+        )
     }
 
     pub(crate) fn create_and_start(

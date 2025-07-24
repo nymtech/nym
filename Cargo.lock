@@ -5980,6 +5980,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client 0.1.0",
  "nym-wireguard",
+ "nym-wireguard-private-metadata",
  "nym-wireguard-types 0.1.0",
  "rand 0.8.5",
  "sha2 0.10.9",
@@ -8039,6 +8040,30 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "x25519-dalek",
+]
+
+[[package]]
+name = "nym-wireguard-private-metadata"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "bincode",
+ "futures",
+ "nym-credential-verification",
+ "nym-credentials-interface 0.1.0",
+ "nym-http-api-common 0.1.0",
+ "nym-wireguard",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "tower-http 0.5.2",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
 ]
 
 [[package]]

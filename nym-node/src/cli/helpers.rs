@@ -276,13 +276,21 @@ pub(crate) struct WireguardArgs {
     )]
     pub(crate) wireguard_bind_address: Option<SocketAddr>,
 
-    /// Port announced to external clients wishing to connect to the wireguard interface.
+    // TODO: Don't make it configurable yet, until we expose it via APIs
+    // /// Tunnel port announced to external clients wishing to connect to the wireguard interface.
+    // /// Useful in the instances where the node is behind a proxy.
+    // #[clap(
+    //     long,
+    //     env = NYMNODE_WG_ANNOUNCED_PORT_ARG
+    // )]
+    // pub(crate) wireguard_tunnel_announced_port: Option<u16>,
+    /// Tunnel port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
     #[clap(
         long,
-        env = NYMNODE_WG_ANNOUNCED_PORT_ARG
+        env = NYMNODE_WG_METADATA_ANNOUNCED_PORT_ARG
     )]
-    pub(crate) wireguard_announced_port: Option<u16>,
+    pub(crate) wireguard_metadata_announced_port: Option<u16>,
 
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
     /// The maximum value for IPv4 is 32 and for IPv6 is 128
@@ -311,8 +319,12 @@ impl WireguardArgs {
             section.bind_address = bind_address
         }
 
-        if let Some(announced_port) = self.wireguard_announced_port {
-            section.announced_port = announced_port
+        // if let Some(announced_tunnel_port) = self.wireguard_tunnel_announced_port {
+        //     section.announced_tunnel_port = announced_tunnel_port
+        // }
+
+        if let Some(announced_metadata_port) = self.wireguard_metadata_announced_port {
+            section.announced_metadata_port = announced_metadata_port
         }
 
         if let Some(private_network_prefix) = self.wireguard_private_network_prefix {

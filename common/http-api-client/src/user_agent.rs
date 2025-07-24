@@ -16,7 +16,7 @@ pub struct UserAgent {
     pub version: String,
     /// client platform
     pub platform: String,
-    /// source commit version for the calling calling crate / subsystem
+    /// source commit version for the calling crate / subsystem
     pub git_commit: String,
 }
 

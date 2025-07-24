@@ -7,7 +7,7 @@ use smoltcp::{
 };
 use std::collections::VecDeque;
 use tokio::sync::mpsc;
-use tracing::{debug, trace};
+use tracing::{debug, info, trace, warn};
 
 /// # Overview
 /// We need something to bridge the async / sync weirdness (Device trait fns are sync, IpMixStream fns are

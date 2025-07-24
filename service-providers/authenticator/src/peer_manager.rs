@@ -4,7 +4,7 @@
 use crate::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
-use nym_credential_verification::{ClientBandwidth, CredentialVerifier};
+use nym_credential_verification::{ClientBandwidth, Verifier};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard::{
     peer_controller::{
@@ -102,30 +102,35 @@ impl PeerManager {
     ) -> Result<Option<ClientBandwidth>> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::GetClientBandwidth { key, response_tx };
+        let msg = PeerControlRequest::GetClientBandwidthByKey { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let GetClientBandwidthControlResponse { client_bandwidth } =
-            response_rx.await.map_err(|_| {
-                AuthenticatorError::InternalError(
-                    "no response for query client bandwidth".to_string(),
-                )
-            })?;
+        let GetClientBandwidthControlResponse {
+            success,
+            client_bandwidth,
+        } = response_rx.await.map_err(|_| {
+            AuthenticatorError::InternalError("no response for query client bandwidth".to_string())
+        })?;
+        if !success {
+            return Err(AuthenticatorError::InternalError(
+                "querying client bandwidth could not be performed".to_string(),
+            ));
+        }
         Ok(client_bandwidth)
     }
 
-    pub async fn query_verifier(
+    pub async fn query_verifier_by_key(
         &mut self,
         key: PeerPublicKey,
         credential: CredentialSpendingData,
-    ) -> Result<Option<CredentialVerifier>> {
+    ) -> Result<Option<Box<dyn Verifier + Send + Sync>>> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::GetVerifier {
+        let msg = PeerControlRequest::GetVerifierByKey {
             key,
             credential: Box::new(credential),
             response_tx,
@@ -138,11 +143,11 @@ impl PeerManager {
 
         let QueryVerifierControlResponse { success, verifier } =
             response_rx.await.map_err(|_| {
-                AuthenticatorError::InternalError("no response for topup bandwidth".to_string())
+                AuthenticatorError::InternalError("no response for query verifier".to_string())
             })?;
         if !success {
             return Err(AuthenticatorError::InternalError(
-                "querying peer could not be performed".to_string(),
+                "querying verifier could not be performed".to_string(),
             ));
         }
         Ok(verifier)
@@ -404,13 +409,13 @@ mod tests {
         let credential = CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap();
 
         assert!(peer_manager
-            .query_verifier(public_key, credential.clone())
+            .query_verifier_by_key(public_key, credential.clone())
             .await
             .is_err());
 
         helper_add_peer(&storage, &mut peer_manager).await;
         peer_manager
-            .query_verifier(public_key, credential)
+            .query_verifier_by_key(public_key, credential)
             .await
             .unwrap()
             .unwrap();

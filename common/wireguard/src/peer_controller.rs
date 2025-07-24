@@ -10,15 +10,18 @@ use futures::channel::oneshot;
 use log::info;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
-    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
+    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier, Verifier,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
-use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, sync::Arc};
+use std::{
+    net::IpAddr,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
@@ -38,12 +41,21 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<QueryPeerControlResponse>,
     },
-    GetClientBandwidth {
+    GetClientBandwidthByKey {
         key: Key,
         response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
     },
-    GetVerifier {
+    GetClientBandwidthByIp {
+        ip: IpAddr,
+        response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
+    },
+    GetVerifierByKey {
         key: Key,
+        credential: Box<CredentialSpendingData>,
+        response_tx: oneshot::Sender<QueryVerifierControlResponse>,
+    },
+    GetVerifierByIp {
+        ip: IpAddr,
         credential: Box<CredentialSpendingData>,
         response_tx: oneshot::Sender<QueryVerifierControlResponse>,
     },
@@ -63,12 +75,13 @@ pub struct QueryPeerControlResponse {
 }
 
 pub struct GetClientBandwidthControlResponse {
+    pub success: bool,
     pub client_bandwidth: Option<ClientBandwidth>,
 }
 
 pub struct QueryVerifierControlResponse {
     pub success: bool,
-    pub verifier: Option<CredentialVerifier>,
+    pub verifier: Option<Box<dyn Verifier + Send + Sync>>,
 }
 
 pub struct PeerController {
@@ -205,7 +218,21 @@ impl PeerController {
         Ok(())
     }
 
-    async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>, Error> {
+    async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>, Error> {
+        Ok(self
+            .wg_api
+            .read_interface_data()?
+            .peers
+            .values()
+            .find_map(|peer| {
+                peer.allowed_ips
+                    .iter()
+                    .find(|ip_mask| ip_mask.ip == ip)
+                    .and(Some(peer.public_key.clone()))
+            }))
+    }
+
+    async fn handle_query_peer_by_key(&self, key: &Key) -> Result<Option<Peer>, Error> {
         Ok(self
             .ecash_verifier
             .storage()
@@ -215,7 +242,18 @@ impl PeerController {
             .transpose()?)
     }
 
-    async fn handle_get_client_bandwidth(&self, key: &Key) -> Option<ClientBandwidth> {
+    async fn handle_get_client_bandwidth_by_ip(
+        &self,
+        ip: IpAddr,
+    ) -> Result<Option<ClientBandwidth>, Error> {
+        let Some(key) = self.ip_to_key(ip).await? else {
+            return Ok(None);
+        };
+
+        Ok(self.handle_get_client_bandwidth_by_key(&key).await)
+    }
+
+    async fn handle_get_client_bandwidth_by_key(&self, key: &Key) -> Option<ClientBandwidth> {
         if let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) {
             Some(bandwidth_storage_manager.read().await.client_bandwidth())
         } else {
@@ -223,7 +261,7 @@ impl PeerController {
         }
     }
 
-    async fn handle_query_verifier(
+    async fn handle_query_verifier_by_key(
         &self,
         key: &Key,
         credential: CredentialSpendingData,
@@ -250,6 +288,18 @@ impl PeerController {
             ),
         );
         Ok(verifier)
+    }
+
+    async fn handle_query_verifier_by_ip(
+        &self,
+        ip: IpAddr,
+        credential: CredentialSpendingData,
+    ) -> Result<CredentialVerifier, Error> {
+        let Some(key) = self.ip_to_key(ip).await? else {
+            return Err(Error::MissingClientKernelEntry(ip.to_string()));
+        };
+
+        self.handle_query_verifier_by_key(&key, credential).await
     }
 
     async fn update_metrics(&self, new_host: &Host) {
@@ -358,21 +408,37 @@ impl PeerController {
                             response_tx.send(RemovePeerControlResponse { success }).ok();
                         }
                         Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
-                            let ret = self.handle_query_peer(&key).await;
+                            let ret = self.handle_query_peer_by_key(&key).await;
                             if let Ok(peer) = ret {
                                 response_tx.send(QueryPeerControlResponse { success: true, peer }).ok();
                             } else {
                                 response_tx.send(QueryPeerControlResponse { success: false, peer: None }).ok();
                             }
                         }
-                        Some(PeerControlRequest::GetClientBandwidth { key, response_tx }) => {
-                            let client_bandwidth = self.handle_get_client_bandwidth(&key).await;
-                            response_tx.send(GetClientBandwidthControlResponse { client_bandwidth }).ok();
+                        Some(PeerControlRequest::GetClientBandwidthByKey { key, response_tx }) => {
+                            let client_bandwidth = self.handle_get_client_bandwidth_by_key(&key).await;
+                            response_tx.send(GetClientBandwidthControlResponse { success: true, client_bandwidth }).ok();
                         }
-                        Some(PeerControlRequest::GetVerifier { key, credential, response_tx }) => {
-                            let ret = self.handle_query_verifier(&key, *credential).await;
+                        Some(PeerControlRequest::GetClientBandwidthByIp { ip, response_tx }) => {
+                            let ret = self.handle_get_client_bandwidth_by_ip(ip).await;
+                            if let Ok(client_bandwidth) = ret {
+                                response_tx.send(GetClientBandwidthControlResponse { success: true, client_bandwidth }).ok();
+                            } else {
+                                response_tx.send(GetClientBandwidthControlResponse { success: false, client_bandwidth: None }).ok();
+                            }
+                        }
+                        Some(PeerControlRequest::GetVerifierByKey { key, credential, response_tx }) => {
+                            let ret = self.handle_query_verifier_by_key(&key, *credential).await;
                             if let Ok(verifier) = ret {
-                                response_tx.send(QueryVerifierControlResponse { success: true, verifier: Some(verifier) }).ok();
+                                response_tx.send(QueryVerifierControlResponse { success: true, verifier: Some(Box::new(verifier)) }).ok();
+                            } else {
+                                response_tx.send(QueryVerifierControlResponse { success: false, verifier: None }).ok();
+                            }
+                        }
+                        Some(PeerControlRequest::GetVerifierByIp { ip, credential, response_tx }) => {
+                            let ret = self.handle_query_verifier_by_ip(ip, *credential).await;
+                            if let Ok(verifier) = ret {
+                                response_tx.send(QueryVerifierControlResponse { success: true, verifier: Some(Box::new(verifier)) }).ok();
                             } else {
                                 response_tx.send(QueryVerifierControlResponse { success: false, verifier: None }).ok();
                             }

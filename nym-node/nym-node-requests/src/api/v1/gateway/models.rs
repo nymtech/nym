@@ -17,7 +17,10 @@ pub struct Gateway {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Wireguard {
     #[cfg_attr(feature = "openapi", schema(example = 51822, default = 51822))]
-    pub port: u16,
+    pub tunnel_port: u16,
+
+    #[cfg_attr(feature = "openapi", schema(example = 51830, default = 51830))]
+    pub metadata_port: u16,
 
     pub public_key: String,
 }

@@ -17,9 +17,13 @@ pub struct Config {
     /// default: `fc01::1`
     pub private_ipv6: Ipv6Addr,
 
-    /// Port announced to external clients wishing to connect to the wireguard interface.
+    /// Tunnel port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
-    pub announced_port: u16,
+    pub announced_tunnel_port: u16,
+
+    /// Metadata port announced to external clients wishing to connect to the endpoint.
+    /// Useful in the instances where the node is behind a proxy.
+    pub announced_metadata_port: u16,
 
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
     /// The maximum value for IPv4 is 32

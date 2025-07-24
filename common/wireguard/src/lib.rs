@@ -23,6 +23,8 @@ pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
 
+pub const CONTROL_CHANNEL_SIZE: usize = 256;
+
 pub struct WgApiWrapper {
     inner: WGApi,
 }
@@ -126,7 +128,7 @@ pub struct WireguardGatewayData {
 
 impl WireguardGatewayData {
     pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
-        let (peer_tx, peer_rx) = mpsc::channel(1);
+        let (peer_tx, peer_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
         (
             WireguardGatewayData {
                 config,
@@ -190,7 +192,7 @@ pub async fn start_wireguard(
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
         address: wireguard_data.inner.config().private_ipv4.to_string(),
-        port: wireguard_data.inner.config().announced_port as u32,
+        port: wireguard_data.inner.config().announced_tunnel_port as u32,
         peers,
         mtu: None,
     };
@@ -233,6 +235,7 @@ pub async fn start_wireguard(
 
     let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
+
     let mut controller = PeerController::new(
         ecash_manager,
         metrics,

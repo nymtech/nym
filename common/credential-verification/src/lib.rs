@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ecash::traits::EcashManager;
+use async_trait::async_trait;
 use bandwidth_storage_manager::BandwidthStorageManager;
 use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
@@ -137,5 +138,20 @@ impl CredentialVerifier {
             .client_bandwidth
             .available()
             .await)
+    }
+}
+
+#[async_trait]
+pub trait TicketVerifier {
+    /// Verify that the ticket is valid and cryptographically correct.
+    /// If the verification succeeds, also increase the bandwidth with the ticket's
+    /// amount and return the latest available bandwidth
+    async fn verify(&mut self) -> Result<i64>;
+}
+
+#[async_trait]
+impl TicketVerifier for CredentialVerifier {
+    async fn verify(&mut self) -> Result<i64> {
+        self.verify().await
     }
 }

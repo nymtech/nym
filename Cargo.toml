@@ -102,6 +102,7 @@ members = [
     "common/wasm/storage",
     "common/wasm/utils",
     "common/wireguard",
+    "common/wireguard-private-metadata",
     "common/wireguard-types",
     "common/zulip-client",
     "documentation/autodoc",

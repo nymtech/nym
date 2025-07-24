@@ -10,7 +10,7 @@ use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
-    DEFAULT_VERLOC_LISTENING_PORT, WG_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
+    DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT, WG_TUNNEL_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
     WG_TUN_DEVICE_IP_ADDRESS_V6,
 };
 use nym_config::defaults::{WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6};
@@ -931,9 +931,13 @@ pub struct Wireguard {
     /// default: `fc01::1`
     pub private_ipv6: Ipv6Addr,
 
-    /// Port announced to external clients wishing to connect to the wireguard interface.
+    /// Tunnel port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
-    pub announced_port: u16,
+    pub announced_tunnel_port: u16,
+
+    /// Metadata port announced to external clients wishing to connect to the metadata endpoint.
+    /// Useful in the instances where the node is behind a proxy.
+    pub announced_metadata_port: u16,
 
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
     /// The maximum value for IPv4 is 32
@@ -951,10 +955,11 @@ impl Wireguard {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         Wireguard {
             enabled: false,
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_TUNNEL_PORT),
             private_ipv4: WG_TUN_DEVICE_IP_ADDRESS_V4,
             private_ipv6: WG_TUN_DEVICE_IP_ADDRESS_V6,
-            announced_port: WG_PORT,
+            announced_tunnel_port: WG_TUNNEL_PORT,
+            announced_metadata_port: WG_METADATA_PORT,
             private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
             storage_paths: persistence::WireguardPaths::new(data_dir),
@@ -968,7 +973,8 @@ impl From<Wireguard> for nym_wireguard_types::Config {
             bind_address: value.bind_address,
             private_ipv4: value.private_ipv4,
             private_ipv6: value.private_ipv6,
-            announced_port: value.announced_port,
+            announced_tunnel_port: value.announced_tunnel_port,
+            announced_metadata_port: value.announced_metadata_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
         }
@@ -981,7 +987,7 @@ impl From<Wireguard> for nym_authenticator::config::Authenticator {
             bind_address: value.bind_address,
             private_ipv4: value.private_ipv4,
             private_ipv6: value.private_ipv6,
-            announced_port: value.announced_port,
+            tunnel_announced_port: value.announced_tunnel_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
         }

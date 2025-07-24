@@ -1,37 +1,35 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::old_configs::old_config_v10::{
-    AuthenticatorDebugV10, AuthenticatorPathsV10, AuthenticatorV10, ClientBandwidthDebugV10,
-    ConfigV10, GatewayTasksConfigDebugV10, GatewayTasksConfigV10, GatewayTasksPathsV10, HostV10,
-    HttpV10, IpPacketRouterDebugV10, IpPacketRouterPathsV10, IpPacketRouterV10, KeysPathsV10,
-    LoggingSettingsV10, MixnetDebugV10, MixnetV10, NetworkRequesterDebugV10,
-    NetworkRequesterPathsV10, NetworkRequesterV10, NodeModesV10, NymNodePathsV10,
-    ReplayProtectionDebugV10, ReplayProtectionPathsV10, ReplayProtectionV10,
-    ServiceProvidersConfigDebugV10, ServiceProvidersConfigV10, ServiceProvidersPathsV10,
-    StaleMessageDebugV10, VerlocDebugV10, VerlocV10, WireguardPathsV10, WireguardV10,
-    ZkNymTicketHandlerDebugV10,
+use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
+use crate::config::gateway_tasks::{
+    ClientBandwidthDebug, StaleMessageDebug, ZkNymTicketHandlerDebug,
 };
 use crate::config::persistence::{
-    DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME, DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME,
+    AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
+    NymNodePaths, ReplayProtectionPaths, ServiceProvidersPaths, WireguardPaths,
 };
-use crate::config::{NodeModes, DEFAULT_HTTP_PORT};
-use crate::error::{KeyIOFailure, NymNodeError};
-use crate::node::helpers::{get_current_rotation_id, load_key, store_key};
-use crate::node::key_rotation::key::SphinxPrivateKey;
+use crate::config::service_providers::{
+    IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
+};
+use crate::config::{
+    gateway_tasks, service_providers, Config, GatewayTasksConfig, Host, Http, KeyRotation,
+    KeyRotationDebug, Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
+    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, DEFAULT_HTTP_PORT,
+};
+use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
+use nym_bin_common::logging::LoggingSettings;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
-use nym_config::defaults::DEFAULT_VERLOC_LISTENING_PORT;
+use nym_config::defaults::{DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT};
 use nym_config::helpers::{in6addr_any_init, inaddr_any};
 use nym_config::{
     defaults::TICKETBOOK_VALIDITY_DAYS,
     read_config_from_toml_file,
     serde_helpers::{de_maybe_port, de_maybe_stringified},
 };
-use nym_crypto::asymmetric::x25519;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -40,14 +38,14 @@ use url::Url;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardPathsV9 {
+pub struct WireguardPathsV10 {
     pub private_diffie_hellman_key_file: PathBuf,
     pub public_diffie_hellman_key_file: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardV9 {
+pub struct WireguardV10 {
     /// Specifies whether the wireguard service is enabled on this node.
     pub enabled: bool,
 
@@ -76,13 +74,13 @@ pub struct WireguardV9 {
     pub private_network_prefix_v6: u8,
 
     /// Paths for wireguard keys, client registries, etc.
-    pub storage_paths: WireguardPathsV9,
+    pub storage_paths: WireguardPathsV10,
 }
 
 // a temporary solution until all "types" are run at the same time
 #[derive(Debug, Default, Serialize, Deserialize, ValueEnum, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum NodeModeV9 {
+pub enum NodeModeV10 {
     #[default]
     #[clap(alias = "mix")]
     Mixnode,
@@ -98,20 +96,20 @@ pub enum NodeModeV9 {
     ExitProvidersOnly,
 }
 
-impl From<NodeModeV9> for NodeModes {
-    fn from(config: NodeModeV9) -> Self {
+impl From<NodeModeV10> for NodeModes {
+    fn from(config: NodeModeV10) -> Self {
         match config {
-            NodeModeV9::Mixnode => *NodeModes::default().with_mixnode(),
-            NodeModeV9::EntryGateway => *NodeModes::default().with_entry(),
+            NodeModeV10::Mixnode => *NodeModes::default().with_mixnode(),
+            NodeModeV10::EntryGateway => *NodeModes::default().with_entry(),
             // in old version exit implied entry
-            NodeModeV9::ExitGateway => *NodeModes::default().with_entry().with_exit(),
-            NodeModeV9::ExitProvidersOnly => *NodeModes::default().with_exit(),
+            NodeModeV10::ExitGateway => *NodeModes::default().with_entry().with_exit(),
+            NodeModeV10::ExitProvidersOnly => *NodeModes::default().with_exit(),
         }
     }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Copy)]
-pub struct NodeModesV9 {
+pub struct NodeModesV10 {
     /// Specifies whether this node can operate in a mixnode mode.
     pub mixnode: bool,
 
@@ -127,7 +125,7 @@ pub struct NodeModesV9 {
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct HostV9 {
+pub struct HostV10 {
     /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
     /// If no values are provided, when this node gets included in the network,
     /// its ip addresses will be populated by whatever value is resolved by associated nym-api.
@@ -143,10 +141,36 @@ pub struct HostV9 {
     pub location: Option<Country>,
 }
 
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotationDebugV10 {
+    /// Specifies how often the node should poll for any changes in the key rotation global state.
+    #[serde(with = "humantime_serde")]
+    pub rotation_state_poling_interval: Duration,
+}
+
+impl KeyRotationDebugV10 {
+    pub const DEFAULT_ROTATION_STATE_POLLING_INTERVAL: Duration = Duration::from_secs(4 * 60 * 60);
+}
+
+impl Default for KeyRotationDebugV10 {
+    fn default() -> Self {
+        KeyRotationDebugV10 {
+            rotation_state_poling_interval: Self::DEFAULT_ROTATION_STATE_POLLING_INTERVAL,
+        }
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotationV10 {
+    pub debug: KeyRotationDebugV10,
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct MixnetDebugV9 {
+pub struct MixnetDebugV10 {
     /// Specifies the duration of time this node is willing to delay a forward packet for.
     #[serde(with = "humantime_serde")]
     pub maximum_forward_packet_delay: Duration,
@@ -168,11 +192,18 @@ pub struct MixnetDebugV9 {
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     pub maximum_connection_buffer_size: usize,
 
+    /// Specify whether any framed packets between nodes should use the legacy format (v7)
+    /// as opposed to the current (v8) one.
+    /// The legacy format has to be used until sufficient number of nodes on the network has upgraded and understand the new variant.
+    /// This will allow for optimisations to indicate which [sphinx] key is meant to be used when
+    /// processing received packets.
+    pub use_legacy_packet_encoding: bool,
+
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     pub unsafe_disable_noise: bool,
 }
 
-impl MixnetDebugV9 {
+impl MixnetDebugV10 {
     // given that genuine clients are using mean delay of 50ms,
     // the probability of them delaying for over 10s is 10^-87
     // which for all intents and purposes will never happen
@@ -185,23 +216,24 @@ impl MixnetDebugV9 {
     pub(crate) const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 }
 
-impl Default for MixnetDebugV9 {
+impl Default for MixnetDebugV10 {
     fn default() -> Self {
-        MixnetDebugV9 {
+        MixnetDebugV10 {
             maximum_forward_packet_delay: Self::DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY,
             packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            // to be changed by @SW once the implementation is there
-            unsafe_disable_noise: true,
+            // TODO: update this in few releases...
+            use_legacy_packet_encoding: true,
+            unsafe_disable_noise: false,
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnetV9 {
+pub struct MixnetV10 {
     /// Address this node will bind to for listening for mixnet packets
     /// default: `[::]:1789`
     pub bind_address: SocketAddr,
@@ -210,6 +242,7 @@ pub struct MixnetV9 {
     /// will use.
     /// Useful when the node is behind a proxy.
     #[serde(deserialize_with = "de_maybe_port")]
+    #[serde(default)]
     pub announce_port: Option<u16>,
 
     /// Addresses to nym APIs from which the node gets the view of the network.
@@ -219,50 +252,34 @@ pub struct MixnetV9 {
     pub nyxd_urls: Vec<Url>,
 
     /// Settings for controlling replay detection
-    pub replay_protection: ReplayProtectionV9,
+    pub replay_protection: ReplayProtectionV10,
 
     #[serde(default)]
-    pub debug: MixnetDebugV9,
+    pub key_rotation: KeyRotationV10,
+
+    #[serde(default)]
+    pub debug: MixnetDebugV10,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct ReplayProtectionV9 {
+pub struct ReplayProtectionV10 {
     /// Paths for current bloomfilters
-    pub storage_paths: ReplayProtectionPathsV9,
+    pub storage_paths: ReplayProtectionPathsV10,
 
     #[serde(default)]
-    pub debug: ReplayProtectionDebugV9,
+    pub debug: ReplayProtectionDebugV10,
 }
-
-impl ReplayProtectionV9 {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        ReplayProtectionV9 {
-            storage_paths: ReplayProtectionPathsV9::new(data_dir),
-            debug: Default::default(),
-        }
-    }
-}
-
-pub const DEFAULT_RD_BLOOMFILTER_SUBDIR: &str = "replay-detection";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ReplayProtectionPathsV9 {
+pub struct ReplayProtectionPathsV10 {
     /// Path to the directory storing currently used bloomfilter(s).
     pub current_bloomfilters_directory: PathBuf,
 }
 
-impl ReplayProtectionPathsV9 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        ReplayProtectionPathsV9 {
-            current_bloomfilters_directory: data_dir.as_ref().join(DEFAULT_RD_BLOOMFILTER_SUBDIR),
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct ReplayProtectionDebugV9 {
+pub struct ReplayProtectionDebugV10 {
     /// Specifies whether this node should **NOT** use replay protection
     pub unsafe_disabled: bool,
 
@@ -292,18 +309,12 @@ pub struct ReplayProtectionDebugV9 {
     /// It's performed in case the traffic rates increase before the next bloomfilter update.
     pub bloomfilter_size_multiplier: f64,
 
-    // NOTE: this field is temporary until replay detection bloomfilter rotation is tied
-    // to key rotation
-    /// Specifies how often the bloomfilter is cleared
-    #[serde(with = "humantime_serde")]
-    pub bloomfilter_reset_rate: Duration,
-
     /// Specifies how often the bloomfilter is flushed to disk for recovery in case of a crash
     #[serde(with = "humantime_serde")]
     pub bloomfilter_disk_flushing_rate: Duration,
 }
 
-impl ReplayProtectionDebugV9 {
+impl ReplayProtectionDebugV10 {
     pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_DEFERRAL: Duration = Duration::from_millis(50);
 
     pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS: usize = 100;
@@ -313,9 +324,6 @@ impl ReplayProtectionDebugV9 {
 
     // 10^-5
     pub const DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE: f64 = 1e-5;
-
-    // 25h (key rotation will be happening every 24h + 1h of overlap)
-    pub const DEFAULT_REPLAY_DETECTION_BF_RESET_RATE: Duration = Duration::from_secs(25 * 60 * 60);
 
     // we must have some reasonable balance between losing values and trashing the disk.
     // since on average HDD it would take ~30s to save a 2GB bloomfilter
@@ -327,9 +335,9 @@ impl ReplayProtectionDebugV9 {
     pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
 }
 
-impl Default for ReplayProtectionDebugV9 {
+impl Default for ReplayProtectionDebugV10 {
     fn default() -> Self {
-        ReplayProtectionDebugV9 {
+        ReplayProtectionDebugV10 {
             unsafe_disabled: false,
             maximum_replay_detection_deferral: Self::DEFAULT_MAXIMUM_REPLAY_DETECTION_DEFERRAL,
             maximum_replay_detection_pending_packets:
@@ -339,7 +347,6 @@ impl Default for ReplayProtectionDebugV9 {
             bloomfilter_minimum_packets_per_second_size:
                 Self::DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE,
             bloomfilter_size_multiplier: Self::DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER,
-            bloomfilter_reset_rate: Self::DEFAULT_REPLAY_DETECTION_BF_RESET_RATE,
             bloomfilter_disk_flushing_rate: Self::DEFAULT_BF_DISK_FLUSHING_RATE,
         }
     }
@@ -347,18 +354,18 @@ impl Default for ReplayProtectionDebugV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct KeysPathsV9 {
+pub struct KeysPathsV10 {
     /// Path to file containing ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
     /// Path to file containing ed25519 identity public key.
     pub public_ed25519_identity_key_file: PathBuf,
 
-    /// Path to file containing x25519 sphinx private key.
-    pub private_x25519_sphinx_key_file: PathBuf,
+    /// Path to file containing the primary x25519 sphinx private key.
+    pub primary_x25519_sphinx_key_file: PathBuf,
 
-    /// Path to file containing x25519 sphinx public key.
-    pub public_x25519_sphinx_key_file: PathBuf,
+    /// Path to file containing the secondary x25519 sphinx private key.
+    pub secondary_x25519_sphinx_key_file: PathBuf,
 
     /// Path to file containing x25519 noise private key.
     pub private_x25519_noise_key_file: PathBuf,
@@ -369,8 +376,8 @@ pub struct KeysPathsV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct NymNodePathsV9 {
-    pub keys: KeysPathsV9,
+pub struct NymNodePathsV10 {
+    pub keys: KeysPathsV10,
 
     /// Path to a file containing basic node description: human-readable name, website, details, etc.
     pub description: PathBuf,
@@ -379,7 +386,7 @@ pub struct NymNodePathsV9 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct HttpV9 {
+pub struct HttpV10 {
     /// Socket address this node will use for binding its http API.
     /// default: `[::]:8080`
     pub bind_address: SocketAddr,
@@ -413,13 +420,13 @@ pub struct HttpV9 {
     pub node_load_cache_ttl: Duration,
 }
 
-impl HttpV9 {
+impl HttpV10 {
     pub const DEFAULT_NODE_LOAD_CACHE_TTL: Duration = Duration::from_secs(30);
 }
 
-impl Default for HttpV9 {
+impl Default for HttpV10 {
     fn default() -> Self {
-        HttpV9 {
+        HttpV10 {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             access_token: None,
@@ -433,11 +440,11 @@ impl Default for HttpV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodePathsV9 {}
+pub struct MixnodePathsV10 {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct DebugV9 {
+pub struct DebugV10 {
     /// Delay between each subsequent node statistics being logged to the console
     #[serde(with = "humantime_serde")]
     pub node_stats_logging_delay: Duration,
@@ -449,7 +456,7 @@ pub struct DebugV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct VerlocDebugV9 {
+pub struct VerlocDebugV10 {
     /// Specifies number of echo packets sent to each node during a measurement run.
     pub packets_per_node: usize,
 
@@ -480,7 +487,7 @@ pub struct VerlocDebugV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct VerlocV9 {
+pub struct VerlocV10 {
     /// Socket address this node will use for binding its verloc API.
     /// default: `[::]:1790`
     pub bind_address: SocketAddr,
@@ -493,16 +500,16 @@ pub struct VerlocV9 {
     pub announce_port: Option<u16>,
 
     #[serde(default)]
-    pub debug: VerlocDebugV9,
+    pub debug: VerlocDebugV10,
 }
 
-impl VerlocV9 {
+impl VerlocV10 {
     pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
 }
 
-impl Default for VerlocV9 {
+impl Default for VerlocV10 {
     fn default() -> Self {
-        VerlocV9 {
+        VerlocV10 {
             bind_address: SocketAddr::new(in6addr_any_init(), Self::DEFAULT_VERLOC_PORT),
             announce_port: None,
             debug: Default::default(),
@@ -510,7 +517,7 @@ impl Default for VerlocV9 {
     }
 }
 
-impl VerlocDebugV9 {
+impl VerlocDebugV10 {
     const DEFAULT_PACKETS_PER_NODE: usize = 100;
     const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
     const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -520,9 +527,9 @@ impl VerlocDebugV9 {
     const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 }
 
-impl Default for VerlocDebugV9 {
+impl Default for VerlocDebugV10 {
     fn default() -> Self {
-        VerlocDebugV9 {
+        VerlocDebugV10 {
             packets_per_node: Self::DEFAULT_PACKETS_PER_NODE,
             connection_timeout: Self::DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: Self::DEFAULT_PACKET_TIMEOUT,
@@ -536,23 +543,23 @@ impl Default for VerlocDebugV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodeConfigV9 {
-    pub storage_paths: MixnodePathsV9,
+pub struct MixnodeConfigV10 {
+    pub storage_paths: MixnodePathsV10,
 
-    pub verloc: VerlocV9,
+    pub verloc: VerlocV10,
 
     #[serde(default)]
-    pub debug: DebugV9,
+    pub debug: DebugV10,
 }
 
-impl DebugV9 {
+impl DebugV10 {
     const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
     const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
 }
 
-impl Default for DebugV9 {
+impl Default for DebugV10 {
     fn default() -> Self {
-        DebugV9 {
+        DebugV10 {
             node_stats_logging_delay: Self::DEFAULT_NODE_STATS_LOGGING_DELAY,
             node_stats_updating_delay: Self::DEFAULT_NODE_STATS_UPDATING_DELAY,
         }
@@ -561,7 +568,7 @@ impl Default for DebugV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayPathsV9 {
+pub struct EntryGatewayPathsV10 {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     pub clients_storage: PathBuf,
@@ -571,12 +578,12 @@ pub struct EntryGatewayPathsV9 {
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
 
-    pub authenticator: AuthenticatorPathsV9,
+    pub authenticator: AuthenticatorPathsV10,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct ZkNymTicketHandlerDebugV9 {
+pub struct ZkNymTicketHandlerDebugV10 {
     /// Specifies the multiplier for revoking a malformed/double-spent ticket
     /// (if it has to go all the way to the nym-api for verification)
     /// e.g. if one ticket grants 100Mb and `revocation_bandwidth_penalty` is set to 1.5,
@@ -599,7 +606,7 @@ pub struct ZkNymTicketHandlerDebugV9 {
     pub maximum_time_between_redemption: Duration,
 }
 
-impl ZkNymTicketHandlerDebugV9 {
+impl ZkNymTicketHandlerDebugV10 {
     pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
     pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
     pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
@@ -628,9 +635,9 @@ impl ZkNymTicketHandlerDebugV9 {
     }
 }
 
-impl Default for ZkNymTicketHandlerDebugV9 {
+impl Default for ZkNymTicketHandlerDebugV10 {
     fn default() -> Self {
-        ZkNymTicketHandlerDebugV9 {
+        ZkNymTicketHandlerDebugV10 {
             revocation_bandwidth_penalty: Self::DEFAULT_REVOCATION_BANDWIDTH_PENALTY,
             pending_poller: Self::DEFAULT_PENDING_POLLER,
             minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
@@ -642,19 +649,19 @@ impl Default for ZkNymTicketHandlerDebugV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigDebugV9 {
+pub struct EntryGatewayConfigDebugV10 {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
-    pub zk_nym_tickets: ZkNymTicketHandlerDebugV9,
+    pub zk_nym_tickets: ZkNymTicketHandlerDebugV10,
 }
 
-impl EntryGatewayConfigDebugV9 {
+impl EntryGatewayConfigDebugV10 {
     const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 }
 
-impl Default for EntryGatewayConfigDebugV9 {
+impl Default for EntryGatewayConfigDebugV10 {
     fn default() -> Self {
-        EntryGatewayConfigDebugV9 {
+        EntryGatewayConfigDebugV10 {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
             zk_nym_tickets: Default::default(),
         }
@@ -663,8 +670,8 @@ impl Default for EntryGatewayConfigDebugV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigV9 {
-    pub storage_paths: EntryGatewayPathsV9,
+pub struct EntryGatewayConfigV10 {
+    pub storage_paths: EntryGatewayPathsV10,
 
     /// Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet
     /// or if it also accepts non-paying clients
@@ -686,12 +693,12 @@ pub struct EntryGatewayConfigV9 {
     pub announce_wss_port: Option<u16>,
 
     #[serde(default)]
-    pub debug: EntryGatewayConfigDebugV9,
+    pub debug: EntryGatewayConfigDebugV10,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct NetworkRequesterPathsV9 {
+pub struct NetworkRequesterPathsV10 {
     /// Path to file containing network requester ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -721,7 +728,7 @@ pub struct NetworkRequesterPathsV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct IpPacketRouterPathsV9 {
+pub struct IpPacketRouterPathsV10 {
     /// Path to file containing ip packet router ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -751,7 +758,7 @@ pub struct IpPacketRouterPathsV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct AuthenticatorPathsV9 {
+pub struct AuthenticatorPathsV10 {
     /// Path to file containing authenticator ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -781,27 +788,27 @@ pub struct AuthenticatorPathsV9 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayPathsV9 {
+pub struct ExitGatewayPathsV10 {
     pub clients_storage: PathBuf,
 
     pub stats_storage: PathBuf,
 
-    pub network_requester: NetworkRequesterPathsV9,
+    pub network_requester: NetworkRequesterPathsV10,
 
-    pub ip_packet_router: IpPacketRouterPathsV9,
+    pub ip_packet_router: IpPacketRouterPathsV10,
 
-    pub authenticator: AuthenticatorPathsV9,
+    pub authenticator: AuthenticatorPathsV10,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct AuthenticatorV9 {
+pub struct AuthenticatorV10 {
     #[serde(default)]
-    pub debug: AuthenticatorDebugV9,
+    pub debug: AuthenticatorDebugV10,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct AuthenticatorDebugV9 {
+pub struct AuthenticatorDebugV10 {
     /// Specifies whether authenticator service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run
     /// the authenticator.
@@ -817,9 +824,9 @@ pub struct AuthenticatorDebugV9 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for AuthenticatorDebugV9 {
+impl Default for AuthenticatorDebugV10 {
     fn default() -> Self {
-        AuthenticatorDebugV9 {
+        AuthenticatorDebugV10 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -828,9 +835,9 @@ impl Default for AuthenticatorDebugV9 {
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for AuthenticatorV9 {
+impl Default for AuthenticatorV10 {
     fn default() -> Self {
-        AuthenticatorV9 {
+        AuthenticatorV10 {
             debug: Default::default(),
         }
     }
@@ -838,7 +845,7 @@ impl Default for AuthenticatorV9 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct IpPacketRouterDebugV9 {
+pub struct IpPacketRouterDebugV10 {
     /// Specifies whether ip packet routing service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
     /// network requester and an ip packet router.
@@ -854,9 +861,9 @@ pub struct IpPacketRouterDebugV9 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for IpPacketRouterDebugV9 {
+impl Default for IpPacketRouterDebugV10 {
     fn default() -> Self {
-        IpPacketRouterDebugV9 {
+        IpPacketRouterDebugV10 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -865,22 +872,22 @@ impl Default for IpPacketRouterDebugV9 {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct IpPacketRouterV9 {
+pub struct IpPacketRouterV10 {
     #[serde(default)]
-    pub debug: IpPacketRouterDebugV9,
+    pub debug: IpPacketRouterDebugV10,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for IpPacketRouterV9 {
+impl Default for IpPacketRouterV10 {
     fn default() -> Self {
-        IpPacketRouterV9 {
+        IpPacketRouterV10 {
             debug: Default::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-pub struct NetworkRequesterDebugV9 {
+pub struct NetworkRequesterDebugV10 {
     /// Specifies whether network requester service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
     /// network requester and an ip packet router.
@@ -896,9 +903,9 @@ pub struct NetworkRequesterDebugV9 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for NetworkRequesterDebugV9 {
+impl Default for NetworkRequesterDebugV10 {
     fn default() -> Self {
-        NetworkRequesterDebugV9 {
+        NetworkRequesterDebugV10 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -907,15 +914,15 @@ impl Default for NetworkRequesterDebugV9 {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-pub struct NetworkRequesterV9 {
+pub struct NetworkRequesterV10 {
     #[serde(default)]
-    pub debug: NetworkRequesterDebugV9,
+    pub debug: NetworkRequesterDebugV10,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for NetworkRequesterV9 {
+impl Default for NetworkRequesterV10 {
     fn default() -> Self {
-        NetworkRequesterV9 {
+        NetworkRequesterV10 {
             debug: Default::default(),
         }
     }
@@ -923,18 +930,18 @@ impl Default for NetworkRequesterV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayDebugV9 {
+pub struct ExitGatewayDebugV10 {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 }
 
-impl ExitGatewayDebugV9 {
+impl ExitGatewayDebugV10 {
     const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 }
 
-impl Default for ExitGatewayDebugV9 {
+impl Default for ExitGatewayDebugV10 {
     fn default() -> Self {
-        ExitGatewayDebugV9 {
+        ExitGatewayDebugV10 {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
         }
     }
@@ -942,8 +949,8 @@ impl Default for ExitGatewayDebugV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayConfigV9 {
-    pub storage_paths: ExitGatewayPathsV9,
+pub struct ExitGatewayConfigV10 {
+    pub storage_paths: ExitGatewayPathsV10,
 
     /// specifies whether this exit node should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
@@ -952,17 +959,17 @@ pub struct ExitGatewayConfigV9 {
     /// Specifies the url for an upstream source of the exit policy used by this node.
     pub upstream_exit_policy_url: Url,
 
-    pub network_requester: NetworkRequesterV9,
+    pub network_requester: NetworkRequesterV10,
 
-    pub ip_packet_router: IpPacketRouterV9,
+    pub ip_packet_router: IpPacketRouterV10,
 
     #[serde(default)]
-    pub debug: ExitGatewayDebugV9,
+    pub debug: ExitGatewayDebugV10,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct GatewayTasksPathsV9 {
+pub struct GatewayTasksPathsV10 {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
@@ -975,7 +982,7 @@ pub struct GatewayTasksPathsV9 {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct StaleMessageDebugV9 {
+pub struct StaleMessageDebugV10 {
     /// Specifies how often the clean-up task should check for stale data.
     #[serde(with = "humantime_serde")]
     pub cleaner_run_interval: Duration,
@@ -985,14 +992,14 @@ pub struct StaleMessageDebugV9 {
     pub max_age: Duration,
 }
 
-impl StaleMessageDebugV9 {
+impl StaleMessageDebugV10 {
     const DEFAULT_STALE_MESSAGES_CLEANER_RUN_INTERVAL: Duration = Duration::from_secs(60 * 60);
     const DEFAULT_STALE_MESSAGES_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 }
 
-impl Default for StaleMessageDebugV9 {
+impl Default for StaleMessageDebugV10 {
     fn default() -> Self {
-        StaleMessageDebugV9 {
+        StaleMessageDebugV10 {
             cleaner_run_interval: Self::DEFAULT_STALE_MESSAGES_CLEANER_RUN_INTERVAL,
             max_age: Self::DEFAULT_STALE_MESSAGES_MAX_AGE,
         }
@@ -1000,7 +1007,7 @@ impl Default for StaleMessageDebugV9 {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct ClientBandwidthDebugV9 {
+pub struct ClientBandwidthDebugV10 {
     /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
     pub max_flushing_rate: Duration,
 
@@ -1008,14 +1015,14 @@ pub struct ClientBandwidthDebugV9 {
     pub max_delta_flushing_amount: i64,
 }
 
-impl ClientBandwidthDebugV9 {
+impl ClientBandwidthDebugV10 {
     const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
     const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
 }
 
-impl Default for ClientBandwidthDebugV9 {
+impl Default for ClientBandwidthDebugV10 {
     fn default() -> Self {
-        ClientBandwidthDebugV9 {
+        ClientBandwidthDebugV10 {
             max_flushing_rate: Self::DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
             max_delta_flushing_amount: Self::DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
         }
@@ -1025,7 +1032,7 @@ impl Default for ClientBandwidthDebugV9 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]
-pub struct GatewayTasksConfigDebugV9 {
+pub struct GatewayTasksConfigDebugV10 {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 
@@ -1040,23 +1047,23 @@ pub struct GatewayTasksConfigDebugV9 {
     #[serde(alias = "maximum_auth_request_age")]
     pub max_request_timestamp_skew: Duration,
 
-    pub stale_messages: StaleMessageDebugV9,
+    pub stale_messages: StaleMessageDebugV10,
 
-    pub client_bandwidth: ClientBandwidthDebugV9,
+    pub client_bandwidth: ClientBandwidthDebugV10,
 
-    pub zk_nym_tickets: ZkNymTicketHandlerDebugV9,
+    pub zk_nym_tickets: ZkNymTicketHandlerDebugV10,
 }
 
-impl GatewayTasksConfigDebugV9 {
+impl GatewayTasksConfigDebugV10 {
     pub const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
     pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW: Duration = Duration::from_secs(120);
     pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
 }
 
-impl Default for GatewayTasksConfigDebugV9 {
+impl Default for GatewayTasksConfigDebugV10 {
     fn default() -> Self {
-        GatewayTasksConfigDebugV9 {
+        GatewayTasksConfigDebugV10 {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
             maximum_open_connections: Self::DEFAULT_MAXIMUM_OPEN_CONNECTIONS,
             max_request_timestamp_skew: Self::DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW,
@@ -1070,8 +1077,8 @@ impl Default for GatewayTasksConfigDebugV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct GatewayTasksConfigV9 {
-    pub storage_paths: GatewayTasksPathsV9,
+pub struct GatewayTasksConfigV10 {
+    pub storage_paths: GatewayTasksPathsV10,
 
     /// Indicates whether this gateway is accepting only zk-nym credentials for accessing the mixnet
     /// or if it also accepts non-paying clients
@@ -1093,12 +1100,12 @@ pub struct GatewayTasksConfigV9 {
     pub announce_wss_port: Option<u16>,
 
     #[serde(default)]
-    pub debug: GatewayTasksConfigDebugV9,
+    pub debug: GatewayTasksConfigDebugV10,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ServiceProvidersPathsV9 {
+pub struct ServiceProvidersPathsV10 {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
@@ -1106,27 +1113,27 @@ pub struct ServiceProvidersPathsV9 {
     /// Path to sqlite database containing all persistent stats data.
     pub stats_storage: PathBuf,
 
-    pub network_requester: NetworkRequesterPathsV9,
+    pub network_requester: NetworkRequesterPathsV10,
 
-    pub ip_packet_router: IpPacketRouterPathsV9,
+    pub ip_packet_router: IpPacketRouterPathsV10,
 
-    pub authenticator: AuthenticatorPathsV9,
+    pub authenticator: AuthenticatorPathsV10,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ServiceProvidersConfigDebugV9 {
+pub struct ServiceProvidersConfigDebugV10 {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 }
 
-impl ServiceProvidersConfigDebugV9 {
+impl ServiceProvidersConfigDebugV10 {
     const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 }
 
-impl Default for ServiceProvidersConfigDebugV9 {
+impl Default for ServiceProvidersConfigDebugV10 {
     fn default() -> Self {
-        ServiceProvidersConfigDebugV9 {
+        ServiceProvidersConfigDebugV10 {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
         }
     }
@@ -1134,8 +1141,8 @@ impl Default for ServiceProvidersConfigDebugV9 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ServiceProvidersConfigV9 {
-    pub storage_paths: ServiceProvidersPathsV9,
+pub struct ServiceProvidersConfigV10 {
+    pub storage_paths: ServiceProvidersPathsV10,
 
     /// specifies whether this exit node should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
@@ -1144,26 +1151,26 @@ pub struct ServiceProvidersConfigV9 {
     /// Specifies the url for an upstream source of the exit policy used by this node.
     pub upstream_exit_policy_url: Url,
 
-    pub network_requester: NetworkRequesterV9,
+    pub network_requester: NetworkRequesterV10,
 
-    pub ip_packet_router: IpPacketRouterV9,
+    pub ip_packet_router: IpPacketRouterV10,
 
-    pub authenticator: AuthenticatorV9,
+    pub authenticator: AuthenticatorV10,
 
     #[serde(default)]
-    pub debug: ServiceProvidersConfigDebugV9,
+    pub debug: ServiceProvidersConfigDebugV10,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MetricsConfigV9 {
+pub struct MetricsConfigV10 {
     #[serde(default)]
-    pub debug: MetricsDebugV9,
+    pub debug: MetricsDebugV10,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MetricsDebugV9 {
+pub struct MetricsDebugV10 {
     /// Specify whether running statistics of this node should be logged to the console.
     pub log_stats_to_console: bool,
 
@@ -1196,7 +1203,7 @@ pub struct MetricsDebugV9 {
     pub legacy_mixing_metrics_update_rate: Duration,
 }
 
-impl MetricsDebugV9 {
+impl MetricsDebugV10 {
     const DEFAULT_CONSOLE_LOGGING_INTERVAL: Duration = Duration::from_millis(60_000);
     const DEFAULT_LEGACY_MIXING_UPDATE_RATE: Duration = Duration::from_millis(30_000);
     const DEFAULT_AGGREGATOR_UPDATE_RATE: Duration = Duration::from_secs(5);
@@ -1206,9 +1213,9 @@ impl MetricsDebugV9 {
     const DEFAULT_PENDING_EGRESS_PACKETS_UPDATE_RATE: Duration = Duration::from_secs(30);
 }
 
-impl Default for MetricsDebugV9 {
+impl Default for MetricsDebugV10 {
     fn default() -> Self {
-        MetricsDebugV9 {
+        MetricsDebugV10 {
             log_stats_to_console: true,
             console_logging_update_interval: Self::DEFAULT_CONSOLE_LOGGING_INTERVAL,
             legacy_mixing_metrics_update_rate: Self::DEFAULT_LEGACY_MIXING_UPDATE_RATE,
@@ -1224,13 +1231,13 @@ impl Default for MetricsDebugV9 {
 
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingSettingsV9 {
+pub struct LoggingSettingsV10 {
     // well, we need to implement something here at some point...
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV9 {
+pub struct ConfigV10 {
     // additional metadata holding on-disk location of this config file
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
@@ -1239,44 +1246,44 @@ pub struct ConfigV9 {
     pub id: String,
 
     /// Current modes of this nym-node.
-    pub modes: NodeModesV9,
+    pub modes: NodeModesV10,
 
-    pub host: HostV9,
+    pub host: HostV10,
 
-    pub mixnet: MixnetV9,
+    pub mixnet: MixnetV10,
 
     /// Storage paths to persistent nym-node data, such as its long term keys.
-    pub storage_paths: NymNodePathsV9,
+    pub storage_paths: NymNodePathsV10,
 
     #[serde(default)]
-    pub http: HttpV9,
+    pub http: HttpV10,
 
     #[serde(default)]
-    pub verloc: VerlocV9,
+    pub verloc: VerlocV10,
 
-    pub wireguard: WireguardV9,
+    pub wireguard: WireguardV10,
 
     #[serde(alias = "entry_gateway")]
-    pub gateway_tasks: GatewayTasksConfigV9,
+    pub gateway_tasks: GatewayTasksConfigV10,
 
     #[serde(alias = "exit_gateway")]
-    pub service_providers: ServiceProvidersConfigV9,
+    pub service_providers: ServiceProvidersConfigV10,
 
     #[serde(default)]
-    pub metrics: MetricsConfigV9,
+    pub metrics: MetricsConfigV10,
 
     #[serde(default)]
-    pub logging: LoggingSettingsV9,
+    pub logging: LoggingSettingsV10,
 
     #[serde(default)]
-    pub debug: DebugV9,
+    pub debug: DebugV10,
 }
 
-impl ConfigV9 {
+impl ConfigV10 {
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         let path = path.as_ref();
-        let mut loaded: ConfigV9 =
+        let mut loaded: ConfigV10 =
             read_config_from_toml_file(path).map_err(|source| NymNodeError::ConfigLoadFailure {
                 path: path.to_path_buf(),
                 source,
@@ -1287,85 +1294,46 @@ impl ConfigV9 {
     }
 }
 
-async fn upgrade_sphinx_key(old_cfg: &ConfigV9) -> Result<(PathBuf, PathBuf), NymNodeError> {
-    // we mark the current sphinx key as the primary and attach the current rotation id
-    let rotation_id =
-        get_current_rotation_id(&old_cfg.mixnet.nym_api_urls, &old_cfg.mixnet.nyxd_urls).await?;
-
-    let current_sphinx_key_path = &old_cfg.storage_paths.keys.private_x25519_sphinx_key_file;
-    let current_pubkey_path = &old_cfg.storage_paths.keys.public_x25519_sphinx_key_file;
-
-    let current_sphinx_key: x25519::PrivateKey =
-        load_key(current_sphinx_key_path, "sphinx private key")?;
-
-    let keys_dir = current_sphinx_key_path
-        .parent()
-        .ok_or(NymNodeError::DataDirDerivationFailure)?;
-
-    let primary_key_path = keys_dir.join(DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME);
-    let secondary_key_path = keys_dir.join(DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME);
-
-    let primary_key = SphinxPrivateKey::import(current_sphinx_key, rotation_id);
-    store_key(&primary_key, &primary_key_path, "sphinx private key")?;
-
-    // no point in keeping the old sphinx files
-    fs::remove_file(current_sphinx_key_path).map_err(|err| KeyIOFailure::KeyRemovalFailure {
-        key: "sphinx private key".to_string(),
-        path: current_sphinx_key_path.clone(),
-        err,
-    })?;
-    fs::remove_file(current_pubkey_path).map_err(|err| KeyIOFailure::KeyRemovalFailure {
-        key: "sphinx public key".to_string(),
-        path: current_pubkey_path.clone(),
-        err,
-    })?;
-
-    Ok((primary_key_path, secondary_key_path))
-}
-
 #[instrument(skip_all)]
-pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
+pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
     path: P,
-    prev_config: Option<ConfigV9>,
-) -> Result<ConfigV10, NymNodeError> {
-    debug!("attempting to load v9 config...");
+    prev_config: Option<ConfigV10>,
+) -> Result<Config, NymNodeError> {
+    debug!("attempting to load v10 config...");
 
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV9::read_from_path(&path)?
+        ConfigV10::read_from_path(&path)?
     };
 
-    let (primary_x25519_sphinx_key_file, secondary_x25519_sphinx_key_file) =
-        upgrade_sphinx_key(&old_cfg).await?;
-
-    let cfg = ConfigV10 {
+    let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
-        modes: NodeModesV10 {
+        modes: NodeModes {
             mixnode: old_cfg.modes.mixnode,
             entry: old_cfg.modes.entry,
             exit: old_cfg.modes.exit,
         },
-        host: HostV10 {
+        host: Host {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: MixnetV10 {
+        mixnet: Mixnet {
             bind_address: old_cfg.mixnet.bind_address,
             announce_port: old_cfg.mixnet.announce_port,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            replay_protection: ReplayProtectionV10 {
-                storage_paths: ReplayProtectionPathsV10 {
+            replay_protection: ReplayProtection {
+                storage_paths: ReplayProtectionPaths {
                     current_bloomfilters_directory: old_cfg
                         .mixnet
                         .replay_protection
                         .storage_paths
                         .current_bloomfilters_directory,
                 },
-                debug: ReplayProtectionDebugV10 {
+                debug: ReplayProtectionDebug {
                     unsafe_disabled: old_cfg.mixnet.replay_protection.debug.unsafe_disabled,
                     maximum_replay_detection_deferral: old_cfg
                         .mixnet
@@ -1400,8 +1368,16 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .bloomfilter_disk_flushing_rate,
                 },
             },
-            key_rotation: Default::default(),
-            debug: MixnetDebugV10 {
+            key_rotation: KeyRotation {
+                debug: KeyRotationDebug {
+                    rotation_state_poling_interval: old_cfg
+                        .mixnet
+                        .key_rotation
+                        .debug
+                        .rotation_state_poling_interval,
+                },
+            },
+            debug: MixnetDebug {
                 maximum_forward_packet_delay: old_cfg.mixnet.debug.maximum_forward_packet_delay,
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
@@ -1414,11 +1390,11 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                 initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
                 maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
-                ..Default::default()
+                use_legacy_packet_encoding: old_cfg.mixnet.debug.use_legacy_packet_encoding,
             },
         },
-        storage_paths: NymNodePathsV10 {
-            keys: KeysPathsV10 {
+        storage_paths: NymNodePaths {
+            keys: KeysPaths {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1427,7 +1403,10 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                     .storage_paths
                     .keys
                     .public_ed25519_identity_key_file,
-                primary_x25519_sphinx_key_file,
+                primary_x25519_sphinx_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .primary_x25519_sphinx_key_file,
                 private_x25519_noise_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1436,11 +1415,14 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                     .storage_paths
                     .keys
                     .public_x25519_noise_key_file,
-                secondary_x25519_sphinx_key_file,
+                secondary_x25519_sphinx_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .secondary_x25519_sphinx_key_file,
             },
             description: old_cfg.storage_paths.description,
         },
-        http: HttpV10 {
+        http: Http {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,
             access_token: old_cfg.http.access_token,
@@ -1449,10 +1431,10 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
             node_load_cache_ttl: old_cfg.http.node_load_cache_ttl,
         },
-        verloc: VerlocV10 {
+        verloc: Verloc {
             bind_address: old_cfg.verloc.bind_address,
             announce_port: old_cfg.verloc.announce_port,
-            debug: VerlocDebugV10 {
+            debug: VerlocDebug {
                 packets_per_node: old_cfg.verloc.debug.packets_per_node,
                 connection_timeout: old_cfg.verloc.debug.connection_timeout,
                 packet_timeout: old_cfg.verloc.debug.packet_timeout,
@@ -1462,15 +1444,16 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                 retry_timeout: old_cfg.verloc.debug.retry_timeout,
             },
         },
-        wireguard: WireguardV10 {
+        wireguard: Wireguard {
             enabled: old_cfg.wireguard.enabled,
             bind_address: old_cfg.wireguard.bind_address,
             private_ipv4: old_cfg.wireguard.private_ipv4,
             private_ipv6: old_cfg.wireguard.private_ipv6,
-            announced_port: old_cfg.wireguard.announced_port,
+            announced_tunnel_port: old_cfg.wireguard.announced_port,
+            announced_metadata_port: WG_METADATA_PORT,
             private_network_prefix_v4: old_cfg.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: old_cfg.wireguard.private_network_prefix_v6,
-            storage_paths: WireguardPathsV10 {
+            storage_paths: WireguardPaths {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
                     .storage_paths
@@ -1481,8 +1464,8 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
-        gateway_tasks: GatewayTasksConfigV10 {
-            storage_paths: GatewayTasksPathsV10 {
+        gateway_tasks: GatewayTasksConfig {
+            storage_paths: GatewayTasksPaths {
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
                 stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
@@ -1491,12 +1474,12 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
             ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,
             announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
             announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
-            debug: GatewayTasksConfigDebugV10 {
+            debug: gateway_tasks::Debug {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,
                 minimum_mix_performance: old_cfg.gateway_tasks.debug.minimum_mix_performance,
                 max_request_timestamp_skew: old_cfg.gateway_tasks.debug.max_request_timestamp_skew,
-                stale_messages: StaleMessageDebugV10 {
+                stale_messages: StaleMessageDebug {
                     cleaner_run_interval: old_cfg
                         .gateway_tasks
                         .debug
@@ -1504,7 +1487,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .cleaner_run_interval,
                     max_age: old_cfg.gateway_tasks.debug.stale_messages.max_age,
                 },
-                client_bandwidth: ClientBandwidthDebugV10 {
+                client_bandwidth: ClientBandwidthDebug {
                     max_flushing_rate: old_cfg
                         .gateway_tasks
                         .debug
@@ -1516,7 +1499,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .client_bandwidth
                         .max_delta_flushing_amount,
                 },
-                zk_nym_tickets: ZkNymTicketHandlerDebugV10 {
+                zk_nym_tickets: ZkNymTicketHandlerDebug {
                     revocation_bandwidth_penalty: old_cfg
                         .gateway_tasks
                         .debug
@@ -1541,11 +1524,11 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                 },
             },
         },
-        service_providers: ServiceProvidersConfigV10 {
-            storage_paths: ServiceProvidersPathsV10 {
+        service_providers: ServiceProvidersConfig {
+            storage_paths: ServiceProvidersPaths {
                 clients_storage: old_cfg.service_providers.storage_paths.clients_storage,
                 stats_storage: old_cfg.service_providers.storage_paths.stats_storage,
-                network_requester: NetworkRequesterPathsV10 {
+                network_requester: NetworkRequesterPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1582,7 +1565,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPathsV10 {
+                ip_packet_router: IpPacketRouterPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1619,7 +1602,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
-                authenticator: AuthenticatorPathsV10 {
+                authenticator: AuthenticatorPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .service_providers
                         .storage_paths
@@ -1659,8 +1642,8 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
             },
             open_proxy: old_cfg.service_providers.open_proxy,
             upstream_exit_policy_url: old_cfg.service_providers.upstream_exit_policy_url,
-            network_requester: NetworkRequesterV10 {
-                debug: NetworkRequesterDebugV10 {
+            network_requester: NetworkRequester {
+                debug: NetworkRequesterDebug {
                     enabled: old_cfg.service_providers.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1674,8 +1657,8 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouterV10 {
-                debug: IpPacketRouterDebugV10 {
+            ip_packet_router: IpPacketRouter {
+                debug: IpPacketRouterDebug {
                     enabled: old_cfg.service_providers.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1689,8 +1672,8 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .client_debug,
                 },
             },
-            authenticator: AuthenticatorV10 {
-                debug: AuthenticatorDebugV10 {
+            authenticator: Authenticator {
+                debug: AuthenticatorDebug {
                     enabled: old_cfg.service_providers.authenticator.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .service_providers
@@ -1700,12 +1683,12 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                     client_debug: old_cfg.service_providers.authenticator.debug.client_debug,
                 },
             },
-            debug: ServiceProvidersConfigDebugV10 {
+            debug: service_providers::Debug {
                 message_retrieval_limit: old_cfg.service_providers.debug.message_retrieval_limit,
             },
         },
         metrics: Default::default(),
-        logging: LoggingSettingsV10 {},
+        logging: LoggingSettings {},
         debug: Default::default(),
     };
     Ok(cfg)

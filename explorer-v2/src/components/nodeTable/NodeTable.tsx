@@ -31,6 +31,7 @@ import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
+import { colours } from "@/theme/colours";
 
 const ColumnHeading = ({
   children,
@@ -518,14 +519,14 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ":nth-child(even)": {
           bgcolor:
             theme.palette.mode === "dark"
-              ? "#06252B !important"
-              : "white !important",
+              ? `${colours.pine[950]} !important`
+              : `${colours.base.white} !important`,
         },
         ":nth-child(odd)": {
           bgcolor:
             theme.palette.mode === "dark"
-              ? "#0A333B !important"
-              : "#F3F7FB !important",
+              ? `${colours.pine[800]} !important`
+              : `${colours.haze[25]} !important`,
         },
         "&:hover": {
           backgroundColor: `${theme.palette.mode === "dark" ? "#004449" : "#E5E7EB"} !important`,

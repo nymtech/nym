@@ -119,7 +119,7 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-node/nym-node-metrics",
     "nym-node/nym-node-requests",
-    "nym-outfox",
+    "nym-outfox", "nym-signers-monitor",
     "nym-statistics-api",
     "nym-validator-rewarder",
     "nyx-chain-watcher",

@@ -6712,6 +6712,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-signers-monitor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humantime",
+ "nym-bin-common 0.6.0",
+ "nym-ecash-signer-check",
+ "nym-task 0.1.0",
+ "tokio",
+ "tracing",
+ "url",
+ "zulip-client",
+]
+
+[[package]]
 name = "nym-socks5-client"
 version = "1.1.61"
 dependencies = [

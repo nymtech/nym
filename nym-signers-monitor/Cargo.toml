@@ -1,0 +1,27 @@
+[package]
+name = "nym-signers-monitor"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
+humantime = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tracing = { workspace = true }
+url = { workspace = true }
+
+nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-ecash-signer-check = { path = "../common/ecash-signer-check" }
+nym-task = { path = "../common/task" }
+zulip-client = { path = "../common/zulip-client" }
+
+[lints]
+workspace = true

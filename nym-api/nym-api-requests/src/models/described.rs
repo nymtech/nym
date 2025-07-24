@@ -319,7 +319,7 @@ pub struct WireguardDetails {
 impl From<Wireguard> for WireguardDetails {
     fn from(value: Wireguard) -> Self {
         WireguardDetails {
-            port: value.port,
+            port: value.tunnel_port,
             public_key: value.public_key,
         }
     }

@@ -4,7 +4,7 @@
 use crate::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
-use nym_credential_verification::{ClientBandwidth, CredentialVerifier};
+use nym_credential_verification::{ClientBandwidth, Verifier};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
@@ -90,7 +90,7 @@ impl PeerManager {
     pub async fn query_client_bandwidth(&mut self, key: PeerPublicKey) -> Result<ClientBandwidth> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::GetClientBandwidth { key, response_tx };
+        let msg = PeerControlRequest::GetClientBandwidthByKey { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
@@ -111,14 +111,14 @@ impl PeerManager {
             })
     }
 
-    pub async fn query_verifier(
+    pub async fn query_verifier_by_key(
         &mut self,
         key: PeerPublicKey,
         credential: CredentialSpendingData,
-    ) -> Result<CredentialVerifier> {
+    ) -> Result<Box<dyn Verifier + Send + Sync>> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::GetVerifier {
+        let msg = PeerControlRequest::GetVerifierByKey {
             key,
             credential: Box::new(credential),
             response_tx,
@@ -387,13 +387,13 @@ mod tests {
         let credential = CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap();
 
         assert!(peer_manager
-            .query_verifier(public_key, credential.clone())
+            .query_verifier_by_key(public_key, credential.clone())
             .await
             .is_err());
 
         helper_add_peer(&storage, &mut peer_manager).await;
         peer_manager
-            .query_verifier(public_key, credential)
+            .query_verifier_by_key(public_key, credential)
             .await
             .unwrap();
 

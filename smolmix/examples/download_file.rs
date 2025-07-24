@@ -16,7 +16,7 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let download_dir = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))

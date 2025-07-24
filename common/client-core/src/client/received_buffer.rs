@@ -198,6 +198,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         }
     }
 
+    #[allow(clippy::panic)]
     async fn disconnect_sender(&mut self) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_none() {
@@ -208,6 +209,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         guard.message_sender = None;
     }
 
+    #[allow(clippy::panic)]
     async fn connect_sender(&mut self, sender: ReconstructedMessagesSender) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_some() {
@@ -599,14 +601,20 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 
-        spawn_future(async move {
-            match fragmented_message_receiver.run().await {
-                Ok(_) => {}
-                Err(e) => error!("{e}"),
-            }
-        });
-        spawn_future(async move {
-            request_receiver.run().await;
-        });
+        spawn_future!(
+            async move {
+                match fragmented_message_receiver.run().await {
+                    Ok(_) => {}
+                    Err(e) => error!("{e}"),
+                }
+            },
+            "ReceivedMessagesBufferController::FragmentedMessageReceiver"
+        );
+        spawn_future!(
+            async move {
+                request_receiver.run().await;
+            },
+            "ReceivedMessagesBufferController::RequestReceiver"
+        );
     }
 }

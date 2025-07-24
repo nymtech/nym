@@ -7,7 +7,9 @@ use nym_gateway_client::error::GatewayClientError;
 use nym_topology::node::RoutingNodeError;
 use nym_topology::{NodeId, NymTopologyError};
 use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::ValidatorClientError;
+use rand::distributions::WeightedError;
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -230,7 +232,19 @@ pub enum ClientCoreError {
     UnexpectedKeyUpgrade { gateway_id: String },
 
     #[error("failed to derive keys from master key")]
-    HkdfDerivationError {},
+    HkdfDerivationError,
+
+    #[error("missing url for constructing RPC client")]
+    RpcClientMissingUrl,
+
+    #[error("provided nym network details were malformed: {source}")]
+    InvalidNetworkDetails { source: NyxdError },
+
+    #[error("failed to construct RPC client: {source}")]
+    RpcClientCreationFailure { source: NyxdError },
+
+    #[error("failed to select valid gateway due to incomputable latency")]
+    GatewaySelectionFailure { source: WeightedError },
 }
 
 impl From<tungstenite::Error> for ClientCoreError {

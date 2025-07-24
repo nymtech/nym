@@ -20,8 +20,10 @@ arc-swap = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 bloomfilter = { workspace = true }
-celes = { workspace = true }                                                   # country codes
+celes = { workspace = true }
+cfg-if = { workspace = true }# country codes
 colored = { workspace = true }
+console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
@@ -127,6 +129,8 @@ cargo_metadata = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio"] }
 rand_chacha = { workspace = true }
 
+[features]
+tokio-console = ["console-subscriber"]
 
 [lints]
 workspace = true

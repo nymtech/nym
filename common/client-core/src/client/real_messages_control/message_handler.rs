@@ -35,6 +35,9 @@ pub enum PreparationError {
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
 
+    #[error("message wasn't split into any fragments!")]
+    EmptyFragments,
+
     #[error("message too long for a single SURB, splitting into {fragments} fragments.")]
     MessageTooLongForSingleSurb { fragments: usize },
 
@@ -320,6 +323,16 @@ where
             });
         }
 
+        if fragment.is_empty() {
+            error!("CRITICAL FAILURE: our split message didn't result in any sendable fragments");
+            return Err(SurbWrappedPreparationError {
+                source: PreparationError::EmptyFragments,
+                returned_surbs: Some(vec![reply_surb]),
+            });
+        }
+
+        // SAFETY: we just checked we have one fragment
+        #[allow(clippy::unwrap_used)]
         let chunk = fragment.pop().unwrap();
         let chunk_clone = chunk.clone();
         let prepared_fragment = self
@@ -657,6 +670,7 @@ where
             .zip(reply_surbs.into_iter())
             .map(|(fragment, reply_surb)| {
                 // unwrap here is fine as we know we have a valid topology
+                #[allow(clippy::unwrap_used)]
                 self.message_preparer
                     .prepare_reply_chunk_for_sending(
                         fragment,

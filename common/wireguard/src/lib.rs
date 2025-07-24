@@ -23,6 +23,8 @@ pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
 
+pub const CONTROL_CHANNEL_SIZE: usize = 256;
+
 pub struct WgApiWrapper {
     inner: WGApi,
 }
@@ -126,7 +128,7 @@ pub struct WireguardGatewayData {
 
 impl WireguardGatewayData {
     pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
-        let (peer_tx, peer_rx) = mpsc::channel(1);
+        let (peer_tx, peer_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
         (
             WireguardGatewayData {
                 config,

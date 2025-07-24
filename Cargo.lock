@@ -8058,6 +8058,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-wireguard-private-metadata"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "nym-credential-verification",
+ "nym-wireguard",
+ "thiserror 2.0.12",
+ "tokio",
+]
+
+[[package]]
 name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [

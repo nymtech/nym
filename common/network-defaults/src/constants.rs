@@ -47,7 +47,8 @@ pub mod nyx {
 pub mod wireguard {
     use std::net::{Ipv4Addr, Ipv6Addr};
 
-    pub const WG_PORT: u16 = 51822;
+    pub const WG_TUNNEL_PORT: u16 = 51822;
+    pub const WG_METADATA_PORT: u16 = 51830;
 
     // The interface used to route traffic
     pub const WG_TUN_BASE_NAME: &str = "nymwg";

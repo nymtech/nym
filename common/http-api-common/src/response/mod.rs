@@ -146,6 +146,12 @@ pub struct OutputParams {
     pub output: Option<Output>,
 }
 
+impl OutputParams {
+    pub fn get_output(&self) -> Output {
+        self.output.unwrap_or_default()
+    }
+}
+
 impl Output {
     pub fn to_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
         match self {

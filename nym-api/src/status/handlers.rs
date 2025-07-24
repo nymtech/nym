@@ -3,6 +3,7 @@
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::status::ApiStatusState;
+use crate::support::config::CHAIN_STALL_THRESHOLD;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
 use axum::Router;
@@ -12,7 +13,6 @@ use nym_api_requests::models::{
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use std::time::Duration;
 use time::OffsetDateTime;
 
 pub(crate) fn api_status_routes() -> Router<AppState> {
@@ -42,8 +42,6 @@ async fn health(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
 ) -> FormattedResponse<ApiHealthResponse> {
-    const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
-
     let output = output.output.unwrap_or_default();
 
     let uptime = state.api_status.startup_time.elapsed();
@@ -54,15 +52,7 @@ async fn health(
     {
         Ok(res) => {
             let now = OffsetDateTime::now_utc();
-            let block_time: OffsetDateTime = res.latest_block.block.header.time.into();
-            let diff = now - block_time;
-            if diff > CHAIN_STALL_THRESHOLD {
-                ChainStatus::Stalled {
-                    approximate_amount: diff.unsigned_abs(),
-                }
-            } else {
-                ChainStatus::Synced
-            }
+            res.stall_status(now, CHAIN_STALL_THRESHOLD)
         }
         Err(_) => ChainStatus::Unknown,
     };

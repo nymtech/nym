@@ -10,7 +10,6 @@ license.workspace = true
 bs58 = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
-getset = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 humantime-serde = { workspace = true }
@@ -37,10 +36,13 @@ nym-ecash-time = { path = "../../common/ecash-time" }
 nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", features = ["naive_float"] }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
+nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
-nym-noise-keys = { path  = "../../common/nymnoise/keys"}
+nym-noise-keys = { path = "../../common/nymnoise/keys" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-ticketbooks-merkle = { path = "../../common/ticketbooks-merkle" }
+nym-ecash-signer-check-types = { path = "../../common/ecash-signer-check-types" }
+
 
 [dev-dependencies]
 rand_chacha = { workspace = true }

@@ -128,7 +128,7 @@ impl MixStream {
     /// Convenience method for just piping bytes into the Mixnet.
     pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
         let input_message = if self.peer_surbs.is_some() {
-            info!("Writing reply with SURBs");
+            info!("Writing {} bytes, sending with SURBs", data.len());
             InputMessage::Reply {
                 recipient_tag: (self.peer_surbs.expect("No Peer SURBs set")),
                 data: (data.to_owned()),
@@ -136,7 +136,7 @@ impl MixStream {
                 max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
             }
         } else {
-            info!("Writing outgoing reply using Nym address");
+            info!("Writing {} bytes", data.len());
             InputMessage::Anonymous {
                 recipient: (self.peer.expect("No Peer set")),
                 data: (data.to_owned()),
@@ -149,10 +149,10 @@ impl MixStream {
         let mut codec = InputMessageCodec {};
         let mut serialized_bytes = BytesMut::new();
         codec.encode(input_message, &mut serialized_bytes)?;
-        info!("Serialized bytes: {:?}", serialized_bytes);
+        debug!("Serialized bytes: {:?}", serialized_bytes);
 
         self.write_all(&serialized_bytes).await?;
-        info!("Wrote serialized bytes");
+        debug!("Wrote serialized bytes");
         self.flush().await?;
         debug!("Flushed");
 

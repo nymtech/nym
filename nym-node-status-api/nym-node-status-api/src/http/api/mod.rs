@@ -6,7 +6,7 @@ use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::http::{server::HttpServer, state::AppState};
+use crate::http::{middleware, server::HttpServer, state::AppState};
 
 pub(crate) mod dvpn;
 pub(crate) mod gateways;
@@ -63,17 +63,23 @@ impl RouterBuilder {
 
     pub(crate) fn with_state(self, state: AppState) -> RouterWithState {
         RouterWithState {
-            router: self.finalize_routes().with_state(state),
+            router: self.finalize_routes(state),
         }
     }
 
-    fn finalize_routes(self) -> Router<AppState> {
+    fn finalize_routes(self, state: AppState) -> Router {
         // layers added later wrap earlier layers
         self.unfinished_router
+            // Add response headers middleware
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                middleware::add_response_headers,
+            ))
             // CORS layer needs to wrap other API layers
             .layer(setup_cors())
             // logger should be outermost layer
             .layer(axum::middleware::from_fn(log_request_debug))
+            .with_state(state)
     }
 }
 
@@ -127,12 +133,4 @@ mod tests {
         let _test_router = unfinished_router;
     }
 
-    #[test]
-    fn test_router_builder_finalize() {
-        let router_builder = RouterBuilder::with_default_routes();
-        let finalized = router_builder.finalize_routes();
-
-        // This tests that finalize_routes produces a valid Router
-        let _router = finalized;
-    }
 }

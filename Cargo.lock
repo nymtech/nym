@@ -6768,7 +6768,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "3.2.2"
+version = "3.2.3"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6780,6 +6780,7 @@ dependencies = [
  "cosmwasm-std",
  "envy",
  "futures-util",
+ "hex",
  "itertools 0.14.0",
  "moka",
  "nym-bin-common 0.6.0 (git+https://github.com/nymtech/nym.git?branch=release/2025.11-cheddar)",

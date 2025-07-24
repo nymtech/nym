@@ -34,6 +34,7 @@ pub(crate) struct AppState {
     node_geocache: NodeGeoCache,
     node_delegations: Arc<RwLock<DelegationsCache>>,
     bin_info: BinaryInfo,
+    instance_id: String,
 }
 
 impl AppState {
@@ -53,6 +54,7 @@ impl AppState {
             node_geocache,
             node_delegations,
             bin_info: BinaryInfo::new(),
+            instance_id: generate_instance_id(),
         }
     }
 
@@ -93,6 +95,10 @@ impl AppState {
 
     pub(crate) fn build_information(&self) -> &BinaryBuildInformationOwned {
         &self.bin_info.build_info
+    }
+
+    pub(crate) fn instance_id(&self) -> &str {
+        &self.instance_id
     }
 }
 
@@ -697,4 +703,15 @@ impl BinaryInfo {
 #[derive(Serialize, ToSchema, Deserialize)]
 pub(crate) struct HealthInfo {
     pub(crate) uptime: i64,
+}
+
+fn generate_instance_id() -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let random_bytes: [u8; 16] = rng.gen();
+    format!(
+        "ns-api-{}-{}",
+        hex::encode(&random_bytes[..8]),
+        std::process::id()
+    )
 }

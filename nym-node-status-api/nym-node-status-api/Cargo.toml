@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "3.2.2"
+version = "3.2.3"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -22,6 +22,7 @@ clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 cosmwasm-std = { workspace = true }
 envy = { workspace = true }
 futures-util = { workspace = true }
+hex = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 # TODO dz had to switch to cheddar versions because develop is ahead of current

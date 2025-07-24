@@ -13219,3 +13219,20 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[package]]
+name = "zulip-client"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.14.0",
+ "nym-bin-common 0.6.0",
+ "nym-http-api-client 0.1.0",
+ "reqwest 0.12.22",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "url",
+ "zeroize",
+]

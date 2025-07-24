@@ -145,7 +145,11 @@ private_ipv6 = '{{ wireguard.private_ipv6 }}'
 
 # Port announced to external clients wishing to connect to the wireguard interface.
 # Useful in the instances where the node is behind a proxy.
-announced_port = {{ wireguard.announced_port }}
+announced_tunnel_port = {{ wireguard.announced_tunnel_port }}
+
+# Port announced to external clients wishing to connect to the metadata service.
+# Useful in the instances where the node is behind a proxy.
+announced_metadata_port = {{ wireguard.announced_metadata_port }}
 
 # The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
 # The maximum value for IPv4 is 32

@@ -88,6 +88,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct MigrateMsg {
+    // that's actually the ecash contract now
     pub coconut_bandwidth_address: String,
     pub coconut_dkg_address: String,
 }

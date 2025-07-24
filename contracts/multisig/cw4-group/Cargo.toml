@@ -22,14 +22,10 @@ name = "schema"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-# use library feature to disable all instantiate/execute/query exports
-library = []
-
-
 [dependencies]
 nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
 nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-contracts-common-testing = { path = "../../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
 
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
@@ -38,9 +34,14 @@ cw-controllers = { workspace = true }
 cw-storage-plus = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
-schemars = "0.8.1"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+schemars = { workspace = true }
+serde = { workspace = true, default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 easy-addr = { path = "../../../common/cosmwasm-smart-contracts/easy_addr" }
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+testable-cw4-contract = ["nym-contracts-common-testing"]

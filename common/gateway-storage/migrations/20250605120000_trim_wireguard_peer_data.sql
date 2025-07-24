@@ -8,7 +8,7 @@ DELETE FROM wireguard_peer WHERE client_id IS NULL;
 CREATE TABLE wireguard_peer_new
 (
     public_key                      TEXT                            NOT NULL PRIMARY KEY UNIQUE,
-    allowed_ips                     BLOB                            NOT NULL,
+    allowed_ips                     BLOB                            NOT NULL UNIQUE,
     client_id                       INTEGER REFERENCES clients(id)  NOT NULL
 );
 

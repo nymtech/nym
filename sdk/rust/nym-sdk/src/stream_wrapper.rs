@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-2.0-only
+
 //! TODO
 
 mod mixnet_stream_wrapper;

@@ -15,8 +15,11 @@ use nym_credential_verification::{
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
-use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, sync::Arc};
+use std::{
+    net::IpAddr,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
@@ -36,8 +39,12 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<QueryPeerControlResponse>,
     },
-    GetClientBandwidth {
+    GetClientBandwidthByKey {
         key: Key,
+        response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
+    },
+    GetClientBandwidthByIp {
+        ip: IpAddr,
         response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
     },
 }
@@ -56,6 +63,7 @@ pub struct QueryPeerControlResponse {
 }
 
 pub struct GetClientBandwidthControlResponse {
+    pub success: bool,
     pub client_bandwidth: Option<ClientBandwidth>,
 }
 
@@ -193,7 +201,7 @@ impl PeerController {
         Ok(())
     }
 
-    async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>, Error> {
+    async fn handle_query_peer_by_key(&self, key: &Key) -> Result<Option<Peer>, Error> {
         Ok(self
             .storage
             .get_wireguard_peer(&key.to_string())
@@ -202,7 +210,29 @@ impl PeerController {
             .transpose()?)
     }
 
-    async fn handle_get_client_bandwidth(&self, key: &Key) -> Option<ClientBandwidth> {
+    async fn handle_get_client_bandwidth_by_ip(
+        &self,
+        ip: IpAddr,
+    ) -> Result<Option<ClientBandwidth>, Error> {
+        let Some(key) = self
+            .wg_api
+            .read_interface_data()?
+            .peers
+            .values()
+            .find_map(|peer| {
+                peer.allowed_ips
+                    .iter()
+                    .find(|ip_mask| ip_mask.ip == ip)
+                    .and(Some(peer.public_key.clone()))
+            })
+        else {
+            return Ok(None);
+        };
+
+        Ok(self.handle_get_client_bandwidth_by_key(&key).await)
+    }
+
+    async fn handle_get_client_bandwidth_by_key(&self, key: &Key) -> Option<ClientBandwidth> {
         if let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) {
             Some(bandwidth_storage_manager.read().await.client_bandwidth())
         } else {
@@ -316,16 +346,24 @@ impl PeerController {
                             response_tx.send(RemovePeerControlResponse { success }).ok();
                         }
                         Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
-                            let ret = self.handle_query_peer(&key).await;
+                            let ret = self.handle_query_peer_by_key(&key).await;
                             if let Ok(peer) = ret {
                                 response_tx.send(QueryPeerControlResponse { success: true, peer }).ok();
                             } else {
                                 response_tx.send(QueryPeerControlResponse { success: false, peer: None }).ok();
                             }
                         }
-                        Some(PeerControlRequest::GetClientBandwidth { key, response_tx }) => {
-                            let client_bandwidth = self.handle_get_client_bandwidth(&key).await;
-                            response_tx.send(GetClientBandwidthControlResponse { client_bandwidth }).ok();
+                        Some(PeerControlRequest::GetClientBandwidthByKey { key, response_tx }) => {
+                            let client_bandwidth = self.handle_get_client_bandwidth_by_key(&key).await;
+                            response_tx.send(GetClientBandwidthControlResponse { success: true, client_bandwidth }).ok();
+                        }
+                        Some(PeerControlRequest::GetClientBandwidthByIp { ip, response_tx }) => {
+                            let ret = self.handle_get_client_bandwidth_by_ip(ip).await;
+                            if let Ok(client_bandwidth) = ret {
+                                response_tx.send(GetClientBandwidthControlResponse { success: true, client_bandwidth }).ok();
+                            } else {
+                                response_tx.send(GetClientBandwidthControlResponse { success: false, client_bandwidth: None }).ok();
+                            }
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");

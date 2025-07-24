@@ -142,6 +142,8 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
+    "smolmix",
+    "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",

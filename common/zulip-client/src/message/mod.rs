@@ -22,7 +22,7 @@ pub enum SendMessageResponse {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SendableMessageContent {
@@ -40,7 +40,7 @@ pub enum SendableMessageContent {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct SendableMessage {
     #[serde(flatten)]
@@ -117,11 +117,11 @@ impl StreamMessage {
     pub fn new(
         to: impl Into<ToChannel>,
         content: impl Into<String>,
-        topic: Option<String>,
+        topic: impl IntoMaybeTopic,
     ) -> Self {
         StreamMessage {
             to: to.into().to_string(),
-            topic,
+            topic: topic.into_maybe_topic(),
             content: content.into(),
         }
     }
@@ -194,22 +194,74 @@ impl From<StreamMessage> for SendableMessageContent {
     }
 }
 
-impl<T, S> From<(T, S, Option<S>)> for StreamMessage
+impl<T, S, U> From<(T, S, U)> for StreamMessage
 where
     T: Into<ToChannel>,
     S: Into<String>,
+    U: IntoMaybeTopic,
 {
-    fn from((to, content, topic): (T, S, Option<S>)) -> Self {
-        StreamMessage::new(to, content, topic.map(Into::into))
+    fn from((to, content, topic): (T, S, U)) -> Self {
+        StreamMessage::new(to, content, topic)
     }
 }
 
-impl<T, S> From<(T, S, Option<S>)> for SendableMessage
+impl<T, S> From<(T, S)> for StreamMessage
 where
     T: Into<ToChannel>,
     S: Into<String>,
 {
-    fn from(inner: (T, S, Option<S>)) -> Self {
+    fn from((to, content): (T, S)) -> Self {
+        StreamMessage::no_topic(to, content)
+    }
+}
+
+impl<T, S, U> From<(T, S, U)> for SendableMessage
+where
+    T: Into<ToChannel>,
+    S: Into<String>,
+    U: IntoMaybeTopic,
+{
+    fn from(inner: (T, S, U)) -> Self {
         StreamMessage::from(inner).into()
+    }
+}
+
+pub trait IntoMaybeTopic {
+    fn into_maybe_topic(self) -> Option<String>;
+}
+
+impl<S> IntoMaybeTopic for &Option<S>
+where
+    S: Into<String> + Clone,
+{
+    fn into_maybe_topic(self) -> Option<String> {
+        self.clone().map(|s| s.into())
+    }
+}
+
+impl<S> IntoMaybeTopic for Option<S>
+where
+    S: Into<String>,
+{
+    fn into_maybe_topic(self) -> Option<String> {
+        self.map(Into::into)
+    }
+}
+
+impl IntoMaybeTopic for String {
+    fn into_maybe_topic(self) -> Option<String> {
+        Some(self)
+    }
+}
+
+impl IntoMaybeTopic for &String {
+    fn into_maybe_topic(self) -> Option<String> {
+        Some(self.clone())
+    }
+}
+
+impl IntoMaybeTopic for &str {
+    fn into_maybe_topic(self) -> Option<String> {
+        Some(self.to_string())
     }
 }

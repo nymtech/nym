@@ -6718,6 +6718,7 @@ dependencies = [
  "anyhow",
  "clap",
  "humantime",
+ "itertools 0.14.0",
  "nym-bin-common 0.6.0",
  "nym-ecash-signer-check",
  "nym-network-defaults 0.1.0",

@@ -14,6 +14,7 @@ readme.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 humantime = { workspace = true }
+itertools = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing = { workspace = true }

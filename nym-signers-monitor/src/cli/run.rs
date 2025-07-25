@@ -96,9 +96,9 @@ impl NyxdConnectionArgs {
         .multiple(true)
         .required(true)
         .args([
-            "nyxd_connection.known_network_name", 
-            "nyxd_connection.config_env_file",
-            "nyxd_connection.nyxd_rpc_endpoint"
+            "known_network_name",
+            "config_env_file",
+            "nyxd_rpc_endpoint"
         ])
 ))]
 pub(crate) struct Args {
@@ -132,6 +132,13 @@ pub(crate) struct Args {
         env = ZULIP_NOTIFICATION_CHANNEL_ID_ARG
     )]
     pub(crate) zulip_notification_channel_id: u32,
+
+    /// Optionally specify the channel topic for where the notification is going to be sent
+    #[clap(
+        long,
+        env = ZULIP_NOTIFICATION_CHANNEL_TOPIC_ARG
+    )]
+    pub(crate) zulip_notification_topic: Option<String>,
 
     /// Specify the delay between subsequent signers checks
     #[clap(

@@ -157,6 +157,14 @@ impl<LS, TS, LC, TC> SignerResult<LS, TS, LC, TC> {
     pub fn malformed_details(&self) -> bool {
         self.information.parse().is_err()
     }
+
+    pub fn try_get_test_result(&self) -> Option<&SignerTestResult<LS, TS, LC, TC>> {
+        if let SignerStatus::Tested { result } = &self.status {
+            Some(result)
+        } else {
+            None
+        }
+    }
 }
 
 impl<LS, TS, LC, TC> SignerResult<LS, TS, LC, TC>

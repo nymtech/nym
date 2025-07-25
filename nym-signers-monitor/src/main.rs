@@ -9,6 +9,7 @@ use tracing::{info, trace};
 
 mod cli;
 mod monitor;
+pub(crate) mod test_result;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

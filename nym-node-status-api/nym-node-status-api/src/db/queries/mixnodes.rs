@@ -101,6 +101,7 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
     Ok(items)
 }
 
+#[cfg(feature = "sqlite")]
 pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
     let mut conn = pool.acquire().await?;
     let items = sqlx::query_as!(
@@ -112,6 +113,48 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
             SUM(packets_received) as "total_packets_received!: i64",
             SUM(packets_sent) as "total_packets_sent!: i64",
             SUM(packets_dropped) as "total_packets_dropped!: i64"
+        FROM (
+            SELECT
+                date_utc,
+                n.total_stake,
+                n.packets_received,
+                n.packets_sent,
+                n.packets_dropped
+            FROM nym_node_daily_mixing_stats n
+            UNION ALL
+            SELECT
+                m.date_utc,
+                m.total_stake,
+                m.packets_received,
+                m.packets_sent,
+                m.packets_dropped
+            FROM mixnode_daily_stats m
+            LEFT JOIN nym_node_daily_mixing_stats ON m.mix_id = nym_node_daily_mixing_stats.node_id
+            WHERE nym_node_daily_mixing_stats.node_id IS NULL
+        )
+        GROUP BY date_utc
+        ORDER BY date_utc ASC
+        "#,
+    )
+    .fetch(&mut *conn)
+    .try_collect::<Vec<DailyStats>>()
+    .await?;
+
+    Ok(items)
+}
+
+#[cfg(feature = "pg")]
+pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query_as!(
+        DailyStats,
+        r#"
+        SELECT
+            date_utc as "date_utc!",
+            SUM(total_stake)::BIGINT as "total_stake!: i64",
+            SUM(packets_received)::BIGINT as "total_packets_received!: i64",
+            SUM(packets_sent)::BIGINT as "total_packets_sent!: i64",
+            SUM(packets_dropped)::BIGINT as "total_packets_dropped!: i64"
         FROM (
             SELECT
                 date_utc,

@@ -29,6 +29,8 @@ pub struct ParsedTransactionResponse {
     pub proof: Option<tx::Proof>,
 
     pub parsed_messages: HashMap<usize, serde_json::Value>,
+
+    pub block: Block,
 }
 
 #[derive(Debug)]

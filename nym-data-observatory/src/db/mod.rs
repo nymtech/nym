@@ -1,13 +1,12 @@
 use anyhow::{anyhow, Result};
-use sqlx::{migrate::Migrator, postgres::PgConnectOptions, Postgres};
+use sqlx::{postgres::PgConnectOptions, Postgres};
 use std::str::FromStr;
 
 pub(crate) mod models;
 pub(crate) mod queries {
     pub mod price;
+    pub mod wasm;
 }
-
-static _MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 pub(crate) type DbPool = sqlx::Pool<Postgres>;
 
@@ -22,11 +21,6 @@ impl Storage {
         let pool = DbPool::connect_with(connect_options)
             .await
             .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;
-
-        // MIGRATOR
-        //     .run(&pool)
-        //     .await
-        //     .map_err(|err| anyhow!("Failed to run migrations: {}", err))?;
 
         Ok(Storage { pool })
     }

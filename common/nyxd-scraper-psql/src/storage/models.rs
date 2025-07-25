@@ -32,7 +32,16 @@ pub struct CommitSignature {
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "coin")]
-pub struct Coin {
+pub struct DbCoin {
     pub amount: String,
     pub denom: String,
+}
+
+impl From<cosmrs::proto::cosmos::base::v1beta1::Coin> for DbCoin {
+    fn from(coin: cosmrs::proto::cosmos::base::v1beta1::Coin) -> Self {
+        Self {
+            amount: coin.amount,
+            denom: coin.denom,
+        }
+    }
 }

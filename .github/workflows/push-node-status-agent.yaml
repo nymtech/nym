@@ -40,7 +40,8 @@ jobs:
       - name: Get version from cargo.toml
         id: get_version
         run: |
-          yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+          VERSION=$(yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml)
+          echo "result=$VERSION" >> $GITHUB_OUTPUT
 
       - name: cleanup-gateway-probe-ref
         id: cleanup_gateway_probe_ref

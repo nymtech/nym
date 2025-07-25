@@ -23,7 +23,7 @@ export const SocialChannels = () => {
                 width: "32px",
                 height: "32px",
                 color: "background.main",
-                backgroundColor: "light.main",
+                backgroundColor: "secondary.main",
                 "&:hover": {
                   backgroundColor: "background.default",
                 },

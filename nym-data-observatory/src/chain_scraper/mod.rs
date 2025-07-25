@@ -11,7 +11,7 @@ pub(crate) mod webhook;
 
 pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
-    _connection_pool: DbPool,
+    connection_pool: DbPool,
 ) -> anyhow::Result<PostgresNyxdScraper> {
     let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
 
@@ -55,6 +55,7 @@ pub(crate) async fn run_chain_scraper(
             use_best_effort_start_height,
         },
     })
+    .with_msg_module(crate::modules::wasm::WasmModule::new(connection_pool))
     .with_msg_module(webhook::WebhookModule::new(config.clone())?);
 
     let instance = scraper.build_and_start().await?;

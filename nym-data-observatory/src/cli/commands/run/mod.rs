@@ -20,7 +20,7 @@ use crate::{db, http};
 pub(crate) use args::Args;
 use nym_task::signal::wait_for_signal;
 
-async fn try_insert_watcher_execution_information(
+async fn try_insert_startup_information(
     db_pool: DbPool,
     start: OffsetDateTime,
     end: OffsetDateTime,
@@ -28,7 +28,7 @@ async fn try_insert_watcher_execution_information(
 ) {
     let _ = sqlx::query!(
         r#"
-        INSERT INTO watcher_execution(start_ts, end_ts, error_message)
+        INSERT INTO startup_info(start_ts, end_ts, error_message)
         VALUES ($1, $2, $3)
     "#,
         start.into(),
@@ -65,13 +65,8 @@ async fn wait_for_shutdown(
         tasks.abort_all();
 
         // insert execution result into the db
-        try_insert_watcher_execution_information(
-            db_pool,
-            start,
-            OffsetDateTime::now_utc(),
-            error_message,
-        )
-        .await
+        try_insert_startup_information(db_pool, start, OffsetDateTime::now_utc(), error_message)
+            .await
     }
 
     tokio::select! {

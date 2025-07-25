@@ -265,7 +265,7 @@ fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResul
     Ok(())
 }
 
-static FRESHNESS_CUTOFF: time::Duration = time::Duration::minutes(2);
+static FRESHNESS_CUTOFF: time::Duration = time::Duration::minutes(5);
 
 fn is_fresh(request_time: &i64) -> HttpResult<()> {
     // if a request took longer than N minutes to reach NS API, something is very wrong

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::PostgresScraperError;
-use crate::models::Coin;
 use crate::storage::helpers::parse_addresses_from_events;
 use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
@@ -12,8 +11,6 @@ use async_trait::async_trait;
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use cosmrs::proto;
-use cosmrs::proto::cosmwasm::wasm::v1::MsgExecuteContract;
-use cosmrs::proto::prost::Message;
 use nyxd_scraper_shared::helpers::{
     validator_consensus_address, validator_info, validator_pubkey_to_bech32,
 };
@@ -22,7 +19,7 @@ use nyxd_scraper_shared::storage::{
     validators, Block, Commit, CommitSig, NyxdScraperStorageError, NyxdScraperTransaction,
 };
 use nyxd_scraper_shared::ParsedTransactionResponse;
-use serde_json::{json, Value};
+use serde_json::json;
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use sqlx::{Postgres, Transaction};
 use std::ops::{Deref, DerefMut};
@@ -201,33 +198,8 @@ impl PostgresStorageTransaction {
         for chain_tx in txs {
             let involved_addresses = parse_addresses_from_events(chain_tx);
             for (index, msg) in chain_tx.tx.body.messages.iter().enumerate() {
-                let mut wasm_sender: Option<String> = None;
-                let mut wasm_contract_address: Option<String> = None;
-                let mut wasm_message_type: Option<String> = None;
-                let mut funds: Option<Vec<Coin>> = None;
-
                 let parsed_message = chain_tx.parsed_messages.get(&index);
                 let value = serde_json::to_value(parsed_message)?;
-
-                if msg.type_url == "/cosmwasm.wasm.v1.MsgExecuteContract" {
-                    if let Ok(wasm_execute) = MsgExecuteContract::decode(msg.value.as_ref()) {
-                        wasm_sender = Some(wasm_execute.sender);
-                        wasm_contract_address = Some(wasm_execute.contract);
-                        if let Some(raw_msg) = value.get("msg") {
-                            wasm_message_type = get_first_field_name(raw_msg);
-                        }
-                        funds = Some(
-                            wasm_execute
-                                .funds
-                                .iter()
-                                .map(|c| Coin {
-                                    amount: c.amount.to_string(),
-                                    denom: c.denom.clone(),
-                                })
-                                .collect(),
-                        );
-                    }
-                }
 
                 insert_message(
                     chain_tx.hash.to_string(),
@@ -236,10 +208,6 @@ impl PostgresStorageTransaction {
                     value,
                     involved_addresses.clone(),
                     chain_tx.height.into(),
-                    wasm_sender,
-                    wasm_contract_address,
-                    wasm_message_type,
-                    funds,
                     self.inner.as_mut(),
                 )
                 .await?
@@ -253,14 +221,6 @@ impl PostgresStorageTransaction {
         debug!("update_last_processed");
         update_last_processed(height, self.inner.as_mut()).await?;
         Ok(())
-    }
-}
-
-fn get_first_field_name(value: &Value) -> Option<String> {
-    trace!("value:\n{value}");
-    match value.as_object() {
-        Some(map) => map.keys().next().cloned(),
-        None => None,
     }
 }
 

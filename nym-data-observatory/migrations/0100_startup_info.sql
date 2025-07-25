@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-CREATE TABLE watcher_execution
+CREATE TABLE startup_info
 (
     start_ts         TIMESTAMPTZ NOT NULL,
     end_ts           TIMESTAMPTZ NOT NULL,

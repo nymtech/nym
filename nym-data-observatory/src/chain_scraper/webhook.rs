@@ -59,10 +59,9 @@ impl MsgModule for WebhookModule {
         for webhook in self.webhooks.clone() {
             let payload = payload.clone();
             tokio::spawn(async move {
-                webhook
-                    .invoke_webhook(&payload)
-                    .await
-                    .expect("webhook failed to process");
+                if let Err(e) = webhook.invoke_webhook(&payload).await {
+                    error!("webhook error: {}", e);
+                }
             });
         }
 

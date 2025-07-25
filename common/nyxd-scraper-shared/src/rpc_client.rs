@@ -94,6 +94,7 @@ impl RpcClient {
                 tx,
                 proof: raw_tx.proof,
                 parsed_messages,
+                block: block.block.clone(),
             })
         }
 

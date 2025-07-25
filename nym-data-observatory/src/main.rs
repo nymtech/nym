@@ -13,6 +13,7 @@ mod error;
 mod http;
 mod logging;
 pub mod models;
+mod modules;
 mod price_scraper;
 
 #[tokio::main]

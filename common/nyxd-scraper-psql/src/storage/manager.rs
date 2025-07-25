@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::Coin;
 use crate::storage::models::{CommitSignature, Validator};
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use sqlx::types::time::PrimitiveDateTime;
@@ -403,10 +402,6 @@ pub(crate) async fn insert_message<'a, E>(
     value: JsonValue,
     involved_account_addresses: Vec<String>,
     height: i64,
-    wasm_sender: Option<String>,
-    wasm_contract_address: Option<String>,
-    wasm_message_type: Option<String>,
-    funds: Option<Vec<Coin>>,
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
@@ -415,55 +410,25 @@ where
     trace!("insert_message");
     let start = Instant::now();
 
-    // sqlx doesn't understand option types
-    if let Some(coins) = funds {
-        sqlx::query!(
-            r#"
-                INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height, wasm_sender, wasm_contract_address, wasm_message_type, funds)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                ON CONFLICT (transaction_hash, index) DO UPDATE
-                    SET height = excluded.height,
-                        type = excluded.type,
-                        value = excluded.value,
-                        involved_accounts_addresses = excluded.involved_accounts_addresses
-            "#,
-            transaction_hash,
-            index,
-            typ,
-            value,
-            &involved_account_addresses,
-            height,
-            wasm_sender,
-            wasm_contract_address,
-            wasm_message_type,
-            &coins as _,
-        )
-            .execute(executor)
-            .await?;
-    } else {
-        sqlx::query!(
-            r#"
-                INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height, wasm_sender, wasm_contract_address, wasm_message_type)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                ON CONFLICT (transaction_hash, index) DO UPDATE
-                    SET height = excluded.height,
-                        type = excluded.type,
-                        value = excluded.value,
-                        involved_accounts_addresses = excluded.involved_accounts_addresses
-            "#,
-            transaction_hash,
-            index,
-            typ,
-            value,
-            &involved_account_addresses,
-            height,
-            wasm_sender,
-            wasm_contract_address,
-            wasm_message_type,
-        )
-            .execute(executor)
-            .await?;
-    }
+    sqlx::query!(
+        r#"
+            INSERT INTO message(transaction_hash, index, type, value, involved_accounts_addresses, height)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (transaction_hash, index) DO UPDATE
+                SET height = excluded.height,
+                    type = excluded.type,
+                    value = excluded.value,
+                    involved_accounts_addresses = excluded.involved_accounts_addresses
+        "#,
+        transaction_hash,
+        index,
+        typ,
+        value,
+        &involved_account_addresses,
+        height,
+    )
+        .execute(executor)
+        .await?;
     log_db_operation_time("insert_message", start);
 
     Ok(())
@@ -482,7 +447,7 @@ where
 
     sqlx::query!(
         "UPDATE metadata SET last_processed_height = GREATEST(last_processed_height, $1)",
-        height
+        height as i32
     )
     .execute(executor)
     .await?;

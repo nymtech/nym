@@ -2,13 +2,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::run;
-use nym_ecash_signer_check::check_signers;
+use nym_ecash_signer_check::{check_signers, check_signers_with_client};
 use nym_task::ShutdownManager;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::interval;
 use tracing::{error, info};
+
+struct DisplayableSigner {
+    url: String,
+    version: Option<String>,
+    built_on: Option<OffsetDateTime>,
+    signing_available: Option<bool>,
+    chain_not_stalled: Option<bool>,
+}
+
+enum CheckOutcome {
+    QuorumAvailable,
+    QuorumUnavailable,
+    UnknownQuorumStatus,
+}
 
 pub(crate) struct SignersMonitor {
     zulip_client: zulip_client::Client,
@@ -34,6 +48,8 @@ impl SignersMonitor {
     }
 
     async fn check_signers(&self) -> anyhow::Result<()> {
+        info!("starting signer check...");
+        let check_result = check_signers_with_client(&self.nyxd_client).await?;
         println!("here be checking the signers");
         Ok(())
     }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use clap::{Parser, Subcommand};
-use env::vars::*;
 use nym_bin_common::bin_info;
 use std::sync::OnceLock;
 

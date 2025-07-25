@@ -11,7 +11,7 @@ LATEST_BINARY=$(wget -qO - https://github.com/nymtech/nym/releases/latest \
 curl -L "https://github.com$LATEST_BINARY" -o $HOME/nym-binaries/
 
 # Make executable
-NYM_BIN="$HOME/nym-binaries/nym-node"
+NYM_NODE="$HOME/nym-binaries/nym-node"
 chmod +x $NYM_NODE
 echo "---------------------------------------------------"
 echo "Nym node binary was downloaded and made executable."
@@ -30,7 +30,7 @@ fi
 PUBLIC_IP=$(curl -s -4 https://ifconfig.me)
 
 if [[ "$MODE" == "mixnode" ]]; then
-  echo "▶ Running in MIXNODE mode..."
+  echo "Initialising nym-node in mode mixnode..."
   "$NYM_NODE" run
     --mode mixnode \
     --public-ips "$PUBLIC_IP" \
@@ -40,8 +40,8 @@ if [[ "$MODE" == "mixnode" ]]; then
     --init-only
 
 elif [[ "$MODE" == "entry-gateway" ]]; then
-  echo "▶ Running in ENTRY-GATEWAY mode..."
-  "$NYM_BIN" run --mode entry-gateway
+  echo "Initialising nym-node in mode entry-gateway..."
+  "$NYM_NODE" run --mode entry-gateway
     --public-ips "$PUBLIC_IP" \
     --hostname "$HOSTNAME" \
     --location "$LOCATION" \
@@ -51,7 +51,7 @@ elif [[ "$MODE" == "entry-gateway" ]]; then
     --init-only
 
 elif [[ "$MODE" == "exit-gateway" ]]; then
-  echo "▶ Running in EXIT-GATEWAY mode..."
+  echo "Initialising nym-node in mode exit-gateway...."
 
   # Ensure required env vars
   if [[ -z "$HOSTNAME" || -z "$LOCATION" ]]; then
@@ -60,7 +60,7 @@ elif [[ "$MODE" == "exit-gateway" ]]; then
   fi
 
 
-  "$NYM_BIN" run \
+  "$NYM_NODE" run \
     --mode exit-gateway \
     --public-ips "$PUBLIC_IP" \
     --hostname "$HOSTNAME" \

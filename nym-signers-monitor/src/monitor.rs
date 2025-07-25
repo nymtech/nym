@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::run;
+use nym_ecash_signer_check::check_signers;
 use nym_task::ShutdownManager;
+use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::interval;
 use tracing::{error, info};
 
 pub(crate) struct SignersMonitor {
     zulip_client: zulip_client::Client,
+    nyxd_client: QueryHttpRpcNyxdClient,
     check_interval: Duration,
 }
 
@@ -20,8 +24,11 @@ impl SignersMonitor {
             args.zulip_server_url,
         )?
         .build()?;
+        let nyxd_client = args.nyxd_connection.try_create_nyxd_client()?;
+
         Ok(SignersMonitor {
             zulip_client,
+            nyxd_client,
             check_interval: args.signers_check_interval,
         })
     }

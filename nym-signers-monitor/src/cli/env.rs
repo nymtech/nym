@@ -8,4 +8,9 @@ pub(crate) mod vars {
     pub(crate) const ZULIP_NOTIFICATION_CHANNEL_ID_ARG: &str = "ZULIP_NOTIFICATION_CHANNEL_ID";
 
     pub(crate) const SIGNERS_MONITOR_CHECK_INTERVAL_ARG: &str = "SIGNERS_MONITOR_CHECK_INTERVAL";
+
+    pub(crate) const KNOWN_NETWORK_NAME_ARG: &str = "KNOWN_NETWORK_NAME";
+    pub(crate) const NYXD_CLIENT_CONFIG_ENV_FILE_ARG: &str = "NYXD_CLIENT_CONFIG_ENV_FILE";
+    pub(crate) const NYXD_RPC_ENDPOINT_ARG: &str = "NYXD_RPC_ENDPOINT";
+    pub(crate) const NYXD_DKG_CONTRACT_ADDRESS_ARG: &str = "NYXD_DKG_CONTRACT_ADDRESS";
 }

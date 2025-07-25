@@ -505,7 +505,10 @@ impl HttpCache {
             None => {
                 let new_node_stats = crate::db::queries::get_daily_stats(db)
                     .await
-                    .unwrap_or_default()
+                    .unwrap_or_else(|e| {
+                        tracing::error!("Failed to get daily stats from database: {}", e);
+                        vec![]
+                    })
                     .into_iter()
                     .rev()
                     .collect::<Vec<_>>();

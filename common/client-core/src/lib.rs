@@ -12,6 +12,7 @@ pub mod client;
 pub mod config;
 pub mod error;
 pub mod init;
+pub mod gateway_probe;
 
 pub use nym_topology::{
     HardcodedTopologyProvider, NymRouteProvider, NymTopology, NymTopologyError, TopologyProvider,

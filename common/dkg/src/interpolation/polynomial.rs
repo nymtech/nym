@@ -9,9 +9,9 @@ use group::GroupEncoding;
 use rand::CryptoRng;
 use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct PublicCoefficients {
     pub(crate) coefficients: Vec<G2Projective>,
 }
@@ -111,8 +111,7 @@ impl IndexMut<usize> for PublicCoefficients {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Zeroize)]
-#[zeroize(drop)]
+#[derive(Clone, Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct Polynomial {
     coefficients: Vec<Scalar>,
 }

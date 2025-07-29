@@ -6,14 +6,13 @@ use crate::error::DkgError;
 use crate::interpolation::perform_lagrangian_interpolation_at_origin;
 use crate::NodeIndex;
 use bls12_381::Scalar;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // if this type is changed, one must ensure all values can fit in it
 pub type Chunk = u16;
 
-#[derive(PartialEq, Eq, Debug, Zeroize)]
+#[derive(PartialEq, Eq, Debug, Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(test, derive(Clone))]
-#[zeroize(drop)]
 pub struct Share(pub(crate) Scalar);
 
 pub fn combine_shares(shares: Vec<Share>, node_indices: &[NodeIndex]) -> Result<Scalar, DkgError> {
@@ -66,9 +65,8 @@ impl From<Scalar> for Share {
     }
 }
 
-#[derive(Default, Zeroize)]
+#[derive(Default, Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(test, derive(Clone))]
-#[zeroize(drop)]
 pub(crate) struct ChunkedShare {
     pub(crate) chunks: [Chunk; NUM_CHUNKS],
 }

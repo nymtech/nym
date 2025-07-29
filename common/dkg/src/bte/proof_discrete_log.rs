@@ -7,14 +7,14 @@ use ff::Field;
 use group::GroupEncoding;
 use rand::CryptoRng;
 use rand_core::RngCore;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const DISCRETE_LOG_DOMAIN: &[u8] =
     b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381_XMD:SHA-256_SSWU_RO_PROOF_DISCRETE_LOG";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct ProofOfDiscreteLog {
     pub(crate) rand_commitment: G1Projective,
     pub(crate) response: Scalar,
@@ -52,11 +52,11 @@ impl ProofOfDiscreteLog {
         let public_bytes = public.to_bytes();
         let rand_commit_bytes = rand_commit.to_bytes();
 
-        let mut bytes = Vec::with_capacity(96);
-        bytes.extend_from_slice(public_bytes.as_ref());
-        bytes.extend_from_slice(rand_commit_bytes.as_ref());
+        let mut bytes = [0u8; 96];
+        bytes[0..48].copy_from_slice(public_bytes.as_ref());
+        bytes[48..96].copy_from_slice(rand_commit_bytes.as_ref());
 
-        hash_to_scalar(bytes, DISCRETE_LOG_DOMAIN)
+        hash_to_scalar(&bytes, DISCRETE_LOG_DOMAIN)
     }
 }
 

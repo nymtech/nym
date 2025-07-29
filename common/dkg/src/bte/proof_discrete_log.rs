@@ -56,7 +56,7 @@ impl ProofOfDiscreteLog {
         bytes[0..48].copy_from_slice(public_bytes.as_ref());
         bytes[48..96].copy_from_slice(rand_commit_bytes.as_ref());
 
-        hash_to_scalar(&bytes, DISCRETE_LOG_DOMAIN)
+        hash_to_scalar(bytes, DISCRETE_LOG_DOMAIN)
     }
 }
 

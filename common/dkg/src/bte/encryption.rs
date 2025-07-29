@@ -16,9 +16,9 @@ use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct Ciphertexts {
     pub rr: [G1Projective; NUM_CHUNKS],
     pub ss: [G1Projective; NUM_CHUNKS],
@@ -167,8 +167,7 @@ impl Ciphertexts {
     }
 }
 
-#[derive(Zeroize)]
-#[zeroize(drop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 /// Randomness generated during ciphertext generation that is required for proofs of knowledge.
 ///
 /// It must be handled with extreme care as its misuse might help malicious parties to recover

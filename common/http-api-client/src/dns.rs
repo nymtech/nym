@@ -225,6 +225,12 @@ impl HickoryDnsResolver {
             .get_or_try_init(new_resolver_system)?;
         Ok(())
     }
+
+    /// Disable fallback resolution. If the primary resolver fails the error is
+    /// returned immediately
+    pub fn disable_system_fallback(&mut self) {
+        self.fallback = None;
+    }
 }
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look

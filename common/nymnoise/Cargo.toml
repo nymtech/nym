@@ -1,6 +1,6 @@
 [package]
 name = "nym-noise"
-version = "0.1.0"
+version.workspace = true
 authors = ["Simon Wicky <simon@nymtech.net>"]
 edition = "2021"
 license.workspace = true

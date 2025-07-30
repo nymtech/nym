@@ -1,6 +1,6 @@
 [package]
 name = "nym-task"
-version = "0.1.0"
+version.workspace = true
 description = "Task handling"
 edition.workspace = true
 authors.workspace = true

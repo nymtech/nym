@@ -1,6 +1,6 @@
 [package]
 name = "nym-ffi-shared"
-version = "0.2.1"
+version.workspace = true
 edition = "2021"
 license.workspace = true
 

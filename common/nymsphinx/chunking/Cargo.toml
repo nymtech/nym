@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-chunking"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet chunking of underlying data packets"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -21,6 +21,4 @@ nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types" }
 nym-metrics = { path = "../../nym-metrics" }
-nym-crypto = { path = "../../crypto", version = "0.4.0", features = [
-    "asymmetric",
-] }
+nym-crypto = { path = "../../crypto", features = ["asymmetric"] }

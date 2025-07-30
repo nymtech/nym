@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-statistics-api"
-version = "0.1.4"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

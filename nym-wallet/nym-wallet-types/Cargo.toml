@@ -25,7 +25,7 @@ nym-types = { path = "../../common/types" }
 
 [features]
 default = []
-generate-ts = ["nym-mixnet-contract-common/generate-ts", "nym-types/generate-ts"]
-
-
-
+generate-ts = [
+    "nym-mixnet-contract-common/generate-ts",
+    "nym-types/generate-ts",
+]

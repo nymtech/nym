@@ -1,6 +1,6 @@
 [package]
 name = "nym-credential-proxy"
-version = "0.1.7"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

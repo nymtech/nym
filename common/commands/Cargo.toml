@@ -1,6 +1,6 @@
 [package]
 name = "nym-cli-commands"
-version = "1.0.0"
+version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
@@ -38,7 +38,9 @@ cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 
 nym-validator-client = { path = "../client-libs/validator-client" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "output_format",
+] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }
 nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
@@ -59,5 +61,5 @@ nym-credential-utils = { path = "../../common/credential-utils" }
 nym-id = { path = "../nym-id" }
 nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
 
-nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
+nym-pemstore = { path = "../../common/pemstore" }
 nym-types = { path = "../../common/types" }

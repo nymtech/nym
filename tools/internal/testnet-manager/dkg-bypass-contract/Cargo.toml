@@ -1,6 +1,6 @@
 [package]
 name = "dkg-bypass-contract"
-version = "0.1.0"
+version.workspace = true
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }

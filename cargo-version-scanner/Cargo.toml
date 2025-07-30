@@ -1,0 +1,9 @@
+[package]
+version = "0.1.0"
+name = "cargo-version-scanner"
+edition = "2021"
+
+[dependencies]
+toml = { version = "0.8.2" }
+serde = { version = "1.0.219", features = ["derive"] }
+clap = { version = "4.5.38", features = ["derive"] }

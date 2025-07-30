@@ -39,7 +39,8 @@ members = [
     "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
-    "common/cosmwasm-smart-contracts/multisig-contract", "common/cosmwasm-smart-contracts/nym-performance-contract",
+    "common/cosmwasm-smart-contracts/multisig-contract",
+    "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/credential-storage",
@@ -99,7 +100,8 @@ members = [
     "common/wasm/storage",
     "common/wasm/utils",
     "common/wireguard",
-    "common/wireguard-types", "common/zulip-client",
+    "common/wireguard-types",
+    "common/zulip-client",
     "documentation/autodoc",
     "gateway",
     "nym-api",
@@ -167,7 +169,13 @@ default-members = [
     "tools/nymvisor",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "cpu-cycles"]
+exclude = [
+    "explorer",
+    "contracts",
+    "nym-wallet",
+    "cpu-cycles",
+    "cargo-version-scanner",
+]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
@@ -178,6 +186,8 @@ edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.80"
 readme = "README.md"
+# Max: everything aside from the smart contracts and the nym-wallet use this global version, based off the fact the current highest version (aside from the contracts) is on 1.5.1
+version = "1.6.0"
 
 [workspace.dependencies]
 addr = "0.15.6"
@@ -322,6 +332,7 @@ strum_macros = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
 sysinfo = "0.33.0"
+tabled = "0.2.0"
 tap = "1.0.1"
 tar = "0.4.44"
 tempfile = "3.20"

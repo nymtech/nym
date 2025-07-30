@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway-requests"
-version = "0.1.0"
+version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true

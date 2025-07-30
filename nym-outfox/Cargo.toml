@@ -1,6 +1,6 @@
 [package]
 name = "nym-outfox"
-version = "0.1.0"
+version.workspace = true
 description = "Outfox package format"
 edition = { workspace = true }
 authors = { workspace = true }

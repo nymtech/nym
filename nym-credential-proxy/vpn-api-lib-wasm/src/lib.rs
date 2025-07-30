@@ -19,12 +19,12 @@ use nym_credentials::{
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_default_expiration_date, EcashTime};
+use nym_wasm_utils::console_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use time::Date;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
-use wasm_utils::console_error;
 use zeroize::Zeroizing;
 
 pub mod error;
@@ -264,11 +264,11 @@ pub struct FullSerialisedNymIssuedTicketbook {
 
 #[wasm_bindgen(start)]
 pub fn main() {
-    wasm_utils::console_log!("[rust main]: rust module loaded");
-    wasm_utils::console_log!(
+    nym_wasm_utils::console_log!("[rust main]: rust module loaded");
+    nym_wasm_utils::console_log!(
         "vpn-api-lib version used:\n{}",
         nym_bin_common::bin_info!().pretty_print()
     );
-    wasm_utils::console_log!("[rust main]: setting panic hook");
-    wasm_utils::set_panic_hook();
+    nym_wasm_utils::console_log!("[rust main]: setting panic hook");
+    nym_wasm_utils::set_panic_hook();
 }

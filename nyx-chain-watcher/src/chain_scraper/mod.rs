@@ -5,11 +5,11 @@ use crate::env::vars::{
 };
 use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
-use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
-use nyxd_scraper::{
+use nym_nyxd_scraper::{
     error::ScraperError, storage::StorageTransaction, MsgModule, NyxdScraper,
     ParsedTransactionResponse, PruningOptions,
 };
+use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
 use sqlx::SqlitePool;
 use std::fs;
 use tracing::{info, warn};
@@ -50,13 +50,13 @@ pub(crate) async fn run_chain_scraper(
         fs::remove_file(config.chain_scraper_database_path())?;
     }
 
-    let scraper = NyxdScraper::builder(nyxd_scraper::Config {
+    let scraper = NyxdScraper::builder(nym_nyxd_scraper::Config {
         websocket_url,
         rpc_url,
         database_path: config.chain_scraper_database_path().into(),
         pruning_options: PruningOptions::nothing(),
         store_precommits: false,
-        start_block: nyxd_scraper::StartingBlockOpts {
+        start_block: nym_nyxd_scraper::StartingBlockOpts {
             start_block_height,
             use_best_effort_start_height,
         },

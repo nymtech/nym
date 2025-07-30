@@ -1,5 +1,5 @@
 [package]
-name = "cpu-cycles"
+name = "nym-cpu-cycles"
 version.workspace = true
 edition = "2021"
 build = "build.rs"

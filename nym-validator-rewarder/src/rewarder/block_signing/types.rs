@@ -6,8 +6,8 @@ use crate::{
     rewarder::helpers::{consensus_pubkey_to_address, operator_account_to_owner_account},
 };
 use cosmwasm_std::{Decimal, Uint128};
+use nym_nyxd_scraper::models;
 use nym_validator_client::nyxd::{module_traits::staking, AccountId, Coin};
-use nyxd_scraper::models;
 use std::collections::HashMap;
 use tracing::info;
 

@@ -6,8 +6,8 @@ use crate::models::{
     RawVerificationKey, StoredIssuedTicketbook, StoredPendingTicketbook,
 };
 use nym_ecash_time::Date;
+use nym_sqlx_pool_guard::SqlitePoolGuard;
 use sqlx::{Executor, Sqlite, Transaction};
-use sqlx_pool_guard::SqlitePoolGuard;
 
 #[derive(Clone)]
 pub struct SqliteEcashTicketbookManager {

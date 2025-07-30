@@ -1,5 +1,5 @@
 [package]
-name = "wasm-storage"
+name = "nym-wasm-storage"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -18,4 +18,4 @@ indexed_db_futures = { workspace = true }
 thiserror = { workspace = true }
 
 nym-store-cipher = { path = "../../store-cipher", features = ["json"] }
-wasm-utils = { path = "../utils", default-features = false }
+nym-wasm-utils = { path = "../utils", default-features = false }

@@ -1,5 +1,5 @@
 [package]
-name = "sqlx-pool-guard"
+name = "nym-sqlx-pool-guard"
 version.workspace = true
 edition = "2024"
 license.workspace = true

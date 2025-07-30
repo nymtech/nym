@@ -1,6 +1,9 @@
 [package]
 name = "nym-client-wasm"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
+authors = [
+    "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+    "Jedrzej Stuczynski <andrew@nymtech.net>",
+]
 version.workspace = true
 edition = "2021"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
@@ -26,8 +29,8 @@ thiserror = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 
 nym-bin-common = { path = "../../common/bin-common" }
-wasm-client-core = { path = "../../common/wasm/client-core" }
-wasm-utils = { path = "../../common/wasm/utils" }
+nym-wasm-client-core = { path = "../../common/wasm/client-core" }
+nym-wasm-utils = { path = "../../common/wasm/utils" }
 
 nym-node-tester-utils = { path = "../../common/node-tester-utils", optional = true }
 nym-node-tester-wasm = { path = "../node-tester", optional = true }

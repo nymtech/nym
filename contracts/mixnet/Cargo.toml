@@ -22,7 +22,7 @@ name = "schema"
 required-features = ["schema-gen"]
 
 [lib]
-name = "mixnet_contract"
+name = "nym_mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

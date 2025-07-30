@@ -41,11 +41,11 @@ nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 
 
 # 'wasm-serde-types' feature
-wasm-utils = { path = "../wasm/utils", default-features = false, optional = true }
+nym-wasm-utils = { path = "../wasm/utils", default-features = false, optional = true }
 
 [features]
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
-wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
+wasm-serde-types = ["tsify", "wasm-bindgen", "nym-wasm-utils"]
 persistence = ["serde_json"]
 outfox = []

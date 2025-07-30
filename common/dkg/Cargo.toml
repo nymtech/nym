@@ -12,7 +12,12 @@ bitvec = { workspace = true }
 
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { workspace = true, default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
+bls12_381 = { workspace = true, default-features = false, features = [
+    "alloc",
+    "pairings",
+    "experimental",
+    "zeroize",
+] }
 nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", optional = true }
 bs58 = { workspace = true }
 

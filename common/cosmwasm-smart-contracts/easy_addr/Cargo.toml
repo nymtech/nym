@@ -1,5 +1,5 @@
 [package]
-name = "easy-addr"
+name = "nym-easy-addr"
 version.workspace = true
 edition = "2021"
 publish = false

@@ -33,11 +33,11 @@ use nym_credentials::{
     IssuanceTicketBook, IssuedTicketBook,
 };
 use nym_ecash_time::{ecash_today, Date, EcashTime};
+use nym_sqlx_pool_guard::SqlitePoolGuard;
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
-use sqlx_pool_guard::SqlitePoolGuard;
 use std::path::Path;
 use zeroize::Zeroizing;
 

@@ -3,7 +3,7 @@
 
 use crate::cli::{try_load_current_config, ConfigOverridableArgs};
 use crate::error::NymRewarderError;
-use nyxd_scraper::NyxdScraper;
+use nym_nyxd_scraper::NyxdScraper;
 use std::path::PathBuf;
 
 #[derive(Debug, clap::Args)]

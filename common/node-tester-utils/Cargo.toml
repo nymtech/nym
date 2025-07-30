@@ -28,5 +28,5 @@ nym-sphinx = { path = "../nymsphinx" }
 workspace = true
 
 ## wasm-only dependencies
-[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+[target."cfg(target_arch = \"wasm32\")".dependencies.nym-wasm-utils]
 path = "../wasm/utils"

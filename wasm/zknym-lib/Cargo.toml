@@ -1,5 +1,5 @@
 [package]
-name = "zknym-lib"
+name = "nym-zknym-lib"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -35,7 +35,7 @@ nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 nym-http-api-client = { path = "../../common/http-api-client" }
-wasm-utils = { path = "../../common/wasm/utils" }
+nym-wasm-utils = { path = "../../common/wasm/utils" }
 
 [dev-dependencies]
 anyhow = { workspace = true }

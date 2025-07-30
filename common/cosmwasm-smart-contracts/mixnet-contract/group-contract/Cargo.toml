@@ -1,0 +1,12 @@
+[package]
+name = "nym-group-contract-common"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cw-controllers = { workspace = true }
+cw4 = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }

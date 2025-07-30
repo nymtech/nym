@@ -11,8 +11,8 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_nyxd_scraper::{PruningOptions, StartingBlockOpts};
 use nym_validator_client::nyxd::{AccountId, Coin};
-use nyxd_scraper::{PruningOptions, StartingBlockOpts};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::io;
@@ -119,8 +119,8 @@ impl Config {
         }
     }
 
-    pub fn scraper_config(&self) -> nyxd_scraper::Config {
-        nyxd_scraper::Config {
+    pub fn scraper_config(&self) -> nym_nyxd_scraper::Config {
+        nym_nyxd_scraper::Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),

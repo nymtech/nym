@@ -28,8 +28,8 @@ tsify = { workspace = true, features = ["js"] }
 wasmtimer = { workspace = true }
 
 nym-node-tester-utils = { path = "../../common/node-tester-utils" }
-wasm-client-core = { path = "../../common/wasm/client-core" }
-wasm-utils = { path = "../../common/wasm/utils" }
+nym-wasm-client-core = { path = "../../common/wasm/client-core" }
+nym-wasm-utils = { path = "../../common/wasm/utils" }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

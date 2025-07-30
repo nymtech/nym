@@ -1,5 +1,5 @@
 [package]
-name = "zulip-client"
+name = "nym-zulip-client"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true

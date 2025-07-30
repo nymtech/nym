@@ -6,13 +6,13 @@
 
 use crate::node::{EntryDetails, RoutingNode, RoutingNodeError, SupportedRoles};
 use crate::{CachedEpochRewardedSet, NymTopology, NymTopologyMetadata};
+use nym_wasm_utils::error::simple_js_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use thiserror::Error;
 use tsify::Tsify;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
-use wasm_utils::error::simple_js_error;
 
 #[derive(Debug, Error)]
 pub enum SerializableTopologyError {

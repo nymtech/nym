@@ -3,8 +3,8 @@
 
 use anyhow::Result;
 use clap::Parser;
-use echo_server::NymEchoServer;
 use nym_crypto::asymmetric::ed25519;
+use nym_echo_server::NymEchoServer;
 use tracing::info;
 
 #[derive(Parser, Debug)]

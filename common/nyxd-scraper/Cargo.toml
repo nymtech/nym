@@ -1,5 +1,5 @@
 [package]
-name = "nyxd-scraper"
+name = "nym-nyxd-scraper"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -19,9 +19,18 @@ futures.workspace = true
 humantime = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+    "time",
+] }
 tendermint.workspace = true
-tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
+tendermint-rpc = { workspace = true, features = [
+    "websocket-client",
+    "http-client",
+] }
 thiserror.workspace = true
 time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -36,5 +45,10 @@ url.workspace = true
 
 
 [build-dependencies]
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

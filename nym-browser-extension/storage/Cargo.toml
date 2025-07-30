@@ -1,5 +1,5 @@
 [package]
-name = "extension-storage"
+name = "nym-extension-storage"
 version.workspace = true
 edition = "2024"
 license = "Apache-2.0"
@@ -13,20 +13,20 @@ authors = ["Nym Technologies SA <contact@nymtech.net>"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bip39 = { workspace = true }              
-zeroize = { workspace = true }           
+bip39 = { workspace = true }
+zeroize = { workspace = true }
 
-js-sys = { workspace = true }             
-wasm-bindgen = { workspace = true }       
-wasm-bindgen-futures = { workspace = true } 
+js-sys = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 
-thiserror = { workspace = true }       
+thiserror = { workspace = true }
 
-console_error_panic_hook = { workspace = true, optional = true } 
+console_error_panic_hook = { workspace = true, optional = true }
 
-wasm-utils = { path = "../../common/wasm/utils" }
-wasm-storage = { path = "../../common/wasm/storage" }
+nym-wasm-utils = { path = "../../common/wasm/utils" }
+nym-wasm-storage = { path = "../../common/wasm/storage" }
 
 
 #[package.metadata.wasm-pack.profile.release]

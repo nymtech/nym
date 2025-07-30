@@ -549,14 +549,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "autodoc"
-version = "1.6.0"
-dependencies = [
- "env_logger",
- "log",
-]
-
-[[package]]
 name = "axum"
 version = "0.6.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2407,15 +2399,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
 
 [[package]]
-name = "easy-addr"
-version = "1.6.0"
-dependencies = [
- "cosmwasm-std",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "ecdsa"
 version = "0.16.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2428,31 +2411,6 @@ dependencies = [
  "serdect 0.2.0",
  "signature",
  "spki",
-]
-
-[[package]]
-name = "echo-server"
-version = "1.6.0"
-dependencies = [
- "anyhow",
- "bincode",
- "bytecodec",
- "bytes",
- "clap",
- "dashmap",
- "dirs",
- "futures",
- "nym-bin-common 1.6.0",
- "nym-crypto 1.6.0",
- "nym-sdk",
- "serde",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -2658,22 +2616,6 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener 5.4.0",
  "pin-project-lite",
-]
-
-[[package]]
-name = "extension-storage"
-version = "1.6.0"
-dependencies = [
- "bip39",
- "console_error_panic_hook",
- "js-sys",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-storage",
- "wasm-utils",
- "zeroize",
 ]
 
 [[package]]
@@ -4536,31 +4478,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mix-fetch-wasm"
-version = "1.6.0"
-dependencies = [
- "async-trait",
- "futures",
- "js-sys",
- "nym-bin-common 1.6.0",
- "nym-http-api-client 1.6.0",
- "nym-ordered-buffer",
- "nym-service-providers-common",
- "nym-socks5-requests",
- "rand 0.8.5",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
- "tokio",
- "tsify",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-client-core",
- "wasm-utils",
-]
-
-[[package]]
 name = "mixnet-connectivity-check"
 version = "1.6.0"
 dependencies = [
@@ -5116,6 +5033,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-autodoc"
+version = "1.6.0"
+dependencies = [
+ "env_logger",
+ "log",
+]
+
+[[package]]
 name = "nym-bandwidth-controller"
 version = "1.6.0"
 dependencies = [
@@ -5325,6 +5250,7 @@ dependencies = [
  "nym-task 1.6.0",
  "nym-topology 1.6.0",
  "nym-validator-client 1.6.0",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -5342,7 +5268,6 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-utils",
  "wasmtimer",
  "zeroize",
 ]
@@ -5388,9 +5313,9 @@ dependencies = [
  "dashmap",
  "nym-crypto 1.6.0",
  "nym-sphinx 1.6.0",
+ "nym-sqlx-pool-guard",
  "nym-task 1.6.0",
  "sqlx",
- "sqlx-pool-guard",
  "thiserror 2.0.12",
  "time",
  "tokio",
@@ -5407,6 +5332,8 @@ dependencies = [
  "nym-bin-common 1.6.0",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
@@ -5416,8 +5343,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
- "wasm-client-core",
- "wasm-utils",
 ]
 
 [[package]]
@@ -5671,9 +5596,9 @@ dependencies = [
  "nym-compact-ecash 1.6.0",
  "nym-credentials",
  "nym-ecash-time 1.6.0",
+ "nym-sqlx-pool-guard",
  "serde",
  "sqlx",
- "sqlx-pool-guard",
  "thiserror 2.0.12",
  "tokio",
  "zeroize",
@@ -5861,6 +5786,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-easy-addr"
+version = "1.6.0"
+dependencies = [
+ "cosmwasm-std",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "nym-ecash-contract-common"
 version = "0.1.0"
 source = "git+https://github.com/nymtech/nym.git?branch=release/2025.11-cheddar#0d420fb0a56f010b86562fb037034b1ae477a3b8"
@@ -5905,6 +5839,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-echo-server"
+version = "1.6.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bytecodec",
+ "bytes",
+ "clap",
+ "dashmap",
+ "dirs",
+ "futures",
+ "nym-bin-common 1.6.0",
+ "nym-crypto 1.6.0",
+ "nym-sdk",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "nym-execute"
 version = "1.6.0"
 dependencies = [
@@ -5934,6 +5893,22 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "utoipa",
+]
+
+[[package]]
+name = "nym-extension-storage"
+version = "1.6.0"
+dependencies = [
+ "bip39",
+ "console_error_panic_hook",
+ "js-sys",
+ "nym-wasm-storage",
+ "nym-wasm-utils",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.12",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "zeroize",
 ]
 
 [[package]]
@@ -6022,6 +5997,7 @@ dependencies = [
  "nym-statistics-common 1.6.0",
  "nym-task 1.6.0",
  "nym-validator-client 1.6.0",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "serde",
  "si-scale",
@@ -6035,7 +6011,6 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-utils",
  "wasmtimer",
  "zeroize",
 ]
@@ -6357,6 +6332,31 @@ dependencies = [
  "lazy_static",
  "prometheus",
  "tracing",
+]
+
+[[package]]
+name = "nym-mix-fetch-wasm"
+version = "1.6.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "js-sys",
+ "nym-bin-common 1.6.0",
+ "nym-http-api-client 1.6.0",
+ "nym-ordered-buffer",
+ "nym-service-providers-common",
+ "nym-socks5-requests",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
+ "rand 0.8.5",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.12",
+ "tokio",
+ "tsify",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -6833,13 +6833,13 @@ dependencies = [
  "nym-sphinx-params 1.6.0",
  "nym-task 1.6.0",
  "nym-topology 1.6.0",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "thiserror 2.0.12",
  "tokio",
- "wasm-utils",
 ]
 
 [[package]]
@@ -6849,6 +6849,8 @@ dependencies = [
  "futures",
  "js-sys",
  "nym-node-tester-utils",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
@@ -6857,8 +6859,6 @@ dependencies = [
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-client-core",
- "wasm-utils",
  "wasmtimer",
 ]
 
@@ -6917,6 +6917,61 @@ dependencies = [
  "nym-socks5-requests",
  "serde",
  "tokio",
+]
+
+[[package]]
+name = "nym-nyx-chain-watcher"
+version = "1.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "chrono",
+ "clap",
+ "nym-bin-common 1.6.0",
+ "nym-config 1.6.0",
+ "nym-network-defaults 1.6.0",
+ "nym-nyxd-scraper",
+ "nym-task 1.6.0",
+ "nym-validator-client 1.6.0",
+ "reqwest 0.12.22",
+ "schemars 0.8.22",
+ "serde",
+ "sqlx",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
+]
+
+[[package]]
+name = "nym-nyxd-scraper"
+version = "1.6.0"
+dependencies = [
+ "async-trait",
+ "const_format",
+ "cosmrs",
+ "eyre",
+ "futures",
+ "humantime",
+ "serde",
+ "sha2 0.10.9",
+ "sqlx",
+ "tendermint",
+ "tendermint-rpc",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -7541,6 +7596,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-sqlx-pool-guard"
+version = "1.6.0"
+dependencies = [
+ "proc_pidinfo",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "windows 0.61.3",
+]
+
+[[package]]
 name = "nym-statistics-api"
 version = "1.6.0"
 dependencies = [
@@ -7729,6 +7797,7 @@ dependencies = [
  "nym-mixnet-contract-common 1.6.0",
  "nym-sphinx-addressing 1.6.0",
  "nym-sphinx-types 1.6.0",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "reqwest 0.12.22",
  "serde",
@@ -7738,7 +7807,21 @@ dependencies = [
  "tracing",
  "tsify",
  "wasm-bindgen",
- "wasm-utils",
+]
+
+[[package]]
+name = "nym-ts-rs-cli"
+version = "1.6.0"
+dependencies = [
+ "anyhow",
+ "nym-api-requests 1.6.0",
+ "nym-mixnet-contract-common 1.6.0",
+ "nym-types",
+ "nym-validator-client 1.6.0",
+ "nym-vesting-contract-common 1.6.0",
+ "nym-wallet-types",
+ "ts-rs",
+ "walkdir",
 ]
 
 [[package]]
@@ -7903,12 +7986,12 @@ dependencies = [
  "nym-crypto 1.6.0",
  "nym-ecash-time 1.6.0",
  "nym-network-defaults 1.6.0",
+ "nym-nyxd-scraper",
  "nym-pemstore 1.6.0",
  "nym-serde-helpers 1.6.0",
  "nym-task 1.6.0",
  "nym-ticketbooks-merkle 1.6.0",
  "nym-validator-client 1.6.0",
- "nyxd-scraper",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -7984,6 +8067,7 @@ dependencies = [
  "nym-credentials-interface 1.6.0",
  "nym-crypto 1.6.0",
  "nym-ecash-time 1.6.0",
+ "nym-wasm-utils",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
@@ -7991,7 +8075,6 @@ dependencies = [
  "time",
  "tsify",
  "wasm-bindgen",
- "wasm-utils",
  "zeroize",
 ]
 
@@ -8012,6 +8095,71 @@ dependencies = [
  "serde_json",
  "strum 0.23.0",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-wasm-client-core"
+version = "1.6.0"
+dependencies = [
+ "async-trait",
+ "console_error_panic_hook",
+ "js-sys",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-config 1.6.0",
+ "nym-credential-storage",
+ "nym-crypto 1.6.0",
+ "nym-gateway-client",
+ "nym-sphinx 1.6.0",
+ "nym-sphinx-acknowledgements 1.6.0",
+ "nym-statistics-common 1.6.0",
+ "nym-task 1.6.0",
+ "nym-topology 1.6.0",
+ "nym-validator-client 1.6.0",
+ "nym-wasm-storage",
+ "nym-wasm-utils",
+ "rand 0.8.5",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.12",
+ "time",
+ "tsify",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-wasm-storage"
+version = "1.6.0"
+dependencies = [
+ "async-trait",
+ "getrandom 0.2.16",
+ "indexed_db_futures",
+ "js-sys",
+ "nym-store-cipher",
+ "nym-wasm-utils",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.12",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "nym-wasm-utils"
+version = "1.6.0"
+dependencies = [
+ "console_error_panic_hook",
+ "futures",
+ "getrandom 0.2.16",
+ "gloo-net",
+ "gloo-utils 0.2.0",
+ "js-sys",
+ "tungstenite 0.20.1",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -8074,6 +8222,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-zknym-lib"
+version = "1.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bs58",
+ "getrandom 0.2.16",
+ "js-sys",
+ "nym-bin-common 1.6.0",
+ "nym-compact-ecash 1.6.0",
+ "nym-credentials",
+ "nym-crypto 1.6.0",
+ "nym-http-api-client 1.6.0",
+ "nym-wasm-utils",
+ "rand 0.8.5",
+ "reqwest 0.12.22",
+ "serde",
+ "thiserror 2.0.12",
+ "tokio",
+ "tsify",
+ "uuid",
+ "wasm-bindgen",
+ "wasmtimer",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-zulip-client"
+version = "1.6.0"
+dependencies = [
+ "itertools 0.14.0",
+ "nym-bin-common 1.6.0",
+ "nym-http-api-client 1.6.0",
+ "reqwest 0.12.22",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "url",
+ "zeroize",
+]
+
+[[package]]
 name = "nymvisor"
 version = "1.6.0"
 dependencies = [
@@ -8099,61 +8291,6 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "nyx-chain-watcher"
-version = "1.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum 0.7.9",
- "chrono",
- "clap",
- "nym-bin-common 1.6.0",
- "nym-config 1.6.0",
- "nym-network-defaults 1.6.0",
- "nym-task 1.6.0",
- "nym-validator-client 1.6.0",
- "nyxd-scraper",
- "reqwest 0.12.22",
- "schemars 0.8.22",
- "serde",
- "sqlx",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-util",
- "tower-http 0.5.2",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
- "utoipauto",
-]
-
-[[package]]
-name = "nyxd-scraper"
-version = "1.6.0"
-dependencies = [
- "async-trait",
- "const_format",
- "cosmrs",
- "eyre",
- "futures",
- "humantime",
- "serde",
- "sha2 0.10.9",
- "sqlx",
- "tendermint",
- "tendermint-rpc",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-stream",
- "tokio-util",
  "tracing",
  "url",
 ]
@@ -10457,19 +10594,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-pool-guard"
-version = "1.6.0"
-dependencies = [
- "proc_pidinfo",
- "sqlx",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "windows 0.61.3",
-]
-
-[[package]]
 name = "sqlx-postgres"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11597,21 +11721,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ts-rs-cli"
-version = "1.6.0"
-dependencies = [
- "anyhow",
- "nym-api-requests 1.6.0",
- "nym-mixnet-contract-common 1.6.0",
- "nym-types",
- "nym-validator-client 1.6.0",
- "nym-vesting-contract-common 1.6.0",
- "nym-wallet-types",
- "ts-rs",
- "walkdir",
-]
-
-[[package]]
 name = "ts-rs-macros"
 version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12270,55 +12379,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasm-client-core"
-version = "1.6.0"
-dependencies = [
- "async-trait",
- "console_error_panic_hook",
- "js-sys",
- "nym-bandwidth-controller",
- "nym-client-core",
- "nym-config 1.6.0",
- "nym-credential-storage",
- "nym-crypto 1.6.0",
- "nym-gateway-client",
- "nym-sphinx 1.6.0",
- "nym-sphinx-acknowledgements 1.6.0",
- "nym-statistics-common 1.6.0",
- "nym-task 1.6.0",
- "nym-topology 1.6.0",
- "nym-validator-client 1.6.0",
- "rand 0.8.5",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
- "time",
- "tsify",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-storage",
- "wasm-utils",
- "zeroize",
-]
-
-[[package]]
-name = "wasm-storage"
-version = "1.6.0"
-dependencies = [
- "async-trait",
- "getrandom 0.2.16",
- "indexed_db_futures",
- "js-sys",
- "nym-store-cipher",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
- "wasm-bindgen",
- "wasm-utils",
-]
-
-[[package]]
 name = "wasm-streams"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12326,22 +12386,6 @@ checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
 dependencies = [
  "futures-util",
  "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "wasm-utils"
-version = "1.6.0"
-dependencies = [
- "console_error_panic_hook",
- "futures",
- "getrandom 0.2.16",
- "gloo-net",
- "gloo-utils 0.2.0",
- "js-sys",
- "tungstenite 0.20.1",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -13141,33 +13185,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zknym-lib"
-version = "1.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bs58",
- "getrandom 0.2.16",
- "js-sys",
- "nym-bin-common 1.6.0",
- "nym-compact-ecash 1.6.0",
- "nym-credentials",
- "nym-crypto 1.6.0",
- "nym-http-api-client 1.6.0",
- "rand 0.8.5",
- "reqwest 0.12.22",
- "serde",
- "thiserror 2.0.12",
- "tokio",
- "tsify",
- "uuid",
- "wasm-bindgen",
- "wasm-utils",
- "wasmtimer",
- "zeroize",
-]
-
-[[package]]
 name = "zopfli"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13205,21 +13222,4 @@ checksum = "eb81183ddd97d0c74cedf1d50d85c8d08c1b8b68ee863bdee9e706eedba1a237"
 dependencies = [
  "cc",
  "pkg-config",
-]
-
-[[package]]
-name = "zulip-client"
-version = "1.6.0"
-dependencies = [
- "itertools 0.14.0",
- "nym-bin-common 1.6.0",
- "nym-http-api-client 1.6.0",
- "reqwest 0.12.22",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
- "url",
- "zeroize",
 ]

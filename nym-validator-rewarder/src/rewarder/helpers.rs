@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymRewarderError;
+use nym_nyxd_scraper::constants::{BECH32_CONSENSUS_ADDRESS_PREFIX, BECH32_PREFIX};
 use nym_validator_client::nyxd::{AccountId, PublicKey};
-use nyxd_scraper::constants::{BECH32_CONSENSUS_ADDRESS_PREFIX, BECH32_PREFIX};
 use sha2::{Digest, Sha256};
 
 pub(crate) fn consensus_pubkey_to_address(

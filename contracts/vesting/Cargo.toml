@@ -20,9 +20,8 @@ name = "schema"
 required-features = ["schema-gen"]
 
 [lib]
-name = "vesting_contract"
+name = "nym_vesting_contract"
 crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.6.0" }
 contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.5.0" }

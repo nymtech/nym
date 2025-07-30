@@ -104,7 +104,7 @@ features = ["tokio"]
 # version.workspace = true
 # features = ["futures"]
 
-[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+[target."cfg(target_arch = \"wasm32\")".dependencies.nym-wasm-utils]
 path = "../wasm/utils"
 features = ["websocket"]
 

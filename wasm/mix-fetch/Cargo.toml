@@ -1,5 +1,5 @@
 [package]
-name = "mix-fetch-wasm"
+name = "nym-mix-fetch-wasm"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 version.workspace = true
 edition = "2021"
@@ -32,8 +32,8 @@ nym-http-api-client = { path = "../../common/http-api-client" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../service-providers/common" }
-wasm-client-core = { path = "../../common/wasm/client-core" }
-wasm-utils = { path = "../../common/wasm/utils" }
+nym-wasm-client-core = { path = "../../common/wasm/client-core" }
+nym-wasm-utils = { path = "../../common/wasm/utils" }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

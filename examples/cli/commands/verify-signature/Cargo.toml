@@ -1,5 +1,5 @@
 [package]
-name = "example-verify-signature"
+name = "nym-example-verify-signature"
 version.workspace = true
 edition = "2021"
 

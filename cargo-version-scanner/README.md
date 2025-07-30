@@ -16,14 +16,3 @@ Simple tool to parse + check all versions of crates in the monorepo. Optionally 
 # Logs the verbose table @ the end sorted by version, instead of alphabeticly
 ❯ cargo run -- -v --sort-by-version
   ```
-
-Gross `sed` command for changing everything to workspace
-```sh
-# Replace version = "x.y.z" with version.workspace = true
-find . -name "Cargo.toml" \
-  -not -path "./nym-wallet/*" \
-  -not -path "./contracts/*" \
-  -not -path "./target/*" \
-  -not -name "./Cargo.toml" \
-  -exec sed -i 's/^version = ".*"/version.workspace = true/' {} \;
-```

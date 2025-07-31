@@ -6,9 +6,9 @@
 //! The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints
 //! supporting DoH and DoT.
 //!
-//! This resolver implements a fallback mechanism where, should the DNS-over-TLS resolution fail, a
+//! This resolver supports a fallback mechanism where, should the DNS-over-TLS resolution fail, a
 //! followup resolution will be done using the hosts configured default (e.g. `/etc/resolve.conf` on
-//! linux).
+//! linux). This is disabled by default and can be enabled using [`enable_system_fallback`].
 //!
 //! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
 //! `hickory-resolver` crate
@@ -93,14 +93,14 @@ pub struct HickoryDnsResolver {
     // Tokio Runtime in initialization, so we must delay the actual
     // construction of the resolver.
     state: Arc<OnceCell<TokioResolver>>,
-    fallback: Arc<OnceCell<TokioResolver>>,
+    fallback: Option<Arc<OnceCell<TokioResolver>>>,
     dont_use_shared: bool,
 }
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let resolver = self.state.clone();
-        let fallback = self.fallback.clone();
+        let maybe_fallback = self.fallback.clone();
         let independent = self.dont_use_shared;
         Box::pin(async move {
             let resolver = resolver.get_or_try_init(|| {
@@ -117,23 +117,30 @@ impl Resolve for HickoryDnsResolver {
             let lookup = match resolver.lookup_ip(name.as_str()).await {
                 Ok(res) => res,
                 Err(e) => {
-                    // on failure use the fall back system configured DNS resolver
-                    if !e.is_no_records_found() {
-                        warn!("primary DNS failed w/ error {e}: using system fallback");
-                    }
-                    let resolver = fallback.get_or_try_init(|| {
-                        // using a closure here is slightly gross, but this makes sure that if the
-                        // lazy-init returns an error it can be handled by the client
-                        if independent {
-                            new_resolver_system()
-                        } else {
-                            Ok(SHARED_RESOLVER
-                                .fallback
-                                .get_or_try_init(new_resolver_system)?
-                                .clone())
+                    if let Some(ref fallback) = maybe_fallback {
+                        // on failure use the fall back system configured DNS resolver
+                        if !e.is_no_records_found() {
+                            warn!("primary DNS failed w/ error {e}: using system fallback");
                         }
-                    })?;
-                    resolver.lookup_ip(name.as_str()).await?
+                        let resolver = fallback.get_or_try_init(|| {
+                            // using a closure here is slightly gross, but this makes sure that if the
+                            // lazy-init returns an error it can be handled by the client
+                            if independent {
+                                new_resolver_system()
+                            } else {
+                                Ok(SHARED_RESOLVER
+                                    .fallback
+                                    .as_ref()
+                                    .ok_or(e)? // if the shared resolver has no fallback return the original error
+                                    .get_or_try_init(new_resolver_system)?
+                                    .clone())
+                            }
+                        })?;
+
+                        resolver.lookup_ip(name.as_str()).await?
+                    } else {
+                        return Err(e.into());
+                    }
                 }
             };
 
@@ -162,14 +169,17 @@ impl HickoryDnsResolver {
         let lookup = match resolver.lookup_ip(name).await {
             Ok(res) => res,
             Err(e) => {
-                // on failure use the fall back system configured DNS resolver
-                if !e.is_no_records_found() {
-                    warn!("primary DNS failed w/ error {e}: using system fallback");
+                if let Some(ref fallback) = self.fallback {
+                    // on failure use the fall back system configured DNS resolver
+                    if !e.is_no_records_found() {
+                        warn!("primary DNS failed w/ error {e}: using system fallback");
+                    }
+
+                    let resolver = fallback.get_or_try_init(|| self.new_resolver_system())?;
+                    resolver.lookup_ip(name).await?
+                } else {
+                    return Err(e.into());
                 }
-                let resolver = self
-                    .fallback
-                    .get_or_try_init(|| self.new_resolver_system())?;
-                resolver.lookup_ip(name).await?
             }
         };
 
@@ -193,14 +203,33 @@ impl HickoryDnsResolver {
     }
 
     fn new_resolver_system(&self) -> Result<TokioResolver, HickoryDnsError> {
-        if self.dont_use_shared {
+        if self.dont_use_shared || SHARED_RESOLVER.fallback.is_none() {
             new_resolver_system()
         } else {
             Ok(SHARED_RESOLVER
                 .fallback
+                .as_ref()
+                .unwrap()
                 .get_or_try_init(new_resolver_system)?
                 .clone())
         }
+    }
+
+    /// Enable fallback to the system default resolver if the primary (DoX) resolver fails
+    pub fn enable_system_fallback(&mut self) -> Result<(), HickoryDnsError> {
+        self.fallback = Some(Default::default());
+        let _ = self
+            .fallback
+            .as_ref()
+            .unwrap()
+            .get_or_try_init(new_resolver_system)?;
+        Ok(())
+    }
+
+    /// Disable fallback resolution. If the primary resolver fails the error is
+    /// returned immediately
+    pub fn disable_system_fallback(&mut self) {
+        self.fallback = None;
     }
 }
 

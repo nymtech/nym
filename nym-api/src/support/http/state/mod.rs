@@ -8,6 +8,7 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
+use crate::signers_cache::cache::SignersCacheData;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
@@ -20,6 +21,7 @@ use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::unstable_routes::v1::account::models::NyxAccountDetails;
 use axum::extract::FromRef;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
@@ -40,6 +42,10 @@ pub(crate) struct AppState {
     /// Holds information about the latest chain block it has queried.
     /// Note, it is not updated on every request. It follows the embedded ttl.
     pub(crate) chain_status_cache: ChainStatusCache,
+
+    /// Holds cached state of the statuses of all [ecash] signers on the network -
+    /// their perceived chain statuses and signing capabilities.
+    pub(crate) ecash_signers_cache: SharedCache<SignersCacheData>,
 
     /// Holds mapping between a nyx address and tokens/delegations it holds
     pub(crate) address_info_cache: AddressInfoCache,
@@ -100,7 +106,19 @@ impl FromRef<AppState> for MixnetContractCache {
     }
 }
 
+impl FromRef<AppState> for SharedCache<SignersCacheData> {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.ecash_signers_cache.clone()
+    }
+}
+
 impl AppState {
+    pub(crate) fn private_signing_key(&self) -> &ed25519::PrivateKey {
+        // even though we have to go through ecash state, the key is always available
+        // (moving it would involve some refactoring that's not worth it now)
+        self.ecash_state.local.identity_keypair.private_key()
+    }
+
     pub(crate) fn nym_contract_cache(&self) -> &MixnetContractCache {
         &self.mixnet_contract_cache
     }

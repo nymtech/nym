@@ -14,10 +14,43 @@ readme.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 futures = { workspace = true }
-tracing = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "signal", "macros"] }
-
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "env-filter",
+    "registry",
+] }
+tracing = { version = "0.1.35", default-features = false, features = [
+    "std",
+    "attributes",
+] }
+tracing-error = "0.2.0"
+tokio = { workspace = true, features = ["full"] }
 nym-network-defaults = { path = "../../../common/network-defaults" }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing", "output_format"] }
+nym-bin-common = { path = "../../../common/bin-common", features = [
+    "basic_tracing",
+    "output_format",
+] }
 nym-crypto = { path = "../../../common/crypto", features = ["asymmetric"] }
 nym-sdk = { path = "../../../sdk/rust/nym-sdk" }
+
+# signoz
+dotenv = "0.15.0"
+opentelemetry-proto = "0.30.0"
+tracing-core = "0.1.28"
+opentelemetry = { version = "0.30.0", features = ["trace", "metrics"] }
+tracing-opentelemetry = { version = "0.31", default-features = true }
+opentelemetry_sdk = { version = "0.30.0", default-features = false, features = [
+    "trace",
+    "rt-tokio",
+    "experimental_metrics_custom_reader",
+] }
+opentelemetry-stdout = { version = "0.30.0", features = ["trace", "metrics"] }
+opentelemetry-otlp = { version = "0.30.0", features = [
+    "metrics",
+    "grpc-tonic",
+    "tls",
+    "tls-webpki-roots",
+] }
+opentelemetry-semantic-conventions = { version = "0.30.0", features = [
+    "semconv_experimental",
+] }
+tonic = { version = "0.8.2", features = ["tls-roots"] }

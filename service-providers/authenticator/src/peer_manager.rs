@@ -101,19 +101,24 @@ impl PeerManager {
     ) -> Result<Option<ClientBandwidth>> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::GetClientBandwidth { key, response_tx };
+        let msg = PeerControlRequest::GetClientBandwidthByKey { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let GetClientBandwidthControlResponse { client_bandwidth } =
-            response_rx.await.map_err(|_| {
-                AuthenticatorError::InternalError(
-                    "no response for query client bandwidth".to_string(),
-                )
-            })?;
+        let GetClientBandwidthControlResponse {
+            success,
+            client_bandwidth,
+        } = response_rx.await.map_err(|_| {
+            AuthenticatorError::InternalError("no response for query client bandwidth".to_string())
+        })?;
+        if !success {
+            return Err(AuthenticatorError::InternalError(
+                "querying client bandwidth could not be performed".to_string(),
+            ));
+        }
         Ok(client_bandwidth)
     }
 }

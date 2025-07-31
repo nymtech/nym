@@ -23,3 +23,6 @@ For more information on this contract, please check out the
 */
 
 pub mod contract;
+
+#[cfg(feature = "testable-cw3-contract")]
+pub mod testable_cw3_contract;

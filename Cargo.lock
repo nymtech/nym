@@ -5585,6 +5585,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus",
+ "nym-contracts-common 0.5.0",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -6933,6 +6934,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-offline-signers-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [
@@ -7827,6 +7840,7 @@ dependencies = [
  "nym-mixnet-contract-common 0.6.0",
  "nym-multisig-contract-common 0.1.0",
  "nym-network-defaults 0.1.0",
+ "nym-offline-signers-contract-common",
  "nym-performance-contract-common",
  "nym-serde-helpers 0.1.0",
  "nym-vesting-contract-common 0.7.0",

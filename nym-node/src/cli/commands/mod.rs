@@ -3,6 +3,7 @@
 
 pub(crate) mod bonding_information;
 pub(super) mod build_info;
+pub(super) mod debug;
 pub(super) mod migrate;
 pub(crate) mod node_details;
 pub(crate) mod reset_sphinx_keys;

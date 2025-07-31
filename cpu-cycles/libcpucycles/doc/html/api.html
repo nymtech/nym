@@ -4,12 +4,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style type="text/css">
 html{overflow-y:scroll}
-body{font-family:sans-serif}
-p,ul,ol,blockquote,pre{font-size:0.9em;line-height:1.6em}
+body{font-family:"Noto Sans","Droid Sans","DejaVu Sans","Arial",sans-serif;line-height:1.5}
+tt,code{background-color:#f0f0f0;font-family:"Noto Sans Mono","Droid Sans Mono","DejaVu Sans Mono","Courier New",monospace,sans-serif;font-size:1em;}
+pre{margin-left:3em}
+p,ul,ol,blockquote,pre{font-size:1.0em;line-height:1.6}
 li p{font-size:1.0em}
 blockquote p{font-size:1.0em}
-tt{font-size:1.2em}
-code{font-size:1.2em}
 h1{font-size:1.5em}
 h2{font-size:1.3em}
 h3{font-size:1.0em}
@@ -17,7 +17,7 @@ h1 a{text-decoration:none}
 table{border-collapse:collapse}
 th,td{border:1px solid black}
 table a{text-decoration:none}
-table tr{font-size:0.9em;line-height:1.6em}
+table tr{font-size:1.0em;line-height:1.6}
 .links a:hover{text-decoration:underline}
 .links a:active{text-decoration:underline}
 .links img{width:200px;padding-left:1em}
@@ -47,6 +47,7 @@ libcpucycles
 </div><div class="navt away"><a href=counters.html>Counters</a>
 </div><div class="navt away"><a href=selection.html>Selection</a>
 </div><div class="navt away"><a href=security.html>Security</a>
+</div><div class="navt away"><a href=license.html>License</a>
 </div></div>
 <div class=main>
 <h3>NAME</h3>
@@ -76,7 +77,7 @@ file exists, otherwise from various OS mechanisms, otherwise from the
 <p><code>cpucycles_implementation()</code> returns the name of the counter in use:
 e.g., <code>"amd64-pmc"</code>.</p>
 <p><code>cpucycles_version()</code> returns the <code>libcpucycles</code> version number as a
-string: e.g., <code>"20230115"</code>. Results of <code>cpucycles_implementation()</code>
+string: e.g., <code>"20240318"</code>. Results of <code>cpucycles_implementation()</code>
 should be interpreted relative to <code>cpucycles_version()</code>.</p>
 <p><code>cpucycles</code> is actually a function pointer. The first call to
 <code>cpucycles()</code> or <code>cpucycles_persecond()</code> or <code>cpucycles_implementation()</code>
@@ -84,7 +85,7 @@ selects one of the available counters and updates the <code>cpucycles</code>
 pointer accordingly. Subsequent calls to <code>cpucycles()</code> are thread-safe.</p>
 <h3>SEE ALSO</h3>
 <p><strong>gettimeofday</strong>(2), <strong>clock_gettime</strong>(2)</p><hr><font size=1><b>Version:</b>
-This is version 2023.01.15 of the "API" web page.
+This is version 2024.03.17 of the "API" web page.
 </font>
 </div>
 </body>

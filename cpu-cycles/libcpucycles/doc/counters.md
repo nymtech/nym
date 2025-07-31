@@ -29,6 +29,15 @@ This counter is natively 32 bits, but libcpucycles watches how the
 counter and `gettimeofday` increase to compute a 64-bit extension of the
 counter.
 
+`arm32-1176`: Requires a 32-bit ARM1176 platform. Uses
+`mrc p15, 0, %0, c15, c12, 1` to read the cycle counter. Requires user
+access to the cycle counter, which is not enabled by default but can be
+enabled under Linux via
+[a kernel module](https://bench.cr.yp.to/cpucycles/n810.html).
+This counter is natively 32 bits, but libcpucycles watches how the
+counter and `gettimeofday` increase to compute a 64-bit extension of the
+counter.
+
 `arm64-pmc`: Requires a 64-bit ARMv8-A platform. Uses
 `mrs %0, PMCCNTR_EL0` to read the cycle counter. Requires user access
 to the cycle counter, which is not enabled by default but can be enabled
@@ -94,13 +103,40 @@ limitation.
 ## Examples
 
 These are examples of `cpucycles-info` output on various machines. The
-machines named `gcc*` are from the
+machines named `cfarm*` are from the
 [GCC Compile Farm](https://gcc.gnu.org/wiki/CompileFarm).
 
 A `median` line saying, e.g., `47 +47+28+0+2-5+0+2-5...` means that the
 differences between adjacent cycle counts were 47+47, 47+28, 47+0, 47+2,
 47−5, 47+0, 47+2, 47−5, etc., with median difference 47. The first few
 differences are typically larger because of cache effects.
+
+`berry0`,
+Broadcom BCM2835:
+```
+cpucycles version 20240114
+cpucycles tracesetup 0 arm32-cortex precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 1 arm32-1176 precision 22 scaling 1.000000 only32 1
+cpucycles tracesetup 2 default-perfevent precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 3 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 4 default-monotonic precision 1199 scaling 1.000000 only32 0
+cpucycles tracesetup 5 default-gettimeofday precision 1200 scaling 1000.000000 only32 0
+cpucycles tracesetup 6 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 1000000000
+cpucycles implementation arm32-1176
+cpucycles median 720 +942+124+1+0+2+0+0+0+0+0+0+0+0+0+0+0+0+0+0+1+2+0+0+2+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+222+300+1+0+0+2+0+0+0+0+0+0+0+0+0+0+0+0+0
+cpucycles observed persecond 798307692...2045181819 with 1024 loops 12 microseconds
+cpucycles observed persecond 915478260...1260523810 with 2048 loops 22 microseconds
+cpucycles observed persecond 947809523...1106100000 with 4096 loops 41 microseconds
+cpucycles observed persecond 966353658...1129037500 with 8192 loops 81 microseconds
+cpucycles observed persecond 988490566...1030019109 with 16384 loops 158 microseconds
+cpucycles observed persecond 995169327...1002034063 with 32768 loops 2379 microseconds
+cpucycles observed persecond 996871019...1012568691 with 65536 loops 627 microseconds
+cpucycles observed persecond 997832134...1004212170 with 131072 loops 1250 microseconds
+cpucycles observed persecond 997740918...1000887780 with 262144 loops 5009 microseconds
+cpucycles observed persecond 998528349...1001961164 with 524288 loops 5537 microseconds
+cpucycles observed persecond 999202882...1001166794 with 1048576 loops 10547 microseconds
+```
 
 `pi3aplus`,
 Broadcom BCM2837B0:
@@ -233,7 +269,7 @@ cpucycles observed persecond 4001637602...4025136987 with 524288 loops 366 micro
 cpucycles observed persecond 4007411111...4018600248 with 1048576 loops 809 microseconds
 ```
 
-`gcc14`,
+`cfarm14`,
 Intel Xeon E5-2620 v3,
 Debian testing (bookworm),
 Linux kernel 6.0.0-6-amd64:
@@ -260,35 +296,113 @@ cpucycles observed persecond 2089478087...2107044177 with 524288 loops 250 micro
 cpucycles observed persecond 2093343313...2102124249 with 1048576 loops 500 microseconds
 ```
 
-`gcc23`,
+`cfarm23`,
 Cavium Octeon II V0.1,
 Debian 8.11,
 Linux kernel 4.1.4:
 ```
-cpucycles version 20230105
+cpucycles version 20240114
 cpucycles tracesetup 0 mips64-cc precision 24 scaling 1.000000 only32 1
 cpucycles tracesetup 1 default-perfevent precision 0 scaling 0.000000 only32 0
 cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
-cpucycles tracesetup 3 default-monotonic precision 46702 scaling 2.399988 only32 0
+cpucycles tracesetup 3 default-monotonic precision 46649 scaling 2.399988 only32 0
 cpucycles tracesetup 4 default-gettimeofday precision 45799 scaling 2399.987654 only32 0
 cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
 cpucycles persecond 2399987654
 cpucycles implementation mips64-cc
-cpucycles median 2177 +828+17+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0
-cpucycles observed persecond 641900000...1845125000 with 1024 loops 9 microseconds
-cpucycles observed persecond 745357142...1352083334 with 2048 loops 13 microseconds
-cpucycles observed persecond 809826086...1162333334 with 4096 loops 22 microseconds
-cpucycles observed persecond 897717948...1104405406 with 8192 loops 38 microseconds
-cpucycles observed persecond 957467532...1059986667 with 16384 loops 76 microseconds
-cpucycles observed persecond 973102189...1029777778 with 32768 loops 136 microseconds
-cpucycles observed persecond 986518656...1015830828 with 65536 loops 267 microseconds
-cpucycles observed persecond 993452830...1008166667 with 131072 loops 529 microseconds
-cpucycles observed persecond 996036966...1003403609 with 262144 loops 1054 microseconds
-cpucycles observed persecond 984706378...1001682630 with 524288 loops 2131 microseconds
-cpucycles observed persecond 992585292...1001178580 with 1048576 loops 4296 microseconds
+cpucycles median 2206 +581+5+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+83791+581+18+18+18+18+18+18
+cpucycles observed persecond 634500000...1843500000 with 1024 loops 9 microseconds
+cpucycles observed persecond 746142857...1361500000 with 2048 loops 13 microseconds
+cpucycles observed persecond 846318181...1222000000 with 4096 loops 21 microseconds
+cpucycles observed persecond 897717948...1105432433 with 8192 loops 38 microseconds
+cpucycles observed persecond 954521126...1065971015 with 16384 loops 70 microseconds
+cpucycles observed persecond 979395454...1018958716 with 32768 loops 219 microseconds
+cpucycles observed persecond 986875354...1011415955 with 65536 loops 352 microseconds
+cpucycles observed persecond 994412144...1005722798 with 131072 loops 773 microseconds
+cpucycles observed persecond 997076363...1003483613 with 262144 loops 1374 microseconds
+cpucycles observed persecond 959310151...1001940950 with 524288 loops 2846 microseconds
+cpucycles observed persecond 993951907...1000833365 with 1048576 loops 5426 microseconds
 ```
 
-`gcc45`,
+`cfarm26`,
+Intel Core i5-4570 in 32-bit mode under KVM,
+Debian 12.4,
+Linux kernel 6.1.0-17-686-pae:
+```
+cpucycles version 20240114
+cpucycles tracesetup 0 x86-tsc precision 118 scaling 1.000000 only32 0
+cpucycles tracesetup 1 x86-tscasm precision 118 scaling 1.000000 only32 0
+cpucycles tracesetup 2 default-perfevent precision 627 scaling 1.000000 only32 0
+cpucycles tracesetup 3 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 4 default-monotonic precision 2335 scaling 3.192606 only32 0
+cpucycles tracesetup 5 default-gettimeofday precision 3392 scaling 3192.606000 only32 0
+cpucycles tracesetup 6 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 3192606000
+cpucycles implementation x86-tsc
+cpucycles median 18 +34+0+0+13+0+0+13+0+0+13+0+0+13+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+0
+cpucycles observed persecond 1950500000...6176000000 with 8192 loops 3 microseconds
+cpucycles observed persecond 2591000000...5117000000 with 16384 loops 5 microseconds
+cpucycles observed persecond 2824090909...4013333334 with 32768 loops 10 microseconds
+cpucycles observed persecond 2993757575...3362258065 with 65536 loops 32 microseconds
+cpucycles observed persecond 3093644067...3286807018 with 131072 loops 58 microseconds
+cpucycles observed persecond 3126202531...3270727273 with 262144 loops 78 microseconds
+cpucycles observed persecond 3144248407...3216322581 with 524288 loops 156 microseconds
+cpucycles observed persecond 3172426332...3209545742 with 1048576 loops 318 microseconds
+```
+
+`cfarm27`,
+Intel Core i5-4570 in 32-bit mode under KVM,
+Alpine 3.19.0,
+Linux kernel 6.6.7-0-lts:
+```
+cpucycles version 20240114
+cpucycles tracesetup 0 x86-tsc precision 118 scaling 1.000000 only32 0
+cpucycles tracesetup 1 x86-tscasm precision 118 scaling 1.000000 only32 0
+cpucycles tracesetup 2 default-perfevent precision 631 scaling 1.000000 only32 0
+cpucycles tracesetup 3 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 4 default-monotonic precision 1084 scaling 3.192606 only32 0
+cpucycles tracesetup 5 default-gettimeofday precision 3392 scaling 3192.606000 only32 0
+cpucycles tracesetup 6 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 3192606000
+cpucycles implementation x86-tsc
+cpucycles median 18 +113+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+0+13+0+13+0+0+13+0+0+13+0+0+13+0+0+13
+cpucycles observed persecond 2404000000...4642666667 with 8192 loops 4 microseconds
+cpucycles observed persecond 2617333333...4441250000 with 16384 loops 5 microseconds
+cpucycles observed persecond 3001312500...3606857143 with 32768 loops 15 microseconds
+cpucycles observed persecond 3096870967...3394000000 with 65536 loops 30 microseconds
+cpucycles observed persecond 3123943661...3244913044 with 131072 loops 70 microseconds
+cpucycles observed persecond 3173264150...3225305733 with 262144 loops 158 microseconds
+cpucycles observed persecond 3170094339...3210561905 with 524288 loops 211 microseconds
+cpucycles observed persecond 3178732087...3205529781 with 1048576 loops 320 microseconds
+```
+
+`cfarm29`,
+IBM POWER9,
+Debian 12.4,
+Linux kernel 6.1.0-17-powerpc64le:
+```
+cpucycles version 20240114
+cpucycles tracesetup 0 ppc64-mftb precision 218 scaling 7.421875 only32 0
+cpucycles tracesetup 1 default-perfevent precision 292 scaling 1.000000 only32 0
+cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 3 default-monotonic precision 355 scaling 3.800000 only32 0
+cpucycles tracesetup 4 default-gettimeofday precision 4000 scaling 3800.000000 only32 0
+cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 3800000000
+cpucycles implementation ppc64-mftb
+cpucycles median 207 +52+31+1-14+0+1-14-6+8-7-6+8-7+1-7+1+8-21-7+1+16-22+1+8-21-7+16-7-21+1+8-21+0+1+1-14+8-6-14+0+9-7+1+1-14-14+8-7-21+1+8-7+1-7+9-22+8-6+1-14+8-7-6
+cpucycles observed persecond 3267500000...6865000000 with 4096 loops 3 microseconds
+cpucycles observed persecond 3246125000...4445666667 with 8192 loops 7 microseconds
+cpucycles observed persecond 3435333333...4016307693 with 16384 loops 14 microseconds
+cpucycles observed persecond 3674892857...3984115385 with 32768 loops 27 microseconds
+cpucycles observed persecond 3734963636...3888641510 with 65536 loops 54 microseconds
+cpucycles observed persecond 3768266055...3845158879 with 131072 loops 108 microseconds
+cpucycles observed persecond 3783654377...3822125582 with 262144 loops 216 microseconds
+cpucycles observed persecond 3791669745...3810830627 with 524288 loops 432 microseconds
+cpucycles observed persecond 3795847398...3805719583 with 1048576 loops 864 microseconds
+```
+
+`cfarm45`,
 AMD Athlon II X4 640,
 Debian 8.11,
 Linux kernel 3.16.0-11-686-pae:
@@ -317,40 +431,68 @@ cpucycles observed persecond 1789670493...1794149598 with 524288 loops 870 micro
 cpucycles observed persecond 1860276211...1861561332 with 1048576 loops 3156 microseconds
 ```
 
-`gcc92`,
-SiFive Freedom U740,
-Ubuntu 22.04,
-Linux kernel 5.15.0-1014-generic:
+`cfarm91`,
+StarFive JH7100,
+Linux trixie/sid,
+Linux kernel 5.18.11-starfive:
 ```
-cpucycles version 20230105
+cpucycles version 20240114
+cpucycles tracesetup 0 riscv64-rdcycle precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 1 default-perfevent precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 3 default-monotonic precision 1351 scaling 2.399988 only32 0
+cpucycles tracesetup 4 default-gettimeofday precision 2599 scaling 2399.987654 only32 0
+cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 2399987654
+cpucycles implementation default-monotonic
+cpucycles median 1536 -384+0+384+0-384+0-384+0+0-384+384-1-384+0+0-381+0-384+384+0+0-384+0-384+0+0+384+0+0+0+0+0-384+0+384+0-384+0-384+0+0-384+384+0-384+0+0-384+0+0+0+0+0-384+0-382+0+0+384-384+0-384+0
+cpucycles observed persecond 1590857142...4147200000 with 1024 loops 6 microseconds
+cpucycles observed persecond 1954909090...3157333334 with 2048 loops 10 microseconds
+cpucycles observed persecond 2142421052...2755882353 with 4096 loops 18 microseconds
+cpucycles observed persecond 2293085714...2606606061 with 8192 loops 34 microseconds
+cpucycles observed persecond 2337970588...2496090910 with 16384 loops 67 microseconds
+cpucycles observed persecond 2358522388...2443712122 with 32768 loops 133 microseconds
+cpucycles observed persecond 2382335849...2423813689 with 65536 loops 264 microseconds
+cpucycles observed persecond 2385986013...2405815790 with 131072 loops 571 microseconds
+cpucycles observed persecond 2395157522...2405531915 with 262144 loops 1129 microseconds
+cpucycles observed persecond 2397798685...2402770560 with 524288 loops 2433 microseconds
+cpucycles observed persecond 2398637218...2401114855 with 1048576 loops 4572 microseconds
+```
+
+`cfarm92`,
+SiFive Freedom U740,
+Ubuntu 22.04.3,
+Linux kernel 5.19.0-1021-generic:
+```
+cpucycles version 20240114
 cpucycles tracesetup 0 riscv64-rdcycle precision 8 scaling 1.000000 only32 0
-cpucycles tracesetup 1 default-perfevent precision 3024 scaling 1.000000 only32 0
+cpucycles tracesetup 1 default-perfevent precision 0 scaling 0.000000 only32 0
 cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
 cpucycles tracesetup 3 default-monotonic precision 2599 scaling 2.399988 only32 0
 cpucycles tracesetup 4 default-gettimeofday precision 2599 scaling 2399.987654 only32 0
 cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
 cpucycles persecond 2399987654
 cpucycles implementation riscv64-rdcycle
-cpucycles median 8 +33+27+1+1+1+1+0+0+0+22+0+0+0+0+0+0+0+628+0+0+0+7+0+0+0+145+0+0+0+0+0+0+0+22+0+0+0+0+0+0+0+158+0+0+0+0+0+0+0+22+0+0+0+0+0+0+0+22+0+0+0+0+0
-cpucycles observed persecond 530250000...1978000000 with 1024 loops 3 microseconds
-cpucycles observed persecond 831000000...1915666667 with 2048 loops 4 microseconds
-cpucycles observed persecond 1055750000...1689500000 with 4096 loops 7 microseconds
-cpucycles observed persecond 1045562500...1305428572 with 8192 loops 15 microseconds
-cpucycles observed persecond 1102700000...1236357143 with 16384 loops 29 microseconds
-cpucycles observed persecond 1176053571...1247444445 with 32768 loops 55 microseconds
-cpucycles observed persecond 1173321428...1209127273 with 65536 loops 111 microseconds
-cpucycles observed persecond 1187805429...1205210046 with 131072 loops 220 microseconds
-cpucycles observed persecond 1192415909...1201157535 with 262144 loops 439 microseconds
-cpucycles observed persecond 1194694760...1199247717 with 524288 loops 877 microseconds
-cpucycles observed persecond 1194656004...1197023034 with 1048576 loops 1781 microseconds
+cpucycles median 8 +168+20+2+2+0+0+0+0+570+0+0+0+0+0+0+0+144+0+0+0+0+0+0+0+160+0+0+0+0+0+0+0+160+0+0+0+0+0+0+0+154+0+0+0+0+0+0+0+154+0+0+0+0+0+0+0+152+0+0+0+0+0+0
+cpucycles observed persecond 571500000...2198000000 with 1024 loops 3 microseconds
+cpucycles observed persecond 833600000...2094000000 with 2048 loops 4 microseconds
+cpucycles observed persecond 921888888...1445142858 with 4096 loops 8 microseconds
+cpucycles observed persecond 1029625000...1320642858 with 8192 loops 15 microseconds
+cpucycles observed persecond 1137034482...1284481482 with 16384 loops 28 microseconds
+cpucycles observed persecond 1155701754...1227454546 with 32768 loops 56 microseconds
+cpucycles observed persecond 1177464285...1217163637 with 65536 loops 111 microseconds
+cpucycles observed persecond 1188018099...1207858448 with 131072 loops 220 microseconds
+cpucycles observed persecond 1189925170...1200519363 with 262144 loops 440 microseconds
+cpucycles observed persecond 1193962457...1199117446 with 524288 loops 878 microseconds
+cpucycles observed persecond 1194051324...1196780111 with 1048576 loops 1811 microseconds
 ```
 
-`gcc103`,
+`cfarm103`,
 Apple M1 (Icestorm-M1 + Firestorm-M1),
-Debian unstable (bookworm),
-Linux kernel 6.0.0-rc5-asahi-00001-gc62bd3fe430f:
+Debian trixie/sid,
+Linux kernel 6.5.0-asahi-00780-g62806c2c6f29:
 ```
-cpucycles version 20230105
+cpucycles version 20240114
 cpucycles tracesetup 0 arm64-pmc precision 0 scaling 0.000000 only32 0
 cpucycles tracesetup 1 arm64-vct precision 186 scaling 86.000000 only32 0
 cpucycles tracesetup 2 default-perfevent precision 0 scaling 0.000000 only32 0
@@ -360,45 +502,122 @@ cpucycles tracesetup 5 default-gettimeofday precision 2264 scaling 2064.000000 o
 cpucycles tracesetup 6 default-zero precision 0 scaling 0.000000 only32 0
 cpucycles persecond 2064000000
 cpucycles implementation arm64-vct
-cpucycles median 0 +0+86+0+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0
-cpucycles observed persecond 1784500000...3655000000 with 8192 loops 3 microseconds
-cpucycles observed persecond 1773750000...2393666667 with 16384 loops 7 microseconds
-cpucycles observed persecond 1897733333...2222769231 with 32768 loops 14 microseconds
-cpucycles observed persecond 1951310344...2114962963 with 65536 loops 28 microseconds
-cpucycles observed persecond 2024071428...2107000000 with 131072 loops 55 microseconds
-cpucycles observed persecond 2041531531...2082935780 with 262144 loops 110 microseconds
-cpucycles observed persecond 2051158371...2071461188 with 524288 loops 220 microseconds
-cpucycles observed persecond 2058539682...2068309795 with 1048576 loops 440 microseconds
+cpucycles median 0 +86+0+0+0+86+0+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0+0+0+0+86+0+0+0+0+0+0+0+0
+cpucycles observed persecond 1440500000...3010000000 with 4096 loops 3 microseconds
+cpucycles observed persecond 1621714285...2339200000 with 8192 loops 6 microseconds
+cpucycles observed persecond 1884833333...2296200000 with 16384 loops 11 microseconds
+cpucycles observed persecond 1963043478...2166380953 with 32768 loops 22 microseconds
+cpucycles observed persecond 2004755555...2106000000 with 65536 loops 44 microseconds
+cpucycles observed persecond 2051295454...2103000000 with 131072 loops 87 microseconds
+cpucycles observed persecond 2054549450...2080722223 with 262144 loops 181 microseconds
+cpucycles observed persecond 2056159544...2068681949 with 524288 loops 350 microseconds
+cpucycles observed persecond 2061174285...2067573066 with 1048576 loops 699 microseconds
 ```
 
-`gcc112` (`gcc2-power8`),
+`cfarm104`,
+Apple M1 (Icestorm-M1 + Firestorm-M1),
+MacOSX 12.6 21.6.0:
+```
+cpucycles version 20240318
+cpucycles tracesetup 0 arm64-pmc precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 1 arm64-vct precision 200 scaling 100.000000 only32 0
+cpucycles tracesetup 2 default-perfevent precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 3 default-mach precision 200 scaling 100.000000 only32 0
+cpucycles tracesetup 4 default-monotonic precision 2599 scaling 2.399988 only32 0
+cpucycles tracesetup 5 default-gettimeofday precision 2599 scaling 2399.987654 only32 0
+cpucycles tracesetup 6 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 2399987654
+cpucycles implementation arm64-vct
+cpucycles median 0 +8700+0+0+0+0+0+0+0+0+0+100+0+0+0+0+0+0+0+0+0+0+0+0+0+100+0+0+0+0+0+0+0+0+0+0+0+0+0+0+100+0+0+0+0+0+0+0+0+0+0+0+0+0+100+0+0+0+0+0+0+0+0+0
+cpucycles observed persecond 1450000000...3000000000 with 4096 loops 3 microseconds
+cpucycles observed persecond 1916666666...2900000000 with 8192 loops 5 microseconds
+cpucycles observed persecond 2310000000...2887500000 with 16384 loops 9 microseconds
+cpucycles observed persecond 2290000000...2550000000 with 32768 loops 19 microseconds
+cpucycles observed persecond 2351282051...2478378379 with 65536 loops 38 microseconds
+cpucycles observed persecond 2374025974...2438666667 with 131072 loops 76 microseconds
+cpucycles observed persecond 2373076923...2403896104 with 262144 loops 155 microseconds
+cpucycles observed persecond 2386774193...2402272728 with 524288 loops 309 microseconds
+cpucycles observed persecond 2395454545...2403257329 with 1048576 loops 615 microseconds
+```
+
+`cfarm110` (`gcc1-power7`),
+IBM POWER7,
+CentOS 7.9 AltArch,
+Linux kernel 3.10.0-862.14.4.el7.ppc64:
+```
+cpucycles version 20240114
+cpucycles tracesetup 0 ppc64-mftb precision 212 scaling 7.000000 only32 0
+cpucycles tracesetup 1 default-perfevent precision 236 scaling 1.000000 only32 0
+cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 3 default-monotonic precision 346 scaling 3.550000 only32 0
+cpucycles tracesetup 4 default-gettimeofday precision 3750 scaling 3550.000000 only32 0
+cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 3550000000
+cpucycles implementation ppc64-mftb
+cpucycles median 168 -49+56-21+21-14+14-28+28-28+28-7+0-14+21-28+28-28+28-42+28-35+28-35+35-35+21-21+56-49+42-49+21-21+0+0-21+21-49+28-35+7-7-14+14-42+42-7+7+0+0-7+7-21+21-28+28-35+35-42+28-35+28-35
+cpucycles observed persecond 3136000000...6569500000 with 4096 loops 3 microseconds
+cpucycles observed persecond 3108000000...4233833334 with 8192 loops 7 microseconds
+cpucycles observed persecond 3322666666...3878538462 with 16384 loops 14 microseconds
+cpucycles observed persecond 3423000000...3698592593 with 32768 loops 28 microseconds
+cpucycles observed persecond 3480842105...3616327273 with 65536 loops 56 microseconds
+cpucycles observed persecond 3571702702...3641862386 with 131072 loops 110 microseconds
+cpucycles observed persecond 3571387387...3605986364 with 262144 loops 221 microseconds
+cpucycles observed persecond 3570914414...3588307693 with 524288 loops 443 microseconds
+cpucycles observed persecond 3578817155...3587452489 with 1048576 loops 885 microseconds
+```
+
+`cfarm112` (`gcc2-power8`),
 IBM POWER8E,
 CentOS 7.9 AltArch,
 Linux kernel 3.10.0-1127.13.1.el7.ppc64le:
 ```
-cpucycles version 20230105
-cpucycles tracesetup 0 ppc64-mftb precision 251 scaling 7.207031 only32 0
-cpucycles tracesetup 1 default-perfevent precision 295 scaling 1.000000 only32 0
+cpucycles version 20240114
+cpucycles tracesetup 0 ppc64-mftb precision 194 scaling 7.250000 only32 0
+cpucycles tracesetup 1 default-perfevent precision 308 scaling 1.000000 only32 0
 cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
-cpucycles tracesetup 3 default-monotonic precision 536 scaling 3.690000 only32 0
+cpucycles tracesetup 3 default-monotonic precision 414 scaling 3.690000 only32 0
 cpucycles tracesetup 4 default-gettimeofday precision 3890 scaling 3690.000000 only32 0
 cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
 cpucycles persecond 3690000000
 cpucycles implementation ppc64-mftb
-cpucycles median 195 +2969-8+14+0-8+7-8-7+7+6-7-1+0-1+0+7+7-15+7-1-7+6+0+0-8+0+6+0-8+7+0+7-8-8-7-1+7-8+7+0-8+0+14-8-7+6+0-8+7+7-15+0-1+0-1+14+0-15+14+0-1+7+0
-cpucycles observed persecond 2603750000...5510000000 with 2048 loops 3 microseconds
-cpucycles observed persecond 3430500000...6052250000 with 4096 loops 5 microseconds
-cpucycles observed persecond 3411333333...4457500000 with 8192 loops 11 microseconds
-cpucycles observed persecond 3548695652...4060333334 with 16384 loops 22 microseconds
-cpucycles observed persecond 3624977777...3876534884 with 32768 loops 44 microseconds
-cpucycles observed persecond 3621855555...3745363637 with 65536 loops 89 microseconds
-cpucycles observed persecond 3660157303...3722227273 with 131072 loops 177 microseconds
-cpucycles observed persecond 3680471751...3711622160 with 262144 loops 353 microseconds
-cpucycles observed persecond 3685321074...3700886525 with 524288 loops 706 microseconds
-cpucycles observed persecond 3687745930...3695537208 with 1048576 loops 1412 microseconds
+cpucycles median 123 +1871+7+0+1+0+7-7+1+7+0+1-7+0+0+8+0+0+0+1+7-7+8+0+0+0+8+0+0+1+7+0+1+7+0+1+0+7-7+8+0+0+1+7-7+8+7-7+8-7-7+0+7+1+0+0+8-7+0+0+8+0+0+0
+cpucycles observed persecond 2903666666...4451500000 with 4096 loops 5 microseconds
+cpucycles observed persecond 3475700000...4630875000 with 8192 loops 9 microseconds
+cpucycles observed persecond 3640684210...4205882353 with 16384 loops 18 microseconds
+cpucycles observed persecond 3545051282...3800189190 with 32768 loops 38 microseconds
+cpucycles observed persecond 3683973333...3816780822 with 65536 loops 74 microseconds
+cpucycles observed persecond 3682366666...3747662163 with 131072 loops 149 microseconds
+cpucycles observed persecond 3706476510...3739236487 with 262144 loops 297 microseconds
+cpucycles observed persecond 3706573825...3722984849 with 524288 loops 595 microseconds
+cpucycles observed persecond 3709504617...3717714046 with 1048576 loops 1190 microseconds
 ```
 
-`gcc202`,
+`cfarm120`,
+IBM POWER10,
+AlmaLinux 9.3,
+Linux kernel 5.14.0-284.11.1.el9_2.ppc64le:
+```
+cpucycles version 20240114
+cpucycles tracesetup 0 ppc64-mftb precision 123 scaling 5.750000 only32 0
+cpucycles tracesetup 1 default-perfevent precision 203 scaling 1.000000 only32 0
+cpucycles tracesetup 2 default-mach precision 0 scaling 0.000000 only32 0
+cpucycles tracesetup 3 default-monotonic precision 226 scaling 2.950000 only32 0
+cpucycles tracesetup 4 default-gettimeofday precision 3150 scaling 2950.000000 only32 0
+cpucycles tracesetup 5 default-zero precision 0 scaling 0.000000 only32 0
+cpucycles persecond 2950000000
+cpucycles implementation ppc64-mftb
+cpucycles median 69 +6-40+6+5-40+0-40+11+0-40+6-46+6+5-46+12-40+0+5-40+6-46+11+6-46+6+6-41+0-40+12-46+5+6-46+6+11-46+0-40+0+12-41+0-40+6-46+6+11-40+0+6-41+0-40+12+0-41+6-46+6-40+5
+cpucycles observed persecond 2103666666...3215500000 with 8192 loops 5 microseconds
+cpucycles observed persecond 2827666666...3662714286 with 16384 loops 8 microseconds
+cpucycles observed persecond 2821000000...3185125000 with 32768 loops 17 microseconds
+cpucycles observed persecond 2818305555...2989823530 with 65536 loops 35 microseconds
+cpucycles observed persecond 2897014285...2985852942 with 131072 loops 69 microseconds
+cpucycles observed persecond 2920582733...2964649636 with 262144 loops 138 microseconds
+cpucycles observed persecond 2930339350...2952341819 with 524288 loops 276 microseconds
+cpucycles observed persecond 2941188405...2952218182 with 1048576 loops 551 microseconds
+```
+
+`cfarm202`,
 UltraSparc T5,
 Debian unstable (bookworm),
 Linux kernel 5.19.0-2-sparc64-smp:

@@ -1,3 +1,4 @@
 #!/bin/sh
 
 pandoc --standalone --to man --metadata title=cpucycles --metadata section=3 < doc/api.md > doc/man/cpucycles.3
+pandoc --standalone --to man --metadata title=cpucycles-info --metadata section=1 < doc/cpucycles-info.md > doc/man/cpucycles-info.1

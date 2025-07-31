@@ -1,4 +1,4 @@
-libcpucycles is a public-domain microlibrary for counting CPU cycles.
+libcpucycles is a microlibrary for counting CPU cycles.
 Cycle counts are not as detailed as
 [Falk diagrams](https://gamozolabs.github.io/metrology/2019/08/19/sushi_roll.html)
 but are the most precise timers available to typical software; they are

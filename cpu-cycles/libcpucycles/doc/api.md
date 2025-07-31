@@ -34,7 +34,7 @@ file exists, otherwise from various OS mechanisms, otherwise from the
 e.g., `"amd64-pmc"`.
 
 `cpucycles_version()` returns the `libcpucycles` version number as a
-string: e.g., `"20230115"`. Results of `cpucycles_implementation()`
+string: e.g., `"20240318"`. Results of `cpucycles_implementation()`
 should be interpreted relative to `cpucycles_version()`.
 
 `cpucycles` is actually a function pointer. The first call to

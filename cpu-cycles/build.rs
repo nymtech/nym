@@ -8,7 +8,7 @@ fn main() {
         .expect("cannot canonicalize path");
 
     cfg_if::cfg_if! {
-        if #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "mips", target_arch = "powerpc", target_arch = "powerpc64", target_arch = "arm")))] {
+        if #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "mips", target_arch = "powerpc", target_arch = "powerpc64", target_arch = "arm", target_arch = "aarch64")))] {
             panic!("Unsupported architecture - {}!", env::var("CARGO_CFG_TARGET_ARCH").unwrap(), )
         }
     };

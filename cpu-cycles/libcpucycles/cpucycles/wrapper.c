@@ -1,8 +1,9 @@
-// version 20230115
+// version 20240318
 // public domain
 // djb
 // includes some pieces adapted from supercop
 
+// 20240318 djb: loosen 0.1 to 0.2 for FINDMULTIPLIER
 // 20230115 djb: cpucycles_version()
 // 20230106 djb: support "cpu MHz static" (ibm z15)
 
@@ -29,7 +30,7 @@ static jmp_buf crash_jmp;
 
 static void crash(int s)
 {
-  siglongjmp(crash_jmp,0);
+  siglongjmp(crash_jmp,1);
 }
 
 int cpucycles_works(long long (*ticks)(void))
@@ -191,7 +192,7 @@ long long cpucycles_persecond(void)
 
 const char *cpucycles_version(void)
 {
-  return "20230115";
+  return "20240318";
 }
 
 // ----- cycle counter scaled from ticks
@@ -325,8 +326,8 @@ long long cpucycles_init(void)
         if (scaling[opt] > est[0]+0.5) scaling[opt] -= 1;
         ok = 1;
         for (loop = 0;loop < ESTIMATES;++loop) {
-          if (est[loop]-scaling[opt] > 0.1) ok = 0;
-          if (scaling[opt]-est[loop] > 0.1) ok = 0;
+          if (est[loop]-scaling[opt] > 0.2) ok = 0;
+          if (scaling[opt]-est[loop] > 0.2) ok = 0;
         }
         if (ok) {
           scaling[opt] /= denom;

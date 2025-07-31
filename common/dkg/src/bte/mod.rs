@@ -5,7 +5,6 @@ use crate::utils::hash_g2;
 use crate::{Chunk, Share};
 use bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
 use group::Curve;
-use lazy_static::lazy_static;
 
 pub mod encryption;
 pub mod keys;
@@ -16,13 +15,11 @@ pub mod proof_sharing;
 pub use encryption::{decrypt_share, encrypt_shares, Ciphertexts};
 pub use keys::{keygen, DecryptionKey, PublicKey, PublicKeyWithProof};
 
-lazy_static! {
-    pub(crate) static ref PAIRING_BASE: Gt =
-        bls12_381::pairing(&G1Affine::generator(), &G2Affine::generator());
-    pub(crate) static ref G2_GENERATOR_PREPARED: G2Prepared =
-        G2Prepared::from(G2Affine::generator());
-    pub(crate) static ref DEFAULT_BSGS_TABLE: encryption::BabyStepGiantStepLookup =
-        encryption::BabyStepGiantStepLookup::default();
+pub(crate) fn precompute_pairing_base() -> Gt {
+    bls12_381::pairing(&G1Affine::generator(), &G2Affine::generator())
+}
+pub(crate) fn precompute_g2_generator_prepared() -> G2Prepared {
+    G2Prepared::from(G2Affine::generator())
 }
 
 // Domain tries to follow guidelines specified by:

@@ -11,7 +11,7 @@ use group::GroupEncoding;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::CryptoRng;
 use rand_core::RngCore;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // produces public key and a decryption key for the root of the tree
 pub fn keygen(
@@ -48,7 +48,7 @@ pub fn keygen(
     (dk, key_with_proof)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Zeroize)]
 pub struct PublicKey(pub(crate) G1Projective);
 
 impl PublicKey {
@@ -57,7 +57,7 @@ impl PublicKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,
     pub(crate) proof: ProofOfDiscreteLog,
@@ -136,8 +136,7 @@ impl PublicKeyWithProof {
     }
 }
 
-#[derive(Debug, Zeroize)]
-#[zeroize(drop)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct DecryptionKey {
     // g1^rho
@@ -242,6 +241,7 @@ impl DecryptionKey {
     }
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct KeyPair {
     pub(crate) private_key: DecryptionKey,
     pub(crate) public_key: PublicKeyWithProof,

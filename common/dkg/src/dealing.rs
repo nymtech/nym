@@ -18,7 +18,7 @@ use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Zeroize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct RecoveredVerificationKeys {
     pub recovered_master: G2Projective,
@@ -83,7 +83,7 @@ impl RecoveredVerificationKeys {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,
     pub ciphertexts: Ciphertexts,

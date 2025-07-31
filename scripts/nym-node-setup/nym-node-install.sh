@@ -55,7 +55,7 @@ elif [[ "$MODE" == "exit-gateway" ]]; then
 
   # Ensure required env vars
   if [[ -z "$HOSTNAME" || -z "$LOCATION" ]]; then
-    echo "❌ ERROR: HOSTNAME and LOCATION must be exported for exit-gateway."
+    echo "ERROR: HOSTNAME and LOCATION must be exported for exit-gateway."
     exit 1
   fi
 

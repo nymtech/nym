@@ -6,6 +6,7 @@ import subprocess
 class NodeSetupCLI:
 
     def __init__(self):
+        self.branch = "feature/node-setup-cli"
         self.welcome_message = self.print_welcome_message()
         self.mode = self.prompt_mode()
         self.prereqs_install_sh = self.fetch_script("prereqs_install_sh")
@@ -13,7 +14,7 @@ class NodeSetupCLI:
         self.node_install_sh = self.fetch_script("node_install_sh")
 
     def print_welcome_message(self):
-        msg = "Welcome to NymNodeCLI, an interactive tool for simple download, installation, configuration and running nym-node."
+        msg = "Welcome to NymNodeCLI, an interactive tool to download, install, setup and run nym-node."
         print(msg)
 
 # Build the command
@@ -47,9 +48,9 @@ class NodeSetupCLI:
 
     def _return_script_url(self, script_init_name):
         scripts_urls = {
-                "prereqs_install_sh": "https://raw.github.com/nymtech/nym/raw/refs/heads/feature/node-setup-cli/scripts/nym-node-setup/nym-node-prereqs-install.sh",
-                "env_vars_install_sh": "https://raw.githubusercontent.com/nymtech/nym/refs/heads/feature/node-setup-cli/scripts/nym-node-setup/setup-env-vars.sh",
-                "node_install_sh": "https://raw.github.com/nymtech/nym/raw/refs/heads/feature/node-setup-cli/scripts/nym-node-setup/nym-node-install.sh",
+                "prereqs_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-prereqs-install.sh",
+                "env_vars_install_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/nym-node-setup/setup-env-vars.sh",
+                "node_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-install.sh",
                 }
         return scripts_urls[script_init_name]
 

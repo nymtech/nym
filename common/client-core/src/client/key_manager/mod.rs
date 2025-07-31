@@ -22,7 +22,7 @@ mod test;
 // use the old key after new one was issued.
 
 // Remember that Arc<T> has Deref implementation for T
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClientKeys {
     /// identity key associated with the client instance.
     identity_keypair: Arc<ed25519::KeyPair>,

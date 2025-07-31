@@ -65,7 +65,7 @@ pub trait MixnetClientStorage {
     fn gateway_details_store(&self) -> &Self::GatewaysDetailsStore;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Ephemeral {
     key_store: InMemEphemeralKeys,
     reply_store: reply_storage::Empty,

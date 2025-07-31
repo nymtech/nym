@@ -22,6 +22,8 @@ use nym_task::{
     TaskHandle,
 };
 use nym_topology::{NymRouteProvider, NymTopology};
+use std::fmt;
+use std::fmt::{Debug, Formatter};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -62,6 +64,14 @@ pub struct MixnetClient {
     pub(crate) client_request_sender: ClientRequestSender,
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
+}
+
+impl Debug for MixnetClient {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MixnetClient")
+            .field("address", &self.nym_address)
+            .finish()
+    }
 }
 
 impl MixnetClient {
@@ -194,7 +204,15 @@ impl MixnetClient {
     }
 
     /// Wait for messages from the mixnet
+    #[tracing::instrument]
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
+        let span = tracing::info_span!(
+            "wait_for_messages",
+            "address = {}",
+            self.nym_address.to_string()
+        );
+        let _enter = span.enter();
+
         self.reconstructed_receiver.next().await
     }
 

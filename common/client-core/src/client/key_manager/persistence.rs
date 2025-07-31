@@ -196,7 +196,7 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InMemEphemeralKeys {
     keys: Arc<Mutex<ClientKeys>>,
 }

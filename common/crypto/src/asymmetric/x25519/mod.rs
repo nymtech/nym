@@ -55,6 +55,12 @@ pub struct KeyPair {
     pub(crate) public_key: PublicKey,
 }
 
+impl Debug for KeyPair {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.public_key.to_base58_string(), f)
+    }
+}
+
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
@@ -226,6 +232,12 @@ impl AsRef<[u8]> for PublicKey {
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
+
+impl Debug for PrivateKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_base58_string())
+    }
+}
 
 impl Display for PrivateKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

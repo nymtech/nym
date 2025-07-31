@@ -69,6 +69,9 @@ pub trait MixnetMessageSender {
     where
         M: AsRef<[u8]> + Send,
     {
+        let span = tracing::info_span!("send_message", "address = {}", address.to_string());
+        let _enter = span.enter();
+
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
             IncludedSurbs::Amount(surbs) => InputMessage::new_anonymous(
@@ -107,6 +110,13 @@ pub trait MixnetMessageSender {
     where
         M: AsRef<[u8]> + Send,
     {
+        let span = tracing::info_span!(
+            "send_reply",
+            "recipient_tag = {}",
+            recipient_tag.to_string()
+        );
+        let _enter = span.enter();
+
         let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_reply(
             recipient_tag,

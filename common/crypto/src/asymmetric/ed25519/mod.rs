@@ -53,7 +53,7 @@ pub enum Ed25519RecoveryError {
 }
 
 /// Keypair for usage in ed25519 EdDSA.
-#[derive(Debug, Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyPair {
     private_key: PrivateKey,
@@ -64,6 +64,12 @@ pub struct KeyPair {
 
     #[zeroize(skip)]
     index: u32,
+}
+
+impl Debug for KeyPair {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.public_key.to_base58_string(), f)
+    }
 }
 
 /// All keys will always have an index field populated this is to prevent anyone from figuring out if

@@ -396,6 +396,21 @@ where
     derivation_material: Option<DerivationMaterial>,
 }
 
+impl<S> std::fmt::Debug for DisconnectedMixnetClient<S>
+where
+    S: MixnetClientStorage + Clone + 'static,
+    S::ReplyStore: Send + Sync,
+    S::GatewaysDetailsStore: Sync,
+    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
+    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
+    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DisconnectedMixnetClient").finish()
+    }
+}
+
 impl<S> DisconnectedMixnetClient<S>
 where
     S: MixnetClientStorage + Clone + 'static,
@@ -474,6 +489,7 @@ where
             .collect()
     }
 
+    #[tracing::instrument]
     async fn setup_client_keys(&self) -> Result<()> {
         let mut rng = OsRng;
         let key_store = self.storage.key_store();
@@ -571,6 +587,7 @@ where
     ///
     /// This function will return an error if you try to re-register when in an already registered
     /// state.
+    #[tracing::instrument]
     pub async fn setup_gateway(&mut self) -> Result<()> {
         if !matches!(self.state, BuilderState::New) {
             return Err(Error::ReregisteringGatewayNotSupported);
@@ -661,6 +678,7 @@ where
         )
     }
 
+    #[tracing::instrument]
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
@@ -811,6 +829,7 @@ where
     ///     let client = client.connect_to_mixnet().await.unwrap();
     /// }
     /// ```
+    #[tracing::instrument]
     pub async fn connect_to_mixnet(self) -> Result<MixnetClient> {
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });

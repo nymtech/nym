@@ -12,7 +12,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct AckKey(CipherKey<AckEncryptionAlgorithm>);
 
 #[derive(Debug)]

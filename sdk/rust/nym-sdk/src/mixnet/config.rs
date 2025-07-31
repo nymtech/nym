@@ -6,7 +6,7 @@ use url::Url;
 const DEFAULT_SDK_CLIENT_ID: &str = "_default-nym-sdk-client";
 
 /// Config struct for [`crate::mixnet::MixnetClient`]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Config {
     /// If the user has explicitly specified a gateway.
     pub user_chosen_gateway: Option<String>,

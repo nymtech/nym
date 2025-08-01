@@ -74,8 +74,17 @@ nym-wireguard-types = { path = "../common/wireguard-types", default-features = f
 defguard_wireguard_rs = { workspace = true }
 opentelemetry = { workspace = true, features = ["trace"] }
 
-tracing = { workspace = true, features = ["std", "attributes", "tracing-attributes"] }
+tracing = { workspace = true, features = [
+    "std",
+    "attributes",
+    "tracing-attributes",
+] }
 tracing-opentelemetry = { workspace = true }
+opentelemetry_sdk = { version = "0.30.0", default-features = false, features = [
+    "trace",
+    "rt-tokio",
+    "experimental_metrics_custom_reader",
+] }
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

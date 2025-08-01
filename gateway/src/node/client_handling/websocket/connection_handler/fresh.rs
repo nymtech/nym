@@ -34,6 +34,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use opentelemetry::trace::TraceContextExt;
+use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -865,32 +866,68 @@ impl<R, S> FreshHandler<R, S> {
                 iv,
                 debug_trace_id,
             } => {
+                /*
+                ┌───────────────────────────────────────────────────────┐
+                │                 Incoming Request                      │
+                │         trace_id: "abc123..." (from client)           │
+                └────────────────────────┬──────────────────────────────┘
+                                         ↓
+                ┌───────────────────────────────────────────────────────┐
+                │           1. Create SpanContext                       │
+                │  ┌─────────────────────────────────────────────┐      │
+                │  │ SpanContext::new(                           │      │
+                │  │   trace_id: "abc123..." (preserved)         │      │
+                │  │   span_id:  "new_random_id"                 │      │
+                │  │   is_remote: true                           │      │
+                │  │ )                                           │      │
+                │  └─────────────────────────────────────────────┘      │
+                └────────────────────────┬──────────────────────────────┘
+                                         ↓
+                ┌───────────────────────────────────────────────────────┐
+                │           2. Convert to Context                       │
+                │  Context::current().with_remote_span_context(...)     │
+                └────────────────────────┬──────────────────────────────┘
+                                         ↓
+                ┌───────────────────────────────────────────────────────┐
+                │           3. Create & Configure Span                  │
+                │  span = info_span!("authenticate_v1")                 │
+                │  span.set_parent(context)  // Before entering         │
+                └────────────────────────┬─────────────────────────────-┘
+                                         ↓
+                ┌───────────────────────────────────────────────────────┐
+                │           4. Enter Span                               │
+                │  let _enter = span.enter()                            │
+                │  // All child spans inherit trace_id "abc123..."      │
+                └───────────────────────────────────────────────────────┘
+                */
                 if let Some(trace_id) = debug_trace_id {
                     let span = info_span!("authenticate_v1");
                     let _enter = span.enter();
 
-                    // let otel_context = span.context();
-                    // let otel_span = otel_context.span();
-                    // let otel_span_context = otel_span.span_context();
-                    //
-                    // let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id).unwrap();
-                    // let span_id = otel_span_context.span_id().clone();
-                    //
-                    // let span_context = opentelemetry::trace::SpanContext::new(
-                    //     trace_id,
-                    //     span_id,
-                    //     opentelemetry::trace::TraceFlags::SAMPLED,
-                    //     true, // is_remote
-                    //     Default::default(),
-                    // );
-                    //
-                    // let new_context = opentelemetry::Context::try_into(span_context).unwrap();
-                    //
-                    // span.set_parent(new_context);
+                    let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
+                        .expect("Invalid trace ID format");
 
-                    let mut cx = tracing::Span::current().context();
+                    let id_generator = RandomIdGenerator::default();
+                    let span_id = id_generator.new_span_id();
 
-                    tracing::span::Span::current().set_parent(cx);
+                    let span_context = opentelemetry::trace::SpanContext::new(
+                        trace_id,
+                        span_id,
+                        opentelemetry::trace::TraceFlags::SAMPLED,
+                        true, // is_remote = true since this comes from another service
+                        Default::default(),
+                    );
+
+                    use opentelemetry::trace::TraceContextExt;
+                    let remote_context =
+                        opentelemetry::Context::current().with_remote_span_context(span_context);
+
+                    // Create span with remote context as parent
+                    use tracing_opentelemetry::OpenTelemetrySpanExt;
+                    let span = info_span!("authenticate_v1");
+                    span.set_parent(remote_context);
+
+                    let _enter = span.enter();
                 }
 
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)

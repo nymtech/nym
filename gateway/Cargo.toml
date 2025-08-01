@@ -85,6 +85,13 @@ opentelemetry_sdk = { version = "0.30.0", default-features = false, features = [
     "rt-tokio",
     "experimental_metrics_custom_reader",
 ] }
+opentelemetry-otlp = { workspace = true, features = [
+    "metrics",
+    "grpc-tonic",
+    "tls",
+    "tls-webpki-roots",
+] }
+opentelemetry-stdout = { workspace = true, features = ["trace", "metrics"] }
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

@@ -114,6 +114,17 @@ blake2 = "=0.8.1"
 sha2 = { workspace = true }
 hkdf = { workspace = true }
 
+# signoz
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+tracing-core = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+opentelemetry-otlp = { version = "0.30.0" }
+opentelemetry-semantic-conventions = { workspace = true, features = [
+    "semconv_experimental",
+] }
+opentelemetry-stdout = { workspace = true, features = ["trace", "metrics"] }
+
 [[bench]]
 name = "benchmarks"
 harness = false

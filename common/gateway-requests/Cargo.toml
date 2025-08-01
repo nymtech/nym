@@ -19,7 +19,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true, features = ["log"] }
 time = { workspace = true }
 subtle = { workspace = true }
 zeroize = { workspace = true }
@@ -33,6 +32,9 @@ nym-task = { path = "../task" }
 
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
+
+opentelemetry = { workspace = true, features = ["trace"] }
+tracing = { workspace = true, features = ["std", "attributes", "tracing-attributes"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true
@@ -48,3 +50,4 @@ default-features = false
 
 [dev-dependencies]
 nym-compact-ecash = { path = "../nym_offline_compact_ecash" } # we need specific imports in tests
+

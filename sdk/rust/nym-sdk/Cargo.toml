@@ -74,13 +74,13 @@ serde = { workspace = true, features = ["derive"] }
 #tracing-subscriber = { workspace = true, features = ["env-filter", "registry", "std"] }
 dirs.workspace = true
 
-opentelemetry = { version = "0.30.0", default-features = true }
-opentelemetry_sdk = { version = "0.30.0", default-features = true }
-tracing = { version = "0.1.35", default-features = false, features = ["std"] }
-tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "std"] }
-tracing-core = "0.1.28"
-tonic = { version = "0.13.1", features = ["tls-webpki-roots"] }
-tracing-opentelemetry = "0.31.0"
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+
+tracing = { workspace = true, features = ["std"] }
+tracing-subscriber = { workspace = true, features = ["registry", "std"] }
+tracing-core = { workspace = true }
+tracing-opentelemetry = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -91,10 +91,10 @@ tokio = { workspace = true, features = ["full"] }
 time = { workspace = true }
 nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
 
-opentelemetry-semantic-conventions = { version = "0.30.0", features = ["semconv_experimental"] }
-opentelemetry-otlp = { version = "0.30.0", features = ["metrics", "grpc-tonic", "tls",
+opentelemetry-semantic-conventions = { workspace = true, features = ["semconv_experimental"] }
+opentelemetry-otlp = { workspace = true, features = ["metrics", "grpc-tonic", "tls",
     "tls-webpki-roots", ] }
-opentelemetry-stdout = { version = "0.30.0", features = ["trace", "metrics"] }
+opentelemetry-stdout = { workspace = true, features = ["trace", "metrics"] }
 
 # extra dependencies for libp2p examples
 #libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}

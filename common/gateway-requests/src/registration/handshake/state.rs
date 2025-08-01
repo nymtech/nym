@@ -20,7 +20,7 @@ use rand::{thread_rng, CryptoRng, RngCore};
 use std::any::{type_name, Any};
 use std::str::FromStr;
 use std::time::Duration;
-use tracing::log::*;
+use tracing::{error, trace};
 use tungstenite::Message as WsMessage;
 
 #[cfg(not(target_arch = "wasm32"))]

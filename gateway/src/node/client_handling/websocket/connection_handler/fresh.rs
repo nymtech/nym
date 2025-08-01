@@ -33,6 +33,7 @@ use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use opentelemetry::trace::TraceContextExt;
 use rand::CryptoRng;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -41,7 +42,8 @@ use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-use tracing::*;
+use tracing::{debug, error, info, info_span, instrument, warn};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -861,7 +863,36 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 enc_address,
                 iv,
+                debug_trace_id,
             } => {
+                if let Some(trace_id) = debug_trace_id {
+                    let span = info_span!("authenticate_v1");
+                    let _enter = span.enter();
+
+                    // let otel_context = span.context();
+                    // let otel_span = otel_context.span();
+                    // let otel_span_context = otel_span.span_context();
+                    //
+                    // let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id).unwrap();
+                    // let span_id = otel_span_context.span_id().clone();
+                    //
+                    // let span_context = opentelemetry::trace::SpanContext::new(
+                    //     trace_id,
+                    //     span_id,
+                    //     opentelemetry::trace::TraceFlags::SAMPLED,
+                    //     true, // is_remote
+                    //     Default::default(),
+                    // );
+                    //
+                    // let new_context = opentelemetry::Context::try_into(span_context).unwrap();
+                    //
+                    // span.set_parent(new_context);
+
+                    let mut cx = tracing::Span::current().context();
+
+                    tracing::span::Span::current().set_parent(cx);
+                }
+
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }

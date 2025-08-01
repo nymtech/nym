@@ -33,7 +33,6 @@ use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
-use opentelemetry::trace::TraceContextExt;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
 use std::net::SocketAddr;
@@ -44,7 +43,6 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::{debug, error, info, info_span, instrument, warn};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -901,9 +899,6 @@ impl<R, S> FreshHandler<R, S> {
                 └───────────────────────────────────────────────────────┘
                 */
                 if let Some(trace_id) = debug_trace_id {
-                    let span = info_span!("authenticate_v1");
-                    let _enter = span.enter();
-
                     let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
                         .expect("Invalid trace ID format");
 

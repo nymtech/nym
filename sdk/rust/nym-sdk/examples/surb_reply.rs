@@ -151,19 +151,26 @@ async fn main() -> anyhow::Result<()> {
     let _guard = init_tracing_subscriber(metadata);
 
     // Specify some config options
-    let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
-    let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
+    // let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
+    // let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.
-    let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
-        .await
-        .unwrap()
-        .build()
-        .unwrap();
+    // let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
+    //     .await
+    //     .unwrap()
+    //     .build()
+    //     .unwrap();
+
+    let client_builder = MixnetClientBuilder::new_ephemeral();
+    let mixnet_client = client_builder
+        .request_gateway("BAF2aYpzcK9KbSS3Y7EdLisxiogkTr88FXkdL8EDNigH".to_string())
+        .with_ignore_epoch_roles(true)
+        .with_extended_topology(true)
+        .build()?;
 
     // Now we connect to the mixnet, using keys now stored in the paths provided.
-    let mut client = client.connect_to_mixnet().await.unwrap();
+    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address();

@@ -855,6 +855,80 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
+        /*
+        ┌───────────────────────────────────────────────────────┐
+        │                 Incoming Request                      │
+        │         trace_id: "abc123..." (from client)           │
+        └────────────────────────┬──────────────────────────────┘
+                                 ↓
+        ┌───────────────────────────────────────────────────────┐
+        │           1. Create SpanContext                       │
+        │  ┌─────────────────────────────────────────────┐      │
+        │  │ SpanContext::new(                           │      │
+        │  │   trace_id: "abc123..." (preserved)         │      │
+        │  │   span_id:  "new_random_id"                 │      │
+        │  │   is_remote: true                           │      │
+        │  │ )                                           │      │
+        │  └─────────────────────────────────────────────┘      │
+        └────────────────────────┬──────────────────────────────┘
+                                 ↓
+        ┌───────────────────────────────────────────────────────┐
+        │           2. Convert to Context                       │
+        │  Context::current().with_remote_span_context(...)     │
+        └────────────────────────┬──────────────────────────────┘
+                                 ↓
+        ┌───────────────────────────────────────────────────────┐
+        │           3. Create & Configure Span                  │
+        │  span = info_span!("authenticate_v1")                 │
+        │  span.set_parent(context)  // Before entering         │
+        └────────────────────────┬─────────────────────────────-┘
+                                 ↓
+        ┌───────────────────────────────────────────────────────┐
+        │           4. Enter Span                               │
+        │  let _enter = span.enter()                            │
+        │  // All child spans inherit trace_id "abc123..."      │
+        └───────────────────────────────────────────────────────┘
+        */
+        let span = if let ClientControlRequest::Authenticate {
+            debug_trace_id: Some(ref trace_id),
+            ..
+        } = request
+        {
+            let trace_id =
+                opentelemetry::trace::TraceId::from_hex(trace_id).expect("Invalid trace ID format");
+
+            // We don't need to try and preserve the SpanID, just the TraceID (right?) so
+            // just making a new SpanID for the moment
+            let id_generator = RandomIdGenerator::default();
+            let span_id = id_generator.new_span_id();
+
+            let span_context = opentelemetry::trace::SpanContext::new(
+                trace_id,
+                span_id,
+                opentelemetry::trace::TraceFlags::SAMPLED,
+                true, // is_remote = true since this comes from another service
+                Default::default(),
+            );
+
+            use opentelemetry::trace::TraceContextExt;
+            let remote_context =
+                opentelemetry::Context::current().with_remote_span_context(span_context);
+
+            // Create span with remote context as parent
+            use tracing_opentelemetry::OpenTelemetrySpanExt;
+            let span = info_span!("authenticate_v1");
+            span.set_parent(remote_context);
+            Some(span)
+        } else {
+            None
+        };
+
+        // Probably a nicer way to do this but for now just match
+        let _guard = match &span {
+            Some(s) => Some(s.enter()),
+            None => None,
+        };
+
         // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -862,70 +936,8 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 enc_address,
                 iv,
-                debug_trace_id,
+                debug_trace_id: _,
             } => {
-                /*
-                ┌───────────────────────────────────────────────────────┐
-                │                 Incoming Request                      │
-                │         trace_id: "abc123..." (from client)           │
-                └────────────────────────┬──────────────────────────────┘
-                                         ↓
-                ┌───────────────────────────────────────────────────────┐
-                │           1. Create SpanContext                       │
-                │  ┌─────────────────────────────────────────────┐      │
-                │  │ SpanContext::new(                           │      │
-                │  │   trace_id: "abc123..." (preserved)         │      │
-                │  │   span_id:  "new_random_id"                 │      │
-                │  │   is_remote: true                           │      │
-                │  │ )                                           │      │
-                │  └─────────────────────────────────────────────┘      │
-                └────────────────────────┬──────────────────────────────┘
-                                         ↓
-                ┌───────────────────────────────────────────────────────┐
-                │           2. Convert to Context                       │
-                │  Context::current().with_remote_span_context(...)     │
-                └────────────────────────┬──────────────────────────────┘
-                                         ↓
-                ┌───────────────────────────────────────────────────────┐
-                │           3. Create & Configure Span                  │
-                │  span = info_span!("authenticate_v1")                 │
-                │  span.set_parent(context)  // Before entering         │
-                └────────────────────────┬─────────────────────────────-┘
-                                         ↓
-                ┌───────────────────────────────────────────────────────┐
-                │           4. Enter Span                               │
-                │  let _enter = span.enter()                            │
-                │  // All child spans inherit trace_id "abc123..."      │
-                └───────────────────────────────────────────────────────┘
-                */
-                if let Some(trace_id) = debug_trace_id {
-                    let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
-                        .expect("Invalid trace ID format");
-
-                    // We don't need to try and preserve the SpanID, just the TraceID
-                    let id_generator = RandomIdGenerator::default();
-                    let span_id = id_generator.new_span_id();
-
-                    let span_context = opentelemetry::trace::SpanContext::new(
-                        trace_id,
-                        span_id,
-                        opentelemetry::trace::TraceFlags::SAMPLED,
-                        true, // is_remote = true since this comes from another service
-                        Default::default(),
-                    );
-
-                    use opentelemetry::trace::TraceContextExt;
-                    let remote_context =
-                        opentelemetry::Context::current().with_remote_span_context(span_context);
-
-                    // Create span with remote context as parent
-                    use tracing_opentelemetry::OpenTelemetrySpanExt;
-                    let span = info_span!("authenticate_v1");
-                    span.set_parent(remote_context);
-
-                    let _enter = span.enter();
-                }
-
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }

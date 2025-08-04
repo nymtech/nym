@@ -1,0 +1,11 @@
+
+find . -name "Cargo.toml" -not -path "./target/*" -exec grep -l "^name = " {} \; | xargs grep "^name = " | grep -v 'name = "nym-'
+
+find . -name "Cargo.toml" \
+  -not -path "./nym-wallet/*" \
+  -not -path "./contracts/*" \
+  -not -path "./target/*" \
+  -not -name "./Cargo.toml" \
+  -exec sed -i 's/^version = ".*"/version.workspace = true/' {} \;
+
+find . -name "Cargo.toml" -not -path "./target/*" -exec awk '/^\[package\]/{flag=1; next} flag && /^name = /{print FILENAME ":" $0; flag=0} /^\[/{flag=0}' {} \; | grep -v 'name = "nym-'

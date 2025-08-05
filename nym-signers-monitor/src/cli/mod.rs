@@ -26,7 +26,7 @@ impl Cli {
     pub async fn execute(self) -> anyhow::Result<()> {
         match self.command {
             Commands::BuildInfo(args) => build_info::execute(args),
-            Commands::Run(args) => run::execute(args).await?,
+            Commands::Run(args) => run::execute(*args).await?,
         }
 
         Ok(())
@@ -39,5 +39,5 @@ pub(crate) enum Commands {
     BuildInfo(build_info::Args),
 
     /// Start signers monitor and send notifications on any failures
-    Run(run::Args),
+    Run(Box<run::Args>),
 }

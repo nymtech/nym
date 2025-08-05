@@ -7,8 +7,19 @@ use nym_ecash_signer_check::check_signers_with_client;
 use nym_task::ShutdownManager;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::interval;
 use tracing::{error, info};
+
+const LOST_QUORUM_MSG: &str = r#"
+# 🔥🔥🔥 LOST SIGNING QUORUM 🔥🔥🔥
+We seem to have lost the signing quorum - check if we should enable the 'upgrade' mode!
+"#;
+
+const UNKNOWN_QUORUM_MSG: &str = r#"
+# ❓❓❓ UNKNOWN SIGNING QUORUM ❓❓❓
+We can't determine the signing quroum - if we're not undergoing DKG exchange check if we should enable the 'upgrade' mode!
+"#;
 
 pub(crate) struct SignersMonitor {
     zulip_client: zulip_client::Client,
@@ -17,8 +28,8 @@ pub(crate) struct SignersMonitor {
     notification_channel_id: u32,
     notification_topic: Option<String>,
     check_interval: Duration,
-    // min_notification_delay: Duration,
-    // last_notification_sent: Option<OffsetDateTime>,
+    min_notification_delay: Duration,
+    last_notification_sent: Option<OffsetDateTime>,
 }
 
 impl SignersMonitor {
@@ -37,10 +48,12 @@ impl SignersMonitor {
             notification_channel_id: args.zulip_notification_channel_id,
             notification_topic: args.zulip_notification_topic,
             check_interval: args.signers_check_interval,
+            min_notification_delay: args.minimum_notification_delay,
+            last_notification_sent: None,
         })
     }
 
-    async fn check_signers(&self) -> anyhow::Result<TestResult> {
+    async fn check_signers(&mut self) -> anyhow::Result<TestResult> {
         info!("starting signer check...");
         let check_result = check_signers_with_client(&self.nyxd_client).await?;
 
@@ -110,7 +123,7 @@ impl SignersMonitor {
             (working_local_chain as u64) >= threshold
                 && (working_credential_issuance as u64) >= threshold
         });
-        signers.sort_by_key(|s| s.version);
+        signers.sort_by_key(|s| s.version.clone());
 
         let summary = Summary {
             signing_quorum_available,
@@ -129,35 +142,34 @@ impl SignersMonitor {
         Ok(TestResult { summary, signers })
     }
 
-    async fn perform_signer_check(&self) -> anyhow::Result<()> {
+    async fn perform_signer_check(&mut self) -> anyhow::Result<()> {
         let result = self.check_signers().await?;
+        let result_md = result.results_to_markdown_message();
 
-        if result.quorum_unavailable() {
-            let message = format!(
-                r#"
-# 🔥🔥🔥 LOST SIGNING QUORUM 🔥🔥🔥
-We seem to have lost the signing quorum - check if we should enable the 'upgrade' mode!
+        let msg = if result.quorum_unavailable() {
+            Some(format!("{LOST_QUORUM_MSG}\n\n{result_md}",))
+        } else if result.quorum_unknown() {
+            Some(format!("{UNKNOWN_QUORUM_MSG}\n\n{result_md}",))
+        } else {
+            None
+        };
 
-{}
-            "#,
-                result.results_to_markdown_message()
-            );
-            return self.send_zulip_notification(&message).await;
+        if let Some(msg) = msg {
+            self.maybe_notify_about_failure(&msg).await?
         }
 
-        if result.quorum_unknown() {
-            let message = format!(
-                r#"
-# ❓❓❓ UNKNOWN SIGNING QUORUM ❓❓❓
-We can't determine the signing quroum - if we're not undergoing DKG exchange check if we should enable the 'upgrade' mode!
+        Ok(())
+    }
 
-{}
-            "#,
-                result.results_to_markdown_message()
-            );
-            return self.send_zulip_notification(&message).await;
+    async fn maybe_notify_about_failure(&mut self, message: &String) -> anyhow::Result<()> {
+        if let Some(last_notification_sent) = self.last_notification_sent {
+            if last_notification_sent + self.min_notification_delay > OffsetDateTime::now_utc() {
+                info!("too soon to send another notification");
+                return Ok(());
+            }
         }
-
+        self.send_zulip_notification(message).await?;
+        self.last_notification_sent = Some(OffsetDateTime::now_utc());
         Ok(())
     }
 

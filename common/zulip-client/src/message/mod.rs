@@ -127,7 +127,7 @@ impl StreamMessage {
     }
 
     pub fn no_topic(to: impl Into<ToChannel>, content: impl Into<String>) -> Self {
-        Self::new(to, content, None)
+        Self::new(to, content, None::<String>)
     }
 
     #[must_use]

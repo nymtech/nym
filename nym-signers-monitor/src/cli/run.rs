@@ -149,6 +149,15 @@ pub(crate) struct Args {
     )]
     pub(crate) signers_check_interval: Duration,
 
+    /// Specify the minimum delay between two subsequent notifications
+    #[clap(
+        long,
+        env = SIGNERS_MONITOR_MIN_NOTIFICATION_DELAY_ARG,
+        value_parser = humantime::parse_duration,
+        default_value = "1h"
+    )]
+    pub(crate) minimum_notification_delay: Duration,
+
     #[clap(flatten)]
     pub(crate) nyxd_connection: NyxdConnectionArgs,
 }

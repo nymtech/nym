@@ -51,7 +51,7 @@ pub async fn obtain_expiration_date_signatures(
     for ecash_api_client in ecash_api_clients.iter() {
         match ecash_api_client
             .api_client
-            .partial_expiration_date_signatures(None)
+            .partial_expiration_date_signatures(None, None)
             .await
         {
             Ok(signature) => {

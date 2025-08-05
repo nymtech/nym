@@ -220,7 +220,7 @@ where
         ecash_apis,
         |api| async move {
             api.api_client
-                .global_expiration_date_signatures(Some(expiration_date))
+                .global_expiration_date_signatures(Some(expiration_date), Some(epoch_id))
                 .await
         },
         format!("aggregated coin index signatures for date {expiration_date}"),

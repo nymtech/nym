@@ -12,6 +12,7 @@ use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
+use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_time::{cred_exp_date, EcashTime};
 use nym_http_api_common::{FormattedResponse, Output};
 use nym_validator_client::nym_api::rfc_3339_date;
@@ -71,6 +72,7 @@ async fn master_verification_key(
 #[derive(Deserialize, IntoParams)]
 struct ExpirationDateParam {
     expiration_date: Option<String>,
+    epoch_id: Option<EpochId>,
     output: Option<Output>,
 }
 
@@ -93,6 +95,7 @@ async fn expiration_date_signatures(
     State(state): State<Arc<EcashState>>,
     Query(ExpirationDateParam {
         expiration_date,
+        epoch_id,
         output,
     }): Query<ExpirationDateParam>,
 ) -> AxumResult<FormattedResponse<AggregatedExpirationDateSignatureResponse>> {
@@ -108,8 +111,13 @@ async fn expiration_date_signatures(
     // see if we're not in the middle of new dkg
     state.ensure_dkg_not_in_progress().await?;
 
+    let epoch_id = match epoch_id {
+        Some(epoch_id) => epoch_id,
+        None => state.current_dkg_epoch().await?,
+    };
+
     let expiration_date_signatures = state
-        .master_expiration_date_signatures(expiration_date)
+        .master_expiration_date_signatures(expiration_date, epoch_id)
         .await?;
 
     Ok(

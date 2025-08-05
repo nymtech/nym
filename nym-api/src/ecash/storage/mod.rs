@@ -143,6 +143,7 @@ pub trait EcashStorageExt {
     async fn get_partial_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<Option<IssuedExpirationDateSignatures>, NymApiStorageError>;
 
     async fn insert_partial_expiration_date_signatures(
@@ -154,6 +155,7 @@ pub trait EcashStorageExt {
     async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<Option<IssuedExpirationDateSignatures>, NymApiStorageError>;
 
     async fn insert_master_expiration_date_signatures(
@@ -456,10 +458,11 @@ impl EcashStorageExt for NymApiStorage {
     async fn get_partial_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<Option<IssuedExpirationDateSignatures>, NymApiStorageError> {
         let Some(raw) = self
             .manager
-            .get_partial_expiration_date_signatures(expiration_date)
+            .get_partial_expiration_date_signatures(expiration_date, epoch_id as i64)
             .await?
         else {
             return Ok(None);
@@ -491,10 +494,11 @@ impl EcashStorageExt for NymApiStorage {
     async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<Option<IssuedExpirationDateSignatures>, NymApiStorageError> {
         let Some(raw) = self
             .manager
-            .get_master_expiration_date_signatures(expiration_date)
+            .get_master_expiration_date_signatures(expiration_date, epoch_id as i64)
             .await?
         else {
             return Ok(None);

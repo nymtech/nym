@@ -927,7 +927,10 @@ impl<R, S> FreshHandler<R, S> {
 
         // Probably a nicer way to do this but for now just match
         let _guard = match &span {
-            Some(s) => Some(s.enter()),
+            Some(s) => {
+                warn!("ENTERED SPAN");
+                Some(s.enter())
+            }
             None => {
                 warn!("COULDN'T ENTER SPAN");
                 None

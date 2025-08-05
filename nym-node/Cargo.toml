@@ -35,7 +35,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-indicatif = { workspace = true }
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["json", "fmt"] }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true, features = ["codec"] }
 toml = { workspace = true }

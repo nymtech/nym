@@ -556,7 +556,7 @@ impl ApiState {
 
                     let partial = api
                         .api_client
-                        .partial_expiration_date_signatures(Some(expiration_date))
+                        .partial_expiration_date_signatures(Some(expiration_date), Some(epoch_id))
                         .await?
                         .signatures;
                     Ok(ExpirationDateSignatureShare {

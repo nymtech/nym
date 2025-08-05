@@ -1103,14 +1103,19 @@ pub trait NymApiClientExt: ApiClient {
     async fn partial_expiration_date_signatures(
         &self,
         expiration_date: Option<Date>,
+        epoch_id: Option<EpochId>,
     ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
-        let params = match expiration_date {
+        let mut params = match expiration_date {
             None => Vec::new(),
             Some(exp) => vec![(
                 ecash::EXPIRATION_DATE_PARAM,
                 exp.format(&rfc_3339_date()).unwrap(),
             )],
         };
+
+        if let Some(epoch_id) = epoch_id {
+            params.push((ecash::EPOCH_ID_PARAM, epoch_id.to_string()));
+        }
 
         self.get_json(
             &[
@@ -1148,14 +1153,19 @@ pub trait NymApiClientExt: ApiClient {
     async fn global_expiration_date_signatures(
         &self,
         expiration_date: Option<Date>,
+        epoch_id: Option<EpochId>,
     ) -> Result<AggregatedExpirationDateSignatureResponse, NymAPIError> {
-        let params = match expiration_date {
+        let mut params = match expiration_date {
             None => Vec::new(),
             Some(exp) => vec![(
                 ecash::EXPIRATION_DATE_PARAM,
                 exp.format(&rfc_3339_date()).unwrap(),
             )],
         };
+
+        if let Some(epoch_id) = epoch_id {
+            params.push((ecash::EPOCH_ID_PARAM, epoch_id.to_string()));
+        }
 
         self.get_json(
             &[

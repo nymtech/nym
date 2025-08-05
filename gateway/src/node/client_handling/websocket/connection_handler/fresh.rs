@@ -889,40 +889,41 @@ impl<R, S> FreshHandler<R, S> {
         │  // All child spans inherit trace_id "abc123..."      │
         └───────────────────────────────────────────────────────┘
         */
-        let span = if let ClientControlRequest::Authenticate {
-            debug_trace_id: Some(ref trace_id),
-            ..
-        } = request
-        {
-            warn!("RAW TRACE ID: {trace_id:?}");
-            let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
-                .expect("Invalid trace ID format");
-            warn!("🫂TraceID: {trace_id}🫂");
+        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+            if let Some(ref trace_id) = auth_req.debug_trace_id {
+                warn!("RAW TRACE ID: {trace_id:?}");
+                let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
+                    .expect("Invalid trace ID format");
+                warn!("🫂TraceID: {trace_id}🫂");
 
-            // We don't need to try and preserve the SpanID, just the TraceID (right?) so
-            // just making a new SpanID for the moment
-            let id_generator = RandomIdGenerator::default();
-            let span_id = id_generator.new_span_id();
+                // We don't need to try and preserve the SpanID, just the TraceID (right?) so
+                // just making a new SpanID for the moment
+                let id_generator = RandomIdGenerator::default();
+                let span_id = id_generator.new_span_id();
 
-            let span_context = opentelemetry::trace::SpanContext::new(
-                trace_id,
-                span_id,
-                opentelemetry::trace::TraceFlags::SAMPLED,
-                true, // is_remote = true since this comes from another service
-                Default::default(),
-            );
+                let span_context = opentelemetry::trace::SpanContext::new(
+                    trace_id,
+                    span_id,
+                    opentelemetry::trace::TraceFlags::SAMPLED,
+                    true, // is_remote = true since this comes from another service
+                    Default::default(),
+                );
 
-            use opentelemetry::trace::TraceContextExt;
-            let remote_context =
-                opentelemetry::Context::current().with_remote_span_context(span_context);
+                use opentelemetry::trace::TraceContextExt;
+                let remote_context =
+                    opentelemetry::Context::current().with_remote_span_context(span_context);
 
-            // Create span with remote context as parent
-            use tracing_opentelemetry::OpenTelemetrySpanExt;
-            let span = info_span!("authenticate_v1");
-            span.set_parent(remote_context);
-            Some(span)
+                // Create span with remote context as parent
+                use tracing_opentelemetry::OpenTelemetrySpanExt;
+                let span = info_span!("authenticate_v2");
+                span.set_parent(remote_context);
+                Some(span)
+            } else {
+                warn!("AuthenticateV2 request but no trace_id provided");
+                None
+            }
         } else {
-            warn!("COULDN'T FIND TRACE_ID");
+            warn!("Not an AuthenticateV2 request");
             None
         };
 

@@ -3,21 +3,26 @@ use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
     StoragePaths,
 };
-use std::path::PathBuf;
-use tempfile::TempDir;
-
+use opentelemetry::trace::TraceContextExt;
+use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider;
+use opentelemetry::Context;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::tonic_types::metadata::MetadataMap;
 use opentelemetry_otlp::tonic_types::transport::ClientTlsConfig;
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
+use opentelemetry_sdk::trace::IdGenerator;
 use opentelemetry_sdk::trace::{RandomIdGenerator, SdkTracerProvider};
 use opentelemetry_sdk::{trace::Sampler, Resource};
 use opentelemetry_semantic_conventions::{
     attribute::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION},
     SCHEMA_URL,
 };
+use std::path::PathBuf;
+use tempfile::TempDir;
+use tracing::instrument;
+use tracing::{info, warn};
 use tracing_core::Level;
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -63,6 +68,10 @@ fn init_tracer_provider(metadata: MetadataMap) -> anyhow::Result<SdkTracerProvid
         .with_resource(resource())
         .with_batch_exporter(exporter)
         .build();
+
+    // We set this in meter provider but didn't in here
+    // :facepalm:
+    global::set_tracer_provider(tracer.clone());
 
     Ok(tracer)
 }
@@ -138,6 +147,7 @@ impl Drop for OtelGuard {
 }
 
 #[tokio::main]
+#[instrument]
 async fn main() -> anyhow::Result<()> {
     // nym_bin_common::logging::setup_tracing_logger();
 
@@ -149,6 +159,21 @@ async fn main() -> anyhow::Result<()> {
     metadata.insert("signoz-ingestion-key", key.parse()?);
 
     let _guard = init_tracing_subscriber(metadata);
+    let tracer = global::tracer("sdk-example-surb-reply");
+    let span = tracer.start("test_span");
+    let cx = Context::current_with_span(span);
+    let _guard = cx.clone().attach();
+
+    let trace_id = cx.span().span_context().trace_id();
+    warn!("Main TRACE_ID (should be valid): {:?}", trace_id);
+
+    let otel_context = opentelemetry::Context::current();
+    warn!("OTEL CONTEXT: {:?}", otel_context);
+    let span = otel_context.span();
+    let context = span.span_context();
+    let trace_id = context.trace_id();
+    warn!("TRACE_ID: {:?}", trace_id);
+    // panic!();
 
     // Specify some config options
     // let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();

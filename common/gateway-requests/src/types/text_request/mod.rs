@@ -14,7 +14,9 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
 use opentelemetry::trace::TraceContextExt;
 use serde::{Deserialize, Serialize};
+use std::panic;
 use std::str::FromStr;
+use tracing::{instrument, warn};
 use tungstenite::Message;
 
 pub mod authenticate;
@@ -77,7 +79,6 @@ pub enum ClientControlRequest {
         address: String,
         enc_address: String,
         iv: String,
-
         /// this is a trace id that is used in testing and performance verification
         /// in mainnet, this will always be set to None
         #[serde(default)]
@@ -134,9 +135,12 @@ impl ClientControlRequest {
         let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
 
         let otel_context = opentelemetry::Context::current();
+        warn!("OTEL CONTEXT: {:?}", otel_context);
         let span = otel_context.span();
         let context = span.span_context();
         let trace_id = context.trace_id();
+        warn!("TRACE_ID: {:?}", trace_id);
+        panic!();
 
         Ok(ClientControlRequest::Authenticate {
             protocol_version,
@@ -147,6 +151,7 @@ impl ClientControlRequest {
         })
     }
 
+    #[instrument]
     pub fn new_authenticate_v2(
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
@@ -154,8 +159,21 @@ impl ClientControlRequest {
         // if we're using v2 authentication, we must announce at least that protocol version
         let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
 
+        let otel_context = opentelemetry::Context::current();
+        warn!("OTEL CONTEXT: {:?}", otel_context);
+        let span = otel_context.span();
+        let context = span.span_context();
+        let trace_id = context.trace_id();
+        warn!("TRACE_ID: {:?}", trace_id);
+        // panic!();
+
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
-            AuthenticateRequest::new(protocol_version, shared_key, identity_keys)?,
+            AuthenticateRequest::new(
+                protocol_version,
+                shared_key,
+                identity_keys,
+                Some(trace_id.to_string()),
+            )?,
         )))
     }
 

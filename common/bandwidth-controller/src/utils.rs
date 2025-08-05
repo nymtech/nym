@@ -207,7 +207,7 @@ where
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
     if let Some(stored) = storage
-        .get_expiration_date_signatures(expiration_date)
+        .get_expiration_date_signatures(expiration_date, epoch_id)
         .await
         .map_err(BandwidthControllerError::credential_storage_error)?
     {

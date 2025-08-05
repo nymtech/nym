@@ -28,7 +28,7 @@ struct EcashCredentialManagerInner {
     pending: HashMap<i64, RetrievedPendingTicketbook>,
     master_vk: HashMap<u64, VerificationKeyAuth>,
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
-    expiration_date_sigs: HashMap<Date, Vec<AnnotatedExpirationDateSignature>>,
+    expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
     _next_id: i64,
 }
 
@@ -242,10 +242,14 @@ impl MemoryEcachTicketbookManager {
     pub(crate) async fn get_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: u64,
     ) -> Option<Vec<AnnotatedExpirationDateSignature>> {
         let guard = self.inner.read().await;
 
-        guard.expiration_date_sigs.get(&expiration_date).cloned()
+        guard
+            .expiration_date_sigs
+            .get(&(epoch_id, expiration_date))
+            .cloned()
     }
 
     pub(crate) async fn insert_expiration_date_signatures(
@@ -254,8 +258,9 @@ impl MemoryEcachTicketbookManager {
     ) {
         let mut guard = self.inner.write().await;
 
-        guard
-            .expiration_date_sigs
-            .insert(sigs.expiration_date, sigs.signatures.clone());
+        guard.expiration_date_sigs.insert(
+            (sigs.epoch_id, sigs.expiration_date),
+            sigs.signatures.clone(),
+        );
     }
 }

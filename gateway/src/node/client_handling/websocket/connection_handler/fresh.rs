@@ -913,12 +913,9 @@ impl<R, S> FreshHandler<R, S> {
                 let remote_context =
                     opentelemetry::Context::current().with_remote_span_context(span_context);
 
-                // Create span with remote context as parent
-                use tracing_opentelemetry::OpenTelemetrySpanExt;
-                let span = info_span!("authenticate_v2",
-                    trace_id = %trace_id.to_string()
-                );
-                span.set_parent(remote_context);
+                let _context_guard = remote_context.attach();
+                let span = info_span!("authenticate_v2"); // this should Just Work and inherit the trace_id
+
                 Some(span)
             } else {
                 warn!("AuthenticateV2 request but no trace_id provided");

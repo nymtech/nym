@@ -915,10 +915,8 @@ impl<R, S> FreshHandler<R, S> {
 
                 // Create span with remote context as parent
                 use tracing_opentelemetry::OpenTelemetrySpanExt;
-                let span = info_span!(
-                    "authenticate_v2",
-                    trace_id = %trace_id_str,
-                    otel.trace_id = %trace_id_str
+                let span = info_span!("authenticate_v2",
+                    trace_id = %trace_id.to_string()
                 );
                 span.set_parent(remote_context);
                 Some(span)

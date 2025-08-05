@@ -21,6 +21,7 @@ use opentelemetry_semantic_conventions::{
 };
 use std::path::PathBuf;
 use tempfile::TempDir;
+use tracing::info_span;
 use tracing::instrument;
 use tracing::{info, warn};
 use tracing_core::Level;
@@ -165,7 +166,13 @@ async fn main() -> anyhow::Result<()> {
     let _guard = cx.clone().attach();
 
     let trace_id = cx.span().span_context().trace_id();
-    warn!("Main TRACE_ID (should be valid): {:?}", trace_id);
+    warn!("Main TRACE_ID: {:?}", trace_id);
+
+    let span = info_span!(
+        "surb_reply_example_session",
+        trace_id = %trace_id.to_string()
+    );
+    let _enter = span.enter();
 
     let otel_context = opentelemetry::Context::current();
     warn!("OTEL CONTEXT: {:?}", otel_context);

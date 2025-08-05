@@ -140,7 +140,7 @@ impl ClientControlRequest {
         let context = span.span_context();
         let trace_id = context.trace_id();
         warn!("TRACE_ID: {:?}", trace_id);
-        panic!();
+        // panic!();
 
         Ok(ClientControlRequest::Authenticate {
             protocol_version,

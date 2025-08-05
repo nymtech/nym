@@ -126,6 +126,60 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "An admin method to remove submitted node measurements. Used as an escape hatch should the data stored get too unwieldy.",
+      "type": "object",
+      "required": [
+        "remove_node_measurements"
+      ],
+      "properties": {
+        "remove_node_measurements": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "An admin method to remove submitted nodes measurements. Used as an escape hatch should the data stored get too unwieldy. Note: it is expected to get called multiple times until the response indicates all the epoch data has been removed.",
+      "type": "object",
+      "required": [
+        "remove_epoch_measurements"
+      ],
+      "properties": {
+        "remove_epoch_measurements": {
+          "type": "object",
+          "required": [
+            "epoch_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {

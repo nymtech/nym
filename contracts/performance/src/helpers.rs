@@ -1,40 +1,16 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{from_json, Binary, CustomQuery, QuerierWrapper, StdError, StdResult};
+use cosmwasm_std::{StdError, StdResult};
 use cw_storage_plus::{Key, Namespace, Path, PrimaryKey};
+use nym_contracts_common::contract_querier::ContractQuerier;
 use nym_mixnet_contract_common::{Interval, MixNodeBond, NymNodeBond};
 use nym_performance_contract_common::{EpochId, NodeId};
-use serde::de::DeserializeOwned;
 use std::ops::Deref;
 
-pub(crate) trait MixnetContractQuerier {
-    #[allow(dead_code)]
-    fn query_mixnet_contract<T: DeserializeOwned>(
-        &self,
-        address: impl Into<String>,
-        msg: &nym_mixnet_contract_common::QueryMsg,
-    ) -> StdResult<T>;
-
-    fn query_mixnet_contract_storage(
-        &self,
-        address: impl Into<String>,
-        key: impl Into<Binary>,
-    ) -> StdResult<Option<Vec<u8>>>;
-
-    fn query_mixnet_contract_storage_value<T: DeserializeOwned>(
-        &self,
-        address: impl Into<String>,
-        key: impl Into<Binary>,
-    ) -> StdResult<Option<T>> {
-        match self.query_mixnet_contract_storage(address, key)? {
-            None => Ok(None),
-            Some(value) => Ok(Some(from_json(&value)?)),
-        }
-    }
-
+pub(crate) trait MixnetContractQuerier: ContractQuerier {
     fn query_current_mixnet_interval(&self, address: impl Into<String>) -> StdResult<Interval> {
-        self.query_mixnet_contract_storage_value(address, b"ci")?
+        self.query_contract_storage_value(address, b"ci")?
             .ok_or(StdError::not_found(
                 "unable to retrieve interval information from the mixnet contract storage",
             ))
@@ -76,7 +52,7 @@ pub(crate) trait MixnetContractQuerier {
         );
         let storage_key = path.deref();
 
-        self.query_mixnet_contract_storage_value(address, storage_key)
+        self.query_contract_storage_value(address, storage_key)
     }
 
     fn query_mixnode_bond(
@@ -92,27 +68,8 @@ pub(crate) trait MixnetContractQuerier {
         );
         let storage_key = path.deref();
 
-        self.query_mixnet_contract_storage_value(address, storage_key)
+        self.query_contract_storage_value(address, storage_key)
     }
 }
 
-impl<C> MixnetContractQuerier for QuerierWrapper<'_, C>
-where
-    C: CustomQuery,
-{
-    fn query_mixnet_contract<T: DeserializeOwned>(
-        &self,
-        address: impl Into<String>,
-        msg: &nym_mixnet_contract_common::QueryMsg,
-    ) -> StdResult<T> {
-        self.query_wasm_smart(address, msg)
-    }
-
-    fn query_mixnet_contract_storage(
-        &self,
-        address: impl Into<String>,
-        key: impl Into<Binary>,
-    ) -> StdResult<Option<Vec<u8>>> {
-        self.query_wasm_raw(address, key)
-    }
-}
+impl<T> MixnetContractQuerier for T where T: ContractQuerier {}

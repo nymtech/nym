@@ -69,7 +69,7 @@ cargo Profile:      release
 
 -  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.  
 
-- We ask operators - especially of Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content). 
+- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content). 
 
 ### Features
 
@@ -87,7 +87,7 @@ cargo Profile:      release
 
 - [dkg epoch dealers query](https://github.com/nymtech/nym/pull/5899)
 
-- [dkg snapshot epoch](https://github.com/nymtech/nym/pull/5900): In order to determine if singer quorum has been down at particular height, we need to know with certainty the dkg epoch id corresponding to given block height. This PR makes it possible. Every time epoch state is changed (due to DKG progress), snapshot is saved and can be queried. This doesn't work for past data, but given mainnet has only had a single DKG instance, that's not an issue.
+- [dkg snapshot epoch](https://github.com/nymtech/nym/pull/5900): In order to determine if signer quorum has been down at particular height, we need to know with certainty the dkg epoch id corresponding to given block height. This PR makes it possible. Every time epoch state is changed (due to DKG progress), snapshot is saved and can be queried. This doesn't work for past data, but given mainnet has only had a single DKG instance, that's not an issue.
 
 - [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905): 
 

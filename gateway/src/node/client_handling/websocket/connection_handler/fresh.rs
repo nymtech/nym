@@ -921,13 +921,17 @@ impl<R, S> FreshHandler<R, S> {
             span.set_parent(remote_context);
             Some(span)
         } else {
+            warn!("COULDN'T FIND TRACE_ID");
             None
         };
 
         // Probably a nicer way to do this but for now just match
         let _guard = match &span {
             Some(s) => Some(s.enter()),
-            None => None,
+            None => {
+                warn!("COULDN'T ENTER SPAN");
+                None
+            }
         };
 
         // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`

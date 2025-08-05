@@ -154,6 +154,7 @@ pub(crate) enum Commands {
 
     /// Test local tracing for instrumentation and
     /// TraceID aligmnet
+    // TODO this needs to just start and then wait for the shutdown signal - grab from run()
     TestTracing,
 }
 

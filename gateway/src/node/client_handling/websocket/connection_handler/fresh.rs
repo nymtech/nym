@@ -33,6 +33,7 @@ use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use opentelemetry::trace::TraceContextExt;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
 use std::net::SocketAddr;
@@ -43,6 +44,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::{debug, error, info, info_span, instrument, warn};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -909,12 +911,15 @@ impl<R, S> FreshHandler<R, S> {
                     Default::default(),
                 );
 
-                use opentelemetry::trace::TraceContextExt;
                 let remote_context =
                     opentelemetry::Context::current().with_remote_span_context(span_context);
 
-                let _context_guard = remote_context.attach();
-                let span = info_span!("authenticate_v2"); // this should Just Work and inherit the trace_id
+                let _context_guard = remote_context.clone().attach();
+                let span = info_span!(
+                    "authenticate_v2",
+                    trace_id = %trace_id
+                );
+                span.set_parent(remote_context.clone());
 
                 Some(span)
             } else {

@@ -1,7 +1,9 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::signable::SignedMessage;
 use cosmrs::AccountId;
+use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::utils::try_deserialize_g1_projective;
@@ -12,14 +14,13 @@ use nym_credentials_interface::{
     VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_signature;
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use thiserror::Error;
-use time::Date;
+use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -541,74 +542,6 @@ pub struct CommitedDeposit {
     pub merkle_index: usize,
 }
 
-//
-//
-
-// make sure only our types can implement this trait (to ensure infallible serialisation)
-mod private {
-    use crate::ecash::models::{
-        IssuedTicketbooksChallengeCommitmentRequestBody,
-        IssuedTicketbooksChallengeCommitmentResponseBody, IssuedTicketbooksDataRequestBody,
-        IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponseBody,
-    };
-
-    pub trait Sealed {}
-
-    // requests
-    impl Sealed for IssuedTicketbooksChallengeCommitmentRequestBody {}
-    impl Sealed for IssuedTicketbooksDataRequestBody {}
-
-    // responses
-    impl Sealed for IssuedTicketbooksChallengeCommitmentResponseBody {}
-    impl Sealed for IssuedTicketbooksForResponseBody {}
-    impl Sealed for IssuedTicketbooksDataResponseBody {}
-}
-
-// the trait is not public as it's only defined on types that are guaranteed to not panic when serialised
-pub trait SignableMessageBody: Serialize + private::Sealed {
-    fn sign(self, key: &ed25519::PrivateKey) -> SignedMessage<Self>
-    where
-        Self: Sized,
-    {
-        let signature = key.sign(self.plaintext());
-        SignedMessage {
-            body: self,
-            signature,
-        }
-    }
-
-    fn plaintext(&self) -> Vec<u8> {
-        #[allow(clippy::unwrap_used)]
-        // SAFETY: all types that implement this trait have valid serialisations
-        serde_json::to_vec(&self).unwrap()
-    }
-}
-
-impl<T> SignableMessageBody for T where T: Serialize + private::Sealed {}
-
-#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SignedMessage<T> {
-    pub body: T,
-    #[schema(value_type = String)]
-    #[serde(with = "bs58_ed25519_signature")]
-    pub signature: ed25519::Signature,
-}
-
-impl<T> SignedMessage<T> {
-    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool
-    where
-        T: SignableMessageBody,
-    {
-        let plaintext = self.body.plaintext();
-        if plaintext.is_empty() {
-            return false;
-        }
-
-        pub_key.verify(&plaintext, &self.signature).is_ok()
-    }
-}
-
 pub type IssuedTicketbooksDataRequest = SignedMessage<IssuedTicketbooksDataRequestBody>;
 pub type IssuedTicketbooksChallengeCommitmentRequest =
     SignedMessage<IssuedTicketbooksChallengeCommitmentRequestBody>;
@@ -824,6 +757,31 @@ pub struct IssuedTicketbooksForCount {
     pub issuance_date: Date,
 
     pub count: u32,
+}
+
+pub type EcashSignerStatusResponse = SignedMessage<EcashSignerStatusResponseBody>;
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+// includes all pre-requisites for successful (assuming valid request) `/blind-sign`
+pub struct EcashSignerStatusResponseBody {
+    #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
+    pub current_time: OffsetDateTime,
+
+    /// Current, perceived, dkg epoch id
+    pub dkg_ecash_epoch_id: EpochId,
+
+    /// Flag indicating whether the operator has explicitly disabled signer functionalities in the api
+    pub signer_disabled: bool,
+
+    /// Flag indicating whether this api thinks it's a valid ecash signer for the current epoch
+    pub is_ecash_signer: bool,
+
+    /// Flag indicating whether this api thinks it has valid signing keys.
+    /// It might be a valid signer that's not disabled, but the keys might have accidentally been
+    /// removed due to invalid data migration.
+    pub has_signing_keys: bool,
 }
 
 #[cfg(test)]

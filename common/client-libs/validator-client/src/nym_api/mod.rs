@@ -6,16 +6,18 @@ use crate::nym_api::routes::{ecash, CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
-    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeCommitmentRequest, IssuedTicketbooksChallengeCommitmentResponse,
-    IssuedTicketbooksDataRequest, IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse,
-    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashSignerStatusResponse,
+    EcashTicketVerificationResponse, IssuedTicketbooksChallengeCommitmentRequest,
+    IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequest,
+    IssuedTicketbooksDataResponse, IssuedTicketbooksForCountResponse, IssuedTicketbooksForResponse,
+    VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
-    AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainStatusResponse,
-    KeyRotationInfoResponse, LegacyDescribedMixNode, NodePerformanceResponse, NodeRefreshBody,
-    NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
+    AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
+    ChainStatusResponse, KeyRotationInfoResponse, LegacyDescribedMixNode, NodePerformanceResponse,
+    NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
+    SignerInformationResponse,
 };
 use nym_api_requests::nym_nodes::{
     NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponseV1,
@@ -1329,6 +1331,22 @@ pub trait NymApiClientExt: ApiClient {
             NO_PARAMS,
         )
         .await
+    }
+
+    async fn get_chain_blocks_status(&self) -> Result<ChainBlocksStatusResponse, NymAPIError> {
+        self.get_json("/v1/network/chain-blocks-status", NO_PARAMS)
+            .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_signer_status(&self) -> Result<EcashSignerStatusResponse, NymAPIError> {
+        self.get_json("/v1/ecash/signer-status", NO_PARAMS).await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_signer_information(&self) -> Result<SignerInformationResponse, NymAPIError> {
+        self.get_json("/v1/api-status/signer-information", NO_PARAMS)
+            .await
     }
 
     #[instrument(level = "debug", skip(self))]

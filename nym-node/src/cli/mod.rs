@@ -12,6 +12,7 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::future::Future;
 use std::sync::OnceLock;
+use tracing::instrument;
 
 pub(crate) mod commands;
 mod helpers;
@@ -54,6 +55,7 @@ impl Cli {
             .block_on(fut))
     }
 
+    #[instrument]
     pub(crate) fn execute(self) -> anyhow::Result<()> {
         match self.command {
             // Sync commands get logger w. no OTEL
@@ -89,6 +91,10 @@ impl Cli {
             Commands::UnsafeResetSphinxKeys(args) => Self::execute_async(async move {
                 setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
                 reset_sphinx_keys::execute(args).await
+            })??,
+            Commands::TestTracing => Self::execute_async(async move {
+                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+                Ok::<(), crate::error::NymNodeError>(())
             })??,
         }
         Ok(())
@@ -145,6 +151,10 @@ pub(crate) enum Commands {
     /// was running on this machine in mixnet mode
     #[clap(hide = true)]
     TestThroughput(test_throughput::Args),
+
+    /// Test local tracing for instrumentation and
+    /// TraceID aligmnet
+    TestTracing,
 }
 
 #[cfg(test)]

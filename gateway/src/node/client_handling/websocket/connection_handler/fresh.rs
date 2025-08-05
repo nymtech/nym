@@ -896,6 +896,7 @@ impl<R, S> FreshHandler<R, S> {
         {
             let trace_id =
                 opentelemetry::trace::TraceId::from_hex(trace_id).expect("Invalid trace ID format");
+            warn!("🫂TraceID: {trace_id}🫂");
 
             // We don't need to try and preserve the SpanID, just the TraceID (right?) so
             // just making a new SpanID for the moment

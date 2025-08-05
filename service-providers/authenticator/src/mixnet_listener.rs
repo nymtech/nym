@@ -691,38 +691,21 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let client_id = self
-            .ecash_verifier
-            .storage()
-            .get_wireguard_peer(&msg.pub_key().to_string())
-            .await?
-            .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
-            .client_id;
-        let client_bandwidth = self
-            .peer_manager
-            .query_client_bandwidth(msg.pub_key())
-            .await?
-            .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?;
-
         let available_bandwidth = if self.received_retry(msg.as_ref()) {
             // don't process the credential and just return the current bandwidth
-            client_bandwidth.available().await
+            self.peer_manager
+                .query_bandwidth(msg.pub_key())
+                .await?
+                .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
         } else {
-            let credential = msg.credential();
-            let mut verifier = CredentialVerifier::new(
-                CredentialSpendingRequest::new(credential.clone()),
-                self.ecash_verifier.clone(),
-                BandwidthStorageManager::new(
-                    self.ecash_verifier.storage(),
-                    client_bandwidth,
-                    client_id,
-                    BandwidthFlushingBehaviourConfig::default(),
-                    true,
-                ),
-            );
+            let mut verifier = self
+                .peer_manager
+                .query_verifier(msg.pub_key(), msg.credential())
+                .await?
+                .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?;
             let available_bandwidth = verifier.verify().await?;
             self.seen_credential_cache
-                .insert_credential(credential, msg.pub_key());
+                .insert_credential(msg.credential(), msg.pub_key());
             available_bandwidth
         };
 

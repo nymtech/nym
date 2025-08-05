@@ -9,9 +9,11 @@ use defguard_wireguard_rs::{
 use futures::channel::oneshot;
 use log::info;
 use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
-    ClientBandwidth,
+    bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
+    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
+use nym_credentials_interface::CredentialSpendingData;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
@@ -40,6 +42,11 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
     },
+    GetVerifier {
+        key: Key,
+        credential: Box<CredentialSpendingData>,
+        response_tx: oneshot::Sender<QueryVerifierControlResponse>,
+    },
 }
 
 pub struct AddPeerControlResponse {
@@ -59,8 +66,13 @@ pub struct GetClientBandwidthControlResponse {
     pub client_bandwidth: Option<ClientBandwidth>,
 }
 
+pub struct QueryVerifierControlResponse {
+    pub success: bool,
+    pub verifier: Option<CredentialVerifier>,
+}
+
 pub struct PeerController {
-    storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+    ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
 
     // we have "all" metrics of a node, but they're behind a single Arc pointer,
     // so the overhead is minimal
@@ -79,7 +91,7 @@ pub struct PeerController {
 impl PeerController {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+        ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         metrics: NymNodeMetrics,
         wg_api: Arc<dyn WireguardInterfaceApi + Send + Sync>,
         initial_host_information: Host,
@@ -114,7 +126,7 @@ impl PeerController {
             .collect();
 
         PeerController {
-            storage,
+            ecash_verifier,
             wg_api,
             host_information,
             bw_storage_managers,
@@ -128,7 +140,10 @@ impl PeerController {
 
     // Function that should be used for peer removal, to handle both storage and kernel interaction
     pub async fn remove_peer(&mut self, key: &Key) -> Result<(), Error> {
-        self.storage.remove_wireguard_peer(&key.to_string()).await?;
+        self.ecash_verifier
+            .storage()
+            .remove_wireguard_peer(&key.to_string())
+            .await?;
         self.bw_storage_managers.remove(key);
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
@@ -164,11 +179,8 @@ impl PeerController {
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<(), Error> {
         self.wg_api.configure_peer(peer)?;
         let bandwidth_storage_manager = Arc::new(RwLock::new(
-            Self::generate_bandwidth_manager(
-                dyn_clone::clone_box(&*self.storage),
-                &peer.public_key,
-            )
-            .await?,
+            Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
+                .await?,
         ));
         let cached_peer_manager = CachedPeerManager::new(peer);
         let mut handle = PeerHandle::new(
@@ -195,7 +207,8 @@ impl PeerController {
 
     async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>, Error> {
         Ok(self
-            .storage
+            .ecash_verifier
+            .storage()
             .get_wireguard_peer(&key.to_string())
             .await?
             .map(Peer::try_from)
@@ -208,6 +221,35 @@ impl PeerController {
         } else {
             None
         }
+    }
+
+    async fn handle_query_verifier(
+        &self,
+        key: &Key,
+        credential: CredentialSpendingData,
+    ) -> Result<CredentialVerifier, Error> {
+        let storage = self.ecash_verifier.storage();
+        let client_id = storage
+            .get_wireguard_peer(&key.to_string())
+            .await?
+            .ok_or(Error::MissingClientBandwidthEntry)?
+            .client_id;
+        let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) else {
+            return Err(Error::MissingClientBandwidthEntry);
+        };
+        let client_bandwidth = bandwidth_storage_manager.read().await.client_bandwidth();
+        let verifier = CredentialVerifier::new(
+            CredentialSpendingRequest::new(credential),
+            self.ecash_verifier.clone(),
+            BandwidthStorageManager::new(
+                storage,
+                client_bandwidth,
+                client_id,
+                BandwidthFlushingBehaviourConfig::default(),
+                true,
+            ),
+        );
+        Ok(verifier)
     }
 
     async fn update_metrics(&self, new_host: &Host) {
@@ -327,6 +369,14 @@ impl PeerController {
                             let client_bandwidth = self.handle_get_client_bandwidth(&key).await;
                             response_tx.send(GetClientBandwidthControlResponse { client_bandwidth }).ok();
                         }
+                        Some(PeerControlRequest::GetVerifier { key, credential, response_tx }) => {
+                            let ret = self.handle_query_verifier(&key, *credential).await;
+                            if let Ok(verifier) = ret {
+                                response_tx.send(QueryVerifierControlResponse { success: true, verifier: Some(verifier) }).ok();
+                            } else {
+                                response_tx.send(QueryVerifierControlResponse { success: false, verifier: None }).ok();
+                            }
+                        }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");
                             break;
@@ -433,13 +483,18 @@ pub fn start_controller(
     Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
     nym_task::TaskManager,
 ) {
+    use std::sync::Arc;
+
     let storage = Arc::new(RwLock::new(
         nym_gateway_storage::traits::mock::MockGatewayStorage::default(),
+    ));
+    let ecash_manager = Arc::new(nym_credential_verification::ecash::MockEcashManager::new(
+        Box::new(storage.clone()),
     ));
     let wg_api = Arc::new(MockWgApi::default());
     let task_manager = nym_task::TaskManager::default();
     let mut peer_controller = PeerController::new(
-        Box::new(storage.clone()),
+        ecash_manager,
         Default::default(),
         wg_api,
         Default::default(),

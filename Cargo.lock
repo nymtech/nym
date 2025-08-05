@@ -5602,14 +5602,11 @@ name = "nym-credential-proxy"
 version = "0.1.7"
 dependencies = [
  "anyhow",
- "async-trait",
  "axum 0.7.9",
  "bip39",
  "bs58",
  "cfg-if",
  "clap",
- "colored",
- "dotenvy",
  "futures",
  "humantime",
  "nym-bin-common 0.6.0",
@@ -5635,7 +5632,6 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "tower 0.5.2",
  "tower-http 0.5.2",
  "tracing",
  "url",

@@ -36,8 +36,6 @@ pub struct FullBlindedShares {
 
 #[derive(FromRow)]
 pub struct RawExpirationDateSignatures {
-    #[allow(dead_code)]
-    pub epoch_id: u32,
     pub serialised_signatures: Vec<u8>,
     pub serialization_revision: u8,
 }

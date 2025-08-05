@@ -6,6 +6,7 @@ use tracing::{info, warn};
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, Layer};
 
 // Signoz
 use opentelemetry::trace::TracerProvider;
@@ -20,6 +21,7 @@ use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, 
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 use tracing_core::Level;
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
+use tracing_subscriber::fmt::format::FmtSpan;
 
 pub(crate) fn granual_filtered_env() -> anyhow::Result<tracing_subscriber::filter::EnvFilter> {
     fn directive_checked(directive: impl Into<String>) -> anyhow::Result<Directive> {
@@ -48,8 +50,15 @@ pub(crate) fn build_tracing_logger() -> anyhow::Result<impl SubscriberExt> {
     let meter_provider = init_meter_provider()?;
     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
 
+    let fmt_layer = fmt::layer()
+        .json()
+        .with_writer(std::io::stderr)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_span_list(false)
+        .with_current_span(true);
+
     let registry = tracing_subscriber::registry()
-        .with(default_tracing_fmt_layer(std::io::stderr))
+        .with(fmt_layer)
         .with(granual_filtered_env()?)
         .with(tracing_subscriber::filter::LevelFilter::from_level(
             Level::DEBUG,

@@ -14,7 +14,6 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
 use opentelemetry::trace::TraceContextExt;
 use serde::{Deserialize, Serialize};
-use std::panic;
 use std::str::FromStr;
 use tracing::{instrument, warn};
 use tungstenite::Message;

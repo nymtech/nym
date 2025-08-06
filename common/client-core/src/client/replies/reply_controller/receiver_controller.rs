@@ -155,8 +155,9 @@ where
         data: Vec<Arc<PendingAcknowledgement>>,
     ) {
         trace!("re-inserting pending retransmissions for {recipient}");
-        // the underlying entry MUST exist as we've just got data from there
+        // SAFETY: the underlying entry MUST exist as we've just got data from there
         // and we hold a mut reference
+        #[allow(clippy::expect_used)]
         let map_entry = &mut self
             .surb_senders
             .get_mut(recipient)
@@ -429,6 +430,7 @@ where
             .pop_at_most_n_next_messages_at_random(amount)
     }
 
+    #[allow(clippy::panic)]
     async fn try_clear_pending_queue(&mut self, target: AnonymousSenderTag) {
         trace!("trying to clear pending queue");
         let available_surbs = self.surbs_storage.available_surbs(&target);

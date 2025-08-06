@@ -298,29 +298,44 @@ where
         let mut sent_notification_listener = self.sent_notification_listener;
         let mut action_controller = self.action_controller;
 
-        spawn_future(async move {
-            acknowledgement_listener.run().await;
-            debug!("The acknowledgement listener has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                acknowledgement_listener.run().await;
+                debug!("The acknowledgement listener has finished execution!");
+            },
+            "AcknowledgementController::AcknowledgementListener"
+        );
 
-        spawn_future(async move {
-            input_message_listener.run().await;
-            debug!("The input listener has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                input_message_listener.run().await;
+                debug!("The input listener has finished execution!");
+            },
+            "AcknowledgementController::InputMessageListener"
+        );
 
-        spawn_future(async move {
-            retransmission_request_listener.run(packet_type).await;
-            debug!("The retransmission request listener has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                retransmission_request_listener.run(packet_type).await;
+                debug!("The retransmission request listener has finished execution!");
+            },
+            "AcknowledgementController::RetransmissionRequestListener"
+        );
 
-        spawn_future(async move {
-            sent_notification_listener.run().await;
-            debug!("The sent notification listener has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                sent_notification_listener.run().await;
+                debug!("The sent notification listener has finished execution!");
+            },
+            "AcknowledgementController::SentNotificationListener"
+        );
 
-        spawn_future(async move {
-            action_controller.run().await;
-            debug!("The controller has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                action_controller.run().await;
+                debug!("The controller has finished execution!");
+            },
+            "AcknowledgementController::ActionController"
+        );
     }
 }

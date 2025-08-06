@@ -56,7 +56,7 @@ impl Cli {
     pub(crate) fn execute(self) -> anyhow::Result<()> {
         // NOTE: `test_throughput` sets up its own logger as it has to include additional layers
         if !matches!(self.command, Commands::TestThroughput(..)) {
-            setup_tracing_logger()?;
+            crate::logging::setup_tracing_logger()?;
         }
 
         match self.command {

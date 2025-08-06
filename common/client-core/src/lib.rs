@@ -25,6 +25,7 @@ where
     wasm_bindgen_futures::spawn_local(future);
 }
 
+#[track_caller]
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn spawn_future<F>(future: F)
 where

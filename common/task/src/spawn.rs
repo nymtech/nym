@@ -10,6 +10,7 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[track_caller]
 pub fn spawn<F>(future: F)
 where
     F: Future + Send + 'static,
@@ -18,6 +19,7 @@ where
     tokio::spawn(future);
 }
 
+#[track_caller]
 pub fn spawn_with_report_error<F, T, E>(future: F, mut shutdown: TaskClient)
 where
     F: Future<Output = Result<T, E>> + Send + 'static,

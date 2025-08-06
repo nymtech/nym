@@ -47,7 +47,53 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.14-feta`
 
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.14-feta)
+- [`nym-node`](nodes/nym-node.mdx) version `1.16.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-08-05T09:14:30.322593213Z
+Build Version:      1.16.0
+Commit SHA:         7f97f13799342f864e1b106e8cafc9f6d6c24c0f
+Commit Date:        2025-07-24T11:00:58.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+-  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.  
+
+- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content). 
+
+### Features
+
+- [Allow PG database backend](https://github.com/nymtech/nym/pull/5880):
+    - Added PostgreSQL database support alongside existing SQLite through Cargo feature flags
+    - Implemented runtime query conversion from SQLite `?` placeholders to PostgreSQL `$1`, `$2`, ... format
+    - Single codebase now supports both databases without query duplication
+
+- [Support mnemonic in the NS agent](https://github.com/nymtech/nym/pull/5883)
+
+- [`sqlx-pool-guard`: allocate more memory on windows](https://github.com/nymtech/nym/pull/5896):
+    - Allocate 1.5x more memory than reported by the system to provide a safety margin
+    - Increase number of retry attempts to 5
+    
+
+- [dkg epoch dealers query](https://github.com/nymtech/nym/pull/5899)
+
+- [dkg snapshot epoch](https://github.com/nymtech/nym/pull/5900): In order to determine if signer quorum has been down at particular height, we need to know with certainty the dkg epoch id corresponding to given block height. This PR makes it possible. Every time epoch state is changed (due to DKG progress), snapshot is saved and can be queried. This doesn't work for past data, but given mainnet has only had a single DKG instance, that's not an issue.
+
+- [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905): 
+
+### Refactors & Maintenance
+
+- [Nym node tokio console](https://github.com/nymtech/nym/pull/5909)
 
 ## `v2025.13-emmental`
 

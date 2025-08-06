@@ -280,17 +280,33 @@ where
             }
         };
 
-        if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            if !self.task_client.is_shutdown_poll() {
-                tracing::error!("Failed to send: {err}");
+        let sending_res = tokio::select! {
+            biased;
+            _ = self.task_client.recv() => {
+                trace!("received shutdown signal while attempting to send mix message");
+                return
             }
-        } else {
-            let event = if fragment_id.is_some() {
-                PacketStatisticsEvent::RealPacketSent(packet_size)
-            } else {
-                PacketStatisticsEvent::CoverPacketSent(packet_size)
-            };
-            self.stats_tx.report(event.into());
+            sending_res = self.mix_tx.send(vec![next_message]) => {
+                sending_res
+            }
+        };
+
+        match sending_res {
+            Err(_) => {
+                if !self.task_client.is_shutdown_poll() {
+                    tracing::error!(
+                        "failed to send mixnet packet due to closed channel (outside of shutdown!)"
+                    );
+                }
+            }
+            Ok(_) => {
+                let event = if fragment_id.is_some() {
+                    PacketStatisticsEvent::RealPacketSent(packet_size)
+                } else {
+                    PacketStatisticsEvent::CoverPacketSent(packet_size)
+                };
+                self.stats_tx.report(event.into());
+            }
         }
 
         // notify ack controller about sending our message only after we actually managed to push it

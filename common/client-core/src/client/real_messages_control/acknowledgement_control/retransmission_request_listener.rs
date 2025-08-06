@@ -179,6 +179,11 @@ where
 
         while !self.task_client.is_shutdown() {
             tokio::select! {
+                biased;
+                 _ = self.task_client.recv() => {
+                    tracing::trace!("RetransmissionRequestListener: Received shutdown");
+                    break;
+                }
                 timed_out_ack = self.request_receiver.next() => match timed_out_ack {
                     Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack, packet_type).await,
                     None => {
@@ -186,9 +191,7 @@ where
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
-                    tracing::trace!("RetransmissionRequestListener: Received shutdown");
-                }
+
             }
         }
         self.task_client.recv_timeout().await;

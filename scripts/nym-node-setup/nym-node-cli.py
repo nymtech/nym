@@ -72,7 +72,7 @@ class NodeSetupCLI:
                 "env_vars_install_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/nym-node-setup/setup-env-vars.sh",
                 "node_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-install.sh",
                 "service_config_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh",
-                "nginx_proxy_wss_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh",
+                "nginx_proxy_wss_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-nginx-proxy-wss.sh",
                 "landing_page_html": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/landing-page.html"
 
                 }

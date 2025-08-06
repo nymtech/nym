@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # Prompt user to enter env vars & save them to env.sh
+echo "Setting up enviromental variables to ./env.sh"
+
 read -p "Enter latest binary URL: " LATEST_BINARY && \
-read -p "Enter hostname: " HOSTNAME && \
-read -p "Enter location (country code or name): " LOCATION && \
-read -p "Enter email: " EMAIL && \
-read -p "Enter node moniker: " MONIKER && \
-read -p "Enter node description: " DESCRIPTION && \
+	read -p "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME && \
+read -p "Enter node location (country code or name): " LOCATION && \
+read -p "Enter your email: " EMAIL && \
+read -p "Enter node public moniker (name in the explorer and NymVPN app): " MONIKER && \
+read -p "Enter node public description: " DESCRIPTION && \
 
 set -e
 

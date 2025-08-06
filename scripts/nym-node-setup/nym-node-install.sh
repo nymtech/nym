@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Create binaries dir & download the binary
+echo "Creating a directory ~/nym-binaries and downloading latest binary of nym-node"
 mkdir $HOME/nym-binaries
 
 set -e
@@ -59,7 +60,6 @@ elif [[ "$MODE" == "exit-gateway" ]]; then
     exit 1
   fi
 
-
   "$NYM_NODE" run \
     --mode exit-gateway \
     --public-ips "$PUBLIC_IP" \
@@ -71,8 +71,24 @@ elif [[ "$MODE" == "exit-gateway" ]]; then
     -w \
     --init-only
 
+
 else
   echo "ERROR: Unsupported MODE: '$MODE'"
   echo "Valid values: mixnode, entry-gateway, exit-gateway"
   exit 1
 fi
+
+echo "nym-node installed succesfully! All configuration is stored at ~/.nym/nym-nodes/default-nym-node/"
+
+# Setup description.toml
+
+cat > $HOME/.nym/nym-nodes/default-nym-node/data/description.toml <<EOF
+moniker = "$MONIKER"
+website = "$HOSTNAME"
+security_contact = "$EMAIL"
+details = "$DESCRIPTION"
+EOF
+
+echo "Node description saved."
+cat $HOME/.nym/nym-nodes/default-nym-node/data/description.toml
+echo "You can always change it later on by editing ~/.nym/nym-nodes/default-nym-node/data/description.toml and restarting the node."

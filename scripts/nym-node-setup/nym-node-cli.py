@@ -14,8 +14,26 @@ class NodeSetupCLI:
         self.node_install_sh = self.fetch_script("node_install_sh")
 
     def print_welcome_message(self):
-        msg = "Welcome to NymNodeCLI, an interactive tool to download, install, setup and run nym-node."
-        print(msg)
+        msg = """
+        \nWelcome to NymNodeCLI, an interactive tool to download, install, setup and run nym-node. \
+        \n\n================================= \
+        \nBefore you begin, make sure that: \
+        \n================================= \
+        \n- You run this setup on Debian based Linux (ie Ubuntu) \
+        \n- You meet minimal requirements: https://nym.com/docs/operators/nodes \
+        \n- You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms \
+        \n- You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation \
+        \n- In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated \
+        \n\nTo confirm and continue, write "YES" and press enter: \
+        """
+        confirmation = input(msg)
+        if confirmation.upper() == "YES":
+            pass
+        else:
+            print("Without confirming the points above, we cannot continue.")
+            exit(1)
+
+
 
 # Build the command
 # nym_node_path = os.path.expanduser("~/nym-binaries/nym-node")
@@ -51,6 +69,7 @@ class NodeSetupCLI:
                 "prereqs_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-prereqs-install.sh",
                 "env_vars_install_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/nym-node-setup/setup-env-vars.sh",
                 "node_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-install.sh",
+                "service_config_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh"
                 }
         return scripts_urls[script_init_name]
 
@@ -75,3 +94,6 @@ class NodeSetupCLI:
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()
+    cli.run_script(self.prereqs_install_sh)
+    cli.run_script(self.env_vars_install_sh)
+    cli.run_script(self.node_install_sh)

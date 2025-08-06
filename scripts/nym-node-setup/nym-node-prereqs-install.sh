@@ -1,14 +1,18 @@
 #!/bin/bash
 
-
 # Update, upgrade & install dependencies
+echo "Installing needed prerequisities"
+
 apt update  -y && apt --fix-broken install
 apt upgrade
 apt -y install apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git ntp ntpdate neovim tree tmux tig nginx -y
 apt install ufw --fix-missing
 
 
+
 # Enable & setup firewall
+echo "Setting up firewall using ufw"
+
 ufw enable
 ufw allow 22/tcp    # SSH - you're in control of these ports
 ufw allow 80/tcp    # HTTP

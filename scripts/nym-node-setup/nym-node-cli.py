@@ -12,6 +12,8 @@ class NodeSetupCLI:
         self.prereqs_install_sh = self.fetch_script("prereqs_install_sh")
         self.env_vars_install_sh = self.fetch_script("env_vars_install_sh")
         self.node_install_sh = self.fetch_script("node_install_sh")
+        self.landing_page_html = self._check_gwx_mode() and self.fetch_script("landing_page_html")
+        self.nginx_proxy_wss_sh = self._check_gwx_mode() and self.fetch_script("nginx_proxy_wss_sh")
 
     def print_welcome_message(self):
         msg = """
@@ -69,7 +71,10 @@ class NodeSetupCLI:
                 "prereqs_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-prereqs-install.sh",
                 "env_vars_install_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/nym-node-setup/setup-env-vars.sh",
                 "node_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-install.sh",
-                "service_config_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh"
+                "service_config_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh",
+                "nginx_proxy_wss_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh",
+                "landing_page_html": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/landing-page.html"
+
                 }
         return scripts_urls[script_init_name]
 
@@ -83,6 +88,13 @@ class NodeSetupCLI:
     def run_script(self, script):
         subprocess.run(["bash", "-"], input=script, text=True)
 
+
+    def _check_gwx_mode(self):
+        if self.mode == "exit-gateway":
+            return True
+        else:
+            return False
+
     def run_nym_node(self):
         print(f"Running nym-node in mode: {self.mode}")
         subprocess.run([
@@ -94,6 +106,6 @@ class NodeSetupCLI:
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()
-    cli.run_script(self.prereqs_install_sh)
-    cli.run_script(self.env_vars_install_sh)
-    cli.run_script(self.node_install_sh)
+    #cli.run_script(self.prereqs_install_sh)
+    #cli.run_script(self.env_vars_install_sh)
+    #cli.run_script(self.node_install_sh)

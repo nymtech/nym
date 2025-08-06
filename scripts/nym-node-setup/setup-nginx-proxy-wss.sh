@@ -1,7 +1,7 @@
 echo "Starting nginx configuration for landing page, reverse proxy and web secure socket"
 echo "Creating a landing page stored at /var/www/'$HOSTNAME'"
 
-mkdir -p /var/www/"${HOSTNAME}" && echo "Testing landing page string" > /var/www/"${HOSTNAME}"/index.html && nvim /var/www/"${HOSTNAME}"/index.html
+mkdir -p /var/www/"${HOSTNAME}" && cp landing-page.html /var/www/"${HOSTNAME}"/index.html
 
 systemctl status nginx
 unlink /etc/nginx/sites-enabled/default

@@ -60,6 +60,11 @@ pub(crate) trait CacheItemProvider {
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error>;
 }
 
+// Generics explanation:
+// T: the actual type held in the cache
+// E: Error type associated with refresh failure
+// S: data type retrieved during update operation. it must be convertible into T
+// (so that initial state could be established or when no `custom_fn` is set)
 impl<T, E, S> CacheRefresher<T, E, S>
 where
     E: std::error::Error,
@@ -107,6 +112,8 @@ where
         }
     }
 
+    /// Rather than performing default behaviour of overwriting all existing values in the cache,
+    /// provide a custom update function that will define the update behaviour.
     #[must_use]
     pub(crate) fn with_update_fn(
         mut self,
@@ -257,6 +264,26 @@ where
         S: Send + Sync + 'static,
     {
         tokio::spawn(async move { self.run(task_client).await });
+    }
+
+    pub fn start_with_delay(mut self, mut task_client: TaskClient, delay: Duration)
+    where
+        T: Send + Sync + 'static,
+        E: Send + Sync + 'static,
+        S: Send + Sync + 'static,
+    {
+        tokio::spawn(async move {
+            let sleep = tokio::time::sleep(delay);
+            tokio::select! {
+                biased;
+                _ = task_client.recv() => {
+                    trace!("{}: Received shutdown", self.name);
+                    return
+                }
+                _ = sleep => {},
+            }
+            self.run(task_client).await
+        });
     }
 
     pub fn start_with_watcher(self, task_client: TaskClient) -> CacheUpdateWatcher

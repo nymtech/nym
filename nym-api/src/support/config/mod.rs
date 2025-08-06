@@ -63,11 +63,16 @@ pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from
 pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
 // TODO: make it configurable
-pub(crate) const DEFAULT_CHAIN_STATUS_CACHE_TTL: Duration = Duration::from_secs(60);
+pub(crate) const DEFAULT_CHAIN_STATUS_CACHE_TTL: Duration = Duration::from_secs(30);
+pub(crate) const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
 
 // contract info is changed very infrequently (essentially once per release cycle)
 // so this default is more than enough
 pub(crate) const DEFAULT_CONTRACT_DETAILS_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
+
+pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
+pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY: Duration =
+    Duration::from_secs(30);
 
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
@@ -126,6 +131,9 @@ pub struct Config {
 
     pub rewarding: Rewarding,
 
+    #[serde(default)]
+    pub signers_cache: SignersCache,
+
     #[serde(alias = "coconut_signer")]
     pub ecash_signer: EcashSigner,
 
@@ -151,6 +159,7 @@ impl Config {
             describe_cache: Default::default(),
             contracts_info_cache: Default::default(),
             rewarding: Default::default(),
+            signers_cache: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
             address_cache: Default::default(),
         }
@@ -409,6 +418,44 @@ impl Default for PerformanceProviderDebug {
             contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
             max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
             max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct SignersCache {
+    pub enabled: bool,
+
+    pub debug: SignersCacheDebug,
+}
+
+impl Default for SignersCache {
+    fn default() -> Self {
+        SignersCache {
+            enabled: true,
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct SignersCacheDebug {
+    // TODO: make it into a decaying function so that if multiple signers are down,
+    // the refresh interval would decrease
+    #[serde(with = "humantime_serde")]
+    pub refresh_interval: Duration,
+
+    // give it some time so that the actual api on THIS singer could start
+    // and it wouldn't self-report itself as being down
+    #[serde(with = "humantime_serde")]
+    pub refresher_start_delay: Duration,
+}
+
+impl Default for SignersCacheDebug {
+    fn default() -> Self {
+        SignersCacheDebug {
+            refresh_interval: DEFAULT_NODE_SIGNERS_CACHE_REFRESH_INTERVAL,
+            refresher_start_delay: DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY,
         }
     }
 }

@@ -1,807 +1,795 @@
 ```console
-ESC[0;33mNym Exit Policy Status:ESC[0m
-ESC[0;33m----------------------ESC[0m
-ESC[0;32mNetwork Device:ESC[0m ens3
-ESC[0;32mWireguard Interface:ESC[0m nymwg
+Nym Exit Policy Status:
+----------------------
+Network Device: eth0
+Wireguard Interface: nymwg
 
-ESC[0;33mInterface Details:ESC[0m
-12: nymwg: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
-    link/none
+Interface Details:
+87: nymwg: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/none 
 
-ESC[0;33mIP Addresses:ESC[0m
-12: nymwg: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
+IP Addresses:
+87: nymwg: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
     inet 10.1.0.1/32 brd 10.1.0.1 scope global nymwg
        valid_lft forever preferred_lft forever
-12: nymwg: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
-    inet6 fc01::1/112 scope global
+87: nymwg: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet6 fc01::1/112 scope global 
        valid_lft forever preferred_lft forever
 
-ESC[0;33mIptables Chains:ESC[0m
+Iptables Chains:
 IPv4 Chain:
 Chain NYM-EXIT (1 references)
- pkts bytes target     prot opt in     out     source               destination
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            5.188.10.0/23        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            5.188.11.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            31.132.36.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            31.184.237.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            37.9.42.0/24         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            43.229.52.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            45.9.148.0/22        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            45.43.128.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            45.142.120.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.148.112.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.148.120.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.148.127.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.173.208.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            79.110.22.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.121.39.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.193.75.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.200.12.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.200.81.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.200.82.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.200.83.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.200.164.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.216.3.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.220.163.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.200.248.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.243.90.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.243.91.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.243.93.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.234.99.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            103.99.0.0/22        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            103.215.80.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            103.239.28.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.166.96.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.207.64.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.233.0.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.239.0.0/17       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.243.192.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.247.96.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.250.192.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.250.224.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            107.182.112.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            107.190.160.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            141.136.22.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            150.129.40.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            159.174.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            162.222.128.0/21     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            162.249.20.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            163.53.247.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            166.117.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            167.74.0.0/18        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            167.160.96.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            168.64.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            168.76.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            168.129.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            169.239.152.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            170.114.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            172.98.0.0/18        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            174.136.192.0/18     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            176.121.14.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.159.97.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.159.100.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.159.107.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.14.192.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.14.193.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.14.195.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.21.8.0/22        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.39.8.0/22        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.71.0.0/22        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.77.248.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.116.172.0/23     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.116.175.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.124.56.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.129.8.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.130.36.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.130.40.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.140.53.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.143.220.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.143.222.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.143.223.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.146.168.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.165.153.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.193.90.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.244.29.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.244.30.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.244.31.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            188.247.230.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.26.25.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.31.212.0/23      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.43.175.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.43.176.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.43.184.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.161.80.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.251.231.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            193.228.91.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            194.5.97.0/24        reject-with icmp-port-unreachable
-        0     0 REJECT     0    --  *      *       0.0.0.0/0            194.5.98.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            194.5.99.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            195.182.57.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            196.45.120.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            196.61.192.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            196.196.8.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            196.199.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            197.231.208.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.20.16.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.45.64.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.56.64.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.151.64.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.151.152.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.178.64.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.183.32.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.186.25.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.187.64.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.200.0.0/21       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.200.8.0/23       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            198.206.140.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.5.152.0/23       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.34.128.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.84.64.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.89.16.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.120.163.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.166.200.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.185.192.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.196.192.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.198.160.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.212.96.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.223.0.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.241.64.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.249.64.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.253.224.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            199.254.32.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.19.38.0/23       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.44.224.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.52.96.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.87.199.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.107.208.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.126.244.0/23     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.130.16.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.147.64.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.232.0.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.144.0.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.148.192.0/18     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.151.128.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.159.45.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.172.244.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.189.71.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.189.72.0/23      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.203.0.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.233.224.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            205.236.189.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.124.104.0/21     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.195.224.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.197.165.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.209.80.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.224.160.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.226.0.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.226.32.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            206.227.64.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            207.22.192.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            207.45.224.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            207.110.64.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            207.110.128.0/18     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            209.66.128.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            216.179.128.0/17     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            217.8.116.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            217.8.117.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            223.169.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            223.254.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            42.4.0.0/14          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            68.119.232.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            68.215.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            69.244.0.0/14        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            70.111.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            70.126.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            112.78.2.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            195.20.40.0/21       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            14.160.0.0/12        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            27.2.0.0/15          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            27.106.108.128/25    reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            37.236.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.100.21.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            39.32.0.0/11         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            41.190.2.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            41.190.30.0/23       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            45.116.232.0/23      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.118.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.161.9.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            60.184.0.0/14        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            62.44.134.0/23       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            78.85.40.0/21        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            79.11.0.0/16         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            79.108.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            81.93.93.0/24        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            83.24.0.0/13         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            83.149.19.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            84.18.126.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.198.140.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.116.176.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.227.224.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.241.88.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            89.114.108.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.196.250.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            93.122.192.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            95.0.60.160/27       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            95.110.0.0/17        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            89.189.152.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            103.26.246.0/23      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            106.51.0.0/17        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            109.124.0.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            109.124.16.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            109.126.128.0/17     reject-with icmp-port-unreachable
-        0     0 REJECT     0    --  *      *       0.0.0.0/0            109.175.6.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            111.125.108.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            112.101.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.80.0.0/13        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.128.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            114.96.0.0/13        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            114.115.128.0/17     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            115.72.0.0/13        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            118.20.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.24.64.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            125.167.64.0/18      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            139.5.157.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            146.185.223.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            154.68.4.0/23        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            177.55.154.0/23      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            177.125.30.0/23      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            177.224.0.0/13       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.135.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            179.5.103.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            181.67.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            181.174.101.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            182.69.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            182.160.100.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            182.184.0.0/13       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            182.253.162.0/23     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            183.82.128.0/17      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            183.128.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.36.88.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.150.15.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            185.172.86.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            186.179.100.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            189.216.0.0/15       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            190.235.110.0/23     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            190.239.190.0/23     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.64.121.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            193.34.141.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            193.188.254.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            197.229.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            201.148.126.0/23     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            202.136.88.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            200.121.192.0/19     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            220.164.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            221.228.192.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            24.0.0.0/12          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            27.184.0.0/13        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.0.0.0/18          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            58.53.128.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            59.92.0.0/14         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            60.52.0.0/17         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            60.176.0.0/13        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            60.215.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            61.163.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            62.194.131.0/24      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            64.175.32.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            67.116.236.0/22      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            67.121.120.0/21      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            67.124.36.0/22       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            68.62.0.0/16         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            69.112.0.0/12        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            71.56.0.0/13         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            76.112.0.0/12        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            78.97.32.0/19        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            80.108.64.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            81.240.0.0/17        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            82.72.0.0/14         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            82.169.28.0/23       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            84.127.0.0/17        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            84.144.0.0/12        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            84.220.0.0/14        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.48.0.0/17         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.54.0.0/15         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.85.0.0/16         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.86.0.0/15         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.176.0.0/13        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            89.217.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.176.0.0/14        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.182.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            92.0.0.0/12          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            92.112.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            92.128.0.0/12        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            109.128.0.0/14       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            110.212.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            111.85.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            112.224.0.0/11       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.70.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.89.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.111.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.224.0.0/14       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            113.240.0.0/13       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            114.246.0.0/17       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            114.248.80.0/20      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            115.60.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            115.213.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            116.238.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            117.22.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            117.136.0.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            118.80.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            118.168.0.0/14       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            120.0.0.0/16         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            120.68.0.0/14        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            121.29.64.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            122.169.64.0/19      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            122.173.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.67.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.101.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.112.0.0/13       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.134.0.0/15       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.161.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.174.0.0/15       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.188.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            123.244.0.0/14       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            124.89.0.0/17        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            124.128.0.0/14       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            124.134.0.0/17       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            124.94.0.0/16        reject-with icmp-port-unreachable
-        0     0 REJECT     0    --  *      *       0.0.0.0/0            125.93.64.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            125.125.176.0/20     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            125.224.0.0/15       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            150.70.75.0/24       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            166.204.0.0/15       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.191.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.125.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            183.91.2.0/23        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            183.184.0.0/13       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            188.23.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            188.98.0.0/15        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            189.64.0.0/14        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            201.53.0.0/16        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            201.82.64.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            212.56.64.0/18       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            218.202.219.0/24     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            220.152.128.0/22     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            220.178.0.0/19       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            221.11.32.0/20       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            222.183.0.0/16       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            222.240.216.0/21     reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            82.165.159.132/31    reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            91.208.144.164       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            209.182.193.155      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            213.205.38.29        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            5.79.71.205          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            5.79.71.225          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.129.41        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.129.213       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.144.42        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.147.11        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.151.95        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.153.71        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.153.115       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.168.194       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.169.101       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.170.84        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.174.35        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.179.9         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.182.164       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.184.75        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.186.110       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.186.114       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.188.186       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            38.229.191.189       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            46.244.21.4          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            50.21.181.152        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            50.63.202.35         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            52.5.245.208         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            64.71.166.50         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            64.71.188.178        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            67.215.255.139       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            74.200.48.169        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            74.208.153.9         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            74.208.164.166       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            74.208.64.191        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.17.31.122         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            85.17.31.82          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.18.146        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.149.145       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.149.153       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.18.112        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.18.141        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.190.153       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.190.154       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.190.157       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.20.192        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.24.200        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.253.18        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            87.106.26.9          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            95.211.230.75        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.42.225.122       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            104.244.14.252       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            109.70.26.37         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            144.217.74.156       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            146.148.124.166      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            148.81.111.111       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            151.80.148.103       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            176.58.104.168       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.162.203.202      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.162.203.211      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.162.203.226      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            178.162.217.107      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            184.105.76.250       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            184.105.192.2        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.0.72.20          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.0.72.21          reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.169.69.25        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.42.116.41        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            192.42.119.41        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            193.166.255.170      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            193.166.255.171      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            204.11.56.48         reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            208.91.197.46        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            212.227.20.93        reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            212.227.20.116       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            212.227.20.164       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            213.165.83.176       reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            216.218.135.114      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            216.218.185.162      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            216.218.208.114      reject-with icmp-port-unreachable
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            216.66.15.109        reject-with icmp-port-unreachable
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:706
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:706
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5432
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5432
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2082:2083
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2082:2083
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:8232:8233
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:8232:8233
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1500
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1500
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:123
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:123
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1293
-        0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1293
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:11371
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:11371
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:443
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:443
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:110
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:110
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1194
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1194
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:3074
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:3074
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1521
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1521
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:2049
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:2049
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:88
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:88
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:995
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:995
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5050
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5050
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:43
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:43
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:991
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:991
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:143
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:143
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5228
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5228
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:445
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:445
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1755
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1755
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:993
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:993
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9001
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9001
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:5222:5223
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:5222:5223
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:20:21
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:20:21
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:60000:61000
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:60000:61000
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2102:2104
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2102:2104
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:873
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:873
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:27000:27050
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:27000:27050
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9418
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9418
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1863
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1863
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:8087:8088
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:8087:8088
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9030
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9030
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:4643
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:4643
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9339
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9339
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:902:904
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:902:904
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1533
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1533
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2095:2096
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2095:2096
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5190
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5190
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:749
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:749
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:4321
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:4321
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:10000
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:10000
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:53
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:53
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:19294
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:19294
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:220
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:220
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:8332:8333
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:8332:8333
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:64738
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:64738
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1723
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1723
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8443
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8443
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8888
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8888
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2086:2087
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2086:2087
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9735
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9735
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:554
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:554
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:853
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:853
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:22
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:22
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8082
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8082
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:992
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:992
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:25565
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:25565
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:3690
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:3690
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:464
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:464
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:981
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:981
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9053
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9053
-        0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:50002
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:50002
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9443
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9443
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:389
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:389
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:80:81
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:80:81
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:27017
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:27017
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:5000:5005
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:5000:5005
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1433
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1433
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8883
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8883
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:3306
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:3306
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8767
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8767
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1677
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1677
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:19638
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:19638
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1220
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1220
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:79
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:79
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:989:990
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:989:990
-    0     0 ACCEPT     6    --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:636
-    0     0 ACCEPT     17   --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:636
-    0     0 REJECT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            5.188.10.0/23        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            5.188.11.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            31.132.36.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            31.184.237.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            37.9.42.0/24         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            43.229.52.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            45.9.148.0/22        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            45.43.128.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            45.142.120.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.148.112.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.148.120.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.148.127.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.173.208.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            79.110.22.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.121.39.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.193.75.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.200.12.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.200.81.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.200.82.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.200.83.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.200.164.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.216.3.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.220.163.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.200.248.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.243.90.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.243.91.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.243.93.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.234.99.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            103.99.0.0/22        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            103.215.80.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            103.239.28.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.166.96.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.207.64.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.233.0.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.239.0.0/17       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.243.192.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.247.96.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.250.192.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.250.224.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            107.182.112.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            107.190.160.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            141.136.22.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            150.129.40.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            159.174.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            162.222.128.0/21     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            162.249.20.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            163.53.247.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            166.117.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            167.74.0.0/18        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            167.160.96.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            168.64.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            168.76.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            168.129.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            169.239.152.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            170.114.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            172.98.0.0/18        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            174.136.192.0/18     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            176.121.14.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.159.97.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.159.100.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.159.107.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.14.192.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.14.193.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.14.195.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.21.8.0/22        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.39.8.0/22        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.71.0.0/22        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.77.248.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.116.172.0/23     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.116.175.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.124.56.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.129.8.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.130.36.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.130.40.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.140.53.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.143.220.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.143.222.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.143.223.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.146.168.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.165.153.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.193.90.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.244.29.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.244.30.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.244.31.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            188.247.230.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.26.25.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.31.212.0/23      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.43.175.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.43.176.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.43.184.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.161.80.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.251.231.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            193.228.91.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            194.5.97.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            194.5.98.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            194.5.99.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            195.182.57.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            196.45.120.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            196.61.192.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            196.196.8.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            196.199.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            197.231.208.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.20.16.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.45.64.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.56.64.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.151.64.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.151.152.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.178.64.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.183.32.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.186.25.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.187.64.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.200.0.0/21       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.200.8.0/23       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            198.206.140.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.5.152.0/23       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.34.128.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.84.64.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.89.16.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.120.163.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.166.200.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.185.192.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.196.192.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.198.160.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.212.96.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.223.0.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.241.64.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.249.64.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.253.224.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            199.254.32.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.19.38.0/23       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.44.224.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.52.96.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.87.199.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.107.208.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.126.244.0/23     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.130.16.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.147.64.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.232.0.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.144.0.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.148.192.0/18     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.151.128.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.159.45.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.172.244.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.189.71.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.189.72.0/23      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.203.0.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.233.224.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            205.236.189.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.124.104.0/21     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.195.224.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.197.165.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.209.80.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.224.160.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.226.0.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.226.32.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            206.227.64.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            207.22.192.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            207.45.224.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            207.110.64.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            207.110.128.0/18     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            209.66.128.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            216.179.128.0/17     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            217.8.116.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            217.8.117.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            223.169.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            223.254.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            42.4.0.0/14          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            68.119.232.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            68.215.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            69.244.0.0/14        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            70.111.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            70.126.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            112.78.2.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            195.20.40.0/21       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            14.160.0.0/12        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            27.2.0.0/15          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            27.106.108.128/25    reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            37.236.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.100.21.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            39.32.0.0/11         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            41.190.2.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            41.190.30.0/23       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            45.116.232.0/23      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.118.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.161.9.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            60.184.0.0/14        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            62.44.134.0/23       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            78.85.40.0/21        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            79.11.0.0/16         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            79.108.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            81.93.93.0/24        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            83.24.0.0/13         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            83.149.19.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            84.18.126.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.198.140.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.116.176.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.227.224.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.241.88.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            89.114.108.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.196.250.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            93.122.192.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            95.0.60.160/27       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            95.110.0.0/17        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            89.189.152.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            103.26.246.0/23      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            106.51.0.0/17        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            109.124.0.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            109.124.16.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            109.126.128.0/17     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            109.175.6.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            111.125.108.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            112.101.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.80.0.0/13        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.128.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            114.96.0.0/13        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            114.115.128.0/17     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            115.72.0.0/13        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            118.20.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.24.64.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            125.167.64.0/18      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            139.5.157.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            146.185.223.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            154.68.4.0/23        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            177.55.154.0/23      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            177.125.30.0/23      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            177.224.0.0/13       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.135.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            179.5.103.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            181.67.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            181.174.101.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            182.69.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            182.160.100.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            182.184.0.0/13       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            182.253.162.0/23     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            183.82.128.0/17      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            183.128.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.36.88.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.150.15.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            185.172.86.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            186.179.100.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            189.216.0.0/15       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            190.235.110.0/23     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            190.239.190.0/23     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.64.121.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            193.34.141.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            193.188.254.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            197.229.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            201.148.126.0/23     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            202.136.88.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            200.121.192.0/19     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            220.164.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            221.228.192.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            24.0.0.0/12          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            27.184.0.0/13        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.0.0.0/18          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            58.53.128.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            59.92.0.0/14         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            60.52.0.0/17         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            60.176.0.0/13        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            60.215.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            61.163.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            62.194.131.0/24      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            64.175.32.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            67.116.236.0/22      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            67.121.120.0/21      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            67.124.36.0/22       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            68.62.0.0/16         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            69.112.0.0/12        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            71.56.0.0/13         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            76.112.0.0/12        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            78.97.32.0/19        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            80.108.64.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            81.240.0.0/17        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            82.72.0.0/14         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            82.169.28.0/23       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            84.127.0.0/17        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            84.144.0.0/12        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            84.220.0.0/14        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.48.0.0/17         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.54.0.0/15         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.85.0.0/16         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.86.0.0/15         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.176.0.0/13        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            89.217.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.176.0.0/14        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.182.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            92.0.0.0/12          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            92.112.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            92.128.0.0/12        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            109.128.0.0/14       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            110.212.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            111.85.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            112.224.0.0/11       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.70.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.89.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.111.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.224.0.0/14       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            113.240.0.0/13       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            114.246.0.0/17       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            114.248.80.0/20      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            115.60.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            115.213.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            116.238.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            117.22.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            117.136.0.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            118.80.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            118.168.0.0/14       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            120.0.0.0/16         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            120.68.0.0/14        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            121.29.64.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            122.169.64.0/19      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            122.173.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.67.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.101.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.112.0.0/13       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.134.0.0/15       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.161.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.174.0.0/15       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.188.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            123.244.0.0/14       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            124.89.0.0/17        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            124.128.0.0/14       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            124.134.0.0/17       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            124.94.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            125.93.64.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            125.125.176.0/20     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            125.224.0.0/15       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            150.70.75.0/24       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            166.204.0.0/15       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.191.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.125.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            183.91.2.0/23        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            183.184.0.0/13       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            188.23.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            188.98.0.0/15        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            189.64.0.0/14        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            201.53.0.0/16        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            201.82.64.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            212.56.64.0/18       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            218.202.219.0/24     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            220.152.128.0/22     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            220.178.0.0/19       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            221.11.32.0/20       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            222.183.0.0/16       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            222.240.216.0/21     reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            82.165.159.132/31    reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            91.208.144.164       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            209.182.193.155      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            213.205.38.29        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            5.79.71.205          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            5.79.71.225          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.129.41        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.129.213       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.144.42        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.147.11        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.151.95        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.153.71        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.153.115       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.168.194       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.169.101       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.170.84        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.174.35        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.179.9         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.182.164       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.184.75        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.186.110       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.186.114       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.188.186       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            38.229.191.189       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            46.244.21.4          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            50.21.181.152        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            50.63.202.35         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            52.5.245.208         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            64.71.166.50         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            64.71.188.178        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            67.215.255.139       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            74.200.48.169        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            74.208.153.9         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            74.208.164.166       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            74.208.64.191        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.17.31.122         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            85.17.31.82          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.18.146        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.149.145       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.149.153       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.18.112        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.18.141        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.190.153       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.190.154       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.190.157       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.20.192        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.24.200        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.253.18        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            87.106.26.9          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            95.211.230.75        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.42.225.122       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            104.244.14.252       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            109.70.26.37         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            144.217.74.156       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            146.148.124.166      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            148.81.111.111       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            151.80.148.103       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            176.58.104.168       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.162.203.202      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.162.203.211      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.162.203.226      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            178.162.217.107      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            184.105.76.250       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            184.105.192.2        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.0.72.20          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.0.72.21          reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.169.69.25        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.42.116.41        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            192.42.119.41        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            193.166.255.170      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            193.166.255.171      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            204.11.56.48         reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            208.91.197.46        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            212.227.20.93        reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            212.227.20.116       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            212.227.20.164       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            213.165.83.176       reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            216.218.135.114      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            216.218.185.162      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            216.218.208.114      reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            216.66.15.109        reject-with icmp-port-unreachable
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:706
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:706
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5432
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5432
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2082:2083
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2082:2083
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:8232:8233
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:8232:8233
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1500
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1500
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:123
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:123
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1293
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1293
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:11371
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:11371
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:443
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:443
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:110
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:110
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1194
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1194
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:3074
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:3074
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1521
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1521
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:2049
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:2049
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:88
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:88
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:995
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:995
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:25551
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:25551
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5050
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5050
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:43
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:43
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:991
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:991
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:143
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:143
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5228
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5228
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:445
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:445
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1755
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1755
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:993
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:993
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9001
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9001
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:5222:5223
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:5222:5223
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:20:21
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:20:21
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:60000:61000
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:60000:61000
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2102:2104
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2102:2104
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:873
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:873
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:27000:27050
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:27000:27050
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9418
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9418
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1863
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1863
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:8087:8088
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:8087:8088
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9030
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9030
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:4643
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:4643
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9339
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9339
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:902:904
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:902:904
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1533
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1533
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2095:2096
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2095:2096
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:5190
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:5190
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:749
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:749
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:4321
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:4321
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:10000
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:10000
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:53
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:53
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:19294
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:19294
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:220
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:220
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:8332:8333
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:8332:8333
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:64738
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:64738
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:26661
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:26661
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1723
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1723
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8443
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8443
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8888
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8888
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:2086:2087
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:2086:2087
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9735
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9735
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:554
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:554
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:853
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:853
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:22
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:22
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8082
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8082
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:992
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:992
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:25565
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:25565
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:3690
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:3690
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:464
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:464
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:18089
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:18089
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:981
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:981
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9053
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9053
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:50002
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:50002
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:9443
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:9443
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:389
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:389
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:80:81
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:80:81
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:27017
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:27017
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:5000:5005
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:5000:5005
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1433
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1433
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8883
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8883
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:3306
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:3306
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8767
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:8767
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1677
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1677
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:18080:18081
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:18080:18081
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:19638
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:19638
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:1220
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:1220
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:79
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:79
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpts:989:990
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpts:989:990
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:636
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:636
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
 
 IPv6 Chain:
 Chain NYM-EXIT (1 references)
- pkts bytes target     prot opt in     out     source               destination
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:706
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:706
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:5432
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:5432
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:2082:2083
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:2082:2083
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:8232:8233
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:8232:8233
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1500
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1500
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:123
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:123
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1293
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1293
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:11371
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:11371
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:443
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:443
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:110
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:110
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1194
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1194
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:3074
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:3074
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1521
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1521
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:2049
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:2049
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:88
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:88
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:995
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:995
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:5050
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:5050
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:43
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:43
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:991
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:991
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:143
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:143
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:5228
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:5228
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:445
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:445
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1755
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1755
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:993
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:993
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9001
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9001
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:5222:5223
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:5222:5223
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:20:21
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:20:21
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:60000:61000
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:60000:61000
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:2102:2104
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:2102:2104
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:873
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:873
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:27000:27050
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:27000:27050
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9418
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9418
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1863
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1863
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:8087:8088
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:8087:8088
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9030
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9030
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:4643
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:4643
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9339
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9339
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:902:904
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:902:904
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1533
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1533
-        0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:5222:5223
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:5222:5223
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:20:21
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:20:21
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:60000:61000
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:60000:61000
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:2102:2104
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:2102:2104
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:873
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:873
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:27000:27050
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:27000:27050
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9418
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9418
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1863
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1863
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:8087:8088
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:8087:8088
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9030
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9030
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:4643
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:4643
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9339
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9339
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:902:904
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:902:904
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1533
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1533
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:2095:2096
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:2095:2096
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:5190
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:5190
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:749
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:749
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:4321
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:4321
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:10000
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:10000
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:53
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:53
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:19294
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:19294
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:220
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:220
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:8332:8333
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:8332:8333
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:64738
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:64738
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1723
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1723
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:8443
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:8443
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:8888
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:8888
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:2086:2087
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:2086:2087
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9735
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9735
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:554
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:554
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:853
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:853
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:22
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:22
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:8082
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:8082
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:992
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:992
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:25565
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:25565
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:3690
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:3690
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:464
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:464
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:981
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:981
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9053
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9053
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:50002
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:50002
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:9443
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:9443
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:389
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:389
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:80:81
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:80:81
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:27017
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:27017
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:5000:5005
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:5000:5005
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1433
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1433
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:8883
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:8883
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:3306
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:3306
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:8767
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:8767
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1677
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1677
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:19638
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:19638
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:1220
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:1220
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:79
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:79
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpts:989:990
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpts:989:990
-    0     0 ACCEPT     6    --  *      *       ::/0                 ::/0                 tcp dpt:636
-    0     0 ACCEPT     17   --  *      *       ::/0                 ::/0                 udp dpt:636
-    0     0 REJECT     0    --  *      *       ::/0                 ::/0                 reject-with icmp6-port-unreachable
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:706
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:706
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:5432
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:5432
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:2082:2083
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:2082:2083
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:8232:8233
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:8232:8233
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1500
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1500
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:123
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:123
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1293
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1293
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:11371
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:11371
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:443
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:443
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:110
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:110
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1194
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1194
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:3074
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:3074
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1521
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1521
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:2049
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:2049
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:88
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:88
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:995
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:995
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:25551
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:25551
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:5050
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:5050
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:43
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:43
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:991
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:991
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:143
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:143
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:5228
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:5228
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:445
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:445
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1755
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1755
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:993
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:993
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9001
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9001
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:5222:5223
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:5222:5223
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:20:21
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:20:21
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:60000:61000
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:60000:61000
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:2102:2104
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:2102:2104
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:873
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:873
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:27000:27050
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:27000:27050
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9418
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9418
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1863
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1863
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:8087:8088
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:8087:8088
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9030
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9030
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:4643
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:4643
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9339
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9339
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:902:904
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:902:904
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1533
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1533
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:2095:2096
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:2095:2096
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:5190
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:5190
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:749
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:749
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:4321
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:4321
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:10000
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:10000
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:53
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:53
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:19294
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:19294
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:220
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:220
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:8332:8333
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:8332:8333
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:64738
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:64738
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:26661
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:26661
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1723
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1723
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:8443
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:8443
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:8888
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:8888
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:2086:2087
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:2086:2087
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9735
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9735
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:554
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:554
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:853
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:853
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:22
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:22
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:8082
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:8082
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:992
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:992
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:25565
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:25565
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:3690
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:3690
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:464
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:464
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:18089
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:18089
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:981
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:981
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9053
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9053
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:50002
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:50002
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:9443
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:9443
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:389
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:389
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:80:81
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:80:81
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:27017
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:27017
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:5000:5005
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:5000:5005
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1433
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1433
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:8883
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:8883
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:3306
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:3306
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:8767
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:8767
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1677
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1677
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:18080:18081
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:18080:18081
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:19638
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:19638
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:1220
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:1220
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:79
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:79
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpts:989:990
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpts:989:990
+    0     0 ACCEPT     tcp      *      *       ::/0                 ::/0                 tcp dpt:636
+    0     0 ACCEPT     udp      *      *       ::/0                 ::/0                 udp dpt:636
+    0     0 REJECT     all      *      *       ::/0                 ::/0                 reject-with icmp6-port-unreachable
 
-ESC[0;33mIP Forwarding:ESC[0m
+IP Forwarding:
 IPv4: 1
 IPv6: 1
 ```

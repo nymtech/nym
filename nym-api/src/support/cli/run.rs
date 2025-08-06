@@ -34,7 +34,7 @@ use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_performance, node_status_api,
+    node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -202,10 +202,18 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownHandles>
         None
     };
 
+    // check if signers cache is enabled, and if so, start the refresher
+    let ecash_signers_cache = if config.signers_cache.enabled {
+        signers_cache::start_refresher(&config.signers_cache, nyxd_client.clone(), &task_manager)
+    } else {
+        SharedCache::new()
+    };
+
     ecash_state.spawn_background_cleaner();
     let router = router.with_state(AppState {
         nyxd_client: nyxd_client.clone(),
         chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+        ecash_signers_cache,
         address_info_cache: AddressInfoCache::new(
             config.address_cache.time_to_live,
             config.address_cache.capacity,

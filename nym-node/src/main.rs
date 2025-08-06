@@ -16,6 +16,7 @@ pub(crate) mod error;
 mod logging;
 pub(crate) mod node;
 pub(crate) mod throughput_tester;
+mod trace_id_format;
 pub(crate) mod wireguard;
 
 fn main() -> anyhow::Result<()> {

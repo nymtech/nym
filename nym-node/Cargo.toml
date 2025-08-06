@@ -119,11 +119,13 @@ opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 tracing-core = { workspace = true }
 tracing-opentelemetry = { workspace = true }
+tracing-serde = { workspace = true }
 opentelemetry-otlp = { version = "0.30.0" }
 opentelemetry-semantic-conventions = { workspace = true, features = [
     "semconv_experimental",
 ] }
 opentelemetry-stdout = { workspace = true, features = ["trace", "metrics"] }
+chrono = { workspace = true }
 
 [[bench]]
 name = "benchmarks"

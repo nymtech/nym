@@ -9,6 +9,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, Layer};
 
 // Signoz
+use crate::trace_id_format::TraceIdFormat;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::tonic_types::metadata::MetadataMap;
@@ -55,7 +56,8 @@ pub(crate) fn build_tracing_logger() -> anyhow::Result<impl SubscriberExt> {
         .with_writer(std::io::stderr)
         .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .with_span_list(false)
-        .with_current_span(true);
+        .with_current_span(true)
+        .event_format(TraceIdFormat);
 
     let registry = tracing_subscriber::registry()
         .with(fmt_layer)

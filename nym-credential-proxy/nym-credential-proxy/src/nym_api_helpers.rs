@@ -4,7 +4,7 @@
 // TODO: this was just copied from nym-api;
 // it should have been therefore extracted to a common crate instead and imported as dependency
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use futures::{stream, StreamExt};
 use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_validator_client::nym_api::EpochId;
@@ -129,16 +129,18 @@ where
     }
 }
 
-pub(crate) fn ensure_sane_expiration_date(expiration_date: Date) -> Result<(), VpnApiError> {
+pub(crate) fn ensure_sane_expiration_date(
+    expiration_date: Date,
+) -> Result<(), CredentialProxyError> {
     let today = ecash_today();
 
     if expiration_date < today.date() {
         // what's the point of signatures with expiration in the past?
-        return Err(VpnApiError::ExpirationDateTooEarly);
+        return Err(CredentialProxyError::ExpirationDateTooEarly);
     }
 
     if expiration_date > cred_exp_date().ecash_date() {
-        return Err(VpnApiError::ExpirationDateTooLate);
+        return Err(CredentialProxyError::ExpirationDateTooLate);
     }
 
     Ok(())
@@ -148,10 +150,10 @@ pub(crate) async fn query_all_threshold_apis<F, T, U>(
     all_apis: Vec<EcashApiClient>,
     threshold: u64,
     f: F,
-) -> Result<Vec<T>, VpnApiError>
+) -> Result<Vec<T>, CredentialProxyError>
 where
     F: Fn(EcashApiClient) -> U,
-    U: Future<Output = Result<T, VpnApiError>>,
+    U: Future<Output = Result<T, CredentialProxyError>>,
 {
     let shares = Mutex::new(Vec::with_capacity(all_apis.len()));
 
@@ -172,7 +174,7 @@ where
     let shares = shares.into_inner();
 
     if shares.len() < threshold as usize {
-        return Err(VpnApiError::InsufficientNumberOfSigners {
+        return Err(CredentialProxyError::InsufficientNumberOfSigners {
             threshold,
             available: shares.len(),
         });

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::http::state::ChainClient;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
@@ -99,7 +99,7 @@ impl DepositMaker {
     pub(crate) async fn process_deposit_requests(
         &mut self,
         requests: Vec<DepositRequest>,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         let chain_write_permit = self.client.start_chain_tx().await;
 
         info!("starting deposits");
@@ -146,7 +146,7 @@ impl DepositMaker {
                 // because it requires some serious MANUAL intervention
                 error!("CRITICAL FAILURE: failed to parse out deposit information from the contract transaction. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually. error was: {err}");
                 self.cancellation_token.cancel();
-                return Err(VpnApiError::DepositFailure);
+                return Err(CredentialProxyError::DepositFailure);
             }
         };
 
@@ -154,7 +154,7 @@ impl DepositMaker {
             // another critical failure, that one should be quite impossible and thus has to be manually inspected
             error!("CRITICAL FAILURE: failed to parse out all deposit information from the contract transaction. got {} responses while we sent {} deposits! either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually", contract_data.len(), replies.len());
             self.cancellation_token.cancel();
-            return Err(VpnApiError::DepositFailure);
+            return Err(CredentialProxyError::DepositFailure);
         }
 
         for (reply_channel, response) in replies.into_iter().zip(contract_data) {
@@ -165,7 +165,7 @@ impl DepositMaker {
                     // another impossibility
                     error!("CRITICAL FAILURE: failed to parse out deposit id out of the response at index {response_index}: {err}. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually");
                     self.cancellation_token.cancel();
-                    return Err(VpnApiError::DepositFailure);
+                    return Err(CredentialProxyError::DepositFailure);
                 }
             };
 

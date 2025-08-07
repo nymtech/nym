@@ -10,7 +10,7 @@ use thiserror::Error;
 use time::OffsetDateTime;
 
 #[derive(Debug, Error)]
-pub enum VpnApiError {
+pub enum CredentialProxyError {
     #[error("encountered an internal io error: {source}")]
     IoError {
         #[from]
@@ -120,9 +120,9 @@ pub enum VpnApiError {
     DepositFailure,
 }
 
-impl VpnApiError {
-    pub fn database_inconsistency<S: Into<String>>(reason: S) -> VpnApiError {
-        VpnApiError::DatabaseInconsistency {
+impl CredentialProxyError {
+    pub fn database_inconsistency<S: Into<String>>(reason: S) -> CredentialProxyError {
+        CredentialProxyError::DatabaseInconsistency {
             reason: reason.into(),
         }
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::deposit_maker::{DepositRequest, DepositRequestSender};
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::helpers::LockTimer;
 use crate::http::types::RequestError;
 use crate::nym_api_helpers::{
@@ -67,7 +67,7 @@ impl ApiState {
         client: ChainClient,
         deposit_requester: DepositRequestSender,
         cancellation_token: CancellationToken,
-    ) -> Result<Self, VpnApiError> {
+    ) -> Result<Self, CredentialProxyError> {
         let state = ApiState {
             inner: Arc::new(ApiStateInner {
                 storage,
@@ -88,7 +88,7 @@ impl ApiState {
         Ok(state)
     }
 
-    async fn build_initial_cache(&self) -> Result<(), VpnApiError> {
+    async fn build_initial_cache(&self) -> Result<(), CredentialProxyError> {
         let today = ecash_today().date();
 
         let epoch_id = self.current_epoch_id().await?;
@@ -128,7 +128,7 @@ impl ApiState {
         &self.inner.zk_nym_web_hook_config
     }
 
-    async fn ensure_credentials_issuable(&self) -> Result<(), VpnApiError> {
+    async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {
         let epoch = self.current_epoch().await?;
 
         if epoch.state.is_final() {
@@ -139,13 +139,13 @@ impl ApiState {
             #[allow(clippy::unwrap_used)]
             let finish_dt = OffsetDateTime::from_unix_timestamp(final_timestamp as i64).unwrap();
 
-            Err(VpnApiError::CredentialsNotYetIssuable {
+            Err(CredentialProxyError::CredentialsNotYetIssuable {
                 availability: finish_dt,
             })
         } else if epoch.state.is_waiting_initialisation() {
-            Err(VpnApiError::UninitialisedDkg)
+            Err(CredentialProxyError::UninitialisedDkg)
         } else {
-            Err(VpnApiError::UnknownEcashFailure)
+            Err(CredentialProxyError::UnknownEcashFailure)
         }
     }
 
@@ -153,7 +153,7 @@ impl ApiState {
         &self.inner.storage
     }
 
-    pub async fn deposit_amount(&self) -> Result<Coin, VpnApiError> {
+    pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
         let read_guard = self.inner.ecash_state.required_deposit_cache.read().await;
         if read_guard.is_valid() {
             return Ok(read_guard.required_amount.clone());
@@ -173,7 +173,7 @@ impl ApiState {
         Ok(deposit_amount.into())
     }
 
-    async fn current_epoch(&self) -> Result<Epoch, VpnApiError> {
+    async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
         let read_guard = self.inner.ecash_state.cached_epoch.read().await;
         if read_guard.is_valid() {
             return Ok(read_guard.current_epoch);
@@ -188,7 +188,7 @@ impl ApiState {
         Ok(epoch)
     }
 
-    pub async fn current_epoch_id(&self) -> Result<EpochId, VpnApiError> {
+    pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
         let read_guard = self.inner.ecash_state.cached_epoch.read().await;
         if read_guard.is_valid() {
             return Ok(read_guard.current_epoch.epoch_id);
@@ -233,7 +233,7 @@ impl ApiState {
             Option<AggregatedExpirationDateSignaturesResponse>,
             Option<AggregatedCoinIndicesSignaturesResponse>,
         ),
-        VpnApiError,
+        CredentialProxyError,
     > {
         let master_verification_key = if include_master_verification_key {
             debug!("including master verification key in the response");
@@ -336,7 +336,7 @@ impl ApiState {
     pub(crate) async fn ecash_clients(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, CredentialProxyError> {
         self.inner
             .ecash_state
             .epoch_clients
@@ -353,7 +353,10 @@ impl ApiState {
             .await
     }
 
-    pub(crate) async fn ecash_threshold(&self, epoch_id: EpochId) -> Result<u64, VpnApiError> {
+    pub(crate) async fn ecash_threshold(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<u64, CredentialProxyError> {
         self.inner
             .ecash_state
             .threshold_values
@@ -366,7 +369,7 @@ impl ApiState {
                 {
                     Ok(threshold)
                 } else {
-                    Err(VpnApiError::UnavailableThreshold { epoch_id })
+                    Err(CredentialProxyError::UnavailableThreshold { epoch_id })
                 }
             })
             .await
@@ -386,7 +389,7 @@ impl ApiState {
     pub(crate) async fn master_verification_key(
         &self,
         epoch_id: Option<EpochId>,
-    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, CredentialProxyError> {
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.current_epoch_id().await?,
@@ -413,7 +416,7 @@ impl ApiState {
                 let threshold = self.ecash_threshold(epoch_id).await?;
 
                 if all_apis.len() < threshold as usize {
-                    return Err(VpnApiError::InsufficientNumberOfSigners {
+                    return Err(CredentialProxyError::InsufficientNumberOfSigners {
                         threshold,
                         available: all_apis.len(),
                     });
@@ -440,7 +443,7 @@ impl ApiState {
     pub(crate) async fn master_coin_index_signatures(
         &self,
         epoch_id: Option<EpochId>,
-    ) -> Result<RwLockReadGuard<'_, AggregatedCoinIndicesSignatures>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, AggregatedCoinIndicesSignatures>, CredentialProxyError> {
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.current_epoch_id().await?,
@@ -516,7 +519,7 @@ impl ApiState {
     pub(crate) async fn master_expiration_date_signatures(
         &self,
         expiration_date: Date,
-    ) -> Result<RwLockReadGuard<'_, AggregatedExpirationDateSignatures>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, AggregatedExpirationDateSignatures>, CredentialProxyError> {
         self.inner
             .ecash_state
             .expiration_date_signatures
@@ -595,25 +598,25 @@ impl ApiState {
 pub struct ChainClient(Arc<RwLock<DirectSigningHttpRpcNyxdClient>>);
 
 impl ChainClient {
-    pub fn new(mnemonic: Mnemonic) -> Result<Self, VpnApiError> {
+    pub fn new(mnemonic: Mnemonic) -> Result<Self, CredentialProxyError> {
         let network_details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
 
         let nyxd_url = network_details
             .endpoints
             .first()
-            .ok_or_else(|| VpnApiError::NoNyxEndpointsAvailable)?
+            .ok_or_else(|| CredentialProxyError::NoNyxEndpointsAvailable)?
             .nyxd_url
             .as_str();
 
         let client = NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic)?;
 
         if client.ecash_contract_address().is_none() {
-            return Err(VpnApiError::UnavailableEcashContract);
+            return Err(CredentialProxyError::UnavailableEcashContract);
         }
 
         if client.dkg_contract_address().is_none() {
-            return Err(VpnApiError::UnavailableDKGContract);
+            return Err(CredentialProxyError::UnavailableDKGContract);
         }
 
         Ok(ChainClient(Arc::new(RwLock::new(client))))
@@ -715,7 +718,7 @@ impl ChainWritePermit<'_> {
         self,
         short_sha: &'static str,
         info: Vec<(String, Coin)>,
-    ) -> Result<ExecuteResult, VpnApiError> {
+    ) -> Result<ExecuteResult, CredentialProxyError> {
         let address = self.inner.address();
         let starting_sequence = self.inner.get_sequence(&address).await?.sequence;
 
@@ -724,7 +727,7 @@ impl ChainWritePermit<'_> {
         let ecash_contract = self
             .inner
             .ecash_contract_address()
-            .ok_or(VpnApiError::UnavailableEcashContract)?;
+            .ok_or(CredentialProxyError::UnavailableEcashContract)?;
         let deposit_messages = info
             .into_iter()
             .map(|(identity_key, amount)| {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::credentials::ticketbook::NodeId;
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::storage::manager::SqliteStorageManager;
 use crate::storage::models::{BlindedShares, MinimalWalletShare};
 use nym_compact_ecash::PublicKeyUser;
@@ -37,7 +37,9 @@ pub struct VpnApiStorage {
 
 impl VpnApiStorage {
     #[instrument]
-    pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, VpnApiError> {
+    pub async fn init<P: AsRef<Path> + Debug>(
+        database_path: P,
+    ) -> Result<Self, CredentialProxyError> {
         debug!("Attempting to connect to database");
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
@@ -78,7 +80,7 @@ impl VpnApiStorage {
     pub(crate) async fn load_blinded_shares_status_by_shares_id(
         &self,
         id: i64,
-    ) -> Result<Option<BlindedShares>, VpnApiError> {
+    ) -> Result<Option<BlindedShares>, CredentialProxyError> {
         Ok(self
             .storage_manager
             .load_blinded_shares_status_by_shares_id(id)
@@ -88,7 +90,7 @@ impl VpnApiStorage {
     pub(crate) async fn load_wallet_shares_by_shares_id(
         &self,
         id: i64,
-    ) -> Result<Vec<MinimalWalletShare>, VpnApiError> {
+    ) -> Result<Vec<MinimalWalletShare>, CredentialProxyError> {
         Ok(self
             .storage_manager
             .load_wallet_shares_by_shares_id(id)
@@ -98,7 +100,7 @@ impl VpnApiStorage {
     pub(crate) async fn load_shares_error_by_shares_id(
         &self,
         id: i64,
-    ) -> Result<Option<String>, VpnApiError> {
+    ) -> Result<Option<String>, CredentialProxyError> {
         Ok(self
             .storage_manager
             .load_shares_error_by_device_by_shares_id(id)
@@ -110,7 +112,7 @@ impl VpnApiStorage {
         &self,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<Option<BlindedShares>, VpnApiError> {
+    ) -> Result<Option<BlindedShares>, CredentialProxyError> {
         Ok(self
             .storage_manager
             .load_blinded_shares_status_by_device_and_credential_id(device_id, credential_id)
@@ -121,7 +123,7 @@ impl VpnApiStorage {
         &self,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<Vec<MinimalWalletShare>, VpnApiError> {
+    ) -> Result<Vec<MinimalWalletShare>, CredentialProxyError> {
         Ok(self
             .storage_manager
             .load_wallet_shares_by_device_and_credential_id(device_id, credential_id)
@@ -132,7 +134,7 @@ impl VpnApiStorage {
         &self,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<Option<String>, VpnApiError> {
+    ) -> Result<Option<String>, CredentialProxyError> {
         Ok(self
             .storage_manager
             .load_shares_error_by_device_and_credential_id(device_id, credential_id)
@@ -144,7 +146,7 @@ impl VpnApiStorage {
         request: Uuid,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, CredentialProxyError> {
         Ok(self
             .storage_manager
             .insert_new_pending_async_shares_request(request.to_string(), device_id, credential_id)
@@ -156,7 +158,7 @@ impl VpnApiStorage {
         available_shares: usize,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, CredentialProxyError> {
         self.storage_manager
             .update_pending_async_blinded_shares_issued(
                 available_shares as i64,
@@ -172,7 +174,7 @@ impl VpnApiStorage {
         device_id: &str,
         credential_id: &str,
         error: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, CredentialProxyError> {
         self.storage_manager
             .update_pending_async_blinded_shares_error(
                 available_shares as i64,
@@ -183,7 +185,7 @@ impl VpnApiStorage {
             .await
     }
 
-    pub(crate) async fn prune_old_blinded_shares(&self) -> Result<(), VpnApiError> {
+    pub(crate) async fn prune_old_blinded_shares(&self) -> Result<(), CredentialProxyError> {
         let max_age = OffsetDateTime::now_utc() - time::Duration::days(31);
 
         self.storage_manager
@@ -205,7 +207,7 @@ impl VpnApiStorage {
         deposit_amount: Coin,
         client_ecash_pubkey: &PublicKeyUser,
         ed22519_keypair: &ed25519::KeyPair,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         debug!("inserting deposit data");
 
         let private_key_bytes = Zeroizing::new(ed22519_keypair.private_key().to_bytes());
@@ -230,8 +232,8 @@ impl VpnApiStorage {
         epoch_id: EpochId,
         expiration_date: Date,
         node_id: NodeId,
-        res: &Result<BlindedSignatureResponse, VpnApiError>,
-    ) -> Result<(), VpnApiError> {
+        res: &Result<BlindedSignatureResponse, CredentialProxyError>,
+    ) -> Result<(), CredentialProxyError> {
         debug!("inserting partial wallet share");
         let now = OffsetDateTime::now_utc();
 
@@ -267,7 +269,7 @@ impl VpnApiStorage {
     pub(crate) async fn get_master_verification_key(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Option<EpochVerificationKey>, VpnApiError> {
+    ) -> Result<Option<EpochVerificationKey>, CredentialProxyError> {
         let Some(raw) = self
             .storage_manager
             .get_master_verification_key(epoch_id as i64)
@@ -278,14 +280,14 @@ impl VpnApiStorage {
 
         let deserialised =
             EpochVerificationKey::try_unpack(&raw.serialised_key, raw.serialization_revision)
-                .map_err(|err| VpnApiError::database_inconsistency(err.to_string()))?;
+                .map_err(|err| CredentialProxyError::database_inconsistency(err.to_string()))?;
         Ok(Some(deserialised))
     }
 
     pub(crate) async fn insert_master_verification_key(
         &self,
         key: &EpochVerificationKey,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         let packed = key.pack();
         Ok(self
             .storage_manager
@@ -296,7 +298,7 @@ impl VpnApiStorage {
     pub(crate) async fn get_master_coin_index_signatures(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Option<AggregatedCoinIndicesSignatures>, VpnApiError> {
+    ) -> Result<Option<AggregatedCoinIndicesSignatures>, CredentialProxyError> {
         let Some(raw) = self
             .storage_manager
             .get_master_coin_index_signatures(epoch_id as i64)
@@ -309,14 +311,14 @@ impl VpnApiStorage {
             &raw.serialised_signatures,
             raw.serialization_revision,
         )
-        .map_err(|err| VpnApiError::database_inconsistency(err.to_string()))?;
+        .map_err(|err| CredentialProxyError::database_inconsistency(err.to_string()))?;
         Ok(Some(deserialised))
     }
 
     pub(crate) async fn insert_master_coin_index_signatures(
         &self,
         signatures: &AggregatedCoinIndicesSignatures,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         let packed = signatures.pack();
         self.storage_manager
             .insert_master_coin_index_signatures(
@@ -331,7 +333,7 @@ impl VpnApiStorage {
     pub(crate) async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
-    ) -> Result<Option<AggregatedExpirationDateSignatures>, VpnApiError> {
+    ) -> Result<Option<AggregatedExpirationDateSignatures>, CredentialProxyError> {
         let Some(raw) = self
             .storage_manager
             .get_master_expiration_date_signatures(expiration_date)
@@ -344,14 +346,14 @@ impl VpnApiStorage {
             &raw.serialised_signatures,
             raw.serialization_revision,
         )
-        .map_err(|err| VpnApiError::database_inconsistency(err.to_string()))?;
+        .map_err(|err| CredentialProxyError::database_inconsistency(err.to_string()))?;
         Ok(Some(deserialised))
     }
 
     pub(crate) async fn insert_master_expiration_date_signatures(
         &self,
         signatures: &AggregatedExpirationDateSignatures,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         let packed = signatures.pack();
         self.storage_manager
             .insert_master_expiration_date_signatures(

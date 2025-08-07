@@ -118,6 +118,9 @@ pub enum CredentialProxyError {
 
     #[error("failed to create deposit")]
     DepositFailure,
+
+    #[error("can't obtain sufficient number of credential shares due to unavailable quorum")]
+    UnavailableSigningQuorum,
 }
 
 impl CredentialProxyError {

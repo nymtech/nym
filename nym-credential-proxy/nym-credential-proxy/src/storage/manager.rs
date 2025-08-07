@@ -37,21 +37,22 @@ impl SqliteStorageManager {
         &self,
         id: i64,
     ) -> Result<Vec<MinimalWalletShare>, sqlx::Error> {
-        sqlx::query_as!(
-            MinimalWalletShare,
-            r#"
-                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as "expiration_date!: Date"
-                FROM partial_blinded_wallet as t1
-                JOIN ticketbook_deposit as t2
-                    on t1.corresponding_deposit = t2.deposit_id
-                JOIN blinded_shares as t3
-                    ON t2.request_uuid = t3.request_uuid
-                WHERE t3.id = ?;
-            "#,
-            id
-        )
-        .fetch_all(&self.connection_pool)
-        .await
+        todo!()
+        // sqlx::query_as!(
+        //     MinimalWalletShare,
+        //     r#"
+        //         SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as "expiration_date!: Date"
+        //         FROM partial_blinded_wallet as t1
+        //         JOIN ticketbook_deposit as t2
+        //             on t1.corresponding_deposit = t2.deposit_id
+        //         JOIN blinded_shares as t3
+        //             ON t2.request_uuid = t3.request_uuid
+        //         WHERE t3.id = ?;
+        //     "#,
+        //     id
+        // )
+        // .fetch_all(&self.connection_pool)
+        // .await
     }
 
     pub(crate) async fn load_shares_error_by_device_by_shares_id(
@@ -97,26 +98,27 @@ impl SqliteStorageManager {
         credential_id: &str,
     ) -> Result<Vec<MinimalWalletShare>, sqlx::Error> {
         // https://docs.rs/sqlx/latest/sqlx/macro.query.html#force-a-differentcustom-type
-        sqlx::query_as!(
-            MinimalWalletShare,
-            r#"
-                SELECT
-                    t1.node_id as "node_id!",
-                    t1.blinded_signature as "blinded_signature!",
-                    t1.epoch_id as "epoch_id!",
-                    t1.expiration_date as "expiration_date!: Date"
-                FROM partial_blinded_wallet as t1
-                JOIN ticketbook_deposit as t2
-                    on t1.corresponding_deposit = t2.deposit_id
-                JOIN blinded_shares as t3
-                    ON t2.request_uuid = t3.request_uuid
-                WHERE t3.device_id = ? AND t3.credential_id = ?;
-            "#,
-            device_id,
-            credential_id
-        )
-        .fetch_all(&self.connection_pool)
-        .await
+        todo!()
+        // sqlx::query_as!(
+        //     MinimalWalletShare,
+        //     r#"
+        //         SELECT
+        //             t1.node_id as "node_id!",
+        //             t1.blinded_signature as "blinded_signature!",
+        //             t1.epoch_id as "epoch_id!",
+        //             t1.expiration_date as "expiration_date!: Date"
+        //         FROM partial_blinded_wallet as t1
+        //         JOIN ticketbook_deposit as t2
+        //             on t1.corresponding_deposit = t2.deposit_id
+        //         JOIN blinded_shares as t3
+        //             ON t2.request_uuid = t3.request_uuid
+        //         WHERE t3.device_id = ? AND t3.credential_id = ?;
+        //     "#,
+        //     device_id,
+        //     credential_id
+        // )
+        // .fetch_all(&self.connection_pool)
+        // .await
     }
 
     pub(crate) async fn load_shares_error_by_device_and_credential_id(
@@ -237,30 +239,32 @@ impl SqliteStorageManager {
         &self,
         delete_after: OffsetDateTime,
     ) -> Result<(), CredentialProxyError> {
-        sqlx::query!(
-            r#"
-                DELETE FROM partial_blinded_wallet WHERE created < ?
-            "#,
-            delete_after,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         DELETE FROM partial_blinded_wallet WHERE created < ?
+        //     "#,
+        //     delete_after,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 
     pub(crate) async fn prune_old_partial_blinded_wallet_failures(
         &self,
         delete_after: OffsetDateTime,
     ) -> Result<(), CredentialProxyError> {
-        sqlx::query!(
-            r#"
-                DELETE FROM partial_blinded_wallet_failure WHERE created < ?
-            "#,
-            delete_after,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         DELETE FROM partial_blinded_wallet_failure WHERE created < ?
+        //     "#,
+        //     delete_after,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 
     pub(crate) async fn get_master_verification_key(
@@ -407,22 +411,23 @@ impl SqliteStorageManager {
         created: OffsetDateTime,
         share: &[u8],
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO partial_blinded_wallet(corresponding_deposit, epoch_id, expiration_date, node_id, created, blinded_signature)
-                VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-                deposit_id,
-                epoch_id,
-                expiration_date,
-                node_id,
-                created,
-                share
-        )
-            .execute(&self.connection_pool)
-            .await?;
-
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO partial_blinded_wallet(corresponding_deposit, epoch_id, expiration_date, node_id, created, blinded_signature)
+        //         VALUES (?, ?, ?, ?, ?, ?)
+        //     "#,
+        //         deposit_id,
+        //         epoch_id,
+        //         expiration_date,
+        //         node_id,
+        //         created,
+        //         share
+        // )
+        //     .execute(&self.connection_pool)
+        //     .await?;
+        //
+        // Ok(())
     }
 
     pub(crate) async fn insert_partial_wallet_issuance_failure(
@@ -434,21 +439,22 @@ impl SqliteStorageManager {
         created: OffsetDateTime,
         failure_message: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO partial_blinded_wallet_failure(corresponding_deposit, epoch_id, expiration_date, node_id, created, failure_message)
-                VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-                deposit_id,
-                epoch_id,
-                expiration_date,
-                node_id,
-                created,
-                failure_message
-        )
-            .execute(&self.connection_pool)
-            .await?;
-
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO partial_blinded_wallet_failure(corresponding_deposit, epoch_id, expiration_date, node_id, created, failure_message)
+        //         VALUES (?, ?, ?, ?, ?, ?)
+        //     "#,
+        //         deposit_id,
+        //         epoch_id,
+        //         expiration_date,
+        //         node_id,
+        //         created,
+        //         failure_message
+        // )
+        //     .execute(&self.connection_pool)
+        //     .await?;
+        //
+        // Ok(())
     }
 }

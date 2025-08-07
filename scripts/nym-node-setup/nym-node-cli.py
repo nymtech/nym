@@ -102,13 +102,13 @@ class NodeSetupCLI:
             "run",
             "--mode", self.mode
         ])
-
+`
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()
-    #cli.run_script(cli.prereqs_install_sh)
-    #cli.run_script(cli.env_vars_install_sh)
-    #cli.run_script(cli.node_install_sh)
-    #cli.run_script(cli.service_config_sh)
-    #cli._check_gwx_mode() and cli.run_script(cli.landing_page_html)
-    #cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)
+    cli.run_script(cli.prereqs_install_sh)
+    cli.run_script(cli.env_vars_install_sh)
+    cli.run_script(cli.node_install_sh)
+    cli.run_script(cli.service_config_sh)
+    cli._check_gwx_mode() and cli.run_script(cli.landing_page_html)
+    cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)

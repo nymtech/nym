@@ -212,7 +212,6 @@ class NodeSetupCLI:
                 "bonding-information",
             ])
                 self.bash_run_command("curl", ["-4", '"https://ifconfig.me"']),
-                subprocess.run([
                 print(
                   "====================================\n"
                   "FOLLOW THESE STEPS TO BOND YOUR NODE\n"

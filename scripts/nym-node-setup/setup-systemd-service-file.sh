@@ -13,7 +13,7 @@ if [[ -f "$SERVICE_PATH" ]]; then
   echo "2) Backup existing and create new"
   echo "3) Cancel"
 
-  read -rp "Enter your choice (1/2/3): " choice
+  read -rp "Press 1, 2, or 3 and enter: " choice
 
   case "$choice" in
     1)

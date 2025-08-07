@@ -26,11 +26,3 @@ impl From<crate::models::error::Error> for MetadataError {
         }
     }
 }
-
-impl From<nym_credential_verification::Error> for MetadataError {
-    fn from(value: nym_credential_verification::Error) -> Self {
-        Self::CredentialVerification {
-            message: value.to_string(),
-        }
-    }
-}

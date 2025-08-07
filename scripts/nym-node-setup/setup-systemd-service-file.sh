@@ -9,27 +9,22 @@ echo "Setting up systemd service config file for node automation"
 if [[ -f "$SERVICE_PATH" ]]; then
   echo "WARNING: Service file already exists at $SERVICE_PATH"
   echo "Choose what to do:"
-  echo "1) Overwrite"
-  echo "2) Delete and recreate"
-  echo "3) Backup existing and create new"
-  echo "4) Cancel"
+  echo "1) Replace existing"
+  echo "2) Backup existing and create new"
+  echo "3) Cancel"
 
-  read -rp "Enter your choice (1/2/3/4): " choice
+  read -rp "Enter your choice (1/2/3): " choice
 
   case "$choice" in
     1)
-      echo "Overwriting existing service file..."
+      echo "Replacing existing service file..."
       ;;
     2)
-      echo "Deleting existing file and creating new..."
-      rm -f "$SERVICE_PATH"
-      ;;
-    3)
       backup_path="${SERVICE_PATH}.bak.$(date +%s)"
       echo "Backing up to $backup_path"
       cp "$SERVICE_PATH" "$backup_path"
       ;;
-    4)
+    3)
       echo "Cancelled by user."
       exit 0
       ;;
@@ -38,6 +33,7 @@ if [[ -f "$SERVICE_PATH" ]]; then
       exit 1
       ;;
   esac
+
 fi
 
 # Create the service file

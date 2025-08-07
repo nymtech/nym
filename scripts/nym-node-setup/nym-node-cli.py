@@ -249,14 +249,15 @@ class NodeSetupCLI:
                       "Note that without bonding network tunnel manager will not work fully!\n"
                       "You can always bond manually using:\n"
                       "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
+                      )
                     break
-                elif confirmation == "2"
+                elif confirmation == "2":
                     continue
                 else:
-                print(
-                  "Your input was wrong, we are skipping this step. You can always bond manually using:\n"
-                  "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
-                  )
+                    print(
+                      "Your input was wrong, we are skipping this step. You can always bond manually using:\n"
+                      "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
+                      )
                     break
 
 

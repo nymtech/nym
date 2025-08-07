@@ -17,8 +17,8 @@ class NodeSetupCLI:
         self.landing_page_html = self._check_gwx_mode() and self.fetch_script("landing_page_html")
         self.nginx_proxy_wss_sh = self._check_gwx_mode() and self.fetch_script("nginx_proxy_wss_sh")
         self.tunnel_manager_sh = self._check_gwx_mode() and self.fetch_script("tunnel_manager_sh")
-        self.wg_ip_tables_manager_sh = _check_gwg_mode() and self.fetch_script("wg_ip_tables_manager_sh")
-        self.wg_ip_tables_test_sh = _check_gwx_mode() and self.fetch_script("wg_ip_tables_test_sh")
+        self.wg_ip_tables_manager_sh = self._check_gwx_mode() and self.fetch_script("wg_ip_tables_manager_sh")
+        self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("wg_ip_tables_test_sh")
 
 
     def print_welcome_message(self):

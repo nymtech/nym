@@ -232,6 +232,7 @@ class NodeSetupCLI:
                 print(
                   "- Copy the last last part of the string back to your Nym wallet\n"
                   "- Confirm the transaction"
+                  )
                 confirmation = input(
                   "Did it work out?"
                   "1. YES"

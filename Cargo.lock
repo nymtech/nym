@@ -8048,7 +8048,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-private-metadata"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8057,6 +8057,7 @@ dependencies = [
  "futures",
  "nym-credential-verification",
  "nym-credentials-interface 0.1.0",
+ "nym-http-api-client 0.1.0",
  "nym-http-api-common 0.1.0",
  "nym-wireguard",
  "schemars 0.8.22",
@@ -8065,6 +8066,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tower-http 0.5.2",
+ "tracing",
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",

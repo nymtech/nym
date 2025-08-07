@@ -1,6 +1,6 @@
 [package]
 name = "nym-wireguard-private-metadata"
-version = "0.1.0"
+version = "1.0.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -10,7 +10,8 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-axum = { workspace = true, features = ["tokio", "macros"] }
+async-trait = { workspace = true }
+axum = { workspace = true, features = ["tokio", "macros"], optional = true }
 bincode = { workspace = true }
 futures = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
@@ -25,19 +26,36 @@ tower-http = { workspace = true, features = [
     "compression-deflate",
     "compression-gzip",
     "compression-zstd",
-] }
-utoipa = { workspace = true, features = ["axum_extras", "time"] }
-utoipauto = { workspace = true }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+], optional = true }
+tracing = { workspace = true }
+utoipa = { workspace = true, features = [
+    "axum_extras",
+    "time",
+], optional = true }
+utoipauto = { workspace = true, optional = true }
+utoipa-swagger-ui = { workspace = true, features = ["axum"], optional = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-credential-verification = { path = "../credential-verification" }
+nym-credentials-interface = { path = "../credentials-interface", optional = true }
+nym-credential-verification = { path = "../credential-verification", optional = true }
+nym-http-api-client = { path = "../http-api-client", optional = true }
 nym-http-api-common = { path = "../http-api-common", features = [
     "middleware",
     "utoipa",
     "output",
-] }
-nym-wireguard = { path = "../wireguard" }
+], optional = true }
+nym-wireguard = { path = "../wireguard", optional = true }
 
-[dev-dependencies]
-async-trait = { workspace = true }
+[features]
+default = ["server", "client"]
+server = [
+    "axum",
+    "tower-http",
+    "utoipa",
+    "utoipauto",
+    "utoipa-swagger-ui",
+    "nym-credentials-interface",
+    "nym-credential-verification",
+    "nym-http-api-common",
+    "nym-wireguard",
+]
+client = ["nym-http-api-client"]

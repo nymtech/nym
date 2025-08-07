@@ -39,6 +39,7 @@ impl PeerControllerTransceiver {
         Ok(self.get_client_bandwidth(ip).await?.available().await)
     }
 
+    // Top up with a credential and return the afterwards available bandwidth
     pub(crate) async fn topup_bandwidth(
         &self,
         ip: IpAddr,
@@ -68,13 +69,13 @@ impl PeerControllerTransceiver {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use nym_credential_verification::TicketVerifier;
     use nym_wireguard::CONTROL_CHANNEL_SIZE;
 
     use super::*;
 
-    const CREDENTIAL_BYTES: [u8; 1245] = [
+    pub(crate) const CREDENTIAL_BYTES: [u8; 1245] = [
         0, 0, 4, 133, 96, 179, 223, 185, 136, 23, 213, 166, 59, 203, 66, 69, 209, 181, 227, 254,
         16, 102, 98, 237, 59, 119, 170, 111, 31, 194, 51, 59, 120, 17, 115, 229, 79, 91, 11, 139,
         154, 2, 212, 23, 68, 70, 167, 3, 240, 54, 224, 171, 221, 1, 69, 48, 60, 118, 119, 249, 123,
@@ -139,8 +140,14 @@ mod tests {
         0, 0, 0, 0, 0, 1,
     ];
 
-    struct MockVerifier {
+    pub(crate) struct MockVerifier {
         ret: i64,
+    }
+
+    impl MockVerifier {
+        pub(crate) fn new(ret: i64) -> MockVerifier {
+            Self { ret }
+        }
     }
 
     #[async_trait::async_trait]
@@ -247,7 +254,7 @@ mod tests {
                     response_tx,
                 } => {
                     response_tx
-                        .send(Ok(Box::new(MockVerifier { ret: verifier_bw })))
+                        .send(Ok(Box::new(MockVerifier::new(verifier_bw))))
                         .ok();
                 }
                 _ => unimplemented!(),

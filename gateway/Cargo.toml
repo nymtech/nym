@@ -69,7 +69,9 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
 
 nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-private-metadata = { path = "../common/wireguard-private-metadata" }
+nym-wireguard-private-metadata = { path = "../common/wireguard-private-metadata", features = [
+    "server",
+] }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
 defguard_wireguard_rs = { workspace = true }

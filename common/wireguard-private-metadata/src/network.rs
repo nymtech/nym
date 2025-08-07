@@ -13,14 +13,16 @@ use tower_http::compression::CompressionLayer;
 use crate::{
     http::state::AppState,
     models::{
-        latest::InnerTopUpRequest, AvailableBandwidthResponse, AxumErrorResponse, AxumResult,
-        TopUpRequest,
+        interface::{RequestData, ResponseData},
+        AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
     },
+    Version,
 };
 
 pub(crate) fn bandwidth_routes() -> Router<AppState> {
     Router::new()
-        .route("/available", axum::routing::get(available_bandwidth))
+        .route("/version", axum::routing::get(version))
+        .route("/available", axum::routing::post(available_bandwidth))
         .route("/topup", axum::routing::post(topup_bandwidth))
         .layer(CompressionLayer::new())
 }
@@ -28,50 +30,85 @@ pub(crate) fn bandwidth_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "bandwidth",
     get,
+    path = "/v1/bandwidth/version",
+    responses(
+        (status = 200, content(
+            (Response = "application/bincode")
+        ))
+    ),
+)]
+async fn version(Query(output): Query<OutputParams>) -> AxumResult<FormattedResponse<Version>> {
+    let output = output.output.unwrap_or_default();
+    Ok(output.to_response(crate::models::latest::VERSION))
+}
+
+#[utoipa::path(
+    tag = "bandwidth",
+    post,
+    request_body = Request,
     path = "/v1/bandwidth/available",
     responses(
         (status = 200, content(
-            (AvailableBandwidthResponse = "application/bincode")
+            (Response = "application/bincode")
         ))
-
     ),
 )]
 async fn available_bandwidth(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<AvailableBandwidthResponse>> {
+    Json(request): Json<Request>,
+) -> AxumResult<FormattedResponse<Response>> {
     let output = output.output.unwrap_or_default();
-    Ok(output.to_response(
-        state
-            .available_bandwidth(addr.ip())
-            .await
-            .map_err(AxumErrorResponse::bad_request)?,
-    ))
+
+    let (RequestData::AvailableBandwidth(_), version) =
+        request.extract().map_err(AxumErrorResponse::bad_request)?
+    else {
+        return Err(AxumErrorResponse::bad_request("incorrect request type"));
+    };
+    let available_bandwidth = state
+        .available_bandwidth(addr.ip())
+        .await
+        .map_err(AxumErrorResponse::bad_request)?;
+    let response = Response::construct(
+        ResponseData::AvailableBandwidth(available_bandwidth),
+        version,
+    )
+    .map_err(AxumErrorResponse::bad_request)?;
+
+    Ok(output.to_response(response))
 }
 
 #[utoipa::path(
     tag = "bandwidth",
     post,
-    request_body = TopUpRequest,
+    request_body = Request,
     path = "/v1/bandwidth/topup",
     responses(
-        (status = 200),
+        (status = 200, content(
+            (Response = "application/bincode")
+        ))
     ),
 )]
 async fn topup_bandwidth(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-    Json(request): Json<TopUpRequest>,
-) -> AxumResult<FormattedResponse<()>> {
+    Json(request): Json<Request>,
+) -> AxumResult<FormattedResponse<Response>> {
     let output = output.output.unwrap_or_default();
-    let credential = InnerTopUpRequest::try_from(request)
-        .map_err(AxumErrorResponse::bad_request)?
-        .credential;
-    state
+
+    let (RequestData::TopUpBandwidth(credential), version) =
+        request.extract().map_err(AxumErrorResponse::bad_request)?
+    else {
+        return Err(AxumErrorResponse::bad_request("incorrect request type"));
+    };
+    let available_bandwidth = state
         .topup_bandwidth(addr.ip(), credential)
         .await
         .map_err(AxumErrorResponse::bad_request)?;
-    Ok(output.to_response(()))
+    let response = Response::construct(ResponseData::TopUpBandwidth(available_bandwidth), version)
+        .map_err(AxumErrorResponse::bad_request)?;
+
+    Ok(output.to_response(response))
 }

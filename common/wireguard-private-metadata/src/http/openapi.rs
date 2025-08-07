@@ -3,12 +3,12 @@
 
 use utoipa::OpenApi;
 
-use crate::models::{AvailableBandwidthResponse, TopUpRequest};
+use crate::models::{Request, Response};
 
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Nym Wireguard Private Metadata"),
     tags(),
-    components(schemas(AvailableBandwidthResponse, TopUpRequest))
+    components(schemas(Request, Response))
 )]
 pub(crate) struct ApiDoc;

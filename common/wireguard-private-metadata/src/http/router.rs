@@ -66,7 +66,7 @@ fn setup_cors() -> CorsLayer {
 }
 
 pub struct RouterWithState {
-    router: Router,
+    pub(crate) router: Router,
 }
 
 impl RouterWithState {

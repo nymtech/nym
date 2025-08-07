@@ -93,6 +93,7 @@ class NodeSetupCLI:
         return result.stdout
 
     def run_script(self, script):
+        self.run_bash_command("chmod" ["+x", script])
         subprocess.run(["bash", "-"], input=script, text=True)
 
 

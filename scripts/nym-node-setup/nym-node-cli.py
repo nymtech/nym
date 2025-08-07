@@ -243,7 +243,7 @@ class NodeSetupCLI:
                 if confirmation == "1":
                     print("Congratulation, your Nym node is registered to Nym network, wait until the end of epoch for the change to propagate (max 60 min)")
                     break
-                elif if confirmation == "3":
+                elif confirmation == "3":
                     print(
                       "Your node is not bonded, we are skipping this step.\n"
                       "Note that without bonding network tunnel manager will not work fully!\n"

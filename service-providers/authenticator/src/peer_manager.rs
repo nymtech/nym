@@ -6,13 +6,7 @@ use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::{ClientBandwidth, CredentialVerifier};
 use nym_credentials_interface::CredentialSpendingData;
-use nym_wireguard::{
-    peer_controller::{
-        AddPeerControlResponse, GetClientBandwidthControlResponse, PeerControlRequest,
-        QueryPeerControlResponse, QueryVerifierControlResponse, RemovePeerControlResponse,
-    },
-    WireguardGatewayData,
-};
+use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
 
 pub struct PeerManager {
@@ -34,15 +28,14 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let AddPeerControlResponse { success } = response_rx.await.map_err(|_| {
-            AuthenticatorError::InternalError("no response for add peer".to_string())
-        })?;
-        if !success {
-            return Err(AuthenticatorError::InternalError(
-                "adding peer could not be performed".to_string(),
-            ));
-        }
-        Ok(())
+        response_rx
+            .await
+            .map_err(|_| AuthenticatorError::InternalError("no response for add peer".to_string()))?
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!(
+                    "adding peer could not be performed: {err:?}"
+                ))
+            })
     }
 
     pub async fn _remove_peer(&mut self, pub_key: PeerPublicKey) -> Result<()> {
@@ -55,15 +48,16 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let RemovePeerControlResponse { success } = response_rx.await.map_err(|_| {
-            AuthenticatorError::InternalError("no response for remove peer".to_string())
-        })?;
-        if !success {
-            return Err(AuthenticatorError::InternalError(
-                "removing peer could not be performed".to_string(),
-            ));
-        }
-        Ok(())
+        response_rx
+            .await
+            .map_err(|_| {
+                AuthenticatorError::InternalError("no response for remove peer".to_string())
+            })?
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!(
+                    "removing peer could not be performed: {err:?}"
+                ))
+            })
     }
 
     pub async fn query_peer(&mut self, public_key: PeerPublicKey) -> Result<Option<Peer>> {
@@ -76,30 +70,24 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let QueryPeerControlResponse { success, peer } = response_rx.await.map_err(|_| {
-            AuthenticatorError::InternalError("no response for query peer".to_string())
-        })?;
-        if !success {
-            return Err(AuthenticatorError::InternalError(
-                "querying peer could not be performed".to_string(),
-            ));
-        }
-        Ok(peer)
+        response_rx
+            .await
+            .map_err(|_| {
+                AuthenticatorError::InternalError("no response for query peer".to_string())
+            })?
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!(
+                    "querying peer could not be performed: {err:?}"
+                ))
+            })
     }
 
-    pub async fn query_bandwidth(&mut self, public_key: PeerPublicKey) -> Result<Option<i64>> {
-        let res = if let Some(client_bandwidth) = self.query_client_bandwidth(public_key).await? {
-            Some(client_bandwidth.available().await)
-        } else {
-            None
-        };
-        Ok(res)
+    pub async fn query_bandwidth(&mut self, public_key: PeerPublicKey) -> Result<i64> {
+        let client_bandwidth = self.query_client_bandwidth(public_key).await?;
+        Ok(client_bandwidth.available().await)
     }
 
-    pub async fn query_client_bandwidth(
-        &mut self,
-        key: PeerPublicKey,
-    ) -> Result<Option<ClientBandwidth>> {
+    pub async fn query_client_bandwidth(&mut self, key: PeerPublicKey) -> Result<ClientBandwidth> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetClientBandwidth { key, response_tx };
@@ -109,20 +97,25 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let GetClientBandwidthControlResponse { client_bandwidth } =
-            response_rx.await.map_err(|_| {
+        response_rx
+            .await
+            .map_err(|_| {
                 AuthenticatorError::InternalError(
                     "no response for query client bandwidth".to_string(),
                 )
-            })?;
-        Ok(client_bandwidth)
+            })?
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!(
+                    "querying client bandwidth could not be performed: {err:?}"
+                ))
+            })
     }
 
     pub async fn query_verifier(
         &mut self,
         key: PeerPublicKey,
         credential: CredentialSpendingData,
-    ) -> Result<Option<CredentialVerifier>> {
+    ) -> Result<CredentialVerifier> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetVerifier {
@@ -136,16 +129,16 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let QueryVerifierControlResponse { success, verifier } =
-            response_rx.await.map_err(|_| {
-                AuthenticatorError::InternalError("no response for topup bandwidth".to_string())
-            })?;
-        if !success {
-            return Err(AuthenticatorError::InternalError(
-                "querying peer could not be performed".to_string(),
-            ));
-        }
-        Ok(verifier)
+        response_rx
+            .await
+            .map_err(|_| {
+                AuthenticatorError::InternalError("no response for query verifier".to_string())
+            })?
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!(
+                    "querying verifier could not be performed: {err:?}"
+                ))
+            })
     }
 }
 
@@ -338,18 +331,10 @@ mod tests {
             request_rx,
         );
 
-        assert!(peer_manager
-            .query_bandwidth(public_key)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(peer_manager.query_bandwidth(public_key).await.is_err());
 
         helper_add_peer(&storage, &mut peer_manager).await;
-        let available_bandwidth = peer_manager
-            .query_bandwidth(public_key)
-            .await
-            .unwrap()
-            .unwrap();
+        let available_bandwidth = peer_manager.query_bandwidth(public_key).await.unwrap();
         assert_eq!(available_bandwidth, 0);
 
         stop_controller(task_manager).await;
@@ -372,14 +357,12 @@ mod tests {
         assert!(peer_manager
             .query_client_bandwidth(public_key)
             .await
-            .unwrap()
-            .is_none());
+            .is_err());
 
         helper_add_peer(&storage, &mut peer_manager).await;
         let available_bandwidth = peer_manager
             .query_client_bandwidth(public_key)
             .await
-            .unwrap()
             .unwrap()
             .available()
             .await;
@@ -412,7 +395,6 @@ mod tests {
         peer_manager
             .query_verifier(public_key, credential)
             .await
-            .unwrap()
             .unwrap();
 
         stop_controller(task_manager).await;
@@ -438,7 +420,6 @@ mod tests {
         let client_bandwidth = peer_manager
             .query_client_bandwidth(public_key)
             .await
-            .unwrap()
             .unwrap();
 
         let mut bw_manager = BandwidthStorageManager::new(
@@ -460,11 +441,7 @@ mod tests {
 
         assert_eq!(client_bandwidth.available().await, top_up);
         assert_eq!(
-            peer_manager
-                .query_bandwidth(public_key)
-                .await
-                .unwrap()
-                .unwrap(),
+            peer_manager.query_bandwidth(public_key).await.unwrap(),
             top_up
         );
 
@@ -472,11 +449,7 @@ mod tests {
         let remaining = top_up - consume;
         assert_eq!(client_bandwidth.available().await, remaining);
         assert_eq!(
-            peer_manager
-                .query_bandwidth(public_key)
-                .await
-                .unwrap()
-                .unwrap(),
+            peer_manager.query_bandwidth(public_key).await.unwrap(),
             remaining
         );
 

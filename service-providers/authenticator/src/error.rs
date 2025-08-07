@@ -80,9 +80,6 @@ pub enum AuthenticatorError {
     #[error("peers can't be interacted with anymore")]
     PeerInteractionStopped,
 
-    #[error("storage should have the requested bandwidth entry")]
-    MissingClientBandwidthEntry,
-
     #[error("unknown version number")]
     UnknownVersion,
 

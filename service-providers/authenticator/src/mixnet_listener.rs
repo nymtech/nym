@@ -604,12 +604,12 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let bandwidth_data = self.peer_manager.query_bandwidth(msg.pub_key()).await?;
+        let available_bandwidth = self.peer_manager.query_bandwidth(msg.pub_key()).await?;
         let bytes = match AuthenticatorVersion::from(protocol) {
             AuthenticatorVersion::V1 => {
                 v1::response::AuthenticatorResponse::new_remaining_bandwidth(
-                    bandwidth_data.map(|data| v1::registration::RemainingBandwidthData {
-                        available_bandwidth: data as u64,
+                    Some(v1::registration::RemainingBandwidthData {
+                        available_bandwidth: available_bandwidth as u64,
                         suspended: false,
                     }),
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
@@ -622,10 +622,8 @@ impl MixnetListener {
             }
             AuthenticatorVersion::V2 => {
                 v2::response::AuthenticatorResponse::new_remaining_bandwidth(
-                    bandwidth_data.map(|available_bandwidth| {
-                        v2::registration::RemainingBandwidthData {
-                            available_bandwidth,
-                        }
+                    Some(v2::registration::RemainingBandwidthData {
+                        available_bandwidth,
                     }),
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -637,10 +635,8 @@ impl MixnetListener {
             }
             AuthenticatorVersion::V3 => {
                 v3::response::AuthenticatorResponse::new_remaining_bandwidth(
-                    bandwidth_data.map(|available_bandwidth| {
-                        v3::registration::RemainingBandwidthData {
-                            available_bandwidth,
-                        }
+                    Some(v3::registration::RemainingBandwidthData {
+                        available_bandwidth,
                     }),
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -652,10 +648,8 @@ impl MixnetListener {
             }
             AuthenticatorVersion::V4 => {
                 v4::response::AuthenticatorResponse::new_remaining_bandwidth(
-                    bandwidth_data.map(|available_bandwidth| {
-                        v4::registration::RemainingBandwidthData {
-                            available_bandwidth,
-                        }
+                    Some(v4::registration::RemainingBandwidthData {
+                        available_bandwidth,
                     }),
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -667,10 +661,8 @@ impl MixnetListener {
             }
             AuthenticatorVersion::V5 => {
                 v5::response::AuthenticatorResponse::new_remaining_bandwidth(
-                    bandwidth_data.map(|available_bandwidth| {
-                        v5::registration::RemainingBandwidthData {
-                            available_bandwidth,
-                        }
+                    Some(v5::registration::RemainingBandwidthData {
+                        available_bandwidth,
                     }),
                     request_id,
                 )
@@ -693,16 +685,12 @@ impl MixnetListener {
     ) -> AuthenticatorHandleResult {
         let available_bandwidth = if self.received_retry(msg.as_ref()) {
             // don't process the credential and just return the current bandwidth
-            self.peer_manager
-                .query_bandwidth(msg.pub_key())
-                .await?
-                .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
+            self.peer_manager.query_bandwidth(msg.pub_key()).await?
         } else {
             let mut verifier = self
                 .peer_manager
                 .query_verifier(msg.pub_key(), msg.credential())
-                .await?
-                .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?;
+                .await?;
             let available_bandwidth = verifier.verify().await?;
             self.seen_credential_cache
                 .insert_credential(msg.credential(), msg.pub_key());

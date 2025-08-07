@@ -1,7 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::http::helpers::{db_failure, random_uuid};
 use crate::http::router::api::v1::ticketbook::FormattedTicketbookWalletSharesResponse;
 use crate::http::state::ApiState;
@@ -35,7 +35,7 @@ async fn shares_to_response(
     let threshold = state.response_ecash_threshold(uuid, epoch_id).await?;
     if shares.len() < threshold as usize {
         return Err(RequestError::new_server_error(
-            VpnApiError::InsufficientNumberOfCredentials {
+            CredentialProxyError::InsufficientNumberOfCredentials {
                 available: shares.len(),
                 threshold,
             },

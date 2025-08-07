@@ -1,7 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::http::router::build_router;
 use crate::http::state::ApiState;
 use axum::Router;
@@ -34,13 +34,13 @@ impl HttpServer {
         }
     }
 
-    pub async fn run_forever(self) -> Result<(), VpnApiError> {
+    pub async fn run_forever(self) -> Result<(), CredentialProxyError> {
         let address = self.bind_address;
         info!("starting the http server on http://{address}");
 
         let listener = tokio::net::TcpListener::bind(address)
             .await
-            .map_err(|source| VpnApiError::SocketBindFailure { address, source })?;
+            .map_err(|source| CredentialProxyError::SocketBindFailure { address, source })?;
 
         let cancellation = self.cancellation;
 
@@ -51,6 +51,6 @@ impl HttpServer {
         )
         .with_graceful_shutdown(async move { cancellation.cancelled().await })
         .await
-        .map_err(|source| VpnApiError::HttpServerFailure { source })
+        .map_err(|source| CredentialProxyError::HttpServerFailure { source })
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::storage::models::{
     BlindedShares, BlindedSharesStatus, MinimalWalletShare, RawCoinIndexSignatures,
     RawExpirationDateSignatures, RawVerificationKey,
@@ -169,7 +169,7 @@ impl SqliteStorageManager {
         available_shares: i64,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, CredentialProxyError> {
         let now = OffsetDateTime::now_utc();
         let res = sqlx::query_as(
             r#"
@@ -196,7 +196,7 @@ impl SqliteStorageManager {
         device_id: &str,
         credential_id: &str,
         error: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, CredentialProxyError> {
         let now = time::OffsetDateTime::now_utc();
         let res = sqlx::query_as(
             r#"
@@ -221,7 +221,7 @@ impl SqliteStorageManager {
     pub(crate) async fn prune_old_blinded_shares(
         &self,
         delete_after: OffsetDateTime,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         sqlx::query!(
             r#"
                 DELETE FROM blinded_shares WHERE created < ?
@@ -236,7 +236,7 @@ impl SqliteStorageManager {
     pub(crate) async fn prune_old_partial_blinded_wallets(
         &self,
         delete_after: OffsetDateTime,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         sqlx::query!(
             r#"
                 DELETE FROM partial_blinded_wallet WHERE created < ?
@@ -251,7 +251,7 @@ impl SqliteStorageManager {
     pub(crate) async fn prune_old_partial_blinded_wallet_failures(
         &self,
         delete_after: OffsetDateTime,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), CredentialProxyError> {
         sqlx::query!(
             r#"
                 DELETE FROM partial_blinded_wallet_failure WHERE created < ?

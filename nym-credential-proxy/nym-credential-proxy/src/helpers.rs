@@ -9,7 +9,7 @@ use tracing::{debug, error, info, warn};
 use crate::{
     cli::Cli,
     deposit_maker::DepositMaker,
-    error::VpnApiError,
+    error::CredentialProxyError,
     http::{
         state::{ApiState, ChainClient},
         HttpServer,
@@ -91,7 +91,7 @@ fn build_sha_short() -> &'static str {
     &bin_info.commit_sha[..7]
 }
 
-pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
+pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // create the tasks
     let bind_address = cli.bind_address();
 

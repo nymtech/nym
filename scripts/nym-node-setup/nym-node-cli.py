@@ -13,11 +13,12 @@ class NodeSetupCLI:
         self.prereqs_install_sh = self.fetch_script("prereqs_install_sh")
         self.env_vars_install_sh = self.fetch_script("env_vars_install_sh")
         self.node_install_sh = self.fetch_script("node_install_sh")
+        self.service_config_sh = self.fetch_script("service_config_sh")
         self.landing_page_html = self._check_gwx_mode() and self.fetch_script("landing_page_html")
         self.nginx_proxy_wss_sh = self._check_gwx_mode() and self.fetch_script("nginx_proxy_wss_sh")
         self.tunnel_manager_sh = self._check_gwx_mode() and self.fetch_script("tunnel_manager_sh")
-        self.wg_ip_tables_manager_sh = self.check_wg_enabled() and self.fetch_script("wg_ip_tables_manager_sh")
-        self.wg_ip_tables_test_sh = self.check_wg_enabled() and self.fetch_script("wg_ip_tables_test_sh")
+        self.wg_ip_tables_manager_sh = _check_gwg_mode() and self.fetch_script("wg_ip_tables_manager_sh")
+        self.wg_ip_tables_test_sh = _check_gwx_mode() and self.fetch_script("wg_ip_tables_test_sh")
 
 
     def print_welcome_message(self):

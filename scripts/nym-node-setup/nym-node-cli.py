@@ -221,7 +221,8 @@ class NodeSetupCLI:
                   "- Setup your operators cost and profit margin\n"
                   "- Copy the long contract message from your wallet\n"
                   )
-                contract_msg = input(f"- Paste the contract message from clipboard here and press enter:\n")
+                msg = f"- Paste the contract message from clipboard here and press enter:\n"
+                contract_msg = input(msg)
                 subprocess.run([
                 os.path.expanduser(node_path),
                 "sign",

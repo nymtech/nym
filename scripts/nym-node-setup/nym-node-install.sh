@@ -1,8 +1,16 @@
 #!/bin/bash
 
 # Create binaries dir & download the binary
-echo "Creating a directory ~/nym-binaries and downloading latest binary of nym-node"
-mkdir $HOME/nym-binaries
+echo "Checking if ~/nym-binaries directory exists..."
+
+if [ ! -d "$HOME/nym-binaries" ]; then
+    echo "Creating directory: ~/nym-binaries"
+    mkdir "$HOME/nym-binaries"
+else
+    echo "Directory already exists: ~/nym-binaries"
+fi
+
+echo "Downloading latest binary of nym-node"
 
 set -e
 LATEST_BINARY=$(wget -qO - https://github.com/nymtech/nym/releases/latest \
@@ -26,13 +34,29 @@ if [[ -z "$MODE" ]]; then
   exit 1
 fi
 
-# Initialiuse nym-node config based on MODE
-
+# Determine public IP
 PUBLIC_IP=$(curl -s -4 https://ifconfig.me)
 
+# Default wireguard setting
+WIREGUARD="false"
+
+# Prompt for WireGuard if mode is gateway
+if [[ "$MODE" == "entry-gateway" || "$MODE" == "exit-gateway" ]]; then
+  echo "Gateways can also route WireGuard in NymVPN."
+  echo "Do you want to enable this function?"
+  echo "Please note that a node routing WireGuard will be listed as both entry and exit in the application."
+  read -rp "Enable WireGuard support? (y/n): " answer
+  case "$answer" in
+    [Yy]* ) WIREGUARD="true";;
+    [Nn]* ) WIREGUARD="false";;
+    * ) echo "Invalid input. Defaulting to disabled."; WIREGUARD="false";;
+  esac
+fi
+
+# Initialize node config
 if [[ "$MODE" == "mixnode" ]]; then
   echo "Initialising nym-node in mode mixnode..."
-  "$NYM_NODE" run
+  "$NYM_NODE" run \
     --mode mixnode \
     --public-ips "$PUBLIC_IP" \
     --hostname "$HOSTNAME" \
@@ -42,19 +66,19 @@ if [[ "$MODE" == "mixnode" ]]; then
 
 elif [[ "$MODE" == "entry-gateway" ]]; then
   echo "Initialising nym-node in mode entry-gateway..."
-  "$NYM_NODE" run --mode entry-gateway
+  "$NYM_NODE" run \
+    --mode entry-gateway \
     --public-ips "$PUBLIC_IP" \
     --hostname "$HOSTNAME" \
     --location "$LOCATION" \
-    --wireguard-enabled true \
+    --wireguard-enabled "$WIREGUARD" \
     --landing-page-assets-path "/var/www/${HOSTNAME}" \
     -w \
     --init-only
 
 elif [[ "$MODE" == "exit-gateway" ]]; then
-  echo "Initialising nym-node in mode exit-gateway...."
+  echo "Initialising nym-node in mode exit-gateway..."
 
-  # Ensure required env vars
   if [[ -z "$HOSTNAME" || -z "$LOCATION" ]]; then
     echo "ERROR: HOSTNAME and LOCATION must be exported for exit-gateway."
     exit 1
@@ -65,18 +89,18 @@ elif [[ "$MODE" == "exit-gateway" ]]; then
     --public-ips "$PUBLIC_IP" \
     --hostname "$HOSTNAME" \
     --location "$LOCATION" \
-    --wireguard-enabled true \
+    --wireguard-enabled "$WIREGUARD" \
     --announce-wss-port 9001 \
     --landing-page-assets-path "/var/www/${HOSTNAME}" \
     -w \
     --init-only
-
 
 else
   echo "ERROR: Unsupported MODE: '$MODE'"
   echo "Valid values: mixnode, entry-gateway, exit-gateway"
   exit 1
 fi
+
 
 echo "nym-node installed succesfully! All configuration is stored at ~/.nym/nym-nodes/default-nym-node/"
 
